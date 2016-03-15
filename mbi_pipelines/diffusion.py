@@ -1,4 +1,3 @@
-
 import os.path
 from nipype.interfaces.io import DataSink
 from nipype.interfaces import utility as util
@@ -206,20 +205,3 @@ class DiffusionProcessor(object):
         overall_workflow.connect(
             mrtrix_output, 'csdeconv', datasink, 'output.@3')
         overall_workflow.run()
-
-
-if __name__ == '__main__':
-    from argparse import ArgumentParser
-    parser = ArgumentParser()
-    parser.add_argument('input_image', type=str,
-                        help="Input dwi image in mif format (with gradients)")
-    parser.add_argument('output_dir', type=str,
-                        help=("Output directory where FA, CSD and tracks files"
-                              " are stored."))
-    parser.add_argument('--working_dir', type=str, default=None,
-                        help=("The directory where the intermediate files are "
-                              "stored"))
-    args = parser.parse_args()
-    processor = DiffusionProcessor('tclose', os.environ['DARIS_PASSWORD'])
-    processor.process(args.input_image, args.output_dir,
-                      working_dir=args.working_dir)
