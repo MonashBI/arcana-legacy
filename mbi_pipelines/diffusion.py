@@ -9,7 +9,7 @@ from .interfaces.mrtrix import ExtractMRtrixGradients
 
 class DiffusionProcessor(object):
 
-    def __init__(self, data_accessor):
+    def __init__(self, data_accessor=None):
         self._data_accessor = data_accessor
 
     def process_mrtrix(self, subject_id, time_point):
@@ -215,3 +215,8 @@ class DiffusionProcessor(object):
         overall_workflow.connect(
             mrtrix_output, 'csdeconv', datasink, 'output.@3')
         overall_workflow.run()
+
+    def plot_graph(self):
+        workflow = self._create_mrtrix_workflow()[0]
+        workflow.write_graph(graph2use='flat')
+
