@@ -20,39 +20,52 @@ class DiffusionProcessor(object):
 
     def _create_mrtrix_workflow(self, name="mrtrix_processing",
                                 tractography_type='probabilistic',
-                                working_dir=None):
-        """Creates a pipeline that does the same diffusion processing as in the
-        :doc:`../../users/examples/dmri_mrtrix_dti` example script. Given a
-        diffusion-weighted image, b-values, and b-vectors, the workflow will
-        return the tractography computed from spherical deconvolution and
-        probabilistic streamline tractography
+                                output_dir=None, working_dir=None):
+        """Creates a pipeline that does the standard MRtrix (2.12) diffusion
+        processing. The workflow will return the tractography computed from
+        spherical deconvolution and probabilistic streamline tractography
 
         Example
         -------
 
-        >>> dti = create_mrtrix_dti_pipeline("mrtrix_dti")
-        >>> dti.inputs.inputnode.dwi = 'data.nii'
-        >>> dti.run()                  # doctest: +SKIP
+        >>> workflow, inputs, outputs = processor._create_mrtrix_workflow()
+        >>> inputs.dwi = 'data.nii'
+        >>> workflow.run()
 
         Inputs::
 
-            inputnode.dwi
+            dwi
 
         Outputs::
 
-            outputnode.fa
-            outputnode.tdi
-            outputnode.tracts_tck
-            outputnode.csdeconv
+            fa
+            tdi
+            tracts_tck
+            csdeconv
 
         """
+        # =====================================================================
+        # Create workflow
+        # =====================================================================
+        workflow = pe.Workflow(name=name, base_dir=working_dir)
+        workflow.base_output_dir = (output_dir
+                                    if output_dir is not None else name)
+        # =====================================================================
         # Create workflow nodes
+        # =====================================================================
+        # Input Node
         inputnode = pe.Node(interface=util.IdentityInterface(fields=["dwi"]),
                             name="inputnode")
+        # Convert input file format (including graidents to NIFTI)
         mrtrix2fsl = pe.Node(interface=mrtrix.MRConvert(), name='MRtrix2FSL')
         mrtrix2fsl.inputs.out_filename = 'dwi.nii.gz'
+        # Extracts gradients from input image to be used with other interfaces
+        extract_gradients = pe.Node(interface=ExtractMRtrixGradients(),
+                                    name="extract_graidents")
+        # FSL's brain extraction tool
         bet = pe.Node(interface=fsl.BET(), name="bet")
         bet.inputs.mask = True
+        # MRtrix's tensor, ADC, FA caclulator
         dwi2tensor = pe.Node(interface=mrtrix.DWI2Tensor(), name='dwi2tensor')
         tensor2vector = pe.Node(interface=mrtrix.Tensor2Vector(),
                                 name='tensor2vector')
@@ -60,6 +73,7 @@ class DiffusionProcessor(object):
                              name='tensor2adc')
         tensor2fa = pe.Node(interface=mrtrix.Tensor2FractionalAnisotropy(),
                             name='tensor2fa')
+        # Threshold and mask erosion tools
         erode_mask_firstpass = pe.Node(interface=mrtrix.Erode(),
                                        name='erode_mask_firstpass')
         erode_mask_secondpass = pe.Node(interface=mrtrix.Erode(),
@@ -74,30 +88,24 @@ class DiffusionProcessor(object):
         threshold_wmmask = pe.Node(interface=mrtrix.Threshold(),
                                    name='threshold_wmmask')
         threshold_wmmask.inputs.absolute_threshold_value = 0.4
-
+        gen_WM_mask = pe.Node(interface=mrtrix.GenerateWhiteMatterMask(),
+                              name='gen_WM_mask')
         MRmultiply = pe.Node(interface=mrtrix.MRMultiply(), name='MRmultiply')
         MRmult_merge = pe.Node(
             interface=util.Merge(2),
             name='MRmultiply_merge')
-
         median3d = pe.Node(interface=mrtrix.MedianFilter3D(), name='median3D')
-
         MRconvert = pe.Node(interface=mrtrix.MRConvert(), name='MRconvert')
         MRconvert.inputs.extract_at_axis = 3
         MRconvert.inputs.extract_at_coordinate = [0]
-
+        # Calculate Constrained Spherical deconvolution
         csdeconv = pe.Node(
             interface=mrtrix.ConstrainedSphericalDeconvolution(),
             name='csdeconv')
-
-        gen_WM_mask = pe.Node(interface=mrtrix.GenerateWhiteMatterMask(),
-                              name='gen_WM_mask')
-
-        extract_gradients = pe.Node(interface=ExtractMRtrixGradients(),
-                                    name="extract_graidents")
+        # Estimate diffusion response function
         estimateresponse = pe.Node(interface=mrtrix.EstimateResponseForSH(),
                                    name='estimateresponse')
-
+        # Perform tracking
         if tractography_type == 'probabilistic':
             CSDstreamtrack = pe.Node(
                 interface=mrtrix.ProbabilisticSphericallyDeconvolutedStreamlineTrack(),  # @IgnorePep8
@@ -107,19 +115,21 @@ class DiffusionProcessor(object):
                 interface=mrtrix.SphericallyDeconvolutedStreamlineTrack(),
                 name='CSDstreamtrack')
         CSDstreamtrack.inputs.desired_number_of_tracks = 15000
-
+        # Calculate TDI
         tracks2prob = pe.Node(
             interface=mrtrix.Tracks2Prob(),
             name='tracks2prob')
         tracks2prob.inputs.colour = True
-
-        workflow = pe.Workflow(name=name, base_dir=working_dir)
-        workflow.base_output_dir = name
+        # =====================================================================
+        # Connect workflow nodes
+        # =====================================================================
+        # Tensor connections
         workflow.connect([(inputnode, dwi2tensor, [("dwi", "in_file")])])
         workflow.connect([(dwi2tensor, tensor2vector, [['tensor', 'in_file']]),
                           (dwi2tensor, tensor2adc, [['tensor', 'in_file']]),
                           (dwi2tensor, tensor2fa, [['tensor', 'in_file']]),
                           ])
+        # Conversion connections
         workflow.connect([(inputnode, mrtrix2fsl, [("dwi", "in_file")])])
         workflow.connect([(inputnode, MRconvert, [("dwi", "in_file")])])
         workflow.connect(
@@ -163,20 +173,18 @@ class DiffusionProcessor(object):
         workflow.connect(
             [(csdeconv, CSDstreamtrack,
               [("spherical_harmonics_image", "in_file")])])
-
+        # Include probabilistic tractography
         if tractography_type == 'probabilistic':
             workflow.connect(
                 [(CSDstreamtrack, tracks2prob, [("tracked", "in_file")])])
             workflow.connect(
                 [(inputnode, tracks2prob, [("dwi", "template_file")])])
-
         output_fields = ["fa", "tracts_trk", "csdeconv", "tracts_tck"]
         if tractography_type == 'probabilistic':
             output_fields.append("tdi")
         outputnode = pe.Node(
             interface=util.IdentityInterface(fields=output_fields),
             name="outputnode")
-
         workflow.connect(
             [(CSDstreamtrack, outputnode, [("tracked", "tracts_tck")]),
              (csdeconv, outputnode,
@@ -185,13 +193,15 @@ class DiffusionProcessor(object):
         if tractography_type == 'probabilistic':
             workflow.connect(
                 [(tracks2prob, outputnode, [("tract_image", "tdi")])])
-        return workflow, outputnode
+        # Return workflow, input and output nodes
+        return workflow, inputnode, outputnode
 
     def process(self, input_image, output_dir, **kwargs):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        mrtrix_workflow, mrtrix_output = self._create_mrtrix_workflow(**kwargs)
-        mrtrix_workflow.inputs.inputnode.dwi = input_image
+        (mrtrix_workflow, mrtrix_input,
+         mrtrix_output) = self._create_mrtrix_workflow(**kwargs)
+        mrtrix_input.dwi = input_image
         overall_workflow = pe.Workflow(name='overall')
         datasink = pe.Node(DataSink(), name='datasink')
         datasink.inputs.base_directory = output_dir
