@@ -34,6 +34,7 @@ class MRIDataset(object):
         datasink = pe.Node(DataSink(), name='datasink')
         datasink.inputs.base_directory = self.output_dir
         overall.add_nodes((workflow, datasink))
+        overall.connect(workflow.inputs.outputnode, 'mask', datasink, 'brain_extraction')
         for i, output in enumerate(outputs):
             overall.connect(workflow.inputs.outputnode, output, datasink,
                             workflow_name + '.@{}'.format(i))
