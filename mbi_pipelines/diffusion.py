@@ -1,22 +1,12 @@
-import os.path
-from nipype.interfaces.io import DataSink
 from nipype.interfaces import utility as util
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl as fsl
 from nipype.interfaces import mrtrix as mrtrix
 from .interfaces.mrtrix import ExtractMRtrixGradients
+from .base import MRIDataset
 
 
-class DiffusionDataset(object):
-
-    def __init__(self, data_accessor):
-        self._data_accessor = data_accessor
-
-    def process_mrtrix(self, subject_id, time_point):
-        diffusion_image = self._data_accessor.download_scan(
-            subject_id, 'Diffusion', time_point=time_point)
-        pipeline = self._create_mrtrix_workflow()
-        pipeline.inputnode.dwi = diffusion_image
+class DiffusionDataset(MRIDataset):
 
     @classmethod
     def brain_extraction_workflow(cls, output_dir=None,
@@ -34,10 +24,11 @@ class DiffusionDataset(object):
         workflow.connect(inputnode, 'image', input_conversion, 'in_file')
         workflow.connect(input_conversion, 'converted', bet, 'in_file')
         workflow.connect(bet, 'mask_file', outputnode, 'mask')
-        return workflow
+        # Return workflow and list of inputs and outputs
+        return workflow, ('image',), ('mask',)
 
     @classmethod
-    def mrtrix_workflow(cls, name="mrtrix_workflow",
+    def mrtrix_workflow(cls, name="mrtrix",
                         tractography_type='probabilistic', output_dir=None,
                         working_dir=None):
         """Creates a pipeline that does the standard MRtrix (2.12) diffusion
@@ -214,23 +205,3 @@ class DiffusionDataset(object):
                 [(tracks2prob, outputnode, [("tract_image", "tdi")])])
         # Return workflow, input and output nodes
         return workflow
-
-    def process(self, input_image, output_dir, **kwargs):
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
-        mrtrix_workflow = self.mrtrix_workflow(**kwargs)
-        mrtrix_workflow.inputnode.inputs.dwi = input_image
-        overall_workflow = pe.Workflow(name='overall')
-        datasink = pe.Node(DataSink(), name='datasink')
-        datasink.inputs.base_directory = output_dir
-        overall_workflow.add_nodes((mrtrix_workflow, datasink))
-        overall_workflow.connect(
-            mrtrix_workflow.outputnode, 'fa', datasink, 'output')
-        overall_workflow.connect(
-            mrtrix_workflow.outputnode, 'tdi', datasink, 'output.@1')
-        overall_workflow.connect(
-            mrtrix_workflow.outputnode, 'tracts_tck', datasink, 'output.@2')
-        overall_workflow.connect(
-            mrtrix_workflow.outputnode, 'csdeconv', datasink, 'output.@3')
-        overall_workflow.run()
-
