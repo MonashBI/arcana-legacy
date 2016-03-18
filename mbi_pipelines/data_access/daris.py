@@ -36,8 +36,8 @@ class DarisAccessor(object):
             # Load all subjects into self._aspree.subjects
             self._aspree.getAllSubjects()
 
-    def download_scan_from_daris(self, subject_id, scan_name, time_point=1,
-                                  processed=False, file_type='nii'):
+    def get_scan(self, subject_id, scan_name, time_point=1, processed=False,
+                 file_type='nii'):
         self._connect_to_daris()
         subject = self._aspree.subjects[
             '{}.{}'.format(self.ASPREE_PROJECT_NUMBER, subject_id)]

@@ -7,9 +7,9 @@ from nipype.interfaces import mrtrix as mrtrix
 from .interfaces.mrtrix import ExtractMRtrixGradients
 
 
-class DiffusionProcessor(object):
+class DiffusionDataset(object):
 
-    def __init__(self, data_accessor=None):
+    def __init__(self, data_accessor):
         self._data_accessor = data_accessor
 
     def process_mrtrix(self, subject_id, time_point):
@@ -18,9 +18,28 @@ class DiffusionProcessor(object):
         pipeline = self._create_mrtrix_workflow()
         pipeline.inputnode.dwi = diffusion_image
 
-    def _create_mrtrix_workflow(self, name="mrtrix_processing",
-                                tractography_type='probabilistic',
-                                output_dir=None, working_dir=None):
+    @classmethod
+    def brain_extraction_workflow(cls, output_dir=None,
+                                  name="brain_extraction"):
+        workflow = pe.Workflow(name=name)
+        workflow.base_output_dir = output_dir
+        inputnode = pe.Node(util.IdentityInterface(fields=['image']),
+                            'inputnode')
+        outputnode = pe.Node(util.IdentityInterface(fields=['mask']),
+                             'outputnode')
+        input_conversion = pe.Node(mrtrix.MRConvert(), 'input_conversion')
+        input_conversion.inputs.out_filename = 'image.nii.gz'
+        bet = pe.Node(fsl.BET(), name="bet")
+        bet.inputs.mask = True
+        workflow.connect(inputnode, 'image', input_conversion, 'in_file')
+        workflow.connect(input_conversion, 'converted', bet, 'in_file')
+        workflow.connect(bet, 'mask_file', outputnode, 'mask')
+        return workflow
+
+    @classmethod
+    def mrtrix_workflow(cls, name="mrtrix_workflow",
+                        tractography_type='probabilistic', output_dir=None,
+                        working_dir=None):
         """Creates a pipeline that does the standard MRtrix (2.12) diffusion
         processing. The workflow will return the tractography computed from
         spherical deconvolution and probabilistic streamline tractography
@@ -53,9 +72,15 @@ class DiffusionProcessor(object):
         # =====================================================================
         # Create workflow nodes
         # =====================================================================
-        # Input Node
+        # Input/Output Nodes
         inputnode = pe.Node(interface=util.IdentityInterface(fields=["dwi"]),
                             name="inputnode")
+        output_fields = ["fa", "tracts_trk", "csdeconv", "tracts_tck"]
+        if tractography_type == 'probabilistic':
+            output_fields.append("tdi")
+        outputnode = pe.Node(
+            interface=util.IdentityInterface(fields=output_fields),
+            name="outputnode")
         # Convert input file format (including graidents to NIFTI)
         mrtrix2fsl = pe.Node(interface=mrtrix.MRConvert(), name='MRtrix2FSL')
         mrtrix2fsl.inputs.out_filename = 'dwi.nii.gz'
@@ -179,12 +204,6 @@ class DiffusionProcessor(object):
                 [(CSDstreamtrack, tracks2prob, [("tracked", "in_file")])])
             workflow.connect(
                 [(inputnode, tracks2prob, [("dwi", "template_file")])])
-        output_fields = ["fa", "tracts_trk", "csdeconv", "tracts_tck"]
-        if tractography_type == 'probabilistic':
-            output_fields.append("tdi")
-        outputnode = pe.Node(
-            interface=util.IdentityInterface(fields=output_fields),
-            name="outputnode")
         workflow.connect(
             [(CSDstreamtrack, outputnode, [("tracked", "tracts_tck")]),
              (csdeconv, outputnode,
@@ -194,29 +213,24 @@ class DiffusionProcessor(object):
             workflow.connect(
                 [(tracks2prob, outputnode, [("tract_image", "tdi")])])
         # Return workflow, input and output nodes
-        return workflow, inputnode, outputnode
+        return workflow
 
     def process(self, input_image, output_dir, **kwargs):
         if not os.path.exists(output_dir):
             os.makedirs(output_dir)
-        (mrtrix_workflow, mrtrix_input,
-         mrtrix_output) = self._create_mrtrix_workflow(**kwargs)
-        mrtrix_input.dwi = input_image
+        mrtrix_workflow = self.mrtrix_workflow(**kwargs)
+        mrtrix_workflow.inputnode.inputs.dwi = input_image
         overall_workflow = pe.Workflow(name='overall')
         datasink = pe.Node(DataSink(), name='datasink')
         datasink.inputs.base_directory = output_dir
         overall_workflow.add_nodes((mrtrix_workflow, datasink))
         overall_workflow.connect(
-            mrtrix_output, 'fa', datasink, 'output')
+            mrtrix_workflow.outputnode, 'fa', datasink, 'output')
         overall_workflow.connect(
-            mrtrix_output, 'tdi', datasink, 'output.@1')
+            mrtrix_workflow.outputnode, 'tdi', datasink, 'output.@1')
         overall_workflow.connect(
-            mrtrix_output, 'tracts_tck', datasink, 'output.@2')
+            mrtrix_workflow.outputnode, 'tracts_tck', datasink, 'output.@2')
         overall_workflow.connect(
-            mrtrix_output, 'csdeconv', datasink, 'output.@3')
+            mrtrix_workflow.outputnode, 'csdeconv', datasink, 'output.@3')
         overall_workflow.run()
-
-    def plot_graph(self):
-        workflow = self._create_mrtrix_workflow()[0]
-        workflow.write_graph(graph2use='flat')
 
