@@ -8,6 +8,10 @@ from .base import MRIDataset
 
 class DiffusionDataset(MRIDataset):
 
+    def __init__(self, data_accessor, scan_name):
+        super(DiffusionDataset, self).__init__(data_accessor)
+        self._scan_name = scan_name
+
     @classmethod
     def brain_extraction_workflow(cls, output_dir=None,
                                   name="brain_extraction"):

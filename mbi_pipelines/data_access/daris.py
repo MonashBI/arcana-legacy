@@ -38,26 +38,29 @@ class DarisAccessor(object):
 
     def get_scan(self, subject_id, scan_name, time_point=1, processed=False,
                  file_type='nii'):
-        self._connect_to_daris()
-        subject = self._aspree.subjects[
-            '{}.{}'.format(self.ASPREE_PROJECT_NUMBER, subject_id)]
-        # Construct experiment id
-        experiment_id = ('{aspree}.{subject}.{raw_or_processed}.{time_point}'
-                         .format(aspree=self.ASPREE_PROJECT_NUMBER,
-                                 subject=subject_id,
-                                 raw_or_processed=(2 if processed else 1),
-                                 time_point=time_point))
-        experiment = DarisExperiment(
-            subject.getAllExperiments()[experiment_id].dEObj)
-        scans = experiment.getAllScans()
-        scan = DarisScan(next(s.dScObj for s in scans.itervalues()
-                              if s.dScObj['name'] == scan_name))
-        # Download scan
         subject_dir = os.path.join(self._download_dir, subject_id)
-        if not os.path.exists(subject_dir):
-            os.mkdir(subject_dir)
         scan_path = os.path.join(
             subject_dir, scan_name + self.file_exts[file_type])
+        # Check whether cached version of the scan exists else download it from
+        # daris
         if not os.path.exists(scan_path):
+            self._connect_to_daris()
+            subject = self._aspree.subjects[
+                '{}.{}'.format(self.ASPREE_PROJECT_NUMBER, subject_id)]
+            # Construct experiment id
+            experiment_id = (
+                '{aspree}.{subject}.{raw_or_processed}.{time_point}'
+                .format(aspree=self.ASPREE_PROJECT_NUMBER,
+                        subject=subject_id,
+                        raw_or_processed=(2 if processed else 1),
+                        time_point=time_point))
+            experiment = DarisExperiment(
+                subject.getAllExperiments()[experiment_id].dEObj)
+            scans = experiment.getAllScans()
+            scan = DarisScan(next(s.dScObj for s in scans.itervalues()
+                                  if s.dScObj['name'] == scan_name))
+            # Download scan
+            if not os.path.exists(subject_dir):
+                os.mkdir(subject_dir)
             scan.downloadFile(file_type, subject_dir)
         return scan_path
