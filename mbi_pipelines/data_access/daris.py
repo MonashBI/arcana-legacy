@@ -10,7 +10,7 @@ class DarisAccessor(object):
     MONASH_LDAP_DOMAIN = 'monash-ldap'
     ASPREE_DOWNLOAD_DIR_DEFAULT = '/data/reference/aspree'
     ASPREE_PROJECT_NUMBER = '1008.2.88'
-    file_exts = {'nii', 'nii.gz'}
+    file_exts = {'nii': 'nii.gz'}  # FIXME: This is a bit of a hack
 
     def __init__(self, user, password,
                  aspree_download_dir=ASPREE_DOWNLOAD_DIR_DEFAULT):

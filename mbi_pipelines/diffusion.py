@@ -8,15 +8,13 @@ from .base import MRIDataset
 
 class DiffusionDataset(MRIDataset):
 
-    def __init__(self, data_accessor, scan_name):
-        super(DiffusionDataset, self).__init__(data_accessor)
-        self._scan_name = scan_name
+    def __init__(self, *args, **kwargs):
+        self._scan_name = kwargs.pop('scan_name', 'Diffusion')
+        super(DiffusionDataset, self).__init__(*args, **kwargs)
 
-    @classmethod
-    def brain_extraction_workflow(cls, output_dir=None,
-                                  name="brain_extraction"):
+    def brain_extraction_workflow(self, name='brain_extraction'):
         workflow = pe.Workflow(name=name)
-        workflow.base_output_dir = output_dir
+        workflow.base_output_dir = self.output_dir
         inputnode = pe.Node(util.IdentityInterface(fields=['image']),
                             'inputnode')
         outputnode = pe.Node(util.IdentityInterface(fields=['mask']),
@@ -31,11 +29,10 @@ class DiffusionDataset(MRIDataset):
         # Return workflow and list of inputs and outputs
         return workflow, ('image',), ('mask',)
 
-    @classmethod
-    def mrtrix_workflow(cls, name="mrtrix",
-                        tractography_type='probabilistic', output_dir=None,
-                        working_dir=None):
-        """Creates a pipeline that does the standard MRtrix (2.12) diffusion
+    def mrtrix_workflow(self, name="mrtrix",
+                        tractography_type='probabilistic'):
+        """
+        Creates a pipeline that does the standard MRtrix (2.12) diffusion
         processing. The workflow will return the tractography computed from
         spherical deconvolution and probabilistic streamline tractography
 
@@ -61,9 +58,8 @@ class DiffusionDataset(MRIDataset):
         # =====================================================================
         # Create workflow
         # =====================================================================
-        workflow = pe.Workflow(name=name, base_dir=working_dir)
-        workflow.base_output_dir = (output_dir
-                                    if output_dir is not None else name)
+        workflow = pe.Workflow(name=name, base_dir=self.work_dir)
+        workflow.base_output_dir = self.output_dir
         # =====================================================================
         # Create workflow nodes
         # =====================================================================
@@ -208,4 +204,4 @@ class DiffusionDataset(MRIDataset):
             workflow.connect(
                 [(tracks2prob, outputnode, [("tract_image", "tdi")])])
         # Return workflow, input and output nodes
-        return workflow
+        return workflow, ('dwi',), output_fields

@@ -6,11 +6,12 @@ from nipype.pipeline import engine as pe
 
 class MRIDataset(object):
 
-    def __init__(self, data_accessor):
+    def __init__(self, data_accessor, output_dir, work_dir=None):
         self._data_accessor = data_accessor
+        self.output_dir = output_dir
+        self.work_dir = work_dir
 
-    def run_workflow(self, workflow_name, inputs_dct, output_dir=None,
-                     **kwargs):
+    def run_workflow(self, workflow_name, inputs_dct, **kwargs):
         """
         Process the specified workflow, mapping the inputs dictionary to the
         inputnode of the worfklow and copying results to the output_dir
@@ -23,20 +24,18 @@ class MRIDataset(object):
                               outputs
             * kwargs        - all kwargs passed to the workflow constructor
         """
-        if output_dir is None:
-            output_dir = self._output_dir
-        if not os.path.exists(output_dir):
-            os.makedirs(output_dir)
+        if not os.path.exists(self.output_dir):
+            os.makedirs(self.output_dir)
         workflow, _, outputs = getattr(self, workflow_name + '_workflow')(
             **kwargs)
         for input_name, inpt in inputs_dct.iteritems():
-            setattr(workflow.inputnode.inputs, input_name, inpt)
+            setattr(workflow.inputs.inputnode, input_name, inpt)
         overall = pe.Workflow(name='overall')
         datasink = pe.Node(DataSink(), name='datasink')
-        datasink.inputs.base_directory = output_dir
+        datasink.inputs.base_directory = self.output_dir
         overall.add_nodes((workflow, datasink))
         for i, output in enumerate(outputs):
-            overall.connect(workflow.outputnode, output, datasink,
+            overall.connect(workflow.inputs.outputnode, output, datasink,
                             workflow_name + '.@{}'.format(i))
         overall.run()
 
