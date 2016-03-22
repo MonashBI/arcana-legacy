@@ -118,16 +118,6 @@ class DarisSession:
         self._mfsid = None  # Required so that it is ignored in the following
         # Logon to DaRIS using user name
         self._mfsid = self.run("logon {} {} {}".format(domain, user, password))
-        # The following is used to log on using a pregenerated token
-#         self._token = None
-#         # Generate token (although not sure what a token is exactly,
-#         # it is used for logging onto MediaFlux)
-#         self._token = self.run(
-#             "secure.identity.token.create :app {} "
-#             ":destroy-on-service-call system.logoff".format(app))
-#         # Get MediaFlux SID
-#         self._mfsid = self.run("system.logon :app {} :token {}"
-#                                 .format(app, self._token))
         self._open = True
 
     def __del__(self):
