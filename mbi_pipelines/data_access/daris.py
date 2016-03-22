@@ -163,19 +163,27 @@ class DarisSession:
             raise DarisException(
                 "{}: {}".format(e.returncode, e.output.decode()))
         if xpath is not None:
-            doc = etree.XML(result.strip())
-            result = doc.xpath(xpath, namespace=self.daris_ns)
-            if single:
-                try:
-                    result = result[0].text
-                except IndexError:
-                    raise DarisException(
-                        "No results found for '{}' xpath".format(xpath))
+            if isinstance(xpath, basestring):
+                result = self._extract_from_xml(result, xpath)
+                if single:
+                    try:
+                        result = result[0].text
+                    except IndexError:
+                        raise DarisException(
+                            "No results found for '{}' xpath".format(xpath))
+            else:
+                # If 'xpath' is a iterable of xpaths then extract each in turn
+                result = [self._extract_from_xml(result, p) for p in xpath]
         return result
 
     def close(self):
         self.run('logoff')
         self._open = False
+
+    @classmethod
+    def _extract_from_xml(cls, xml_string, xpath):
+        doc = etree.XML(xml_string.strip())
+        return doc.xpath(xpath, namespace=cls.daris_ns)
 
     @classmethod
     def aterm_path(cls):
