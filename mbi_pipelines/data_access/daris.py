@@ -78,7 +78,8 @@ class DarisConnection:
     """
     daris_ns = 'daris'
 
-    def __init__(self, server, domain='monash-ldap', user=None, password=None):
+    def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
+                 user=None, password=None):
         if user is None:
             try:
                 user = os.environ['DARIS_USER']
@@ -116,36 +117,39 @@ class DarisConnection:
         except AttributeError:
             pass
 
-    def run(self, cmd):
+    def run(self, cmd, xpath=None, single=False):
         """
         Executes the aterm.jar and runs the provided aterm command within it
+
+        cmd    -- The aterm command to run
+        xpath  -- An xpath filter to the desired element(s)
+        single -- Whether the filtered elements should only contain a single
+                  result, and if so return its text field instead of the
+                  etree.Element
         """
         full_cmd = (
             "java -Djava.net.preferIPv4Stack=true -Dmf.host={server} "
             "-Dmf.port=8443 -Dmf.transport=https {mfsid}"
             "-Dmf.result=xml -cp {aterm_path} arc.mf.command.Execute {cmd}"
             .format(server=self._server, cmd=cmd, aterm_path=self.aterm_path(),
-                    mfsid=('-Dmf.sid={} '.format(self.mfsid)
+                    mfsid=('-Dmf.sid={} '.format(self._mfsid)
                            if self._mfsid is not None else '')))
         try:
-            return subprocess.check_output(full_cmd, stderr=subprocess.STDOUT,
-                                           shell=True).strip()
+            result = subprocess.check_output(
+                full_cmd, stderr=subprocess.STDOUT, shell=True).strip()
         except subprocess.CalledProcessError, e:
             raise DarisException(
                 "{}: {}".format(e.returncode, e.output.decode()))
-
-    @classmethod
-    def extract_from_result(cls, result, path, expect_single=False):
-        doc = etree.XML(result.strip())
-        elements = doc.xpath(path, namespace=cls.daris_ns)
-        if expect_single:
-            try:
-                return elements[0].text
-            except IndexError:
-                raise DarisException(
-                    "No results found for '{}' path".format(path))
-        else:
-            return elements
+        if xpath is not None:
+            doc = etree.XML(result.strip())
+            result = doc.xpath(xpath, namespace=self.daris_ns)
+            if single:
+                try:
+                    result = result[0].text
+                except IndexError:
+                    raise DarisException(
+                        "No results found for '{}' xpath".format(xpath))
+        return result
 
     @classmethod
     def aterm_path(cls):
