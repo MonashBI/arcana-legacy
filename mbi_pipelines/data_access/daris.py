@@ -3,6 +3,7 @@ from informatics.daris.system import (
     DarisScan)
 import os.path
 import subprocess
+import contextlib
 from lxml import etree
 from mbi_pipelines.exception import DarisException
 
@@ -69,9 +70,22 @@ class DarisAccessor(object):
         return scan_path
 
 
+@contextlib.contextmanager
+def create_session(*args, **kwargs):
+    """
+    The safe way to connect to DaRIS so that the session is always logged off
+    when it is no longer required
+    """
+    session = DarisSession(*args, **kwargs)
+    try:
+        yield session
+    finally:
+        session.close()
+
+
 # NB: This is my attempt to clean up the DaRIS connection code, however it
 #     hasn't been tested and is unused at this stage
-class DarisConnection:
+class DarisSession:
     """
     Handles the connection to MediaFlux server and logs onto the DaRIS
     application
@@ -80,6 +94,11 @@ class DarisConnection:
 
     def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
                  user=None, password=None):
+        """
+        Creates the DarisSession. Note that the function 'create_session' is
+        the preferred way to create a DarisSession as it ensures the session is
+        logged off when it is no longer required
+        """
         if user is None:
             try:
                 user = os.environ['DARIS_USER']
@@ -109,13 +128,14 @@ class DarisConnection:
 #         # Get MediaFlux SID
 #         self._mfsid = self.run("system.logon :app {} :token {}"
 #                                 .format(app, self._token))
+        self._open = True
 
     def __del__(self):
         try:
-            if self._mfsid is not None:
-                self.run('logoff')
+            if self._open:
+                self.close()
         except AttributeError:
-            pass
+            pass  # Don't need to worry if the __init__ method didn't complete
 
     def run(self, cmd, xpath=None, single=False):
         """
@@ -127,6 +147,8 @@ class DarisConnection:
                   result, and if so return its text field instead of the
                   etree.Element
         """
+        if self._mfsid is not None and not self._open:
+            raise DarisException("Session has been closed")
         full_cmd = (
             "java -Djava.net.preferIPv4Stack=true -Dmf.host={server} "
             "-Dmf.port=8443 -Dmf.transport=https {mfsid}"
@@ -150,6 +172,10 @@ class DarisConnection:
                     raise DarisException(
                         "No results found for '{}' xpath".format(xpath))
         return result
+
+    def close(self):
+        self.run('logoff')
+        self._open = False
 
     @classmethod
     def aterm_path(cls):
