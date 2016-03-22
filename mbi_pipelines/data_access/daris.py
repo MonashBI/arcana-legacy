@@ -2,6 +2,9 @@ from informatics.daris.system import (
     DarisInformaticsSystem, DarisProject, DarisExperiment,
     DarisScan)
 import os.path
+import subprocess
+from lxml import etree
+from mbi_pipelines.exception import DarisException
 
 
 class DarisAccessor(object):
@@ -64,3 +67,87 @@ class DarisAccessor(object):
                 os.mkdir(subject_dir)
             scan.downloadFile(file_type, subject_dir)
         return scan_path
+
+
+# NB: This is my attempt to clean up the DaRIS connection code, however it
+#     hasn't been tested and is unused at this stage
+class DarisConnection:
+    """
+    Handles the connection to MediaFlux server and logs onto the DaRIS
+    application
+    """
+    daris_ns = 'daris'
+
+    def __init__(self, server, domain='monash-ldap', user=None, password=None):
+        if user is None:
+            try:
+                user = os.environ['DARIS_USER']
+            except KeyError:
+                raise DarisException(
+                    "No user provided and 'DARIS_USER' environment variable "
+                    "not set")
+        if password is None:
+            try:
+                password = os.environ['DARIS_PASSWORD']
+                # TODO: Should use Francesco's ask_password at this point
+            except KeyError:
+                raise DarisException(
+                    "No password provided and 'DARIS_PASSWORD' environment "
+                    "variable not set")
+        self._server = server
+        self._mfsid = None  # Required so that it is ignored in the following
+        # Logon to DaRIS using user name
+        self._mfsid = self.run("logon {} {} {}".format(domain, user, password))
+        # The following is used to log on using a pregenerated token
+#         self._token = None
+#         # Generate token (although not sure what a token is exactly,
+#         # it is used for logging onto MediaFlux)
+#         self._token = self.run(
+#             "secure.identity.token.create :app {} "
+#             ":destroy-on-service-call system.logoff".format(app))
+#         # Get MediaFlux SID
+#         self._mfsid = self.run("system.logon :app {} :token {}"
+#                                 .format(app, self._token))
+
+    def __del__(self):
+        try:
+            if self._mfsid is not None:
+                self.run('logoff')
+        except AttributeError:
+            pass
+
+    def run(self, cmd):
+        """
+        Executes the aterm.jar and runs the provided aterm command within it
+        """
+        full_cmd = (
+            "java -Djava.net.preferIPv4Stack=true -Dmf.host={server} "
+            "-Dmf.port=8443 -Dmf.transport=https {mfsid}"
+            "-Dmf.result=xml -cp {aterm_path} arc.mf.command.Execute {cmd}"
+            .format(server=self._server, cmd=cmd, aterm_path=self.aterm_path(),
+                    mfsid=('-Dmf.sid={} '.format(self.mfsid)
+                           if self._mfsid is not None else '')))
+        try:
+            return subprocess.check_output(full_cmd, stderr=subprocess.STDOUT,
+                                           shell=True).strip()
+        except subprocess.CalledProcessError, e:
+            raise DarisException(
+                "{}: {}".format(e.returncode, e.output.decode()))
+
+    @classmethod
+    def extract_from_result(cls, result, path, expect_single=False):
+        doc = etree.XML(result.strip())
+        elements = doc.xpath(path, namespace=cls.daris_ns)
+        if expect_single:
+            try:
+                return elements[0].text
+            except IndexError:
+                raise DarisException(
+                    "No results found for '{}' path".format(path))
+        else:
+            return elements
+
+    @classmethod
+    def aterm_path(cls):
+        return os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                            'jar', 'aterm.jar')

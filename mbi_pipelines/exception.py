@@ -1,0 +1,3 @@
+
+class DarisException(Exception):
+    pass
