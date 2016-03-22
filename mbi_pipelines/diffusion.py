@@ -3,10 +3,10 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl as fsl
 from nipype.interfaces import mrtrix as mrtrix
 from .interfaces.mrtrix import ExtractMRtrixGradients
-from .base import MRIDataset
+from .base import Dataset
 
 
-class DiffusionDataset(MRIDataset):
+class DiffusionDataset(Dataset):
 
     def __init__(self, *args, **kwargs):
         self._scan_name = kwargs.pop('scan_name', 'Diffusion')
