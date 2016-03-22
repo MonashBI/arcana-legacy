@@ -5,7 +5,11 @@ import os.path
 import subprocess
 import contextlib
 from lxml import etree
+from nipype.interfaces.base import (
+    Directory, DynamicTraitedSpec, traits, TraitedSpec)
+from nipype.interfaces.io import IOBase
 from mbi_pipelines.exception import DarisException
+import zipfile
 
 
 class DarisAccessor(object):
@@ -70,6 +74,76 @@ class DarisAccessor(object):
         return scan_path
 
 
+class DarisSourceInputSpec(TraitedSpec):
+    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
+    subject_ids = traits.Enum(None, traits.List(  # @UndefinedVariable
+        traits.Int(mandatory=True, desc="id of subjects")))  # @UndefinedVariable @IgnorePep8
+    experiment_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+                               desc="The experiment ID")
+    mode_id = traits.Int(1, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                         desc=("The mode of the dataset (Parnesh is using 1 "
+                               "for data and 2 for processed data"))
+    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                         desc='The ID of the repository')
+    scan_names = traits.List(  # @UndefinedVariable
+        traits.Str(mandatory=True, desc="name of scan"),  # @UndefinedVariable
+        desc="Names of all scans that comprise the dataset")
+    cache_dir = Directory(
+        exists=True, desc=("Path to the base directory where the downloaded"
+                           "scans will be cached"))
+    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        usedefault=True, desc="The address of the MF server")
+    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                        desc="The domain of the username/password")
+    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                      desc="The DaRIS username to log in with")
+    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                               desc="The password of the DaRIS user")
+
+
+class DarisSource(IOBase):
+    input_spec = DarisSourceInputSpec
+    output_spec = DynamicTraitedSpec
+
+    def _list_outputs(self):
+        with create_session(server=self.inputs.server,
+                            domain=self.inputs.domain,
+                            user=self.inputs.user,
+                            password=self.inputs.password) as session:
+            outputs = {}
+            for scan_name in self.inputs.scan_names:
+                outputs[scan_name] = []
+                if self.inputs.subject_ids is None:
+                    raise NotImplementedError  # Need to download from Daris
+                else:
+                    subject_ids = self.inputs.subject_ids
+                for subject_id in subject_ids:
+                    # FIXME: Get scan ids from names
+                    scan_id = 1
+                    cid = "1008.{}.{}.{}.{}.{}.{}".format(
+                        self.inputs.repo_id, self.inputs.project_id,
+                        self.inputs.subject_id, self.inputs.mode_id,
+                        self.inputs.experiment_id, scan_id)
+                    cache_path = os.path.join(
+                        self.inputs.cache_dir, self.inputs.project_id,
+                        subject_id, self.inputs.experiment_id,
+                        self.inputs.mode_id)
+                    if not os.path.exists(cache_path):
+                        # Download zip file
+                        session.run(
+                            "asset.get :cid {cid} :out file: {path}.zip"
+                            .format(cid=cid, path=cache_path))
+                        # Unzip zip file
+                        with zipfile.ZipFile("zipfile.zip", "r") as zf:
+                            assert len(zf.infolist()) == 1
+                            member = next(iter(zf.infolist()))
+                            zf.extract(member, cache_path)
+                        # Remove zip file
+                        os.remove(cache_path + '.zip')
+                outputs[scan_name].append(cache_path)
+        return outputs
+
+
 @contextlib.contextmanager
 def create_session(*args, **kwargs):
     """
@@ -83,22 +157,20 @@ def create_session(*args, **kwargs):
         session.close()
 
 
-# NB: This is my attempt to clean up the DaRIS connection code, however it
-#     hasn't been tested and is unused at this stage
 class DarisSession:
     """
-    Handles the connection to MediaFlux server and logs onto the DaRIS
-    application
+    Handles the connection to the MediaFlux server, logs into the DaRIS
+    application and runs MediaFlux commands
+
+    NB: The function 'create_session' is the preferred way to create a
+    DarisSession rather than calling hte DarisSession __init__ method directly
+    (unless in an interactive session) as it ensures the session is logged off
+    when it is no longer required
     """
     daris_ns = 'daris'
 
     def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
                  user=None, password=None):
-        """
-        Creates the DarisSession. Note that the function 'create_session' is
-        the preferred way to create a DarisSession as it ensures the session is
-        logged off when it is no longer required
-        """
         if user is None:
             try:
                 user = os.environ['DARIS_USER']
