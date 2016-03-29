@@ -3,7 +3,6 @@ from informatics.daris.system import (
     DarisScan)
 import os.path
 import subprocess
-import contextlib
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec)
@@ -76,8 +75,7 @@ class DarisAccessor(object):
 
 class DarisSourceInputSpec(TraitedSpec):
     project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_ids = traits.Enum(None, traits.List(  # @UndefinedVariable
-        traits.Int(mandatory=True, desc="id of subjects")))  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
     experiment_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                                desc="The experiment ID")
     mode_id = traits.Int(1, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
@@ -106,55 +104,38 @@ class DarisSource(IOBase):
     output_spec = DynamicTraitedSpec
 
     def _list_outputs(self):
-        with create_session(server=self.inputs.server,
-                            domain=self.inputs.domain,
-                            user=self.inputs.user,
-                            password=self.inputs.password) as session:
+        with DarisSession(server=self.inputs.server,
+                          domain=self.inputs.domain,
+                          user=self.inputs.user,
+                          password=self.inputs.password) as daris:
             outputs = {}
             for scan_name in self.inputs.scan_names:
                 outputs[scan_name] = []
-                if self.inputs.subject_ids is None:
-                    raise NotImplementedError  # Need to download from Daris
-                else:
-                    subject_ids = self.inputs.subject_ids
-                for subject_id in subject_ids:
-                    # FIXME: Get scan ids from names
-                    scan_id = 1
+                # FIXME: Get scan ids from names
+                scan_id = 1
+                cache_path = os.path.join(
+                    self.inputs.cache_dir, self.inputs.project_id,
+                    self.inputs.subject_id, self.inputs.experiment_id,
+                    self.inputs.mode_id, scan_id)
+                if not os.path.exists(cache_path):
                     cid = "1008.{}.{}.{}.{}.{}.{}".format(
                         self.inputs.repo_id, self.inputs.project_id,
                         self.inputs.subject_id, self.inputs.mode_id,
                         self.inputs.experiment_id, scan_id)
-                    cache_path = os.path.join(
-                        self.inputs.cache_dir, self.inputs.project_id,
-                        subject_id, self.inputs.experiment_id,
-                        self.inputs.mode_id)
-                    if not os.path.exists(cache_path):
-                        # Download zip file
-                        session.run(
-                            "asset.get :cid {cid} :out file: {path}.zip"
-                            .format(cid=cid, path=cache_path))
-                        # Unzip zip file
-                        with zipfile.ZipFile("zipfile.zip", "r") as zf:
-                            assert len(zf.infolist()) == 1
-                            member = next(iter(zf.infolist()))
-                            zf.extract(member, cache_path)
-                        # Remove zip file
-                        os.remove(cache_path + '.zip')
+                    # Download zip file
+                    daris.run(
+                        "asset.get :cid {cid} :out file: {path}.zip"
+                        .format(cid=cid, path=cache_path))
+                    # Unzip zip file
+                    with zipfile.ZipFile(
+                            "{}.zip".format(cache_path), "r") as zf:
+                        assert len(zf.infolist()) == 1
+                        member = next(iter(zf.infolist()))
+                        zf.extract(member, cache_path)
+                    # Remove zip file
+                    os.remove(cache_path + '.zip')
                 outputs[scan_name].append(cache_path)
         return outputs
-
-
-@contextlib.contextmanager
-def create_session(*args, **kwargs):
-    """
-    The safe way to connect to DaRIS so that the session is always logged off
-    when it is no longer required
-    """
-    session = DarisSession(*args, **kwargs)
-    try:
-        yield session
-    finally:
-        session.close()
 
 
 class DarisSession:
@@ -186,18 +167,48 @@ class DarisSession:
                 raise DarisException(
                     "No password provided and 'DARIS_PASSWORD' environment "
                     "variable not set")
+        self._domain = domain
+        self._user = user
+        self._password = password
         self._server = server
         self._mfsid = None  # Required so that it is ignored in the following
-        # Logon to DaRIS using user name
-        self._mfsid = self.run("logon {} {} {}".format(domain, user, password))
-        self._open = True
+        self._is_open = False
 
-    def __del__(self):
-        try:
-            if self._open:
-                self.close()
-        except AttributeError:
-            pass  # Don't need to worry if the __init__ method didn't complete
+    def _open(self):
+        """
+        Opens the session. Should usually be used within a 'with' context, e.g.
+
+            with DarisSession() as session:
+                session.run("my-cmd")
+
+        to ensure that the session is always closed afterwards
+        """
+        # Logon to DaRIS using user name
+        self._mfsid = self.run("logon {} {} {}".format(
+            self._domain, self._user, self._password))
+        # The following is used to log on using a pregenerated token
+#         self._token = None
+#         # Generate token (although not sure what a token is exactly,
+#         # it is used for logging onto MediaFlux)
+#         self._token = self.run(
+#             "secure.identity.token.create :app {} "
+#             ":destroy-on-service-call system.logoff".format(app))
+#         # Get MediaFlux SID
+#         self._mfsid = self.run("system.logon :app {} :token {}"
+#                                 .format(app, self._token))
+        self._is_open = True
+
+    def _close(self):
+        if self._is_open:
+            self.run('logoff')
+            self._is_open = False
+
+    def __enter__(self):
+        self._open()
+        return self
+
+    def __exit__(self, type_, value, traceback):  # @UnusedVariable
+        self._close()
 
     def run(self, cmd, xpath=None, single=False):
         """
@@ -238,9 +249,12 @@ class DarisSession:
                 result = [self._extract_from_xml(result, p) for p in xpath]
         return result
 
-    def close(self):
-        self.run('logoff')
-        self._open = False
+    def download(self, location, repo_id, project_id, subject_id, mode_id,
+                 experiment_id, scan_id):
+        cid = "1008.{}.{}.{}.{}.{}.{}".format(
+            repo_id, project_id, subject_id, mode_id, experiment_id, scan_id)
+        self.run("asset.get :cid {cid} :out file: {path}.zip"
+                    .format(cid=cid, path=location))
 
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
