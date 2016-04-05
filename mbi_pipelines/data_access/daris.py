@@ -6,7 +6,7 @@ from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec)
 from nipype.interfaces.io import IOBase
-from mbi_pipelines.exception import DarisException
+from mbi_pipelines.exception import DarisException, DarisExistingCIDException
 
 
 class DarisSession:
@@ -92,12 +92,12 @@ class DarisSession:
     def __exit__(self, type_, value, traceback):  # @UnusedVariable
         self.close()
 
-    def download(self, location, project_id, subject_id, scan_id,
-                 time_point=1, processed=False, repo_id=2):
+    def download(self, location, project_id, subject_id, dataset_id,
+                      time_point=1, processed=False, repo_id=2):
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, (processed + 1), time_point,
-            scan_id)
+            dataset_id)
         # Download zip file
         self.run("asset.get :cid {cid} :out file: __{path}__.zip"
                     .format(cid=cid, path=location))
@@ -110,9 +110,29 @@ class DarisSession:
         # Clean up zip file
         os.remove("__{}__.zip".format(location))
 
-    def upload(self, location, repo_id, project_id, subject_id, mode_id,
-               experiment_id, scan_id):
-        raise NotImplementedError
+    def upload(self, location, project_id, subject_id, study_id, dataset_id,
+                    name=None, repo_id=2, processed=True):
+        # Use the name of the file to be uploaded if the 'name' kwarg is
+        # present
+        if name is None:
+            name = os.path.basename(location)
+        # Determine whether file is NifTI depending on file extension
+        file_format = (
+            " :lctype nifti/series " if location.endswith('.nii.gz') else '')
+        cmd = (
+            "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{} "
+            " :in file: {} :filename \"{}\" {}".format(
+                repo_id, project_id, subject_id, (processed + 1), study_id,
+                dataset_id, name, location, file_format))
+        return self.run(cmd, '/result/id/', expect_single=True)
+
+    def delete(self, project_id, subject_id, study_id, dataset_id,
+                    processed=True, repo_id=2):
+        cmd = (
+            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{} :destroy-cid true"
+            .format(repo_id, project_id, subject_id, (processed + 1), study_id,
+                    dataset_id))
+        self.run(cmd)
 
     def list_projects(self, attrs=('name', 'description'), repo_id=2):
         """
@@ -163,7 +183,7 @@ class DarisSession:
         # CID
         return [[r[0].split('.')[5]] + r[1:] for r in results]
 
-    def list_scans(self, project_id, subject_id, study_id=1, repo_id=2,
+    def list_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
                    processed=False, attrs=('name', 'description')):
         results = self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
@@ -178,6 +198,107 @@ class DarisSession:
     def print_list(self, lst):
         for id_, name, descr in lst:
             print '{} {}: {}'.format(id_, name, descr)
+
+    def add_subject(self, project_id, subject_id=None, name='', description='',
+                    repo_id=2):
+        """
+        Adds a new subject with the given subject_id within the given
+        project_id.
+
+        project_id  -- The id of the project to add the subject to
+        subject_id  -- The subject_id of the subject to add. If not provided
+                       the next available subject_id is used
+        name        -- The name of the subject
+        description -- A description of the subject
+        """
+        if subject_id is None:
+            # Get the next unused subject id
+            try:
+                max_subject_id = max(int(s[0]) for s in self.list_subjects(
+                    project_id, repo_id=repo_id, attrs=()))
+            except ValueError:
+                max_subject_id = 0  # If there are no subjects
+            subject_id = max_subject_id + 1
+        cmd = (
+            "om.pssd.subject.create :data-use \"unspecified\" :description "
+            "\"{}\" :method \"1008.1.16\" :name \"{}\" :pid 1008.{}.{} "
+            ":subject-number {} ".format(
+                description, name, repo_id, project_id, subject_id))
+        return self.run(cmd, '/result/id', expect_single=True)
+
+    def add_study(self, project_id, subject_id, study_id=None, name='',
+                  description='', processed=True, repo_id=2):
+        """
+        Adds a new subject with the given subject_id within the given
+        project_id
+
+        project_id  -- The id of the project to add the study to
+        subject_id  -- The id of the subject to add the study to
+        study_id    -- The study_id of the study to add. If not provided
+                       the next available study_id is used
+        name        -- The name of the subject
+        description -- A description of the subject
+        """
+        if study_id is None:
+            # Get the next unused study id
+            try:
+                max_study_id = max(int(s[0]) for s in self.list_studies(
+                    project_id, subject_id, processed=processed,
+                    repo_id=repo_id, attrs=()))
+            except ValueError:
+                max_study_id = 0
+            study_id = max_study_id + 1
+        if processed:
+            # Check to see whether processed "ex-method" (ex-method is being
+            # co-opted to hold raw and processed data)
+            sid = '1008.{}.{}.{}'.format(repo_id, project_id, subject_id)
+            existing_processed = self.run(
+                "asset.exists :cid {}.2".format(sid), '/result/exists',
+                expect_single=True)
+            # Create an "ex-method" to hold the processed data
+            if existing_processed == 'false':
+                self.run("om.pssd.ex-method.create :mid 1008.1.19 :sid {}"
+                         " :exmethod-number 2".format(sid))
+        cmd = (
+            "om.pssd.study.create :pid 1008.{}.{}.{}.{} :processed {} "
+            ":name \"{}\" :description \"{}\" :step 1 :study-number {}".format(
+                repo_id, project_id, subject_id, (processed + 1),
+                str(processed).lower(), name, description, study_id))
+        return self.run(cmd, '/result/id')
+
+    def add_dataset(self, project_id, subject_id, study_id, dataset_id,
+                  name='', description='', processed=True, repo_id=2):
+        """
+        Adds a new dataset with the given subject_id within the given study id
+
+        project_id  -- The id of the project to add the dataset to
+        subject_id  -- The id of the subject to add the dataset to
+        study_id    -- The id of the study to add the dataset to
+        dataset_id     -- The dataset_id of the dataset to add. If not provided
+                       the next available dataset_id is used
+        name        -- The name of the subject
+        description -- A description of the subject
+        """
+        if dataset_id is None:
+            # Get the next unused dataset id
+            try:
+                max_dataset_id = max(int(s[0]) for s in self.list_datasets(
+                    project_id, subject_id, study_id=study_id,
+                    processed=processed, repo_id=repo_id, attrs=()))
+            except ValueError:
+                max_dataset_id = 0
+            dataset_id = max_dataset_id + 1
+        if processed:
+            meta = ("' :step 1 :meta < :mbi.processed.study.properties < "
+                    ":study-reference 1008.{}.{}.{}.1".format(
+                        repo_id, project_id, subject_id))
+        else:
+            meta = ""
+        cmd = ("om.pssd.dataset.derivation.create :pid 1008.{}.{}.{}.{}.{}"
+               " :name \"{}\" :description \"{} :processed {}{}".format(
+                   repo_id, project_id, subject_id, (processed + 1), study_id,
+                   dataset_id, name, description, str(processed).lower(), meta))
+        return self.run(cmd, '/result/id', expect_single=True)
 
     def run(self, cmd, xpath=None, expect_single=False, logon=False):
         """
@@ -227,13 +348,25 @@ class DarisSession:
         Runs a query command and returns the elements corresponding to the
         provided xpaths
         """
-        print query
         cmd = ("asset.query :where \"{}\" :action get-meta :size infinity"
                .format(query))
         elements = self.run(cmd, '/result/asset')
-        return [
-            [e.xpath(xp, namespaces=self._namespaces)[0].text for xp in xpaths]
-            for e in elements]
+        results = []
+        for element in elements:
+            row = []
+            results.append(row)
+            for xpath in xpaths:
+                extracted = element.xpath(xpath, namespaces=self._namespaces)
+                if len(extracted) == 1:
+                    attr = extracted[0].text
+                elif not extracted:
+                    attr = None
+                else:
+                    raise DarisException(
+                        "Multiple results for given xpath '{}': {}"
+                        .format(xpath, "', '".join(e.text for e in extracted)))
+                row.append(attr)
+        return results
 
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
@@ -261,12 +394,12 @@ class DarisSourceInputSpec(TraitedSpec):
                                   " for data and 2 for processed data"))
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
-    scan_names = traits.List(  # @UndefinedVariable
-        traits.Str(mandatory=True, desc="name of scan"),  # @UndefinedVariable
-        desc="Names of all scans that comprise the dataset")
+    dataset_names = traits.List(  # @UndefinedVariable
+        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable
+        desc="Names of all sub-datasets that comprise the complete dataset")
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
-                           "scans will be cached"))
+                           "datasets will be cached"))
     server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
                         usedefault=True, desc="The address of the MF server")
     domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
@@ -287,29 +420,33 @@ class DarisSource(IOBase):
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
-            # Create dictionary mapping scan names to IDs
-            scan_ids = dict(daris.list_scans(
+            # Create dictionary mapping dataset names to IDs
+            dataset_ids = dict(daris.list_datasets(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
                 processed=self.inputs.processed,
                 time_point=self.inputs.time_point))
-            for scan_name in self.inputs.scan_names:
-                scan_id = scan_ids[scan_name]
+            for dataset_name in self.inputs.dataset_names:
+                dataset_id = dataset_ids[dataset_name]
                 cache_path = os.path.join(
                     self.inputs.cache_dir, self.inputs.project_id,
                     self.inputs.subject_id, self.inputs.time_point,
-                    self.inputs.mode_id, scan_id)
+                    self.inputs.mode_id, dataset_id)
                 if not os.path.exists(cache_path):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
                         subject_id=self.inputs.subject_id,
                         processed=self.inputs.processed,
-                        time_point=self.inputs.time_point, scan_id=scan_id)
-                outputs[scan_name] = cache_path
+                        time_point=self.inputs.time_point,
+                        dataset_id=dataset_id)
+                outputs[dataset_name] = cache_path
         return outputs
 
 if __name__ == '__main__':
     with DarisSession(user='tclose', password='S8mmyD0g-') as daris:
-        daris.print_list(daris.list_scans(88, 500, 1, processed=False))
+        daris.add_study(4, 12, name='toms_test2_processed',
+                        description='yet one more study testing new daris python module',
+                        processed=True)
+        daris.print_list(daris.list_studies(4, 12, processed=True))
