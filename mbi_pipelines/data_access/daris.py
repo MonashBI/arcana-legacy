@@ -93,7 +93,7 @@ class DarisSession:
         self.close()
 
     def download(self, location, project_id, subject_id, dataset_id,
-                      time_point=1, processed=False, repo_id=2):
+                 time_point=1, processed=False, repo_id=2):
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, (processed + 1), time_point,
@@ -111,27 +111,31 @@ class DarisSession:
         os.remove("__{}__.zip".format(location))
 
     def upload(self, location, project_id, subject_id, study_id, dataset_id,
-                    name=None, repo_id=2, processed=True):
+               name=None, repo_id=2, processed=True):
         # Use the name of the file to be uploaded if the 'name' kwarg is
         # present
         if name is None:
             name = os.path.basename(location)
         # Determine whether file is NifTI depending on file extension
-        file_format = (
-            " :lctype nifti/series " if location.endswith('.nii.gz') else '')
+        if location.endswith('.nii.gz'):
+            file_format = " :lctype nifti/series "
+        else:
+            raise NotImplementedError(
+                "NifTI file are only supported for file uploads")
         cmd = (
-            "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{} "
-            " :in file: {} :filename \"{}\" {}".format(
+            "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
+            " :in file:{} :filename \"{}\" {}".format(
                 repo_id, project_id, subject_id, (processed + 1), study_id,
-                dataset_id, name, location, file_format))
-        return self.run(cmd, '/result/id/', expect_single=True)
+                dataset_id, location, name, file_format))
+        self.run(cmd)
 
     def delete(self, project_id, subject_id, study_id, dataset_id,
-                    processed=True, repo_id=2):
+               processed=True, repo_id=2):
         cmd = (
-            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{} :destroy-cid true"
-            .format(repo_id, project_id, subject_id, (processed + 1), study_id,
-                    dataset_id))
+            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
+            ":destroy-cid true".format(
+                repo_id, project_id, subject_id, (processed + 1), study_id,
+                dataset_id))
         self.run(cmd)
 
     def list_projects(self, attrs=('name', 'description'), repo_id=2):
@@ -184,7 +188,7 @@ class DarisSession:
         return [[r[0].split('.')[5]] + r[1:] for r in results]
 
     def list_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
-                   processed=False, attrs=('name', 'description')):
+                      processed=False, attrs=('name', 'description')):
         results = self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
             .format(repo_id, project_id, subject_id, (processed + 1),
@@ -249,8 +253,9 @@ class DarisSession:
                 max_study_id = 0
             study_id = max_study_id + 1
         if processed:
-            # Check to see whether processed "ex-method" (ex-method is being
-            # co-opted to hold raw and processed data)
+            # Check to see whether the processed "ex-method" exists
+            # (daris' ex-method is being co-opted to differentiate between raw
+            # and processed data)
             sid = '1008.{}.{}.{}'.format(repo_id, project_id, subject_id)
             existing_processed = self.run(
                 "asset.exists :cid {}.2".format(sid), '/result/exists',
@@ -266,8 +271,8 @@ class DarisSession:
                 str(processed).lower(), name, description, study_id))
         return self.run(cmd, '/result/id')
 
-    def add_dataset(self, project_id, subject_id, study_id, dataset_id,
-                  name='', description='', processed=True, repo_id=2):
+    def add_dataset(self, project_id, subject_id, study_id, dataset_id=None,
+                    name=None, description='', processed=True, repo_id=2):
         """
         Adds a new dataset with the given subject_id within the given study id
 
@@ -288,16 +293,18 @@ class DarisSession:
             except ValueError:
                 max_dataset_id = 0
             dataset_id = max_dataset_id + 1
+        if name is None:
+            name = 'Dataset {}'.format(dataset_id)
         if processed:
-            meta = ("' :step 1 :meta < :mbi.processed.study.properties < "
-                    ":study-reference 1008.{}.{}.{}.1".format(
+            meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1 
+                    ":study-reference 1008.{}.{}.{}.1 \> \>".format(
                         repo_id, project_id, subject_id))
         else:
             meta = ""
         cmd = ("om.pssd.dataset.derivation.create :pid 1008.{}.{}.{}.{}.{}"
-               " :name \"{}\" :description \"{} :processed {}{}".format(
+               " :processed {} :name \"{}\" :description \"{}\"{}".format(
                    repo_id, project_id, subject_id, (processed + 1), study_id,
-                   dataset_id, name, description, str(processed).lower(), meta))
+                   str(processed).lower(), name, description, meta))
         return self.run(cmd, '/result/id', expect_single=True)
 
     def run(self, cmd, xpath=None, expect_single=False, logon=False):
@@ -395,7 +402,7 @@ class DarisSourceInputSpec(TraitedSpec):
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     dataset_names = traits.List(  # @UndefinedVariable
-        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable
+        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
         desc="Names of all sub-datasets that comprise the complete dataset")
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
@@ -445,8 +452,8 @@ class DarisSource(IOBase):
         return outputs
 
 if __name__ == '__main__':
+    file_location = '/Users/tclose/Downloads/test_dataset.nii.gz'
+    if not os.path.exists(file_location):
+        raise Exception("File does not exist")
     with DarisSession(user='tclose', password='S8mmyD0g-') as daris:
-        daris.add_study(4, 12, name='toms_test2_processed',
-                        description='yet one more study testing new daris python module',
-                        processed=True)
-        daris.print_list(daris.list_studies(4, 12, processed=True))
+        daris.delete(4, 12, 4, 3)
