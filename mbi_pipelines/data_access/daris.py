@@ -456,4 +456,9 @@ if __name__ == '__main__':
     if not os.path.exists(file_location):
         raise Exception("File does not exist")
     with DarisSession(user='tclose', password='S8mmyD0g-') as daris:
-        daris.delete(4, 12, 4, 3)
+        daris.add_dataset(4, 12, 4, 3, name="undeleted_dataset",
+                          description="undeleted")
+        daris.add_dataset(4, 12, 4, 3, name="to_be_deleted_dataset",
+                          description="will be deleted")
+        daris.upload(file_location, 4, 12, 4, 3, 1)
+#         daris.delete(4, 12, 4, 3)
