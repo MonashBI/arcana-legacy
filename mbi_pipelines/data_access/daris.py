@@ -7,6 +7,9 @@ from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec)
 from nipype.interfaces.io import IOBase
 from mbi_pipelines.exception import DarisException, DarisExistingCIDException
+from collections import namedtuple
+
+DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
 
 
 class DarisSession:
@@ -16,6 +19,8 @@ class DarisSession:
     """
     _namespaces = {'daris': 'daris'}
     DEFAULT_REPO = 2
+    _entry_xpaths = ('cid', 'meta/daris:pssd-object/name',
+                     'meta/daris:pssd-object/description', 'ctime', 'mtime')
 
     def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
                  user=None, password=None, token_path=None,
@@ -39,27 +44,18 @@ class DarisSession:
                 "Username and password must be provided if no token is "
                 "given and the environment variables 'DARIS_USER' and "
                 "'DARIS_PASSWORD' are not set")
-        if token_path is None:
-            self._token = None
-        elif os.path.exists(token_path):
-            with open(token_path) as f:
-                self._token = f.readline()
-        else:
-            # Generate token if it doesn't already exist
-            self._token = self.run(
-                "secure.identity.token.create :app {}".format(app_name))
-            # ":destroy-on-service-call system.logoff"
-            with open(token_path, 'w') as f:
-                f.write(self._token)
-            # Change permissions to owner read only
-            os.chmod(token_path, stat.S_IRUSR)
         self._server = server
         self._domain = domain
         self._user = user
         self._password = password
+        self._token_path = token_path
         self._app_name = app_name
         self._mfsid = None
-        self._logging_on = False
+        if token_path is not None and os.path.exists(token_path):
+            with open(token_path) as f:
+                self._token = f.readline()
+        else:
+            self._token = None
 
     def open(self):
         """
@@ -79,6 +75,16 @@ class DarisSession:
             # Logon to DaRIS using user name
             self._mfsid = self.run("logon {} {} {}".format(
                 self._domain, self._user, self._password), logon=True)
+            if self._token_path is not None:
+                # Generate token if it doesn't already exist
+                self._token = self.run(
+                    "secure.identity.token.create :app {}"
+                    .format(self._app_name), logon=True)
+                # ":destroy-on-service-call system.logoff"
+                with open(self._token_path, 'w') as f:
+                    f.write(self._token)
+                # Change permissions to owner read only
+                os.chmod(self._token_path, stat.S_IRUSR)
 
     def close(self):
         if self._mfsid:
@@ -138,66 +144,38 @@ class DarisSession:
                 dataset_id))
         self.run(cmd)
 
-    def list_projects(self, attrs=('name', 'description'), repo_id=2):
+    def list_projects(self, repo_id=2):
         """
         Lists all projects in the repository
 
         repo_id     -- the ID of the DaRIS repo (Monash is 2)
-        attrs       -- iterable of attributes to return from the query along
-                       with the ID. Valid options are: 'name', 'description',
-                       'ctime' and 'mtime'
         """
-        results = self.query(
+        return self.query(
             "cid starts with '1008.{}' and model='om.pssd.project'"
-            .format(repo_id),
-            xpaths=['cid'] + self._prepend_subset(
-                attrs, 'meta/daris:pssd-object/', ('name', 'description')))
-        # Return the requested attributes extracting the project ID from the
-        # CID
-        return [[r[0].split('.')[2]] + r[1:] for r in results]
+            .format(repo_id))
 
-    def list_subjects(self, project_id, attrs=('name', 'description'),
-                      repo_id=2):
+    def list_subjects(self, project_id, repo_id=2):
         """
         Lists all projects in a project
 
         project_id  -- the ID of the project to list the subjects for
         repo_id     -- the ID of the DaRIS repo (Monash is 2)
-        attrs       -- iterable of attributes to return from the query along
-                       with the ID. Valid options are: 'name', 'description',
-                       'ctime' and 'mtime'
         """
-        results = self.query(
+        return self.query(
             "cid starts with '1008.{}.{}' and model='om.pssd.subject'"
-            .format(repo_id, project_id),
-            xpaths=['cid'] + self._prepend_subset(
-                attrs, 'meta/daris:pssd-object/', ('name', 'description')))
-        # Return the requested attributes extracting the project ID from the
-        # CID
-        return [[r[0].split('.')[3]] + r[1:] for r in results]
+            .format(repo_id, project_id))
 
-    def list_studies(self, project_id, subject_id, repo_id=2, processed=False,
-                     attrs=('name', 'description')):
-        results = self.query(
+    def list_studies(self, project_id, subject_id, repo_id=2, processed=False):
+        return self.query(
             "cid starts with '1008.{}.{}.{}.{}' and model='om.pssd.study'"
-            .format(repo_id, project_id, subject_id, (processed + 1)),
-            xpaths=['cid'] + self._prepend_subset(
-                attrs, 'meta/daris:pssd-object/', ('name', 'description')))
-        # Return the requested attributes extracting the project ID from the
-        # CID
-        return [[r[0].split('.')[5]] + r[1:] for r in results]
+            .format(repo_id, project_id, subject_id, (processed + 1)))
 
     def list_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
-                      processed=False, attrs=('name', 'description')):
-        results = self.query(
+                      processed=False):
+        return self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
             .format(repo_id, project_id, subject_id, (processed + 1),
-                    study_id),
-            xpaths=['cid'] + self._prepend_subset(
-                attrs, 'meta/daris:pssd-object/', ('name', 'description')))
-        # Return the requested attributes extracting the project ID from the
-        # CID
-        return [[r[0].split('.')[6]] + r[1:] for r in results]
+                    study_id))
 
     def print_list(self, lst):
         for id_, name, descr in lst:
@@ -296,7 +274,7 @@ class DarisSession:
         if name is None:
             name = 'Dataset {}'.format(dataset_id)
         if processed:
-            meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1 
+            meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1
                     ":study-reference 1008.{}.{}.{}.1 \> \>".format(
                         repo_id, project_id, subject_id))
         else:
@@ -317,7 +295,7 @@ class DarisSession:
                   result, and if so return its text field instead of the
                   etree.Element
         """
-        if self._mfsid is None and not logon:
+        if not logon and self._mfsid is None:
             raise DarisException(
                 "Daris session is closed. DarisSessions are typically used "
                 "within 'with' blocks, which ensures they are opened and "
@@ -350,7 +328,7 @@ class DarisSession:
                 result = [self._extract_from_xml(result, p) for p in xpath]
         return result
 
-    def query(self, query, xpaths):
+    def query(self, query):
         """
         Runs a query command and returns the elements corresponding to the
         provided xpaths
@@ -360,9 +338,8 @@ class DarisSession:
         elements = self.run(cmd, '/result/asset')
         results = []
         for element in elements:
-            row = []
-            results.append(row)
-            for xpath in xpaths:
+            args = []
+            for xpath in self._entry_xpaths:
                 extracted = element.xpath(xpath, namespaces=self._namespaces)
                 if len(extracted) == 1:
                     attr = extracted[0].text
@@ -372,7 +349,11 @@ class DarisSession:
                     raise DarisException(
                         "Multiple results for given xpath '{}': {}"
                         .format(xpath, "', '".join(e.text for e in extracted)))
-                row.append(attr)
+                args.append(attr)
+            # Strip the ID of the entry from the returned CID (i.e. the
+            # number after the last '.'
+            entry_id = int(args[0].split('.')[-1])
+            results.append(DarisEntry(entry_id, *args[1:]))
         return results
 
     @classmethod
