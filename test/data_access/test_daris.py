@@ -203,8 +203,8 @@ class TestDarisToken(TestCase):
             if e.errno != errno.ENOENT:
                 raise
 
-    # Token authentication is not working. Need to double check how Parnesh
-    # did it
+    # FIXME: Token authentication is not working. Need to double check how
+    # Parnesh did it
 #     def test_create_token_and_login(self):
 #         DarisSession(user='test123', password='GaryEgan1', domain='mon-daris',
 #                      token_path=self.token_path, app_name='unittest').open()

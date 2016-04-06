@@ -1,10 +1,10 @@
 import os.path
 import subprocess
-import zipfile
 import stat
 from lxml import etree
 from nipype.interfaces.base import (
-    Directory, DynamicTraitedSpec, traits, TraitedSpec)
+    Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
+    isdefined, DataSink)
 from nipype.interfaces.io import IOBase
 from mbi_pipelines.exception import DarisException
 from collections import namedtuple
@@ -391,7 +391,7 @@ class DarisSession:
 class DarisSourceInputSpec(TraitedSpec):
     project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
     subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    time_point = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                             desc="The time point or processed data process ID")
     processed = traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                             desc=("The mode of the dataset (Parnesh is using 1"
@@ -425,37 +425,116 @@ class DarisSource(IOBase):
                           password=self.inputs.password) as daris:
             outputs = {}
             # Create dictionary mapping dataset names to IDs
-            dataset_ids = dict(daris.get_datasets(
+            datasets = daris.get_datasets(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
                 processed=self.inputs.processed,
-                time_point=self.inputs.time_point))
+                study_id=self.inputs.study_id)
             for dataset_name in self.inputs.dataset_names:
-                dataset_id = dataset_ids[dataset_name]
+                dataset = datasets[dataset_name]
                 cache_path = os.path.join(
                     self.inputs.cache_dir, self.inputs.project_id,
-                    self.inputs.subject_id, self.inputs.time_point,
-                    self.inputs.mode_id, dataset_id)
+                    self.inputs.subject_id, self.inputs.study_id,
+                    self.inputs.mode_id, dataset.id)
                 if not os.path.exists(cache_path):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
                         subject_id=self.inputs.subject_id,
                         processed=self.inputs.processed,
-                        time_point=self.inputs.time_point,
-                        dataset_id=dataset_id)
+                        study_id=self.inputs.study_id,
+                        dataset_id=dataset.id)
                 outputs[dataset_name] = cache_path
         return outputs
 
-if __name__ == '__main__':
-    file_location = '/Users/tclose/Downloads/test_dataset.nii.gz'
-    if not os.path.exists(file_location):
-        raise Exception("File does not exist")
-    with DarisSession(user='tclose', password='S8mmyD0g-') as daris:
-        daris.add_dataset(4, 12, 4, 3, name="undeleted_dataset",
-                          description="undeleted")
-        daris.add_dataset(4, 12, 4, 3, name="to_be_deleted_dataset",
-                          description="will be deleted")
-        daris.upload(file_location, 4, 12, 4, 3, 1)
-#         daris.delete(4, 12, 4, 3)
+
+class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+
+    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+                            desc="The time point or processed data process ID")
+    processed = traits.Bool(True, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                            desc=("The mode of the dataset (Parnesh is using 1"
+                                  " for data and 2 for processed data"))
+    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                         desc='The ID of the repository')
+    dataset_names = traits.List(  # @UndefinedVariable
+        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
+        desc="Names of all sub-datasets that comprise the complete dataset")
+    cache_dir = Directory(
+        exists=True, desc=("Path to the base directory where the datasets will"
+                           " be cached before uploading"))
+    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        usedefault=True, desc="The address of the MF server")
+    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                        desc="The domain of the username/password")
+    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                      desc="The DaRIS username to log in with")
+    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                               desc="The password of the DaRIS user")
+    _outputs = traits.Dict(traits.Str, value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
+
+    # Copied from the S3DataSink in the nipype.interfaces.io module
+    def __setattr__(self, key, value):
+        if key not in self.copyable_trait_names():
+            if not isdefined(value):
+                super(DarisSinkInputSpec, self).__setattr__(key, value)
+            self._outputs[key] = value
+        else:
+            if key in self._outputs:
+                self._outputs[key] = value
+            super(DarisSinkInputSpec, self).__setattr__(key, value)
+
+
+class DarisSink(DataSink):
+    """ Generic datasink module that takes a directory containing a
+        list of nifti files and provides a set of structured output
+        fields.
+    """
+    input_spec = DarisSinkInputSpec
+
+    def _list_outputs(self):
+        """Execute this module.
+        """
+        outputs = super(DarisSink, self)._list_outputs()
+        self._upload_to_daris(outputs['out_file'])
+        return outputs
+
+    def _upload_to_daris(self, paths):
+        with DarisSession(server=self.inputs.server,
+                          domain=self.inputs.domain,
+                          user=self.inputs.user,
+                          password=self.inputs.password) as daris:
+            raise NotImplementedError
+#         if self.inputs.testing:
+#             conn = S3Connection(anon=True, is_secure=False, port=4567,
+#                                 host='localhost',
+#                                 calling_format=OrdinaryCallingFormat())
+# 
+#         else:
+#             conn = S3Connection(anon=self.inputs.anon)
+#         bkt = conn.get_bucket(self.inputs.bucket)
+#         s3paths = []
+# 
+#         for path in paths:
+#             # convert local path to s3 path
+#             bd_index = path.find(self.inputs.base_directory)
+#             if bd_index != -1:  # base_directory is in path, maintain directory structure
+#                 s3path = path[bd_index + len(self.inputs.base_directory):]  # cut out base directory
+#                 if s3path[0] == os.path.sep:
+#                     s3path = s3path[1:]
+#             else:  # base_directory isn't in path, simply place all files in bucket_path folder
+#                 s3path = os.path.split(path)[1]  # take filename from path
+#             s3path = os.path.join(self.inputs.bucket_path, s3path)
+#             if s3path[-1] == os.path.sep:
+#                 s3path = s3path[:-1]
+#             s3paths.append(s3path)
+# 
+#             k = boto.s3.key.Key(bkt)
+#             k.key = s3path
+#             k.set_contents_from_filename(path)
+# 
+#         return s3paths
+
