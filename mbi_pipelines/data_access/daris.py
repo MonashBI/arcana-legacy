@@ -4,8 +4,8 @@ import stat
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    isdefined, DataSink)
-from nipype.interfaces.io import IOBase
+    isdefined)
+from nipype.interfaces.io import IOBase, DataSink
 from mbi_pipelines.exception import DarisException
 from collections import namedtuple
 
@@ -228,11 +228,8 @@ class DarisSession:
             # (daris' ex-method is being co-opted to differentiate between raw
             # and processed data)
             sid = '1008.{}.{}.{}'.format(repo_id, project_id, subject_id)
-            existing_processed = self.run(
-                "asset.exists :cid {}.2".format(sid), '/result/exists',
-                expect_single=True)
             # Create an "ex-method" to hold the processed data
-            if existing_processed == 'false':
+            if not self.exists(sid + '.2'):
                 self.run("om.pssd.ex-method.create :mid 1008.1.19 :sid {}"
                          " :exmethod-number 2".format(sid))
         cmd = (
@@ -377,6 +374,19 @@ class DarisSession:
             entries.append(DarisEntry(entry_id, *args[1:]))
         return dict((e.id, e) for e in entries)
 
+    def exists(self, cid):
+        result = self.run(
+            "asset.exists :cid {}".format(cid), '/result/exists',
+            expect_single=True)
+        if result == 'true':
+            exts = True
+        elif result == 'false':
+            exts = False
+        else:
+            raise DarisException("Unrecognised response '{}' for existence "
+                                 "test of CID {}".format(cid))
+        return exts
+
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
         doc = etree.XML(xml_string.strip())
@@ -386,6 +396,21 @@ class DarisSession:
     def aterm_path(cls):
         return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             'jar', 'aterm.jar')
+
+    @classmethod
+    def cid(cls, project_id, subject_id=None, study_id=None, processed=None,
+            dataset_id=None, repo_id=2):
+        cid = '1008.{}.{}'.format(repo_id, project_id)
+        ids = (subject_id, study_id, processed, dataset_id)
+        for i, id_ in enumerate():
+            if id_ is not None:
+                cid += '.{}'.format(int(id_))
+            else:
+                if any(d is not None for d in ids[(i + 1):]):
+                    assert False
+                else:
+                    break
+        return cid
 
 
 class DarisSourceInputSpec(TraitedSpec):
@@ -507,7 +532,8 @@ class DarisSink(DataSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-            raise NotImplementedError
+            if not daris.exists()
+            
 #         if self.inputs.testing:
 #             conn = S3Connection(anon=True, is_secure=False, port=4567,
 #                                 host='localhost',
