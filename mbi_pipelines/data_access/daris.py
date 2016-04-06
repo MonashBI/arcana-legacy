@@ -6,7 +6,7 @@ from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec)
 from nipype.interfaces.io import IOBase
-from mbi_pipelines.exception import DarisException, DarisExistingCIDException
+from mbi_pipelines.exception import DarisException
 from collections import namedtuple
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
@@ -92,6 +92,15 @@ class DarisSession:
             self._mfsid = None
 
     def __enter__(self):
+        """
+        This allows the daris session to be used in 'with' statements, e.g.
+
+            with DarisSession() as daris:
+                daris.print_entries(daris.list_projects())
+
+        and ensure that the session is closed again after the code runs
+        (including on errors)
+        """
         self.open()
         return self
 
@@ -99,22 +108,12 @@ class DarisSession:
         self.close()
 
     def download(self, location, project_id, subject_id, dataset_id,
-                 time_point=1, processed=False, repo_id=2):
+                 study_id=1, processed=False, repo_id=2):
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
-            repo_id, project_id, subject_id, (processed + 1), time_point,
+            repo_id, project_id, subject_id, (processed + 1), study_id,
             dataset_id)
-        # Download zip file
-        self.run("asset.get :cid {cid} :out file: __{path}__.zip"
-                    .format(cid=cid, path=location))
-        # Unzip the zip file
-        with zipfile.ZipFile(
-                "__{}__.zip".format(location), "r") as zf:
-            assert len(zf.infolist()) == 1
-            member = next(iter(zf.infolist()))
-            zf.extract(member, location.strip())
-        # Clean up zip file
-        os.remove("__{}__.zip".format(location))
+        self.run("asset.get :cid {} :out file:{}".format(cid, location))
 
     def upload(self, location, project_id, subject_id, study_id, dataset_id,
                name=None, repo_id=2, processed=True):
@@ -125,9 +124,6 @@ class DarisSession:
         # Determine whether file is NifTI depending on file extension
         if location.endswith('.nii.gz'):
             file_format = " :lctype nifti/series "
-        else:
-            raise NotImplementedError(
-                "NifTI file are only supported for file uploads")
         cmd = (
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
             " :in file:{} :filename \"{}\" {}".format(
@@ -135,16 +131,7 @@ class DarisSession:
                 dataset_id, location, name, file_format))
         self.run(cmd)
 
-    def delete(self, project_id, subject_id, study_id, dataset_id,
-               processed=True, repo_id=2):
-        cmd = (
-            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
-            ":destroy-cid true".format(
-                repo_id, project_id, subject_id, (processed + 1), study_id,
-                dataset_id))
-        self.run(cmd)
-
-    def list_projects(self, repo_id=2):
+    def get_projects(self, repo_id=2):
         """
         Lists all projects in the repository
 
@@ -154,7 +141,7 @@ class DarisSession:
             "cid starts with '1008.{}' and model='om.pssd.project'"
             .format(repo_id))
 
-    def list_subjects(self, project_id, repo_id=2):
+    def get_subjects(self, project_id, repo_id=2):
         """
         Lists all projects in a project
 
@@ -165,24 +152,24 @@ class DarisSession:
             "cid starts with '1008.{}.{}' and model='om.pssd.subject'"
             .format(repo_id, project_id))
 
-    def list_studies(self, project_id, subject_id, repo_id=2, processed=False):
+    def get_studies(self, project_id, subject_id, repo_id=2, processed=False):
         return self.query(
             "cid starts with '1008.{}.{}.{}.{}' and model='om.pssd.study'"
             .format(repo_id, project_id, subject_id, (processed + 1)))
 
-    def list_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
-                      processed=False):
+    def get_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
+                     processed=False):
         return self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
             .format(repo_id, project_id, subject_id, (processed + 1),
                     study_id))
 
-    def print_list(self, lst):
-        for id_, name, descr in lst:
-            print '{} {}: {}'.format(id_, name, descr)
+    def print_entries(self, entries):
+        for entry in entries.itervalues():
+            print '{} {}: {}'.format(entry.id, entry.name, entry.descr)
 
-    def add_subject(self, project_id, subject_id=None, name='', description='',
-                    repo_id=2):
+    def add_subject(self, project_id, subject_id=None, name=None,
+                    description='', repo_id=2):
         """
         Adds a new subject with the given subject_id within the given
         project_id.
@@ -196,19 +183,23 @@ class DarisSession:
         if subject_id is None:
             # Get the next unused subject id
             try:
-                max_subject_id = max(int(s[0]) for s in self.list_subjects(
-                    project_id, repo_id=repo_id, attrs=()))
+                max_subject_id = max(
+                    self.get_subjects(project_id, repo_id=repo_id))
             except ValueError:
                 max_subject_id = 0  # If there are no subjects
             subject_id = max_subject_id + 1
+        if name is None:
+            name = 'Subject_{}'.format(subject_id)
         cmd = (
             "om.pssd.subject.create :data-use \"unspecified\" :description "
             "\"{}\" :method \"1008.1.16\" :name \"{}\" :pid 1008.{}.{} "
-            ":subject-number {} ".format(
+            ":subject-number {}".format(
                 description, name, repo_id, project_id, subject_id))
-        return self.run(cmd, '/result/id', expect_single=True)
+        # Return the id of the newly created subject
+        return int(
+            self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def add_study(self, project_id, subject_id, study_id=None, name='',
+    def add_study(self, project_id, subject_id, study_id=None, name=None,
                   description='', processed=True, repo_id=2):
         """
         Adds a new subject with the given subject_id within the given
@@ -224,12 +215,14 @@ class DarisSession:
         if study_id is None:
             # Get the next unused study id
             try:
-                max_study_id = max(int(s[0]) for s in self.list_studies(
-                    project_id, subject_id, processed=processed,
-                    repo_id=repo_id, attrs=()))
+                max_study_id = max(
+                    self.get_studies(project_id, subject_id,
+                                     processed=processed, repo_id=repo_id))
             except ValueError:
                 max_study_id = 0
             study_id = max_study_id + 1
+        if name is None:
+            name = 'Study_{}'.format(study_id)
         if processed:
             # Check to see whether the processed "ex-method" exists
             # (daris' ex-method is being co-opted to differentiate between raw
@@ -247,7 +240,9 @@ class DarisSession:
             ":name \"{}\" :description \"{}\" :step 1 :study-number {}".format(
                 repo_id, project_id, subject_id, (processed + 1),
                 str(processed).lower(), name, description, study_id))
-        return self.run(cmd, '/result/id')
+        # Return the id of the newly created study
+        return int(
+            self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_dataset(self, project_id, subject_id, study_id, dataset_id=None,
                     name=None, description='', processed=True, repo_id=2):
@@ -265,14 +260,15 @@ class DarisSession:
         if dataset_id is None:
             # Get the next unused dataset id
             try:
-                max_dataset_id = max(int(s[0]) for s in self.list_datasets(
-                    project_id, subject_id, study_id=study_id,
-                    processed=processed, repo_id=repo_id, attrs=()))
+                max_dataset_id = max(
+                    self.get_datasets(project_id, subject_id,
+                                      study_id=study_id, processed=processed,
+                                      repo_id=repo_id))
             except ValueError:
                 max_dataset_id = 0
             dataset_id = max_dataset_id + 1
         if name is None:
-            name = 'Dataset {}'.format(dataset_id)
+            name = 'Dataset_{}'.format(dataset_id)
         if processed:
             meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1
                     ":study-reference 1008.{}.{}.{}.1 \> \>".format(
@@ -283,7 +279,32 @@ class DarisSession:
                " :processed {} :name \"{}\" :description \"{}\"{}".format(
                    repo_id, project_id, subject_id, (processed + 1), study_id,
                    str(processed).lower(), name, description, meta))
-        return self.run(cmd, '/result/id', expect_single=True)
+        # Return the id of the newly created dataset
+        return int(
+            self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
+
+    def delete_subject(self, project_id, subject_id, repo_id=2):
+        cmd = (
+            "om.pssd.object.destroy :cid 1008.{}.{}.{} "
+            ":destroy-cid true".format(repo_id, project_id, subject_id))
+        self.run(cmd)
+
+    def delete_study(self, project_id, subject_id, study_id, processed=True,
+                     repo_id=2):
+        cmd = (
+            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{} "
+            ":destroy-cid true".format(
+                repo_id, project_id, subject_id, (processed + 1), study_id))
+        self.run(cmd)
+
+    def delete_dataset(self, project_id, subject_id, study_id, dataset_id,
+                       processed=True, repo_id=2):
+        cmd = (
+            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
+            ":destroy-cid true".format(
+                repo_id, project_id, subject_id, (processed + 1), study_id,
+                dataset_id))
+        self.run(cmd)
 
     def run(self, cmd, xpath=None, expect_single=False, logon=False):
         """
@@ -306,7 +327,7 @@ class DarisSession:
             "-Dmf.result=xml -cp {aterm_path} arc.mf.command.Execute {cmd}"
             .format(server=self._server, cmd=cmd, aterm_path=self.aterm_path(),
                     mfsid=('-Dmf.sid={} '.format(self._mfsid)
-                           if self._mfsid is not None else '')))
+                           if not logon else '')))
         try:
             result = subprocess.check_output(
                 full_cmd, stderr=subprocess.STDOUT, shell=True).strip()
@@ -336,7 +357,7 @@ class DarisSession:
         cmd = ("asset.query :where \"{}\" :action get-meta :size infinity"
                .format(query))
         elements = self.run(cmd, '/result/asset')
-        results = []
+        entries = []
         for element in elements:
             args = []
             for xpath in self._entry_xpaths:
@@ -353,18 +374,13 @@ class DarisSession:
             # Strip the ID of the entry from the returned CID (i.e. the
             # number after the last '.'
             entry_id = int(args[0].split('.')[-1])
-            results.append(DarisEntry(entry_id, *args[1:]))
-        return results
+            entries.append(DarisEntry(entry_id, *args[1:]))
+        return dict((e.id, e) for e in entries)
 
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
         doc = etree.XML(xml_string.strip())
         return doc.xpath(xpath, namespaces=cls._namespaces)
-
-    @classmethod
-    def _prepend_subset(cls, names, prefix, to_prefix):
-        """Prepends a prefix to the names found in 'to_prefix'"""
-        return [prefix + n if n in to_prefix else n for n in names]
 
     @classmethod
     def aterm_path(cls):
@@ -402,14 +418,14 @@ class DarisSource(IOBase):
     input_spec = DarisSourceInputSpec
     output_spec = DynamicTraitedSpec
 
-    def _list_outputs(self):
+    def _get_outputs(self):
         with DarisSession(server=self.inputs.server,
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
             # Create dictionary mapping dataset names to IDs
-            dataset_ids = dict(daris.list_datasets(
+            dataset_ids = dict(daris.get_datasets(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
