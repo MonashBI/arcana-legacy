@@ -6,8 +6,8 @@ import logging
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    isdefined)
-from nipype.interfaces.io import IOBase, DataSink
+    isdefined, Undefined)
+from nipype.interfaces.io import IOBase, DataGrabber, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
 from collections import namedtuple
@@ -17,23 +17,212 @@ DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
 logger = logging.getLogger('MBIPipelines')
 
 
-def construct_cid(cls, project_id, subject_id=None, study_id=None,
-                  processed=None, dataset_id=None, repo_id=2):
-    """
-    Returns the CID (unique asset identifier for DaRIS) from the combination of
-    sub ids
-    """
-    cid = '1008.{}.{}'.format(repo_id, project_id)
-    ids = (subject_id, study_id, processed, dataset_id)
-    for i, id_ in enumerate():
-        if id_ is not None:
-            cid += '.{}'.format(int(id_))
+class DarisSourceInputSpec(TraitedSpec):
+    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+                            desc="The time point or processed data process ID")
+    processed = traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                            desc=("The mode of the dataset (Parnesh is using 1"
+                                  " for data and 2 for processed data"))
+    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                         desc='The ID of the repository')
+    dataset_names = traits.List(  # @UndefinedVariable
+        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
+        desc="Names of all sub-datasets that comprise the complete dataset")
+    cache_dir = Directory(
+        exists=True, desc=("Path to the base directory where the downloaded"
+                           "datasets will be cached"))
+    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        usedefault=True, desc="The address of the MF server")
+    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                        desc="The domain of the username/password")
+    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                      desc="The DaRIS username to log in with")
+    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                               desc="The password of the DaRIS user")
+
+
+class DarisSource(IOBase):
+
+    input_spec = DarisSourceInputSpec
+    output_spec = DynamicTraitedSpec
+    _always_run = True
+
+    def __init__(self, infields=None, outfields=None, **kwargs):
+        """
+        Parameters
+        ----------
+        infields : list of str
+            Indicates the input fields to be dynamically created
+
+        outfields: list of str
+            Indicates output fields to be dynamically created
+
+        See class examples for usage
+
+        """
+        if not outfields:
+            outfields = ['outfiles']
+        super(DarisSource, self).__init__(**kwargs)
+        undefined_traits = {}
+        # used for mandatory inputs check
+        self._infields = infields
+        self._outfields = outfields
+        if infields:
+            for key in infields:
+                self.inputs.add_trait(key, traits.Any)  # @UndefinedVariable
+                undefined_traits[key] = Undefined
+
+    def _list_outputs(self):
+        with DarisSession(server=self.inputs.server,
+                          domain=self.inputs.domain,
+                          user=self.inputs.user,
+                          password=self.inputs.password) as daris:
+            outputs = {}
+            # Create dictionary mapping dataset names to IDs
+            datasets = dict((d.name, d) for d in daris.get_datasets(
+                repo_id=self.inputs.repo_id,
+                project_id=self.inputs.project_id,
+                subject_id=self.inputs.subject_id,
+                processed=self.inputs.processed,
+                study_id=self.inputs.study_id).itervalues())
+            cache_dir = os.path.join(*(str(p) for p in (
+                self.inputs.cache_dir, self.inputs.repo_id,
+                self.inputs.project_id, self.inputs.subject_id,
+                (self.inputs.processed + 1), self.inputs.study_id)))
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
+            for dataset_name in self.inputs.dataset_names:
+                dataset = datasets[dataset_name]
+                cache_path = os.path.join(cache_dir, dataset.name)
+                if not os.path.exists(cache_path):
+                    daris.download(
+                        cache_path, repo_id=self.inputs.repo_id,
+                        project_id=self.inputs.project_id,
+                        subject_id=self.inputs.subject_id,
+                        processed=self.inputs.processed,
+                        study_id=self.inputs.study_id,
+                        dataset_id=dataset.id)
+                outputs[dataset_name] = cache_path
+        return outputs
+
+    def _add_output_traits(self, base):
+        """
+
+        Using traits.Any instead out OutputMultiPath till add_trait bug
+        is fixed.
+        """
+        return add_traits(base, list(self.inputs.dataset_names))
+
+
+class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+
+    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    name = traits.Str(  # @UndefinedVariable @IgnorePep8
+        mandatory=True, desc=("The name of the processed data group, e.g. "
+                              "'tractography'"))
+    description = traits.Str(mandatory=True,  # @UndefinedVariable
+                                   desc="Description of the study")
+    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                         desc='The ID of the repository')
+    cache_dir = Directory(
+        exists=True, desc=("Path to the base directory where the datasets will"
+                           " be cached before uploading"))
+    file_format = traits.Str('nifti', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                             desc="The file format of the files to sink")
+    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        usedefault=True, desc="The address of the MF server")
+    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                        desc="The domain of the username/password")
+    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                      desc="The DaRIS username to log in with")
+    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                               desc="The password of the DaRIS user")
+    _outputs = traits.Dict(traits.Str, value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
+    # TODO: Not implemented yet
+    overwrite = traits.Bool(  # @UndefinedVariable
+        False, mandatory=True, usedefault=True,
+        desc=("Whether or not to overwrite previously created studies of the "
+              "same name"))
+
+    # Copied from the S3DataSink in the nipype.interfaces.io module
+    def __setattr__(self, key, value):
+        if key not in self.copyable_trait_names():
+            if not isdefined(value):
+                super(DarisSinkInputSpec, self).__setattr__(key, value)
+            self._outputs[key] = value
         else:
-            if any(d is not None for d in ids[(i + 1):]):
-                assert False
-            else:
-                break
-    return cid
+            if key in self._outputs:
+                self._outputs[key] = value
+            super(DarisSinkInputSpec, self).__setattr__(key, value)
+
+
+class DarisSink(DataSink):
+
+    input_spec = DarisSinkInputSpec
+
+    def _list_outputs(self):
+        """Execute this module.
+        """
+        # Initiate outputs
+        outputs = self.output_spec().get()
+        out_files = []
+        missing_files = []
+        # Open DaRIS session
+        with DarisSession(server=self.inputs.server,
+                          domain=self.inputs.domain,
+                          user=self.inputs.user,
+                          password=self.inputs.password) as daris:
+            # Add study to hold output
+            study_id = daris.add_study(
+                project_id=self.inputs.project_id,
+                subject_id=self.inputs.subject_id,
+                repo_id=self.inputs.repo_id,
+                processed=True, name=self.inputs.name,
+                description=self.inputs.description)
+            # Get cache dir for study
+            out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
+                self.inputs.cache_dir, self.inputs.repo_id,
+                self.inputs.project_id, self.inputs.subject_id, 2, study_id))))
+            # Make study cache dir
+            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
+            # Loop through files connected to the sink and copy them to the
+            # cache directory and upload to daris.
+            for name, filename in self.inputs._outputs.iteritems():
+                src_path = os.path.abspath(filename)
+                if not isdefined(src_path):
+                    missing_files.append((name, src_path))
+                    continue  # skip the upload for this file
+                # Copy to local cache
+                dst_path = os.path.join(out_dir, name)
+                out_files.append(dst_path)
+                shutil.copyfile(src_path, dst_path)
+                # Upload to DaRIS
+                dataset_id = daris.add_dataset(
+                    project_id=self.inputs.project_id,
+                    subject_id=self.inputs.subject_id,
+                    repo_id=self.inputs.repo_id, processed=True,
+                    study_id=study_id, name=name,
+                    description="Uploaded from DarisSink")
+                daris.upload(
+                    src_path, project_id=self.inputs.project_id,
+                    subject_id=self.inputs.subject_id,
+                    repo_id=self.inputs.repo_id, processed=True,
+                    study_id=study_id, dataset_id=dataset_id,
+                    file_format=self.inputs.file_format)
+        if missing_files:
+            # FIXME: Not sure if this should be an exception or not,
+            #        indicates a problem but stopping now would throw
+            #        away the files that were created
+            logger.warning(
+                "Missing output files '{}' mapped to names '{}' in "
+                "DarisSink".format("', '".join(f for _, f in missing_files),
+                                   "', '".join(n for n, _ in missing_files)))
+        # Return cache file paths
+        outputs['out_file'] = out_files
+        return outputs
 
 
 class DarisSession:
@@ -140,17 +329,20 @@ class DarisSession:
         self.run("asset.get :cid {} :out file:{}".format(cid, location))
 
     def upload(self, location, project_id, subject_id, study_id, dataset_id,
-               name=None, repo_id=2, processed=True):
+               name=None, repo_id=2, processed=True, file_format='nifti'):
         # Use the name of the file to be uploaded if the 'name' kwarg is
         # present
         if name is None:
             name = os.path.basename(location)
         # Determine whether file is NifTI depending on file extension
-        if location.endswith('.nii.gz'):
+        # FIXME: Need a better way to 
+        if file_format is 'nifti' or location.endswith('.nii.gz'):
             file_format = " :lctype nifti/series "
+        else:
+            file_format = ""
         cmd = (
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
-            " :in file:{} :filename \"{}\" {}".format(
+            " :in file:{} :filename \"{}\"{}".format(
                 repo_id, project_id, subject_id, (processed + 1), study_id,
                 dataset_id, location, name, file_format))
         self.run(cmd)
@@ -193,7 +385,7 @@ class DarisSession:
             print '{} {}: {}'.format(entry.id, entry.name, entry.descr)
 
     def add_subject(self, project_id, subject_id=None, name=None,
-                    description='', repo_id=2):
+                    description='\"\"', repo_id=2):
         """
         Adds a new subject with the given subject_id within the given
         project_id.
@@ -224,7 +416,7 @@ class DarisSession:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_study(self, project_id, subject_id, study_id=None, name=None,
-                  description='', processed=True, repo_id=2):
+                  description='\"\"', processed=True, repo_id=2):
         """
         Adds a new subject with the given subject_id within the given
         project_id
@@ -266,7 +458,7 @@ class DarisSession:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_dataset(self, project_id, subject_id, study_id, dataset_id=None,
-                    name=None, description='', processed=True, repo_id=2):
+                    name=None, description='\"\"', processed=True, repo_id=2):
         """
         Adds a new dataset with the given subject_id within the given study id
 
@@ -434,171 +626,20 @@ class DarisSession:
                             'jar', 'aterm.jar')
 
 
-class DarisSourceInputSpec(TraitedSpec):
-    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                            desc="The time point or processed data process ID")
-    processed = traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                            desc=("The mode of the dataset (Parnesh is using 1"
-                                  " for data and 2 for processed data"))
-    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
-                         desc='The ID of the repository')
-    dataset_names = traits.List(  # @UndefinedVariable
-        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
-        desc="Names of all sub-datasets that comprise the complete dataset")
-    cache_dir = Directory(
-        exists=True, desc=("Path to the base directory where the downloaded"
-                           "datasets will be cached"))
-    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        usedefault=True, desc="The address of the MF server")
-    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                        desc="The domain of the username/password")
-    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                      desc="The DaRIS username to log in with")
-    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                               desc="The password of the DaRIS user")
-
-
-class DarisSource(IOBase):
-    input_spec = DarisSourceInputSpec
-    output_spec = DynamicTraitedSpec
-
-    def _get_outputs(self):
-        with DarisSession(server=self.inputs.server,
-                          domain=self.inputs.domain,
-                          user=self.inputs.user,
-                          password=self.inputs.password) as daris:
-            outputs = {}
-            # Create dictionary mapping dataset names to IDs
-            datasets = daris.get_datasets(
-                repo_id=self.inputs.repo_id,
-                project_id=self.inputs.project_id,
-                subject_id=self.inputs.subject_id,
-                processed=self.inputs.processed,
-                study_id=self.inputs.study_id)
-            for dataset_name in self.inputs.dataset_names:
-                dataset = datasets[dataset_name]
-                cache_path = os.path.join(
-                    self.inputs.cache_dir, self.inputs.project_id,
-                    self.inputs.subject_id, self.inputs.study_id,
-                    self.inputs.mode_id, dataset.id)
-                if not os.path.exists(cache_path):
-                    daris.download(
-                        cache_path, repo_id=self.inputs.repo_id,
-                        project_id=self.inputs.project_id,
-                        subject_id=self.inputs.subject_id,
-                        processed=self.inputs.processed,
-                        study_id=self.inputs.study_id,
-                        dataset_id=dataset.id)
-                outputs[dataset_name] = cache_path
-        return outputs
-
-
-class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
-
-    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_name = traits.Str(  # @UndefinedVariable @IgnorePep8
-        mandatory=True, desc=("The name of the processed data group, e.g. "
-                              "'tractography'"))
-    study_description = traits.Str(mandatory=True,  # @UndefinedVariable
-                                   desc="Description of the study")
-    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
-                         desc='The ID of the repository')
-    cache_dir = Directory(
-        exists=True, desc=("Path to the base directory where the datasets will"
-                           " be cached before uploading"))
-    server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        usedefault=True, desc="The address of the MF server")
-    domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                        desc="The domain of the username/password")
-    user = traits.Str(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                      desc="The DaRIS username to log in with")
-    password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                               desc="The password of the DaRIS user")
-    _outputs = traits.Dict(traits.Str, value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
-
-    # TODO: Not implemented yet
-    overwrite = traits.Bool(  # @UndefinedVariable
-        False, mandatory=True, usedefault=True,
-        desc=("Whether or not to overwrite previously created studies of the "
-              "same name"))
-
-    # Copied from the S3DataSink in the nipype.interfaces.io module
-    def __setattr__(self, key, value):
-        if key not in self.copyable_trait_names():
-            if not isdefined(value):
-                super(DarisSinkInputSpec, self).__setattr__(key, value)
-            self._outputs[key] = value
-        else:
-            if key in self._outputs:
-                self._outputs[key] = value
-            super(DarisSinkInputSpec, self).__setattr__(key, value)
-
-
-class DarisSink(DataSink):
-    """ Generic datasink module that takes a directory containing a
-        list of nifti files and provides a set of structured output
-        fields.
+def construct_cid(cls, project_id, subject_id=None, study_id=None,
+                  processed=None, dataset_id=None, repo_id=2):
     """
-    input_spec = DarisSinkInputSpec
-
-    def _list_outputs(self):
-        """Execute this module.
-        """
-        # Initiate outputs
-        outputs = self.output_spec().get()
-        out_files = []
-        missing_files = []
-        # Open DaRIS session
-        with DarisSession(server=self.inputs.server,
-                          domain=self.inputs.domain,
-                          user=self.inputs.user,
-                          password=self.inputs.password) as daris:
-            # Add study to hold output
-            study_id = daris.add_study(
-                project_id=self.inputs.project_id,
-                subject_id=self.inputs.subject_id,
-                repo_id=self.inputs.repo_id,
-                processed=True, name=self.inputs.study_name,
-                description=self.inputs.description)
-            # Get cache dir for study
-            out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
-                self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, self.inputs.subject_id, 2, study_id))))
-            # Make study cache dir
-            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-            # Loop through files connected to the sink and copy them to the
-            # cache directory and upload to daris.
-            for name, filename in self.inputs._outputs.iteritems():
-                src_path = os.path.abspath(filename)
-                if not isdefined(src_path):
-                    missing_files.append((name, src_path))
-                    continue  # skip the upload for this file
-                # Copy to local cache
-                dst_path = os.path.join(out_dir, name)
-                out_files.append(dst_path)
-                shutil.copyfile(src_path, dst_path)
-                # Upload to DaRIS
-                dataset_id = daris.add_dataset(
-                    project_id=self.inputs.project_id,
-                    subject_id=self.inputs.subject_id,
-                    repo_id=self.inputs.repo_id, processed=True,
-                    study_id=study_id, name=name)
-                daris.upload(
-                    src_path, project_id=self.inputs.project_id,
-                    subject_id=self.inputs.subject_id,
-                    repo_id=self.inputs.repo_id, processed=True,
-                    study_id=study_id, dataset_id=dataset_id)
-        if missing_files:
-            # FIXME: Not sure if this should be an exception or not,
-            #        indicates a problem but stopping now would throw
-            #        away the files that were created
-            logger.warning(
-                "Missing output files '{}' mapped to names '{}' in "
-                "DarisSink".format("', '".join(f for _, f in missing_files),
-                                   "', '".join(n for n, _ in missing_files)))
-        # Return cache file paths
-        outputs['out_file'] = out_files
-        return outputs
+    Returns the CID (unique asset identifier for DaRIS) from the combination of
+    sub ids
+    """
+    cid = '1008.{}.{}'.format(repo_id, project_id)
+    ids = (subject_id, study_id, processed, dataset_id)
+    for i, id_ in enumerate():
+        if id_ is not None:
+            cid += '.{}'.format(int(id_))
+        else:
+            if any(d is not None for d in ids[(i + 1):]):
+                assert False
+            else:
+                break
+    return cid
