@@ -1,16 +1,20 @@
 import os.path
+import shutil
 import subprocess
 import stat
+import logging
 from lxml import etree
-from lockfile import LockFile
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined)
 from nipype.interfaces.io import IOBase, DataSink
-from mbi_pipelines.exception import DarisException, DarisNameNotFoundException
+from mbi_pipelines.exception import (
+    DarisException, DarisNameNotFoundException)
 from collections import namedtuple
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
+
+logger = logging.getLogger('MBIPipelines')
 
 
 def construct_cid(cls, project_id, subject_id=None, study_id=None,
@@ -515,6 +519,12 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                                desc="The password of the DaRIS user")
     _outputs = traits.Dict(traits.Str, value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
 
+    # TODO: Not implemented yet
+    overwrite = traits.Bool(  # @UndefinedVariable
+        False, mandatory=True, usedefault=True,
+        desc=("Whether or not to overwrite previously created studies of the "
+              "same name"))
+
     # Copied from the S3DataSink in the nipype.interfaces.io module
     def __setattr__(self, key, value):
         if key not in self.copyable_trait_names():
@@ -537,151 +547,58 @@ class DarisSink(DataSink):
     def _list_outputs(self):
         """Execute this module.
         """
-#         outputs = super(DarisSink, self)._list_outputs()
-        subject_path = os.path.join(
-            self.inputs.cache_dir, self.inputs.repo_id, self.inputs.project_id,
-            self.inputs.subject_id, '2')
-        if not os.path.exists(subject_path):
-            os.makedirs(subject_path, stat.S_IRWXU | stat.S_IRWXG)
-        # Add study to hold output
-        with DarisSession(server=self.inputs.server,
-                          domain=self.inputs.domain,
-                          user=self.inputs.user,
-                          password=self.inputs.password) as daris:
-            # Lock to make sure that two processes both don't try to create
-            # the same study. Note that it is important that all processes
-            # are running from the same machine.
-            with LockFile(os.path.join(subject_path, '.lock')):
-                try:
-                    study_id = daris.find_study(
-                        name=self.inputs.study_name,
-                        project_id=self.inputs.project_id,
-                        subject_id=self.inputs.subject_id,
-                        repo_id=self.inputs.repo_id, processed=True).id
-                except DarisNameNotFoundException:
-                    study_id = daris.add_study(
-                        project_id=self.inputs.project_id,
-                        subject_id=self.inputs.subject_id,
-                        repo_id=self.inputs.repo_id,
-                        processed=True, name=self.inputs.study_name,
-                        description=self.inputs.description)
-        study_path = os.path.join(subject_path, study_id)
-                    
-                    
+        # Initiate outputs
         outputs = self.output_spec().get()
         out_files = []
-        outdir = os.path.join(
-            self.inputs.cache_dir, repo_id, project_id)
-
-#         if not isdefined(outdir):
-#             outdir = '.'
-#         outdir = os.path.abspath(outdir)
-#         if isdefined(self.inputs.container):
-#             outdir = os.path.join(outdir, self.inputs.container)
-#         if not os.path.exists(outdir):
-#             try:
-#                 os.makedirs(outdir)
-#             except OSError as inst:
-#                 if 'File exists' in inst:
-#                     pass
-#                 else:
-#                     raise(inst)
-#         use_hardlink = str2bool(config.get('execution',
-#                                            'try_hard_link_datasink'))
-#         for key, files in list(self.inputs._outputs.items()):
-#             if not isdefined(files):
-#                 continue
-#             iflogger.debug("key: %s files: %s" % (key, str(files)))
-#             files = filename_to_list(files)
-#             tempoutdir = outdir
-#             for d in key.split('.'):
-#                 if d[0] == '@':
-#                     continue
-#                 tempoutdir = os.path.join(tempoutdir, d)
-# 
-#             # flattening list
-#             if isinstance(files, list):
-#                 if isinstance(files[0], list):
-#                     files = [item for sublist in files for item in sublist]
-# 
-#             for src in filename_to_list(files):
-#                 src = os.path.abspath(src)
-#                 if os.path.isfile(src):
-#                     dst = self._get_dst(src)
-#                     dst = os.path.join(tempoutdir, dst)
-#                     dst = self._substitute(dst)
-#                     path, _ = os.path.split(dst)
-#                     if not os.path.exists(path):
-#                         try:
-#                             os.makedirs(path)
-#                         except OSError as inst:
-#                             if 'File exists' in inst:
-#                                 pass
-#                             else:
-#                                 raise(inst)
-#                     iflogger.debug("copyfile: %s %s" % (src, dst))
-#                     copyfile(src, dst, copy=True, hashmethod='content',
-#                              use_hardlink=use_hardlink)
-#                     out_files.append(dst)
-#                 elif os.path.isdir(src):
-#                     dst = self._get_dst(os.path.join(src, ''))
-#                     dst = os.path.join(tempoutdir, dst)
-#                     dst = self._substitute(dst)
-#                     path, _ = os.path.split(dst)
-#                     if not os.path.exists(path):
-#                         try:
-#                             os.makedirs(path)
-#                         except OSError as inst:
-#                             if 'File exists' in inst:
-#                                 pass
-#                             else:
-#                                 raise(inst)
-#                     if os.path.exists(dst) and self.inputs.remove_dest_dir:
-#                         iflogger.debug("removing: %s" % dst)
-#                         shutil.rmtree(dst)
-#                     iflogger.debug("copydir: %s %s" % (src, dst))
-#                     copytree(src, dst)
-#                     out_files.append(dst)
-#         outputs['out_file'] = out_files
-#         
-#         self._upload_to_daris(outputs['out_file'])
-#         return outputs
-
-    def _upload_to_daris(self, paths):
+        missing_files = []
+        # Open DaRIS session
         with DarisSession(server=self.inputs.server,
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-            if not daris.exists(project_id=self.inputs.project_id,
-                                subject_id=self.inputs.subject_id):
-            
-#         if self.inputs.testing:
-#             conn = S3Connection(anon=True, is_secure=False, port=4567,
-#                                 host='localhost',
-#                                 calling_format=OrdinaryCallingFormat())
-# 
-#         else:
-#             conn = S3Connection(anon=self.inputs.anon)
-#         bkt = conn.get_bucket(self.inputs.bucket)
-#         s3paths = []
-# 
-#         for path in paths:
-#             # convert local path to s3 path
-#             bd_index = path.find(self.inputs.base_directory)
-#             if bd_index != -1:  # base_directory is in path, maintain directory structure
-#                 s3path = path[bd_index + len(self.inputs.base_directory):]  # cut out base directory
-#                 if s3path[0] == os.path.sep:
-#                     s3path = s3path[1:]
-#             else:  # base_directory isn't in path, simply place all files in bucket_path folder
-#                 s3path = os.path.split(path)[1]  # take filename from path
-#             s3path = os.path.join(self.inputs.bucket_path, s3path)
-#             if s3path[-1] == os.path.sep:
-#                 s3path = s3path[:-1]
-#             s3paths.append(s3path)
-# 
-#             k = boto.s3.key.Key(bkt)
-#             k.key = s3path
-#             k.set_contents_from_filename(path)
-# 
-#         return s3paths
-
+            # Add study to hold output
+            study_id = daris.add_study(
+                project_id=self.inputs.project_id,
+                subject_id=self.inputs.subject_id,
+                repo_id=self.inputs.repo_id,
+                processed=True, name=self.inputs.study_name,
+                description=self.inputs.description)
+            # Get cache dir for study
+            out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
+                self.inputs.cache_dir, self.inputs.repo_id,
+                self.inputs.project_id, self.inputs.subject_id, 2, study_id))))
+            # Make study cache dir
+            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
+            # Loop through files connected to the sink and copy them to the
+            # cache directory and upload to daris.
+            for name, filename in self.inputs._outputs.iteritems():
+                src_path = os.path.abspath(filename)
+                if not isdefined(src_path):
+                    missing_files.append((name, src_path))
+                    continue  # skip the upload for this file
+                # Copy to local cache
+                dst_path = os.path.join(out_dir, name)
+                out_files.append(dst_path)
+                shutil.copyfile(src_path, dst_path)
+                # Upload to DaRIS
+                dataset_id = daris.add_dataset(
+                    project_id=self.inputs.project_id,
+                    subject_id=self.inputs.subject_id,
+                    repo_id=self.inputs.repo_id, processed=True,
+                    study_id=study_id, name=name)
+                daris.upload(
+                    src_path, project_id=self.inputs.project_id,
+                    subject_id=self.inputs.subject_id,
+                    repo_id=self.inputs.repo_id, processed=True,
+                    study_id=study_id, dataset_id=dataset_id)
+        if missing_files:
+            # FIXME: Not sure if this should be an exception or not,
+            #        indicates a problem but stopping now would throw
+            #        away the files that were created
+            logger.warning(
+                "Missing output files '{}' mapped to names '{}' in "
+                "DarisSink".format("', '".join(f for _, f in missing_files),
+                                   "', '".join(n for n, _ in missing_files)))
+        # Return cache file paths
+        outputs['out_file'] = out_files
+        return outputs
