@@ -5,3 +5,7 @@ class DarisException(Exception):
 
 class DarisExistingCIDException(DarisException):
     pass
+
+
+class DarisNameNotFoundException(DarisException):
+    pass

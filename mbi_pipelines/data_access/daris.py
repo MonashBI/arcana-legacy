@@ -2,14 +2,34 @@ import os.path
 import subprocess
 import stat
 from lxml import etree
+from lockfile import LockFile
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined)
 from nipype.interfaces.io import IOBase, DataSink
-from mbi_pipelines.exception import DarisException
+from mbi_pipelines.exception import DarisException, DarisNameNotFoundException
 from collections import namedtuple
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
+
+
+def construct_cid(cls, project_id, subject_id=None, study_id=None,
+                  processed=None, dataset_id=None, repo_id=2):
+    """
+    Returns the CID (unique asset identifier for DaRIS) from the combination of
+    sub ids
+    """
+    cid = '1008.{}.{}'.format(repo_id, project_id)
+    ids = (subject_id, study_id, processed, dataset_id)
+    for i, id_ in enumerate():
+        if id_ is not None:
+            cid += '.{}'.format(int(id_))
+        else:
+            if any(d is not None for d in ids[(i + 1):]):
+                assert False
+            else:
+                break
+    return cid
 
 
 class DarisSession:
@@ -303,6 +323,18 @@ class DarisSession:
                 dataset_id))
         self.run(cmd)
 
+    def find_study(self, name, project_id, subject_id, processed, repo_id=2):
+        studies = self.get_studies(
+            project_id=self.inputs.project_id,
+            subject_id=self.inputs.subject_id,
+            repo_id=self.inputs.repo_id, processed=True).itervalues()
+        try:
+            return next(s for s in studies.itervalues() if s.name == name)
+        except StopIteration:
+            raise DarisNameNotFoundException(
+                "Did not find study named '{}' in 1008.{}.{}.{}.{}"
+                .format(repo_id, project_id, subject_id, (processed + 1)))
+
     def run(self, cmd, xpath=None, expect_single=False, logon=False):
         """
         Executes the aterm.jar and runs the provided aterm command within it
@@ -374,18 +406,18 @@ class DarisSession:
             entries.append(DarisEntry(entry_id, *args[1:]))
         return dict((e.id, e) for e in entries)
 
-    def exists(self, cid):
-        result = self.run(
-            "asset.exists :cid {}".format(cid), '/result/exists',
-            expect_single=True)
-        if result == 'true':
-            exts = True
-        elif result == 'false':
-            exts = False
+    def exists(self, *args, **kwargs):
+        if args:
+            assert len(args) == 1
+            cid = args[0]
         else:
-            raise DarisException("Unrecognised response '{}' for existence "
-                                 "test of CID {}".format(cid))
-        return exts
+            try:
+                cid = kwargs['cid']
+            except KeyError:
+                cid = construct_cid(**kwargs)
+        result = self.run("asset.exists :cid {}".format(cid), '/result/exists',
+                          expect_single=True)
+        return result == 'true'
 
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
@@ -396,21 +428,6 @@ class DarisSession:
     def aterm_path(cls):
         return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             'jar', 'aterm.jar')
-
-    @classmethod
-    def cid(cls, project_id, subject_id=None, study_id=None, processed=None,
-            dataset_id=None, repo_id=2):
-        cid = '1008.{}.{}'.format(repo_id, project_id)
-        ids = (subject_id, study_id, processed, dataset_id)
-        for i, id_ in enumerate():
-            if id_ is not None:
-                cid += '.{}'.format(int(id_))
-            else:
-                if any(d is not None for d in ids[(i + 1):]):
-                    assert False
-                else:
-                    break
-        return cid
 
 
 class DarisSourceInputSpec(TraitedSpec):
@@ -478,16 +495,13 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
     project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
     subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                            desc="The time point or processed data process ID")
-    processed = traits.Bool(True, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                            desc=("The mode of the dataset (Parnesh is using 1"
-                                  " for data and 2 for processed data"))
+    study_name = traits.Str(  # @UndefinedVariable @IgnorePep8
+        mandatory=True, desc=("The name of the processed data group, e.g. "
+                              "'tractography'"))
+    study_description = traits.Str(mandatory=True,  # @UndefinedVariable
+                                   desc="Description of the study")
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
-    dataset_names = traits.List(  # @UndefinedVariable
-        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
-        desc="Names of all sub-datasets that comprise the complete dataset")
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the datasets will"
                            " be cached before uploading"))
@@ -523,16 +537,123 @@ class DarisSink(DataSink):
     def _list_outputs(self):
         """Execute this module.
         """
-        outputs = super(DarisSink, self)._list_outputs()
-        self._upload_to_daris(outputs['out_file'])
-        return outputs
+#         outputs = super(DarisSink, self)._list_outputs()
+        subject_path = os.path.join(
+            self.inputs.cache_dir, self.inputs.repo_id, self.inputs.project_id,
+            self.inputs.subject_id, '2')
+        if not os.path.exists(subject_path):
+            os.makedirs(subject_path, stat.S_IRWXU | stat.S_IRWXG)
+        # Add study to hold output
+        with DarisSession(server=self.inputs.server,
+                          domain=self.inputs.domain,
+                          user=self.inputs.user,
+                          password=self.inputs.password) as daris:
+            # Lock to make sure that two processes both don't try to create
+            # the same study. Note that it is important that all processes
+            # are running from the same machine.
+            with LockFile(os.path.join(subject_path, '.lock')):
+                try:
+                    study_id = daris.find_study(
+                        name=self.inputs.study_name,
+                        project_id=self.inputs.project_id,
+                        subject_id=self.inputs.subject_id,
+                        repo_id=self.inputs.repo_id, processed=True).id
+                except DarisNameNotFoundException:
+                    study_id = daris.add_study(
+                        project_id=self.inputs.project_id,
+                        subject_id=self.inputs.subject_id,
+                        repo_id=self.inputs.repo_id,
+                        processed=True, name=self.inputs.study_name,
+                        description=self.inputs.description)
+        study_path = os.path.join(subject_path, study_id)
+                    
+                    
+        outputs = self.output_spec().get()
+        out_files = []
+        outdir = os.path.join(
+            self.inputs.cache_dir, repo_id, project_id)
+
+#         if not isdefined(outdir):
+#             outdir = '.'
+#         outdir = os.path.abspath(outdir)
+#         if isdefined(self.inputs.container):
+#             outdir = os.path.join(outdir, self.inputs.container)
+#         if not os.path.exists(outdir):
+#             try:
+#                 os.makedirs(outdir)
+#             except OSError as inst:
+#                 if 'File exists' in inst:
+#                     pass
+#                 else:
+#                     raise(inst)
+#         use_hardlink = str2bool(config.get('execution',
+#                                            'try_hard_link_datasink'))
+#         for key, files in list(self.inputs._outputs.items()):
+#             if not isdefined(files):
+#                 continue
+#             iflogger.debug("key: %s files: %s" % (key, str(files)))
+#             files = filename_to_list(files)
+#             tempoutdir = outdir
+#             for d in key.split('.'):
+#                 if d[0] == '@':
+#                     continue
+#                 tempoutdir = os.path.join(tempoutdir, d)
+# 
+#             # flattening list
+#             if isinstance(files, list):
+#                 if isinstance(files[0], list):
+#                     files = [item for sublist in files for item in sublist]
+# 
+#             for src in filename_to_list(files):
+#                 src = os.path.abspath(src)
+#                 if os.path.isfile(src):
+#                     dst = self._get_dst(src)
+#                     dst = os.path.join(tempoutdir, dst)
+#                     dst = self._substitute(dst)
+#                     path, _ = os.path.split(dst)
+#                     if not os.path.exists(path):
+#                         try:
+#                             os.makedirs(path)
+#                         except OSError as inst:
+#                             if 'File exists' in inst:
+#                                 pass
+#                             else:
+#                                 raise(inst)
+#                     iflogger.debug("copyfile: %s %s" % (src, dst))
+#                     copyfile(src, dst, copy=True, hashmethod='content',
+#                              use_hardlink=use_hardlink)
+#                     out_files.append(dst)
+#                 elif os.path.isdir(src):
+#                     dst = self._get_dst(os.path.join(src, ''))
+#                     dst = os.path.join(tempoutdir, dst)
+#                     dst = self._substitute(dst)
+#                     path, _ = os.path.split(dst)
+#                     if not os.path.exists(path):
+#                         try:
+#                             os.makedirs(path)
+#                         except OSError as inst:
+#                             if 'File exists' in inst:
+#                                 pass
+#                             else:
+#                                 raise(inst)
+#                     if os.path.exists(dst) and self.inputs.remove_dest_dir:
+#                         iflogger.debug("removing: %s" % dst)
+#                         shutil.rmtree(dst)
+#                     iflogger.debug("copydir: %s %s" % (src, dst))
+#                     copytree(src, dst)
+#                     out_files.append(dst)
+#         outputs['out_file'] = out_files
+#         
+#         self._upload_to_daris(outputs['out_file'])
+#         return outputs
 
     def _upload_to_daris(self, paths):
         with DarisSession(server=self.inputs.server,
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-            if not daris.exists()
+            if not daris.exists(project_id=self.inputs.project_id,
+                                subject_id=self.inputs.subject_id):
             
 #         if self.inputs.testing:
 #             conn = S3Connection(anon=True, is_secure=False, port=4567,
