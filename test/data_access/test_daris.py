@@ -226,7 +226,7 @@ class TestDarisSinkAndSource(TestCase):
         # Create test data on DaRIS
         daris = DarisSession(user='test123', password='GaryEgan1',
                              domain='mon-daris', server=SERVER)
-        with daris:
+        with daris:  # Opens the daris session
             study_id = daris.add_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 processed=False, name='source-sink-unittest-study',

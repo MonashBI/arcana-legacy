@@ -7,7 +7,7 @@ from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined, Undefined)
-from nipype.interfaces.io import IOBase, DataGrabber, DataSink, add_traits
+from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
 from collections import namedtuple
@@ -182,6 +182,7 @@ class DarisSink(DataSink):
                 repo_id=self.inputs.repo_id,
                 processed=True, name=self.inputs.name,
                 description=self.inputs.description)
+            outputs['study_id'] = study_id
             # Get cache dir for study
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
