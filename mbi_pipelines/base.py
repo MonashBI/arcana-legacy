@@ -30,15 +30,6 @@ class Dataset(object):
         self._scrach = scratch
         self._ris = ris
 
-    def source(self):
-        raise NotImplementedError
-
-    def sink(self):
-        raise NotImplementedError
-
-    def all_subjects(self, complete=True):
-        raise NotImplementedError
-
 
 class Pipeline(object):
     """
@@ -62,8 +53,8 @@ class Pipeline(object):
         complete_workflow = pe.Workflow(name=self._name)
         if subject_ids is None:
             subject_ids = self._dataset.all_subjects
-        data_source = self._dataset.data_source()
-        data_sink = self._dataset.data_sink(self._name, self._outputs)
+        data_source = self._dataset.ris.source()
+        data_sink = self._dataset.ris.sink()
         complete_workflow.add_nodes((data_source, self._workflow, data_sink))
         for inpt in self._dataset.inputs:
             complete_workflow.connect(data_source, inpt,

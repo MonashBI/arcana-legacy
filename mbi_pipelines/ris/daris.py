@@ -11,10 +11,23 @@ from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
 from collections import namedtuple
+from .base import RIS
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
 
 logger = logging.getLogger('MBIPipelines')
+
+
+class Daris(RIS):
+
+    def source(self):
+        raise NotImplementedError
+
+    def sink(self):
+        raise NotImplementedError
+
+    def all_subjects(self):
+        raise NotImplementedError
 
 
 class DarisSourceInputSpec(TraitedSpec):
