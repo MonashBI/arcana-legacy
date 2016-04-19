@@ -1,35 +1,42 @@
-import os.path
-from copy import copy
-from nipype.interfaces.io import DataSink
+from abc import ABCMeta
 from nipype.pipeline import engine as pe
+from nipype.interfaces.utility import IdentityInterface
 
 
 class Dataset(object):
 
-    def __init__(self, project_name, scan_names, cache_dir, scratch_dir,
-                 source='daris'):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, project, dataset_names, path, scratch, ris='daris'):
         """
-        project_name  -- The name of the project. For DaRIS it is the project
+        project_name -- The name of the project. For DaRIS it is the project
                          id minus the proceeding 1008.2. For XNAT it will be
                          the project code. For local files it is the full path
                          to the directory.
-        scan_names  -- The names of the scans to include in the dataset e.g.
-                      'Diffusion.nii.gz'
-        cache_dir   -- The base directory where the scans will be downloaded to
-        scratch_dir -- The directory where the processed data will be created
-        source      -- Can be one of 'daris', 'xnat', or 'local'
-                       (NB: Only 'daris' is currently implemented)
+        scan_names   -- A dict containing the a mapping between names of
+                        sub-datasets and the acquired scans in the RIS, e.g.
+                        {'diffusion':'ep2d_diff_mrtrix_33_dir_3_inter_b0_p_RL',
+                         'distortion_correct':
+                           'PRE DWI L-R DIST CORR 36 DIR MrTrix'}
+        project_path -- The base directory where the scans will be downloaded
+                        to and generated files will be saved
+        scratch_path -- The directory used for creating temporary working files
+        source       -- Can be one of 'daris', 'xnat', or 'local'
+                        (NB: Only 'daris' is currently implemented)
         """
-        self._project_name = project_name
-        self._scan_names = scan_names
-        self._cache_dir = cache_dir
-        self._scratch_dir = scratch_dir
-        self._source = source
+        self._project = project
+        self._scan_names = dataset_names
+        self._path = path
+        self._scrach = scratch
+        self._ris = ris
 
-    def data_grabber(self, subject_ids):
+    def source(self):
         raise NotImplementedError
 
-    def data_sink(self, pipeline_name, outputs):
+    def sink(self):
+        raise NotImplementedError
+
+    def all_subjects(self, complete=True):
         raise NotImplementedError
 
 
@@ -53,11 +60,13 @@ class Pipeline(object):
         with the wrapped workflow and runs the pipeline
         """
         complete_workflow = pe.Workflow(name=self._name)
-        data_grabber = self._dataset.data_grabber(subject_ids)
+        if subject_ids is None:
+            subject_ids = self._dataset.all_subjects
+        data_source = self._dataset.data_source()
         data_sink = self._dataset.data_sink(self._name, self._outputs)
-        complete_workflow.add_nodes((data_grabber, self._workflow, data_sink))
+        complete_workflow.add_nodes((data_source, self._workflow, data_sink))
         for inpt in self._dataset.inputs:
-            complete_workflow.connect(data_grabber, inpt,
+            complete_workflow.connect(data_source, inpt,
                                       self._workflow.inputnode, inpt)
         for output in self._outputs:
             complete_workflow.connect(self._workflow.outputnode, output,

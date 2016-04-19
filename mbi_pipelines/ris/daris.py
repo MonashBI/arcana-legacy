@@ -624,7 +624,7 @@ class DarisSession:
     @classmethod
     def aterm_path(cls):
         return os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            'jar', 'aterm.jar')
+                            '_extern', 'aterm.jar')
 
 
 def construct_cid(cls, project_id, subject_id=None, study_id=None,
