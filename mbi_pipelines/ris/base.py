@@ -14,5 +14,5 @@ class RIS(object):
         pass
 
     @abstractmethod
-    def all_subjects(self):
+    def subject_ids(self):
         pass

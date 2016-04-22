@@ -7,6 +7,7 @@ from lxml import etree
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined, Undefined)
+from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
@@ -20,14 +21,43 @@ logger = logging.getLogger('MBIPipelines')
 
 class Daris(RIS):
 
-    def source(self):
-        raise NotImplementedError
+    def __init__(self, user, password, cache_dir,
+                 server='mf-erc.its.monash.edu.au', domain='monash-ldap',
+                 repo_id=2):
+        self._server = server
+        self._domain = domain
+        self._user = user
+        self._password = password
+        self._cache_dir = cache_dir
+        self._repo_id = repo_id
 
-    def sink(self):
-        raise NotImplementedError
+    def source(self, project_id):
+        source = pe.Node(DarisSource(), name="daris_source")
+        source.inputs.server = self._server
+        source.inputs.domain = self._domain
+        source.inputs.user = self._user
+        source.inputs.password = self._password
+        source.inputs.cache_dir = self._cache_dir
+        source.inputs.project_id = project_id
+        source.inputs.repo_id = self._repo_id
+        return source
 
-    def all_subjects(self):
-        raise NotImplementedError
+    def sink(self, project_id):
+        sink = pe.Node(DarisSource(), name="daris_sink")
+        sink.inputs.server = self._server
+        sink.inputs.domain = self._domain
+        sink.inputs.user = self._user
+        sink.inputs.password = self._password
+        sink.inputs.cache_dir = self._cache_dir
+        sink.inputs.project_id = project_id
+        sink.inputs.repo_id = self._repo_id
+        return sink
+
+    def subject_ids(self, project_id, repo_id=2):
+        with DarisSession(server=self._server, domain=self._domain,
+                          user=self._user, password=self._password) as daris:
+            entries = daris.get_subjects(self, project_id, repo_id=repo_id)
+        return [e.id for e in entries]
 
 
 class DarisSourceInputSpec(TraitedSpec):
@@ -35,14 +65,17 @@ class DarisSourceInputSpec(TraitedSpec):
     subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
     study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                             desc="The time point or processed data process ID")
-    processed = traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                            desc=("The mode of the dataset (Parnesh is using 1"
-                                  " for data and 2 for processed data"))
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     dataset_names = traits.List(  # @UndefinedVariable
         traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
         desc="Names of all sub-datasets that comprise the complete dataset")
+    processed = traits.List(  # @UndefinedVariable
+        traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+                    desc=("The mode of the dataset (Parnesh is using 1"
+                          " for data and 2 for processed data")),
+        desc=("The mode of the datasets corresponding to the "
+              "dataset_names trait"))
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
