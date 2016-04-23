@@ -24,6 +24,7 @@ class Dataset(object):
         """
         self._project_id = project_id
         self._scan_names = scan_names
+        assert set(scan_names.keys()) == self.acquired_components
         self._archive = archive
 
     def run_pipeline(self, pipeline, subject_ids=None, study_ids=[1],
@@ -49,11 +50,12 @@ class Dataset(object):
                                   source, 'subject_id')
         complete_workflow.connect(inputnode, 'study_id',
                                   source, 'study_id')
-        for inpt in self._inputs:
+        for inpt in pipeline.inputs:
+            if inpt in self.acquired_components
             complete_workflow.connect(
                 source, self.source_scan(inpt),
                 pipeline.workflow.inputnode, inpt)
-        for output in self._outputs:
+        for output in pipeline.outputs:
             complete_workflow.connect(pipeline.workflow.outputnode, output,
                                       sink, output)
         complete_workflow.run()
@@ -82,3 +84,11 @@ class Pipeline(object):
     @property
     def workflow(self):
         return self._workflow
+
+    @property
+    def inputs(self):
+        return self._inputs
+
+    @property
+    def outputs(self):
+        return self._outputs

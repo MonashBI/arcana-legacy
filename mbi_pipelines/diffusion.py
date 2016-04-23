@@ -23,7 +23,8 @@ class DiffusionDataset(Dataset):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner
-    acquired_components = ('diffusion', 'distortion_correct', 'gradients')
+    acquired_components = set(
+        'diffusion', 'distortion_correct', 'gradients')
 
     generated_components = {
         'fod': fod_pipeline}

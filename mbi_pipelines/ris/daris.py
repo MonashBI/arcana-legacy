@@ -12,6 +12,7 @@ from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
 from collections import namedtuple
+from itertools import chain
 from .base import RIS
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
@@ -126,6 +127,11 @@ class DarisSource(IOBase):
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
+            if len(self.inputs.dataset_name) != len(self.inputs.processed):
+                raise DarisException(
+                    "Number of dataset_names ({}) should match number of "
+                    "processed ({})".format(len(self.inputs.dataset_name),
+                                            len(self.inputs.processed)))
             # Create dictionary mapping dataset names to IDs
             datasets = dict((d.name, d) for d in daris.get_datasets(
                 repo_id=self.inputs.repo_id,
@@ -139,7 +145,8 @@ class DarisSource(IOBase):
                 (self.inputs.processed + 1), self.inputs.study_id)))
             if not os.path.exists(cache_dir):
                 os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
-            for dataset_name in self.inputs.dataset_names:
+            for dataset_name, processed in chain(self.inputs.dataset_names,
+                                                 self.inputs.processed):
                 dataset = datasets[dataset_name]
                 cache_path = os.path.join(cache_dir, dataset.name)
                 if not os.path.exists(cache_path):
@@ -147,7 +154,7 @@ class DarisSource(IOBase):
                         cache_path, repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
                         subject_id=self.inputs.subject_id,
-                        processed=self.inputs.processed,
+                        processed=processed,
                         study_id=self.inputs.study_id,
                         dataset_id=dataset.id)
                 outputs[dataset_name] = cache_path
