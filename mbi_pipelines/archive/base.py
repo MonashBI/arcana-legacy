@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 
 
-class RIS(object):
+class Archive(object):
 
     __metaclass__ = ABCMeta
 

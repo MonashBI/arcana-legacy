@@ -4,8 +4,10 @@ import errno
 import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
-from mbi_pipelines.data_access.daris import (
+from mbi_pipelines.archive.daris import (
     DarisSession, DarisSource, DarisSink)
+from mbi_pipelines.exception import DarisException
+
 
 SERVER = 'mf-erc.its.monash.edu.au'
 
@@ -15,11 +17,11 @@ PROJECT_ID = 4
 SUBJECT_ID = 12
 STUDY_ID = 1
 TEST_IMAGE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 'test_data', 'test_upload.nii.gz'))
+    os.path.dirname(__file__), '_data', 'test_upload.nii.gz'))
 CACHE_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 'test_data', 'cache_dir'))
+    os.path.dirname(__file__), '_data', 'cache_dir'))
 WORKFLOW_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), 'test_data', 'workflow_dir'))
+    os.path.dirname(__file__), '_data', 'workflow_dir'))
 
 
 class TestDarisSession(TestCase):
@@ -252,14 +254,14 @@ class TestDarisSinkAndSource(TestCase):
             source.inputs.subject_id = SUBJECT_ID
             source.inputs.study_id = study_id
             source.inputs.server = SERVER
-            source.inputs.processed = False
             source.inputs.repo_id = REPO_ID
             source.inputs.cache_dir = CACHE_DIR
             source.inputs.domain = 'mon-daris'
             source.inputs.user = 'test123'
             source.inputs.password = 'GaryEgan1'
-            source.inputs.dataset_names = ['source1', 'source2', 'source3',
-                                           'source4']
+            source.inputs.datasets = [
+                ('source1', False), ('source2', False), ('source3', False),
+                ('source4', False)]
             # Create DataSink node
             sink = pe.Node(DarisSink(), 'sink')
             sink.inputs.name = 'unittest_study'
@@ -267,6 +269,7 @@ class TestDarisSinkAndSource(TestCase):
                 "A study created by the soure-sink unittest")
             sink.inputs.project_id = PROJECT_ID
             sink.inputs.subject_id = SUBJECT_ID
+            sink.inputs.study_id = study_id
             sink.inputs.server = SERVER
             sink.inputs.repo_id = REPO_ID
             sink.inputs.cache_dir = CACHE_DIR
@@ -303,13 +306,16 @@ class TestDarisSinkAndSource(TestCase):
             shutil.rmtree(CACHE_DIR, ignore_errors=True)
             shutil.rmtree(WORKFLOW_DIR, ignore_errors=True)
             # Clean up study created for unit-test
-            with daris:
-                daris.delete_study(
-                    project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    processed=False, study_id=study_id)
-                daris.delete_study(
-                    project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    processed=True, study_id=study_id)
+            try:
+                with daris:
+                    daris.delete_study(
+                        project_id=PROJECT_ID, subject_id=SUBJECT_ID,
+                        processed=False, study_id=study_id)
+                    daris.delete_study(
+                        project_id=PROJECT_ID, subject_id=SUBJECT_ID,
+                        processed=True, study_id=study_id)
+            except DarisException:
+                pass
 
 
 def rmtree_ignore_missing(directory):

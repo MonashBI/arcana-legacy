@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl as fsl
 from nipype.interfaces import mrtrix as mrtrix
 from .interfaces.mrtrix import ExtractMRtrixGradients
-from .base import Dataset
+from .base import Dataset, Pipeline
 
 
 class DiffusionDataset(Dataset):

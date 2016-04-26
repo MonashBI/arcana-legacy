@@ -1,7 +1,7 @@
 from abc import ABCMeta
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from .ris import Daris
+from .archive import Daris
 
 
 class Dataset(object):

@@ -12,15 +12,14 @@ from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
 from collections import namedtuple
-from itertools import chain
-from .base import RIS
+from .base import Archive
 
 DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
 
 logger = logging.getLogger('MBIPipelines')
 
 
-class Daris(RIS):
+class Daris(Archive):
 
     def __init__(self, user, password, cache_dir,
                  server='mf-erc.its.monash.edu.au', domain='monash-ldap',
@@ -68,15 +67,12 @@ class DarisSourceInputSpec(TraitedSpec):
                             desc="The time point or processed data process ID")
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
-    dataset_names = traits.List(  # @UndefinedVariable
-        traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
+    datasets = traits.List(  # @UndefinedVariable
+        traits.Tuple(  # @UndefinedVariable
+            traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
+            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        desc="whether the dataset is processed or not")),
         desc="Names of all sub-datasets that comprise the complete dataset")
-    processed = traits.List(  # @UndefinedVariable
-        traits.Bool(False, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                    desc=("The mode of the dataset (Parnesh is using 1"
-                          " for data and 2 for processed data")),
-        desc=("The mode of the datasets corresponding to the "
-              "dataset_names trait"))
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
@@ -127,28 +123,35 @@ class DarisSource(IOBase):
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
-            if len(self.inputs.dataset_name) != len(self.inputs.processed):
-                raise DarisException(
-                    "Number of dataset_names ({}) should match number of "
-                    "processed ({})".format(len(self.inputs.dataset_name),
-                                            len(self.inputs.processed)))
             # Create dictionary mapping dataset names to IDs
-            datasets = dict((d.name, d) for d in daris.get_datasets(
+            unprocessed_dict = dict((d.name, d) for d in daris.get_datasets(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
-                processed=self.inputs.processed,
+                processed=False,
                 study_id=self.inputs.study_id).itervalues())
-            cache_dir = os.path.join(*(str(p) for p in (
-                self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, self.inputs.subject_id,
-                (self.inputs.processed + 1), self.inputs.study_id)))
-            if not os.path.exists(cache_dir):
-                os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
-            for dataset_name, processed in chain(self.inputs.dataset_names,
-                                                 self.inputs.processed):
-                dataset = datasets[dataset_name]
-                cache_path = os.path.join(cache_dir, dataset.name)
+            processed_dict = dict((d.name, d) for d in daris.get_datasets(
+                repo_id=self.inputs.repo_id,
+                project_id=self.inputs.project_id,
+                subject_id=self.inputs.subject_id,
+                processed=True,
+                study_id=self.inputs.study_id).itervalues())
+            cache_dirs = {}
+            for processed in (False, True):
+                cache_dir = os.path.join(*(str(p) for p in (
+                    self.inputs.cache_dir, self.inputs.repo_id,
+                    self.inputs.project_id, self.inputs.subject_id,
+                    (processed + 1), self.inputs.study_id)))
+                if not os.path.exists(cache_dir):
+                    # Make cache directory with group write permissions
+                    os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
+                cache_dirs[processed] = cache_dir
+            for dataset_name, processed in self.inputs.datasets:
+                if processed:
+                    dataset = processed_dict[dataset_name]
+                else:
+                    dataset = unprocessed_dict[dataset_name]
+                cache_path = os.path.join(cache_dirs[processed], dataset.name)
                 if not os.path.exists(cache_path):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
@@ -166,13 +169,15 @@ class DarisSource(IOBase):
         Using traits.Any instead out OutputMultiPath till add_trait bug
         is fixed.
         """
-        return add_traits(base, list(self.inputs.dataset_names))
+        return add_traits(base, [name for name, _ in self.inputs.datasets])
 
 
 class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
     project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
     subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    study_id = traits.Int(mandatory=False, # @UndefinedVariable @IgnorePep8
+                          desc="The time point or processed data process ID")
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
                               "'tractography'"))
@@ -212,9 +217,16 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
             super(DarisSinkInputSpec, self).__setattr__(key, value)
 
 
+class DarisSinkOutputSpec(TraitedSpec):
+
+    out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
+    study_id = traits.Int(desc="The study id, which was potentially created")  # @UndefinedVariable @IgnorePep8
+
+
 class DarisSink(DataSink):
 
     input_spec = DarisSinkInputSpec
+    output_spec = DarisSinkOutputSpec
 
     def _list_outputs(self):
         """Execute this module.
@@ -228,10 +240,15 @@ class DarisSink(DataSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
+            if self.inputs.study_id is Undefined:
+                study_id = None
+            else:
+                study_id = self.inputs.study_id
             # Add study to hold output
             study_id = daris.add_study(
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
+                study_id=study_id,
                 repo_id=self.inputs.repo_id,
                 processed=True, name=self.inputs.name,
                 description=self.inputs.description)
@@ -241,7 +258,8 @@ class DarisSink(DataSink):
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id, self.inputs.subject_id, 2, study_id))))
             # Make study cache dir
-            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
+            if not os.path.exists(out_dir):
+                os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through files connected to the sink and copy them to the
             # cache directory and upload to daris.
             for name, filename in self.inputs._outputs.iteritems():
@@ -389,7 +407,7 @@ class DarisSession:
         if name is None:
             name = os.path.basename(location)
         # Determine whether file is NifTI depending on file extension
-        # FIXME: Need a better way to 
+        # FIXME: Need a better way to determine the filetype
         if file_format is 'nifti' or location.endswith('.nii.gz'):
             file_format = " :lctype nifti/series "
         else:
