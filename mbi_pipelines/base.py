@@ -3,6 +3,7 @@ from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
+from collections import deque
 
 
 logger = Logger('MBIPipelines')
@@ -95,6 +96,10 @@ class Dataset(object):
                                       sink, output)
         complete_workflow.run()
 
+    def is_generated(self, input_name):
+        # generated_components should be defined by the derived class
+        return input_name in self.generated_components
+
 
 class Pipeline(object):
     """
@@ -133,10 +138,36 @@ class Pipeline(object):
         self._other_kwargs = other_kwargs
 
     def run(self, sessions=None, work_dir=None):
+        """
+        Run a pipeline on the dataset it is bound to for the sessions provided,
+        where a "session" is a particular study (or pipeline output) for a
+        subject
+
+        Parameters
+        ----------
+        sessions : Session
+            The list of subject/studies to run the pipeline on
+        """
         self._dataset.run_pipeline(self, sessions, work_dir=work_dir)
 
-    def prequisites(self, lst, **kwargs):
-        raise NotImplementedError
+    def prepend_prequisites(self, pipelines):
+        """
+        Prepend prerequisite pipelines, and also their prerequisites onto the
+        pipelines deque if they are not already present
+
+        Parameters
+        ----------
+        pipelines : collections.deque
+            A collection of prequisite pipelines that is built
+        """
+        for inpt in self.inputs:
+            try:
+                pipeline = self._dataset.generated_components[inpt]
+                if pipeline not in pipelines:
+                    pipelines.appendleft(pipeline)
+                    pipeline.prepend_prequisities(pipelines)
+            except KeyError:
+                assert inpt in self._dataset.acquired_components
 
     @property
     def name(self):
