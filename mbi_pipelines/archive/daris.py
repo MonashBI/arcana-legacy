@@ -242,17 +242,23 @@ class DarisSink(DataSink):
                           password=self.inputs.password) as daris:
             if self.inputs.study_id is Undefined:
                 study_id = None
+                add_study = True
             else:
                 study_id = self.inputs.study_id
-            # Add study to hold output
-            study_id = daris.add_study(
-                project_id=self.inputs.project_id,
-                subject_id=self.inputs.subject_id,
-                study_id=study_id,
-                repo_id=self.inputs.repo_id,
-                processed=True, name=self.inputs.name,
-                description=self.inputs.description)
+                add_study = not daris.exists(project_id=self.inputs.project_id,
+                                             subject_id=self.inputs.subject_id,
+                                             study_id=study_id,
+                                             repo_id=self.inputs.repo_id)
             outputs['study_id'] = study_id
+            if add_study:
+                # Add study to hold output
+                study_id = daris.add_study(
+                    project_id=self.inputs.project_id,
+                    subject_id=self.inputs.subject_id,
+                    study_id=study_id,
+                    repo_id=self.inputs.repo_id,
+                    processed=True, name=self.inputs.name,
+                    description=self.inputs.description)
             # Get cache dir for study
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
@@ -698,7 +704,7 @@ class DarisSession:
                             '_extern', 'aterm.jar')
 
 
-def construct_cid(cls, project_id, subject_id=None, study_id=None,
+def construct_cid(project_id, subject_id=None, study_id=None,
                   processed=None, dataset_id=None, repo_id=2):
     """
     Returns the CID (unique asset identifier for DaRIS) from the combination of
@@ -706,7 +712,7 @@ def construct_cid(cls, project_id, subject_id=None, study_id=None,
     """
     cid = '1008.{}.{}'.format(repo_id, project_id)
     ids = (subject_id, study_id, processed, dataset_id)
-    for i, id_ in enumerate():
+    for i, id_ in enumerate(ids):
         if id_ is not None:
             cid += '.{}'.format(int(id_))
         else:
