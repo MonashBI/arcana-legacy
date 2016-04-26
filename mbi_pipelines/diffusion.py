@@ -16,10 +16,10 @@ class DiffusionDataset(Dataset):
                 'diffusion': diffusion, 'gradients': gradients,
                 'distortion_correct': distortion_correct})
 
-    def preprocess_pipeline(self, **kwargs):
+    def preprocess_pipeline(self, **options):
         raise NotImplementedError
 
-    def fod_pipeline(self, **kwargs):
+    def fod_pipeline(self, **options):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner

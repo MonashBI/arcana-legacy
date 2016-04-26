@@ -1,7 +1,11 @@
 from abc import ABCMeta
+from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from .archive import Daris
+from logging import Logger
+
+
+logger = Logger('MBIPipelines')
 
 
 class Dataset(object):
@@ -27,40 +31,69 @@ class Dataset(object):
         assert set(scan_names.keys()) == self.acquired_components
         self._archive = archive
 
-    def run_pipeline(self, pipeline, subject_ids=None, study_ids=[1],
-                     work_dir=None):
+    def run_pipeline(self, pipeline, sessions=None, work_dir=None,
+                     reprocess=False):
         """
         Gets a data grabber for the requested subject_ids and a data sink from
         the dataset the pipeline belongs to and then combines them together
         with the wrapped workflow and runs the pipeline
+
+          `pipeline`  -- the pipeline to run
+          `sessions`  --  iterable of Session objects or ints, which will be
+                         interpreted as subject ids for the first (unprocessed)
+                         study
+          `work_dir`  -- directory in which to run the nipype workflows
+          `reprocess` -- whether to rerun the processing for this step. If
+                         set to 'all' then pre-requisite pipelines will also be
+                         reprocessed.
         """
-        complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
         # If subject_ids is none use all associated with the project
-        if subject_ids is None:
-            subject_ids = self._archive.subject_ids(self._project_id)
+        if sessions is None:
+            sessions = self._archive.subject_ids(self._project_id)
+        # Ensure all sessions are session objects and they are unique
+        sessions = set(Session(session for session in sessions))
+        if not reprocess:
+            # Check which sessions already have the required outputs in the
+            # archive and don't rerun for those subjects/studies
+            complete_sessions = copy(sessions)
+            for output in pipeline.outputs:
+                complete_sessions &= self._archive.sessions_with_dataset(
+                    output + pipeline.suffix)
+            sessions -= complete_sessions
+            if not sessions:
+                logger.info(
+                    "Pipeline '{}' wasn't run as all requested sessions were "
+                    "present")
+                return  # No sessions need to be rerun
+        # Run prerequisite pipelines and save into archive
+        for inpt in pipeline.inputs:
+            if inpt in self.generated_components:
+                prereq_pipeline = self.generated_components[inpt](
+                    **pipeline.other_kwargs)
+                self.run_pipeline(prereq_pipeline, sessions, work_dir,
+                                  ('all' if reprocess == 'all' else False))
+        # Set up workflow to run the pipeline, loading and saving from the
+        # archive
+        complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
         # Generate extra nodes
-        inputnode = pe.Node(IdentityInterface(), name='subject_input')
-        inputnode.iterables = ('subject_id', tuple(subject_ids),
-                               'study_id', tuple(study_ids))
+        inputnode = pe.Node(IdentityInterface(), name='session_input')
+        inputnode.iterables = ('sessions', tuple(sessions))
         source = self._archive.source(self._project_id)
         sink = self._dataset.archive_sink(self._project_id)
         complete_workflow.add_nodes(
             (inputnode, source, self._workflow, sink))
-        complete_workflow.connect(inputnode, 'subject_id',
-                                  source, 'subject_id')
-        complete_workflow.connect(inputnode, 'study_id',
-                                  source, 'study_id')
+        complete_workflow.connect(inputnode, 'sessions',
+                                  source, 'sessions')
         for inpt in pipeline.inputs:
-            if inpt in self.acquired_components
+            archive_input = (
+                self._scan_names[inpt] if inpt in self.generated_components
+                else inpt)
             complete_workflow.connect(
-                source, self.source_scan(inpt),
-                pipeline.workflow.inputnode, inpt)
+                source, archive_input, pipeline.workflow.inputnode, inpt)
         for output in pipeline.outputs:
             complete_workflow.connect(pipeline.workflow.outputnode, output,
                                       sink, output)
         complete_workflow.run()
-        if name in self.acquired_components:
-            return self._scan_names[name]
 
 
 class Pipeline(object):
@@ -70,16 +103,44 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, name, dataset, workflow, inputs, outputs):
+    def __init__(self, name, dataset, workflow, inputs, outputs, options,
+                 other_kwargs):
+        """
+        Parameters
+        ----------
+        name : str
+            The name of the pipeline
+        dataset : Dataset
+            The dataset from which the pipeline was created
+        workflow : nipype.Workflow
+            The NiPype workflow to run
+        inputs : List[str]
+            The list of inputs (hard-coded names for un/processed scans/files)
+        outputs : List[str]
+            The list of outputs (hard-coded names for un/processed scans/files)
+        options : Dict[str, *]
+            Options that effect the output of the pipeline
+        other_kwargs : Dict[str, *]
+            Other kwargs passed to the pipeline that do not effect the output
+            of the pipeline (but may effect prequisite pipelines)
+        """
         self._name = name
         self._dataset = dataset
         self._workflow = workflow
         self._inputs = inputs
         self._outputs = outputs
+        self._options = options
+        self._other_kwargs = other_kwargs
 
-    def run(self, subject_ids=None, study_ids=[1], work_dir=None):
-        self._dataset.run_pipeline(self, subject_ids=subject_ids,
-                                   study_ids=study_ids, work_dir=work_dir)
+    def run(self, sessions=None, work_dir=None):
+        self._dataset.run_pipeline(self, sessions, work_dir=work_dir)
+
+    def prequisites(self, lst, **kwargs):
+        raise NotImplementedError
+
+    @property
+    def name(self):
+        return self._name
 
     @property
     def workflow(self):
@@ -92,3 +153,62 @@ class Pipeline(object):
     @property
     def outputs(self):
         return self._outputs
+
+    @property
+    def options(self):
+        return self._options
+
+    @property
+    def other_kwargs(self):
+        return self._other_kwargs
+
+    @property
+    def suffix(self):
+        """
+        A suffixed appended to output filenames when they are archived to
+        identify the options used to generate them
+        """
+        return ''.join('__{}={}'.format(n, v)
+                       for n, v in self._options.iteritems())
+
+
+class Session(object):
+    """
+    A small wrapper class used to define the subject_id, study_id and whether
+    the scan is processed or not
+    """
+
+    def __init__(self, subject_id, study_id=1, processed=False):
+        if isinstance(subject_id, self.__class__):
+            # If subject_id is actually another Session just copy values
+            self._subject_id = subject_id.subject_id
+            self._study_id = subject_id.study_id
+            self._processed = subject_id.processed
+        else:
+            self._subject_id = subject_id
+            self._study_id = study_id
+            self._processed = processed
+
+    def __eq__(self, other):
+        return (
+            self.subject_id == other.subject_id and
+            self.study_id == other.study_id and
+            self.processed == other.processed)
+
+    def __ne__(self, other):
+        return self != other
+
+    def __hash__(self):
+        return hash((self.subject_id, self.study_id, self.processed))
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def study_id(self):
+        return self._study_id
+
+    @property
+    def processed(self):
+        return self._processed

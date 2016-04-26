@@ -16,3 +16,7 @@ class Archive(object):
     @abstractmethod
     def subject_ids(self):
         pass
+
+    @abstractmethod
+    def sessions_with_dataset(self, dataset, sessions=None):
+        pass

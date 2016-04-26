@@ -58,6 +58,8 @@ class Daris(Archive):
                           user=self._user, password=self._password) as daris:
             entries = daris.get_subjects(self, project_id, repo_id=repo_id)
         return [e.id for e in entries]
+    
+    def sessions_with_dataset(self, project_id, sessions):
 
 
 class DarisSourceInputSpec(TraitedSpec):
