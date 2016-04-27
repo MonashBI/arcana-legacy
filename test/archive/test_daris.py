@@ -56,19 +56,19 @@ class TestDarisSession(TestCase):
         self.assertEqual(studies[2].name, 'Study2')
         self.assertEqual(studies[3].name, 'Study3')
 
-    def test_get_datasets(self):
-        datasets = self._daris.get_datasets(
+    def test_get_files(self):
+        files = self._daris.get_files(
             project_id=4, subject_id=1, study_id=3, repo_id=REPO_ID,
             processed=False)
-        self.assertEqual(len(datasets), 8)
+        self.assertEqual(len(files), 8)
         self.assertEqual(
-            datasets[1].name,
+            files[1].name,
             'pd+t2_tse_tra_3mm_C21/PD+T2TSE_tra_640I/3:26/SL3/35sl/FoV220')
         self.assertEqual(
-            datasets[2].name,
+            files[2].name,
             't1_fl2d_tra_3mm_384_C21/T1FLASH_tra_384_pc/2:06/SL3/33sl/FoV220')
         self.assertEqual(
-            datasets[3].name,
+            files[3].name,
             't2_blade_tra_p2_C23/T2TSE_B_tra_384/3:18/G2/SL3/35sl/FoV220/'
             'old_infarct')
 
@@ -131,70 +131,70 @@ class TestDarisSession(TestCase):
                                             subject_id=SUBJECT_ID,
                                             processed=processed)))
 
-    def test_add_remove_dataset(self):
+    def test_add_remove_file(self):
         for processed in (False, True):
-            num_datasets = len(self._daris.get_datasets(
+            num_files = len(self._daris.get_files(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=STUDY_ID, processed=processed))
-            dataset_id = self._daris.add_dataset(
+            file_id = self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, name='unittest-dataset',
+                study_id=STUDY_ID, name='unittest-file',
                 repo_id=REPO_ID,
-                description=("A dataset added by a unit-test that should be "
+                description=("A file added by a unit-test that should be "
                              "removed by the same test"), processed=processed)
-            self._daris.add_dataset(
+            self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                dataset_id=(dataset_id + 1),
-                study_id=STUDY_ID, name='unittest-dataset2',
+                file_id=(file_id + 1),
+                study_id=STUDY_ID, name='unittest-file2',
                 repo_id=REPO_ID,
-                description=("A dataset added by a unit-test that should be "
+                description=("A file added by a unit-test that should be "
                              "removed by the same test"), processed=processed)
             self.assertEqual(
-                len(self._daris.get_datasets(
+                len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                     study_id=STUDY_ID, processed=processed)),
-                num_datasets + 2)
-            self._daris.delete_dataset(
+                num_files + 2)
+            self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, dataset_id=dataset_id,
+                study_id=STUDY_ID, file_id=file_id,
                 repo_id=REPO_ID, processed=processed)
-            self._daris.delete_dataset(
+            self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                dataset_id=(dataset_id + 1), repo_id=REPO_ID,
+                file_id=(file_id + 1), repo_id=REPO_ID,
                 study_id=STUDY_ID, processed=processed)
             self.assertEqual(
-                num_datasets,
-                len(self._daris.get_datasets(
+                num_files,
+                len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                     study_id=STUDY_ID, processed=processed)))
 
     def test_upload_download(self):
-        dataset_id = self._daris.add_dataset(
+        file_id = self._daris.add_file(
             project_id=PROJECT_ID, subject_id=SUBJECT_ID,
             study_id=STUDY_ID, name='unittest-upload',
             repo_id=REPO_ID,
             description=(
-                "A dataset added by a unit-test for testing the "
+                "A file added by a unit-test for testing the "
                 "upload/download functionality that should be "
                 "removed by the same test"), processed=True)
         try:
             self._daris.upload(
                 TEST_IMAGE, project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, study_id=STUDY_ID,
-                dataset_id=dataset_id, repo_id=REPO_ID, processed=True)
+                file_id=file_id, repo_id=REPO_ID, processed=True)
             self._daris.download(
                 TEST_IMAGE + '.dnld', project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, study_id=STUDY_ID,
-                dataset_id=dataset_id, repo_id=REPO_ID, processed=True)
+                file_id=file_id, repo_id=REPO_ID, processed=True)
             self.assertEqual(
                 hashlib.md5(open(TEST_IMAGE, 'rb').read()).hexdigest(),
                 hashlib.md5(
                     open(TEST_IMAGE + '.dnld', 'rb').read()).hexdigest())
         finally:
-            # Remove dataset
-            self._daris.delete_dataset(
+            # Remove file
+            self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, dataset_id=dataset_id,
+                study_id=STUDY_ID, file_id=file_id,
                 repo_id=REPO_ID, processed=True)
             try:
                 # Clean up downloaded file
@@ -234,14 +234,14 @@ class TestDarisSinkAndSource(TestCase):
                 processed=False, name='source-sink-unittest-study',
                 description="Used in DarisSource/Sink unittest")
             for name in ('source1', 'source2', 'source3', 'source4'):
-                dataset_id = daris.add_dataset(
+                file_id = daris.add_file(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                     study_id=study_id, processed=False,
                     name=name, description=(
-                        "A dataset added for DarisSink/Source unittest"))
+                        "A file added for DarisSink/Source unittest"))
                 daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
                              subject_id=SUBJECT_ID, study_id=study_id,
-                             processed=False, dataset_id=dataset_id)
+                             processed=False, file_id=file_id)
         try:
             # Create working dirs
             rmtree_ignore_missing(CACHE_DIR)
@@ -259,7 +259,7 @@ class TestDarisSinkAndSource(TestCase):
             source.inputs.domain = 'mon-daris'
             source.inputs.user = 'test123'
             source.inputs.password = 'GaryEgan1'
-            source.inputs.datasets = [
+            source.inputs.files = [
                 ('source1', False), ('source2', False), ('source3', False),
                 ('source4', False)]
             # Create DataSink node
@@ -296,10 +296,10 @@ class TestDarisSinkAndSource(TestCase):
             self.assertEqual(sorted(os.listdir(sink_cache_dir)),
                              ['sink1', 'sink3', 'sink4'])
             with daris:
-                datasets = daris.get_datasets(
+                files = daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                     study_id=study_id, processed=True, repo_id=REPO_ID)
-            self.assertEqual(sorted(d.name for d in datasets.itervalues()),
+            self.assertEqual(sorted(d.name for d in files.itervalues()),
                              ['sink1', 'sink3', 'sink4'])
         finally:
             # Clean up working dirs

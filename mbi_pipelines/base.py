@@ -67,6 +67,8 @@ class Dataset(object):
                     "present")
                 return  # No sessions need to be rerun
         # Run prerequisite pipelines and save into archive
+        prereqs = pipeline.prequisite_pipelines()
+        
         for inpt in pipeline.inputs:
             if inpt in self.generated_components:
                 prereq_pipeline = self.generated_components[inpt](
@@ -150,7 +152,7 @@ class Pipeline(object):
         """
         self._dataset.run_pipeline(self, sessions, work_dir=work_dir)
 
-    def prepend_prequisites(self, pipelines):
+    def prepend_prequisites(self, pipelines=None):
         """
         Prepend prerequisite pipelines, and also their prerequisites onto the
         pipelines deque if they are not already present
@@ -160,6 +162,8 @@ class Pipeline(object):
         pipelines : collections.deque
             A collection of prequisite pipelines that is built
         """
+        if pipelines is None:
+            pipelines = deque()
         for inpt in self.inputs:
             try:
                 pipeline = self._dataset.generated_components[inpt]
@@ -168,6 +172,7 @@ class Pipeline(object):
                     pipeline.prepend_prequisities(pipelines)
             except KeyError:
                 assert inpt in self._dataset.acquired_components
+        return pipelines
 
     @property
     def name(self):
@@ -205,32 +210,27 @@ class Pipeline(object):
 
 class Session(object):
     """
-    A small wrapper class used to define the subject_id, study_id and whether
-    the scan is processed or not
+    A small wrapper class used to define the subject_id and study_id
     """
 
-    def __init__(self, subject_id, study_id=1, processed=False):
+    def __init__(self, subject_id, study_id=1):
         if isinstance(subject_id, self.__class__):
             # If subject_id is actually another Session just copy values
             self._subject_id = subject_id.subject_id
             self._study_id = subject_id.study_id
-            self._processed = subject_id.processed
         else:
             self._subject_id = subject_id
             self._study_id = study_id
-            self._processed = processed
 
     def __eq__(self, other):
-        return (
-            self.subject_id == other.subject_id and
-            self.study_id == other.study_id and
-            self.processed == other.processed)
+        return (self.subject_id == other.subject_id and
+                self.study_id == other.study_id)
 
     def __ne__(self, other):
         return self != other
 
     def __hash__(self):
-        return hash((self.subject_id, self.study_id, self.processed))
+        return hash((self.subject_id, self.study_id))
 
     @property
     def subject_id(self):
@@ -239,7 +239,3 @@ class Session(object):
     @property
     def study_id(self):
         return self._study_id
-
-    @property
-    def processed(self):
-        return self._processed

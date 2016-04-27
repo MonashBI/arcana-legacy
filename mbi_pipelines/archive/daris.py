@@ -58,8 +58,9 @@ class Daris(Archive):
                           user=self._user, password=self._password) as daris:
             entries = daris.get_subjects(self, project_id, repo_id=repo_id)
         return [e.id for e in entries]
-    
-    def sessions_with_dataset(self, project_id, sessions):
+
+    def sessions_with_file(self, project_id, sessions):
+        raise NotImplementedError
 
 
 class DarisSourceInputSpec(TraitedSpec):
@@ -69,15 +70,15 @@ class DarisSourceInputSpec(TraitedSpec):
                             desc="The time point or processed data process ID")
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
-    datasets = traits.List(  # @UndefinedVariable
+    files = traits.List(  # @UndefinedVariable
         traits.Tuple(  # @UndefinedVariable
-            traits.Str(mandatory=True, desc="name of dataset"),  # @UndefinedVariable @IgnorePep8
+            traits.Str(mandatory=True, desc="name of file"),  # @UndefinedVariable @IgnorePep8
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc="whether the dataset is processed or not")),
-        desc="Names of all sub-datasets that comprise the complete dataset")
+                        desc="whether the file is processed or not")),
+        desc="Names of all files that comprise the complete file")
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
-                           "datasets will be cached"))
+                           "files will be cached"))
     server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
                         usedefault=True, desc="The address of the MF server")
     domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
@@ -125,14 +126,14 @@ class DarisSource(IOBase):
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
-            # Create dictionary mapping dataset names to IDs
-            unprocessed_dict = dict((d.name, d) for d in daris.get_datasets(
+            # Create dictionary mapping file names to IDs
+            unprocessed_dict = dict((d.name, d) for d in daris.get_files(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
                 processed=False,
                 study_id=self.inputs.study_id).itervalues())
-            processed_dict = dict((d.name, d) for d in daris.get_datasets(
+            processed_dict = dict((d.name, d) for d in daris.get_files(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
                 subject_id=self.inputs.subject_id,
@@ -148,12 +149,12 @@ class DarisSource(IOBase):
                     # Make cache directory with group write permissions
                     os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
                 cache_dirs[processed] = cache_dir
-            for dataset_name, processed in self.inputs.datasets:
+            for file_name, processed in self.inputs.files:
                 if processed:
-                    dataset = processed_dict[dataset_name]
+                    file_ = processed_dict[file_name]
                 else:
-                    dataset = unprocessed_dict[dataset_name]
-                cache_path = os.path.join(cache_dirs[processed], dataset.name)
+                    file_ = unprocessed_dict[file_name]
+                cache_path = os.path.join(cache_dirs[processed], file_.name)
                 if not os.path.exists(cache_path):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
@@ -161,8 +162,8 @@ class DarisSource(IOBase):
                         subject_id=self.inputs.subject_id,
                         processed=processed,
                         study_id=self.inputs.study_id,
-                        dataset_id=dataset.id)
-                outputs[dataset_name] = cache_path
+                        file_id=file_.id)
+                outputs[file_name] = cache_path
         return outputs
 
     def _add_output_traits(self, base):
@@ -171,7 +172,7 @@ class DarisSource(IOBase):
         Using traits.Any instead out OutputMultiPath till add_trait bug
         is fixed.
         """
-        return add_traits(base, [name for name, _ in self.inputs.datasets])
+        return add_traits(base, [name for name, _ in self.inputs.files])
 
 
 class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -188,7 +189,7 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     cache_dir = Directory(
-        exists=True, desc=("Path to the base directory where the datasets will"
+        exists=True, desc=("Path to the base directory where the files will"
                            " be cached before uploading"))
     file_format = traits.Str('nifti', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                              desc="The file format of the files to sink")
@@ -280,7 +281,7 @@ class DarisSink(DataSink):
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to DaRIS
-                dataset_id = daris.add_dataset(
+                file_id = daris.add_file(
                     project_id=self.inputs.project_id,
                     subject_id=self.inputs.subject_id,
                     repo_id=self.inputs.repo_id, processed=True,
@@ -290,7 +291,7 @@ class DarisSink(DataSink):
                     src_path, project_id=self.inputs.project_id,
                     subject_id=self.inputs.subject_id,
                     repo_id=self.inputs.repo_id, processed=True,
-                    study_id=study_id, dataset_id=dataset_id,
+                    study_id=study_id, file_id=file_id,
                     file_format=self.inputs.file_format)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
@@ -400,15 +401,15 @@ class DarisSession:
     def __exit__(self, type_, value, traceback):  # @UnusedVariable
         self.close()
 
-    def download(self, location, project_id, subject_id, dataset_id,
+    def download(self, location, project_id, subject_id, file_id,
                  study_id=1, processed=False, repo_id=2):
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, (processed + 1), study_id,
-            dataset_id)
+            file_id)
         self.run("asset.get :cid {} :out file:{}".format(cid, location))
 
-    def upload(self, location, project_id, subject_id, study_id, dataset_id,
+    def upload(self, location, project_id, subject_id, study_id, file_id,
                name=None, repo_id=2, processed=True, file_format='nifti'):
         # Use the name of the file to be uploaded if the 'name' kwarg is
         # present
@@ -424,7 +425,7 @@ class DarisSession:
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
             " :in file:{} :filename \"{}\"{}".format(
                 repo_id, project_id, subject_id, (processed + 1), study_id,
-                dataset_id, location, name, file_format))
+                file_id, location, name, file_format))
         self.run(cmd)
 
     def get_projects(self, repo_id=2):
@@ -453,7 +454,7 @@ class DarisSession:
             "cid starts with '1008.{}.{}.{}.{}' and model='om.pssd.study'"
             .format(repo_id, project_id, subject_id, (processed + 1)))
 
-    def get_datasets(self, project_id, subject_id, study_id=1, repo_id=2,
+    def get_files(self, project_id, subject_id, study_id=1, repo_id=2,
                      processed=False):
         return self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
@@ -537,31 +538,31 @@ class DarisSession:
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def add_dataset(self, project_id, subject_id, study_id, dataset_id=None,
+    def add_file(self, project_id, subject_id, study_id, file_id=None,
                     name=None, description='\"\"', processed=True, repo_id=2):
         """
-        Adds a new dataset with the given subject_id within the given study id
+        Adds a new file with the given subject_id within the given study id
 
-        project_id  -- The id of the project to add the dataset to
-        subject_id  -- The id of the subject to add the dataset to
-        study_id    -- The id of the study to add the dataset to
-        dataset_id     -- The dataset_id of the dataset to add. If not provided
-                       the next available dataset_id is used
+        project_id  -- The id of the project to add the file to
+        subject_id  -- The id of the subject to add the file to
+        study_id    -- The id of the study to add the file to
+        file_id     -- The file_id of the file to add. If not provided
+                       the next available file_id is used
         name        -- The name of the subject
         description -- A description of the subject
         """
-        if dataset_id is None:
-            # Get the next unused dataset id
+        if file_id is None:
+            # Get the next unused file id
             try:
-                max_dataset_id = max(
-                    self.get_datasets(project_id, subject_id,
-                                      study_id=study_id, processed=processed,
-                                      repo_id=repo_id))
+                max_file_id = max(
+                    self.get_files(project_id, subject_id,
+                                   study_id=study_id, processed=processed,
+                                   repo_id=repo_id))
             except ValueError:
-                max_dataset_id = 0
-            dataset_id = max_dataset_id + 1
+                max_file_id = 0
+            file_id = max_file_id + 1
         if name is None:
-            name = 'Dataset_{}'.format(dataset_id)
+            name = 'Dataset_{}'.format(file_id)
         if processed:
             meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1
                     ":study-reference 1008.{}.{}.{}.1 \> \>".format(
@@ -572,7 +573,7 @@ class DarisSession:
                " :processed {} :name \"{}\" :description \"{}\"{}".format(
                    repo_id, project_id, subject_id, (processed + 1), study_id,
                    str(processed).lower(), name, description, meta))
-        # Return the id of the newly created dataset
+        # Return the id of the newly created remote file
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
@@ -590,13 +591,13 @@ class DarisSession:
                 repo_id, project_id, subject_id, (processed + 1), study_id))
         self.run(cmd)
 
-    def delete_dataset(self, project_id, subject_id, study_id, dataset_id,
+    def delete_file(self, project_id, subject_id, study_id, file_id,
                        processed=True, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
                 repo_id, project_id, subject_id, (processed + 1), study_id,
-                dataset_id))
+                file_id))
         self.run(cmd)
 
     def find_study(self, name, project_id, subject_id, processed, repo_id=2):
@@ -707,13 +708,13 @@ class DarisSession:
 
 
 def construct_cid(project_id, subject_id=None, study_id=None,
-                  processed=None, dataset_id=None, repo_id=2):
+                  processed=None, file_id=None, repo_id=2):
     """
     Returns the CID (unique asset identifier for DaRIS) from the combination of
     sub ids
     """
     cid = '1008.{}.{}'.format(repo_id, project_id)
-    ids = (subject_id, study_id, processed, dataset_id)
+    ids = (subject_id, study_id, processed, file_id)
     for i, id_ in enumerate(ids):
         if id_ is not None:
             cid += '.{}'.format(int(id_))
