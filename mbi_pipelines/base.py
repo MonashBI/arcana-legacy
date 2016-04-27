@@ -97,8 +97,8 @@ class Dataset(object):
         inputnode = pe.Node(IdentityInterface(), name='session_input')
         inputnode.iterables = ('sessions', tuple(sessions))
         # Create source and sinks from the archive
-        source = self._archive.source(self._project_id)
-        sink = self._dataset.archive_sink(self._project_id)
+        source = self._archive.source(self._project_id, pipeline.inputs)
+        sink = self._dataset.archive_sink(self._project_id, pipeline.outputs)
         # Add all extra nodes and the pipelines workflow to a wrapper workflow
         complete_workflow.add_nodes(
             (inputnode, source, self._workflow, sink))

@@ -30,7 +30,7 @@ class Daris(Archive):
         self._cache_dir = cache_dir
         self._repo_id = repo_id
 
-    def source(self, project_id):
+    def source(self, project_id, input_files):
         source = pe.Node(DarisSource(), name="daris_source")
         source.inputs.server = self._server
         source.inputs.domain = self._domain
@@ -39,6 +39,8 @@ class Daris(Archive):
         source.inputs.cache_dir = self._cache_dir
         source.inputs.project_id = project_id
         source.inputs.repo_id = self._repo_id
+        source.inputs.files = [(f.filename(), f.processed)
+                               for f in input_files]
         return source
 
     def sink(self, project_id):
