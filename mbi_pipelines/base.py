@@ -1,9 +1,10 @@
-from abc import ABCMeta
+from abc import ABCMeta, abstractmethod
 from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
-from collections import deque
+from mbi_pipelines.exception import (
+    AcquiredComponentException, NoMatchingPipelineException)
 
 
 logger = Logger('MBIPipelines')
@@ -15,17 +16,21 @@ class Dataset(object):
 
     def __init__(self, project_id, archive, scan_names):
         """
-        project_name -- The name of the project. For DaRIS it is the project
-                         id minus the proceeding 1008.2. For XNAT it will be
-                         the project code. For local files it is the full path
-                         to the directory.
-        archive      -- A sub-class of the abstract RIS (Research Informatics
-                        System)
-        scan_names   -- A dict containing the a mapping between names of
-                        dataset components and the acquired scans, e.g.
-                        {'diffusion':'ep2d_diff_mrtrix_33_dir_3_inter_b0_p_RL',
-                         'distortion_correct':
-                           'PRE DWI L-R DIST CORR 36 DIR MrTrix'}
+        Parameters
+        ----------
+        project_name : str
+            The name of the project. For DaRIS it is the project
+            id minus the proceeding 1008.2. For XNAT it will be
+            the project code. For local files it is the full path
+            to the directory.
+        archive : Archive
+            An Archive object referring either to a DaRIS, XNAT or local file
+            system project
+        scan_names : List[str]
+            A dict containing the a mapping between names of
+            dataset components and the acquired scans, e.g.
+            {'diffusion':'ep2d_diff_mrtrix_33_dir_3_inter_b0_p_RL',
+             'distortion_correct': 'PRE DWI L-R DIST CORR 36 DIR MrTrix'}
         """
         self._project_id = project_id
         self._scan_names = scan_names
@@ -35,18 +40,24 @@ class Dataset(object):
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False):
         """
-        Gets a data grabber for the requested subject_ids and a data sink from
-        the dataset the pipeline belongs to and then combines them together
-        with the wrapped workflow and runs the pipeline
+        Gets a data source and data sink from the archive for the requested
+        sessions, connects them to the pipeline's NiPyPE workflow and runs
+        the pipeline
 
-          `pipeline`  -- the pipeline to run
-          `sessions`  --  iterable of Session objects or ints, which will be
-                         interpreted as subject ids for the first (unprocessed)
-                         study
-          `work_dir`  -- directory in which to run the nipype workflows
-          `reprocess` -- whether to rerun the processing for this step. If
-                         set to 'all' then pre-requisite pipelines will also be
-                         reprocessed.
+
+        Parameters
+        ----------
+        pipeline : Pipeline
+            The pipeline to run
+        sessions : List[Session|int]
+            A list (or iterable) of Session objects or ints, which will be
+            interpreted as subject ids for the first (unprocessed) study
+        work_dir : str
+            A directory in which to run the nipype workflows
+        reprocess: True|False|'all'
+            A flag which determines whether to rerun the processing for this
+            step. If set to 'all' then pre-requisite pipelines will also be
+            reprocessed.
         """
         # If subject_ids is none use all associated with the project
         if sessions is None:
@@ -54,27 +65,22 @@ class Dataset(object):
         # Ensure all sessions are session objects and they are unique
         sessions = set(Session(session for session in sessions))
         if not reprocess:
-            # Check which sessions already have the required outputs in the
-            # archive and don't rerun for those subjects/studies
+            # Check which sessions already have all the required output files
+            # in the archive and don't rerun for those subjects/studies
             complete_sessions = copy(sessions)
             for output in pipeline.outputs:
-                complete_sessions &= self._archive.sessions_with_dataset(
-                    output + pipeline.suffix)
+                complete_sessions &= self._archive.sessions_with_file(
+                    output.filename())
             sessions -= complete_sessions
             if not sessions:
                 logger.info(
                     "Pipeline '{}' wasn't run as all requested sessions were "
                     "present")
                 return  # No sessions need to be rerun
-        # Run prerequisite pipelines and save into archive
-        prereqs = pipeline.prequisite_pipelines()
-        
-        for inpt in pipeline.inputs:
-            if inpt in self.generated_components:
-                prereq_pipeline = self.generated_components[inpt](
-                    **pipeline.other_kwargs)
-                self.run_pipeline(prereq_pipeline, sessions, work_dir,
-                                  ('all' if reprocess == 'all' else False))
+        # Run prerequisite pipelines and save their results into the archive
+        for prereq in pipeline.prequisites:
+            self.run_pipeline(prereq, sessions, work_dir,
+                              ('all' if reprocess == 'all' else False))
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
@@ -87,20 +93,42 @@ class Dataset(object):
             (inputnode, source, self._workflow, sink))
         complete_workflow.connect(inputnode, 'sessions',
                                   source, 'sessions')
-        for inpt in pipeline.inputs:
-            archive_input = (
-                self._scan_names[inpt] if inpt in self.generated_components
-                else inpt)
+        for input_ in pipeline.inputs:
             complete_workflow.connect(
-                source, archive_input, pipeline.workflow.inputnode, inpt)
+                source, input_.filename(self._scan_names),
+                pipeline.workflow.inputnode, input_.name)
         for output in pipeline.outputs:
-            complete_workflow.connect(pipeline.workflow.outputnode, output,
-                                      sink, output)
+            complete_workflow.connect(
+                pipeline.workflow.outputnode, output.name,
+                sink, output.filename())
         complete_workflow.run()
 
     def is_generated(self, input_name):
         # generated_components should be defined by the derived class
         return input_name in self.generated_components
+
+    def generating_pipeline(self, file_):
+        """
+        Looks up the pipeline that generates the given file (as
+        determined by the 'generated_components dict class member) and creates
+        a pipeline for the dataset with the given pipeline options
+
+        Parameters
+        ----------
+        file_ : ProcessedFile
+            The file for which the pipeline that generates it is to be returned
+        """
+        try:
+            # Get 'getter' method from class dictionary 'generated_components'
+            getter = self._dataset.generated_components[file_.name]
+            # Call getter on dataset and generate the pipeline with appropriate
+            # options
+            return getter(self, **file_.options)
+        except KeyError:
+            if file_.name in self._dataset.acquired_components:
+                raise AcquiredComponentException(file_.name)
+            else:
+                raise NoMatchingPipelineException(file_.name)
 
 
 class Pipeline(object):
@@ -110,8 +138,7 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, name, dataset, workflow, inputs, outputs, options,
-                 other_kwargs):
+    def __init__(self, name, dataset, workflow, inputs, outputs, options):
         """
         Parameters
         ----------
@@ -121,9 +148,11 @@ class Pipeline(object):
             The dataset from which the pipeline was created
         workflow : nipype.Workflow
             The NiPype workflow to run
-        inputs : List[str]
-            The list of inputs (hard-coded names for un/processed scans/files)
-        outputs : List[str]
+        inputs : List[BaseFile]
+            The list of input files required for the pipeline
+            un/processed files, and the options used to generate them for
+            unprocessed files
+        outputs : List[ProcessedFile]
             The list of outputs (hard-coded names for un/processed scans/files)
         options : Dict[str, *]
             Options that effect the output of the pipeline
@@ -137,7 +166,20 @@ class Pipeline(object):
         self._inputs = inputs
         self._outputs = outputs
         self._options = options
-        self._other_kwargs = other_kwargs
+
+    def __eq__(self, other):
+        # NB: Workflows should be the same for pipelines of the same name so
+        #     may not need to be checked.
+        return (
+            self._name == other.name and
+            self._dataset == other.dataset and
+            self._workflow == other.workflow and
+            self._inputs == other.inputs and
+            self._outputs == other.outputs and
+            self._options == other.options)
+
+    def __ne__(self, other):
+        return not (self == other)
 
     def run(self, sessions=None, work_dir=None):
         """
@@ -152,27 +194,38 @@ class Pipeline(object):
         """
         self._dataset.run_pipeline(self, sessions, work_dir=work_dir)
 
-    def prepend_prequisites(self, pipelines=None):
+    @property
+    def prerequisities(self):
+        """Outer wrapper around the recursive _prerequisites method"""
+        prereqs = []
+        self._prerequisites(prereqs)
+        return prereqs
+
+    def _prerequisites(self, pipelines):
         """
-        Prepend prerequisite pipelines, and also their prerequisites onto the
-        pipelines deque if they are not already present
+        Recursively append prerequisite pipelines along with their
+        prerequisites onto the list of pipelines if they are not already
+        present
 
         Parameters
         ----------
-        pipelines : collections.deque
-            A collection of prequisite pipelines that is built
+        pipelines : List[Pipeline]
+            A collection of prerequisite pipelines that is built up via
+            recursion
         """
-        if pipelines is None:
-            pipelines = deque()
-        for inpt in self.inputs:
+        # Loop through the inputs to the pipeline and add the getter method
+        # for the pipeline to generate each one
+        for input_ in self.inputs:
             try:
-                pipeline = self._dataset.generated_components[inpt]
+                pipeline = self._dataset.generating_pipeline(input_)
                 if pipeline not in pipelines:
-                    pipelines.appendleft(pipeline)
-                    pipeline.prepend_prequisities(pipelines)
-            except KeyError:
-                assert inpt in self._dataset.acquired_components
-        return pipelines
+                    # Add prerequisites of the prerequisites recursively
+                    # Note that they are added before the prerequisite pipeline
+                    # so pipelines list is in the required order
+                    pipeline._prequisites(pipelines)
+                    pipelines.append(pipeline)
+            except AcquiredComponentException:
+                pass
 
     @property
     def name(self):
@@ -195,17 +248,11 @@ class Pipeline(object):
         return self._options
 
     @property
-    def other_kwargs(self):
-        return self._other_kwargs
-
-    @property
     def suffix(self):
         """
         A suffixed appended to output filenames when they are archived to
         identify the options used to generate them
         """
-        return ''.join('__{}={}'.format(n, v)
-                       for n, v in self._options.iteritems())
 
 
 class Session(object):
@@ -227,7 +274,7 @@ class Session(object):
                 self.study_id == other.study_id)
 
     def __ne__(self, other):
-        return self != other
+        return not (self == other)
 
     def __hash__(self):
         return hash((self.subject_id, self.study_id))
@@ -239,3 +286,53 @@ class Session(object):
     @property
     def study_id(self):
         return self._study_id
+
+
+class BaseFile(object):
+    """
+    Abstract base class for AcquiredFile and ProcessedFile classes
+    """
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, name):
+        self._name = name
+
+    @property
+    def name(self):
+        return self._name
+
+    @abstractmethod
+    def filename(self, **kwargs):
+        pass
+
+    @abstractmethod
+    def is_processed(self):
+        pass
+
+
+class AcquiredFile(BaseFile):
+
+    def filename(self, name_map, **kwargs):  # @UnusedVariable
+        return name_map[self.name]
+
+    def is_processed(self):
+        return False
+
+
+class ProcessedFile(BaseFile):
+
+    def __init__(self, name, **options):
+        BaseFile.__init__(self, name)
+        self._options = options
+
+    @property
+    def options(self):
+        return self._options
+
+    def filename(self, **kwargs):  # @UnusedVariable
+        return self._name + ''.join('__{}={}'.format(n, v)
+                                    for n, v in self._options.iteritems())
+
+    def is_processed(self):
+        return True
