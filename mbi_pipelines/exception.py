@@ -2,6 +2,18 @@ class MBIPipelinesException(Exception):
     pass
 
 
+class MBIPipelinesError(MBIPipelinesException):
+    pass
+
+
+class AcquiredComponentException(MBIPipelinesException):
+    pass
+
+
+class NoMatchingPipelineException(MBIPipelinesException):
+    pass
+
+
 class DarisException(Exception):
     pass
 
@@ -11,12 +23,4 @@ class DarisExistingCIDException(DarisException):
 
 
 class DarisNameNotFoundException(DarisException):
-    pass
-
-
-class AcquiredComponentException(MBIPipelinesException):
-    pass
-
-
-class NoMatchingPipelineException(MBIPipelinesException):
     pass

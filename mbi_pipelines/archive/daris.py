@@ -11,10 +11,9 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, DataSink, add_traits
 from mbi_pipelines.exception import (
     DarisException, DarisNameNotFoundException)
-from collections import namedtuple
 from .base import Archive
+from ..base import Session
 
-DarisEntry = namedtuple('DarisEntry', 'id name description ctime mtime')
 
 logger = logging.getLogger('MBIPipelines')
 
@@ -53,26 +52,76 @@ class Daris(Archive):
         sink.inputs.repo_id = self._repo_id
         return sink
 
-    def subject_ids(self, project_id, repo_id=2):
-        with DarisSession(server=self._server, domain=self._domain,
-                          user=self._user, password=self._password) as daris:
-            entries = daris.get_subjects(self, project_id, repo_id=repo_id)
-        return [e.id for e in entries]
+    def all_sessions(self, project_id, study_id=None):
+        """
+        Parameters
+        ----------
+        project_id : int
+            The project id to return the sessions for
+        repo_id : int
+            The id of the repository (2 for monash daris)
+        study_ids: int|List[int]|None
+            Id or ids of studies of which to return sessions for. If None all
+            are returned
+        """
+        with self._daris() as daris:
+            entries = daris.get_sessions(self, project_id,
+                                         repo_id=self._repo_id)
+            if study_id is not None:
+                # Attempt to convert study_ids into a single int and then wrap
+                # in a list in case study ids is a single integer (or string
+                # representation of an integer)
+                try:
+                    study_ids = [int(study_id)]
+                except TypeError:
+                    study_ids = study_id
+                entries = [e for e in entries if e.id in study_ids]
+        return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
 
-    def sessions_with_file(self, project_id, sessions):
-        raise NotImplementedError
+    def sessions_with_file(self, file_, project_id, sessions):
+        """
+        Parameters
+        ----------
+        file_ : BaseFile
+            A file (name) for which to return the sessions that contain it
+        project_id : int
+            The id of the project
+        sessions : List[Session]
+            List of sessions of which to test for the file_
+        """
+        if sessions is None:
+            sessions = self.all_sessions(project_id=project_id)
+        sess_with_file = []
+        with self._daris() as daris:
+            for session in sessions:
+                entries = daris.get_files(
+                    project_id, session.subject_id, session.study_id,
+                    repo_id=self._repo_id, processed=file_.processed)
+                if file_.filename() in (e.name for e in entries):
+                    sess_with_file.append(session)
+        return sess_with_file
+
+    def _daris(self):
+        return DarisSession(server=self._server, domain=self._domain,
+                            user=self._user, password=self._password)
 
 
 class DarisSourceInputSpec(TraitedSpec):
-    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    project_id = traits.Int(  # @UndefinedVariable
+        mandatory=True,
+        desc='The project ID')
+    subject_id = traits.Int(  # @UndefinedVariable
+        mandatory=True,
+        desc="The subject ID")
     study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                            desc="The time point or processed data process ID")
-    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                          desc="The time point or processed data process ID")
+    repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     files = traits.List(  # @UndefinedVariable
         traits.Tuple(  # @UndefinedVariable
-            traits.Str(mandatory=True, desc="name of file"),  # @UndefinedVariable @IgnorePep8
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of file"),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
                         desc="whether the file is processed or not")),
         desc="Names of all files that comprise the complete file")
@@ -177,16 +226,20 @@ class DarisSource(IOBase):
 
 class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
-    project_id = traits.Int(mandatory=True, desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(mandatory=False, # @UndefinedVariable @IgnorePep8
+    project_id = traits.Int(  # @UndefinedVariable
+        mandatory=True,
+        desc='The project ID')  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Int(  # @UndefinedVariable
+        mandatory=True,
+        desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    study_id = traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
                           desc="The time point or processed data process ID")
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
-                                   desc="Description of the study")
-    repo_id = traits.Int(2, mandatory=True, usedefault=True, # @UndefinedVariable @IgnorePep8
+                             desc="Description of the study")
+    repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the files will"
@@ -201,7 +254,10 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                       desc="The DaRIS username to log in with")
     password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                                desc="The password of the DaRIS user")
-    _outputs = traits.Dict(traits.Str, value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
+    _outputs = traits.Dict(  # @UndefinedVariable
+        traits.Str,  # @UndefinedVariable
+        value={},
+        usedefault=True)  # @UndefinedVariable @IgnorePep8
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
@@ -223,6 +279,7 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 class DarisSinkOutputSpec(TraitedSpec):
 
     out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
+    # @UndefinedVariable @IgnorePep8
     study_id = traits.Int(desc="The study id, which was potentially created")  # @UndefinedVariable @IgnorePep8
 
 
@@ -363,8 +420,8 @@ class DarisSession:
         if self._token is not None:
             # Get MediaFlux SID from token logon
             self._mfsid = self.run("system.logon :app {} :token {}"
-                                    .format(self._app_name, self._token),
-                                    logon=True)
+                                   .format(self._app_name, self._token),
+                                   logon=True)
         else:
             # Logon to DaRIS using user name
             self._mfsid = self.run("logon {} {} {}".format(
@@ -454,8 +511,13 @@ class DarisSession:
             "cid starts with '1008.{}.{}.{}.{}' and model='om.pssd.study'"
             .format(repo_id, project_id, subject_id, (processed + 1)))
 
+    def get_sessions(self, project_id, repo_id=2):
+        return self.query(
+            "cid starts with '1008.{}.{}' and model='om.pssd.study'"
+            .format(repo_id, project_id))
+
     def get_files(self, project_id, subject_id, study_id=1, repo_id=2,
-                     processed=False):
+                  processed=False):
         return self.query(
             "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
             .format(repo_id, project_id, subject_id, (processed + 1),
@@ -539,7 +601,7 @@ class DarisSession:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_file(self, project_id, subject_id, study_id, file_id=None,
-                    name=None, description='\"\"', processed=True, repo_id=2):
+                 name=None, description='\"\"', processed=True, repo_id=2):
         """
         Adds a new file with the given subject_id within the given study id
 
@@ -592,7 +654,7 @@ class DarisSession:
         self.run(cmd)
 
     def delete_file(self, project_id, subject_id, study_id, file_id,
-                       processed=True, repo_id=2):
+                    processed=True, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
@@ -637,7 +699,7 @@ class DarisSession:
         try:
             result = subprocess.check_output(
                 full_cmd, stderr=subprocess.STDOUT, shell=True).strip()
-        except subprocess.CalledProcessError, e:
+        except subprocess.CalledProcessError as e:
             raise DarisException(
                 "{}: {}".format(e.returncode, e.output.decode()))
         # Extract results from result XML if xpath is provided
@@ -679,8 +741,7 @@ class DarisSession:
                 args.append(attr)
             # Strip the ID of the entry from the returned CID (i.e. the
             # number after the last '.'
-            entry_id = int(args[0].split('.')[-1])
-            entries.append(DarisEntry(entry_id, *args[1:]))
+            entries.append(DarisEntry(*args))
         return dict((e.id, e) for e in entries)
 
     def exists(self, *args, **kwargs):
@@ -705,6 +766,40 @@ class DarisSession:
     def aterm_path(cls):
         return os.path.join(os.path.dirname(os.path.realpath(__file__)),
                             '_extern', 'aterm.jar')
+
+
+class DarisEntry(object):
+
+    def __init__(self, cid, name, description, ctime=None, mtime=None):
+        self._cid = cid
+        self._name = name
+        self._description = description
+        self._ctime = ctime
+        self._mtime = mtime
+
+    @property
+    def cid(self):
+        return self._cid
+
+    @property
+    def id(self):
+        return self._cid.split('.')[-1]
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def description(self):
+        return self._description
+
+    @property
+    def ctime(self):
+        return self._ctime
+
+    @property
+    def mtime(self):
+        return self._mtime
 
 
 def construct_cid(project_id, subject_id=None, study_id=None,

@@ -4,7 +4,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
 from mbi_pipelines.exception import (
-    AcquiredComponentException, NoMatchingPipelineException)
+    AcquiredComponentException, NoMatchingPipelineException, MBIPipelinesError)
 
 
 logger = Logger('MBIPipelines')
@@ -38,7 +38,7 @@ class Dataset(object):
         self._archive = archive
 
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
-                     reprocess=False):
+                     reprocess=False, study_id=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow and runs
@@ -58,10 +58,17 @@ class Dataset(object):
             A flag which determines whether to rerun the processing for this
             step. If set to 'all' then pre-requisite pipelines will also be
             reprocessed.
+        study_ids: int|List[int]|None
+            Id or ids of studies of which to return sessions for. If None all
+            are returned
         """
         # If subject_ids is none use all associated with the project
         if sessions is None:
-            sessions = self._archive.subject_ids(self._project_id)
+            sessions = self._archive.all_sessions(self._project_id,
+                                                  study_id=study_id)
+        elif study_id is not None:
+            raise MBIPipelinesError(
+                "study_id is only relevant if sessions argument is None")
         # Ensure all sessions are session objects and they are unique
         sessions = set(Session(session for session in sessions))
         if not reprocess:
@@ -79,18 +86,23 @@ class Dataset(object):
                 return  # No sessions need to be rerun
         # Run prerequisite pipelines and save their results into the archive
         for prereq in pipeline.prequisites:
+            # If reprocess is True, prerequisite pipelines are not reprocessed,
+            # only if reprocess == 'all'
             self.run_pipeline(prereq, sessions, work_dir,
-                              ('all' if reprocess == 'all' else False))
+                              (reprocess if reprocess == 'all' else False))
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
-        # Generate extra nodes
+        # Generate an input node for the sessions iterable
         inputnode = pe.Node(IdentityInterface(), name='session_input')
         inputnode.iterables = ('sessions', tuple(sessions))
+        # Create source and sinks from the archive
         source = self._archive.source(self._project_id)
         sink = self._dataset.archive_sink(self._project_id)
+        # Add all extra nodes and the pipelines workflow to a wrapper workflow
         complete_workflow.add_nodes(
             (inputnode, source, self._workflow, sink))
+        # Connect the nodes of the wrapper workflow
         complete_workflow.connect(inputnode, 'sessions',
                                   source, 'sessions')
         for input_ in pipeline.inputs:
@@ -101,6 +113,7 @@ class Dataset(object):
             complete_workflow.connect(
                 pipeline.workflow.outputnode, output.name,
                 sink, output.filename())
+        # Run the workflow
         complete_workflow.run()
 
     def is_generated(self, input_name):
@@ -196,12 +209,6 @@ class Pipeline(object):
 
     @property
     def prerequisities(self):
-        """Outer wrapper around the recursive _prerequisites method"""
-        prereqs = []
-        self._prerequisites(prereqs)
-        return prereqs
-
-    def _prerequisites(self, pipelines):
         """
         Recursively append prerequisite pipelines along with their
         prerequisites onto the list of pipelines if they are not already
@@ -213,19 +220,17 @@ class Pipeline(object):
             A collection of prerequisite pipelines that is built up via
             recursion
         """
+        prereqs = []
         # Loop through the inputs to the pipeline and add the getter method
         # for the pipeline to generate each one
         for input_ in self.inputs:
             try:
                 pipeline = self._dataset.generating_pipeline(input_)
-                if pipeline not in pipelines:
-                    # Add prerequisites of the prerequisites recursively
-                    # Note that they are added before the prerequisite pipeline
-                    # so pipelines list is in the required order
-                    pipeline._prequisites(pipelines)
-                    pipelines.append(pipeline)
+                if pipeline not in prereqs:
+                    prereqs.append(pipeline)
             except AcquiredComponentException:
                 pass
+        return prereqs
 
     @property
     def name(self):
@@ -306,17 +311,14 @@ class BaseFile(object):
     def filename(self, **kwargs):
         pass
 
-    @abstractmethod
-    def is_processed(self):
-        pass
-
 
 class AcquiredFile(BaseFile):
 
     def filename(self, name_map, **kwargs):  # @UnusedVariable
         return name_map[self.name]
 
-    def is_processed(self):
+    @property
+    def processed(self):
         return False
 
 
@@ -334,5 +336,6 @@ class ProcessedFile(BaseFile):
         return self._name + ''.join('__{}={}'.format(n, v)
                                     for n, v in self._options.iteritems())
 
-    def is_processed(self):
+    @property
+    def processed(self):
         return True
