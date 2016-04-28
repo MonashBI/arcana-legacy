@@ -9,7 +9,7 @@ from nipype.interfaces.base import (
     isdefined, Undefined)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, DataSink, add_traits
-from mbi_pipelines.exception import (
+from neuroanalysis.exception import (
     DarisException, DarisNameNotFoundException)
 from .base import Archive
 from ..base import Session

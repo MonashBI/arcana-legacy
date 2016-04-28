@@ -3,7 +3,7 @@ from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
-from mbi_pipelines.exception import (
+from neuroanalysis.exception import (
     AcquiredComponentException, NoMatchingPipelineException, MBIPipelinesError)
 
 
