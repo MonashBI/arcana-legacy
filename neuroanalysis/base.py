@@ -331,7 +331,7 @@ class AcquiredFile(BaseFile):
 
 class ProcessedFile(BaseFile):
 
-    def __init__(self, name, file_format='nii.gz', **options):
+    def __init__(self, name, file_format='nii.gz', options):
         BaseFile.__init__(self, name, file_format)
         self._options = options
 

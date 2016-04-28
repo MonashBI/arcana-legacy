@@ -1,7 +1,7 @@
 import os.path
 from .base import Archive
 from nipype.pipeline import engine as pe
-from nipype.interfaces.io import DataGrabber
+from nipype.interfaces.io import DataGrabber, DataSink
 
 
 class LocalFileSystem(Archive):
@@ -31,7 +31,9 @@ class LocalFileSystem(Archive):
         source.inputs.template_args = template_args
 
     def sink(self, project_id):
-        raise NotImplementedError
+        sink = pe.Node(
+            DataSink(), name="local_sink")
+        sink.inputs.base_directory = os.path.join(self._path, str(project_id))
 
     def all_sessions(self, project_id, study_id=None):
         raise NotImplementedError
