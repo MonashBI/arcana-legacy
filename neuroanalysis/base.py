@@ -4,10 +4,11 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
 from neuroanalysis.exception import (
-    AcquiredComponentException, NoMatchingPipelineException, MBIPipelinesError)
+    AcquiredComponentException, NoMatchingPipelineException,
+    NeuroAnalysisError)
 
 
-logger = Logger('MBIPipelines')
+logger = Logger('NeuroAnalysis')
 
 
 class Dataset(object):
@@ -67,7 +68,7 @@ class Dataset(object):
             sessions = self._archive.all_sessions(self._project_id,
                                                   study_id=study_id)
         elif study_id is not None:
-            raise MBIPipelinesError(
+            raise NeuroAnalysisError(
                 "study_id is only relevant if sessions argument is None")
         # Ensure all sessions are session objects and they are unique
         sessions = set(Session(session for session in sessions))
@@ -300,22 +301,50 @@ class BaseFile(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name):
+    def __init__(self, name, file_format='nii.gz'):
         self._name = name
+        self._format = file_format
 
     @property
     def name(self):
         return self._name
 
-    @abstractmethod
-    def filename(self, **kwargs):
-        pass
+    @property
+    def format(self):
+        return self._format
 
 
 class AcquiredFile(BaseFile):
 
-    def filename(self, name_map, **kwargs):  # @UnusedVariable
-        return name_map[self.name]
+    def __init__(self, name, file_format, filename):
+        super(AcquiredFile, self).__init__(name, file_format)
+        self._filename = filename
+
+    def map_filename(self, name_map):
+        """
+        Returns a copy of the AcquiredFile with the filename mapped
+
+        Parameters
+        ----------
+        name_map : Dict[str, str]
+            Mapping from AcquiredFile name (Note: different types of files are,
+            assigned fixed names (e.g. dMRI acquisition -> 'diffusion')
+            to the saved filename
+        """
+        if self.name not in name_map:
+            raise NeuroAnalysisError(
+                "File name '{}' was not in provided name map ({})"
+                .format(self.name, name_map))
+        cpy = copy(self)
+        cpy._filename = name_map[self.name]
+        return cpy
+
+    @property
+    def filename(self):  # @UnusedVariable
+        if self._filename is None:
+            raise NeuroAnalysisError(
+                "Filename mapping has not been set. See 'map_filename' method")
+        return self._filename
 
     @property
     def processed(self):
@@ -324,17 +353,20 @@ class AcquiredFile(BaseFile):
 
 class ProcessedFile(BaseFile):
 
-    def __init__(self, name, **options):
-        BaseFile.__init__(self, name)
+    def __init__(self, name, file_format='nii.gz', **options):
+        BaseFile.__init__(self, name, file_format)
         self._options = options
 
     @property
     def options(self):
         return self._options
 
-    def filename(self, **kwargs):  # @UnusedVariable
-        return self._name + ''.join('__{}={}'.format(n, v)
-                                    for n, v in self._options.iteritems())
+    @property
+    def filename(self):  # @UnusedVariable
+        return "{}{}.{}".format(
+            self._name, ''.join('__{}={}'.format(n, v)
+                                 for n, v in self._options.iteritems()),
+            self._format)
 
     @property
     def processed(self):

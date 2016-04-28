@@ -1,16 +1,16 @@
-class MBIPipelinesException(Exception):
+class NeuroAnalysisException(Exception):
     pass
 
 
-class MBIPipelinesError(MBIPipelinesException):
+class NeuroAnalysisError(NeuroAnalysisException):
     pass
 
 
-class AcquiredComponentException(MBIPipelinesException):
+class AcquiredComponentException(NeuroAnalysisException):
     pass
 
 
-class NoMatchingPipelineException(MBIPipelinesException):
+class NoMatchingPipelineException(NeuroAnalysisException):
     pass
 
 

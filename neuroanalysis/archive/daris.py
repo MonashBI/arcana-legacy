@@ -15,14 +15,13 @@ from .base import Archive
 from ..base import Session
 
 
-logger = logging.getLogger('MBIPipelines')
+logger = logging.getLogger('NeuroAnalysis')
 
 
 class Daris(Archive):
 
-    def __init__(self, user, password, cache_dir,
-                 server='mf-erc.its.monash.edu.au', domain='monash-ldap',
-                 repo_id=2):
+    def __init__(self, user, password, cache_dir, repo_id=2,
+                 server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
         self._server = server
         self._domain = domain
         self._user = user
