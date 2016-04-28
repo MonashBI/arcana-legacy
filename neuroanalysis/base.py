@@ -320,30 +320,8 @@ class AcquiredFile(BaseFile):
         super(AcquiredFile, self).__init__(name, file_format)
         self._filename = filename
 
-    def map_filename(self, name_map):
-        """
-        Returns a copy of the AcquiredFile with the filename mapped
-
-        Parameters
-        ----------
-        name_map : Dict[str, str]
-            Mapping from AcquiredFile name (Note: different types of files are,
-            assigned fixed names (e.g. dMRI acquisition -> 'diffusion')
-            to the saved filename
-        """
-        if self.name not in name_map:
-            raise NeuroAnalysisError(
-                "File name '{}' was not in provided name map ({})"
-                .format(self.name, name_map))
-        cpy = copy(self)
-        cpy._filename = name_map[self.name]
-        return cpy
-
     @property
-    def filename(self):  # @UnusedVariable
-        if self._filename is None:
-            raise NeuroAnalysisError(
-                "Filename mapping has not been set. See 'map_filename' method")
+    def filename(self):
         return self._filename
 
     @property
@@ -362,7 +340,7 @@ class ProcessedFile(BaseFile):
         return self._options
 
     @property
-    def filename(self):  # @UnusedVariable
+    def filename(self):
         return "{}{}.{}".format(
             self._name, ''.join('__{}={}'.format(n, v)
                                  for n, v in self._options.iteritems()),
