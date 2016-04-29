@@ -4,9 +4,10 @@ import errno
 import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
-from mbi_pipelines.archive.daris import (
+from neuroanalysis.archive.daris import (
     DarisSession, DarisSource, DarisSink)
-from mbi_pipelines.exception import DarisException
+from neuroanalysis.exception import DarisException
+from neuroanalysis.utils import rmtree_ignore_missing
 
 
 SERVER = 'mf-erc.its.monash.edu.au'
@@ -316,11 +317,3 @@ class TestDarisSinkAndSource(TestCase):
                         processed=True, study_id=study_id)
             except DarisException:
                 pass
-
-
-def rmtree_ignore_missing(directory):
-    try:
-        shutil.rmtree(directory)
-    except OSError as e:
-        if e.errno != errno.ENOENT:
-            raise

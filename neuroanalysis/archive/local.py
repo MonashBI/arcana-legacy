@@ -8,18 +8,23 @@ from nipype.interfaces.io import DataGrabber, DataSink
 from nipype.interfaces.base import (
     Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined)
+from ..base import Session
 
 
 logger = logging.getLogger('NeuroAnalysis')
 
 
-class LocalFileSystem(Archive):
+class LocalArchive(Archive):
     """
     Abstract base class for all Archive systems, DaRIS, XNAT and local file
     system. Sets out the interface that all Archive classes should implement.
     """
 
+    type = 'Local'
+
     def __init__(self, path):
+        if not os.path.exists(path):
+            os.makedirs(path)
         self._path = path
 
     def source(self, project_id, input_files):
@@ -45,10 +50,34 @@ class LocalFileSystem(Archive):
         sink.inputs.base_directory = os.path.join(self._path, str(project_id))
 
     def all_sessions(self, project_id, study_id=None):
-        raise NotImplementedError
+        project_dir = os.path.join(self._path, str(project_id))
+        sessions = []
+        for subject_dir in os.listdir(project_dir):
+            study_dirs = os.listdir(os.path.join(project_dir, subject_dir))
+            if study_id is not None:
+                try:
+                    study_ids = [int(study_id)]  # Wrap study_id in list if int
+                except TypeError:
+                    study_ids = study_id
+                study_dirs = [d for d in study_dirs if d in study_ids]
+            sessions.extend(Session(int(subject_dir), int(study_dir))
+                            for study_dir in study_dirs)
+        return sessions
 
     def sessions_with_dataset(self, file_, project_id, sessions=None):
-        raise NotImplementedError
+        if sessions is None:
+            sessions = self.all_sessions(project_id)
+        with_dataset = []
+        for session in sessions:
+            if os.path.exists(os.path.join(
+                self._path, str(session.subject_id), str(session.study_id),
+                    file_.filename())):
+                with_dataset.append(session)
+        return with_dataset
+
+    @property
+    def local_dir(self):
+        return self._path
 
 
 class LocalSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):

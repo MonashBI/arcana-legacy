@@ -18,7 +18,9 @@ from ..base import Session
 logger = logging.getLogger('NeuroAnalysis')
 
 
-class Daris(Archive):
+class DarisArchive(Archive):
+
+    type = 'Daris'
 
     def __init__(self, user, password, cache_dir, repo_id=2,
                  server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
@@ -105,6 +107,10 @@ class Daris(Archive):
     def _daris(self):
         return DarisSession(server=self._server, domain=self._domain,
                             user=self._user, password=self._password)
+
+    @property
+    def local_dir(self):
+        return self._cache_dir
 
 
 class DarisSourceInputSpec(TraitedSpec):
