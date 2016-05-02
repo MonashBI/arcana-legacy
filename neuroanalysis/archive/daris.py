@@ -40,8 +40,7 @@ class DarisArchive(Archive):
         source.inputs.cache_dir = self._cache_dir
         source.inputs.project_id = project_id
         source.inputs.repo_id = self._repo_id
-        source.inputs.files = [(f.filename(), f.processed)
-                               for f in input_files]
+        source.inputs.files = [(f.filename, f.processed) for f in input_files]
         return source
 
     def sink(self, project_id):
@@ -790,7 +789,7 @@ class DarisEntry(object):
 
     @property
     def id(self):
-        return self._cid.split('.')[-1]
+        return int(self._cid.split('.')[-1])
 
     @property
     def name(self):

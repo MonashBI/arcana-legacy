@@ -22,5 +22,5 @@ class Archive(object):
         pass
 
     @abstractmethod
-    def sessions_with_dataset(self, file_, project_id, sessions=None):
+    def sessions_with_file(self, file_, project_id, sessions=None):
         pass

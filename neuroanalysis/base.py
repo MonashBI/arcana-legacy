@@ -316,7 +316,7 @@ class BaseFile(object):
 
 class AcquiredFile(BaseFile):
 
-    def __init__(self, name, file_format, filename):
+    def __init__(self, name, filename, file_format='nii.gz'):
         super(AcquiredFile, self).__init__(name, file_format)
         self._filename = filename
 
@@ -331,7 +331,7 @@ class AcquiredFile(BaseFile):
 
 class ProcessedFile(BaseFile):
 
-    def __init__(self, name, file_format='nii.gz', options):
+    def __init__(self, name, options, file_format='nii.gz'):
         BaseFile.__init__(self, name, file_format)
         self._options = options
 

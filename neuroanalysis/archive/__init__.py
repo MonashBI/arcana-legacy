@@ -1,2 +1,2 @@
-from daris import Daris
-from local import LocalFileSystem
+from daris import DarisArchive
+from local import LocalArchive

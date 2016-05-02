@@ -5,9 +5,10 @@ import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from neuroanalysis.archive.daris import (
-    DarisSession, DarisSource, DarisSink)
+    DarisSession, DarisArchive)
 from neuroanalysis.exception import DarisException
 from neuroanalysis.utils import rmtree_ignore_missing
+from neuroanalysis.base import AcquiredFile
 
 
 SERVER = 'mf-erc.its.monash.edu.au'
@@ -225,6 +226,9 @@ class TestDarisArchive(TestCase):
         os.path.dirname(__file__), '_data', 'cache_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(
         os.path.dirname(__file__), '_data', 'workflow_dir'))
+    DOMAIN = 'mon-daris'
+    USER = 'test123'
+    PASSWORD = 'GaryEgan1'
 
     def setUp(self):
         # Create test data on DaRIS
@@ -242,7 +246,8 @@ class TestDarisArchive(TestCase):
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 processed=False, name='source-sink-unittest-study',
                 description="Used in DarisSource/Sink unittest")
-            for name in ('source1', 'source2', 'source3', 'source4'):
+            for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
+                         'source4.nii.gz'):
                 file_id = self.daris.add_file(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                     study_id=self.study_id, processed=False,
@@ -274,40 +279,25 @@ class TestDarisArchive(TestCase):
 
         # Create working dirs
         # Create DarisSource node
-        source = pe.Node(DarisSource(), 'source')
-        source.inputs.project_id = PROJECT_ID
-        source.inputs.subject_id = SUBJECT_ID
-        source.inputs.study_id = self.study_id
-        source.inputs.server = SERVER
-        source.inputs.repo_id = REPO_ID
-        source.inputs.cache_dir = self.CACHE_DIR
-        source.inputs.domain = 'mon-daris'
-        source.inputs.user = 'test123'
-        source.inputs.password = 'GaryEgan1'
-        source.inputs.files = [
-            ('source1', False), ('source2', False), ('source3', False),
-            ('source4', False)]
-        # Create DataSink node
-        sink = pe.Node(DarisSink(), 'sink')
-        sink.inputs.name = 'unittest_study'
-        sink.inputs.description = (
-            "A study created by the soure-sink unittest")
-        sink.inputs.project_id = PROJECT_ID
-        sink.inputs.subject_id = SUBJECT_ID
-        sink.inputs.study_id = self.study_id
-        sink.inputs.server = SERVER
-        sink.inputs.repo_id = REPO_ID
-        sink.inputs.cache_dir = self.CACHE_DIR
-        sink.inputs.domain = 'mon-daris'
-        sink.inputs.user = 'test123'
-        sink.inputs.password = 'GaryEgan1'
+        archive = DarisArchive(
+            server=SERVER, repo_id=REPO_ID,
+            cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
+            user=self.USER, password=self.PASSWORD)
+        source_files = [AcquiredFile('source1', 'source1.nii.gz'),
+                        AcquiredFile('source2', 'source2.nii.gz'),
+                        AcquiredFile('source3', 'source3.nii.gz'),
+                        AcquiredFile('source4', 'source4.nii.gz')]
+        source = archive.source(PROJECT_ID, source_files)
+        sink = archive.sink(PROJECT_ID)
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
                                base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, sink))
-        workflow.connect([(source, sink,
-                           (('source1', 'sink1'), ('source3', 'sink3'),
-                            ('source4', 'sink4')))])
+        for source_file in source_files:
+            if source_file.name != 'source2':
+                sink_filename = source_file.name.replace('source', 'sink')
+                workflow.connect(source, source_file.name,
+                                 sink, sink_filename)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
