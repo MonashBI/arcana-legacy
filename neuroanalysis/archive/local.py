@@ -22,32 +22,36 @@ class LocalArchive(Archive):
 
     type = 'Local'
 
-    def __init__(self, path):
-        if not os.path.exists(path):
-            os.makedirs(path)
-        self._path = path
+    def __init__(self, base_dir):
+        if not os.path.exists(base_dir):
+            os.makedirs(base_dir)
+        self._base_dir = base_dir
 
     def source(self, project_id, input_files):
         source = pe.Node(
             DataGrabber(infields=['subject_id', 'study_id'],
                         outfields=[f.name for f in input_files]),
             name="local_source")
-        source.inputs.base_directory = os.path.join(self._path,
+        source.inputs.base_directory = os.path.join(self._base_dir,
                                                     str(project_id))
         source.inputs.template = '*'
         field_template = {}
         template_args = {}
         for input_file in input_files:
             field_template[input_file.name] = '%s/%d/{}'.format(
-                input_file.filename())
+                input_file.filename)
             template_args[input_file.name] = [['subject_id', 'study_id']]
         source.inputs.field_template = field_template
         source.inputs.template_args = template_args
+        source.inputs.sort_filelist = False
+        return source
 
     def sink(self, project_id):
         sink = pe.Node(
             DataSink(), name="local_sink")
-        sink.inputs.base_directory = os.path.join(self._path, str(project_id))
+        sink.inputs.base_directory = os.path.join(self._base_dir,
+                                                  str(project_id))
+        return sink
 
     def all_sessions(self, project_id, study_id=None):
         project_dir = os.path.join(self._path, str(project_id))
@@ -64,7 +68,7 @@ class LocalArchive(Archive):
                             for study_dir in study_dirs)
         return sessions
 
-    def sessions_with_dataset(self, file_, project_id, sessions=None):
+    def sessions_with_file(self, file_, project_id, sessions=None):
         if sessions is None:
             sessions = self.all_sessions(project_id)
         with_dataset = []
@@ -76,8 +80,8 @@ class LocalArchive(Archive):
         return with_dataset
 
     @property
-    def local_dir(self):
-        return self._path
+    def base_dir(self):
+        return self._base_dir
 
 
 class LocalSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -85,11 +89,12 @@ class LocalSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     project_id = traits.Int(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                          desc="The time point or processed data process ID")
+    session = traits.Tuple(  # @UndefinedVariable
+        traits.Int(  # @UndefinedVariable
+            mandatory=True,
+            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
+        traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
+                   desc="The time point or processed data process ID"))
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
                               "'tractography'"))

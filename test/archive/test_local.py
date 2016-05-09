@@ -11,19 +11,19 @@ class TestLocalArchive(TestCase):
 
     PROJECT_ID = 'DUMMYPROJECTID'
     SUBJECT_ID = 'DUMMYSUBJECTID'
+    SESSION_ID = 'DUMMYSESSIONID'
     TEST_IMAGE = os.path.abspath(os.path.join(
         os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
-    BASE_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'local', 'cache_dir'))
-    WORKFLOW_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'local', 'workflow_dir'))
+    TEST_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '_data', 'local'))
+    BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
+    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
     def setUp(self):
         # Create test data on DaRIS
         self._study_id = None
         # Make cache and working dirs
-        shutil.rmtree(self.BASE_DIR, ignore_errors=True)
-        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.WORKFLOW_DIR)
         subject_path = os.path.join(
             self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID)
@@ -35,8 +35,7 @@ class TestLocalArchive(TestCase):
 
     def tearDown(self):
         # Clean up working dirs
-        shutil.rmtree(self.BASE_DIR, ignore_errors=True)
-        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
 
     def test_archive_roundtrip(self):
 
@@ -48,7 +47,7 @@ class TestLocalArchive(TestCase):
                         AcquiredFile('source3', 'source3.nii.gz'),
                         AcquiredFile('source4', 'source4.nii.gz')]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
-        inputnode.inputs.session = (self.SUBJECT_ID, self.study_id)
+        inputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
         source = archive.source(self.PROJECT_ID, source_files)
         sink = archive.sink(self.PROJECT_ID)
         sink.inputs.name = 'archive-roundtrip-unittest'

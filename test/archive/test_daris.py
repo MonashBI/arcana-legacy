@@ -220,11 +220,10 @@ class TestDarisToken(TestCase):
 
 
 class TestDarisArchive(TestCase):
-
-    CACHE_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'daris', 'cache_dir'))
-    WORKFLOW_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'daris', 'workflow_dir'))
+    TEST_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '_data', 'daris'))
+    CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
+    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
     DOMAIN = 'mon-daris'
     USER = 'test123'
     PASSWORD = 'GaryEgan1'
@@ -235,8 +234,7 @@ class TestDarisArchive(TestCase):
         self.daris = DarisSession(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
-        shutil.rmtree(self.CACHE_DIR, ignore_errors=True)
-        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.CACHE_DIR)
         os.makedirs(self.WORKFLOW_DIR)
         # Upload test study
@@ -259,8 +257,7 @@ class TestDarisArchive(TestCase):
 
     def tearDown(self):
         # Clean up working dirs
-        shutil.rmtree(self.CACHE_DIR, ignore_errors=True)
-        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         # Clean up study created for unit-test
         if self.study_id is not None:
             try:
