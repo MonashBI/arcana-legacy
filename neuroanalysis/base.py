@@ -95,17 +95,21 @@ class Dataset(object):
         # archive
         complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
         # Generate an input node for the sessions iterable
-        inputnode = pe.Node(IdentityInterface(), name='session_input')
-        inputnode.iterables = ('sessions', tuple(sessions))
+        inputnode = pe.Node(IdentityInterface(['session']),
+                            name='session_input')
+        inputnode.iterables = ('session',
+                               [(s.subject_id, s.study_id) for s in sessions])
         # Create source and sinks from the archive
         source = self._archive.source(self._project_id, pipeline.inputs)
         sink = self._dataset.archive_sink(self._project_id, pipeline.outputs)
+        sink.inputs.description = pipeline.description
+        sink.inputs.name = pipeline.name + pipeline.suffix
         # Add all extra nodes and the pipelines workflow to a wrapper workflow
         complete_workflow.add_nodes(
             (inputnode, source, self._workflow, sink))
         # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(inputnode, 'sessions',
-                                  source, 'sessions')
+        complete_workflow.connect(inputnode, 'session',
+                                  source, 'session')
         for input_ in pipeline.inputs:
             complete_workflow.connect(
                 source, input_.filename(self._scan_names),
@@ -152,7 +156,8 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, name, dataset, workflow, inputs, outputs, options):
+    def __init__(self, name, dataset, workflow, inputs, outputs, options,
+                 description):
         """
         Parameters
         ----------
@@ -180,6 +185,7 @@ class Pipeline(object):
         self._inputs = inputs
         self._outputs = outputs
         self._options = options
+        self._description = description
 
     def __eq__(self, other):
         # NB: Workflows should be the same for pipelines of the same name so
@@ -252,6 +258,10 @@ class Pipeline(object):
     @property
     def options(self):
         return self._options
+
+    @property
+    def description(self):
+        return self._description
 
     @property
     def suffix(self):

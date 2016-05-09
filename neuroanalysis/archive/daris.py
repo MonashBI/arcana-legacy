@@ -45,7 +45,7 @@ class DarisArchive(Archive):
         return source
 
     def sink(self, project_id):
-        sink = pe.Node(DarisSource(), name="daris_sink")
+        sink = pe.Node(DarisSink(), name="daris_sink")
         sink.inputs.server = self._server
         sink.inputs.domain = self._domain
         sink.inputs.user = self._user
@@ -117,11 +117,12 @@ class DarisSourceInputSpec(TraitedSpec):
     project_id = traits.Int(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')
-    subject_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc="The subject ID")
-    study_id = traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                          desc="The time point or processed data process ID")
+    session = traits.Tuple(  # @UndefinedVariable
+        traits.Int(  # @UndefinedVariable
+            mandatory=True,
+            desc="The subject ID"),
+        traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+                   desc="The session or processed group ID"))
     repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     files = traits.List(  # @UndefinedVariable
@@ -189,21 +190,21 @@ class DarisSource(IOBase):
             unprocessed_dict = dict((d.name, d) for d in daris.get_files(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
-                subject_id=self.inputs.subject_id,
+                subject_id=self.inputs.session[0],
                 processed=False,
-                study_id=self.inputs.study_id).itervalues())
+                study_id=self.inputs.session[1]).itervalues())
             processed_dict = dict((d.name, d) for d in daris.get_files(
                 repo_id=self.inputs.repo_id,
                 project_id=self.inputs.project_id,
-                subject_id=self.inputs.subject_id,
+                subject_id=self.inputs.session[0],
                 processed=True,
-                study_id=self.inputs.study_id).itervalues())
+                study_id=self.inputs.session[1]).itervalues())
             cache_dirs = {}
             for processed in (False, True):
                 cache_dir = os.path.join(*(str(p) for p in (
                     self.inputs.cache_dir, self.inputs.repo_id,
-                    self.inputs.project_id, self.inputs.subject_id,
-                    (processed + 1), self.inputs.study_id)))
+                    self.inputs.project_id, self.inputs.session[0],
+                    (processed + 1), self.inputs.session[1])))
                 if not os.path.exists(cache_dir):
                     # Make cache directory with group write permissions
                     os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -218,9 +219,9 @@ class DarisSource(IOBase):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
-                        subject_id=self.inputs.subject_id,
+                        subject_id=self.inputs.session[0],
                         processed=processed,
-                        study_id=self.inputs.study_id,
+                        study_id=self.inputs.session[1],
                         file_id=file_.id)
                 outputs[name] = cache_path
         return outputs
@@ -239,11 +240,12 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     project_id = traits.Int(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    subject_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc="The subject ID")  # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                          desc="The time point or processed data process ID")
+    session = traits.Tuple(  # @UndefinedVariable
+        traits.Int(  # @UndefinedVariable
+            mandatory=True,
+            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
+        traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
+                   desc="The session or processed group ID"))
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
                               "'tractography'"))
@@ -290,7 +292,7 @@ class DarisSinkOutputSpec(TraitedSpec):
 
     out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
     # @UndefinedVariable @IgnorePep8
-    study_id = traits.Int(desc="The study id, which was potentially created")  # @UndefinedVariable @IgnorePep8
+#     study_id = traits.Str(desc="The study id, which was potentially created")  # @UndefinedVariable @IgnorePep8
 
 
 class DarisSink(DataSink):
@@ -310,29 +312,28 @@ class DarisSink(DataSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-            if self.inputs.study_id is Undefined:
-                study_id = None
-                add_study = True
-            else:
-                study_id = self.inputs.study_id
-                add_study = not daris.exists(project_id=self.inputs.project_id,
-                                             subject_id=self.inputs.subject_id,
-                                             study_id=study_id,
-                                             repo_id=self.inputs.repo_id)
-            outputs['study_id'] = study_id
+#             if self.inputs.study_id is Undefined:
+#                 study_id = None
+#                 add_study = True
+#             else:
+            add_study = not daris.exists(project_id=self.inputs.project_id,
+                                         subject_id=self.inputs.session[0],
+                                         study_id=self.inputs.session[1],
+                                         repo_id=self.inputs.repo_id)
+#             outputs['study_id'] = study_id
             if add_study:
                 # Add study to hold output
                 study_id = daris.add_study(
                     project_id=self.inputs.project_id,
-                    subject_id=self.inputs.subject_id,
-                    study_id=study_id,
+                    subject_id=self.inputs.session[0],
+                    study_id=self.inputs.session[1],
                     repo_id=self.inputs.repo_id,
                     processed=True, name=self.inputs.name,
                     description=self.inputs.description)
             # Get cache dir for study
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, self.inputs.subject_id, 2, study_id))))
+                self.inputs.project_id, self.inputs.session[0], 2, study_id))))
             # Make study cache dir
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -350,13 +351,13 @@ class DarisSink(DataSink):
                 # Upload to DaRIS
                 file_id = daris.add_file(
                     project_id=self.inputs.project_id,
-                    subject_id=self.inputs.subject_id,
+                    subject_id=self.inputs.session[0],
                     repo_id=self.inputs.repo_id, processed=True,
                     study_id=study_id, name=name,
                     description="Uploaded from DarisSink")
                 daris.upload(
                     src_path, project_id=self.inputs.project_id,
-                    subject_id=self.inputs.subject_id,
+                    subject_id=self.inputs.session[0],
                     repo_id=self.inputs.repo_id, processed=True,
                     study_id=study_id, file_id=file_id,
                     file_format=self.inputs.file_format)
@@ -674,8 +675,7 @@ class DarisSession:
 
     def find_study(self, name, project_id, subject_id, processed, repo_id=2):
         studies = self.get_studies(
-            project_id=self.inputs.project_id,
-            subject_id=self.inputs.subject_id,
+            project_id=project_id, subject_id=subject_id,
             repo_id=self.inputs.repo_id, processed=True).itervalues()
         try:
             return next(s for s in studies.itervalues() if s.name == name)

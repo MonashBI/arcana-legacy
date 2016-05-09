@@ -4,6 +4,7 @@ import errno
 import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
+from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.daris import (
     DarisSession, DarisArchive, DarisSource, DarisSink)
 from neuroanalysis.exception import DarisException
@@ -287,20 +288,24 @@ class TestDarisArchive(TestCase):
                         AcquiredFile('source2', 'source2.nii.gz'),
                         AcquiredFile('source3', 'source3.nii.gz'),
                         AcquiredFile('source4', 'source4.nii.gz')]
+        inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
+        inputnode.inputs.session = (SUBJECT_ID, self.study_id)
         source = archive.source(PROJECT_ID, source_files)
         sink = archive.sink(PROJECT_ID)
+        sink.inputs.name = 'archive-roundtrip-unittest'
+        sink.inputs.description = (
+            "A test study created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
                                base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, sink))
-        workflow.connect([(source, sink,
-                           (('source1', 'sink1'), ('source3', 'sink3'),
-                            ('source4', 'sink4')))])
-#         for source_file in source_files:
-#             if source_file.name != 'source2':
-#                 sink_filename = source_file.name.replace('source', 'sink')
-#                 workflow.connect(source, source_file.name,
-#                                  sink, sink_filename)
+        workflow.connect(inputnode, 'session', source, 'session')
+        workflow.connect(inputnode, 'session', sink, 'session')
+        for source_file in source_files:
+            if source_file.name != 'source2':
+                sink_filename = source_file.name.replace('source', 'sink')
+                workflow.connect(source, source_file.name,
+                                 sink, sink_filename)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
@@ -359,9 +364,7 @@ class TestDarisSourceAndSink(TestCase):
             # Create DarisSource node
             source = pe.Node(DarisSource(), 'source')
             source.inputs.project_id = PROJECT_ID
-            source.inputs.subject_id = SUBJECT_ID
-            source.inputs.study_id = study_id
-            source.inputs.server = SERVER
+            source.inputs.session = (SUBJECT_ID, study_id)
             source.inputs.repo_id = REPO_ID
             source.inputs.cache_dir = self.CACHE_DIR
             source.inputs.domain = 'mon-daris'
@@ -378,8 +381,7 @@ class TestDarisSourceAndSink(TestCase):
             sink.inputs.description = (
                 "A study created by the soure-sink unittest")
             sink.inputs.project_id = PROJECT_ID
-            sink.inputs.subject_id = SUBJECT_ID
-            sink.inputs.study_id = study_id
+            sink.inputs.session = (SUBJECT_ID, study_id)
             sink.inputs.server = SERVER
             sink.inputs.repo_id = REPO_ID
             sink.inputs.cache_dir = self.CACHE_DIR
