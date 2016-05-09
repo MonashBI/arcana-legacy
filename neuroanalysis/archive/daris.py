@@ -40,7 +40,8 @@ class DarisArchive(Archive):
         source.inputs.cache_dir = self._cache_dir
         source.inputs.project_id = project_id
         source.inputs.repo_id = self._repo_id
-        source.inputs.files = [(f.filename, f.processed) for f in input_files]
+        source.inputs.files = [(f.name, f.filename, f.processed)
+                               for f in input_files]
         return source
 
     def sink(self, project_id):
@@ -128,6 +129,9 @@ class DarisSourceInputSpec(TraitedSpec):
             traits.Str(  # @UndefinedVariable
                 mandatory=True,
                 desc="name of file"),
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="filename of file"),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
                         desc="whether the file is processed or not")),
         desc="Names of all files that comprise the complete file")
@@ -204,7 +208,7 @@ class DarisSource(IOBase):
                     # Make cache directory with group write permissions
                     os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
                 cache_dirs[processed] = cache_dir
-            for file_name, processed in self.inputs.files:
+            for name, file_name, processed in self.inputs.files:
                 if processed:
                     file_ = processed_dict[file_name]
                 else:
@@ -218,7 +222,7 @@ class DarisSource(IOBase):
                         processed=processed,
                         study_id=self.inputs.study_id,
                         file_id=file_.id)
-                outputs[file_name] = cache_path
+                outputs[name] = cache_path
         return outputs
 
     def _add_output_traits(self, base):
@@ -227,7 +231,7 @@ class DarisSource(IOBase):
         Using traits.Any instead out OutputMultiPath till add_trait bug
         is fixed.
         """
-        return add_traits(base, [name for name, _ in self.inputs.files])
+        return add_traits(base, [name for name, _, _ in self.inputs.files])
 
 
 class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
