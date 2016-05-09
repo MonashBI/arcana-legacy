@@ -1,99 +1,80 @@
 import os.path
+import shutil
 from unittest import TestCase
 from nipype.pipeline import engine as pe
-from neuroanalysis.archive.daris import DarisArchive
+from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.local import LocalArchive
-from neuroanalysis.utils import rmtree_ignore_missing
-
-SERVER = 'mf-erc.its.monash.edu.au'
-
-# The projects/subjects/studies to alter on DaRIS
-PROJECT_ID = 4
-TEST_IMAGE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'test_upload.nii.gz'))
-BASE_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'archives'))
-WORKFLOW_DIR = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'workflow_dir'))
+from neuroanalysis.base import AcquiredFile
 
 
-class TestArchive(TestCase):
+class TestLocalArchive(TestCase):
+
+    PROJECT_ID = 'DUMMYPROJECTID'
+    SUBJECT_ID = 'DUMMYSUBJECTID'
+    TEST_IMAGE = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
+    BASE_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '_data', 'local', 'cache_dir'))
+    WORKFLOW_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '_data', 'local', 'workflow_dir'))
+
+    def setUp(self):
+        # Create test data on DaRIS
+        self._study_id = None
+        # Make cache and working dirs
+        shutil.rmtree(self.BASE_DIR, ignore_errors=True)
+        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
+        os.makedirs(self.WORKFLOW_DIR)
+        subject_path = os.path.join(
+            self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID)
+        os.makedirs(subject_path)
+        for i in xrange(4):
+            shutil.copy(self.TEST_IMAGE,
+                        os.path.join(subject_path,
+                                     'source{}.nii.gz'.format(i)))
+
+    def tearDown(self):
+        # Clean up working dirs
+        shutil.rmtree(self.BASE_DIR, ignore_errors=True)
+        shutil.rmtree(self.WORKFLOW_DIR, ignore_errors=True)
 
     def test_archive_roundtrip(self):
-        # Create different archives to test
-        daris = DarisArchive(user='test123', password='GaryEgan1',
-                             cache_dir=os.path.join(BASE_DIR, 'daris'),
-                             domain='mon-daris', server=SERVER)
-        local = LocalArchive(os.path.join(BASE_DIR, 'local'))
-        # 
-        for archive in (daris, local):
-            rmtree_ignore_missing(archive.local_dir)
-            rmtree_ignore_missing(WORKFLOW_DIR)
-            sink = archive.sink(PROJECT_ID)
-            sink = 
-        
 
-
-
-class TestDarisSinkAndSource(TestCase):
-
-    def test_daris_roundtrip(self):
-        # Create test data on DaRIS
         # Create working dirs
-        rmtree_ignore_missing(BASE_DIR)
-        rmtree_ignore_missing(WORKFLOW_DIR)
-        os.makedirs(BASE_DIR)
-        os.makedirs(WORKFLOW_DIR)
-        # Create DarisSource node
-        source = pe.Node(LocalSource(), 'source')
-        source.inputs.project_id = PROJECT_ID
-        source.inputs.subject_id = SUBJECT_ID
-        source.inputs.study_id = study_id
-        source.inputs.server = SERVER
-        source.inputs.repo_id = REPO_ID
-        source.inputs.cache_dir = CACHE_DIR
-        source.inputs.domain = 'mon-daris'
-        source.inputs.user = 'test123'
-        source.inputs.password = 'GaryEgan1'
-        source.inputs.files = [
-            ('source1', False), ('source2', False), ('source3', False),
-            ('source4', False)]
-        # Create DataSink node
-        sink = pe.Node(DarisSink(), 'sink')
-        sink.inputs.name = 'unittest_study'
+        # Create LocalSource node
+        archive = LocalArchive(base_dir=self.BASE_DIR)
+        source_files = [AcquiredFile('source1', 'source1.nii.gz'),
+                        AcquiredFile('source2', 'source2.nii.gz'),
+                        AcquiredFile('source3', 'source3.nii.gz'),
+                        AcquiredFile('source4', 'source4.nii.gz')]
+        inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
+        inputnode.inputs.session = (self.SUBJECT_ID, self.study_id)
+        source = archive.source(self.PROJECT_ID, source_files)
+        sink = archive.sink(self.PROJECT_ID)
+        sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
-            "A study created by the soure-sink unittest")
-        sink.inputs.project_id = PROJECT_ID
-        sink.inputs.subject_id = SUBJECT_ID
-        sink.inputs.study_id = study_id
-        sink.inputs.server = SERVER
-        sink.inputs.repo_id = REPO_ID
-        sink.inputs.cache_dir = CACHE_DIR
-        sink.inputs.domain = 'mon-daris'
-        sink.inputs.user = 'test123'
-        sink.inputs.password = 'GaryEgan1'
+            "A test study created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
-                               base_dir=WORKFLOW_DIR)
+                               base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, sink))
-        workflow.connect([(source, sink,
-                           (('source1', 'sink1'), ('source3', 'sink3'),
-                            ('source4', 'sink4')))])
+        workflow.connect(inputnode, 'session', source, 'session')
+        workflow.connect(inputnode, 'session', sink, 'session')
+        for source_file in source_files:
+            if source_file.name != 'source2':
+                sink_filename = source_file.name.replace('source', 'sink')
+                workflow.connect(source, source_file.name,
+                                 sink, sink_filename)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
-            CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(SUBJECT_ID),
-            '1', str(study_id))
+            self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
+            '1', str(self.study_id))
         sink_cache_dir = os.path.join(
-            CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(SUBJECT_ID),
-            '2', str(study_id))
+            self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
+            '2', str(self.study_id))
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
-                         ['source1', 'source2', 'source3', 'source4'])
+                         ['source1.nii.gz', 'source2.nii.gz',
+                          'source3.nii.gz', 'source4.nii.gz'])
         self.assertEqual(sorted(os.listdir(sink_cache_dir)),
-                         ['sink1', 'sink3', 'sink4'])
-        with daris:
-            files = daris.get_files(
-                project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=study_id, processed=True, repo_id=REPO_ID)
-        self.assertEqual(sorted(d.name for d in files.itervalues()),
                          ['sink1', 'sink3', 'sink4'])

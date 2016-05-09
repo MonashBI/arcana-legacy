@@ -1,14 +1,12 @@
 import os.path
 import shutil
-import errno
 import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.daris import (
-    DarisSession, DarisArchive, DarisSource, DarisSink)
+    DarisSession, DarisArchive)
 from neuroanalysis.exception import DarisException
-from neuroanalysis.utils import rmtree_ignore_missing
 from neuroanalysis.base import AcquiredFile
 
 
@@ -20,7 +18,7 @@ PROJECT_ID = 4
 SUBJECT_ID = 12
 STUDY_ID = 1
 TEST_IMAGE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'test_upload.nii.gz'))
+    os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
 
 
 class TestDarisSession(TestCase):
@@ -208,7 +206,7 @@ class TestDarisToken(TestCase):
 
     def tearDown(self):
         # Remove token_path if present
-        rmtree_ignore_missing(self.token_path)
+        shutil.rmtree(self.token_path, ignore_errors=True)
 
     # FIXME: Token authentication is not working. Need to double check how
     # Parnesh did it
@@ -224,9 +222,9 @@ class TestDarisToken(TestCase):
 class TestDarisArchive(TestCase):
 
     CACHE_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'cache_dir'))
+        os.path.dirname(__file__), '_data', 'daris', 'cache_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'workflow_dir'))
+        os.path.dirname(__file__), '_data', 'daris', 'workflow_dir'))
     DOMAIN = 'mon-daris'
     USER = 'test123'
     PASSWORD = 'GaryEgan1'
