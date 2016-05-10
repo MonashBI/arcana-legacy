@@ -16,7 +16,7 @@ class TestLocalArchive(TestCase):
         os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
     TEST_DIR = os.path.abspath(os.path.join(
         os.path.dirname(__file__), '_data', 'local'))
-    BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
+    BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
     def setUp(self):
@@ -25,12 +25,12 @@ class TestLocalArchive(TestCase):
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.WORKFLOW_DIR)
-        subject_path = os.path.join(
-            self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID)
-        os.makedirs(subject_path)
-        for i in xrange(4):
+        session_path = os.path.join(
+            self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID, self.SESSION_ID)
+        os.makedirs(session_path)
+        for i in xrange(1, 5):
             shutil.copy(self.TEST_IMAGE,
-                        os.path.join(subject_path,
+                        os.path.join(session_path,
                                      'source{}.nii.gz'.format(i)))
 
     def tearDown(self):
@@ -66,14 +66,10 @@ class TestLocalArchive(TestCase):
                                  sink, sink_filename)
         workflow.run()
         # Check cache was created properly
-        source_cache_dir = os.path.join(
+        session_dir = os.path.join(
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
-            '1', str(self.study_id))
-        sink_cache_dir = os.path.join(
-            self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
-            '2', str(self.study_id))
-        self.assertEqual(sorted(os.listdir(source_cache_dir)),
-                         ['source1.nii.gz', 'source2.nii.gz',
+            str(self.SESSION_ID))
+        self.assertEqual(sorted(os.listdir(session_dir)),
+                         ['sink1', 'sink3', 'sink4',
+                          'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
-        self.assertEqual(sorted(os.listdir(sink_cache_dir)),
-                         ['sink1', 'sink3', 'sink4'])

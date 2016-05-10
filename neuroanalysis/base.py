@@ -276,14 +276,14 @@ class Session(object):
     A small wrapper class used to define the subject_id and study_id
     """
 
-    def __init__(self, subject_id, study_id=1):
+    def __init__(self, subject_id, study_id='1'):
         if isinstance(subject_id, self.__class__):
             # If subject_id is actually another Session just copy values
             self._subject_id = subject_id.subject_id
             self._study_id = subject_id.study_id
         else:
-            self._subject_id = subject_id
-            self._study_id = study_id
+            self._subject_id = str(subject_id)
+            self._study_id = str(study_id)
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and

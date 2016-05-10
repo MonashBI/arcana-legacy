@@ -7,12 +7,11 @@ from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.daris import (
     DarisSession, DarisArchive)
 from neuroanalysis.exception import DarisException
-from neuroanalysis.base import AcquiredFile
+from neuroanalysis.base import AcquiredFile, Session
 
-
-SERVER = 'mf-erc.its.monash.edu.au'
 
 # The projects/subjects/studies to alter on DaRIS
+SERVER = 'mf-erc.its.monash.edu.au'
 REPO_ID = 2
 PROJECT_ID = 4
 SUBJECT_ID = 12
@@ -211,7 +210,7 @@ class TestDarisToken(TestCase):
     # FIXME: Token authentication is not working. Need to double check how
     # Parnesh did it
 #     def test_create_token_and_login(self):
-#         DarisSession(user='test123', password='GaryEgan1', domain='mon-daris',
+#         DarisSession(user='test123', password='GaryEgan1', domain='mon-daris', @IgnorePep8
 #                      server=SERVER, token_path=self.token_path,
 #                      app_name='unittest').open()
 #         with DarisSession(token_path=self.token_path,
@@ -284,7 +283,8 @@ class TestDarisArchive(TestCase):
                         AcquiredFile('source3', 'source3.nii.gz'),
                         AcquiredFile('source4', 'source4.nii.gz')]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
-        inputnode.inputs.session = (SUBJECT_ID, self.study_id)
+        session = Session(SUBJECT_ID, self.study_id)
+        inputnode.inputs.session = (session.subject_id, session.study_id)
         source = archive.source(PROJECT_ID, source_files)
         sink = archive.sink(PROJECT_ID)
         sink.inputs.name = 'archive-roundtrip-unittest'

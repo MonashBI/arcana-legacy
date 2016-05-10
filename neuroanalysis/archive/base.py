@@ -29,8 +29,8 @@ class Archive(object):
             An iterable of neuroanalysis.BaseFile objects, which specify the
             files to extract from the archive system for each session
         """
-        source = pe.Node(self.Source(), name="source")
-        source.inputs.project_id = project_id
+        source = pe.Node(self.Source(), name="{}_source".format(self.type))
+        source.inputs.project_id = str(project_id)
         source.inputs.files = [(f.name, f.filename, f.processed)
                                for f in input_files]
         return source
@@ -48,8 +48,8 @@ class Archive(object):
             The ID of the project to return the sessions for
 
         """
-        sink = pe.Node(self.Sink(), name="sink")
-        sink.inputs.project_id = project_id
+        sink = pe.Node(self.Sink(), name="{}_sink".format(self.type))
+        sink.inputs.project_id = str(project_id)
         return sink
 
     @abstractmethod
@@ -92,14 +92,14 @@ class ArchiveSourceInputSpec(TraitedSpec):
     interface for 'run_pipeline' when using the archive source to extract
     acquired and preprocessed files from the archive system
     """
-    project_id = traits.Int(  # @UndefinedVariable
+    project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')
     session = traits.Tuple(  # @UndefinedVariable
-        traits.Int(  # @UndefinedVariable
+        traits.Str(  # @UndefinedVariable
             mandatory=True,
             desc="The subject ID"),
-        traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+        traits.Str(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                    desc="The session or processed group ID"))
     files = traits.List(  # @UndefinedVariable
         traits.Tuple(  # @UndefinedVariable
@@ -165,14 +165,14 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     interface for 'run_pipeline' when using the archive save
     processed files in the archive system
     """
-    project_id = traits.Int(  # @UndefinedVariable
+    project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')  # @UndefinedVariable @IgnorePep8
     session = traits.Tuple(  # @UndefinedVariable
-        traits.Int(  # @UndefinedVariable
+        traits.Str(  # @UndefinedVariable
             mandatory=True,
             desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-        traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
+        traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
                    desc="The session or processed group ID"))
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
@@ -211,3 +211,7 @@ class ArchiveSinkOutputSpec(TraitedSpec):
 class ArchiveSink(DataSink):
 
     output_spec = ArchiveSinkOutputSpec
+
+    @abstractmethod
+    def _list_outputs(self):
+        pass

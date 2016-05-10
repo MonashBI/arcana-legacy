@@ -35,6 +35,10 @@ class DarisSourceInputSpec(ArchiveSourceInputSpec):
 
 
 class DarisSource(ArchiveSource):
+    """
+    A NiPype IO interface for grabbing files off DaRIS (analogous to
+    DataGrabber)
+    """
 
     input_spec = DarisSourceInputSpec
 
@@ -103,6 +107,10 @@ class DarisSinkInputSpec(ArchiveSinkInputSpec):
 
 
 class DarisSink(ArchiveSink):
+    """
+    A NiPype IO interface for putting processed files onto DaRIS (analogous to
+    DataSink)
+    """
 
     input_spec = DarisSinkInputSpec
 
@@ -176,6 +184,9 @@ class DarisSink(ArchiveSink):
 
 
 class DarisArchive(Archive):
+    """
+    An 'Archive' class for the DaRIS research management system.
+    """
 
     type = 'Daris'
     Sink = DarisSink
