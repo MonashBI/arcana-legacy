@@ -6,7 +6,6 @@ import logging
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, traits, isdefined)
-from nipype.pipeline import engine as pe
 from neuroanalysis.exception import (
     DarisException, DarisNameNotFoundException)
 from .base import (
@@ -16,101 +15,6 @@ from ..base import Session
 
 
 logger = logging.getLogger('NeuroAnalysis')
-
-
-class DarisArchive(Archive):
-
-    type = 'Daris'
-
-    def __init__(self, user, password, cache_dir, repo_id=2,
-                 server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
-        self._server = server
-        self._domain = domain
-        self._user = user
-        self._password = password
-        self._cache_dir = cache_dir
-        self._repo_id = repo_id
-
-    def source(self, project_id, input_files):
-        source = pe.Node(DarisSource(), name="daris_source")
-        source.inputs.server = self._server
-        source.inputs.domain = self._domain
-        source.inputs.user = self._user
-        source.inputs.password = self._password
-        source.inputs.cache_dir = self._cache_dir
-        source.inputs.project_id = project_id
-        source.inputs.repo_id = self._repo_id
-        source.inputs.files = [(f.name, f.filename, f.processed)
-                               for f in input_files]
-        return source
-
-    def sink(self, project_id):
-        sink = pe.Node(DarisSink(), name="daris_sink")
-        sink.inputs.server = self._server
-        sink.inputs.domain = self._domain
-        sink.inputs.user = self._user
-        sink.inputs.password = self._password
-        sink.inputs.cache_dir = self._cache_dir
-        sink.inputs.project_id = project_id
-        sink.inputs.repo_id = self._repo_id
-        return sink
-
-    def all_sessions(self, project_id, study_id=None):
-        """
-        Parameters
-        ----------
-        project_id : int
-            The project id to return the sessions for
-        repo_id : int
-            The id of the repository (2 for monash daris)
-        study_ids: int|List[int]|None
-            Id or ids of studies of which to return sessions for. If None all
-            are returned
-        """
-        with self._daris() as daris:
-            entries = daris.get_sessions(self, project_id,
-                                         repo_id=self._repo_id)
-            if study_id is not None:
-                # Attempt to convert study_ids into a single int and then wrap
-                # in a list in case study ids is a single integer (or string
-                # representation of an integer)
-                try:
-                    study_ids = [int(study_id)]
-                except TypeError:
-                    study_ids = study_id
-                entries = [e for e in entries if e.id in study_ids]
-        return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
-
-    def sessions_with_file(self, file_, project_id, sessions):
-        """
-        Parameters
-        ----------
-        file_ : BaseFile
-            A file (name) for which to return the sessions that contain it
-        project_id : int
-            The id of the project
-        sessions : List[Session]
-            List of sessions of which to test for the file_
-        """
-        if sessions is None:
-            sessions = self.all_sessions(project_id=project_id)
-        sess_with_file = []
-        with self._daris() as daris:
-            for session in sessions:
-                entries = daris.get_files(
-                    project_id, session.subject_id, session.study_id,
-                    repo_id=self._repo_id, processed=file_.processed)
-                if file_.filename() in (e.name for e in entries):
-                    sess_with_file.append(session)
-        return sess_with_file
-
-    def _daris(self):
-        return DarisSession(server=self._server, domain=self._domain,
-                            user=self._user, password=self._password)
-
-    @property
-    def local_dir(self):
-        return self._cache_dir
 
 
 class DarisSourceInputSpec(ArchiveSourceInputSpec):
@@ -214,14 +118,12 @@ class DarisSink(ArchiveSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-            add_study = not daris.exists(project_id=self.inputs.project_id,
-                                         subject_id=self.inputs.session[0],
-                                         study_id=self.inputs.session[1],
-                                         repo_id=self.inputs.repo_id)
-#             outputs['study_id'] = study_id
-            if add_study:
+            if not daris.exists(project_id=self.inputs.project_id,
+                                subject_id=self.inputs.session[0],
+                                study_id=self.inputs.session[1],
+                                repo_id=self.inputs.repo_id):
                 # Add study to hold output
-                study_id = daris.add_study(
+                daris.add_study(
                     project_id=self.inputs.project_id,
                     subject_id=self.inputs.session[0],
                     study_id=self.inputs.session[1],
@@ -231,7 +133,8 @@ class DarisSink(ArchiveSink):
             # Get cache dir for study
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, self.inputs.session[0], 2, study_id))))
+                self.inputs.project_id, self.inputs.session[0], 2,
+                self.inputs.session[1]))))
             # Make study cache dir
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -251,13 +154,13 @@ class DarisSink(ArchiveSink):
                     project_id=self.inputs.project_id,
                     subject_id=self.inputs.session[0],
                     repo_id=self.inputs.repo_id, processed=True,
-                    study_id=study_id, name=name,
+                    study_id=self.inputs.session[1], name=name,
                     description="Uploaded from DarisSink")
                 daris.upload(
                     src_path, project_id=self.inputs.project_id,
                     subject_id=self.inputs.session[0],
                     repo_id=self.inputs.repo_id, processed=True,
-                    study_id=study_id, file_id=file_id,
+                    study_id=self.inputs.session[1], file_id=file_id,
                     file_format=self.inputs.file_format)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
@@ -270,6 +173,99 @@ class DarisSink(ArchiveSink):
         # Return cache file paths
         outputs['out_file'] = out_files
         return outputs
+
+
+class DarisArchive(Archive):
+
+    type = 'Daris'
+    Sink = DarisSink
+    Source = DarisSource
+
+    def __init__(self, user, password, cache_dir, repo_id=2,
+                 server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
+        self._server = server
+        self._domain = domain
+        self._user = user
+        self._password = password
+        self._cache_dir = cache_dir
+        self._repo_id = repo_id
+
+    def source(self, project_id, input_files):
+        source = super(DarisArchive, self).source(project_id, input_files)
+        source.inputs.server = self._server
+        source.inputs.domain = self._domain
+        source.inputs.user = self._user
+        source.inputs.password = self._password
+        source.inputs.cache_dir = self._cache_dir
+        source.inputs.repo_id = self._repo_id
+        return source
+
+    def sink(self, project_id):
+        sink = super(DarisArchive, self).sink(project_id)
+        sink.inputs.server = self._server
+        sink.inputs.domain = self._domain
+        sink.inputs.user = self._user
+        sink.inputs.password = self._password
+        sink.inputs.cache_dir = self._cache_dir
+        sink.inputs.repo_id = self._repo_id
+        return sink
+
+    def all_sessions(self, project_id, study_id=None):
+        """
+        Parameters
+        ----------
+        project_id : int
+            The project id to return the sessions for
+        repo_id : int
+            The id of the repository (2 for monash daris)
+        study_ids: int|List[int]|None
+            Id or ids of studies of which to return sessions for. If None all
+            are returned
+        """
+        with self._daris() as daris:
+            entries = daris.get_sessions(self, project_id,
+                                         repo_id=self._repo_id)
+            if study_id is not None:
+                # Attempt to convert study_ids into a single int and then wrap
+                # in a list in case study ids is a single integer (or string
+                # representation of an integer)
+                try:
+                    study_ids = [int(study_id)]
+                except TypeError:
+                    study_ids = study_id
+                entries = [e for e in entries if e.id in study_ids]
+        return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
+
+    def sessions_with_file(self, file_, project_id, sessions):
+        """
+        Parameters
+        ----------
+        file_ : BaseFile
+            A file (name) for which to return the sessions that contain it
+        project_id : int
+            The id of the project
+        sessions : List[Session]
+            List of sessions of which to test for the file_
+        """
+        if sessions is None:
+            sessions = self.all_sessions(project_id=project_id)
+        sess_with_file = []
+        with self._daris() as daris:
+            for session in sessions:
+                entries = daris.get_files(
+                    project_id, session.subject_id, session.study_id,
+                    repo_id=self._repo_id, processed=file_.processed)
+                if file_.filename() in (e.name for e in entries):
+                    sess_with_file.append(session)
+        return sess_with_file
+
+    def _daris(self):
+        return DarisSession(server=self._server, domain=self._domain,
+                            user=self._user, password=self._password)
+
+    @property
+    def local_dir(self):
+        return self._cache_dir
 
 
 class DarisSession:

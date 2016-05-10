@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, add_traits, DataSink
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
@@ -28,6 +29,11 @@ class Archive(object):
             An iterable of neuroanalysis.BaseFile objects, which specify the
             files to extract from the archive system for each session
         """
+        source = pe.Node(self.Source(), name="source")
+        source.inputs.project_id = project_id
+        source.inputs.files = [(f.name, f.filename, f.processed)
+                               for f in input_files]
+        return source
 
     @abstractmethod
     def sink(self, project_id):
@@ -42,6 +48,9 @@ class Archive(object):
             The ID of the project to return the sessions for
 
         """
+        sink = pe.Node(self.Sink(), name="sink")
+        sink.inputs.project_id = project_id
+        return sink
 
     @abstractmethod
     def all_sessions(self, project_id, study_id=None):
