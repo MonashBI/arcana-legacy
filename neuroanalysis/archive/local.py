@@ -1,13 +1,14 @@
 import os.path
-from .base import Archive
+from .base import (
+    Archive, ArchiveSource, ArchiveSourceInputSpec, ArchiveSinkInputSpec,
+    ArchiveSinkOutputSpec)
 import stat
 import shutil
 import logging
 from nipype.pipeline import engine as pe
 from nipype.interfaces.io import DataGrabber, DataSink
 from nipype.interfaces.base import (
-    Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    isdefined)
+    Directory, isdefined)
 from ..base import Session
 
 
@@ -84,56 +85,32 @@ class LocalArchive(Archive):
         return self._base_dir
 
 
-class LocalSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+class LocalSourceInputSpec(ArchiveSourceInputSpec):
 
-    project_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Int(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-        traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                   desc="The time point or processed data process ID"))
-    name = traits.Str(  # @UndefinedVariable @IgnorePep8
-        mandatory=True, desc=("The name of the processed data group, e.g. "
-                              "'tractography'"))
-    description = traits.Str(mandatory=True,  # @UndefinedVariable
-                             desc="Description of the study")
     base_dir = Directory(
         exists=True, desc=("Path to the base directory where the files will"
                            " be cached before uploading"))
-    _outputs = traits.Dict(  # @UndefinedVariable
-        traits.Str,  # @UndefinedVariable
-        value={},
-        usedefault=True)  # @UndefinedVariable @IgnorePep8
-    # TODO: Not implemented yet
-    overwrite = traits.Bool(  # @UndefinedVariable
-        False, mandatory=True, usedefault=True,
-        desc=("Whether or not to overwrite previously created studies of the "
-              "same name"))
-
-    # Copied from the S3DataSink in the nipype.interfaces.io module
-    def __setattr__(self, key, value):
-        if key not in self.copyable_trait_names():
-            if not isdefined(value):
-                super(LocalSinkInputSpec, self).__setattr__(key, value)
-            self._outputs[key] = value
-        else:
-            if key in self._outputs:
-                self._outputs[key] = value
-            super(LocalSinkInputSpec, self).__setattr__(key, value)
 
 
-class LocalSinkOutputSpec(TraitedSpec):
+class LocalSource(ArchiveSource):
 
-    out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
+    input_spec = LocalSourceInputSpec
+
+    def _list_outputs(self):
+        raise NotImplementedError
+
+
+class LocalSinkInputSpec(ArchiveSinkInputSpec):
+
+    base_dir = Directory(
+        exists=True, desc=("Path to the base directory where the files will"
+                           " be cached before uploading"))
 
 
 class LocalSink(DataSink):
 
     input_spec = LocalSinkInputSpec
-    output_spec = LocalSinkOutputSpec
+    output_spec = ArchiveSinkOutputSpec
 
     def _list_outputs(self):
         """Execute this module.

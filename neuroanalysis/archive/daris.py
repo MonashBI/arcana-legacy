@@ -5,13 +5,13 @@ import stat
 import logging
 from lxml import etree
 from nipype.interfaces.base import (
-    Directory, DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    isdefined, Undefined)
+    Directory, traits, isdefined)
 from nipype.pipeline import engine as pe
-from nipype.interfaces.io import IOBase, DataSink, add_traits
 from neuroanalysis.exception import (
     DarisException, DarisNameNotFoundException)
-from .base import Archive
+from .base import (
+    Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
+    ArchiveSinkInputSpec)
 from ..base import Session
 
 
@@ -113,29 +113,10 @@ class DarisArchive(Archive):
         return self._cache_dir
 
 
-class DarisSourceInputSpec(TraitedSpec):
-    project_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc='The project ID')
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Int(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),
-        traits.Int(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"))
+class DarisSourceInputSpec(ArchiveSourceInputSpec):
+
     repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
-    files = traits.List(  # @UndefinedVariable
-        traits.Tuple(  # @UndefinedVariable
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of file"),
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="filename of file"),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc="whether the file is processed or not")),
-        desc="Names of all files that comprise the complete file")
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "files will be cached"))
@@ -149,36 +130,9 @@ class DarisSourceInputSpec(TraitedSpec):
                                desc="The password of the DaRIS user")
 
 
-class DarisSource(IOBase):
+class DarisSource(ArchiveSource):
 
     input_spec = DarisSourceInputSpec
-    output_spec = DynamicTraitedSpec
-    _always_run = True
-
-    def __init__(self, infields=None, outfields=None, **kwargs):
-        """
-        Parameters
-        ----------
-        infields : list of str
-            Indicates the input fields to be dynamically created
-
-        outfields: list of str
-            Indicates output fields to be dynamically created
-
-        See class examples for usage
-
-        """
-        if not outfields:
-            outfields = ['outfiles']
-        super(DarisSource, self).__init__(**kwargs)
-        undefined_traits = {}
-        # used for mandatory inputs check
-        self._infields = infields
-        self._outfields = outfields
-        if infields:
-            for key in infields:
-                self.inputs.add_trait(key, traits.Any)  # @UndefinedVariable
-                undefined_traits[key] = Undefined
 
     def _list_outputs(self):
         with DarisSession(server=self.inputs.server,
@@ -226,38 +180,14 @@ class DarisSource(IOBase):
                 outputs[name] = cache_path
         return outputs
 
-    def _add_output_traits(self, base):
-        """
 
-        Using traits.Any instead out OutputMultiPath till add_trait bug
-        is fixed.
-        """
-        return add_traits(base, [name for name, _, _ in self.inputs.files])
+class DarisSinkInputSpec(ArchiveSinkInputSpec):
 
-
-class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
-
-    project_id = traits.Int(  # @UndefinedVariable
-        mandatory=True,
-        desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Int(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-        traits.Int(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"))
-    name = traits.Str(  # @UndefinedVariable @IgnorePep8
-        mandatory=True, desc=("The name of the processed data group, e.g. "
-                              "'tractography'"))
-    description = traits.Str(mandatory=True,  # @UndefinedVariable
-                             desc="Description of the study")
     repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the files will"
                            " be cached before uploading"))
-    file_format = traits.Str('nifti', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                             desc="The file format of the files to sink")
     server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
                         usedefault=True, desc="The address of the MF server")
     domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
@@ -266,39 +196,11 @@ class DarisSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                       desc="The DaRIS username to log in with")
     password = traits.Password(None, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                                desc="The password of the DaRIS user")
-    _outputs = traits.Dict(  # @UndefinedVariable
-        traits.Str,  # @UndefinedVariable
-        value={},
-        usedefault=True)  # @UndefinedVariable @IgnorePep8
-    # TODO: Not implemented yet
-    overwrite = traits.Bool(  # @UndefinedVariable
-        False, mandatory=True, usedefault=True,
-        desc=("Whether or not to overwrite previously created studies of the "
-              "same name"))
-
-    # Copied from the S3DataSink in the nipype.interfaces.io module
-    def __setattr__(self, key, value):
-        if key not in self.copyable_trait_names():
-            if not isdefined(value):
-                super(DarisSinkInputSpec, self).__setattr__(key, value)
-            self._outputs[key] = value
-        else:
-            if key in self._outputs:
-                self._outputs[key] = value
-            super(DarisSinkInputSpec, self).__setattr__(key, value)
 
 
-class DarisSinkOutputSpec(TraitedSpec):
-
-    out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
-    # @UndefinedVariable @IgnorePep8
-#     study_id = traits.Str(desc="The study id, which was potentially created")  # @UndefinedVariable @IgnorePep8
-
-
-class DarisSink(DataSink):
+class DarisSink(ArchiveSink):
 
     input_spec = DarisSinkInputSpec
-    output_spec = DarisSinkOutputSpec
 
     def _list_outputs(self):
         """Execute this module.
@@ -312,10 +214,6 @@ class DarisSink(DataSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
-#             if self.inputs.study_id is Undefined:
-#                 study_id = None
-#                 add_study = True
-#             else:
             add_study = not daris.exists(project_id=self.inputs.project_id,
                                          subject_id=self.inputs.session[0],
                                          study_id=self.inputs.session[1],
