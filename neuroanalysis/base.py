@@ -156,7 +156,7 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, name, dataset, workflow, inputs, outputs, options,
+    def __init__(self, dataset, name, workflow, inputs, outputs, options,
                  description):
         """
         Parameters
