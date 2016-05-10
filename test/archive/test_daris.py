@@ -17,7 +17,7 @@ PROJECT_ID = 4
 SUBJECT_ID = 12
 STUDY_ID = 1
 TEST_IMAGE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
+    os.path.dirname(__file__), '..', '_data', 'test_image.nii.gz'))
 
 
 class TestDarisSession(TestCase):
@@ -220,7 +220,7 @@ class TestDarisToken(TestCase):
 
 class TestDarisArchive(TestCase):
     TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'daris'))
+        os.path.dirname(__file__), '..', '_data', 'daris'))
     CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
     DOMAIN = 'mon-daris'

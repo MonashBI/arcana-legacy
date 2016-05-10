@@ -13,9 +13,9 @@ class TestLocalArchive(TestCase):
     SUBJECT_ID = 'DUMMYSUBJECTID'
     SESSION_ID = 'DUMMYSESSIONID'
     TEST_IMAGE = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'test_image.nii.gz'))
+        os.path.dirname(__file__), '..', '_data', 'test_image.nii.gz'))
     TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '_data', 'local'))
+        os.path.dirname(__file__), '..', '_data', 'local'))
     BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
