@@ -98,7 +98,7 @@ class LocalArchive(Archive):
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
             os.makedirs(base_dir)
-        self._base_dir = base_dir
+        self._base_dir = os.path.abspath(base_dir)
 
     def source(self, project_id, input_files):
         source = super(LocalArchive, self).source(project_id, input_files)
@@ -117,11 +117,11 @@ class LocalArchive(Archive):
             study_dirs = os.listdir(os.path.join(project_dir, subject_dir))
             if study_id is not None:
                 try:
-                    study_ids = [int(study_id)]  # Wrap study_id in list if int
+                    study_ids = [study_id]
                 except TypeError:
                     study_ids = study_id
                 study_dirs = [d for d in study_dirs if d in study_ids]
-            sessions.extend(Session(int(subject_dir), int(study_dir))
+            sessions.extend(Session(subject_dir, study_dir)
                             for study_dir in study_dirs)
         return sessions
 

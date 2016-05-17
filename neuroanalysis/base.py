@@ -1,11 +1,13 @@
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 from copy import copy
+import os.path
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
 from neuroanalysis.exception import (
     AcquiredComponentException, NoMatchingPipelineException,
     NeuroAnalysisError)
+from .interfaces.mrtrix import MRConvert
 
 
 logger = Logger('NeuroAnalysis')
@@ -110,14 +112,31 @@ class Dataset(object):
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(inputnode, 'session',
                                   source, 'session')
-        for input_ in pipeline.inputs:
-            complete_workflow.connect(
-                source, input_.filename(self._scan_names),
-                pipeline.workflow.inputnode, input_.name)
+        for inpt in pipeline.inputs:
+            if inpt in self.acquired_components:
+                scan_name = self.scan_name(inpt)
+                if os.path.splitext(inpt)[0] != os.path.splitext(scan_name)[0]:
+                    # Convert input file into the right format (as specified by
+                    # its extension)
+                    conversion = pe.Node(
+                        MRConvert(), name=(scan_name + '_input_conversion'))
+                    complete_workflow.connect(
+                        source, inpt, conversion, scan_name)
+                    inter_source = conversion
+                    inter_name = scan_name
+                else:
+                    inter_source = source
+                    inter_name = inpt
+                complete_workflow.connect(
+                    inter_source, inter_name, pipeline.workflow.inputnode,
+                    inpt)
+            else:
+                complete_workflow.connect(
+                    source, inpt, pipeline.workflow.inputnode, inpt)
+        # Connect all outputs to the archive sink
         for output in pipeline.outputs:
             complete_workflow.connect(
-                pipeline.workflow.outputnode, output.name,
-                sink, output.filename())
+                pipeline.workflow.outputnode, output.name, sink, output)
         # Run the workflow
         complete_workflow.run()
 
@@ -148,6 +167,9 @@ class Dataset(object):
             else:
                 raise NoMatchingPipelineException(file_.name)
 
+    def scan_name(self, name):
+        return self._scan_names[name]
+
 
 class Pipeline(object):
     """
@@ -156,8 +178,8 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, dataset, name, workflow, inputs, outputs, options,
-                 description):
+    def __init__(self, dataset, description, name, workflow, inputs, outputs,
+                 options={}):
         """
         Parameters
         ----------
@@ -182,7 +204,16 @@ class Pipeline(object):
         self._name = name
         self._dataset = dataset
         self._workflow = workflow
-        self._inputs = inputs
+        # Convert input names into files
+        self._inputs = []
+        for inpt in inputs:
+            if inpt in dataset.acquired_components:
+                inpt = AcquiredFile(inpt, dataset.scan_name(inpt))
+            elif inpt in dataset.generated_components:
+                inpt = ProcessedFile(inpt)
+            elif not isinstance(inpt, BaseFile):
+                raise NeuroAnalysisError("")
+            self._inputs.append(inpt)
         self._outputs = outputs
         self._options = options
         self._description = description
@@ -269,6 +300,8 @@ class Pipeline(object):
         A suffixed appended to output filenames when they are archived to
         identify the options used to generate them
         """
+        return '__'.join('{}_{}'.format(k, v)
+                         for k, v in self.options.iteritems())
 
 
 class Session(object):

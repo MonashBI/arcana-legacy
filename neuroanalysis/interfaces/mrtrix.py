@@ -1,7 +1,6 @@
 import os.path
 from nipype.interfaces.base import (
-    CommandLineInputSpec, CommandLine, File, TraitedSpec, isdefined)
-import traits
+    CommandLineInputSpec, CommandLine, File, TraitedSpec, isdefined, traits)
 
 
 # =============================================================================
@@ -131,6 +130,66 @@ class MRConvert(CommandLine):
     _cmd = 'mrconvert'
     input_spec = MRConvertInputSpec
     output_spec = MRConvertOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self.inputs.out_filename
+
+
+class DWIPreprocInputSpec(CommandLineInputSpec):
+    # Arguments
+    pe_dir = traits.Str(  # @UndefinedVariable
+        argstr='%s', desc=(
+            "The phase encode direction; can be a signed axis "
+            "number (e.g. -0, 1, +2) or a code (e.g. AP, LR, IS)"))
+    input = traits.Str(  # @UndefinedVariable
+        argstr='%s', desc=("The input DWI series to be corrected"))
+    output = traits.Str(  # @UndefinedVariable
+        argstr='%s', desc=("The output corrected image series"))
+    # Options
+    grad = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-grad %s',
+        desc=("Provide a gradient table in MRtrix format"))
+    fslgrad = traits.Tuple(  # @UndefinedVariable
+        traits.Str(  # @UndefinedVariable
+            mandatory=True,
+            desc="bvecs"),
+        traits.Str(  # @UndefinedVariable
+            mandatory=True,
+            desc="bvecs"),
+        mandatory=False, argstr='-fslgrad %s %s',
+        desc=("Provide a gradient table in FSL bvecs/bvals format"))
+    rpe_none = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-rpe_none %s',
+        desc=("Specify explicitly that no reversed phase"))
+    encoding = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-encoding %s',
+        desc=("image data is provided; eddy will perform eddy current "
+              "and motion correction only"))
+    rpe_pair = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-rpe_pair %s',
+        desc=("forward reverse Provide a pair of images to use for "
+              "inhomogeneity field estimation; note that the FIRST of these "
+              "two images must have the same phase"))
+    encode = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-encode %s',
+        desc=("direction as the input DWIs"))
+    rpe_all = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-rpe_all %s',
+        desc=("input_revpe  Provide a second DWI series identical to the input"
+              "series, that has the opposite phase encoding; these "
+              "will be combined in the output image"))
+
+
+class DWIPreprocOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='Extracted encoding gradients')
+
+
+class DWIPreproc(CommandLine):
+
+    _cmd = 'dwipreproc'
+    input_spec = DWIPreprocInputSpec
+    output_spec = DWIPreprocOutputSpec
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
