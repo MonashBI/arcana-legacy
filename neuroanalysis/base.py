@@ -17,7 +17,7 @@ class Dataset(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, project_id, archive, scan_names, name='None'):
+    def __init__(self, project_id, archive, scans, name=None):
         """
         Parameters
         ----------
@@ -29,15 +29,15 @@ class Dataset(object):
         archive : Archive
             An Archive object referring either to a DaRIS, XNAT or local file
             system project
-        scan_names : List[str]
+        scans_dict : Dict[str:base.Scan]
             A dict containing the a mapping between names of
             dataset components and the acquired scans, e.g.
             {'diffusion':'ep2d_diff_mrtrix_33_dir_3_inter_b0_p_RL',
              'distortion_correct': 'PRE DWI L-R DIST CORR 36 DIR MrTrix'}
         """
         self._project_id = project_id
-        self._scan_names = scan_names
-        assert set(scan_names.keys()) == self.acquired_components
+        self._scans = scans
+        assert set(scans.keys()) == set(self.acquired_components.keys())
         self._archive = archive
         self._name = name
 
@@ -74,14 +74,14 @@ class Dataset(object):
             raise NeuroAnalysisError(
                 "study_id is only relevant if sessions argument is None")
         # Ensure all sessions are session objects and they are unique
-        sessions = set(Session(session for session in sessions))
+        sessions = set(Session(session) for session in sessions)
         if not reprocess:
             # Check which sessions already have all the required output files
             # in the archive and don't rerun for those subjects/studies
             complete_sessions = copy(sessions)
             for output in pipeline.outputs:
-                complete_sessions &= self._archive.sessions_with_file(
-                    output.filename())
+                complete_sessions &= set(self._archive.sessions_with_file(
+                    self.scan(output), self.project_id))
             sessions -= complete_sessions
             if not sessions:
                 logger.info(
@@ -89,51 +89,53 @@ class Dataset(object):
                     "present")
                 return  # No sessions need to be rerun
         # Run prerequisite pipelines and save their results into the archive
-        for prereq in pipeline.prequisites:
+        for prereq in pipeline.prerequisities:
             # If reprocess is True, prerequisite pipelines are not reprocessed,
             # only if reprocess == 'all'
             self.run_pipeline(prereq, sessions, work_dir,
                               (reprocess if reprocess == 'all' else False))
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
-        complete_workflow = pe.Workflow(name=self._name, base_dir=work_dir)
+        complete_workflow = pe.Workflow(name=pipeline.name, base_dir=work_dir)
         # Generate an input node for the sessions iterable
         inputnode = pe.Node(IdentityInterface(['session']),
                             name='session_input')
         inputnode.iterables = ('session',
                                [(s.subject_id, s.study_id) for s in sessions])
         # Create source and sinks from the archive
-        source = self._archive.source(self._project_id, pipeline.inputs)
-        sink = self._dataset.archive_sink(self._project_id, pipeline.outputs)
+        source = self.archive.source(self._project_id,
+                                     (self.scan(i) for i in pipeline.inputs))
+        sink = self.archive.sink(self._project_id)
         sink.inputs.description = pipeline.description
-        sink.inputs.name = pipeline.name + pipeline.suffix
+        sink.inputs.name = ((self.name if self.name is not None else '') +
+                            pipeline.name + pipeline.suffix)
         # Add all extra nodes and the pipelines workflow to a wrapper workflow
         complete_workflow.add_nodes(
-            (inputnode, source, self._workflow, sink))
+            (inputnode, source, pipeline.workflow, sink))
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(inputnode, 'session',
                                   source, 'session')
         for inpt in pipeline.inputs:
+            scan = self.scan(inpt)
             if inpt in self.acquired_components:
-                scan_name = self.scan_name(inpt)
-                if os.path.splitext(inpt)[0] != os.path.splitext(scan_name)[0]:
-                    # Convert input file into the right format (as specified by
-                    # its extension)
+                if scan.convert_to is not None:
                     conversion = pe.Node(
-                        MRConvert(), name=(scan_name + '_input_conversion'))
+                        MRConvert(), name=(scan.name +
+                                           '_input_conversion'))
+                    conversion.output_filename = scan.converted_filename
                     complete_workflow.connect(
-                        source, inpt, conversion, scan_name)
-                    inter_source = conversion
-                    inter_name = scan_name
+                        source, scan.filename, conversion, 'in_file')
+                    converted_source = conversion
                 else:
-                    inter_source = source
-                    inter_name = inpt
+                    converted_source = source
                 complete_workflow.connect(
-                    inter_source, inter_name, pipeline.workflow.inputnode,
-                    inpt)
-            else:
+                    converted_source, scan.converted_filename,
+                    pipeline.workflow.inputnode, inpt)
+            elif inpt in self.generated_components:
                 complete_workflow.connect(
                     source, inpt, pipeline.workflow.inputnode, inpt)
+            else:
+                assert False
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
             complete_workflow.connect(
@@ -145,7 +147,7 @@ class Dataset(object):
         # generated_components should be defined by the derived class
         return input_name in self.generated_components
 
-    def generating_pipeline(self, file_):
+    def generating_pipeline(self, scan_name, **options):
         """
         Looks up the pipeline that generates the given file (as
         determined by the 'generated_components dict class member) and creates
@@ -153,23 +155,46 @@ class Dataset(object):
 
         Parameters
         ----------
-        file_ : ProcessedFile
+        scan : ProcessedFile
             The file for which the pipeline that generates it is to be returned
         """
         try:
             # Get 'getter' method from class dictionary 'generated_components'
-            getter = self._dataset.generated_components[file_.name]
+            getter = self.generated_components[scan_name][0]
             # Call getter on dataset and generate the pipeline with appropriate
             # options
-            return getter(self, **file_.options)
+            return getter(self, **options)
         except KeyError:
-            if file_.name in self._dataset.acquired_components:
-                raise AcquiredComponentException(file_.name)
+            if scan_name in self.acquired_components:
+                raise AcquiredComponentException(scan_name)
             else:
-                raise NoMatchingPipelineException(file_.name)
+                raise NoMatchingPipelineException(scan_name)
 
-    def scan_name(self, name):
-        return self._scan_names[name]
+    def scan(self, name):
+        if name in self.acquired_components:
+            scan = copy(self._scans[name])
+            if scan.format != self.acquired_components[name]:
+                scan.convert_to(self.acquired_components[name])
+        elif name in self.generated_components:
+            scan = Scan(name, self.generated_components[name][1],
+                        processed=True)
+        else:
+            raise NeuroAnalysisError(
+                "Unrecognised scan name '{}'. It is not present in either "
+                "the acquired or generated components")
+        return scan
+
+    @property
+    def project_id(self):
+        return self._project_id
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def archive(self):
+        return self._archive
 
 
 class Pipeline(object):
@@ -206,15 +231,7 @@ class Pipeline(object):
         self._dataset = dataset
         self._workflow = workflow
         # Convert input names into files
-        self._inputs = []
-        for inpt in inputs:
-            if inpt in dataset.acquired_components:
-                inpt = AcquiredFile(inpt, dataset.scan_name(inpt))
-            elif inpt in dataset.generated_components:
-                inpt = ProcessedFile(inpt)
-            elif not isinstance(inpt, BaseFile):
-                raise NeuroAnalysisError("")
-            self._inputs.append(inpt)
+        self._inputs = inputs
         self._outputs = outputs
         self._options = options
         self._description = description
@@ -338,16 +355,45 @@ class Session(object):
         return self._study_id
 
 
-class BaseFile(object):
-    """
-    Abstract base class for AcquiredFile and ProcessedFile classes
-    """
+class Scan(object):
 
-    __metaclass__ = ABCMeta
+    # The recognised "scan" (and diffusion gradient information) and a mapping
+    # to their file extension
+    recognised_formats = {
+        'nifti': 'nii',
+        'nifti_gz': 'nii.gz',
+        'mrtrix': 'mif',
+        'analyze': 'hdr',
+        'dicom': '',
+        'bvecs': '',
+        'bvals': '',
+        'mrtrix_grad': 'b'}
 
-    def __init__(self, name, file_format='nii.gz'):
+    def __init__(self, name, format=None, processed=False):  # @ReservedAssignment @IgnorePep8
+        """
+        Parameters
+        ----------
+        name : str
+            The name of the scan
+        format : str
+            The file format used to store the scan. Can be one of the
+            recognised formats
+        """
+        assert isinstance(name, basestring)
         self._name = name
-        self._format = file_format
+        if format not in self.recognised_formats and format is not None:
+            raise NeuroAnalysisError(
+                "Unrecognised scan format '{}' (available '{}')"
+                .format(format, "', '".join(self.recognised_formats.keys())))
+        self._format = format
+        self._processed = processed
+        self._new_format = None
+
+    def __eq__(self, other):
+        return (self.name == other.name and self.format == other.format)
+
+    def __ne__(self, other):
+        return not (self == other)
 
     @property
     def name(self):
@@ -357,39 +403,34 @@ class BaseFile(object):
     def format(self):
         return self._format
 
-
-class AcquiredFile(BaseFile):
-
-    def __init__(self, name, filename, file_format='nii.gz'):
-        super(AcquiredFile, self).__init__(name, file_format)
-        self._filename = filename
+    @property
+    def processed(self):
+        return self._processed
 
     @property
     def filename(self):
-        return self._filename
+        return self._get_filename(self.format)
 
     @property
-    def processed(self):
-        return False
+    def converted_filename(self):
+        return self._get_filename(self._new_format
+                                  if self._new_format is not None
+                                  else self.format)
 
+    def _get_filename(self, format):  # @ReservedAssignment
+        if format is None:
+            ext = ''
+        else:
+            ext = self.recognised_formats[format]
+        return self.name + '.' + ext
 
-class ProcessedFile(BaseFile):
+    def match(self, filename):
+        base, ext = os.path.splitext(filename)
+        return (base == self.name and (
+            ext == self.format or self.format is None))
 
-    def __init__(self, name, options, file_format='nii.gz'):
-        BaseFile.__init__(self, name, file_format)
-        self._options = options
+    def convert_to(self, new_format):
+        self._new_format = new_format
 
-    @property
-    def options(self):
-        return self._options
-
-    @property
-    def filename(self):
-        return "{}{}.{}".format(
-            self._name, ''.join('__{}={}'.format(n, v)
-                                 for n, v in self._options.iteritems()),
-            self._format)
-
-    @property
-    def processed(self):
-        return True
+    def __repr__(self):
+        return "Scan(name='{}', format={})".format(self.name, self.format)

@@ -142,10 +142,8 @@ class DWIPreprocInputSpec(CommandLineInputSpec):
         argstr='%s', desc=(
             "The phase encode direction; can be a signed axis "
             "number (e.g. -0, 1, +2) or a code (e.g. AP, LR, IS)"))
-    input = traits.Str(  # @UndefinedVariable
+    in_file = traits.Str(  # @UndefinedVariable
         argstr='%s', desc=("The input DWI series to be corrected"))
-    output = traits.Str(  # @UndefinedVariable
-        argstr='%s', desc=("The output corrected image series"))
     # Options
     grad = traits.Str(  # @UndefinedVariable
         mandatory=False, argstr='-grad %s',

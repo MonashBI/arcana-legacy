@@ -91,7 +91,7 @@ class LocalArchive(Archive):
     system. Sets out the interface that all Archive classes should implement.
     """
 
-    type = 'Local'
+    type = 'local'
     Source = LocalSource
     Sink = LocalSink
 
@@ -125,14 +125,14 @@ class LocalArchive(Archive):
                             for study_dir in study_dirs)
         return sessions
 
-    def sessions_with_file(self, file_, project_id, sessions=None):
+    def sessions_with_file(self, scan, project_id, sessions=None):
         if sessions is None:
             sessions = self.all_sessions(project_id)
         with_dataset = []
         for session in sessions:
-            if os.path.exists(os.path.join(
-                self._path, str(session.subject_id), str(session.study_id),
-                    file_.filename())):
+            if os.path.exists(
+                os.path.join(self._base_dir, str(session.subject_id),
+                             str(session.study_id), scan.filename)):
                 with_dataset.append(session)
         return with_dataset
 

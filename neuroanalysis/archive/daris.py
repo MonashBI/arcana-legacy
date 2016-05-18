@@ -188,7 +188,7 @@ class DarisArchive(Archive):
     An 'Archive' class for the DaRIS research management system.
     """
 
-    type = 'Daris'
+    type = 'daris'
     Sink = DarisSink
     Source = DarisSource
 

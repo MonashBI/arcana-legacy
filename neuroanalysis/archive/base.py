@@ -15,7 +15,7 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_files):
+    def source(self, project_id, input_scans):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -31,8 +31,8 @@ class Archive(object):
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [(f.name, f.filename, f.processed)
-                               for f in input_files]
+        source.inputs.files = [(s.name, s.filename, s.processed)
+                               for s in input_scans]
         return source
 
     @abstractmethod

@@ -1,9 +1,10 @@
 import os.path
 import shutil
+from neuroanalysis.base import Scan
 from neuroanalysis.diffusion import DiffusionDataset
 from neuroanalysis.archive import LocalArchive
 if __name__ == '__main__':
-    from utils import DummyTestCase as TestCase  # @UnusedImport
+    from utils import DummyTestCase as TestCase  # @UnusedImport @UnresolvedImport @IgnorePep8
 else:
     from unittest import TestCase  # @Reimport
 
@@ -25,9 +26,9 @@ class TestDiffusion(TestCase):
         os.makedirs(WORK_PATH)
         self.dataset = DiffusionDataset(
             project_id=self.NODDI_PROJECT, archive=LocalArchive(ARCHIVE_PATH),
-            scan_names={'forward_rpe.mif': 'r-l_noddi_b0_6',
-                        'reverse_rpe.mif': 'pre_l-r_noddi_b0_6',
-                        'diffusion.mif': 'r-l_noddi_b700_30_directions'})
+            scans={'forward_rpe': Scan('r-l_noddi_b0_6', 'dicom'),
+                   'reverse_rpe': Scan('pre_l-r_noddi_b0_6', 'dicom'),
+                   'diffusion': Scan('r-l_noddi_b700_30_directions', 'dicom')})
 
     def tearDown(self):
         shutil.rmtree(WORK_PATH, ignore_errors=True)

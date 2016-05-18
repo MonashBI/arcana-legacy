@@ -1,17 +1,13 @@
 from nipype.pipeline import engine as pe
 from .interfaces.mrtrix import DWIPreproc
-from .base import Dataset, Pipeline
+from .base import Dataset, Pipeline, Scan
 
 
 class DiffusionDataset(Dataset):
 
-    def __init__(self, project_id, archive, scan_names):
-        super(DiffusionDataset, self).__init__(
-            project_id, archive, scan_names=scan_names)
-
     def preprocess_pipeline(self):
-        inputs = ('diffusion.mif', 'distortion_correct.mif')
-        outputs = ('preprocessed.mif',)
+        inputs = ('diffusion', 'forward_rpe', 'reverse_rpe')
+        outputs = ('preprocessed',)
         options = {}
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         return Pipeline(
@@ -24,9 +20,9 @@ class DiffusionDataset(Dataset):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner
-    acquired_components = {'diffusion.mif', 'forward_rpe.mif',
-                           'reverse_rpe.mif'}
+    acquired_components = {
+        'diffusion': None, 'forward_rpe': None, 'reverse_rpe': None}
 
     generated_components = {
-        'fod.mif': fod_pipeline,
-        'preprocessed.mif': preprocess_pipeline}
+        'fod': (fod_pipeline, 'mrtrix'),
+        'preprocessed': (preprocess_pipeline, 'nifti_gz')}
