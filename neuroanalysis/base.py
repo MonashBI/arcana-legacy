@@ -17,7 +17,7 @@ class Dataset(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, project_id, archive, scan_names):
+    def __init__(self, project_id, archive, scan_names, name='None'):
         """
         Parameters
         ----------
@@ -39,6 +39,7 @@ class Dataset(object):
         self._scan_names = scan_names
         assert set(scan_names.keys()) == self.acquired_components
         self._archive = archive
+        self._name = name
 
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False, study_id=None):

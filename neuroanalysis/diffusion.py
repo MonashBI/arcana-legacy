@@ -24,7 +24,8 @@ class DiffusionDataset(Dataset):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner
-    acquired_components = {'diffusion.mif', 'distortion_correct.mif'}
+    acquired_components = {'diffusion.mif', 'forward_rpe.mif',
+                           'reverse_rpe.mif'}
 
     generated_components = {
         'fod.mif': fod_pipeline,
