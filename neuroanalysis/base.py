@@ -181,7 +181,7 @@ class Dataset(object):
         else:
             raise NeuroAnalysisError(
                 "Unrecognised scan name '{}'. It is not present in either "
-                "the acquired or generated components")
+                "the acquired or generated components".format(name))
         return scan
 
     @property
