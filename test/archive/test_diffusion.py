@@ -26,9 +26,10 @@ class TestDiffusion(TestCase):
         os.makedirs(WORK_PATH)
         self.dataset = DiffusionDataset(
             project_id=self.NODDI_PROJECT, archive=LocalArchive(ARCHIVE_PATH),
-            scans={'forward_rpe': Scan('r-l_noddi_b0_6', 'dicom'),
-                   'reverse_rpe': Scan('pre_l-r_noddi_b0_6', 'dicom'),
-                   'diffusion': Scan('r-l_noddi_b700_30_directions', 'dicom')})
+            scans={'forward_rpe': Scan('r_l_noddi_b0_6', 'mrtrix'),
+                   'reverse_rpe': Scan('pre_l_r_noddi_b0_6', 'mrtrix'),
+                   'diffusion': Scan('r_l_noddi_b700_30_directions',
+                                     'mrtrix')})
 
     def tearDown(self):
         shutil.rmtree(WORK_PATH, ignore_errors=True)

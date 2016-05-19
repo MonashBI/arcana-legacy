@@ -151,11 +151,6 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        """
-
-        Using traits.Any instead out OutputMultiPath till add_trait bug
-        is fixed.
-        """
         return add_traits(base, [name for name, _, _ in self.inputs.files])
 
 

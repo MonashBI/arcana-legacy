@@ -124,22 +124,21 @@ class Dataset(object):
                                            '_input_conversion'))
                     conversion.output_filename = scan.converted_filename
                     complete_workflow.connect(
-                        source, scan.filename, conversion, 'in_file')
+                        source, scan.name, conversion, 'in_file')
                     converted_source = conversion
                 else:
                     converted_source = source
                 complete_workflow.connect(
-                    converted_source, scan.converted_filename,
-                    pipeline.workflow.inputnode, inpt)
+                    converted_source, scan.name, pipeline.inputnode, inpt)
             elif inpt in self.generated_components:
                 complete_workflow.connect(
-                    source, inpt, pipeline.workflow.inputnode, inpt)
+                    source, inpt, pipeline.inputnode, inpt)
             else:
                 assert False
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
             complete_workflow.connect(
-                pipeline.workflow.outputnode, output.name, sink, output)
+                pipeline.outputnode, output.name, sink, output)
         # Run the workflow
         complete_workflow.run()
 
@@ -205,7 +204,7 @@ class Pipeline(object):
     """
 
     def __init__(self, dataset, description, name, workflow, inputs, outputs,
-                 options={}):
+                 inputnode, outputnode, options={}):
         """
         Parameters
         ----------
@@ -234,6 +233,8 @@ class Pipeline(object):
         self._inputs = inputs
         self._outputs = outputs
         self._options = options
+        self._inputnode = inputnode
+        self._outputnode = outputnode
         self._description = description
 
     def __eq__(self, other):
@@ -311,6 +312,14 @@ class Pipeline(object):
     @property
     def description(self):
         return self._description
+
+    @property
+    def inputnode(self):
+        return self._inputnode
+
+    @property
+    def outputnode(self):
+        return self._outputnode
 
     @property
     def suffix(self):
