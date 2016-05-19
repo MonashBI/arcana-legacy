@@ -204,7 +204,7 @@ class Pipeline(object):
     """
 
     def __init__(self, dataset, description, name, workflow, inputs, outputs,
-                 inputnode, outputnode, options={}):
+                 inputnode, outputnode, citations, options):
         """
         Parameters
         ----------
@@ -232,6 +232,7 @@ class Pipeline(object):
         # Convert input names into files
         self._inputs = inputs
         self._outputs = outputs
+        self._citations = citations
         self._options = options
         self._inputnode = inputnode
         self._outputnode = outputnode
@@ -362,6 +363,36 @@ class Session(object):
     @property
     def study_id(self):
         return self._study_id
+
+
+class Citation(object):
+
+    def __init__(self, authors, title, year, journal, pages):
+        self._authors = authors
+        self._title = title
+        self._year = year
+        self._journal = journal
+        self._pages = pages
+
+    @property
+    def authors(self):
+        return self._authors
+
+    @property
+    def title(self):
+        return self._title
+
+    @property
+    def year(self):
+        return self._year
+
+    @property
+    def journal(self):
+        return self._journal
+
+    @property
+    def pages(self):
+        return self._pages
 
 
 class Scan(object):
