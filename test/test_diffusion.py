@@ -1,8 +1,11 @@
-import os.path
-import shutil
-from neuroanalysis.base import Scan
-from neuroanalysis.diffusion import DiffusionDataset
-from neuroanalysis.archive import LocalArchive
+#!/usr/bin/env python
+from nipype import config
+config.enable_debug_mode()
+import os.path  # @IgnorePep8
+import shutil  # @IgnorePep8
+from neuroanalysis.base import Scan  # @IgnorePep8
+from neuroanalysis.diffusion import DiffusionDataset  # @IgnorePep8
+from neuroanalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':
     from utils import DummyTestCase as TestCase  # @UnusedImport @UnresolvedImport @IgnorePep8
 else:
@@ -10,9 +13,9 @@ else:
 
 
 ARCHIVE_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '_data', 'test_archive'))
+    os.path.dirname(__file__), '_data', 'test_archive'))
 WORK_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '_data', 'work', 'diffusion'))
+    os.path.dirname(__file__), '_data', 'work', 'diffusion'))
 
 
 class TestDiffusion(TestCase):
