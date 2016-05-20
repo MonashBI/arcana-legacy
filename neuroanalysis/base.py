@@ -118,18 +118,20 @@ class Dataset(object):
         for inpt in pipeline.inputs:
             scan = self.scan(inpt)
             if inpt in self.acquired_components:
-                if scan.convert_to is not None:
+                if scan.to_be_converted:
                     conversion = pe.Node(
                         MRConvert(), name=(scan.name +
                                            '_input_conversion'))
-                    conversion.output_filename = scan.converted_filename
+                    conversion.inputs.out_filename = scan.converted_filename
                     complete_workflow.connect(
                         source, scan.name, conversion, 'in_file')
                     converted_source = conversion
+                    scan_name = 'out_file'
                 else:
                     converted_source = source
+                    scan_name = scan.name
                 complete_workflow.connect(
-                    converted_source, scan.name, pipeline.inputnode, inpt)
+                    converted_source, scan_name, pipeline.inputnode, inpt)
             elif inpt in self.generated_components:
                 complete_workflow.connect(
                     source, inpt, pipeline.inputnode, inpt)
@@ -137,8 +139,9 @@ class Dataset(object):
                 assert False
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
+            output_scan = Scan(output, self.generated_components[output][1])
             complete_workflow.connect(
-                pipeline.outputnode, output.name, sink, output)
+                pipeline.outputnode, output, sink, output_scan.filename)
         # Run the workflow
         complete_workflow.run()
 
@@ -172,8 +175,7 @@ class Dataset(object):
     def scan(self, name):
         if name in self.acquired_components:
             scan = copy(self._scans[name])
-            if scan.format != self.acquired_components[name]:
-                scan.convert_to(self.acquired_components[name])
+            scan.convert_to(self.acquired_components[name])
         elif name in self.generated_components:
             scan = Scan(name, self.generated_components[name][1],
                         processed=True)
@@ -367,11 +369,12 @@ class Session(object):
 
 class Citation(object):
 
-    def __init__(self, authors, title, year, journal, pages):
+    def __init__(self, authors, title, year, journal, volume, pages):
         self._authors = authors
         self._title = title
         self._year = year
         self._journal = journal
+        self._volume = volume
         self._pages = pages
 
     @property
@@ -393,6 +396,10 @@ class Citation(object):
     @property
     def pages(self):
         return self._pages
+
+    @property
+    def volume(self):
+        return self._volume
 
 
 class Scan(object):
@@ -471,6 +478,10 @@ class Scan(object):
 
     def convert_to(self, new_format):
         self._new_format = new_format
+
+    @property
+    def to_be_converted(self):
+        return self._format != self._new_format
 
     def __repr__(self):
         return "Scan(name='{}', format={})".format(self.name, self.format)
