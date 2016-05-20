@@ -8,7 +8,7 @@ from neuroanalysis.exception import (
     AcquiredComponentException, NoMatchingPipelineException,
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
-
+from neuroanalysis.exception import NeuroAnalysisException
 
 logger = Logger('NeuroAnalysis')
 
@@ -37,7 +37,12 @@ class Dataset(object):
         """
         self._project_id = project_id
         self._scans = scans
-        assert set(scans.keys()) == set(self.acquired_components.keys())
+        if set(scans.keys()) != set(self.acquired_components.keys()):
+            raise NeuroAnalysisException(
+                "Dataset scans ('{}') do not match acquired components of "
+                "{} ('{}')".format(
+                    "', '".join(set(scans.keys())), self.__class__.__name__,
+                    "', '".join(set(self.acquired_components.keys()))))
         self._archive = archive
         self._name = name
 
@@ -115,6 +120,8 @@ class Dataset(object):
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(inputnode, 'session',
                                   source, 'session')
+        complete_workflow.connect(inputnode, 'session',
+                                  sink, 'session')
         for inpt in pipeline.inputs:
             scan = self.scan(inpt)
             if inpt in self.acquired_components:

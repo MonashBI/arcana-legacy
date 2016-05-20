@@ -4,7 +4,7 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.local import LocalArchive
-from neuroanalysis.base import AcquiredFile
+from neuroanalysis.base import Scan
 
 
 class TestLocalArchive(TestCase):
@@ -42,10 +42,10 @@ class TestLocalArchive(TestCase):
         # Create working dirs
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.BASE_DIR)
-        source_files = [AcquiredFile('source1', 'source1.nii.gz'),
-                        AcquiredFile('source2', 'source2.nii.gz'),
-                        AcquiredFile('source3', 'source3.nii.gz'),
-                        AcquiredFile('source4', 'source4.nii.gz')]
+        source_files = [Scan('source1', 'nifti_gz'),
+                        Scan('source2', 'nifti_gz'),
+                        Scan('source3', 'nifti_gz'),
+                        Scan('source4', 'nifti_gz')]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
         inputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
         source = archive.source(self.PROJECT_ID, source_files)

@@ -136,6 +136,7 @@ class MRConvert(CommandLine):
     def _list_outputs(self):
         outputs = self.output_spec().get()
         outputs['out_file'] = self.inputs.out_filename
+        return outputs
 
 
 class DWIPreprocInputSpec(CommandLineInputSpec):
@@ -149,9 +150,8 @@ class DWIPreprocInputSpec(CommandLineInputSpec):
         mandatory=True, argstr='%s',
         desc=("The input DWI series to be corrected"), position=-2)
     out_file = File(
-        gen_file=True, argstr='%s', position=-1,
-        desc="Output preprocessed filename", name_source=['in_file'],
-        hash_files=False, name_template='%s_filt')
+        gen_file=True, argstr='%s', position=-1, hash_files=False,
+        desc="Output preprocessed filename")
     forward_rpe = traits.Str(  # @UndefinedVariable
         argstr='-rpe_pair %s',
         desc=("forward reverse Provide a pair of images to use for "
@@ -164,40 +164,6 @@ class DWIPreprocInputSpec(CommandLineInputSpec):
               "inhomogeneity field estimation; note that the FIRST of these "
               "two images must have the same phase"),
         position=1)
-
-#     # Options
-#     grad = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-grad %s',
-#         desc=("Provide a gradient table in MRtrix format"))
-#     fslgrad = traits.Tuple(  # @UndefinedVariable
-#         traits.Str(  # @UndefinedVariable
-#             mandatory=True,
-#             desc="bvecs"),
-#         traits.Str(  # @UndefinedVariable
-#             mandatory=True,
-#             desc="bvecs"),
-#         mandatory=False, argstr='-fslgrad %s %s',
-#         desc=("Provide a gradient table in FSL bvecs/bvals format"))
-#     rpe_none = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-rpe_none %s',
-#         desc=("Specify explicitly that no reversed phase"))
-#     encoding = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-encoding %s',
-#         desc=("image data is provided; eddy will perform eddy current "
-#               "and motion correction only"))
-#     rpe_pair = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-rpe_pair %s',
-#         desc=("forward reverse Provide a pair of images to use for "
-#               "inhomogeneity field estimation; note that the FIRST of these "
-#               "two images must have the same phase"))
-#     encode = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-encode %s',
-#         desc=("direction as the input DWIs"))
-#     rpe_all = traits.Str(  # @UndefinedVariable
-#         mandatory=False, argstr='-rpe_all %s',
-#         desc=("input_revpe  Provide a second DWI series identical to the input"
-#               "series, that has the opposite phase encoding; these "
-#               "will be combined in the output image"))
 
 
 class DWIPreprocOutputSpec(TraitedSpec):
@@ -212,8 +178,64 @@ class DWIPreproc(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_filename
+        outputs['out_file'] = self.inputs.out_file
+        return outputs
 
     def _gen_filename(self, name):
         base, ext = os.path.splitext(name)
         return base + '_preprocessed' + ext
+
+
+class MRCatInputSpec(CommandLineInputSpec):
+
+    first_scan = traits.File(  # @UndefinedVariable
+        exists=True, mandatory=True, desc="First input image", argstr="%s",
+        position=-3)
+
+    second_scan = traits.File(  # @UndefinedVariable
+        exists=True, mandatory=True, desc="Second input image", argstr="%s",
+        position=-2)
+
+    out_file = traits.File(  # @UndefinedVariable
+        genfile=True, desc="Output filename", position=-1, hash_files=False,
+        argstr="%s")
+
+    axis = traits.Str(  # @UndefinedVariable
+        desc="The axis along which the scans will be concatenated",
+        argstr="-axis %s")
+
+
+class MRCatOutputSpec(TraitedSpec):
+
+    out_file = File(exists=True, desc='Pre-processed DWI dataset')
+
+
+class MRCat(CommandLine):
+
+    _cmd = 'mrcat'
+    input_spec = MRCatInputSpec
+    output_spec = MRCatOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            gen_name = self._gen_outfilename()
+        else:
+            assert False
+        return gen_name
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            out_name = self.inputs.out_file
+        else:
+            first, ext = os.path.splitext(
+                os.path.basename(self.inputs.first_scan))
+            second, _ = os.path.splitext(
+                os.path.basename(self.inputs.second_scan))
+            out_name = os.path.join(
+                os.getcwd(), "{}_{}_concatenated{}".format(first, second, ext))
+        return out_name

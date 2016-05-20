@@ -100,7 +100,8 @@ class ArchiveSourceInputSpec(TraitedSpec):
             mandatory=True,
             desc="The subject ID"),
         traits.Str(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"))
+                   desc="The session or processed group ID"),
+        mandatory=True, desc="The subjec/session pair to retrieve")
     files = traits.List(  # @UndefinedVariable
         traits.Tuple(  # @UndefinedVariable
             traits.Str(  # @UndefinedVariable
@@ -204,6 +205,8 @@ class ArchiveSinkOutputSpec(TraitedSpec):
 
 
 class ArchiveSink(DataSink):
+
+    __metaclass__ = ABCMeta
 
     output_spec = ArchiveSinkOutputSpec
 

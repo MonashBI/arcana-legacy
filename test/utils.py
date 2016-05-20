@@ -17,6 +17,11 @@ class DummyTestCase(object):
         except AttributeError:
             pass
 
+    def assert_(self, statement, message=None):
+        if not statement:
+            message = "'{}' is not true".format(statement)
+            print message
+
     def assertEqual(self, first, second, message=None):
         if first != second:
             if message is None:
