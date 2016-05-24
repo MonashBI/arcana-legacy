@@ -56,7 +56,7 @@ class TestNODDI(TestCase):
                                NODDI_SUBJECT, NODDI_SESSION)
     DATASET_NAME = 'noddi'
     SCAN_PATH_PREFIX = os.path.join(SESSION_DIR, DATASET_NAME)
-    DW_SCAN_PATH = SCAN_PATH_PREFIX + '_dw_scan.mif'
+    DW_SCAN_PATH = SCAN_PATH_PREFIX + '_dwi.mif'
     PREPROC_PATH = SCAN_PATH_PREFIX + '_preprocessed.mif'
 
     def setUp(self):
@@ -88,6 +88,7 @@ class TestNODDI(TestCase):
         self.assert_(os.path.exists(self.PREPROC_PATH))
 
     def _remove_generated_files(self):
+        import shutil  # @Reimport @NoMove This avoids some strange None error
         shutil.rmtree(self.WORK_PATH, ignore_errors=True)
         try:
             os.remove(self.DW_SCAN_PATH)

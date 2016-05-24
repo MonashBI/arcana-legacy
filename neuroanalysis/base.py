@@ -254,25 +254,23 @@ class Pipeline(object):
         self._dataset = dataset
         self._workflow = pe.Workflow(name=name)
         # Convert input names into files
-        unrecog_inputs = set(n not in dataset.all_component_names
-                             for n in inputs)
+        unrecog_inputs = set(n for n in inputs
+                             if n not in dataset.all_component_names)
         if unrecog_inputs:
             raise NeuroAnalysisScanNameError(
-                "'{}' input{} not valid component names for {} dataset ('{}')"
+                "'{}' are not valid inputs names for {} dataset ('{}')"
                 .format("', '".join(unrecog_inputs),
-                        ('s are' if len(unrecog_inputs) > 1 else 'is'),
                         dataset.__class__.__name__,
-                        "', '".format(dataset.all_component_names)))
+                        "', '".join(dataset.all_component_names)))
         self._inputs = inputs
-        unrecog_outputs = set(n not in dataset.acquired_components
-                              for n in outputs)
+        unrecog_outputs = set(n for n in outputs
+                              if n not in dataset.generated_components)
         if unrecog_outputs:
             raise NeuroAnalysisScanNameError(
-                "'{}' output{} not valid component names for {} dataset ('{}')"
+                "'{}' are not valid output names for {} dataset ('{}')"
                 .format("', '".join(unrecog_outputs),
-                        ('s are' if len(unrecog_outputs) > 1 else 'is'),
                         dataset.__class__.__name__,
-                        "', '".format(dataset.acquired_components.iterkeys())))
+                        "', '".join(dataset.generated_components.keys())))
         self._outputs = outputs
         self._unconnected_inputs = set(inputs)
         self._unconnected_outputs = set(outputs)
@@ -359,7 +357,7 @@ class Pipeline(object):
         if input not in self._unconnected_inputs:
             raise NeuroAnalysisError(
                 "'{}' input has been connected already")
-        self._workflow(self._inputnode, input, node, node_input)
+        self._workflow.connect(self._inputnode, input, node, node_input)
         self._unconnected_inputs.remove(input)
 
     def connect_output(self, output, node, node_output):
@@ -370,7 +368,7 @@ class Pipeline(object):
         if output not in self._unconnected_outputs:
             raise NeuroAnalysisError(
                 "'{}' output has been connected already")
-        self._workflow(node, node_output, self._outputnode, output)
+        self._workflow.connect(node, node_output, self._outputnode, output)
         self._unconnected_outputs.remove(output)
 
     @property
