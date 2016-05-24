@@ -27,10 +27,10 @@ class DiffusionDataset(Dataset):
         outputnode = pe.Node(IdentityInterface(fields=outputs),
                              name="preprocess_outputnode")
         workflow = pe.Workflow(name='preprocess')
-        workflow.connect(inputnode, 'diffusion', dwipreproc, 'in_file')
+        workflow.connect(inputnode, 'dw_scan', dwipreproc, 'in_file')
         workflow.connect(inputnode, 'forward_rpe', dwipreproc, 'forward_rpe')
         workflow.connect(inputnode, 'reverse_rpe', dwipreproc, 'reverse_rpe')
-        workflow.connect(dwipreproc, 'out_file', outputnode, 'dw_scan_preproc')
+        workflow.connect(dwipreproc, 'out_file', outputnode, 'preprocessed')
         return Pipeline(
             dataset=self, name='preprocess', workflow=workflow,
             inputs=inputs, outputs=outputs, inputnode=inputnode,
@@ -47,7 +47,7 @@ class DiffusionDataset(Dataset):
 
     generated_components = {
         'fod': (fod_pipeline, 'mrtrix'),
-        'dw_scan_preproc': (preprocess_pipeline, 'nifti_gz')}
+        'preprocessed': (preprocess_pipeline, 'nifti_gz')}
 
 
 class NODDIDataset(DiffusionDataset):

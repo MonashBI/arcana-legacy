@@ -6,16 +6,16 @@ test_data_dir = join(dirname(__file__), '..', 'data')
 class DummyTestCase(object):
 
     def __init__(self):
-        try:
-            self.setUp()
-        except AttributeError:
-            pass
+        self.setUp()
 
     def __del__(self):
-        try:
-            self.tearDown()
-        except AttributeError:
-            pass
+        self.tearDown()
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
 
     def assert_(self, statement, message=None):
         if not statement:

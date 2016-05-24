@@ -17,7 +17,7 @@ class Dataset(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, project_id, archive, scans, name=None):
+    def __init__(self, name, project_id, archive, scans):
         """
         Parameters
         ----------
@@ -112,8 +112,7 @@ class Dataset(object):
                                      (self.scan(i) for i in pipeline.inputs))
         sink = self.archive.sink(self._project_id)
         sink.inputs.description = pipeline.description
-        sink.inputs.name = ((self.name if self.name is not None else '') +
-                            pipeline.name + pipeline.suffix)
+        sink.inputs.name = self.name
         # Add all extra nodes and the pipelines workflow to a wrapper workflow
         complete_workflow.add_nodes(
             (inputnode, source, pipeline.workflow, sink))
@@ -141,14 +140,14 @@ class Dataset(object):
                     converted_source, scan_name, pipeline.inputnode, inpt)
             elif inpt in self.generated_components:
                 complete_workflow.connect(
-                    source, inpt, pipeline.inputnode, inpt)
+                    source, scan.name, pipeline.inputnode, inpt)
             else:
                 assert False
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
-            output_scan = Scan(output, self.generated_components[output][1])
+            scan = self.scan(output)
             complete_workflow.connect(
-                pipeline.outputnode, output, sink, output_scan.filename)
+                pipeline.outputnode, output, sink, scan.filename)
         # Run the workflow
         complete_workflow.run()
 
@@ -184,8 +183,10 @@ class Dataset(object):
             scan = copy(self._scans[name])
             scan.convert_to(self.acquired_components[name])
         elif name in self.generated_components:
-            scan = Scan(name, self.generated_components[name][1],
-                        processed=True)
+            # Prepend dataset name to distinguish from scans generated from
+            # other datasets
+            scan = Scan(self.name + '_' + name,
+                        self.generated_components[name][1], processed=True)
         else:
             raise NeuroAnalysisError(
                 "Unrecognised scan name '{}'. It is not present in either "

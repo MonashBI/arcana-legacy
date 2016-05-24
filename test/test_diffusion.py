@@ -50,33 +50,46 @@ class TestNODDI(TestCase):
     WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'noddi'))
     SESSION_DIR = os.path.join(ARCHIVE_PATH, NODDI_PROJECT,
                                NODDI_SUBJECT, NODDI_SESSION)
-
-    def _remove_generated_files(self):
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-        try:
-            os.remove(os.path.join(self.SESSION_DIR, 'dw_scan.mif'))
-        except:
-            pass
+    DATASET_NAME = 'noddi'
+    SCAN_PATH_PREFIX = os.path.join(SESSION_DIR, DATASET_NAME)
+    DW_SCAN_PATH = SCAN_PATH_PREFIX + '_dw_scan.mif'
+    PREPROC_PATH = SCAN_PATH_PREFIX + '_preprocessed.mif'
 
     def setUp(self):
         self._remove_generated_files()
         os.makedirs(self.WORK_PATH)
         self.dataset = NODDIDataset(
+            name=self.DATASET_NAME,
             project_id=self.NODDI_PROJECT, archive=LocalArchive(ARCHIVE_PATH),
             scans={'low_b_dw_scan': Scan('r_l_noddi_b700_30_directions',
                                          'mrtrix'),
-                   'high_b_dw_scan': Scan('noddi_b2000_60_directions',
+                   'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
                                           'mrtrix'),
                    'forward_rpe': Scan('r_l_noddi_b0_6', 'mrtrix'),
-                   'reverse_rpe': Scan('pre_l_r_noddi_b0_6', 'mrtrix')})
+                   'reverse_rpe': Scan('l_r_noddi_b0_6', 'mrtrix')})
 
     def tearDown(self):
         self._remove_generated_files()
 
     def test_concatenate(self):
         self.dataset.concatenate_pipeline().run()
-        self.assert_(
-            os.path.exists(os.path.join(self.SESSION_DIR, 'dw_scan.mif')))
+        self.assert_(os.path.exists(self.DW_SCAN_PATH))
+
+    def test_preprocess(self):
+        self.dataset.preprocess_pipeline().run()
+        self.assert_(os.path.exists(self.PREPROC_PATH))
+
+    def _remove_generated_files(self):
+        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
+        try:
+            os.remove(self.DW_SCAN_PATH)
+        except:
+            pass
+        try:
+            os.remove(self.PREPROC_PATH)
+        except:
+            pass
+
 
 if __name__ == '__main__':
     import argparse
@@ -88,19 +101,18 @@ if __name__ == '__main__':
     args = parser.parse_args()
     if args.tester == 'diffusion':
         tester = TestDiffusion()
-        tester.setUp()
-        if args.test == 'preprocess':
-            tester.test_preprocess()
-        else:
-            raise Exception("Unrecognised test '{}' for '{}' tester"
-                            .format(args.test, args.tester))
     elif args.tester == 'noddi':
         tester = TestNODDI()
-        tester.setUp()
-        if args.test == 'concatenate':
-            tester.test_concatenate()
-        else:
-            raise Exception("Unrecognised test '{}' for '{}' tester"
-                            .format(args.test, args.tester))
     else:
         raise Exception("Unrecognised tester '{}'")
+    tester.setUp()
+    try:
+        getattr(tester, 'test_' + args.test)()
+    except AttributeError as e:
+        if str(e) == 'test_' + args.test:
+            raise Exception("Unrecognised test '{}' for '{}' tester"
+                            .format(args.test, args.tester))
+        else:
+            raise
+    finally:
+        tester.tearDown()
