@@ -15,57 +15,45 @@ class DiffusionDataset(T2Dataset):
         phase_encode_direction : str{AP|LR|IS}
             The phase encode direction
         """
-        inputs = ('dwi', 'forward_rpe', 'reverse_rpe')
-        outputs = ('preprocessed',)
-        # FIXME: Would ideally extract the phase-encode direction from the
-        #        image header
-        options = {'phase_encode_direction': phase_encode_direction}
-        citations = []  # FIXME: Need to add citations
-        inputnode = pe.Node(IdentityInterface(fields=inputs),
-                            name="preprocess_inputnode")
+        pipeline = self._create_pipeline(
+            name='preprocess',
+            inputs=['dwi', 'forward_rpe', 'reverse_rpe'],
+            outputs=['preprocessed'],
+            description="Preprocess dMRI datasets using distortion correction",
+            options={'phase_encode_direction': phase_encode_direction},
+            citations=[], requirements=['mrtrix3', 'fsl'])
+        # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
         dwipreproc.inputs.out_file = 'preprocessed.mif'
-
-        workflow = pe.Workflow(name='preprocess')
-        workflow.connect(inputnode, 'dwi', dwipreproc, 'in_file')
-        workflow.connect(inputnode, 'forward_rpe', dwipreproc, 'forward_rpe')
-        workflow.connect(inputnode, 'reverse_rpe', dwipreproc, 'reverse_rpe')
-        workflow.connect(dwipreproc, 'out_file', outputnode, 'preprocessed')
-        return Pipeline(
-            dataset=self, name='preprocess', workflow=workflow,
-            inputs=inputs, outputs=outputs, inputnode=inputnode,
-            outputnode=outputnode, description=(
-                "Preprocesses dMRI datasets using distortion correction"),
-            citations=citations, options=options,
-            requirements=['mrtrix3', 'fsl'])
+        # Connect inputs/outputs
+        pipeline.connect_input('dwi', dwipreproc, 'in_file')
+        pipeline.connect_input('forward_rpe', dwipreproc, 'forward_rpe')
+        pipeline.connect_input('reverse_rpe', dwipreproc, 'reverse_rpe')
+        pipeline.connect_output('preprocessed', dwipreproc, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
 
     def brain_mask_pipeline(self):
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
         """
-        inputs = ('preprocessed',)
-        outputs = ('brain_mask',)
-        # FIXME: Would ideally extract the phase-encode direction from the
-        #        image header
-        options = {}
-        citations = []  # FIXME: Need to add citations
-        inputnode = pe.Node(IdentityInterface(fields=inputs),
-                            name="brain_mask_inputnode")
+        pipeline = self._create_pipeline(
+            name='brain_mask',
+            inputs=['preprocessed'],
+            outputs=['brain_mask'],
+            description="Generate brain mask from b0 images",
+            options={}, citations=[], requirements=['mrtrix3'])
+        # Create mask node
         dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
         dwi2mask.inputs.out_file = 'brain_mask.mif'
-        outputnode = pe.Node(IdentityInterface(fields=outputs),
-                             name="brain_mask_outputnode")
-        workflow = pe.Workflow(name='preprocess')
-        workflow.connect(inputnode, 'preprocessed', dwi2mask, 'in_file')
-        workflow.connect(dwi2mask, 'out_file', outputnode, 'brain_mask')
-        return Pipeline(
-            dataset=self, name='brain_mask', workflow=workflow,
-            inputs=inputs, outputs=outputs, inputnode=inputnode,
-            outputnode=outputnode, description=(
-                "Generate brain mask from b0 images"),
-            citations=citations, options=options,
-            requirements=['mrtrix3'])
+        # Connect inputs/outputs
+        pipeline.connect_input('preprocessed', dwi2mask, 'in_file')
+        pipeline.connect_output('brain_mask', dwi2mask, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
 
     def fod_pipeline(self):
         raise NotImplementedError
@@ -89,27 +77,23 @@ class NODDIDataset(DiffusionDataset):
         phase_encode_direction : str{AP|LR|IS}
             The phase encode direction
         """
-        inputs = ('low_b_dw_scan', 'high_b_dw_scan')
-        outputs = ('dwi',)
-        options = {}
-        citations = []
-        inputnode = pe.Node(IdentityInterface(fields=inputs),
-                            name="concatenation_inputnode")
-        mrcat = pe.Node(MRCat(), name='mrcat')
-        outputnode = pe.Node(IdentityInterface(fields=outputs),
-                             name="concatenation_outputnode")
-        workflow = pe.Workflow(name='concatenation')
-        workflow.connect(inputnode, 'low_b_dw_scan', mrcat, 'first_scan')
-        workflow.connect(inputnode, 'high_b_dw_scan', mrcat, 'second_scan')
-        workflow.connect(mrcat, 'out_file', outputnode, 'dwi')
-        return Pipeline(
-            dataset=self, name='concatenation', workflow=workflow,
-            inputs=inputs, outputs=outputs, inputnode=inputnode,
-            outputnode=outputnode, description=(
+        pipeline = self._create_pipeline(
+            name='concatenation',
+            inputs=['low_b_dw_scan', 'high_b_dw_scan'],
+            outputs=['dwi'],
+            description=(
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
-            citations=citations, options=options,
-            requirements=['matlab', 'noddi'])
+            citations=[], options={}, requirements=['matlab', 'noddi'])
+        # Create concatenation node
+        mrcat = pe.Node(MRCat(), name='mrcat')
+        # Connect inputs/outputs
+        pipeline.connect_input('low_b_dw_scan', mrcat, 'first_scan')
+        pipeline.connect_input('high_b_dw_scan', mrcat, 'second_scan')
+        pipeline.connect_output('dwi', mrcat, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
 
     acquired_components = acquired_components = {
         'low_b_dw_scan': 'mrtrix', 'high_b_dw_scan': 'mrtrix',

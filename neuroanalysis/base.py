@@ -1,6 +1,6 @@
 from abc import ABCMeta
 from copy import copy
-import os.path
+from itertools import chain
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
@@ -71,6 +71,8 @@ class Dataset(object):
             Id or ids of studies of which to return sessions for. If None all
             are returned
         """
+        # Check all inputs and outputs are connected
+        pipeline.assert_connected()
         # If subject_ids is none use all associated with the project
         if sessions is None:
             sessions = self._archive.all_sessions(self._project_id,
@@ -205,6 +207,17 @@ class Dataset(object):
     def archive(self):
         return self._archive
 
+    @property
+    def all_component_names(self):
+        return chain(self.acquired_components, self.generated_components)
+
+    def _create_pipeline(self, *args, **kwargs):
+        """
+        Creates a Pipeline object, passing the dataset (self) as the first
+        argument
+        """
+        return Pipeline(self, *args, **kwargs)
+
 
 class Pipeline(object):
     """
@@ -213,8 +226,8 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, name, dataset, inputs, outputs, description,
-                 citations, options, requirements):
+    def __init__(self, dataset, name, inputs, outputs, description,
+                 options, citations, requirements):
         """
         Parameters
         ----------
@@ -240,8 +253,34 @@ class Pipeline(object):
         self._dataset = dataset
         self._workflow = pe.Workflow(name=name)
         # Convert input names into files
+        unrecog_inputs = set(n not in dataset.all_component_names
+                             for n in inputs)
+        if unrecog_inputs:
+            raise NeuroAnalysisScanNameError(
+                "'{}' input{} not valid component names for {} dataset ('{}')"
+                .format("', '".join(unrecog_inputs),
+                        ('s are' if len(unrecog_inputs) > 1 else 'is'),
+                        dataset.__class__.__name__,
+                        "', '".format(dataset.all_component_names)))
         self._inputs = inputs
+        unrecog_outputs = set(n not in dataset.acquired_components
+                              for n in outputs)
+        if unrecog_outputs:
+            raise NeuroAnalysisScanNameError(
+                "'{}' output{} not valid component names for {} dataset ('{}')"
+                .format("', '".join(unrecog_outputs),
+                        ('s are' if len(unrecog_outputs) > 1 else 'is'),
+                        dataset.__class__.__name__,
+                        "', '".format(dataset.acquired_components.iterkeys())))
         self._outputs = outputs
+        self._unconnected_inputs = set(inputs)
+        self._unconnected_outputs = set(outputs)
+        if len(inputs) != len(self._unconnected_inputs):
+            raise NeuroAnalysisError(
+                "Duplicate inputs found in '{}'".format("', '".join(inputs)))
+        if len(outputs) != len(self._unconnected_outputs):
+            raise NeuroAnalysisError(
+                "Duplicate outputs found in '{}'".format("', '".join(outputs)))
         self._inputnode = pe.Node(IdentityInterface(fields=inputs),
                                   name="{}_inputnode".format(name))
         self._outputnode = pe.Node(IdentityInterface(fields=outputs),
@@ -312,10 +351,26 @@ class Pipeline(object):
         self._workflow(*args, **kwargs)
 
     def connect_input(self, input, node, node_input):  # @ReservedAssignment
+        if input not in self._inputs:
+            raise NeuroAnalysisScanNameError(
+                "'{}' is not a valid input for '{}' pipeline ('{}')"
+                .format(input, self.name, "', '".join(self._inputs)))
+        if input not in self._unconnected_inputs:
+            raise NeuroAnalysisError(
+                "'{}' input has been connected already")
         self._workflow(self._inputnode, input, node, node_input)
+        self._unconnected_inputs.remove(input)
 
-    def connect_output(self, output, node, node_output):  # @ReservedAssignment
+    def connect_output(self, output, node, node_output):
+        if output not in self._outputs:
+            raise NeuroAnalysisScanNameError(
+                "'{}' is not a valid output for '{}' pipeline ('{}')"
+                .format(output, self.name, "', '".join(self._outputs)))
+        if output not in self._unconnected_outputs:
+            raise NeuroAnalysisError(
+                "'{}' output has been connected already")
         self._workflow(node, node_output, self._outputnode, output)
+        self._unconnected_outputs.remove(output)
 
     @property
     def name(self):
@@ -357,6 +412,19 @@ class Pipeline(object):
         """
         return '__'.join('{}_{}'.format(k, v)
                          for k, v in self.options.iteritems())
+
+    def assert_connected(self):
+        if self._unconnected_inputs:
+            raise NeuroAnalysisError(
+                "'{}' input{} not connected".format(
+                    "', '".join(self._unconnected_inputs),
+                    ('s are' if len(self._unconnected_inputs) > 1 else ' is')))
+        if self._unconnected_outputs:
+            raise NeuroAnalysisError(
+                "'{}' output{} not connected".format(
+                    "', '".join(self._unconnected_outputs),
+                    ('s are' if len(self._unconnected_outputs) > 1
+                     else ' is')))
 
 
 class Session(object):
