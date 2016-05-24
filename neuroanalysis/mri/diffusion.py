@@ -1,9 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat
-from ..base import Pipeline
 from .t2 import T2Dataset
-from nipype.interfaces.utility import IdentityInterface
 
 
 class DiffusionDataset(T2Dataset):

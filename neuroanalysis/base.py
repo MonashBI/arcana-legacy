@@ -1,4 +1,5 @@
 from abc import ABCMeta
+import os.path
 from copy import copy
 from itertools import chain
 from nipype.pipeline import engine as pe
