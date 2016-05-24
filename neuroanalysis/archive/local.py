@@ -5,11 +5,10 @@ from .base import (
 import stat
 import shutil
 import logging
-from nipype.pipeline import engine as pe
-from nipype.interfaces.io import DataGrabber, DataSink
 from nipype.interfaces.base import (
     Directory, isdefined)
 from ..base import Session
+from neuroanalysis.exception import NeuroAnalysisError
 
 
 logger = logging.getLogger('NeuroAnalysis')
@@ -64,6 +63,10 @@ class LocalSink(ArchiveSink):
         # Loop through files connected to the sink and copy them to the
         # cache directory and upload to daris.
         for name, filename in self.inputs._outputs.iteritems():
+            if not isdefined(filename):
+                raise NeuroAnalysisError(
+                    "Previous node returned undefined input to Local sink for "
+                    "'{}' output".format(name))
             src_path = os.path.abspath(filename)
             if not isdefined(src_path):
                 missing_files.append((name, src_path))

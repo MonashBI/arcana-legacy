@@ -8,7 +8,7 @@ from neuroanalysis.exception import (
     AcquiredComponentException, NoMatchingPipelineException,
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
-from neuroanalysis.exception import NeuroAnalysisException
+from neuroanalysis.exception import NeuroAnalysisScanNameError
 
 logger = Logger('NeuroAnalysis')
 
@@ -38,7 +38,7 @@ class Dataset(object):
         self._project_id = project_id
         self._scans = scans
         if set(scans.keys()) != set(self.acquired_components.keys()):
-            raise NeuroAnalysisException(
+            raise NeuroAnalysisScanNameError(
                 "Dataset scans ('{}') do not match acquired components of "
                 "{} ('{}')".format(
                     "', '".join(set(scans.keys())), self.__class__.__name__,
@@ -188,7 +188,7 @@ class Dataset(object):
             scan = Scan(self.name + '_' + name,
                         self.generated_components[name][1], processed=True)
         else:
-            raise NeuroAnalysisError(
+            raise NeuroAnalysisScanNameError(
                 "Unrecognised scan name '{}'. It is not present in either "
                 "the acquired or generated components".format(name))
         return scan
@@ -213,8 +213,8 @@ class Pipeline(object):
     to the Dataset objects.
     """
 
-    def __init__(self, dataset, description, name, workflow, inputs, outputs,
-                 inputnode, outputnode, citations, options, requirements):
+    def __init__(self, name, dataset, inputs, outputs, description,
+                 citations, options, requirements):
         """
         Parameters
         ----------
@@ -238,15 +238,19 @@ class Pipeline(object):
         """
         self._name = name
         self._dataset = dataset
-        self._workflow = workflow
+        self._workflow = pe.Workflow(name=name)
         # Convert input names into files
         self._inputs = inputs
         self._outputs = outputs
+        self._inputnode = pe.Node(IdentityInterface(fields=inputs),
+                                  name="{}_inputnode".format(name))
+        self._outputnode = pe.Node(IdentityInterface(fields=outputs),
+                                   name="{}_outputnode".format(name))
         self._citations = citations
         self._options = options
-        self._inputnode = inputnode
-        self._outputnode = outputnode
         self._description = description
+        # TODO: Should check whether these requirements are satisfied at this
+        #       point
         self._requirements = requirements
 
     def __eq__(self, other):
@@ -300,6 +304,18 @@ class Pipeline(object):
             except AcquiredComponentException:
                 pass
         return prereqs
+
+    def connect(self, *args, **kwargs):
+        """
+        Performs the connection in the wrapped NiPype workflow
+        """
+        self._workflow(*args, **kwargs)
+
+    def connect_input(self, input, node, node_input):  # @ReservedAssignment
+        self._workflow(self._inputnode, input, node, node_input)
+
+    def connect_output(self, output, node, node_output):  # @ReservedAssignment
+        self._workflow(node, node_output, self._outputnode, output)
 
     @property
     def name(self):

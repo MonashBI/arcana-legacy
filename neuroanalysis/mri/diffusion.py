@@ -26,8 +26,7 @@ class DiffusionDataset(T2Dataset):
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
         dwipreproc.inputs.out_file = 'preprocessed.mif'
-        outputnode = pe.Node(IdentityInterface(fields=outputs),
-                             name="preprocess_outputnode")
+
         workflow = pe.Workflow(name='preprocess')
         workflow.connect(inputnode, 'dwi', dwipreproc, 'in_file')
         workflow.connect(inputnode, 'forward_rpe', dwipreproc, 'forward_rpe')
@@ -102,7 +101,7 @@ class NODDIDataset(DiffusionDataset):
         workflow = pe.Workflow(name='concatenation')
         workflow.connect(inputnode, 'low_b_dw_scan', mrcat, 'first_scan')
         workflow.connect(inputnode, 'high_b_dw_scan', mrcat, 'second_scan')
-        workflow.connect(mrcat, 'out_file', outputnode, 'dw_scan')
+        workflow.connect(mrcat, 'out_file', outputnode, 'dwi')
         return Pipeline(
             dataset=self, name='concatenation', workflow=workflow,
             inputs=inputs, outputs=outputs, inputnode=inputnode,

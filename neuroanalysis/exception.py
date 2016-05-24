@@ -6,6 +6,10 @@ class NeuroAnalysisError(NeuroAnalysisException):
     pass
 
 
+class NeuroAnalysisScanNameError(NeuroAnalysisException):
+    pass
+
+
 class AcquiredComponentException(NeuroAnalysisException):
     pass
 
