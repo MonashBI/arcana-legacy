@@ -1,10 +1,12 @@
 from nipype.pipeline import engine as pe
-from .interfaces.mrtrix import DWIPreproc, MRCat
-from .base import Dataset, Pipeline, Scan
+from nipype.interfaces.mrtrix3.utils import BrainMask
+from ..interfaces.mrtrix import DWIPreproc, MRCat
+from ..base import Pipeline
+from .t2 import T2Dataset
 from nipype.interfaces.utility import IdentityInterface
 
 
-class DiffusionDataset(Dataset):
+class DiffusionDataset(T2Dataset):
 
     def preprocess_pipeline(self, phase_encode_direction='AP'):
         """
@@ -13,7 +15,7 @@ class DiffusionDataset(Dataset):
         phase_encode_direction : str{AP|LR|IS}
             The phase encode direction
         """
-        inputs = ('dw_scan', 'forward_rpe', 'reverse_rpe')
+        inputs = ('dwi', 'forward_rpe', 'reverse_rpe')
         outputs = ('preprocessed',)
         # FIXME: Would ideally extract the phase-encode direction from the
         #        image header
@@ -27,7 +29,7 @@ class DiffusionDataset(Dataset):
         outputnode = pe.Node(IdentityInterface(fields=outputs),
                              name="preprocess_outputnode")
         workflow = pe.Workflow(name='preprocess')
-        workflow.connect(inputnode, 'dw_scan', dwipreproc, 'in_file')
+        workflow.connect(inputnode, 'dwi', dwipreproc, 'in_file')
         workflow.connect(inputnode, 'forward_rpe', dwipreproc, 'forward_rpe')
         workflow.connect(inputnode, 'reverse_rpe', dwipreproc, 'reverse_rpe')
         workflow.connect(dwipreproc, 'out_file', outputnode, 'preprocessed')
@@ -36,17 +38,46 @@ class DiffusionDataset(Dataset):
             inputs=inputs, outputs=outputs, inputnode=inputnode,
             outputnode=outputnode, description=(
                 "Preprocesses dMRI datasets using distortion correction"),
-            citations=citations, options=options)
+            citations=citations, options=options,
+            requirements=['mrtrix3', 'fsl'])
+
+    def brain_mask_pipeline(self):
+        """
+        Generates a whole brain mask using MRtrix's 'dwi2mask' command
+        """
+        inputs = ('preprocessed',)
+        outputs = ('brain_mask',)
+        # FIXME: Would ideally extract the phase-encode direction from the
+        #        image header
+        options = {}
+        citations = []  # FIXME: Need to add citations
+        inputnode = pe.Node(IdentityInterface(fields=inputs),
+                            name="brain_mask_inputnode")
+        dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
+        dwi2mask.inputs.out_file = 'brain_mask.mif'
+        outputnode = pe.Node(IdentityInterface(fields=outputs),
+                             name="brain_mask_outputnode")
+        workflow = pe.Workflow(name='preprocess')
+        workflow.connect(inputnode, 'preprocessed', dwi2mask, 'in_file')
+        workflow.connect(dwi2mask, 'out_file', outputnode, 'brain_mask')
+        return Pipeline(
+            dataset=self, name='brain_mask', workflow=workflow,
+            inputs=inputs, outputs=outputs, inputnode=inputnode,
+            outputnode=outputnode, description=(
+                "Generate brain mask from b0 images"),
+            citations=citations, options=options,
+            requirements=['mrtrix3'])
 
     def fod_pipeline(self):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner
     acquired_components = {
-        'dw_scan': 'mrtrix', 'forward_rpe': 'mrtrix', 'reverse_rpe': 'mrtrix'}
+        'dwi': 'mrtrix', 'forward_rpe': 'mrtrix', 'reverse_rpe': 'mrtrix'}
 
     generated_components = {
         'fod': (fod_pipeline, 'mrtrix'),
+        'brain_mask': (brain_mask_pipeline, 'mrtrix'),
         'preprocessed': (preprocess_pipeline, 'nifti_gz')}
 
 
@@ -60,7 +91,7 @@ class NODDIDataset(DiffusionDataset):
             The phase encode direction
         """
         inputs = ('low_b_dw_scan', 'high_b_dw_scan')
-        outputs = ('dw_scan',)
+        outputs = ('dwi',)
         options = {}
         citations = []
         inputnode = pe.Node(IdentityInterface(fields=inputs),
@@ -78,7 +109,8 @@ class NODDIDataset(DiffusionDataset):
             outputnode=outputnode, description=(
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
-            citations=citations, options=options)
+            citations=citations, options=options,
+            requirements=['matlab', 'noddi'])
 
     acquired_components = acquired_components = {
         'low_b_dw_scan': 'mrtrix', 'high_b_dw_scan': 'mrtrix',
@@ -86,4 +118,4 @@ class NODDIDataset(DiffusionDataset):
 
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
-        [('dw_scan', (concatenate_pipeline, 'mrtrix'))])
+        [('dwi', (concatenate_pipeline, 'mrtrix'))])

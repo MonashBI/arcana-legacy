@@ -4,18 +4,22 @@ config.enable_debug_mode()
 import os.path  # @IgnorePep8
 import shutil  # @IgnorePep8
 from neuroanalysis.base import Scan  # @IgnorePep8
-from neuroanalysis.diffusion import DiffusionDataset, NODDIDataset  # @IgnorePep8
+from neuroanalysis.mri.diffusion import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from neuroanalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':
+    # Add '..' directory to path to be able to import utils.py
+    import sys
+    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
+                                                 '..')))
     from utils import DummyTestCase as TestCase  # @UnusedImport @UnresolvedImport @IgnorePep8
 else:
     from unittest import TestCase  # @Reimport
 
 
 ARCHIVE_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'test_archive'))
+    os.path.dirname(__file__), '..', '_data', 'test_archive'))
 BASE_WORK_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '_data', 'work', 'diffusion'))
+    os.path.dirname(__file__), '..', '_data', 'work', 'diffusion'))
 
 
 class TestDiffusion(TestCase):
@@ -77,6 +81,10 @@ class TestNODDI(TestCase):
 
     def test_preprocess(self):
         self.dataset.preprocess_pipeline().run()
+        self.assert_(os.path.exists(self.PREPROC_PATH))
+
+    def test_brain_mask(self):
+        self.dataset.brain_mask_pipeline().run()
         self.assert_(os.path.exists(self.PREPROC_PATH))
 
     def _remove_generated_files(self):

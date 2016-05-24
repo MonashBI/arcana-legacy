@@ -214,7 +214,7 @@ class Pipeline(object):
     """
 
     def __init__(self, dataset, description, name, workflow, inputs, outputs,
-                 inputnode, outputnode, citations, options):
+                 inputnode, outputnode, citations, options, requirements):
         """
         Parameters
         ----------
@@ -247,6 +247,7 @@ class Pipeline(object):
         self._inputnode = inputnode
         self._outputnode = outputnode
         self._description = description
+        self._requirements = requirements
 
     def __eq__(self, other):
         # NB: Workflows should be the same for pipelines of the same name so
