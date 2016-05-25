@@ -48,6 +48,9 @@ class Dataset(object):
         self._archive = archive
         self._name = name
 
+    def __repr__(self):
+        return "{}(name='{}'".format(self.__class__.__name__, self.name)
+
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False, study_id=None):
         """
@@ -291,6 +294,9 @@ class Pipeline(object):
         # TODO: Should check whether these requirements are satisfied at this
         #       point
         self._requirements = requirements
+
+    def __repr__(self):
+        return "Pipeline(name='{}')".format(self.name)
 
     def __eq__(self, other):
         # NB: Workflows should be the same for pipelines of the same name so

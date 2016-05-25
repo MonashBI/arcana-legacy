@@ -8,6 +8,110 @@ from nipype.interfaces.base import (
 from neuroanalysis.file_formats import FileFormat
 
 
+class Scan(object):
+
+    def __init__(self, name, format=None, processed=False):  # @ReservedAssignment @IgnorePep8
+        """
+        Parameters
+        ----------
+        name : str
+            The name of the scan
+        format : FileFormat
+            The file format used to store the scan. Can be one of the
+            recognised formats
+        """
+        assert isinstance(name, basestring)
+        assert isinstance(format, FileFormat)
+        self._name = name
+        self._format = format
+        self._processed = processed
+        self._new_format = None
+
+    def __eq__(self, other):
+        return (self.name == other.name and self.format == other.format)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def format(self):
+        return self._format
+
+    @property
+    def processed(self):
+        return self._processed
+
+    @property
+    def filename(self):
+        return self._get_filename(self.format)
+
+    @property
+    def converted_filename(self):
+        return self._get_filename(self._new_format
+                                  if self._new_format is not None
+                                  else self.format)
+
+    def _get_filename(self, format):  # @ReservedAssignment
+        ext = format.extension if format is not None else ''
+        return self.name + '.' + ext
+
+    def match(self, filename):
+        base, ext = os.path.splitext(filename)
+        return (base == self.name and (
+            ext == self.format or self.format is None))
+
+    def convert_to(self, new_format):
+        self._new_format = new_format
+
+    @property
+    def to_be_converted(self):
+        return self._format != self._new_format
+
+    def __repr__(self):
+        return "Scan(name='{}', format={})".format(self.name, self.format)
+
+
+class Session(object):
+    """
+    A small wrapper class used to define the subject_id and study_id
+    """
+
+    def __init__(self, subject_id, study_id='1'):
+        if isinstance(subject_id, self.__class__):
+            # If subject_id is actually another Session just copy values
+            self._subject_id = subject_id.subject_id
+            self._study_id = subject_id.study_id
+        else:
+            self._subject_id = str(subject_id)
+            self._study_id = str(study_id)
+
+    def __eq__(self, other):
+        return (self.subject_id == other.subject_id and
+                self.study_id == other.study_id)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Session(subject_id='{}', session_id='{}')".format(
+            self.subject_id, self.study_id)
+
+    def __hash__(self):
+        return hash((self.subject_id, self.study_id))
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def study_id(self):
+        return self._study_id
+
+
 class Archive(object):
     """
     Abstract base class for all Archive systems, DaRIS, XNAT and local file
@@ -215,104 +319,3 @@ class ArchiveSink(DataSink):
     @abstractmethod
     def _list_outputs(self):
         pass
-
-
-class Scan(object):
-
-    def __init__(self, name, format=None, processed=False):  # @ReservedAssignment @IgnorePep8
-        """
-        Parameters
-        ----------
-        name : str
-            The name of the scan
-        format : FileFormat
-            The file format used to store the scan. Can be one of the
-            recognised formats
-        """
-        assert isinstance(name, basestring)
-        assert isinstance(format, FileFormat)
-        self._name = name
-        self._format = format
-        self._processed = processed
-        self._new_format = None
-
-    def __eq__(self, other):
-        return (self.name == other.name and self.format == other.format)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def format(self):
-        return self._format
-
-    @property
-    def processed(self):
-        return self._processed
-
-    @property
-    def filename(self):
-        return self._get_filename(self.format)
-
-    @property
-    def converted_filename(self):
-        return self._get_filename(self._new_format
-                                  if self._new_format is not None
-                                  else self.format)
-
-    def _get_filename(self, format):  # @ReservedAssignment
-        ext = format.extension if format is not None else ''
-        return self.name + '.' + ext
-
-    def match(self, filename):
-        base, ext = os.path.splitext(filename)
-        return (base == self.name and (
-            ext == self.format or self.format is None))
-
-    def convert_to(self, new_format):
-        self._new_format = new_format
-
-    @property
-    def to_be_converted(self):
-        return self._format != self._new_format
-
-    def __repr__(self):
-        return "Scan(name='{}', format={})".format(self.name, self.format)
-
-
-class Session(object):
-    """
-    A small wrapper class used to define the subject_id and study_id
-    """
-
-    def __init__(self, subject_id, study_id='1'):
-        if isinstance(subject_id, self.__class__):
-            # If subject_id is actually another Session just copy values
-            self._subject_id = subject_id.subject_id
-            self._study_id = subject_id.study_id
-        else:
-            self._subject_id = str(subject_id)
-            self._study_id = str(study_id)
-
-    def __eq__(self, other):
-        return (self.subject_id == other.subject_id and
-                self.study_id == other.study_id)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __hash__(self):
-        return hash((self.subject_id, self.study_id))
-
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def study_id(self):
-        return self._study_id
-

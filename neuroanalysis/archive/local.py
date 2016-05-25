@@ -134,8 +134,9 @@ class LocalArchive(Archive):
         with_dataset = []
         for session in sessions:
             if os.path.exists(
-                os.path.join(self._base_dir, str(session.subject_id),
-                             str(session.study_id), scan.filename)):
+                os.path.join(self._base_dir, str(project_id),
+                             session.subject_id, session.study_id,
+                             scan.filename)):
                 with_dataset.append(session)
         return with_dataset
 
