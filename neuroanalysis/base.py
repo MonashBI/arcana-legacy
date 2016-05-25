@@ -459,79 +459,7 @@ class Session(object):
         return self._study_id
 
 
-class Citation(object):
-
-    def __init__(self, authors, title, year, journal=None, pages=None,
-                 volume=None, institute=None, url=None):
-        self._authors = authors
-        self._title = title
-        self._year = year
-        self._journal = journal
-        self._volume = volume
-        self._pages = pages
-        self._institute = institute
-        self._url = url
-
-    def __eq__(self, other):
-        return (
-            self._authors == other._authors and
-            self._title == other._title and
-            self._year == other._year and
-            self._journal == other._journal and
-            self._volume == other._volume and
-            self._pages == other._pages and
-            self._institute == other._institute and
-            self._url == other._url)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @property
-    def authors(self):
-        return self._authors
-
-    @property
-    def title(self):
-        return self._title
-
-    @property
-    def year(self):
-        return self._year
-
-    @property
-    def journal(self):
-        return self._journal
-
-    @property
-    def pages(self):
-        return self._pages
-
-    @property
-    def volume(self):
-        return self._volume
-
-    @property
-    def institute(self):
-        return self._institute
-
-    @property
-    def url(self):
-        return self._url
-
-
 class Scan(object):
-
-    # The recognised "scan" (and diffusion gradient information) and a mapping
-    # to their file extension
-    recognised_formats = {
-        'nifti': 'nii',
-        'nifti_gz': 'nii.gz',
-        'mrtrix': 'mif',
-        'analyze': 'hdr',
-        'dicom': '',
-        'bvecs': '',
-        'bvals': '',
-        'mrtrix_grad': 'b'}
 
     def __init__(self, name, format=None, processed=False):  # @ReservedAssignment @IgnorePep8
         """
@@ -545,10 +473,6 @@ class Scan(object):
         """
         assert isinstance(name, basestring)
         self._name = name
-        if format not in self.recognised_formats and format is not None:
-            raise NeuroAnalysisError(
-                "Unrecognised scan format '{}' (available '{}')"
-                .format(format, "', '".join(self.recognised_formats.keys())))
         self._format = format
         self._processed = processed
         self._new_format = None

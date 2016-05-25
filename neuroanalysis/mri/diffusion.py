@@ -2,7 +2,10 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat
 from .t2 import T2Dataset
-from ..base import Citation
+from neuroanalysis.citations import (
+    mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite)
+from neuroanalysis.file_formats import (
+    mrtrix_format, nifti_gz_format)
 
 
 class DiffusionDataset(T2Dataset):
@@ -21,43 +24,7 @@ class DiffusionDataset(T2Dataset):
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
             requirements=['mrtrix3', 'fsl'],
-            citations=[
-                Citation(
-                    authors=["Andersson, J. L.", "Sotiropoulos, S. N."],
-                    title=(
-                        "An integrated approach to correction for "
-                        "off-resonance effects and subject movement in "
-                        "diffusion MR imaging"),
-                    journal="NeuroImage", year=2015, volume=125,
-                    pages="1063-1078"),
-                Citation(
-                    authors=["Smith, S. M.", "Jenkinson, M.",
-                             "Woolrich, M. W.", "Beckmann, C. F.",
-                             "Behrens, T. E.", "Johansen- Berg, H.",
-                             "Bannister, P. R.", "De Luca, M.", "Drobnjak, I.",
-                             "Flitney, D. E.", "Niazy, R. K.", "Saunders, J.",
-                             "Vickers, J.", "Zhang, Y.", "De Stefano, N.",
-                             "Brady, J. M. & Matthews, P. M."],
-                    title=(
-                        "Advances in functional and structural MR image "
-                        "analysis and implementation as FSL"),
-                    journal="NeuroImage", year=2004, volume=23,
-                    pages="S208-S219"),
-                Citation(
-                    authors=["Skare, S.", "Bammer, R."],
-                    title=(
-                        "Jacobian weighting of distortion corrected EPI data"),
-                    journal=(
-                        "Proceedings of the International Society for Magnetic"
-                        " Resonance in Medicine"), year=2010, pages="5063"),
-                Citation(
-                    authors=["Andersson, J. L.", "Skare, S. & Ashburner, J."],
-                    title=(
-                        "How to correct susceptibility distortions in "
-                        "spin-echo echo-planar images: application to "
-                        "diffusion tensor imaging"),
-                    journal="NeuroImage", year=2003, volume=20,
-                    pages="870-888")])
+            citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite])
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
@@ -81,12 +48,7 @@ class DiffusionDataset(T2Dataset):
             description="Generate brain mask from b0 images",
             options={},
             requirements=['mrtrix3'],
-            citations=[
-                Citation(
-                    authors=["Tournier, J-D"],
-                    institute="Brain Research Institute, Melbourne, Australia",
-                    url="https://github.com/MRtrix3/mrtrix3",
-                    year=2012)])
+            citations=[mrtrix_cite])
         # Create mask node
         dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
         dwi2mask.inputs.out_file = 'brain_mask.mif'
@@ -102,12 +64,13 @@ class DiffusionDataset(T2Dataset):
 
     # The list of dataset components that are acquired by the scanner
     acquired_components = {
-        'dwi': 'mrtrix', 'forward_rpe': 'mrtrix', 'reverse_rpe': 'mrtrix'}
+        'dwi': mrtrix_format, 'forward_rpe': mrtrix_format,
+        'reverse_rpe': mrtrix_format}
 
     generated_components = {
-        'fod': (fod_pipeline, 'mrtrix'),
-        'brain_mask': (brain_mask_pipeline, 'mrtrix'),
-        'preprocessed': (preprocess_pipeline, 'nifti_gz')}
+        'fod': (fod_pipeline, mrtrix_format),
+        'brain_mask': (brain_mask_pipeline, mrtrix_format),
+        'preprocessed': (preprocess_pipeline, nifti_gz_format)}
 
 
 class NODDIDataset(DiffusionDataset):
@@ -128,12 +91,7 @@ class NODDIDataset(DiffusionDataset):
                 "processing"),
             options={},
             requirements=['matlab', 'noddi'],
-            citations=[
-                Citation(
-                    authors=["Tournier, J-D"],
-                    institute="Brain Research Institute, Melbourne, Australia",
-                    url="https://github.com/MRtrix3/mrtrix3",
-                    year=2012)])
+            citations=[mrtrix_cite])
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')
         # Connect inputs/outputs
@@ -145,8 +103,8 @@ class NODDIDataset(DiffusionDataset):
         return pipeline
 
     acquired_components = acquired_components = {
-        'low_b_dw_scan': 'mrtrix', 'high_b_dw_scan': 'mrtrix',
-        'forward_rpe': 'mrtrix', 'reverse_rpe': 'mrtrix'}
+        'low_b_dw_scan': mrtrix_format, 'high_b_dw_scan': mrtrix_format,
+        'forward_rpe': mrtrix_format, 'reverse_rpe': mrtrix_format}
 
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
