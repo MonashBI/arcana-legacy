@@ -2,6 +2,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat
 from .t2 import T2Dataset
+from ..base import Citation
 
 
 class DiffusionDataset(T2Dataset):
@@ -19,7 +20,43 @@ class DiffusionDataset(T2Dataset):
             outputs=['preprocessed'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
-            citations=[], requirements=['mrtrix3', 'fsl'])
+            citations=[
+                Citation(
+                    authors=["Andersson, J. L.", "Sotiropoulos, S. N."],
+                    title=(
+                        "An integrated approach to correction for "
+                        "off-resonance effects and subject movement in "
+                        "diffusion MR imaging"),
+                    journal="NeuroImage", year=2015, vol=125,
+                    pages="1063-1078"),
+                Citation(
+                    authors=["Smith, S. M.", "Jenkinson, M.",
+                             "Woolrich, M. W.", "Beckmann, C. F.",
+                             "Behrens, T. E.", "Johansen- Berg, H.",
+                             "Bannister, P. R.", "De Luca, M.", "Drobnjak, I.",
+                             "Flitney, D. E.", "Niazy, R. K.", "Saunders, J.",
+                             "Vickers, J.", "Zhang, Y.", "De Stefano, N.",
+                             "Brady, J. M. & Matthews, P. M."],
+                    title=(
+                        "Advances in functional and structural MR image "
+                        "analysis and implementation as FSL"),
+                    journal="NeuroImage", year=2004, vol=23,
+                    pages="S208-S219"),
+                Citation(
+                    authors=["Skare, S.", "Bammer, R."],
+                    title=(
+                        "Jacobian weighting of distortion corrected EPI data"),
+                    journal=(
+                        "Proceedings of the International Society for Magnetic"
+                        " Resonance in Medicine"), year=2010, pages="5063"),
+                Citation(
+                    authors=["Andersson, J. L.", "Skare, S. & Ashburner, J."],
+                    title=(
+                        "How to correct susceptibility distortions in "
+                        "spin-echo echo-planar images: application to "
+                        "diffusion tensor imaging"),
+                    journal="NeuroImage", year=2003, vol=20,
+                    pages="870-888")], requirements=['mrtrix3', 'fsl'])
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
