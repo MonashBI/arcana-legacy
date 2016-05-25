@@ -20,6 +20,7 @@ class DiffusionDataset(T2Dataset):
             outputs=['preprocessed'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
+            requirements=['mrtrix3', 'fsl'],
             citations=[
                 Citation(
                     authors=["Andersson, J. L.", "Sotiropoulos, S. N."],
@@ -56,7 +57,7 @@ class DiffusionDataset(T2Dataset):
                         "spin-echo echo-planar images: application to "
                         "diffusion tensor imaging"),
                     journal="NeuroImage", year=2003, volume=20,
-                    pages="870-888")], requirements=['mrtrix3', 'fsl'])
+                    pages="870-888")])
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
@@ -78,7 +79,8 @@ class DiffusionDataset(T2Dataset):
             inputs=['preprocessed'],
             outputs=['brain_mask'],
             description="Generate brain mask from b0 images",
-            options={}, requirements=['mrtrix3'],
+            options={},
+            requirements=['mrtrix3'],
             citations=[
                 Citation(
                     authors=["Tournier, J-D"],
@@ -124,7 +126,14 @@ class NODDIDataset(DiffusionDataset):
             description=(
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
-            citations=[], options={}, requirements=['matlab', 'noddi'])
+            options={},
+            requirements=['matlab', 'noddi'],
+            citations=[
+                Citation(
+                    authors=["Tournier, J-D"],
+                    institute="Brain Research Institute, Melbourne, Australia",
+                    url="https://github.com/MRtrix3/mrtrix3",
+                    year=2012)])
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')
         # Connect inputs/outputs

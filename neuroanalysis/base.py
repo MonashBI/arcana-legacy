@@ -461,13 +461,30 @@ class Session(object):
 
 class Citation(object):
 
-    def __init__(self, authors, title, year, journal, pages, volume=None):
+    def __init__(self, authors, title, year, journal=None, pages=None,
+                 volume=None, institute=None, url=None):
         self._authors = authors
         self._title = title
         self._year = year
         self._journal = journal
         self._volume = volume
         self._pages = pages
+        self._institute = institute
+        self._url = url
+
+    def __eq__(self, other):
+        return (
+            self._authors == other._authors and
+            self._title == other._title and
+            self._year == other._year and
+            self._journal == other._journal and
+            self._volume == other._volume and
+            self._pages == other._pages and
+            self._institute == other._institute and
+            self._url == other._url)
+
+    def __ne__(self, other):
+        return not (self == other)
 
     @property
     def authors(self):
@@ -492,6 +509,14 @@ class Citation(object):
     @property
     def volume(self):
         return self._volume
+
+    @property
+    def institute(self):
+        return self._institute
+
+    @property
+    def url(self):
+        return self._url
 
 
 class Scan(object):
