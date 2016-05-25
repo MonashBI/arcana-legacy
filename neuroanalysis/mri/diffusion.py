@@ -26,7 +26,7 @@ class DiffusionDataset(T2Dataset):
         pipeline = self._create_pipeline(
             name='preprocess',
             inputs=['dwi', 'forward_rpe', 'reverse_rpe'],
-            outputs=['preprocessed'],
+            outputs=['preprocessed', 'bvecs', 'bvals'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
             requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
@@ -38,8 +38,9 @@ class DiffusionDataset(T2Dataset):
         dwipreproc.inputs.pe_dir = phase_encode_direction
         # Create nodes to convert preprocessed scan and gradients to FSL format
         mrconvert = pe.Node(MRConvert(), name='mrconvert')
-        pipeline.connect(dwipreproc, 'out_file', mrconvert, 'in_file')
+        mrconvert.inputs.out_ext = 'nii.gz'
         extract_grad = pe.Node(ExtractFSLGradients(), name="extract_grad")
+        pipeline.connect(dwipreproc, 'out_file', mrconvert, 'in_file')
         pipeline.connect(dwipreproc, 'out_file', extract_grad, 'in_file')
         # Connect inputs
         pipeline.connect_input('dwi', dwipreproc, 'in_file')
