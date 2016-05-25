@@ -79,7 +79,13 @@ class DiffusionDataset(T2Dataset):
             inputs=['preprocessed'],
             outputs=['brain_mask'],
             description="Generate brain mask from b0 images",
-            options={}, citations=[], requirements=['mrtrix3'])
+            options={}, requirements=['mrtrix3'],
+            citations=[
+                Citation(
+                    authors=["Tournier, J-D"],
+                    institute="Brain Research Institute, Melbourne, Australia",
+                    url="https://github.com/MRtrix3/mrtrix3",
+                    year=2012)])
         # Create mask node
         dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
         dwi2mask.inputs.out_file = 'brain_mask.mif'
