@@ -8,7 +8,8 @@ from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite)
 from neuroanalysis.file_formats import (
-    mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format)
+    mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
+    matlab_format)
 from neuroanalysis.requirements import Requirement
 
 
@@ -135,11 +136,19 @@ class NODDIDataset(DiffusionDataset):
                           Requirement('noddi', min_version=(0, 9)),
                           Requirement('niftimatlib', (1, 2))],
             citations=[noddi_cite], approx_runtime=60)
+        # Create node to unzip the nifti files
+        unzip_preproc = pe.Node(MRConvert(), name="unzip_preproc")
+        unzip_preproc.inputs.out_ext = 'nii'
+        unzip_mask = pe.Node(MRConvert(), name="unzip_mask")
+        unzip_mask.inputs.out_ext = 'nii'
         # Create concatenation node
         create_roi = pe.Node(CreateROI(), name='create_roi')
-        # Connect inputs/outputs
-        pipeline.connect_input('preprocessed', create_roi, 'in_file')
-        pipeline.connect_input('brain_mask', create_roi, 'brain_mask')
+        pipeline.connect(unzip_preproc, 'out_file', create_roi, 'in_file')
+        pipeline.connect(unzip_mask, 'out_file', create_roi, 'brain_mask')
+        # Connect inputs
+        pipeline.connect_input('preprocessed', unzip_preproc, 'in_file')
+        pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
+        # Connect outputs
         pipeline.connect_output('roi', create_roi, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
@@ -152,4 +161,4 @@ class NODDIDataset(DiffusionDataset):
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
         [('dwi', (concatenate_pipeline, mrtrix_format)),
-         ('roi', (create_roi_pipeline, mrtrix_format))])
+         ('roi', (create_roi_pipeline, matlab_format))])
