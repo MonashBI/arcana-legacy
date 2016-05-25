@@ -45,6 +45,7 @@ class Dataset(object):
                 "{} ('{}')".format(
                     "', '".join(set(scans.keys())), self.__class__.__name__,
                     "', '".join(set(self.acquired_components.keys()))))
+        # TODO: Check that every session has the acquired scans
         self._archive = archive
         self._name = name
 
