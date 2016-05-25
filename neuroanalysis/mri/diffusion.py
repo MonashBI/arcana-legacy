@@ -7,7 +7,8 @@ from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite)
-from neuroanalysis.file_formats import mrtrix_format
+from neuroanalysis.file_formats import (
+    mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format)
 from neuroanalysis.requirements import Requirement
 
 
@@ -52,6 +53,40 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
+    def test_extract_pipeline(self):
+        """
+        Performs a series of FSL preprocessing steps, including Eddy and Topup
+
+        Parameters
+        ----------
+        phase_encode_direction : str{AP|LR|IS}
+            The phase encode direction
+        """
+        pipeline = self._create_pipeline(
+            name='test_extract',
+            inputs=['preprocessed'],
+            outputs=['converted', 'bvecs', 'bvals'],
+            description="Test conversion and extract",
+            options={},
+            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
+                          Requirement('fsl', min_version=(5, 0))],
+            citations=[mrtrix_cite],
+            approx_runtime=5)
+        # Create nodes to convert preprocessed scan and gradients to FSL format
+        mrconvert = pe.Node(MRConvert(), name='mrconvert')
+        mrconvert.inputs.out_ext = 'nii.gz'
+        extract_grad = pe.Node(ExtractFSLGradients(), name="extract_grad")
+        # Connect inputs
+        pipeline.connect_input('preprocessed', mrconvert, 'in_file')
+        pipeline.connect_input('preprocessed', extract_grad, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('converted', mrconvert, 'out_file')
+        pipeline.connect_output('bvecs', extract_grad, 'bvecs_file')
+        pipeline.connect_output('bvals', extract_grad, 'bvals_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
     def brain_mask_pipeline(self):
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
@@ -85,7 +120,10 @@ class DiffusionDataset(T2Dataset):
     generated_components = {
         'fod': (fod_pipeline, mrtrix_format),
         'brain_mask': (brain_mask_pipeline, mrtrix_format),
-        'preprocessed': (preprocess_pipeline, mrtrix_format)}
+        'preprocessed': (preprocess_pipeline, mrtrix_format),
+        'converted': (test_extract_pipeline, nifti_gz_format),
+        'bvecs': (test_extract_pipeline, fsl_bvecs_format),
+        'bvals': (test_extract_pipeline, fsl_bvals_format)}
 
 
 class NODDIDataset(DiffusionDataset):

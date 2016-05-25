@@ -117,15 +117,16 @@ class LocalArchive(Archive):
         project_dir = os.path.join(self.base_dir, str(project_id))
         sessions = []
         for subject_dir in os.listdir(project_dir):
-            study_dirs = os.listdir(os.path.join(project_dir, subject_dir))
-            if study_id is not None:
-                try:
-                    study_ids = [study_id]
-                except TypeError:
-                    study_ids = study_id
-                study_dirs = [d for d in study_dirs if d in study_ids]
-            sessions.extend(Session(subject_dir, study_dir)
-                            for study_dir in study_dirs)
+            if not subject_dir.startswith('.'):
+                study_dirs = os.listdir(os.path.join(project_dir, subject_dir))
+                if study_id is not None:
+                    try:
+                        study_ids = [study_id]
+                    except TypeError:
+                        study_ids = study_id
+                    study_dirs = [d for d in study_dirs if d in study_ids]
+                sessions.extend(Session(subject_dir, study_dir)
+                                for study_dir in study_dirs)
         return sessions
 
     def sessions_with_file(self, scan, project_id, sessions=None):

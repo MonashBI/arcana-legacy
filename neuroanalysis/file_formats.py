@@ -27,8 +27,8 @@ analyze_format = FileFormat(name='analyze', extension='img')
 
 dicom_format = FileFormat(name='dicom', extension='')
 
-bvecs_format = FileFormat(name='bvecs', extension='')
+fsl_bvecs_format = FileFormat(name='bvecs', extension='')
 
-bvals_format = FileFormat(name='bvals', extension='')
+fsl_bvals_format = FileFormat(name='bvals', extension='')
 
 mrtrix_grad_format = FileFormat(name='mrtrix_grad', extension='b')

@@ -57,7 +57,11 @@ class Scan(object):
 
     def _get_filename(self, format):  # @ReservedAssignment
         ext = format.extension if format is not None else ''
-        return self.name + '.' + ext
+        if ext:
+            fname = self.name + '.' + ext
+        else:
+            fname = self.name
+        return fname
 
     def match(self, filename):
         base, ext = os.path.splitext(filename)

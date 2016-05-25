@@ -35,13 +35,13 @@ class ExtractFSLGradients(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['bvecs'] = self._gen_grad_filename('bvecs')
-        outputs['bvals'] = self._gen_grad_filename('bvals')
+        outputs['bvecs_file'] = self._gen_grad_filename('bvecs')
+        outputs['bvals_file'] = self._gen_grad_filename('bvals')
         return outputs
 
     def _gen_filename(self, name):
         if name == 'bvecs_file':
-            fname = self._gen_bvec_filename('bvecs')
+            fname = self._gen_grad_filename('bvecs')
         elif name == 'bvals_file':
             fname = self._gen_grad_filename('bvals')
         else:
@@ -69,8 +69,15 @@ class MRConvertInputSpec(CommandLineInputSpec):
         mandatory=True, exists=True, argstr='%s', position=-2,
         desc="Input file")
     out_file = File(
-        mandatory=True, argstr='%s', position=-1,
-        desc="Output (converted) file")
+        genfile=True, argstr='%s', position=-1, hash_files=False,
+        desc=("Output (converted) file. If no path separators (i.e. '/' on "
+              "*nix) are found in the provided output file then the CWD (when "
+              "the workflow is run, i.e. the working directory) will be "
+              "prepended to the output path."))
+    out_ext = traits.Str(  # @UndefinedVariable
+        mandatory=False,
+        desc=("The extension (and therefore the file format) to use when the "
+              "output file path isn't provided explicitly"))
     coord = traits.Str(  # @UndefinedVariable
         mandatory=False, argstr='-coord %s',
         desc=("extract data from the input image only at the coordinates "
@@ -148,8 +155,31 @@ class MRConvert(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_file
+        outputs['out_file'] = self._gen_outfilename()
         return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            gen_name = self._gen_outfilename()
+        else:
+            assert False
+        return gen_name
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            out_name = self.inputs.out_file
+        else:
+            base, orig_ext = os.path.splitext(
+                os.path.basename(self.inputs.in_file))
+            if isdefined(self.inputs.out_ext):
+                ext = self.inputs.out_ext
+                if not ext.startswith('.'):
+                    ext = '.' + ext
+            else:
+                ext = orig_ext
+            out_name = os.path.join(
+                os.getcwd(), "{}_converted{}".format(base, ext))
+        return out_name
 
 
 class DWIPreprocInputSpec(CommandLineInputSpec):

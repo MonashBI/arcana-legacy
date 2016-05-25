@@ -369,18 +369,16 @@ class Pipeline(object):
         """
         Performs the connection in the wrapped NiPype workflow
         """
-        self._workflow(*args, **kwargs)
+        self._workflow.connect(*args, **kwargs)
 
     def connect_input(self, input, node, node_input):  # @ReservedAssignment
         if input not in self._inputs:
             raise NeuroAnalysisScanNameError(
                 "'{}' is not a valid input for '{}' pipeline ('{}')"
                 .format(input, self.name, "', '".join(self._inputs)))
-        if input not in self._unconnected_inputs:
-            raise NeuroAnalysisError(
-                "'{}' input has been connected already")
         self._workflow.connect(self._inputnode, input, node, node_input)
-        self._unconnected_inputs.remove(input)
+        if input in self._unconnected_inputs:
+            self._unconnected_inputs.remove(input)
 
     def connect_output(self, output, node, node_output):
         if output not in self._outputs:
