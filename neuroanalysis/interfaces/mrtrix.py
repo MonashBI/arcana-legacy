@@ -178,12 +178,25 @@ class DWIPreproc(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_file
+        outputs['out_file'] = self._gen_outfilename()
         return outputs
 
     def _gen_filename(self, name):
-        base, ext = os.path.splitext(name)
-        return base + '_preprocessed' + ext
+        if name == 'out_file':
+            gen_name = self._gen_outfilename(self)
+        else:
+            assert False
+        return gen_name
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            out_name = self.inputs.out_file
+        else:
+            base, ext = os.path.splitext(
+                os.path.basename(self.inputs._in_file))
+            out_name = os.path.join(
+                os.getcwd(), "{}_preprocessed{}".format(base, ext))
+        return out_name
 
 
 class MRCatInputSpec(CommandLineInputSpec):
