@@ -3,8 +3,8 @@ from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
 import shutil  # @IgnorePep8
-from neuroanalysis.base import Scan  # @IgnorePep8
-from neuroanalysis.mri.diffusion import DiffusionDataset, NODDIDataset  # @IgnorePep8
+from neuroanalysis.archive import Scan  # @IgnorePep8
+from neuroanalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from neuroanalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':
     # Add '..' directory to path to be able to import utils.py

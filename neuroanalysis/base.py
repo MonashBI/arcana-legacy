@@ -1,5 +1,4 @@
 from abc import ABCMeta
-import os.path
 from copy import copy
 from itertools import chain
 from nipype.pipeline import engine as pe
@@ -10,7 +9,7 @@ from neuroanalysis.exception import (
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
 from neuroanalysis.exception import NeuroAnalysisScanNameError
-from neuroanalysis.file_formats import FileFormat
+from .archive import Scan
 
 
 logger = Logger('NeuroAnalysis')
@@ -459,70 +458,3 @@ class Session(object):
     @property
     def study_id(self):
         return self._study_id
-
-
-class Scan(object):
-
-    def __init__(self, name, format=None, processed=False):  # @ReservedAssignment @IgnorePep8
-        """
-        Parameters
-        ----------
-        name : str
-            The name of the scan
-        format : FileFormat
-            The file format used to store the scan. Can be one of the
-            recognised formats
-        """
-        assert isinstance(name, basestring)
-        assert isinstance(format, FileFormat)
-        self._name = name
-        self._format = format
-        self._processed = processed
-        self._new_format = None
-
-    def __eq__(self, other):
-        return (self.name == other.name and self.format == other.format)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def format(self):
-        return self._format
-
-    @property
-    def processed(self):
-        return self._processed
-
-    @property
-    def filename(self):
-        return self._get_filename(self.format)
-
-    @property
-    def converted_filename(self):
-        return self._get_filename(self._new_format
-                                  if self._new_format is not None
-                                  else self.format)
-
-    def _get_filename(self, format):  # @ReservedAssignment
-        ext = format.extension if format is not None else ''
-        return self.name + '.' + ext
-
-    def match(self, filename):
-        base, ext = os.path.splitext(filename)
-        return (base == self.name and (
-            ext == self.format or self.format is None))
-
-    def convert_to(self, new_format):
-        self._new_format = new_format
-
-    @property
-    def to_be_converted(self):
-        return self._format != self._new_format
-
-    def __repr__(self):
-        return "Scan(name='{}', format={})".format(self.name, self.format)
