@@ -232,7 +232,8 @@ class Pipeline(object):
     """
 
     def __init__(self, dataset, name, inputs, outputs, description,
-                 options, citations, requirements):
+                 options, citations, requirements, approx_runtime,
+                 min_nthreads=1, max_nthreads=1):
         """
         Parameters
         ----------
@@ -250,9 +251,20 @@ class Pipeline(object):
             The list of outputs (hard-coded names for un/processed scans/files)
         options : Dict[str, *]
             Options that effect the output of the pipeline
-        other_kwargs : Dict[str, *]
-            Other kwargs passed to the pipeline that do not effect the output
-            of the pipeline (but may effect prequisite pipelines)
+        citations : List[Citation]
+            List of citations that describe the workflow and should be cited in
+            publications
+        requirements : List[Requirement]
+            List of external package requirements (e.g. FSL, MRtrix) required
+            by the pipeline
+        approx_runtime : float
+            Approximate run time in minutes. Should be conservative so that
+            it can be used to set time limits on HPC schedulers
+        min_nthreads : int
+            The minimum number of threads the pipeline requires to run
+        max_nthreads : int
+            The maximum number of threads the pipeline can use effectively.
+            Use None if there is no effective limit
         """
         self._name = name
         self._dataset = dataset
@@ -294,6 +306,9 @@ class Pipeline(object):
         # TODO: Should check whether these requirements are satisfied at this
         #       point
         self._requirements = requirements
+        self._approx_runtime = approx_runtime
+        self._min_nthreads = min_nthreads
+        self._max_nthreads = max_nthreads
 
     def __repr__(self):
         return "Pipeline(name='{}')".format(self.name)
@@ -409,6 +424,18 @@ class Pipeline(object):
     @property
     def outputnode(self):
         return self._outputnode
+
+    @property
+    def approx_runtime(self):
+        return self._approx_runtime
+
+    @property
+    def min_nthreads(self):
+        return self._min_nthreads
+
+    @property
+    def max_nthreads(self):
+        return self._max_nthreads
 
     @property
     def suffix(self):

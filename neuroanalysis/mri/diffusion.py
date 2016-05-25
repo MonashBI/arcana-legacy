@@ -5,6 +5,7 @@ from .t2 import T2Dataset
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite)
 from neuroanalysis.file_formats import mrtrix_format
+from neuroanalysis.requirements import Requirement
 
 
 class DiffusionDataset(T2Dataset):
@@ -22,8 +23,10 @@ class DiffusionDataset(T2Dataset):
             outputs=['preprocessed'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
-            requirements=['mrtrix3', 'fsl'],
-            citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite])
+            requirements=[Requirement('mrtrix3', min_version='0.3.12'),
+                          Requirement('fsl', min_version='5.0')],
+            citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite],
+            approx_runtime=30)
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
@@ -46,8 +49,8 @@ class DiffusionDataset(T2Dataset):
             outputs=['brain_mask'],
             description="Generate brain mask from b0 images",
             options={},
-            requirements=['mrtrix3'],
-            citations=[mrtrix_cite])
+            requirements=[Requirement('mrtrix3', min_version='0.3.12')],
+            citations=[mrtrix_cite], approx_runtime=1)
         # Create mask node
         dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
         dwi2mask.inputs.out_file = 'brain_mask.mif'
@@ -89,8 +92,8 @@ class NODDIDataset(DiffusionDataset):
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
             options={},
-            requirements=['matlab', 'noddi'],
-            citations=[mrtrix_cite])
+            requirements=[Requirement('mrtrix3', min_version='0.3.12')],
+            citations=[mrtrix_cite], approx_runtime=1)
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')
         # Connect inputs/outputs
