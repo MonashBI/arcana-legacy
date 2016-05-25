@@ -108,4 +108,4 @@ class NODDIDataset(DiffusionDataset):
 
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
-        [('dwi', (concatenate_pipeline, 'mrtrix'))])
+        [('dwi', (concatenate_pipeline, mrtrix_format))])

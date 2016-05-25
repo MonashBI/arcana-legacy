@@ -10,6 +10,8 @@ from neuroanalysis.exception import (
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
 from neuroanalysis.exception import NeuroAnalysisScanNameError
+from neuroanalysis.file_formats import FileFormat
+
 
 logger = Logger('NeuroAnalysis')
 
@@ -467,11 +469,12 @@ class Scan(object):
         ----------
         name : str
             The name of the scan
-        format : str
+        format : FileFormat
             The file format used to store the scan. Can be one of the
             recognised formats
         """
         assert isinstance(name, basestring)
+        assert isinstance(format, FileFormat)
         self._name = name
         self._format = format
         self._processed = processed
@@ -506,10 +509,7 @@ class Scan(object):
                                   else self.format)
 
     def _get_filename(self, format):  # @ReservedAssignment
-        if format is None:
-            ext = ''
-        else:
-            ext = self.recognised_formats[format]
+        ext = format.extension if format is not None else ''
         return self.name + '.' + ext
 
     def match(self, filename):
