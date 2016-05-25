@@ -461,7 +461,7 @@ class Session(object):
 
 class Citation(object):
 
-    def __init__(self, authors, title, year, journal, volume, pages):
+    def __init__(self, authors, title, year, journal, pages, volume=None):
         self._authors = authors
         self._title = title
         self._year = year

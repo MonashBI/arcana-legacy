@@ -27,7 +27,7 @@ class DiffusionDataset(T2Dataset):
                         "An integrated approach to correction for "
                         "off-resonance effects and subject movement in "
                         "diffusion MR imaging"),
-                    journal="NeuroImage", year=2015, vol=125,
+                    journal="NeuroImage", year=2015, volume=125,
                     pages="1063-1078"),
                 Citation(
                     authors=["Smith, S. M.", "Jenkinson, M.",
@@ -40,7 +40,7 @@ class DiffusionDataset(T2Dataset):
                     title=(
                         "Advances in functional and structural MR image "
                         "analysis and implementation as FSL"),
-                    journal="NeuroImage", year=2004, vol=23,
+                    journal="NeuroImage", year=2004, volume=23,
                     pages="S208-S219"),
                 Citation(
                     authors=["Skare, S.", "Bammer, R."],
@@ -55,12 +55,11 @@ class DiffusionDataset(T2Dataset):
                         "How to correct susceptibility distortions in "
                         "spin-echo echo-planar images: application to "
                         "diffusion tensor imaging"),
-                    journal="NeuroImage", year=2003, vol=20,
+                    journal="NeuroImage", year=2003, volume=20,
                     pages="870-888")], requirements=['mrtrix3', 'fsl'])
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
         dwipreproc.inputs.pe_dir = phase_encode_direction
-        dwipreproc.inputs.out_file = 'preprocessed.mif'
         # Connect inputs/outputs
         pipeline.connect_input('dwi', dwipreproc, 'in_file')
         pipeline.connect_input('forward_rpe', dwipreproc, 'forward_rpe')
