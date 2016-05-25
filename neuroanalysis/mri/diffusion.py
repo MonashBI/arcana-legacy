@@ -4,8 +4,7 @@ from ..interfaces.mrtrix import DWIPreproc, MRCat
 from .t2 import T2Dataset
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite)
-from neuroanalysis.file_formats import (
-    mrtrix_format, nifti_gz_format)
+from neuroanalysis.file_formats import mrtrix_format
 
 
 class DiffusionDataset(T2Dataset):
