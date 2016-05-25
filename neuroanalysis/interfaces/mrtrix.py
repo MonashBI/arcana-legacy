@@ -7,43 +7,56 @@ from nipype.interfaces.base import (
 # Extract MR gradients
 # =============================================================================
 
-class ExtractMRtrixGradientsInputSpec(CommandLineInputSpec):
-    in_file = File(exists=True, argstr='%s', mandatory=True, position=-2,
+class ExtractFSLGradientsInputSpec(CommandLineInputSpec):
+    in_file = File(exists=True, argstr='%s', mandatory=True, position=0,
                    desc="Diffusion weighted images with graident info")
-    out_filename = File(genfile=True, argstr='-grad %s', position=-1,
-                        desc="Extracted gradient encodings filename")
+    bvecs_file = File(genfile=True, argstr='-export_grad_fsl %s', position=1,
+                      desc=("Extracted gradient encoding directions in FSL "
+                            "format"))
+    bvals_file = File(genfile=True, argstr='%s', position=2,
+                      desc=("Extracted graident encoding b-values in FSL "
+                            "format"))
 
 
-class ExtractMRtrixGradientsOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='Extracted encoding gradients')
+class ExtractFSLGradientsOutputSpec(TraitedSpec):
+    bvecs_file = File(exists=True,
+                      desc='Extracted encoding gradient directions')
+    bvals_file = File(exists=True,
+                      desc='Extracted encoding gradient b-values')
 
 
-class ExtractMRtrixGradients(CommandLine):
+class ExtractFSLGradients(CommandLine):
     """
     Extracts the gradient information in MRtrix format from a DWI image
     """
     _cmd = 'mrinfo'
-    input_spec = ExtractMRtrixGradientsInputSpec
-    output_spec = ExtractMRtrixGradientsOutputSpec
+    input_spec = ExtractFSLGradientsInputSpec
+    output_spec = ExtractFSLGradientsOutputSpec
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_filename
-        if not isdefined(outputs['out_file']):
-            outputs['out_file'] = os.path.abspath(self._gen_outfilename())
-        else:
-            outputs['out_file'] = os.path.abspath(outputs['out_file'])
+        outputs['bvecs'] = self._gen_grad_filename('bvecs')
+        outputs['bvals'] = self._gen_grad_filename('bvals')
         return outputs
 
     def _gen_filename(self, name):
-        if name is 'out_filename':
-            return self._gen_outfilename()
+        if name == 'bvecs_file':
+            fname = self._gen_bvec_filename('bvecs')
+        elif name == 'bvals_file':
+            fname = self._gen_grad_filename('bvals')
         else:
-            return None
+            assert False
+        return fname
 
-    def _gen_outfilename(self):
-        in_file = os.path.splitext(os.path.split(self.inputs.in_file)[1])[0]
-        return in_file + '.b'
+    def _gen_grad_filename(self, comp):
+        if isdefined(self.inputs.bvecs_file):
+            filename = getattr(self.inputs, comp + '_file')
+        else:
+            base, _ = os.path.splitext(
+                os.path.basename(self.inputs.in_file))
+            filename = os.path.join(
+                os.getcwd(), "{}_{}".format(base, comp))
+        return filename
 
 
 # =============================================================================
@@ -55,7 +68,7 @@ class MRConvertInputSpec(CommandLineInputSpec):
     in_file = File(
         mandatory=True, exists=True, argstr='%s', position=-2,
         desc="Input file")
-    out_filename = File(
+    out_file = File(
         mandatory=True, argstr='%s', position=-1,
         desc="Output (converted) file")
     coord = traits.Str(  # @UndefinedVariable
@@ -135,7 +148,7 @@ class MRConvert(CommandLine):
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
-        outputs['out_file'] = self.inputs.out_filename
+        outputs['out_file'] = self.inputs.out_file
         return outputs
 
 

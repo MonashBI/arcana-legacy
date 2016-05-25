@@ -1,13 +1,15 @@
 class Citation(object):
 
     def __init__(self, short_name, authors, title, year, journal=None,
-                 pages=None, volume=None, institute=None, url=None):
+                 pages=None, volume=None, issue=None, institute=None,
+                 url=None):
         self._short_name = short_name
         self._authors = authors
         self._title = title
         self._year = year
         self._journal = journal
         self._volume = volume
+        self._issue = issue
         self._pages = pages
         self._institute = institute
         self._url = url
@@ -19,6 +21,7 @@ class Citation(object):
             self._year == other._year and
             self._journal == other._journal and
             self._volume == other._volume and
+            self._issue == other.issue and
             self._pages == other._pages and
             self._institute == other._institute and
             self._url == other._url)
@@ -53,6 +56,10 @@ class Citation(object):
     @property
     def volume(self):
         return self._volume
+
+    @property
+    def issue(self):
+        return self._issue
 
     @property
     def institute(self):
@@ -114,3 +121,12 @@ topup_cite = Citation(
         "diffusion tensor imaging"),
     journal="NeuroImage", year=2003, volume=20,
     pages="870-888")
+
+noddi_cite = Citation(
+    short_name="noddi",
+    authors=["Zhang, H.", "Schneider T.", "Wheeler-Kingshott C. A.",
+             "Alexander, D. C."],
+    title=(
+        "NODDI: Practical in vivo neurite orientation dispersion and density "
+        "imaging of the human brain"),
+    journal='NeuroImage', year=2012, volume=61, pages='1000-1016')
