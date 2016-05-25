@@ -118,7 +118,10 @@ class LocalArchive(Archive):
         sessions = []
         for subject_dir in os.listdir(project_dir):
             if not subject_dir.startswith('.'):
-                study_dirs = os.listdir(os.path.join(project_dir, subject_dir))
+                study_dirs = [
+                    d for d in os.listdir(os.path.join(project_dir,
+                                                       subject_dir))
+                    if not d.startswith('.')]
                 if study_id is not None:
                     try:
                         study_ids = [study_id]
