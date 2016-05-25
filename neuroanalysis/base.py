@@ -9,7 +9,7 @@ from neuroanalysis.exception import (
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
 from neuroanalysis.exception import NeuroAnalysisScanNameError
-from .archive import Scan
+from .archive import Scan, Session
 
 
 logger = Logger('NeuroAnalysis')
@@ -425,36 +425,3 @@ class Pipeline(object):
                     "', '".join(self._unconnected_outputs),
                     ('s are' if len(self._unconnected_outputs) > 1
                      else ' is')))
-
-
-class Session(object):
-    """
-    A small wrapper class used to define the subject_id and study_id
-    """
-
-    def __init__(self, subject_id, study_id='1'):
-        if isinstance(subject_id, self.__class__):
-            # If subject_id is actually another Session just copy values
-            self._subject_id = subject_id.subject_id
-            self._study_id = subject_id.study_id
-        else:
-            self._subject_id = str(subject_id)
-            self._study_id = str(study_id)
-
-    def __eq__(self, other):
-        return (self.subject_id == other.subject_id and
-                self.study_id == other.study_id)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __hash__(self):
-        return hash((self.subject_id, self.study_id))
-
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def study_id(self):
-        return self._study_id

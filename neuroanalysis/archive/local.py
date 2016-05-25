@@ -7,7 +7,7 @@ import shutil
 import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
-from ..base import Session
+from .base import Session
 from neuroanalysis.exception import NeuroAnalysisError
 
 

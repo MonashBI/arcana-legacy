@@ -11,7 +11,7 @@ from neuroanalysis.exception import (
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec)
-from ..base import Session
+from .base import Session
 
 
 logger = logging.getLogger('NeuroAnalysis')

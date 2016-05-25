@@ -7,7 +7,8 @@ from nipype.interfaces.utility import IdentityInterface
 from neuroanalysis.archive.daris import (
     DarisSession, DarisArchive)
 from neuroanalysis.exception import DarisException
-from neuroanalysis.base import AcquiredFile, Session
+from neuroanalysis import Scan, Session
+from neuroanalysis.file_formats import nifti_gz_format
 
 
 # The projects/subjects/studies to alter on DaRIS
@@ -278,10 +279,10 @@ class TestDarisArchive(TestCase):
             server=SERVER, repo_id=REPO_ID,
             cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
             user=self.USER, password=self.PASSWORD)
-        source_files = [AcquiredFile('source1', 'source1.nii.gz'),
-                        AcquiredFile('source2', 'source2.nii.gz'),
-                        AcquiredFile('source3', 'source3.nii.gz'),
-                        AcquiredFile('source4', 'source4.nii.gz')]
+        source_files = [Scan('source1', nifti_gz_format),
+                        Scan('source2', nifti_gz_format),
+                        Scan('source3', nifti_gz_format),
+                        Scan('source4', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
         session = Session(SUBJECT_ID, self.study_id)
         inputnode.inputs.session = (session.subject_id, session.study_id)
