@@ -150,7 +150,7 @@ class DWIPreprocInputSpec(CommandLineInputSpec):
         mandatory=True, argstr='%s',
         desc=("The input DWI series to be corrected"), position=-2)
     out_file = File(
-        gen_file=True, argstr='%s', position=-1, hash_files=False,
+        genfile=True, argstr='%s', position=-1, hash_files=False,
         desc="Output preprocessed filename")
     forward_rpe = traits.Str(  # @UndefinedVariable
         argstr='-rpe_pair %s',
