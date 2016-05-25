@@ -23,8 +23,8 @@ class DiffusionDataset(T2Dataset):
             outputs=['preprocessed'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
-            requirements=[Requirement('mrtrix3', min_version='0.3.12'),
-                          Requirement('fsl', min_version='5.0')],
+            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
+                          Requirement('fsl', min_version=(5, 0))],
             citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite],
             approx_runtime=30)
         # Create preprocessing node
@@ -49,7 +49,7 @@ class DiffusionDataset(T2Dataset):
             outputs=['brain_mask'],
             description="Generate brain mask from b0 images",
             options={},
-            requirements=[Requirement('mrtrix3', min_version='0.3.12')],
+            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
             citations=[mrtrix_cite], approx_runtime=1)
         # Create mask node
         dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
@@ -92,7 +92,7 @@ class NODDIDataset(DiffusionDataset):
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
             options={},
-            requirements=[Requirement('mrtrix3', min_version='0.3.12')],
+            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
             citations=[mrtrix_cite], approx_runtime=1)
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')
