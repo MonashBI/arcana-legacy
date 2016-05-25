@@ -70,7 +70,7 @@ class DiffusionDataset(T2Dataset):
     generated_components = {
         'fod': (fod_pipeline, mrtrix_format),
         'brain_mask': (brain_mask_pipeline, mrtrix_format),
-        'preprocessed': (preprocess_pipeline, nifti_gz_format)}
+        'preprocessed': (preprocess_pipeline, mrtrix_format)}
 
 
 class NODDIDataset(DiffusionDataset):

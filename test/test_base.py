@@ -28,7 +28,7 @@ class DummyDataset(Dataset):
         mrconvert = pe.Node(MRConvert(), name="convert")
         workflow.add_nodes(mrconvert)
         return Pipeline(
-            self, 'pipeline1', workflow, inputs, outputs, options={},
+            self, 'pipeline2', workflow, inputs, outputs, options={},
             description="A dummy pipeline used to test 'run_pipeline' method")
 
     def pipeline3(self):
@@ -38,7 +38,7 @@ class DummyDataset(Dataset):
         mrconvert = pe.Node(MRConvert(), name="convert")
         workflow.add_nodes(mrconvert)
         return Pipeline(
-            self, 'pipeline1', workflow, inputs, outputs, options={},
+            self, 'pipeline3', workflow, inputs, outputs, options={},
             description="A dummy pipeline used to test 'run_pipeline' method")
 
     def pipeline4(self):
@@ -48,7 +48,7 @@ class DummyDataset(Dataset):
         mrconvert = pe.Node(MRConvert(), name="convert")
         workflow.add_nodes(mrconvert)
         return Pipeline(
-            self, 'pipeline1', workflow, inputs, outputs, options={},
+            self, 'pipeline4', workflow, inputs, outputs, options={},
             description="A dummy pipeline used to test 'run_pipeline' method")
 
     # The list of dataset components that are acquired by the scanner
