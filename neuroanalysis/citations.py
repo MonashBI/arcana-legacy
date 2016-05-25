@@ -64,6 +64,7 @@ class Citation(object):
 
 
 mrtrix_cite = Citation(
+    short_name="mrtrix",
     authors=["Tournier, J-D"],
     title="MRtrix Package",
     institute="Brain Research Institute, Melbourne, Australia",

@@ -183,7 +183,7 @@ class DWIPreproc(CommandLine):
 
     def _gen_filename(self, name):
         if name == 'out_file':
-            gen_name = self._gen_outfilename(self)
+            gen_name = self._gen_outfilename()
         else:
             assert False
         return gen_name
@@ -193,7 +193,7 @@ class DWIPreproc(CommandLine):
             out_name = self.inputs.out_file
         else:
             base, ext = os.path.splitext(
-                os.path.basename(self.inputs._in_file))
+                os.path.basename(self.inputs.in_file))
             out_name = os.path.join(
                 os.getcwd(), "{}_preprocessed{}".format(base, ext))
         return out_name
