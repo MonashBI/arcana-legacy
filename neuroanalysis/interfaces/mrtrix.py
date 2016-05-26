@@ -140,8 +140,9 @@ class MRConvertInputSpec(CommandLineInputSpec):
         mandatory=False, argstr='-export_grad_fsl %s',
         desc=("export the diffusion-weighted gradient table to files in FSL "
               "(bvecs / bvals) format"))
-    quiet = traits.Bool(
-        )
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during conversion")
 
 
 class MRConvertOutputSpec(TraitedSpec):

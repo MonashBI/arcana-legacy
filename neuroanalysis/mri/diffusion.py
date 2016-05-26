@@ -1,7 +1,8 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat
-from ..interfaces.noddi import CreateROI, BatchNODDIFitting
+from ..interfaces.noddi import (
+    CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
 from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from neuroanalysis.citations import (
@@ -9,7 +10,7 @@ from neuroanalysis.citations import (
     noddi_cite)
 from neuroanalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
-    matlab_format)
+    matlab_format, nifti_format)
 from neuroanalysis.requirements import Requirement
 
 
@@ -40,6 +41,7 @@ class DiffusionDataset(T2Dataset):
         # Create nodes to convert preprocessed scan and gradients to FSL format
         mrconvert = pe.Node(MRConvert(), name='mrconvert')
         mrconvert.inputs.out_ext = 'nii.gz'
+        mrconvert.inputs.quiet = True
         extract_grad = pe.Node(ExtractFSLGradients(), name="extract_grad")
         pipeline.connect(dwipreproc, 'out_file', mrconvert, 'in_file')
         pipeline.connect(dwipreproc, 'out_file', extract_grad, 'in_file')
@@ -121,12 +123,12 @@ class NODDIDataset(DiffusionDataset):
         return pipeline
 
     def noddi_fitting_pipeline(self, noddi_model='WatsonSHStickTortIsoV_B0',
-                               nthreads=6, **kwargs):  # @UnusedVariable
+                               nthreads=4, **kwargs):  # @UnusedVariable
         """
         Creates a ROI in which the NODDI processing will be performed
         """
         pipeline = self._create_pipeline(
-            name='create_ROI',
+            name='noddi_fitting',
             inputs=['preprocessed', 'brain_mask', 'bvecs', 'bvals'],
             outputs=['fitted_noddi_params'],
             description=(
@@ -140,8 +142,10 @@ class NODDIDataset(DiffusionDataset):
         # Create node to unzip the nifti files
         unzip_preproc = pe.Node(MRConvert(), name="unzip_preproc")
         unzip_preproc.inputs.out_ext = 'nii'
+        unzip_preproc.inputs.quiet = True
         unzip_mask = pe.Node(MRConvert(), name="unzip_mask")
         unzip_mask.inputs.out_ext = 'nii'
+        unzip_preproc.inputs.quiet = True
         # Create create-roi node
         create_roi = pe.Node(CreateROI(), name='create_roi')
         pipeline.connect(unzip_preproc, 'out_file', create_roi, 'in_file')
@@ -151,13 +155,31 @@ class NODDIDataset(DiffusionDataset):
         batch_fit.inputs.model = noddi_model
         batch_fit.inputs.nthreads = nthreads
         pipeline.connect(create_roi, 'out_file', batch_fit, 'roi_file')
+        # Create output node
+        save_params = pe.Node(SaveParamsAsNIfTI(), name="save_params")
+        save_params.inputs.output_prefix = 'params'
+        pipeline.connect(batch_fit, 'out_file', save_params, 'params_file')
+        pipeline.connect(create_roi, 'out_file', save_params, 'roi_file')
+        pipeline.connect(unzip_mask, 'out_file', save_params,
+                         'brain_mask_file')
         # Connect inputs
         pipeline.connect_input('preprocessed', unzip_preproc, 'in_file')
         pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
         pipeline.connect_input('bvecs', batch_fit, 'bvecs_file')
         pipeline.connect_input('bvals', batch_fit, 'bvals_file')
         # Connect outputs
-        pipeline.connect_output('fitted_noddi_params', batch_fit, 'out_file')
+        pipeline.connect_output('ficvf', save_params, 'ficvf')
+        pipeline.connect_output('odi', save_params, 'odi')
+        pipeline.connect_output('fiso', save_params, 'fiso')
+        pipeline.connect_output('fibredirs_xvec', save_params,
+                                'fibredirs_xvec')
+        pipeline.connect_output('fibredirs_yvec', save_params,
+                                'fibredirs_yvec')
+        pipeline.connect_output('fibredirs_zvec', save_params,
+                                'fibredirs_zvec')
+        pipeline.connect_output('fmin', save_params, 'fmin')
+        pipeline.connect_output('kappa', save_params, 'kappa')
+        pipeline.connect_output('error_code', save_params, 'error_code')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -169,4 +191,13 @@ class NODDIDataset(DiffusionDataset):
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
         [('dwi', (concatenate_pipeline, mrtrix_format)),
-         ('fitted_noddi_params', (noddi_fitting_pipeline, matlab_format))])
+         ('fitted_params', (noddi_fitting_pipeline, matlab_format)),
+         ('ficvf', (noddi_fitting_pipeline, nifti_format)),
+         ('odi', (noddi_fitting_pipeline, nifti_format)),
+         ('fiso', (noddi_fitting_pipeline, nifti_format)),
+         ('fibredirs_xvec', (noddi_fitting_pipeline, nifti_format)),
+         ('fibredirs_yvec', (noddi_fitting_pipeline, nifti_format)),
+         ('fibredirs_zvec', (noddi_fitting_pipeline, nifti_format)),
+         ('fmin', (noddi_fitting_pipeline, nifti_format)),
+         ('kappa', (noddi_fitting_pipeline, nifti_format)),
+         ('error_code', (noddi_fitting_pipeline, nifti_format))])

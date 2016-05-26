@@ -48,16 +48,15 @@ class TestDiffusion(TestCase):
 
 class TestNODDI(TestCase):
 
+    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi_pilot/example/input'
     NODDI_PROJECT = 'noddi-test'
-    NODDI_SUBJECT = 'PILOT1'
-    NODDI_SESSION = 'SESSION1'
+    NODDI_SUBJECT = 'example'
+    NODDI_SESSION = 'input'
     WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'noddi'))
-    SESSION_DIR = os.path.join(ARCHIVE_PATH, NODDI_PROJECT,
-                               NODDI_SUBJECT, NODDI_SESSION)
+    SESSION_PATH = os.path.join(ARCHIVE_PATH, NODDI_PROJECT,
+                                NODDI_SUBJECT, NODDI_SESSION)
     DATASET_NAME = 'noddi'
-    SCAN_PATH_PREFIX = os.path.join(SESSION_DIR, DATASET_NAME)
-    DW_SCAN_PATH = SCAN_PATH_PREFIX + '_dwi.mif'
-    PREPROC_PATH = SCAN_PATH_PREFIX + '_preprocessed.mif'
+    PROCESSED_PREFIX = os.path.join(SESSION_PATH, DATASET_NAME + '_params_')
 
     def setUp(self):
         self._remove_generated_files()
@@ -90,14 +89,11 @@ class TestNODDI(TestCase):
     def _remove_generated_files(self):
         import shutil  # @Reimport @NoMove This avoids some strange None error
         shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-        try:
-            os.remove(self.DW_SCAN_PATH)
-        except:
-            pass
-        try:
-            os.remove(self.PREPROC_PATH)
-        except:
-            pass
+        # Remove processed scans
+        for fname in os.listdir(self.SESSION_PATH):
+            pth = os.path.join(self.SESSION_PATH, fname)
+            if pth.startswith(self.PROCESSED_PREFIX):
+                os.remove(pth)
 
 
 if __name__ == '__main__':
