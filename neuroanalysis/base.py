@@ -304,8 +304,8 @@ class Pipeline(object):
         self._citations = citations
         self._options = options
         self._description = description
-        # TODO: Should check whether these requirements are satisfied at this
-        #       point
+        # FIXME: Should check whether these requirements are satisfied at this
+        #        point
         self._requirements = requirements
         self._approx_runtime = approx_runtime
         self._min_nthreads = min_nthreads
@@ -318,12 +318,12 @@ class Pipeline(object):
         # NB: Workflows should be the same for pipelines of the same name so
         #     may not need to be checked.
         return (
-            self._name == other.name and
-            self._dataset == other.dataset and
-            self._workflow == other.workflow and
-            self._inputs == other.inputs and
-            self._outputs == other.outputs and
-            self._options == other.options)
+            self._name == other._name and
+            self._dataset == other._dataset and
+            self._workflow == other._workflow and
+            self._inputs == other._inputs and
+            self._outputs == other._outputs and
+            self._options == other._options)
 
     def __ne__(self, other):
         return not (self == other)

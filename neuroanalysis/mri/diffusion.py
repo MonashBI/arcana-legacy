@@ -1,7 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat
-from ..interfaces.noddi import CreateROI
+from ..interfaces.noddi import CreateROI, BatchNODDIFitting
 from .t2 import T2Dataset
 from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from neuroanalysis.citations import (
@@ -15,7 +15,7 @@ from neuroanalysis.requirements import Requirement
 
 class DiffusionDataset(T2Dataset):
 
-    def preprocess_pipeline(self, phase_encode_direction='AP'):
+    def preprocess_pipeline(self, phase_encode_direction='AP', **kwargs):  # @UnusedVariable @IgnorePep8
         """
         Performs a series of FSL preprocessing steps, including Eddy and Topup
 
@@ -55,7 +55,7 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
-    def brain_mask_pipeline(self):
+    def brain_mask_pipeline(self, **kwargs):  # @UnusedVariable
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
         """
@@ -95,7 +95,7 @@ class DiffusionDataset(T2Dataset):
 
 class NODDIDataset(DiffusionDataset):
 
-    def concatenate_pipeline(self):
+    def concatenate_pipeline(self, **kwargs):  # @UnusedVariable
         """
         Concatenates two dMRI scans (with different b-values) along the
         DW encoding (4th) axis
@@ -120,18 +120,19 @@ class NODDIDataset(DiffusionDataset):
         pipeline.assert_connected()
         return pipeline
 
-    def create_roi_pipeline(self):
+    def noddi_fitting_pipeline(self, noddi_model='WatsonSHStickTortIsoV_B0',
+                               nthreads=6, **kwargs):  # @UnusedVariable
         """
         Creates a ROI in which the NODDI processing will be performed
         """
         pipeline = self._create_pipeline(
             name='create_ROI',
-            inputs=['preprocessed', 'brain_mask'],
-            outputs=['roi'],
+            inputs=['preprocessed', 'brain_mask', 'bvecs', 'bvals'],
+            outputs=['fitted_noddi_params'],
             description=(
                 "Creates a ROI in which the NODDI processing will be "
                 "performed"),
-            options={},
+            options={'noddi_model': noddi_model},
             requirements=[Requirement('matlab', min_version=(2016, 'a')),
                           Requirement('noddi', min_version=(0, 9)),
                           Requirement('niftimatlib', (1, 2))],
@@ -141,15 +142,22 @@ class NODDIDataset(DiffusionDataset):
         unzip_preproc.inputs.out_ext = 'nii'
         unzip_mask = pe.Node(MRConvert(), name="unzip_mask")
         unzip_mask.inputs.out_ext = 'nii'
-        # Create concatenation node
+        # Create create-roi node
         create_roi = pe.Node(CreateROI(), name='create_roi')
         pipeline.connect(unzip_preproc, 'out_file', create_roi, 'in_file')
         pipeline.connect(unzip_mask, 'out_file', create_roi, 'brain_mask')
+        # Create batch-fitting node
+        batch_fit = pe.Node(BatchNODDIFitting(), name="batch_fit")
+        batch_fit.inputs.model = noddi_model
+        batch_fit.inputs.nthreads = nthreads
+        pipeline.connect(create_roi, 'out_file', batch_fit, 'roi_file')
         # Connect inputs
         pipeline.connect_input('preprocessed', unzip_preproc, 'in_file')
         pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
+        pipeline.connect_input('bvecs', batch_fit, 'bvecs_file')
+        pipeline.connect_input('bvals', batch_fit, 'bvals_file')
         # Connect outputs
-        pipeline.connect_output('roi', create_roi, 'out_file')
+        pipeline.connect_output('fitted_noddi_params', batch_fit, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -161,4 +169,4 @@ class NODDIDataset(DiffusionDataset):
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
         [('dwi', (concatenate_pipeline, mrtrix_format)),
-         ('roi', (create_roi_pipeline, matlab_format))])
+         ('fitted_noddi_params', (noddi_fitting_pipeline, matlab_format))])

@@ -52,8 +52,7 @@ class ExtractFSLGradients(CommandLine):
         if isdefined(self.inputs.bvecs_file):
             filename = getattr(self.inputs, comp + '_file')
         else:
-            base, _ = os.path.splitext(
-                os.path.basename(self.inputs.in_file))
+            base, _ = os.path.splitext(os.path.basename(self.inputs.in_file))
             filename = os.path.join(
                 os.getcwd(), "{}_{}".format(base, comp))
         return filename
@@ -141,6 +140,8 @@ class MRConvertInputSpec(CommandLineInputSpec):
         mandatory=False, argstr='-export_grad_fsl %s',
         desc=("export the diffusion-weighted gradient table to files in FSL "
               "(bvecs / bvals) format"))
+    quiet = traits.Bool(
+        )
 
 
 class MRConvertOutputSpec(TraitedSpec):
@@ -177,8 +178,8 @@ class MRConvert(CommandLine):
                     ext = '.' + ext
             else:
                 ext = orig_ext
-            out_name = os.path.join(
-                os.getcwd(), "{}_converted{}".format(base, ext))
+            out_name = os.path.join(os.getcwd(), "{}_converted{}".format(base,
+                                                                         ext))
         return out_name
 
 
