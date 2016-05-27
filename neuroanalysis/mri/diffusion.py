@@ -189,7 +189,7 @@ class NODDIDataset(DiffusionDataset):
         pipeline.assert_connected()
         return pipeline
 
-    acquired_components = acquired_components = {
+    acquired_components = {
         'low_b_dw_scan': mrtrix_format, 'high_b_dw_scan': mrtrix_format,
         'forward_rpe': mrtrix_format, 'reverse_rpe': mrtrix_format}
 

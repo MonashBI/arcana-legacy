@@ -143,7 +143,7 @@ class Dataset(object):
                 conversion.inputs.out_ext = scan.converted_format.extension
                 conversion.inputs.quiet = True
                 complete_workflow.connect(
-                    source, scan.name, conversion, 'in_file')
+                    source, scan.filename, conversion, 'in_file')
                 scan_source = conversion
                 scan_name = 'out_file'
             else:

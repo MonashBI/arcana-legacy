@@ -18,34 +18,55 @@ else:
     from unittest import TestCase  # @Reimport
 
 
-ARCHIVE_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '_data', 'test_archive'))
+# ARCHIVE_PATH = os.path.abspath(os.path.join(
+#     os.path.dirname(__file__), '..', '_data', 'test_archive'))
+
 BASE_WORK_PATH = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', '_data', 'work', 'diffusion'))
 
 
 class TestDiffusion(TestCase):
 
-    NODDI_PROJECT = 'noddi-test'
-    NODDI_SUBJECT = 'PILOT1'
-    NODDI_SESSION = 'SESSION1'
+    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi'
+    PROJECT = 'pilot'
+    DATASET_NAME = 'diffusion'
+    SUBJECT = 'SUBJECT1'
+    SESSION = 'SESSION1'
     WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'diffusion'))
 
     def setUp(self):
         shutil.rmtree(self.WORK_PATH, ignore_errors=True)
         os.makedirs(self.WORK_PATH)
-        self.dataset = DiffusionDataset(
-            project_id=self.NODDI_PROJECT, archive=LocalArchive(ARCHIVE_PATH),
-            scans={'dw_scan': Scan('r_l_noddi_b700_30_directions',
-                                     'mrtrix'),
-                   'forward_rpe': Scan('r_l_noddi_b0_6', 'mrtrix'),
-                   'reverse_rpe': Scan('pre_l_r_noddi_b0_6', 'mrtrix')})
 
     def tearDown(self):
         shutil.rmtree(self.WORK_PATH, ignore_errors=True)
 
     def test_preprocess(self):
-        self.dataset.preprocess_pipeline().run()
+        self._remove_generated_files(self.PROJECT)
+        dataset = DiffusionDataset(
+            name=self.DATASET_NAME,
+            project_id=self.PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={
+                'dwi': Scan('r_l_noddi_b700_30_directions', mrtrix_format),
+                'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
+                'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
+        dataset.preprocess_pipeline().run()
+        self.assert_(
+            os.path.exists(os.path.join(
+                self._session_dir(self.PROJECT),
+                '{}_preprocessed.mif'.format(self.DATASET_NAME))))
+
+    def _session_dir(self, project):
+        return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
+                            self.SESSION)
+
+    def _remove_generated_files(self, project):
+        # Remove processed scans
+        for fname in os.listdir(self._session_dir(project)):
+            if fname.startswith(self.DATASET_NAME):
+                pth = os.path.join(self._session_dir(project), fname)
+                os.remove(pth)
 
 
 class TestNODDI(TestCase):

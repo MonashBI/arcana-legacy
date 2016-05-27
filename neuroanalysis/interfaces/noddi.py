@@ -103,7 +103,7 @@ class BatchNODDIFitting(BaseInterface):
 
     def _run_interface(self, runtime):  # @UnusedVariable
         script = """
-        protocol = FSL2Protocol('{bvecs}', '{bvals}');
+        protocol = FSL2Protocol('{bvals}', '{bvecs}');
         noddi = MakeModel('{model}');
         batch_fitting('{roi}', protocol, noddi, '{out_file}', {nthreads});
         """.format(
