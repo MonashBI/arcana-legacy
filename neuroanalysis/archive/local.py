@@ -30,8 +30,9 @@ class LocalSource(ArchiveSource):
             self.inputs.base_dir, self.inputs.project_id,
             self.inputs.session[0], self.inputs.session[1])))
         outputs = {}
-        for name, filename, _ in self.inputs.files:
-            outputs[name] = os.path.join(session_dir, filename)
+        for name, ext, _ in self.inputs.files:
+            fname = name + '.' + ext
+            outputs[fname] = os.path.join(session_dir, fname)
         return outputs
 
 

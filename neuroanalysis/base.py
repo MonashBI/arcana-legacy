@@ -135,29 +135,23 @@ class Dataset(object):
                                   sink, 'session')
         for inpt in pipeline.inputs:
             scan = self.scan(inpt)
-            if scan.input:
-                if scan.converted_format != scan.format:
-                    # If the scan is not in the required format for the dataset
-                    # user MRConvert to convert it
-                    conversion = pe.Node(
-                        MRConvert(), name=(scan.name + '_input_conversion'))
-                    conversion.inputs.out_ext = scan.converted_format.extension
-                    conversion.inputs.quiet = True
-                    complete_workflow.connect(
-                        source, scan.name, conversion, 'in_file')
-                    conv_source = conversion
-                    scan_name = 'out_file'
-                else:
-                    conv_source = source
-                    scan_name = scan.name
-                # Connect the scan to the pipeline input
+            if scan.input and scan.converted_format != scan.format:
+                # If the scan is not in the required format for the dataset
+                # user MRConvert to convert it
+                conversion = pe.Node(
+                    MRConvert(), name=(scan.name + '_input_conversion'))
+                conversion.inputs.out_ext = scan.converted_format.extension
+                conversion.inputs.quiet = True
                 complete_workflow.connect(
-                    conv_source, scan_name, pipeline.inputnode, inpt)
-            elif inpt in self.generated_components:
-                complete_workflow.connect(
-                    source, scan.name, pipeline.inputnode, inpt)
+                    source, scan.name, conversion, 'in_file')
+                scan_source = conversion
+                scan_name = 'out_file'
             else:
-                assert False
+                scan_source = source
+                scan_name = scan.filename
+            # Connect the scan to the pipeline input
+            complete_workflow.connect(
+                scan_source, scan_name, pipeline.inputnode, inpt)
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
             scan = self.scan(output)

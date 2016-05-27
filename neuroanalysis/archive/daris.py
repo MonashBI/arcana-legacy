@@ -71,12 +71,15 @@ class DarisSource(ArchiveSource):
                     # Make cache directory with group write permissions
                     os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
                 cache_dirs[processed] = cache_dir
-            for name, file_name, processed in self.inputs.files:
-                if processed:
-                    file_ = processed_dict[file_name]
-                else:
-                    file_ = unprocessed_dict[file_name]
-                cache_path = os.path.join(cache_dirs[processed], file_.name)
+            for name, ext, processed in self.inputs.files:
+                fname = name + '.' + ext
+                dct = processed_dict if processed else unprocessed_dict
+                try:
+                    file_ = dct[fname]
+                except KeyError:
+                    # The extension is not always saved in the filename
+                    file_ = dct[name]
+                cache_path = os.path.join(cache_dirs[processed], fname)
                 if not os.path.exists(cache_path):
                     daris.download(
                         cache_path, repo_id=self.inputs.repo_id,
@@ -85,7 +88,7 @@ class DarisSource(ArchiveSource):
                         processed=processed,
                         study_id=self.inputs.session[1],
                         file_id=file_.id)
-                outputs[name] = cache_path
+                outputs[fname] = cache_path
         return outputs
 
 
@@ -691,6 +694,10 @@ class DarisEntry(object):
         self._description = description
         self._ctime = ctime
         self._mtime = mtime
+
+    def __repr__(self):
+        return ("DarisEntry(cid={}, name={}, description='{}')"
+                .format(self.cid, self.name, self.description))
 
     @property
     def cid(self):

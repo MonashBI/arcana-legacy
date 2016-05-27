@@ -163,7 +163,7 @@ class Archive(object):
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [(s.name, s.filename, s.processed)
+        source.inputs.files = [(s.name, s.format.extension, s.processed)
                                for s in input_scans]
         return source
 
@@ -241,7 +241,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
                 desc="name of file"),
             traits.Str(  # @UndefinedVariable
                 mandatory=True,
-                desc="filename of file"),
+                desc="extension of file"),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
                         desc="whether the file is processed or not")),
         desc="Names of all files that comprise the complete file")
@@ -284,7 +284,8 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [name for name, _, _ in self.inputs.files])
+        return add_traits(base, [name + '.' + ext
+                                 for name, ext, _ in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):

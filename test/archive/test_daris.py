@@ -299,8 +299,8 @@ class TestDarisArchive(TestCase):
         workflow.connect(inputnode, 'session', sink, 'session')
         for source_file in source_files:
             if source_file.name != 'source2':
-                sink_filename = source_file.name.replace('source', 'sink')
-                workflow.connect(source, source_file.name,
+                sink_filename = source_file.filename.replace('source', 'sink')
+                workflow.connect(source, source_file.filename,
                                  sink, sink_filename)
         workflow.run()
         # Check cache was created properly
@@ -314,10 +314,10 @@ class TestDarisArchive(TestCase):
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
         self.assertEqual(sorted(os.listdir(sink_cache_dir)),
-                         ['sink1', 'sink3', 'sink4'])
+                         ['sink1.nii.gz', 'sink3.nii.gz', 'sink4.nii.gz'])
         with self.daris:
             files = self.daris.get_files(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=self.study_id, processed=True, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in files.itervalues()),
-                         ['sink1', 'sink3', 'sink4'])
+                         ['sink1.nii.gz', 'sink3.nii.gz', 'sink4.nii.gz'])

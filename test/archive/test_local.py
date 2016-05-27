@@ -63,7 +63,7 @@ class TestLocalArchive(TestCase):
         for source_file in source_files:
             if source_file.name != 'source2':
                 sink_filename = source_file.name.replace('source', 'sink')
-                workflow.connect(source, source_file.name,
+                workflow.connect(source, source_file.filename,
                                  sink, sink_filename)
         workflow.run()
         # Check cache was created properly
