@@ -6,7 +6,8 @@ class FileFormat(object):
         self._extension = extension
 
     def __repr__(self):
-        return "FileFormat(name='{}')".format(self.name)
+        return "FileFormat(name='{}', extension='{}')".format(self.name,
+                                                              self.extension)
 
     @property
     def name(self):
