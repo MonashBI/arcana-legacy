@@ -51,11 +51,28 @@ class TestDiffusion(TestCase):
                 'dwi': Scan('r_l_noddi_b700_30_directions', mrtrix_format),
                 'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
                 'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
-        dataset.preprocess_pipeline().run()
+        dataset.preprocess_pipeline().run(work_dir=self.WORK_PATH)
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.PROJECT),
                 '{}_preprocessed.mif'.format(self.DATASET_NAME))))
+
+#     def test_brain_mask(self):
+#         dataset = DiffusionDataset(
+#             name=self.DATASET_NAME,
+#             project_id=self.PROJECT,
+#             archive=LocalArchive(self.ARCHIVE_PATH),
+#             input_scans={
+#                 'preprocessed': Scan('r_l_noddi_b700_30_directions',
+#                                      mrtrix_format),
+#                 'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
+#                 'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
+#         dataset.brain_mask_pipeline().run(work_dir=self.WORK_PATH)
+#         self.assert_(
+#             os.path.exists(os.path.join(
+#                 self._session_dir(self.PROJECT),
+#                 '{}_preprocessed.mif'.format(self.DATASET_NAME))))
+#         self.assert_(os.path.exists(self.PREPROC_PATH))
 
     def _session_dir(self, project):
         return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
@@ -101,7 +118,7 @@ class TestNODDI(TestCase):
                                       mrtrix_format),
                 'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
                                        mrtrix_format)})
-        dataset.concatenate_pipeline().run()
+        dataset.concatenate_pipeline().run(work_dir=self.WORK_PATH)
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.PILOT_PROJECT),
@@ -128,14 +145,6 @@ class TestNODDI(TestCase):
                 os.path.exists(os.path.join(
                     self._session_dir(self.EXAMPLE_INPUT_PROJECT),
                     '{}_{}.nii'.format(self.DATASET_NAME, out_name))))
-
-    def test_preprocess(self):
-        self.dataset.preprocess_pipeline().run()
-        self.assert_(os.path.exists(self.PREPROC_PATH))
-
-    def test_brain_mask(self):
-        self.dataset.brain_mask_pipeline().run()
-        self.assert_(os.path.exists(self.PREPROC_PATH))
 
     def _remove_generated_files(self, project):
         # Remove processed scans
