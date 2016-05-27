@@ -141,7 +141,8 @@ class Dataset(object):
                     # user MRConvert to convert it
                     conversion = pe.Node(
                         MRConvert(), name=(scan.name + '_input_conversion'))
-                    conversion.inputs.out_filename = scan.converted_filename
+                    conversion.inputs.out_ext = scan.converted_format.extension
+                    conversion.inputs.quiet = True
                     complete_workflow.connect(
                         source, scan.name, conversion, 'in_file')
                     conv_source = conversion

@@ -67,13 +67,10 @@ class TestNODDI(TestCase):
         import shutil  # @Reimport @NoMove This avoids some strange None error on unit-test exit @IgnorePep8
         shutil.rmtree(self.WORK_PATH, ignore_errors=True)
         for project in (self.PILOT_PROJECT, self.EXAMPLE_INPUT_PROJECT):
-            self._remove_generated_files(
-                os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
-                             self.SESSION))
+            self._remove_generated_files(project)
 
     def test_concatenate(self):
-        self._remove_generated_files(os.path.join(
-            self.ARCHIVE_PATH, self.PILOT_PROJECT, self.SUBJECT, self.SESSION))
+        self._remove_generated_files(self.PILOT_PROJECT)
         dataset = NODDIDataset(
             name=self.DATASET_NAME,
             project_id=self.PILOT_PROJECT,
@@ -84,26 +81,31 @@ class TestNODDI(TestCase):
                 'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
                                        mrtrix_format)})
         dataset.concatenate_pipeline().run()
-        self.assert_(os.path.exists(self.DW_SCAN_PATH))
+        self.assert_(
+            os.path.exists(os.path.join(
+                self._session_dir(self.PILOT_PROJECT),
+                '{}_dwi.mif'.format(self.DATASET_NAME))),
+            "Concatenated file was not created")
+        # TODO: More thorough testing required
 
     def test_noddi_fitting(self):
+        self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
         dataset = NODDIDataset(
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={'preprocessed': Scan('NODDI_DWI', analyze_format),
                          'brain_mask': Scan('brain_mask', analyze_format),
-                         'graident_dirs': Scan('NODDI_protocol',
-                                               fsl_bvecs_format),
+                         'gradient_directions': Scan('NODDI_protocol',
+                                                     fsl_bvecs_format),
                          'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
-        dataset.noddi_fitting_pipeline()
+        dataset.noddi_fitting_pipeline().run()
         for out_name in ['ficvf', 'odi', 'fiso', 'fibredirs_xvec',
                          'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
                          'error_code']:
             self.assert_(
                 os.path.exists(os.path.join(
-                    self.ARCHIVE_PATH, self.EXAMPLE_INPUT_PROJECT,
-                    self.SUBJECT, self.SESSION,
+                    self._session_dir(self.EXAMPLE_INPUT_PROJECT),
                     '{}_{}.nii'.format(self.DATASET_NAME, out_name))))
 
     def test_preprocess(self):
@@ -114,13 +116,16 @@ class TestNODDI(TestCase):
         self.dataset.brain_mask_pipeline().run()
         self.assert_(os.path.exists(self.PREPROC_PATH))
 
-    def _remove_generated_files(self, session_dir):
+    def _remove_generated_files(self, project):
         # Remove processed scans
-        for fname in os.listdir(session_dir):
+        for fname in os.listdir(self._session_dir(project)):
             if fname.startswith(self.DATASET_NAME):
-                pth = os.path.join(session_dir, fname)
+                pth = os.path.join(self._session_dir(project), fname)
                 os.remove(pth)
 
+    def _session_dir(self, project):
+        return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
+                            self.SESSION)
 
 if __name__ == '__main__':
     import argparse

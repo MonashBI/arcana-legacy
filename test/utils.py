@@ -21,6 +21,8 @@ class DummyTestCase(object):
         if not statement:
             message = "'{}' is not true".format(statement)
             print message
+        else:
+            print "Test successful"
 
     def assertEqual(self, first, second, message=None):
         if first != second:
@@ -28,6 +30,8 @@ class DummyTestCase(object):
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
             print message
+        else:
+            print "Test successful"
 
     def assertAlmostEqual(self, first, second, message=None):
         if first != second:
@@ -35,6 +39,8 @@ class DummyTestCase(object):
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
             print message
+        else:
+            print "Test successful"
 
     def assertLess(self, first, second, message=None):
         if first >= second:
@@ -42,3 +48,5 @@ class DummyTestCase(object):
                 message = '{} is not less than {}'.format(repr(first),
                                                           repr(second))
             print message
+        else:
+            print "Test successful"

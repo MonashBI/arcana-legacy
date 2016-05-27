@@ -115,6 +115,7 @@ class NODDIDataset(DiffusionDataset):
             citations=[mrtrix_cite], approx_runtime=1)
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')
+        mrcat.inputs.quiet = True
         # Connect inputs/outputs
         pipeline.connect_input('low_b_dw_scan', mrcat, 'first_scan')
         pipeline.connect_input('high_b_dw_scan', mrcat, 'second_scan')
@@ -149,7 +150,7 @@ class NODDIDataset(DiffusionDataset):
         unzip_preproc.inputs.quiet = True
         unzip_mask = pe.Node(MRConvert(), name="unzip_mask")
         unzip_mask.inputs.out_ext = 'nii'
-        unzip_preproc.inputs.quiet = True
+        unzip_mask.inputs.quiet = True
         # Create create-roi node
         create_roi = pe.Node(CreateROI(), name='create_roi')
         pipeline.connect(unzip_preproc, 'out_file', create_roi, 'in_file')

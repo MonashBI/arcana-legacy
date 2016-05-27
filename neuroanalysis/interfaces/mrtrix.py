@@ -262,6 +262,10 @@ class MRCatInputSpec(CommandLineInputSpec):
         desc="The axis along which the scans will be concatenated",
         argstr="-axis %s")
 
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during concatenation")
+
 
 class MRCatOutputSpec(TraitedSpec):
 
