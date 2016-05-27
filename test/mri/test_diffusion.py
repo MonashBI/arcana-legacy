@@ -27,7 +27,7 @@ BASE_WORK_PATH = os.path.abspath(os.path.join(
 
 class TestDiffusion(TestCase):
 
-    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi'
+    ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
     PROJECT = 'pilot'
     DATASET_NAME = 'diffusion'
     SUBJECT = 'SUBJECT1'
@@ -71,7 +71,7 @@ class TestDiffusion(TestCase):
 
 class TestNODDI(TestCase):
 
-    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi'
+    ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
     WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'noddi'))
     DATASET_NAME = 'noddi'
     EXAMPLE_INPUT_PROJECT = 'example_input'
