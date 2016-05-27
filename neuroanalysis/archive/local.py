@@ -100,8 +100,13 @@ class LocalArchive(Archive):
 
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
-            os.makedirs(base_dir)
+            raise NeuroAnalysisError(
+                "Base directory for LocalArchive '{}' does not exist"
+                .format(base_dir))
         self._base_dir = os.path.abspath(base_dir)
+
+    def __repr__(self):
+        return "LocalArchive(base_dir='{}')".format(self.base_dir)
 
     def source(self, project_id, input_files):
         source = super(LocalArchive, self).source(project_id, input_files)

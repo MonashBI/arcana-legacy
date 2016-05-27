@@ -6,7 +6,11 @@ class NeuroAnalysisError(NeuroAnalysisException):
     pass
 
 
-class NeuroAnalysisScanNameError(NeuroAnalysisException):
+class NeuroAnalysisScanNameError(NeuroAnalysisError):
+    pass
+
+
+class NeuroAnalysisMissingScanError(NeuroAnalysisError):
     pass
 
 

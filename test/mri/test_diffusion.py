@@ -6,6 +6,8 @@ import shutil  # @IgnorePep8
 from neuroanalysis.archive import Scan  # @IgnorePep8
 from neuroanalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from neuroanalysis.archive import LocalArchive  # @IgnorePep8
+from neuroanalysis.file_formats import (  # @IgnorePep8
+    mrtrix_format, analyze_format, fsl_bvals_format, fsl_bvecs_format)
 if __name__ == '__main__':
     # Add '..' directory to path to be able to import utils.py
     import sys
@@ -48,35 +50,61 @@ class TestDiffusion(TestCase):
 
 class TestNODDI(TestCase):
 
-    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi_pilot/example/input'
-    NODDI_PROJECT = 'noddi-test'
-    NODDI_SUBJECT = 'example'
-    NODDI_SESSION = 'input'
+    ARCHIVE_PATH = '/Users/tclose/Data/MBI/noddi'
     WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'noddi'))
-    SESSION_PATH = os.path.join(ARCHIVE_PATH, NODDI_PROJECT,
-                                NODDI_SUBJECT, NODDI_SESSION)
     DATASET_NAME = 'noddi'
-    PROCESSED_PREFIX = os.path.join(SESSION_PATH, DATASET_NAME + '_params_')
+    EXAMPLE_INPUT_PROJECT = 'example_input'
+    EXAMPLE_OUTPUT_PROJECT = 'example_output'
+    SUBJECT = 'SUBJECT1'
+    SESSION = 'SESSION1'
+    PILOT_PROJECT = 'pilot'
 
     def setUp(self):
-        self._remove_generated_files()
+        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
         os.makedirs(self.WORK_PATH)
-        self.dataset = NODDIDataset(
-            name=self.DATASET_NAME,
-            project_id=self.NODDI_PROJECT, archive=LocalArchive(ARCHIVE_PATH),
-            scans={'low_b_dw_scan': Scan('r_l_noddi_b700_30_directions',
-                                         'mrtrix'),
-                   'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
-                                          'mrtrix'),
-                   'forward_rpe': Scan('r_l_noddi_b0_6', 'mrtrix'),
-                   'reverse_rpe': Scan('l_r_noddi_b0_6', 'mrtrix')})
 
     def tearDown(self):
-        self._remove_generated_files()
+        import shutil  # @Reimport @NoMove This avoids some strange None error on unit-test exit @IgnorePep8
+        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
+        for project in (self.PILOT_PROJECT, self.EXAMPLE_INPUT_PROJECT):
+            self._remove_generated_files(
+                os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
+                             self.SESSION))
 
     def test_concatenate(self):
-        self.dataset.concatenate_pipeline().run()
+        self._remove_generated_files(os.path.join(
+            self.ARCHIVE_PATH, self.PILOT_PROJECT, self.SUBJECT, self.SESSION))
+        dataset = NODDIDataset(
+            name=self.DATASET_NAME,
+            project_id=self.PILOT_PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={
+                'low_b_dw_scan': Scan('r_l_noddi_b700_30_directions',
+                                      mrtrix_format),
+                'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
+                                       mrtrix_format)})
+        dataset.concatenate_pipeline().run()
         self.assert_(os.path.exists(self.DW_SCAN_PATH))
+
+    def test_noddi_fitting(self):
+        dataset = NODDIDataset(
+            name=self.DATASET_NAME,
+            project_id=self.EXAMPLE_INPUT_PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={'preprocessed': Scan('NODDI_DWI', analyze_format),
+                         'brain_mask': Scan('brain_mask', analyze_format),
+                         'graident_dirs': Scan('NODDI_protocol',
+                                               fsl_bvecs_format),
+                         'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+        dataset.noddi_fitting_pipeline()
+        for out_name in ['ficvf', 'odi', 'fiso', 'fibredirs_xvec',
+                         'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
+                         'error_code']:
+            self.assert_(
+                os.path.exists(os.path.join(
+                    self.ARCHIVE_PATH, self.EXAMPLE_INPUT_PROJECT,
+                    self.SUBJECT, self.SESSION,
+                    '{}_{}.nii'.format(self.DATASET_NAME, out_name))))
 
     def test_preprocess(self):
         self.dataset.preprocess_pipeline().run()
@@ -86,13 +114,11 @@ class TestNODDI(TestCase):
         self.dataset.brain_mask_pipeline().run()
         self.assert_(os.path.exists(self.PREPROC_PATH))
 
-    def _remove_generated_files(self):
-        import shutil  # @Reimport @NoMove This avoids some strange None error
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
+    def _remove_generated_files(self, session_dir):
         # Remove processed scans
-        for fname in os.listdir(self.SESSION_PATH):
-            pth = os.path.join(self.SESSION_PATH, fname)
-            if pth.startswith(self.PROCESSED_PREFIX):
+        for fname in os.listdir(session_dir):
+            if fname.startswith(self.DATASET_NAME):
+                pth = os.path.join(session_dir, fname)
                 os.remove(pth)
 
 

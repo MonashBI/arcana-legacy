@@ -28,7 +28,7 @@ class DiffusionDataset(T2Dataset):
         pipeline = self._create_pipeline(
             name='preprocess',
             inputs=['dwi', 'forward_rpe', 'reverse_rpe'],
-            outputs=['preprocessed', 'bvecs', 'bvals'],
+            outputs=['preprocessed', 'gradient_directions', 'bvalues'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_encode_direction': phase_encode_direction},
             requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
@@ -51,8 +51,9 @@ class DiffusionDataset(T2Dataset):
         pipeline.connect_input('reverse_rpe', dwipreproc, 'reverse_rpe')
         # Connect outputs
         pipeline.connect_output('preprocessed', mrconvert, 'out_file')
-        pipeline.connect_output('bvecs', extract_grad, 'bvecs_file')
-        pipeline.connect_output('bvals', extract_grad, 'bvals_file')
+        pipeline.connect_output('gradient_directions', extract_grad,
+                                'bvecs_file')
+        pipeline.connect_output('bvalues', extract_grad, 'bvals_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -91,8 +92,8 @@ class DiffusionDataset(T2Dataset):
         'fod': (fod_pipeline, mrtrix_format),
         'brain_mask': (brain_mask_pipeline, mrtrix_format),
         'preprocessed': (preprocess_pipeline, nifti_gz_format),
-        'bvecs': (preprocess_pipeline, fsl_bvecs_format),
-        'bvals': (preprocess_pipeline, fsl_bvals_format)}
+        'gradient_directions': (preprocess_pipeline, fsl_bvecs_format),
+        'bvalues': (preprocess_pipeline, fsl_bvals_format)}
 
 
 class NODDIDataset(DiffusionDataset):
@@ -129,8 +130,11 @@ class NODDIDataset(DiffusionDataset):
         """
         pipeline = self._create_pipeline(
             name='noddi_fitting',
-            inputs=['preprocessed', 'brain_mask', 'bvecs', 'bvals'],
-            outputs=['fitted_noddi_params'],
+            inputs=['preprocessed', 'brain_mask', 'gradient_directions',
+                    'bvalues'],
+            outputs=['ficvf', 'odi', 'fiso', 'fibredirs_xvec',
+                     'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
+                     'error_code'],
             description=(
                 "Creates a ROI in which the NODDI processing will be "
                 "performed"),
@@ -165,8 +169,8 @@ class NODDIDataset(DiffusionDataset):
         # Connect inputs
         pipeline.connect_input('preprocessed', unzip_preproc, 'in_file')
         pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
-        pipeline.connect_input('bvecs', batch_fit, 'bvecs_file')
-        pipeline.connect_input('bvals', batch_fit, 'bvals_file')
+        pipeline.connect_input('gradient_directions', batch_fit, 'bvecs_file')
+        pipeline.connect_input('bvalues', batch_fit, 'bvals_file')
         # Connect outputs
         pipeline.connect_output('ficvf', save_params, 'ficvf')
         pipeline.connect_output('odi', save_params, 'odi')
@@ -191,7 +195,6 @@ class NODDIDataset(DiffusionDataset):
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
         [('dwi', (concatenate_pipeline, mrtrix_format)),
-         ('fitted_params', (noddi_fitting_pipeline, matlab_format)),
          ('ficvf', (noddi_fitting_pipeline, nifti_format)),
          ('odi', (noddi_fitting_pipeline, nifti_format)),
          ('fiso', (noddi_fitting_pipeline, nifti_format)),
