@@ -18,61 +18,15 @@ else:
     from unittest import TestCase  # @Reimport
 
 
-# ARCHIVE_PATH = os.path.abspath(os.path.join(
-#     os.path.dirname(__file__), '..', '_data', 'test_archive'))
-
-BASE_WORK_PATH = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '_data', 'work', 'diffusion'))
-
-
-class TestDiffusion(TestCase):
+class _BaseTest(object):
 
     ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
-    PROJECT = 'pilot'
-    DATASET_NAME = 'diffusion'
+    EXAMPLE_INPUT_PROJECT = 'example_input'
+    PILOT_PROJECT = 'pilot'
+    EXAMPLE_OUTPUT_PROJECT = 'example_output'
+    DATASET_NAME = 'noddi'
     SUBJECT = 'SUBJECT1'
     SESSION = 'SESSION1'
-    WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'diffusion'))
-
-    def setUp(self):
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-        os.makedirs(self.WORK_PATH)
-
-    def tearDown(self):
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-
-    def test_preprocess(self):
-        self._remove_generated_files(self.PROJECT)
-        dataset = DiffusionDataset(
-            name=self.DATASET_NAME,
-            project_id=self.PROJECT,
-            archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
-                'dwi': Scan('r_l_noddi_b700_30_directions', mrtrix_format),
-                'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
-                'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
-        dataset.preprocess_pipeline().run(work_dir=self.WORK_PATH)
-        self.assert_(
-            os.path.exists(os.path.join(
-                self._session_dir(self.PROJECT),
-                '{}_preprocessed.mif'.format(self.DATASET_NAME))))
-
-#     def test_brain_mask(self):
-#         dataset = DiffusionDataset(
-#             name=self.DATASET_NAME,
-#             project_id=self.PROJECT,
-#             archive=LocalArchive(self.ARCHIVE_PATH),
-#             input_scans={
-#                 'preprocessed': Scan('r_l_noddi_b700_30_directions',
-#                                      mrtrix_format),
-#                 'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
-#                 'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
-#         dataset.brain_mask_pipeline().run(work_dir=self.WORK_PATH)
-#         self.assert_(
-#             os.path.exists(os.path.join(
-#                 self._session_dir(self.PROJECT),
-#                 '{}_preprocessed.mif'.format(self.DATASET_NAME))))
-#         self.assert_(os.path.exists(self.PREPROC_PATH))
 
     def _session_dir(self, project):
         return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
@@ -82,30 +36,29 @@ class TestDiffusion(TestCase):
         # Remove processed scans
         for fname in os.listdir(self._session_dir(project)):
             if fname.startswith(self.DATASET_NAME):
-                pth = os.path.join(self._session_dir(project), fname)
-                os.remove(pth)
+                os.remove(os.path.join(self._session_dir(project), fname))
 
 
-class TestNODDI(TestCase):
+class TestDiffusion(_BaseTest, TestCase):
 
-    ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
-    WORK_PATH = os.path.abspath(os.path.join(BASE_WORK_PATH, 'noddi'))
-    DATASET_NAME = 'noddi'
-    EXAMPLE_INPUT_PROJECT = 'example_input'
-    EXAMPLE_OUTPUT_PROJECT = 'example_output'
-    SUBJECT = 'SUBJECT1'
-    SESSION = 'SESSION1'
-    PILOT_PROJECT = 'pilot'
+    def test_preprocess(self):
+        self._remove_generated_files(self.PROJECT)
+        dataset = DiffusionDataset(
+            name=self.DATASET_NAME,
+            project_id=self.PILOT_PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={
+                'dwi': Scan('r_l_noddi_b700_30_directions', mrtrix_format),
+                'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
+                'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
+        dataset.preprocess_pipeline().run()
+        self.assert_(
+            os.path.exists(os.path.join(
+                self._session_dir(self.PROJECT),
+                '{}_preprocessed.mif'.format(self.DATASET_NAME))))
 
-    def setUp(self):
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-        os.makedirs(self.WORK_PATH)
 
-    def tearDown(self):
-        import shutil  # @Reimport @NoMove This avoids some strange None error on unit-test exit @IgnorePep8
-        shutil.rmtree(self.WORK_PATH, ignore_errors=True)
-        for project in (self.PILOT_PROJECT, self.EXAMPLE_INPUT_PROJECT):
-            self._remove_generated_files(project)
+class TestNODDI(_BaseTest, TestCase):
 
     def test_concatenate(self):
         self._remove_generated_files(self.PILOT_PROJECT)
@@ -118,7 +71,7 @@ class TestNODDI(TestCase):
                                       mrtrix_format),
                 'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
                                        mrtrix_format)})
-        dataset.concatenate_pipeline().run(work_dir=self.WORK_PATH)
+        dataset.concatenate_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.PILOT_PROJECT),
@@ -133,7 +86,7 @@ class TestNODDI(TestCase):
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={'preprocessed': Scan('NODDI_DWI', analyze_format),
-                         'brain_mask': Scan('brain_mask', analyze_format),
+                         'brain_mask': Scan('roi_mask', analyze_format),
                          'gradient_directions': Scan('NODDI_protocol',
                                                      fsl_bvecs_format),
                          'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
@@ -146,16 +99,6 @@ class TestNODDI(TestCase):
                     self._session_dir(self.EXAMPLE_INPUT_PROJECT),
                     '{}_{}.nii'.format(self.DATASET_NAME, out_name))))
 
-    def _remove_generated_files(self, project):
-        # Remove processed scans
-        for fname in os.listdir(self._session_dir(project)):
-            if fname.startswith(self.DATASET_NAME):
-                pth = os.path.join(self._session_dir(project), fname)
-                os.remove(pth)
-
-    def _session_dir(self, project):
-        return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
-                            self.SESSION)
 
 if __name__ == '__main__':
     import argparse
