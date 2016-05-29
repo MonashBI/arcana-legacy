@@ -203,5 +203,6 @@ class SaveParamsAsNIfTI(BaseInterface):
                      'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
                      'error_code'):
             outputs[name] = os.path.join(
-                os.getcwd(), '{}_{}'.format(self.inputs.output_prefix, name))
+                os.getcwd(), '{}_{}.nii'.format(self.inputs.output_prefix,
+                                                name))
         return outputs
