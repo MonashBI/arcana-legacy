@@ -42,7 +42,6 @@ class BaseImageTestCase(TestCase):
                .format(a=a, b=b))
         out = sp.check_output(cmd, shell=True)
         mean, stdev = (float(x) for x in out.split())
-        print '{}={},{}'.format(a, mean, stdev)
         self.assert_(
             abs(mean) < mean_threshold and stdev < stdev_threshold,
             ("Mean ({mean}) or standard deviation ({stdev}) of difference "
