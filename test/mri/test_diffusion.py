@@ -2,44 +2,18 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-import shutil  # @IgnorePep8
 from neuroanalysis.archive import Scan  # @IgnorePep8
 from neuroanalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from neuroanalysis.archive import LocalArchive  # @IgnorePep8
 from neuroanalysis.file_formats import (  # @IgnorePep8
     mrtrix_format, analyze_format, fsl_bvals_format, fsl_bvecs_format)
 if __name__ == '__main__':
-    # Add '..' directory to path to be able to import utils.py
-    import sys
-    sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__),
-                                                 '..')))
-    from utils import DummyTestCase as TestCase  # @UnusedImport @UnresolvedImport @IgnorePep8
+    from neuroanalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport
 else:
-    from unittest import TestCase  # @Reimport
+    from neuroanalysis.testing import BaseImageTestCase as TestCase  # @IgnorePep8 @Reimport
 
 
-class _BaseTest(object):
-
-    ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
-    EXAMPLE_INPUT_PROJECT = 'example_input'
-    PILOT_PROJECT = 'pilot'
-    EXAMPLE_OUTPUT_PROJECT = 'example_output'
-    DATASET_NAME = 'noddi'
-    SUBJECT = 'SUBJECT1'
-    SESSION = 'SESSION1'
-
-    def _session_dir(self, project):
-        return os.path.join(self.ARCHIVE_PATH, project, self.SUBJECT,
-                            self.SESSION)
-
-    def _remove_generated_files(self, project):
-        # Remove processed scans
-        for fname in os.listdir(self._session_dir(project)):
-            if fname.startswith(self.DATASET_NAME):
-                os.remove(os.path.join(self._session_dir(project), fname))
-
-
-class TestDiffusion(_BaseTest, TestCase):
+class TestDiffusion(TestCase):
 
     def test_preprocess(self):
         self._remove_generated_files(self.PROJECT)
@@ -58,7 +32,7 @@ class TestDiffusion(_BaseTest, TestCase):
                 '{}_preprocessed.mif'.format(self.DATASET_NAME))))
 
 
-class TestNODDI(_BaseTest, TestCase):
+class TestNODDI(TestCase):
 
     def test_concatenate(self):
         self._remove_generated_files(self.PILOT_PROJECT)
@@ -79,7 +53,7 @@ class TestNODDI(_BaseTest, TestCase):
             "Concatenated file was not created")
         # TODO: More thorough testing required
 
-    def test_noddi_fitting(self):
+    def test_noddi_fitting(self, nthreads=6):
         self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
         dataset = NODDIDataset(
             name=self.DATASET_NAME,
@@ -90,14 +64,25 @@ class TestNODDI(_BaseTest, TestCase):
                          'gradient_directions': Scan('NODDI_protocol',
                                                      fsl_bvecs_format),
                          'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
-        dataset.noddi_fitting_pipeline().run()
-        for out_name in ['ficvf', 'odi', 'fiso', 'fibredirs_xvec',
-                         'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
-                         'error_code']:
-            self.assert_(
-                os.path.exists(os.path.join(
-                    self._session_dir(self.EXAMPLE_INPUT_PROJECT),
-                    '{}_{}.nii'.format(self.DATASET_NAME, out_name))))
+        dataset.noddi_fitting_pipeline(nthreads=nthreads).run()
+        ref_out_path = os.path.join(
+            self.ARCHIVE_PATH, self.EXAMPLE_OUTPUT_PROJECT, self.SUBJECT,
+            self.SESSION)
+        gen_out_path = os.path.join(
+            self.ARCHIVE_PATH, self.EXAMPLE_INPUT_PROJECT, self.SUBJECT,
+            self.SESSION)
+        for out_name, mean, stdev in [('ficvf', 1e-5, 1e-2),
+                                      ('odi', 1e-4, 1e-2),
+                                      ('fiso', 1e-4, 1e-2),
+                                      ('fibredirs_xvec', 1e-3, 1e-1),
+                                      ('fibredirs_yvec', 1e-3, 1e-1),
+                                      ('fibredirs_zvec', 1e-3, 1e-1),
+                                      ('kappa', 1e-4, 1e-1)]:
+            self.assertImagesAlmostMatch(
+                os.path.join(ref_out_path, 'example_{}.nii'.format(out_name)),
+                os.path.join(gen_out_path,
+                             '{}_{}.nii'.format(self.DATASET_NAME, out_name)),
+                mean_threshold=mean, stdev_threshold=stdev)
 
 
 if __name__ == '__main__':
