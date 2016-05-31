@@ -16,7 +16,7 @@ class MRDataset(Dataset):
             name='brain_mask',
             inputs=['mri_scan'],
             outputs=['masked_mri_scan', 'brain_mask'],
-            description="Generate brain mask from T2",
+            description="Generate brain mask from mri_scan",
             options={},
             requirements=[Requirement('fsl', min_version=(0, 5, 0))],
             citations=[fsl_cite, bet_cite, bet2_cite], approx_runtime=5)
