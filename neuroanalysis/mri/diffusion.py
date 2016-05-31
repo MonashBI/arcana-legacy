@@ -10,34 +10,35 @@ from neuroanalysis.citations import (
     noddi_cite)
 from neuroanalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
-    matlab_format, nifti_format)
+    nifti_format)
 from neuroanalysis.requirements import Requirement
+from neuroanalysis.exception import NeuroAnalysisError
 
 
 class DiffusionDataset(T2Dataset):
 
-    def preprocess_pipeline(self, phase_encode_direction='AP', **kwargs):  # @UnusedVariable @IgnorePep8
+    def preprocess_pipeline(self, phase_dir='LR', **kwargs):  # @UnusedVariable @IgnorePep8
         """
         Performs a series of FSL preprocessing steps, including Eddy and Topup
 
         Parameters
         ----------
-        phase_encode_direction : str{AP|LR|IS}
+        phase_dir : str{AP|LR|IS}
             The phase encode direction
         """
         pipeline = self._create_pipeline(
             name='preprocess',
-            inputs=['dwi', 'forward_rpe', 'reverse_rpe'],
+            inputs=['primary_scan', 'forward_rpe', 'reverse_rpe'],
             outputs=['preprocessed', 'gradient_directions', 'bvalues'],
             description="Preprocess dMRI datasets using distortion correction",
-            options={'phase_encode_direction': phase_encode_direction},
+            options={'phase_dir': phase_dir},
             requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
                           Requirement('fsl', min_version=(5, 0))],
             citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite],
             approx_runtime=30)
         # Create preprocessing node
         dwipreproc = pe.Node(DWIPreproc(), name='dwipreproc')
-        dwipreproc.inputs.pe_dir = phase_encode_direction
+        dwipreproc.inputs.pe_dir = phase_dir
         # Create nodes to convert preprocessed scan and gradients to FSL format
         mrconvert = pe.Node(MRConvert(), name='mrconvert')
         mrconvert.inputs.out_ext = 'nii.gz'
@@ -46,7 +47,7 @@ class DiffusionDataset(T2Dataset):
         pipeline.connect(dwipreproc, 'out_file', mrconvert, 'in_file')
         pipeline.connect(dwipreproc, 'out_file', extract_grad, 'in_file')
         # Connect inputs
-        pipeline.connect_input('dwi', dwipreproc, 'in_file')
+        pipeline.connect_input('primary_scan', dwipreproc, 'in_file')
         pipeline.connect_input('forward_rpe', dwipreproc, 'forward_rpe')
         pipeline.connect_input('reverse_rpe', dwipreproc, 'reverse_rpe')
         # Connect outputs
@@ -58,42 +59,51 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
-    def brain_mask_pipeline(self, **kwargs):  # @UnusedVariable
+    def brain_mask_pipeline(self, mask_tool='fsl', **kwargs):  # @UnusedVariable @IgnorePep8
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
         """
-        pipeline = self._create_pipeline(
-            name='brain_mask',
-            inputs=['preprocessed'],
-            outputs=['brain_mask'],
-            description="Generate brain mask from b0 images",
-            options={},
-            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
-            citations=[mrtrix_cite], approx_runtime=1)
-        # Create mask node
-        dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
-        dwi2mask.inputs.out_file = 'brain_mask.mif'
-        # Connect inputs/outputs
-        pipeline.connect_input('preprocessed', dwi2mask, 'in_file')
-        pipeline.connect_output('brain_mask', dwi2mask, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
+        if mask_tool == 'fsl':
+            pipeline = super(DiffusionDataset, self).brain_mask_pipeline(
+                **kwargs)
+        elif mask_tool == 'mrtrix3':
+            pipeline = self._create_pipeline(
+                name='brain_mask',
+                inputs=['preprocessed'],
+                outputs=['brain_mask'],
+                description="Generate brain mask from b0 images",
+                options={},
+                requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
+                citations=[mrtrix_cite], approx_runtime=1)
+            # Create mask node
+            dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
+            dwi2mask.inputs.out_file = 'brain_mask.nii.gz'
+            # Connect inputs/outputs
+            pipeline.connect_input('preprocessed', dwi2mask, 'in_file')
+            pipeline.connect_output('brain_mask', dwi2mask, 'out_file')
+            # Check inputs/outputs are connected
+            pipeline.assert_connected()
+        else:
+            raise NeuroAnalysisError(
+                "Unrecognised mask_tool '{}' (valid options 'fsl' or "
+                "'mrtrix3')")
         return pipeline
 
     def fod_pipeline(self):
         raise NotImplementedError
 
     # The list of dataset components that are acquired by the scanner
-    acquired_components = {
-        'dwi': mrtrix_format, 'forward_rpe': mrtrix_format,
-        'reverse_rpe': mrtrix_format}
+    acquired_components = dict(
+        T2Dataset.acquired_components.items() +
+        [('forward_rpe', mrtrix_format),
+         ('reverse_rpe', mrtrix_format)])
 
-    generated_components = {
-        'fod': (fod_pipeline, mrtrix_format),
-        'brain_mask': (brain_mask_pipeline, mrtrix_format),
-        'preprocessed': (preprocess_pipeline, nifti_gz_format),
-        'gradient_directions': (preprocess_pipeline, fsl_bvecs_format),
-        'bvalues': (preprocess_pipeline, fsl_bvals_format)}
+    generated_components = dict(
+        T2Dataset.generated_components.items() +
+        [('fod', (fod_pipeline, mrtrix_format)),
+         ('preprocessed', (preprocess_pipeline, nifti_gz_format)),
+         ('gradient_directions', (preprocess_pipeline, fsl_bvecs_format)),
+         ('bvalues', (preprocess_pipeline, fsl_bvals_format))])
 
 
 class NODDIDataset(DiffusionDataset):
@@ -106,7 +116,7 @@ class NODDIDataset(DiffusionDataset):
         pipeline = self._create_pipeline(
             name='concatenation',
             inputs=['low_b_dw_scan', 'high_b_dw_scan'],
-            outputs=['dwi'],
+            outputs=['primary_scan'],
             description=(
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
@@ -119,7 +129,7 @@ class NODDIDataset(DiffusionDataset):
         # Connect inputs/outputs
         pipeline.connect_input('low_b_dw_scan', mrcat, 'first_scan')
         pipeline.connect_input('high_b_dw_scan', mrcat, 'second_scan')
-        pipeline.connect_output('dwi', mrcat, 'out_file')
+        pipeline.connect_output('primary_scan', mrcat, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -195,7 +205,7 @@ class NODDIDataset(DiffusionDataset):
 
     generated_components = dict(
         DiffusionDataset.generated_components.items() +
-        [('dwi', (concatenate_pipeline, mrtrix_format)),
+        [('primary_scan', (concatenate_pipeline, mrtrix_format)),
          ('ficvf', (noddi_fitting_pipeline, nifti_format)),
          ('odi', (noddi_fitting_pipeline, nifti_format)),
          ('fiso', (noddi_fitting_pipeline, nifti_format)),

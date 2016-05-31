@@ -2,7 +2,7 @@ class Citation(object):
 
     def __init__(self, short_name, authors, title, year, journal=None,
                  pages=None, volume=None, issue=None, institute=None,
-                 url=None):
+                 month=None, proceedings=None, url=None):
         self._short_name = short_name
         self._authors = authors
         self._title = title
@@ -12,6 +12,8 @@ class Citation(object):
         self._issue = issue
         self._pages = pages
         self._institute = institute
+        self._month = month
+        self._proceedings = proceedings
         self._url = url
 
     def __eq__(self, other):
@@ -24,6 +26,8 @@ class Citation(object):
             self._issue == other.issue and
             self._pages == other._pages and
             self._institute == other._institute and
+            self._month == other._month and
+            self._proceedings == other._proceedings and
             self._url == other._url)
 
     def __ne__(self, other):
@@ -66,6 +70,14 @@ class Citation(object):
         return self._institute
 
     @property
+    def month(self):
+        return self._month
+
+    @property
+    def proceedings(self):
+        return self._proceedings
+
+    @property
     def url(self):
         return self._url
 
@@ -86,7 +98,7 @@ eddy_cite = Citation(
         "off-resonance effects and subject movement in "
         "diffusion MR imaging"),
     journal="NeuroImage", year=2015, volume=125,
-    pages="1063-1078"),
+    pages=(1063, 1078)),
 
 fsl_cite = Citation(
     short_name="FSL",
@@ -101,7 +113,7 @@ fsl_cite = Citation(
         "Advances in functional and structural MR image "
         "analysis and implementation as FSL"),
     journal="NeuroImage", year=2004, volume=23,
-    pages="S208-S219"),
+    pages=("S208", "S219")),
 
 distort_correct_cite = Citation(
     short_name="skare_distort_correct",
@@ -110,7 +122,7 @@ distort_correct_cite = Citation(
         "Jacobian weighting of distortion corrected EPI data"),
     journal=(
         "Proceedings of the International Society for Magnetic"
-        " Resonance in Medicine"), year=2010, pages="5063"),
+        " Resonance in Medicine"), year=2010, pages=(5063,)),
 
 topup_cite = Citation(
     short_name="Topup",
@@ -120,7 +132,7 @@ topup_cite = Citation(
         "spin-echo echo-planar images: application to "
         "diffusion tensor imaging"),
     journal="NeuroImage", year=2003, volume=20,
-    pages="870-888")
+    pages=(870, 888))
 
 noddi_cite = Citation(
     short_name="noddi",
@@ -129,4 +141,19 @@ noddi_cite = Citation(
     title=(
         "NODDI: Practical in vivo neurite orientation dispersion and density "
         "imaging of the human brain"),
-    journal='NeuroImage', year=2012, volume=61, pages='1000-1016')
+    journal='NeuroImage', year=2012, volume=61, pages=(1000, 1016))
+
+bet_cite = Citation(
+    short_name="BET",
+    authors=['Smith, S. M.'],
+    title=("Fast robust automated brain extraction"),
+    journal="Human Brain Mapping",
+    volume=17, issue=3, pages=(143, 155), month='November', year=2002)
+
+bet2_cite = Citation(
+    short_name="BET2",
+    authors=["Jenkinson, M.", "Pechaud, M.", 'Smith, S. M.'],
+    title=("MR-based estimation of brain, skull and scalp surfaces"),
+    proceedings=(
+        "Eleventh Annual Meeting of the Organization for Human Brain Mapping"),
+    year=2005)
