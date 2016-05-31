@@ -1,11 +1,11 @@
 from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import Merge
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import DWIPreproc, MRCat, ExtractDWIorB0, MRMath
 from ..interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
 from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
+from ..interfaces.utils import MergeTuple
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite)
@@ -101,8 +101,7 @@ class DiffusionDataset(T2Dataset):
             options={}, requirements=[mrtrix3_req], citations=[mrtrix_cite],
             approx_runtime=0.5)
         # Gradient merge node
-        fsl_grads = pe.Node(Merge(2), name="fsl_grads",
-                            infields=['bvecs', 'bvals'])
+        fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
         # Extraction node
         extract_b0s = pe.Node(ExtractDWIorB0(), name='extract_b0s')
         extract_b0s.inputs.bzero = True
@@ -111,14 +110,15 @@ class DiffusionDataset(T2Dataset):
         mean = pe.Node(MRMath(), name="mean")
         mean.inputs.axis = 3
         mean.inputs.operator = 'mean'
+        mean.inputs.quiet = True
         # Convert to Nifti
         mrconvert = pe.Node(MRConvert(), name="output_conversion")
         mrconvert.inputs.out_ext = 'nii.gz'
         mrconvert.inputs.quiet = True
         # Connect inputs
         pipeline.connect_input('dwi_preproc', extract_b0s, 'in_file')
-        pipeline.connect_input('gradient_directions', fsl_grads, 'bvecs')
-        pipeline.connect_input('bvalues', fsl_grads, 'bvals')
+        pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+        pipeline.connect_input('bvalues', fsl_grads, 'in2')
         # Connect between nodes
         pipeline.connect(extract_b0s, 'out_file', mean, 'in_file')
         pipeline.connect(fsl_grads, 'out', extract_b0s, 'fslgrad')
