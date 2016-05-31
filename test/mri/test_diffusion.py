@@ -47,7 +47,7 @@ class TestDiffusion(TestCase):
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.EXAMPLE_INPUT_PROJECT),
-                '{}_mri_scan.mif'.format(self.DATASET_NAME))))
+                '{}_mri_scan.nii.gz'.format(self.DATASET_NAME))))
 
 
 class TestNODDI(TestCase):

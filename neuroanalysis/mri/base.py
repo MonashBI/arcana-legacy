@@ -3,7 +3,7 @@ from nipype.interfaces import fsl
 from ..base import Dataset
 from neuroanalysis.requirements import Requirement
 from neuroanalysis.citations import fsl_cite, bet_cite, bet2_cite
-from neuroanalysis.file_formats import mrtrix_format, nifti_gz_format
+from neuroanalysis.file_formats import nifti_gz_format
 
 
 class MRDataset(Dataset):
@@ -14,8 +14,8 @@ class MRDataset(Dataset):
         """
         pipeline = self._create_pipeline(
             name='brain_mask',
-            inputs=['preprocessed'],
-            outputs=['brain_mask'],
+            inputs=['mri_scan'],
+            outputs=['masked_mri_scan', 'brain_mask'],
             description="Generate brain mask from T2",
             options={},
             requirements=[Requirement('fsl', min_version=(0, 5, 0))],
@@ -25,11 +25,15 @@ class MRDataset(Dataset):
         bet.inputs.mask = True
         # Connect inputs/outputs
         pipeline.connect_input('mri_scan', bet, 'in_file')
-        pipeline.connect_output('brain_mask', bet, 'out_file')
+        pipeline.connect_output('masked_mri_scan', bet, 'out_file')
+        pipeline.connect_output('brain_mask', bet, 'mask_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
 
-    acquired_components = {'mri_scan': mrtrix_format}
+    acquired_components = {'mri_scan': nifti_gz_format}
 
-    generated_components = {'brain_mask': nifti_gz_format}
+    generated_components = {'masked_mri_scan':
+                            (brain_mask_pipeline, nifti_gz_format),
+                            'brain_mask':
+                            (brain_mask_pipeline, nifti_gz_format)}
