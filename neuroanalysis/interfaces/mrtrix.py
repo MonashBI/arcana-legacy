@@ -1,6 +1,7 @@
 import os.path
 from nipype.interfaces.base import (
     CommandLineInputSpec, CommandLine, File, TraitedSpec, isdefined, traits)
+from neuroanalysis.utils import split_extension
 
 
 # =============================================================================
@@ -52,9 +53,63 @@ class ExtractFSLGradients(CommandLine):
         if isdefined(self.inputs.bvecs_file):
             filename = getattr(self.inputs, comp + '_file')
         else:
-            base, _ = os.path.splitext(os.path.basename(self.inputs.in_file))
+            base, _ = split_extension(os.path.basename(self.inputs.in_file))
             filename = os.path.join(
                 os.getcwd(), "{}_{}".format(base, comp))
+        return filename
+
+
+# =============================================================================
+# Extract b0 or DW images
+# =============================================================================
+
+class ExtractDWIorB0InputSpec(CommandLineInputSpec):
+    in_file = File(exists=True, argstr='%s', mandatory=True, position=0,
+                   desc="Diffusion weighted images with graident info")
+
+    out_file = File(genfile=True, argstr='%s', position=-1,
+                    desc="Extracted DW or b-zero images")
+
+    bzero = traits.Str(argstr='-bzero', position=1,  # @UndefinedVariable
+                       desc="Extract b-zero images instead of DDW images")
+
+
+class ExtractDWIorB0OutputSpec(TraitedSpec):
+
+    out_file = File(exists=True, desc='Extracted DW or b-zero images')
+
+
+class ExtractDWIorB0(CommandLine):
+    """
+    Extracts the gradient information in MRtrix format from a DWI image
+    """
+    _cmd = 'dwiextract'
+    input_spec = ExtractDWIorB0InputSpec
+    output_spec = ExtractDWIorB0OutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            fname = self._gen_outfilename()
+        else:
+            assert False
+        return fname
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            filename = self.inputs.out_file
+        else:
+            base, ext = split_extension(os.path.basename(self.inputs.in_file))
+            if isdefined(self.inputs.bzero):
+                suffix = 'b0'
+            else:
+                suffix = 'dw'
+            filename = os.path.join(
+                os.getcwd(), "{}_{}.{}".format(base, suffix, ext))
         return filename
 
 
@@ -171,7 +226,7 @@ class MRConvert(CommandLine):
         if isdefined(self.inputs.out_file):
             out_name = self.inputs.out_file
         else:
-            base, orig_ext = os.path.splitext(
+            base, orig_ext = split_extension(
                 os.path.basename(self.inputs.in_file))
             if isdefined(self.inputs.out_ext):
                 ext = self.inputs.out_ext
@@ -237,7 +292,7 @@ class DWIPreproc(CommandLine):
         if isdefined(self.inputs.out_file):
             out_name = self.inputs.out_file
         else:
-            base, ext = os.path.splitext(
+            base, ext = split_extension(
                 os.path.basename(self.inputs.in_file))
             out_name = os.path.join(
                 os.getcwd(), "{}_preprocessed{}".format(base, ext))
@@ -294,9 +349,9 @@ class MRCat(CommandLine):
         if isdefined(self.inputs.out_file):
             out_name = self.inputs.out_file
         else:
-            first, ext = os.path.splitext(
+            first, ext = split_extension(
                 os.path.basename(self.inputs.first_scan))
-            second, _ = os.path.splitext(
+            second, _ = split_extension(
                 os.path.basename(self.inputs.second_scan))
             out_name = os.path.join(
                 os.getcwd(), "{}_{}_concatenated{}".format(first, second, ext))

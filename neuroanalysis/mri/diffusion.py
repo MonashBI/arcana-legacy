@@ -92,15 +92,19 @@ class DiffusionDataset(T2Dataset):
     def fod_pipeline(self):
         raise NotImplementedError
 
+    def extract_b0_pipeline(self):
+        raise NotImplementedError
+
     # The list of dataset components that are acquired by the scanner
-    acquired_components = dict(
-        T2Dataset.acquired_components.items() +
-        [('forward_rpe', mrtrix_format),
-         ('reverse_rpe', mrtrix_format)])
+    acquired_components = {
+        'dwi_scan', mrtrix_format,
+        'forward_rpe', mrtrix_format,
+        'reverse_rpe', mrtrix_format}
 
     generated_components = dict(
         T2Dataset.generated_components.items() +
-        [('fod', (fod_pipeline, mrtrix_format)),
+        [('mri_scan', (extract_b0_pipeline, nifti_gz_format))
+         ('fod', (fod_pipeline, mrtrix_format)),
          ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
          ('gradient_directions', (preprocess_pipeline, fsl_bvecs_format)),
          ('bvalues', (preprocess_pipeline, fsl_bvals_format))])

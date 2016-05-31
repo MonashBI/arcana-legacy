@@ -4,6 +4,7 @@ from nipype.interfaces.base import (
     BaseInterfaceInputSpec)
 from nipype.interfaces.matlab import MatlabCommand
 from neuroanalysis.exception import NeuroAnalysisError
+from neuroanalysis.utils import split_extension
 
 
 class CreateROIInputSpec(BaseInterfaceInputSpec):
@@ -59,7 +60,7 @@ class CreateROI(BaseInterface):
                     "(provided '{}')".format(self.inputs.out_file))
             out_name = self.inputs.out_file
         else:
-            base, _ = os.path.splitext(os.path.basename(self.inputs.in_file))
+            base, _ = split_extension(os.path.basename(self.inputs.in_file))
             out_name = os.path.join(os.getcwd(), "{}_ROI.mat".format(base))
         return out_name
 
@@ -130,7 +131,7 @@ class BatchNODDIFitting(BaseInterface):
         if isdefined(self.inputs.out_file):
             out_name = self.inputs.out_file
         else:
-            base, _ = os.path.splitext(os.path.basename(self.inputs.roi_file))
+            base, _ = split_extension(os.path.basename(self.inputs.roi_file))
             out_name = os.path.join(
                 os.getcwd(), "{}_fitted_params.mat".format(base))
         return out_name
