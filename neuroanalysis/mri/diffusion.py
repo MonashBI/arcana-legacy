@@ -1,6 +1,7 @@
 from nipype.pipeline import engine as pe
+from nipype.interfaces.utility import Merge
 from nipype.interfaces.mrtrix3.utils import BrainMask
-from ..interfaces.mrtrix import DWIPreproc, MRCat
+from ..interfaces.mrtrix import DWIPreproc, MRCat, ExtractDWIorB0, MRMath
 from ..interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
@@ -11,7 +12,7 @@ from neuroanalysis.citations import (
 from neuroanalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
-from neuroanalysis.requirements import Requirement
+from neuroanalysis.requirements import fsl5_req, mrtrix3_req, Requirement
 from neuroanalysis.exception import NeuroAnalysisError
 
 
@@ -32,8 +33,7 @@ class DiffusionDataset(T2Dataset):
             outputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_dir': phase_dir},
-            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12)),
-                          Requirement('fsl', min_version=(5, 0))],
+            requirements=[mrtrix3_req, fsl5_req],
             citations=[fsl_cite, eddy_cite, topup_cite, distort_correct_cite],
             approx_runtime=30)
         # Create preprocessing node
@@ -73,7 +73,7 @@ class DiffusionDataset(T2Dataset):
                 outputs=['brain_mask'],
                 description="Generate brain mask from b0 images",
                 options={},
-                requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
+                requirements=[],
                 citations=[mrtrix_cite], approx_runtime=1)
             # Create mask node
             dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
@@ -93,17 +93,51 @@ class DiffusionDataset(T2Dataset):
         raise NotImplementedError
 
     def extract_b0_pipeline(self):
-        raise NotImplementedError
+        pipeline = self._create_pipeline(
+            name='extract_b0',
+            inputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
+            outputs=['mri_scan'],
+            description="Extract b0 image from a DWI dataset",
+            options={}, requirements=[mrtrix3_req], citations=[mrtrix_cite],
+            approx_runtime=0.5)
+        # Gradient merge node
+        fsl_grads = pe.Node(Merge(2), name="fsl_grads",
+                            infields=['bvecs', 'bvals'])
+        # Extraction node
+        extract_b0s = pe.Node(ExtractDWIorB0(), name='extract_b0s')
+        extract_b0s.inputs.bzero = True
+        extract_b0s.inputs.quiet = True
+        # Mean calculation node
+        mean = pe.Node(MRMath(), name="mean")
+        mean.inputs.axis = 3
+        mean.inputs.operator = 'mean'
+        # Convert to Nifti
+        mrconvert = pe.Node(MRConvert(), name="output_conversion")
+        mrconvert.inputs.out_ext = 'nii.gz'
+        mrconvert.inputs.quiet = True
+        # Connect inputs
+        pipeline.connect_input('dwi_preproc', extract_b0s, 'in_file')
+        pipeline.connect_input('gradient_directions', fsl_grads, 'bvecs')
+        pipeline.connect_input('bvalues', fsl_grads, 'bvals')
+        # Connect between nodes
+        pipeline.connect(extract_b0s, 'out_file', mean, 'in_file')
+        pipeline.connect(fsl_grads, 'out', extract_b0s, 'fslgrad')
+        pipeline.connect(mean, 'out_file', mrconvert, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('mri_scan', mrconvert, 'out_file')
+        pipeline.assert_connected()
+        # Check inputs/outputs are connected
+        return pipeline
 
     # The list of dataset components that are acquired by the scanner
     acquired_components = {
-        'dwi_scan', mrtrix_format,
-        'forward_rpe', mrtrix_format,
-        'reverse_rpe', mrtrix_format}
+        'dwi_scan': mrtrix_format,
+        'forward_rpe': mrtrix_format,
+        'reverse_rpe': mrtrix_format}
 
     generated_components = dict(
         T2Dataset.generated_components.items() +
-        [('mri_scan', (extract_b0_pipeline, nifti_gz_format))
+        [('mri_scan', (extract_b0_pipeline, nifti_gz_format)),
          ('fod', (fod_pipeline, mrtrix_format)),
          ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
          ('gradient_directions', (preprocess_pipeline, fsl_bvecs_format)),
@@ -125,7 +159,7 @@ class NODDIDataset(DiffusionDataset):
                 "Concatenate low and high b-value dMRI scans for NODDI "
                 "processing"),
             options={},
-            requirements=[Requirement('mrtrix3', min_version=(0, 3, 12))],
+            requirements=[mrtrix3_req],
             citations=[mrtrix_cite], approx_runtime=1)
         # Create concatenation node
         mrcat = pe.Node(MRCat(), name='mrcat')

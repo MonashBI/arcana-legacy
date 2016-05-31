@@ -16,3 +16,8 @@ class Requirement(object):
     @property
     def max_version(self):
         return self._max_version
+
+
+mrtrix3_req = Requirement('mrtrix3', min_version=(0, 3, 12))
+
+fsl5_req = Requirement('fsl', min_version=(5, 0))

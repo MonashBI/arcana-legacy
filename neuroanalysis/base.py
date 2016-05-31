@@ -96,6 +96,9 @@ class Dataset(object):
             # Check which sessions already have all the required output files
             # in the archive and don't rerun for those subjects/studies
             complete_sessions = copy(sessions)
+            # TODO: Should be able to provide list of outputs required by
+            #       upstream pipeline, so if only the outputs that are required
+            #       are present then the pipeline doesn't need to be rerun
             for output in pipeline.outputs:
                 complete_sessions &= set(self._archive.sessions_with_file(
                     self.scan(output), self.project_id))

@@ -4,6 +4,8 @@ from nipype.interfaces.base import (
 from neuroanalysis.utils import split_extension
 
 
+# TODO: Write MRtrixBaseInputSpec with all the generic options included
+
 # =============================================================================
 # Extract MR gradients
 # =============================================================================
@@ -60,6 +62,63 @@ class ExtractFSLGradients(CommandLine):
 
 
 # =============================================================================
+# MR math
+# =============================================================================
+
+class MRMathInputSpec(CommandLineInputSpec):
+    in_file = File(exists=True, argstr='%s', mandatory=True, position=1,
+                   desc="Diffusion weighted images with graident info")
+
+    out_file = File(genfile=True, argstr='%s', position=-1,
+                    desc="Extracted DW or b-zero images")
+
+    operator = traits.Str(mandatory=True, argstr='%s', position=-2,  # @UndefinedVariable @IgnorePep8
+                          desc=("Operand to apply to the files"))
+
+    axis = traits.Int(mandatory=True, argstr="-axis %s", position=0,  # @UndefinedVariable @IgnorePep8
+                      desc=("The axis over which to apply the operator"))
+
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during operation")
+
+
+class MRMathOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='The resultant image')
+
+
+class MRMath(CommandLine):
+    """
+    Extracts the gradient information in MRtrix format from a DWI image
+    """
+    _cmd = 'mrmath'
+    input_spec = MRMathInputSpec
+    output_spec = MRMathOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            fname = self._gen_outfilename()
+        else:
+            assert False
+        return fname
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            filename = self.inputs.out_file
+        else:
+            base, ext = split_extension(os.path.basename(self.inputs.in_file))
+            filename = os.path.join(
+                os.getcwd(), "{}_{}.{}".format(base, self.inputs.operator,
+                                               ext))
+        return filename
+
+
+# =============================================================================
 # Extract b0 or DW images
 # =============================================================================
 
@@ -70,8 +129,28 @@ class ExtractDWIorB0InputSpec(CommandLineInputSpec):
     out_file = File(genfile=True, argstr='%s', position=-1,
                     desc="Extracted DW or b-zero images")
 
-    bzero = traits.Str(argstr='-bzero', position=1,  # @UndefinedVariable
-                       desc="Extract b-zero images instead of DDW images")
+    bzero = traits.Bool(argstr='-bzero', position=1,  # @UndefinedVariable
+                        desc="Extract b-zero images instead of DDW images")
+
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during operation")
+
+    grad = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-grad %s',
+        desc=("specify the diffusion-weighted gradient scheme used in the  "
+              "acquisition. The program will normally attempt to use the  "
+              "encoding stored in the image header. This should be supplied  "
+              "as a 4xN text file with each line is in the format [ X Y Z b ],"
+              " where [ X Y Z ] describe the direction of the applied  "
+              "gradient, and b gives the b-value in units of s/mm^2."))
+
+    fslgrad = traits.Tuple(  # @UndefinedVariable
+        File(exists=True, desc="gradient directions file (bvec)"),  # @UndefinedVariable @IgnorePep8
+        File(exists=True, desc="b-values (bval)"),  # @UndefinedVariable @IgnorePep8
+        argstr='-fslgrad %s %s', mandatory=False,
+        desc=("specify the diffusion-weighted gradient scheme used in the "
+              "acquisition in FSL bvecs/bvals format."))
 
 
 class ExtractDWIorB0OutputSpec(TraitedSpec):
@@ -228,14 +307,10 @@ class MRConvert(CommandLine):
         else:
             base, orig_ext = split_extension(
                 os.path.basename(self.inputs.in_file))
-            if isdefined(self.inputs.out_ext):
-                ext = self.inputs.out_ext
-                if not ext.startswith('.'):
-                    ext = '.' + ext
-            else:
-                ext = orig_ext
-            out_name = os.path.join(os.getcwd(), "{}_converted{}".format(base,
-                                                                         ext))
+            ext = (self.inputs.out_ext
+                   if isdefined(self.inputs.out_ext) else orig_ext)
+            out_name = os.path.join(os.getcwd(),
+                                    "{}_conv.{}".format(base, ext))
         return out_name
 
 
@@ -295,7 +370,7 @@ class DWIPreproc(CommandLine):
             base, ext = split_extension(
                 os.path.basename(self.inputs.in_file))
             out_name = os.path.join(
-                os.getcwd(), "{}_preprocessed{}".format(base, ext))
+                os.getcwd(), "{}_preproc.{}".format(base, ext))
         return out_name
 
 
@@ -354,5 +429,5 @@ class MRCat(CommandLine):
             second, _ = split_extension(
                 os.path.basename(self.inputs.second_scan))
             out_name = os.path.join(
-                os.getcwd(), "{}_{}_concatenated{}".format(first, second, ext))
+                os.getcwd(), "{}_{}_concat.{}".format(first, second, ext))
         return out_name

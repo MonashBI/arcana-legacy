@@ -16,20 +16,38 @@ else:
 class TestDiffusion(TestCase):
 
     def test_preprocess(self):
-        self._remove_generated_files(self.PROJECT)
+        self._remove_generated_files(self.PILOT_PROJECT)
         dataset = DiffusionDataset(
             name=self.DATASET_NAME,
             project_id=self.PILOT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
-                'dwi': Scan('r_l_noddi_b700_30_directions', mrtrix_format),
+                'dwi_scan':
+                Scan('r_l_noddi_b700_30_directions', mrtrix_format),
                 'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
                 'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
         dataset.preprocess_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
-                self._session_dir(self.PROJECT),
-                '{}_preprocessed.mif'.format(self.DATASET_NAME))))
+                self._session_dir(self.PILOT_PROJECT),
+                '{}_dwi_preproc.mif'.format(self.DATASET_NAME))))
+
+    def test_extract_b0(self):
+        self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
+        dataset = DiffusionDataset(
+            name=self.DATASET_NAME,
+            project_id=self.EXAMPLE_INPUT_PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={
+                'dwi_preproc': Scan('NODDI_DWI', analyze_format),
+                'gradient_directions': Scan('NODDI_protocol',
+                                            fsl_bvecs_format),
+                'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+        dataset.extract_b0_pipeline().run()
+        self.assert_(
+            os.path.exists(os.path.join(
+                self._session_dir(self.EXAMPLE_INPUT_PROJECT),
+                '{}_mri_scan.mif'.format(self.DATASET_NAME))))
 
 
 class TestNODDI(TestCase):
@@ -59,7 +77,7 @@ class TestNODDI(TestCase):
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={'preprocessed': Scan('NODDI_DWI', analyze_format),
+            input_scans={'dwi_preproc': Scan('NODDI_DWI', analyze_format),
                          'brain_mask': Scan('roi_mask', analyze_format),
                          'gradient_directions': Scan('NODDI_protocol',
                                                      fsl_bvecs_format),
