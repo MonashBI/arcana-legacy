@@ -119,6 +119,130 @@ class MRMath(CommandLine):
 
 
 # =============================================================================
+# MR Crop
+# =============================================================================
+
+class MRCropInputSpec(CommandLineInputSpec):
+    in_file = File(exists=True, argstr='%s', mandatory=True, position=-2,
+                   desc="Diffusion weighted images with graident info")
+
+    out_file = File(genfile=True, argstr='%s', position=-1,
+                    desc="Extracted DW or b-zero images")
+
+    axis = traits.Tuple(  # @UndefinedVariable
+        traits.Int(desc="index"),  # @UndefinedVariable
+        traits.Int(desc="start"),  # @UndefinedVariable
+        traits.Int(desc='end'),  # @UndefinedVariable
+        mandatory=False, argstr="-axis %s %s %s", # @UndefinedVariable @IgnorePep8
+        desc=("crop the input image in the provided axis"))
+
+    mask = File(mandatory=False, exists=True, argstr="-mask %s",
+                desc=("Crop the input image according to the spatial extent of"
+                      " a mask image"))
+
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during operation")
+
+
+class MRCropOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='The resultant image')
+
+
+class MRCrop(CommandLine):
+    """
+    Extracts the gradient information in MRtrix format from a DWI image
+    """
+    _cmd = 'mrcrop'
+    input_spec = MRCropInputSpec
+    output_spec = MRCropOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            fname = self._gen_outfilename()
+        else:
+            assert False
+        return fname
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            filename = self.inputs.out_file
+        else:
+            base, ext = split_extension(os.path.basename(self.inputs.in_file))
+            filename = os.path.join(os.getcwd(),
+                                    "{}_crop.{}".format(base, ext))
+        return filename
+
+
+# =============================================================================
+# MR Pad
+# =============================================================================
+
+class MRPadInputSpec(CommandLineInputSpec):
+    in_file = File(exists=True, argstr='%s', mandatory=True, position=-2,
+                   desc="Diffusion weighted images with graident info")
+
+    out_file = File(genfile=True, argstr='%s', position=-1,
+                    desc="Extracted DW or b-zero images")
+
+    axis = traits.Tuple(  # @UndefinedVariable
+        traits.Int(desc="index"),  # @UndefinedVariable
+        traits.Int(desc="lower"),  # @UndefinedVariable
+        traits.Int(desc='upper'),  # @UndefinedVariable
+        mandatory=False, argstr="-axis %s %s %s", # @UndefinedVariable @IgnorePep8
+        desc=("Pad the input image along the provided axis (defined by index)."
+              "Lower and upper define the number of voxels to add to the lower"
+              " and upper bounds of the axis"))
+
+    uniform = File(mandatory=False, exists=True, argstr="-uniform %s",
+                   desc=("Pad the input image by a uniform number of voxels on"
+                         " all sides (in 3D)"))
+
+    quiet = traits.Bool(  # @UndefinedVariable
+        mandatory=False, argstr="-quiet",
+        description="Don't display output during operation")
+
+
+class MRPadOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='The resultant image')
+
+
+class MRPad(CommandLine):
+    """
+    Extracts the gradient information in MRtrix format from a DWI image
+    """
+    _cmd = 'mrpad'
+    input_spec = MRPadInputSpec
+    output_spec = MRPadOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            fname = self._gen_outfilename()
+        else:
+            assert False
+        return fname
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            filename = self.inputs.out_file
+        else:
+            base, ext = split_extension(os.path.basename(self.inputs.in_file))
+            filename = os.path.join(os.getcwd(),
+                                    "{}_pad.{}".format(base, ext))
+        return filename
+
+
+# =============================================================================
 # Extract b0 or DW images
 # =============================================================================
 

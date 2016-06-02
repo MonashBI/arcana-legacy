@@ -360,8 +360,6 @@ class Pipeline(object):
         self._citations = citations
         self._options = options
         self._description = description
-        # FIXME: Should check whether these requirements are satisfied at this
-        #        point
         self._requirements = requirements
         self._approx_runtime = approx_runtime
         self._min_nthreads = min_nthreads

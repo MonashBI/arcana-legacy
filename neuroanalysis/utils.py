@@ -1,6 +1,5 @@
 
 def split_extension(filename):
-    # FIXME: Handle 'nii.gz' extension properly
     parts = filename.split('.')
     if parts[-1] == 'gz' and parts[-2] in ('nii',):
         num_ext_parts = 2
