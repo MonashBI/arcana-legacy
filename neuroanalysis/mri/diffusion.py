@@ -1,6 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
-from ..interfaces.mrtrix import DWIPreproc, MRCat, ExtractDWIorB0, MRMath
+from ..interfaces.mrtrix import (
+    DWIPreproc, MRCat, ExtractDWIorB0, MRMath, MRCrop, MRPad)
 from ..interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
@@ -59,14 +60,20 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
-    def brain_mask_pipeline(self, mask_tool='fsl', **kwargs):  # @UnusedVariable @IgnorePep8
+    def brain_mask_pipeline(self, mask_tool='bet', **kwargs):  # @UnusedVariable @IgnorePep8
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
+
+        Parameters
+        ----------
+        mask_tool: Str
+            Can be either 'bet' or 'dwi2mask' depending on which mask tool you
+            want to use
         """
         if mask_tool == 'fsl':
             pipeline = super(DiffusionDataset, self).brain_mask_pipeline(
                 **kwargs)
-        elif mask_tool == 'mrtrix3':
+        elif mask_tool == 'dwi2mask':
             pipeline = self._create_pipeline(
                 name='brain_mask',
                 inputs=['dwi_preproc'],
@@ -85,14 +92,17 @@ class DiffusionDataset(T2Dataset):
             pipeline.assert_connected()
         else:
             raise NeuroAnalysisError(
-                "Unrecognised mask_tool '{}' (valid options 'fsl' or "
-                "'mrtrix3')")
+                "Unrecognised mask_tool '{}' (valid options 'bet' or "
+                "'dwi2mask')")
         return pipeline
 
     def fod_pipeline(self):
         raise NotImplementedError
 
     def extract_b0_pipeline(self):
+        """
+        Extracts the b0 images from a DWI dataset and takes their mean
+        """
         pipeline = self._create_pipeline(
             name='extract_b0',
             inputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
@@ -172,15 +182,30 @@ class NODDIDataset(DiffusionDataset):
         pipeline.assert_connected()
         return pipeline
 
-    def noddi_fitting_pipeline(self, noddi_model='WatsonSHStickTortIsoV_B0',
-                               nthreads=4, **kwargs):  # @UnusedVariable
+    def noddi_fitting_pipeline(
+            self, noddi_model='WatsonSHStickTortIsoV_B0', single_slice=None,
+            nthreads=4, **kwargs):  # @UnusedVariable
         """
         Creates a ROI in which the NODDI processing will be performed
+
+        Parameters
+        ----------
+        single_slice: Int
+            If provided the processing is only performed on a single slice 
+            (for testing)
+        noddi_model: Str
+            Name of the NODDI model to use for the fitting
+        nthreads: Int
+            Number of processes to use
         """
+        inputs = ['dwi_preproc', 'gradient_directions', 'bvalues']
+        if single_slice is None:
+            inputs.append('brain_mask')
+        else:
+            inputs.append('eroded_mask')
         pipeline = self._create_pipeline(
             name='noddi_fitting',
-            inputs=['dwi_preproc', 'brain_mask', 'gradient_directions',
-                    'bvalues'],
+            inputs=inputs,
             outputs=['ficvf', 'odi', 'fiso', 'fibredirs_xvec',
                      'fibredirs_yvec', 'fibredirs_zvec', 'fmin', 'kappa',
                      'error_code'],
@@ -217,7 +242,10 @@ class NODDIDataset(DiffusionDataset):
                          'brain_mask_file')
         # Connect inputs
         pipeline.connect_input('dwi_preproc', unzip_preproc, 'in_file')
-        pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
+        if single_slice is None:
+            pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
+        else:
+            pipeline.connect_input('eroded_mask', unzip_mask, 'in_file')
         pipeline.connect_input('gradient_directions', batch_fit, 'bvecs_file')
         pipeline.connect_input('bvalues', batch_fit, 'bvals_file')
         # Connect outputs
