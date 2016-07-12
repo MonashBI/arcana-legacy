@@ -1,7 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
 from ..interfaces.mrtrix import (
-    DWIPreproc, MRCat, ExtractDWIorB0, MRMath, MRCrop, MRPad)
+    DWIPreproc, MRCat, ExtractDWIorB0, MRMath, DWIBiasCorrect)
 from ..interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
@@ -9,11 +9,12 @@ from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from ..interfaces.utils import MergeTuple
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
-    noddi_cite)
+    noddi_cite, fast_cite, n4_cite)
 from neuroanalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
-from neuroanalysis.requirements import fsl5_req, mrtrix3_req, Requirement
+from neuroanalysis.requirements import (
+    fsl5_req, mrtrix3_req, Requirement, ants2_req)
 from neuroanalysis.exception import NeuroAnalysisError
 
 
@@ -76,17 +77,24 @@ class DiffusionDataset(T2Dataset):
         elif mask_tool == 'dwi2mask':
             pipeline = self._create_pipeline(
                 name='brain_mask',
-                inputs=['dwi_preproc'],
+                inputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
                 outputs=['brain_mask'],
                 description="Generate brain mask from b0 images",
-                options={},
-                requirements=[],
+                options={'mask_tool': mask_tool},
+                requirements=[mrtrix3_req],
                 citations=[mrtrix_cite], approx_runtime=1)
             # Create mask node
             dwi2mask = pe.Node(BrainMask(), name='dwi2mask')
             dwi2mask.inputs.out_file = 'brain_mask.nii.gz'
-            # Connect inputs/outputs
+            # Gradient merge node
+            fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
+            # Connect nodes
+            pipeline.connect(fsl_grads, 'out', dwi2mask, 'fslgrad')
+            # Connect inputs
+            pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+            pipeline.connect_input('bvalues', fsl_grads, 'in2')
             pipeline.connect_input('dwi_preproc', dwi2mask, 'in_file')
+            # Connect outputs
             pipeline.connect_output('brain_mask', dwi2mask, 'out_file')
             # Check inputs/outputs are connected
             pipeline.assert_connected()
@@ -94,6 +102,35 @@ class DiffusionDataset(T2Dataset):
             raise NeuroAnalysisError(
                 "Unrecognised mask_tool '{}' (valid options 'bet' or "
                 "'dwi2mask')")
+        return pipeline
+
+    def bias_correct_pipeline(self, method='ants', **kwargs):  # @UnusedVariable @IgnorePep8
+        pipeline = self._create_pipeline(
+            name='bias_correct',
+            inputs=['dwi_preproc', 'brain_mask', 'gradient_directions',
+                    'bvalues'],
+            outputs=['bias_correct'],
+            description="Corrects for B1 field inhomogeneity",
+            options={'method': method},
+            requirements=[mrtrix3_req,
+                          (ants2_req if method == 'ants' else fsl5_req)],
+            citations=[fsl_cite, fast_cite, n4_cite], approx_runtime=1)
+        # Create bias correct node
+        bias_correct = pe.Node(DWIBiasCorrect(), name="bias_correct")
+        bias_correct.inputs.method = method
+        # Gradient merge node
+        fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
+        # Connect nodes
+        pipeline.connect(fsl_grads, 'out', bias_correct, 'fslgrad')
+        # Connect to inputs
+        pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+        pipeline.connect_input('bvalues', fsl_grads, 'in2')
+        pipeline.connect_input('dwi_preproc', bias_correct, 'in_file')
+        pipeline.connect_input('brain_mask', bias_correct, 'mask')
+        # Connect to outputs
+        pipeline.connect_output('bias_correct', bias_correct, 'out_file')
+        # Check inputs/output are connected
+        pipeline.assert_connected()
         return pipeline
 
     def fod_pipeline(self):
@@ -150,6 +187,7 @@ class DiffusionDataset(T2Dataset):
         [('mri_scan', (extract_b0_pipeline, nifti_gz_format)),
          ('fod', (fod_pipeline, mrtrix_format)),
          ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
+         ('bias_correct', (bias_correct_pipeline, nifti_gz_format)),
          ('gradient_directions', (preprocess_pipeline, fsl_bvecs_format)),
          ('bvalues', (preprocess_pipeline, fsl_bvals_format))])
 
@@ -191,7 +229,7 @@ class NODDIDataset(DiffusionDataset):
         Parameters
         ----------
         single_slice: Int
-            If provided the processing is only performed on a single slice 
+            If provided the processing is only performed on a single slice
             (for testing)
         noddi_model: Str
             Name of the NODDI model to use for the fitting

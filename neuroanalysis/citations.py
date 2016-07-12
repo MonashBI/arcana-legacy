@@ -157,3 +157,19 @@ bet2_cite = Citation(
     proceedings=(
         "Eleventh Annual Meeting of the Organization for Human Brain Mapping"),
     year=2005)
+
+fast_cite = Citation(
+    short_name="FAST",
+    authors=["Zhang, Y.", "Brady, M.", "Smith, S."],
+    title=("Segmentation of brain MR images through a hidden Markov random "
+           "field model and the expectation-maximization algorithm"),
+    proceedings=("IEEE Transactions on Medical Imaging"),
+    year=2001, volume=20, pages='45-57')
+
+n4_cite = Citation(
+    short_name='n4',
+    authors=["Tustison, N.", " Avants, B.", " Cook, P.", " Zheng, Y.",
+             " Egan, A.", " Yushkevich, P.", "Gee, J."],
+    title=("N4ITK: Improved N3 Bias Correction"),
+    proceedings=("IEEE Transactions on Medical Imaging"), year=2010, volume=29,
+    pages='1310-1320')

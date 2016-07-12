@@ -49,6 +49,23 @@ class TestDiffusion(TestCase):
                 self._session_dir(self.EXAMPLE_INPUT_PROJECT),
                 '{}_mri_scan.nii.gz'.format(self.DATASET_NAME))))
 
+    def test_bias_correct(self):
+        self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
+        dataset = DiffusionDataset(
+            name=self.DATASET_NAME,
+            project_id=self.EXAMPLE_INPUT_PROJECT,
+            archive=LocalArchive(self.ARCHIVE_PATH),
+            input_scans={
+                'dwi_preproc': Scan('NODDI_DWI', analyze_format),
+                'gradient_directions': Scan('NODDI_protocol',
+                                            fsl_bvecs_format),
+                'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+        dataset.bias_correct_pipeline(mask_tool='dwi2mask').run()
+        self.assert_(
+            os.path.exists(os.path.join(
+                self._session_dir(self.EXAMPLE_INPUT_PROJECT),
+                '{}_bias_correct.nii.gz'.format(self.DATASET_NAME))))
+
 
 class TestNODDI(TestCase):
 

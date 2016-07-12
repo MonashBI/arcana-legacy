@@ -21,3 +21,5 @@ class Requirement(object):
 mrtrix3_req = Requirement('mrtrix3', min_version=(0, 3, 12))
 
 fsl5_req = Requirement('fsl', min_version=(5, 0))
+
+ants2_req = Requirement('ANTs', min_version=(2, 0))

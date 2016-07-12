@@ -498,6 +498,139 @@ class DWIPreproc(CommandLine):
         return out_name
 
 
+class DWI2MaskInputSpec(CommandLineInputSpec):
+    # Arguments
+    bvalue_scaling = File(
+        mandatory=False, argstr='-bvalue_scaling %s',
+        desc=("specifies whether the b-values should be scaled by the square "
+              "of the corresponding DW gradient norm, as often required for "
+              "multi-shell or DSI DW acquisition schemes. The default action "
+              "can also be set in the MRtrix config file, under the "
+              "BValueScaling entry. Valid choices are yes/no, true/false, "
+              "0/1 (default: true)."))
+    in_file = traits.Str(  # @UndefinedVariable
+        mandatory=True, argstr='%s',
+        desc=("The input DWI series to be corrected"), position=-2)
+    out_file = File(
+        genfile=True, argstr='%s', position=-1, hash_files=False,
+        desc="Output preprocessed filename")
+    grad = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-grad %s',
+        desc=("specify the diffusion-weighted gradient scheme used in the  "
+              "acquisition. The program will normally attempt to use the  "
+              "encoding stored in the image header. This should be supplied  "
+              "as a 4xN text file with each line is in the format [ X Y Z b ],"
+              " where [ X Y Z ] describe the direction of the applied  "
+              "gradient, and b gives the b-value in units of s/mm^2."))
+    
+    fslgrad = traits.Tuple(  # @UndefinedVariable
+        File(exists=True, desc="gradient directions file (bvec)"),  # @UndefinedVariable @IgnorePep8
+        File(exists=True, desc="b-values (bval)"),  # @UndefinedVariable @IgnorePep8
+        argstr='-fslgrad %s %s', mandatory=False,
+        desc=("specify the diffusion-weighted gradient scheme used in the "
+              "acquisition in FSL bvecs/bvals format."))
+
+
+class DWI2MaskOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='Bias-corrected DWI dataset')
+
+
+class DWI2Mask(CommandLine):
+
+    _cmd = 'dwi2mask'
+    input_spec = DWI2MaskInputSpec
+    output_spec = DWI2MaskOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            gen_name = self._gen_outfilename()
+        else:
+            assert False
+        return gen_name
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            out_name = self.inputs.out_file
+        else:
+            base, ext = split_extension(
+                os.path.basename(self.inputs.in_file))
+            out_name = os.path.join(
+                os.getcwd(), "{}_biascorrect.{}".format(base, ext))
+        return out_name
+
+
+class DWIBiasCorrectInputSpec(CommandLineInputSpec):
+    # Arguments
+    mask = File(
+        mandatory=True, argstr='-mask %s',
+        desc=("Whole brain mask"))
+    method = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-%s',
+        desc=("Method used to correct for biases (either 'fsl' or 'ants')"))
+    bias = File(
+        mandatory=False, argstr='-bias %s',
+        desc=("Output the estimated bias field"))
+    in_file = traits.Str(  # @UndefinedVariable
+        mandatory=True, argstr='%s',
+        desc=("The input DWI series to be corrected"), position=-2)
+    out_file = File(
+        genfile=True, argstr='%s', position=-1, hash_files=False,
+        desc="Output preprocessed filename")
+    grad = traits.Str(  # @UndefinedVariable
+        mandatory=False, argstr='-grad %s',
+        desc=("specify the diffusion-weighted gradient scheme used in the  "
+              "acquisition. The program will normally attempt to use the  "
+              "encoding stored in the image header. This should be supplied  "
+              "as a 4xN text file with each line is in the format [ X Y Z b ],"
+              " where [ X Y Z ] describe the direction of the applied  "
+              "gradient, and b gives the b-value in units of s/mm^2."))
+
+    fslgrad = traits.Tuple(  # @UndefinedVariable
+        File(exists=True, desc="gradient directions file (bvec)"),  # @UndefinedVariable @IgnorePep8
+        File(exists=True, desc="b-values (bval)"),  # @UndefinedVariable @IgnorePep8
+        argstr='-fslgrad %s %s', mandatory=False,
+        desc=("specify the diffusion-weighted gradient scheme used in the "
+              "acquisition in FSL bvecs/bvals format."))
+
+
+class DWIBiasCorrectOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc='Bias-corrected DWI dataset')
+
+
+class DWIBiasCorrect(CommandLine):
+
+    _cmd = 'dwibiascorrect'
+    input_spec = DWIBiasCorrectInputSpec
+    output_spec = DWIBiasCorrectOutputSpec
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['out_file'] = self._gen_outfilename()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            gen_name = self._gen_outfilename()
+        else:
+            assert False
+        return gen_name
+
+    def _gen_outfilename(self):
+        if isdefined(self.inputs.out_file):
+            out_name = self.inputs.out_file
+        else:
+            base, ext = split_extension(  
+                os.path.basename(self.inputs.in_file))
+            out_name = os.path.join(
+                os.getcwd(), "{}_biascorrect.{}".format(base, ext))
+        return out_name
+
+
 class MRCatInputSpec(CommandLineInputSpec):
 
     first_scan = traits.File(  # @UndefinedVariable
