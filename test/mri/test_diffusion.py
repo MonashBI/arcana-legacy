@@ -40,8 +40,7 @@ class TestDiffusion(TestCase):
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 'dwi_preproc': Scan('NODDI_DWI', analyze_format),
-                'gradient_directions': Scan('NODDI_protocol',
-                                            fsl_bvecs_format),
+                'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
                 'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
         dataset.extract_b0_pipeline().run()
         self.assert_(
@@ -57,8 +56,7 @@ class TestDiffusion(TestCase):
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 'dwi_preproc': Scan('NODDI_DWI', analyze_format),
-                'gradient_directions': Scan('NODDI_protocol',
-                                            fsl_bvecs_format),
+                'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
                 'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
         dataset.bias_correct_pipeline(mask_tool='dwi2mask').run()
         self.assert_(
@@ -96,8 +94,7 @@ class TestNODDI(TestCase):
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={'dwi_preproc': Scan('NODDI_DWI', analyze_format),
                          'brain_mask': Scan('roi_mask', analyze_format),
-                         'gradient_directions': Scan('NODDI_protocol',
-                                                     fsl_bvecs_format),
+                         'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
                          'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
         dataset.noddi_fitting_pipeline(nthreads=nthreads).run()
         ref_out_path = os.path.join(
