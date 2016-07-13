@@ -1,5 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask
+from nipype.interfaces.mrtrix3.reconst import FitTensor, EstimateFOD
+from nipype.interfaces.mrtrix3.preprocess import ResponseSD
 from ..interfaces.mrtrix import (
     DWIPreproc, MRCat, ExtractDWIorB0, MRMath, DWIBiasCorrect)
 from ..interfaces.noddi import (
@@ -32,7 +34,7 @@ class DiffusionDataset(T2Dataset):
         pipeline = self._create_pipeline(
             name='preprocess',
             inputs=['dwi_scan', 'forward_rpe', 'reverse_rpe'],
-            outputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
+            outputs=['dwi_preproc', 'grad_dirs', 'bvalues'],
             description="Preprocess dMRI datasets using distortion correction",
             options={'phase_dir': phase_dir},
             requirements=[mrtrix3_req, fsl5_req],
@@ -54,7 +56,7 @@ class DiffusionDataset(T2Dataset):
         pipeline.connect_input('reverse_rpe', dwipreproc, 'reverse_rpe')
         # Connect outputs
         pipeline.connect_output('dwi_preproc', mrconvert, 'out_file')
-        pipeline.connect_output('gradient_directions', extract_grad,
+        pipeline.connect_output('grad_dirs', extract_grad,
                                 'bvecs_file')
         pipeline.connect_output('bvalues', extract_grad, 'bvals_file')
         # Check inputs/outputs are connected
@@ -77,7 +79,7 @@ class DiffusionDataset(T2Dataset):
         elif mask_tool == 'dwi2mask':
             pipeline = self._create_pipeline(
                 name='brain_mask',
-                inputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
+                inputs=['dwi_preproc', 'grad_dirs', 'bvalues'],
                 outputs=['brain_mask'],
                 description="Generate brain mask from b0 images",
                 options={'mask_tool': mask_tool},
@@ -91,7 +93,7 @@ class DiffusionDataset(T2Dataset):
             # Connect nodes
             pipeline.connect(fsl_grads, 'out', dwi2mask, 'fslgrad')
             # Connect inputs
-            pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+            pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
             pipeline.connect_input('bvalues', fsl_grads, 'in2')
             pipeline.connect_input('dwi_preproc', dwi2mask, 'in_file')
             # Connect outputs
@@ -104,26 +106,31 @@ class DiffusionDataset(T2Dataset):
                 "'dwi2mask')")
         return pipeline
 
-    def bias_correct_pipeline(self, method='ants', **kwargs):  # @UnusedVariable @IgnorePep8
+    def bias_correct_pipeline(self, bias_method='ants', **kwargs):  # @UnusedVariable @IgnorePep8
+        """
+        Corrects B1 field inhomogeneities
+        """
         pipeline = self._create_pipeline(
             name='bias_correct',
-            inputs=['dwi_preproc', 'brain_mask', 'gradient_directions',
+            inputs=['dwi_preproc', 'brain_mask', 'grad_dirs',
                     'bvalues'],
             outputs=['bias_correct'],
             description="Corrects for B1 field inhomogeneity",
-            options={'method': method},
+            options={'method': bias_method},
             requirements=[mrtrix3_req,
-                          (ants2_req if method == 'ants' else fsl5_req)],
-            citations=[fsl_cite, fast_cite, n4_cite], approx_runtime=1)
+                          (ants2_req if bias_method == 'ants' else fsl5_req)],
+            citations=[fast_cite,
+                       (n4_cite if bias_method == 'ants' else fsl_cite)],
+            approx_runtime=1)
         # Create bias correct node
         bias_correct = pe.Node(DWIBiasCorrect(), name="bias_correct")
-        bias_correct.inputs.method = method
+        bias_correct.inputs.method = bias_method
         # Gradient merge node
         fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
         # Connect nodes
         pipeline.connect(fsl_grads, 'out', bias_correct, 'fslgrad')
         # Connect to inputs
-        pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+        pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
         pipeline.connect_input('bvalues', fsl_grads, 'in2')
         pipeline.connect_input('dwi_preproc', bias_correct, 'in_file')
         pipeline.connect_input('brain_mask', bias_correct, 'mask')
@@ -133,8 +140,79 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
-    def fod_pipeline(self):
-        raise NotImplementedError
+    def tensor_pipeline(self):
+        """
+        Fits the apparrent diffusion tensor (DT) to each voxel of the image
+        """
+        pipeline = self._create_pipeline(
+            name='tensor',
+            inputs=['bias_correct', 'grad_dirs', 'bvalues', 'brain_mask'],
+            outputs=['tensor'],
+            description=("Estimates the apparrent diffusion tensor in each "
+                         "voxel"),
+            options={},
+            citations=[],
+            approx_runtime=1)
+        # Create tensor fit node
+        dwi2tensor = pe.Node(FitTensor(), name='dwi2tensor')
+        # Gradient merge node
+        fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
+        # Connect nodes
+        pipeline.connect(fsl_grads, 'out', dwi2tensor, 'fslgrad')
+        # Connect to inputs
+        pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
+        pipeline.connect_input('bvalues', fsl_grads, 'in2')
+        pipeline.connect_input('bias_correct', dwi2tensor, 'in_file')
+        pipeline.connect_input('brain_mask', dwi2tensor, 'mask')
+        # Connect to outputs
+        pipeline.connect_output('dwi2tensor', dwi2tensor, 'out_file')
+        # Check inputs/output are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def fod_pipeline(self, lmax=8):
+        """
+        Estimates the fibre orientation distribution (FOD) using constrained
+        spherical deconvolution
+
+        Parameters
+        ----------
+        lmax : int
+            The maximum harmonic degree(s) of response function
+            estimation (single value for single-shell response,
+            comma-separated list for multi-shell response)
+        """
+        pipeline = self._create_pipeline(
+            name='fod',
+            inputs=['bias_correct', 'grad_dirs', 'bvalues', 'brain_mask'],
+            outputs=['fod'],
+            description=("Estimates the fibre orientation distribution in each"
+                         " voxel"),
+            options={},
+            citations=[],
+            approx_runtime=1)
+        # Create fod fit node
+        dwi2fod = pe.Node(EstimateFOD(), name='dwi2fod')
+        response = pe.Node(ResponseSD(), name='response')
+        response.inputs.max_sh = lmax
+        # Gradient merge node
+        fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
+        # Connect nodes
+        pipeline.connect(fsl_grads, 'out', response, 'fslgrad')
+        pipeline.connect(fsl_grads, 'out', dwi2fod, 'fslgrad')
+        pipeline.connect(response, 'out_file', dwi2fod, 'response')
+        # Connect to inputs
+        pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
+        pipeline.connect_input('bvalues', fsl_grads, 'in2')
+        pipeline.connect_input('bias_correct', dwi2fod, 'in_file')
+        pipeline.connect_input('bias_correct', response, 'in_file')
+        pipeline.connect_input('brain_mask', dwi2fod, 'mask')
+        pipeline.connect_input('brain_mask', response, 'in_mask')
+        # Connect to outputs
+        pipeline.connect_output('dwi2fod', dwi2fod, 'out_file')
+        # Check inputs/output are connected
+        pipeline.assert_connected()
+        return pipeline
 
     def extract_b0_pipeline(self):
         """
@@ -142,7 +220,7 @@ class DiffusionDataset(T2Dataset):
         """
         pipeline = self._create_pipeline(
             name='extract_b0',
-            inputs=['dwi_preproc', 'gradient_directions', 'bvalues'],
+            inputs=['dwi_preproc', 'grad_dirs', 'bvalues'],
             outputs=['mri_scan'],
             description="Extract b0 image from a DWI dataset",
             options={}, requirements=[mrtrix3_req], citations=[mrtrix_cite],
@@ -164,7 +242,7 @@ class DiffusionDataset(T2Dataset):
         mrconvert.inputs.quiet = True
         # Connect inputs
         pipeline.connect_input('dwi_preproc', extract_b0s, 'in_file')
-        pipeline.connect_input('gradient_directions', fsl_grads, 'in1')
+        pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
         pipeline.connect_input('bvalues', fsl_grads, 'in2')
         # Connect between nodes
         pipeline.connect(extract_b0s, 'out_file', mean, 'in_file')
@@ -185,10 +263,11 @@ class DiffusionDataset(T2Dataset):
     generated_components = dict(
         T2Dataset.generated_components.items() +
         [('mri_scan', (extract_b0_pipeline, nifti_gz_format)),
-         ('fod', (fod_pipeline, mrtrix_format)),
+         ('tensor', (tensor_pipeline, nifti_gz_format)),
+         ('fod', (tensor_pipeline, mrtrix_format)),
          ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
          ('bias_correct', (bias_correct_pipeline, nifti_gz_format)),
-         ('gradient_directions', (preprocess_pipeline, fsl_bvecs_format)),
+         ('grad_dirs', (preprocess_pipeline, fsl_bvecs_format)),
          ('bvalues', (preprocess_pipeline, fsl_bvals_format))])
 
 
@@ -236,7 +315,7 @@ class NODDIDataset(DiffusionDataset):
         nthreads: Int
             Number of processes to use
         """
-        inputs = ['dwi_preproc', 'gradient_directions', 'bvalues']
+        inputs = ['dwi_preproc', 'grad_dirs', 'bvalues']
         if single_slice is None:
             inputs.append('brain_mask')
         else:
@@ -284,7 +363,7 @@ class NODDIDataset(DiffusionDataset):
             pipeline.connect_input('brain_mask', unzip_mask, 'in_file')
         else:
             pipeline.connect_input('eroded_mask', unzip_mask, 'in_file')
-        pipeline.connect_input('gradient_directions', batch_fit, 'bvecs_file')
+        pipeline.connect_input('grad_dirs', batch_fit, 'bvecs_file')
         pipeline.connect_input('bvalues', batch_fit, 'bvals_file')
         # Connect outputs
         pipeline.connect_output('ficvf', save_params, 'ficvf')
