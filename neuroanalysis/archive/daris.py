@@ -2,7 +2,9 @@ import os.path
 import shutil
 import subprocess
 import stat
+import tempfile
 import logging
+from collections import defaultdict
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, traits, isdefined)
@@ -12,9 +14,52 @@ from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec)
 from .base import Session
+import getpass
 
 
 logger = logging.getLogger('NeuroAnalysis')
+
+
+def swap_session_ids(self, project_id, subject_id, old_study_id, new_study_id,
+                     new_subject_id=None, repo_id=2, processed=False,
+                     tmp_dir=None):
+    """
+    Swaps a study and its meta-data from an incorrect ID to the desired one
+    """
+    if tmp_dir is None:
+        tmp_dir = tempfile.mkdtemp()
+        del_tmp_dir = True
+    else:
+        del_tmp_dir = False
+    if new_subject_id is None:
+        new_subject_id = new_subject_id
+    password = getpass.getpass("Daris password for 'manager': ")
+    with DarisSession(user='manager',
+                      password=password, domain='system') as daris:
+        metadata = defaultdict(dict)
+        old_study = daris.get_studies(
+            project_id, subject_id,
+            processed=processed, repo_id=repo_id)[old_study_id]
+        for scan in daris.get_files(project_id, subject_id,
+                                    study_id=old_study_id,
+                                    repo_id=repo_id, processed=processed):
+            daris.download(os.path.join(tmp_dir, scan.id), project_id,
+                           subject_id, study_id=old_study_id,
+                           repo_id=repo_id, processed=processed)
+            metadata[scan.id]['name'] = scan.name
+        daris.add_study(project_id, subject_id, study_id=new_study_id,
+                        name=old_study.name, description=old_study.description,
+                        processed=processed, repo_id=repo_id)
+        for id, meta in metadata.iteritems():
+            daris.add_file(project_id, subject_id, study_id=new_study_id,
+                           file_id=id, name=meta['name'],
+                           description=meta['description'],
+                           processed=processed, repo_id=repo_id)
+            daris.upload(os.path.join(tmp_dir, id),
+                         project_id, subject_id, study_id=new_study_id,
+                           file_id=id, processed=processed, repo_id=repo_id)
+    if del_tmp_dir:
+        shutil.rmtree(tmp_dir)
 
 
 class DarisSourceInputSpec(ArchiveSourceInputSpec):
@@ -393,8 +438,10 @@ class DarisSession:
             name = os.path.basename(location)
         # Determine whether file is NifTI depending on file extension
         # FIXME: Need a better way to determine the filetype
-        if file_format is 'nifti' or location.endswith('.nii.gz'):
+        if file_format == 'nifti' or location.endswith('.nii.gz'):
             file_format = " :lctype nifti/series "
+        elif file_format == 'dicom':
+            file_format = " :lctype dicom/series"
         else:
             file_format = ""
         cmd = (

@@ -173,3 +173,14 @@ n4_cite = Citation(
     title=("N4ITK: Improved N3 Bias Correction"),
     proceedings=("IEEE Transactions on Medical Imaging"), year=2010, volume=29,
     pages='1310-1320')
+
+
+tbss_cite = Citation(
+    short_name='tbss',
+    authors=['Smith, S.M.', 'Jenkinson, M.', 'Johansen-Berg, H.',
+             'Rueckert, D.', 'Nichols, T.E.', 'Mackay, C.E.', 'Watkins, K.E.',
+             'Ciccarelli, O.', 'Cader, M.Z.', 'Matthews, P.M.',
+             'Behrens, T.E.J.'],
+    title=("Tract-based spatial statistics: Voxelwise analysis of "
+           "multi-subject diffusion data"),
+    journal="NeuroImage", volume=31, pages='1487-1505', year=2006)

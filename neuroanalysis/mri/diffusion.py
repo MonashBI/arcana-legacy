@@ -4,6 +4,7 @@ from nipype.interfaces.mrtrix3.reconst import FitTensor, EstimateFOD
 from nipype.interfaces.mrtrix3.preprocess import ResponseSD
 from ..interfaces.mrtrix import (
     DWIPreproc, MRCat, ExtractDWIorB0, MRMath, DWIBiasCorrect)
+from nipype.workflows.dmri.fsl.tbss import create_tbss_all
 from ..interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
@@ -11,7 +12,7 @@ from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from ..interfaces.utils import MergeTuple
 from neuroanalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
-    noddi_cite, fast_cite, n4_cite)
+    noddi_cite, fast_cite, n4_cite, tbss_cite)
 from neuroanalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
@@ -152,6 +153,7 @@ class DiffusionDataset(T2Dataset):
                          "voxel"),
             options={},
             citations=[],
+            requirements=[mrtrix3_req],
             approx_runtime=1)
         # Create tensor fit node
         dwi2tensor = pe.Node(FitTensor(), name='dwi2tensor')
@@ -170,17 +172,44 @@ class DiffusionDataset(T2Dataset):
         pipeline.assert_connected()
         return pipeline
 
-    def fod_pipeline(self, lmax=8):
+    def fa_pipeline(self):
+        """
+        Fits the apparrent diffusion tensor (DT) to each voxel of the image
+        """
+        pipeline = self._create_pipeline(
+            name='tensor',
+            inputs=['bias_correct', 'grad_dirs', 'bvalues', 'brain_mask'],
+            outputs=['tensor'],
+            description=("Estimates the apparrent diffusion tensor in each "
+                         "voxel"),
+            options={},
+            citations=[],
+            requirements=[mrtrix3_req],
+            approx_runtime=1)
+        # Create tensor fit node
+        dwi2tensor = pe.Node(FitTensor(), name='dwi2tensor')
+        # Gradient merge node
+        fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
+        # Connect nodes
+        pipeline.connect(fsl_grads, 'out', dwi2tensor, 'fslgrad')
+        # Connect to inputs
+        pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
+        pipeline.connect_input('bvalues', fsl_grads, 'in2')
+        pipeline.connect_input('bias_correct', dwi2tensor, 'in_file')
+        pipeline.connect_input('brain_mask', dwi2tensor, 'mask')
+        # Connect to outputs
+        pipeline.connect_output('dwi2tensor', dwi2tensor, 'out_file')
+        # Check inputs/output are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def fod_pipeline(self):
         """
         Estimates the fibre orientation distribution (FOD) using constrained
         spherical deconvolution
 
         Parameters
         ----------
-        lmax : int
-            The maximum harmonic degree(s) of response function
-            estimation (single value for single-shell response,
-            comma-separated list for multi-shell response)
         """
         pipeline = self._create_pipeline(
             name='fod',
@@ -189,12 +218,11 @@ class DiffusionDataset(T2Dataset):
             description=("Estimates the fibre orientation distribution in each"
                          " voxel"),
             options={},
-            citations=[],
+            citations=[mrtrix_cite],
             approx_runtime=1)
         # Create fod fit node
         dwi2fod = pe.Node(EstimateFOD(), name='dwi2fod')
         response = pe.Node(ResponseSD(), name='response')
-        response.inputs.max_sh = lmax
         # Gradient merge node
         fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
         # Connect nodes
@@ -210,6 +238,33 @@ class DiffusionDataset(T2Dataset):
         pipeline.connect_input('brain_mask', response, 'in_mask')
         # Connect to outputs
         pipeline.connect_output('dwi2fod', dwi2fod, 'out_file')
+        # Check inputs/output are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def tbss_pipeline(self, tbss_skel_thresh=0.2):
+        pipeline = self._create_pipeline(
+            'tbss',
+            inputs=['fa'],
+            outputs=['tbss_mean_fa', 'tbss_proj_fa', 'tbss_skeleton',
+                     'tbss_skeleton_mask'],
+            options={'tbss_skel_thresh': tbss_skel_thresh},
+            citations=[tbss_cite, fsl_cite],
+            requirements=[fsl5_req],
+            approx_runtime=1)
+        # Create TBSS workflow
+        tbss = create_tbss_all(name='tbss')
+        # Connect inputs
+        pipeline.connect_input('fa', tbss, 'inputnode.fa_list')
+        # Connect outputs
+        pipeline.connect_output('tbss_mean_fa', tbss,
+                                'outputnode.meanfa_file')
+        pipeline.connect_output('tbss_proj_fa', tbss,
+                                'outputnode.projectedfa_file')
+        pipeline.connect_output('tbss_skeleton', tbss,
+                                'outputnode.skeleton_file')
+        pipeline.connect_output('tbss_skeleton_mask', tbss,
+                                'outputnode.skeleton_mask')
         # Check inputs/output are connected
         pipeline.assert_connected()
         return pipeline
@@ -268,7 +323,11 @@ class DiffusionDataset(T2Dataset):
          ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
          ('bias_correct', (bias_correct_pipeline, nifti_gz_format)),
          ('grad_dirs', (preprocess_pipeline, fsl_bvecs_format)),
-         ('bvalues', (preprocess_pipeline, fsl_bvals_format))])
+         ('bvalues', (preprocess_pipeline, fsl_bvals_format)),
+         ('tbss_mean_fa', (tbss_pipeline, nifti_gz_format)),
+         ('tbss_proj_fa', (tbss_pipeline, nifti_gz_format)),
+         ('tbss_skeleton', (tbss_pipeline, nifti_gz_format)),
+         ('tbss_skeleton_mask', (tbss_pipeline, nifti_gz_format))])
 
 
 class NODDIDataset(DiffusionDataset):
