@@ -284,7 +284,7 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [name + '.' + ext
+        return add_traits(base, [(name + '.' + ext if ext else name)
                                  for name, ext, _ in self.inputs.files])
 
 

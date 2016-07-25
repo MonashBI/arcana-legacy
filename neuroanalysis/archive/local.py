@@ -31,7 +31,7 @@ class LocalSource(ArchiveSource):
             self.inputs.session[0], self.inputs.session[1])))
         outputs = {}
         for name, ext, _ in self.inputs.files:
-            fname = name + '.' + ext
+            fname = (name + '.' + ext if ext else name)
             outputs[fname] = os.path.join(session_dir, fname)
         return outputs
 
@@ -134,6 +134,17 @@ class LocalArchive(Archive):
                     except TypeError:
                         study_ids = study_id
                     study_dirs = [d for d in study_dirs if d in study_ids]
+                if not all(os.path.isdir(os.path.join(project_dir,
+                                                      subject_dir, d))
+                           for d in study_dirs):
+                    raise NeuroAnalysisError(
+                        "Files found in local archive subject directory '{}' "
+                        "('{}') instead of study directories".format(
+                            os.path.join(project_dir, subject_dir),
+                            "', '".join(
+                                d for d in study_dirs
+                                if not os.path.isdir(os.path.join(
+                                    project_dir, subject_dir, d)))))
                 sessions.extend(Session(subject_dir, study_dir)
                                 for study_dir in study_dirs)
         return sessions

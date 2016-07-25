@@ -50,7 +50,7 @@ def swap_session_ids(self, project_id, subject_id, old_study_id, new_study_id,
         daris.add_study(project_id, subject_id, study_id=new_study_id,
                         name=old_study.name, description=old_study.description,
                         processed=processed, repo_id=repo_id)
-        for id, meta in metadata.iteritems():
+        for id, meta in metadata.iteritems():  # @ReservedAssignment
             daris.add_file(project_id, subject_id, study_id=new_study_id,
                            file_id=id, name=meta['name'],
                            description=meta['description'],

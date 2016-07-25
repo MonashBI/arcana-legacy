@@ -219,6 +219,7 @@ class DiffusionDataset(T2Dataset):
                          " voxel"),
             options={},
             citations=[mrtrix_cite],
+            requirements=[mrtrix3_req],
             approx_runtime=1)
         # Create fod fit node
         dwi2fod = pe.Node(EstimateFOD(), name='dwi2fod')
@@ -226,18 +227,18 @@ class DiffusionDataset(T2Dataset):
         # Gradient merge node
         fsl_grads = pe.Node(MergeTuple(2), name="fsl_grads")
         # Connect nodes
-        pipeline.connect(fsl_grads, 'out', response, 'fslgrad')
-        pipeline.connect(fsl_grads, 'out', dwi2fod, 'fslgrad')
+        pipeline.connect(fsl_grads, 'out', response, 'grad_fsl')
+        pipeline.connect(fsl_grads, 'out', dwi2fod, 'grad_fsl')
         pipeline.connect(response, 'out_file', dwi2fod, 'response')
         # Connect to inputs
         pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
         pipeline.connect_input('bvalues', fsl_grads, 'in2')
         pipeline.connect_input('bias_correct', dwi2fod, 'in_file')
         pipeline.connect_input('bias_correct', response, 'in_file')
-        pipeline.connect_input('brain_mask', dwi2fod, 'mask')
+#         pipeline.connect_input('brain_mask', dwi2fod, 'mask')
         pipeline.connect_input('brain_mask', response, 'in_mask')
         # Connect to outputs
-        pipeline.connect_output('dwi2fod', dwi2fod, 'out_file')
+        pipeline.connect_output('fod', dwi2fod, 'out_file')
         # Check inputs/output are connected
         pipeline.assert_connected()
         return pipeline
