@@ -8,7 +8,7 @@ from neuroanalysis.file_formats import nifti_gz_format
 
 class MRDataset(Dataset):
 
-    def brain_mask_pipeline(self, **kwargs):  # @UnusedVariable
+    def brain_mask_pipeline(self, robust=True, **kwargs):  # @UnusedVariable
         """
         Generates a whole brain mask using MRtrix's 'dwi2mask' command
         """
@@ -23,6 +23,7 @@ class MRDataset(Dataset):
         # Create mask node
         bet = pe.Node(interface=fsl.BET(), name="bet")
         bet.inputs.mask = True
+        bet.inputs.robust = robust
         # Connect inputs/outputs
         pipeline.connect_input('mri_scan', bet, 'in_file')
         pipeline.connect_output('masked_mri_scan', bet, 'out_file')
