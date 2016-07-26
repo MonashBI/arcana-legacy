@@ -2,8 +2,8 @@ import os.path
 import shutil
 from unittest import TestCase
 from nipype.pipeline import engine as pe
-from neuroanalysis.base import Dataset, Pipeline
-from neuroanalysis.interfaces.mrtrix import MRConvert
+from nianalysis.base import Dataset, Pipeline
+from nianalysis.interfaces.mrtrix import MRConvert
 
 
 TEST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '_data',

@@ -1,9 +1,9 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
 from ..base import Dataset
-from neuroanalysis.requirements import Requirement
-from neuroanalysis.citations import fsl_cite, bet_cite, bet2_cite
-from neuroanalysis.file_formats import nifti_gz_format
+from nianalysis.requirements import Requirement
+from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
+from nianalysis.file_formats import nifti_gz_format
 
 
 class MRDataset(Dataset):

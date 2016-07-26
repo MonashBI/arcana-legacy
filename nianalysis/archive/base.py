@@ -5,7 +5,7 @@ from nipype.interfaces.io import IOBase, add_traits, DataSink
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined, Undefined)
-from neuroanalysis.file_formats import FileFormat
+from nianalysis.file_formats import FileFormat
 
 
 class Scan(object):
@@ -158,7 +158,7 @@ class Archive(object):
         project_id : str
             The ID of the project to return the sessions for
         input_files : List[BaseFile]
-            An iterable of neuroanalysis.BaseFile objects, which specify the
+            An iterable of nianalysis.BaseFile objects, which specify the
             files to extract from the archive system for each session
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
@@ -187,7 +187,7 @@ class Archive(object):
     @abstractmethod
     def all_sessions(self, project_id, study_id=None):
         """
-        Returns a neuroanalysis.Session object for each session acquired
+        Returns a nianalysis.Session object for each session acquired
         for the project.
 
         Parameters
@@ -202,12 +202,12 @@ class Archive(object):
     @abstractmethod
     def sessions_with_file(self, file_, project_id, sessions=None):
         """
-        Returns all the sessions (neuroanalysis.Session) in the given project
+        Returns all the sessions (nianalysis.Session) in the given project
         that contain the given file
 
         Parameters
         ----------
-        file_ : neuroanalysis.BaseFile
+        file_ : nianalysis.BaseFile
             A file object which all sessions will be checked against to see
             whether they contain it
         project_id : str

@@ -1,6 +1,6 @@
 from copy import deepcopy
 from unittest import TestCase
-from neuroanalysis.archive.base import ArchiveSinkInputSpec
+from nianalysis.archive.base import ArchiveSinkInputSpec
 import multiprocessing
 
 

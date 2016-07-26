@@ -8,7 +8,7 @@ from collections import defaultdict
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, traits, isdefined)
-from neuroanalysis.exception import (
+from nianalysis.exception import (
     DarisException, DarisNameNotFoundException)
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,

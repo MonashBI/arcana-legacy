@@ -3,9 +3,9 @@ import shutil
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from neuroanalysis.archive.local import LocalArchive
-from neuroanalysis import Scan
-from neuroanalysis.file_formats import nifti_gz_format
+from nianalysis.archive.local import LocalArchive
+from nianalysis import Scan
+from nianalysis.file_formats import nifti_gz_format
 
 
 class TestLocalArchive(TestCase):

@@ -4,11 +4,11 @@ import hashlib
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from neuroanalysis.archive.daris import (
+from nianalysis.archive.daris import (
     DarisSession, DarisArchive)
-from neuroanalysis.exception import DarisException
-from neuroanalysis import Scan, Session
-from neuroanalysis.file_formats import nifti_gz_format
+from nianalysis.exception import DarisException
+from nianalysis import Scan, Session
+from nianalysis.file_formats import nifti_gz_format
 
 
 # The projects/subjects/studies to alter on DaRIS

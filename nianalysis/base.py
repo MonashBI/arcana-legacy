@@ -4,11 +4,11 @@ from itertools import chain
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
-from neuroanalysis.exception import (
+from nianalysis.exception import (
     AcquiredComponentException, NoMatchingPipelineException,
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
-from neuroanalysis.exception import (
+from nianalysis.exception import (
     NeuroAnalysisScanNameError, NeuroAnalysisMissingScanError)
 from .archive import Scan, Session
 

@@ -2,15 +2,15 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from neuroanalysis.archive import Scan  # @IgnorePep8
-from neuroanalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
-from neuroanalysis.archive import LocalArchive  # @IgnorePep8
-from neuroanalysis.file_formats import (  # @IgnorePep8
+from nianalysis.archive import Scan  # @IgnorePep8
+from nianalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
+from nianalysis.archive import LocalArchive  # @IgnorePep8
+from nianalysis.file_formats import (  # @IgnorePep8
     mrtrix_format, analyze_format, fsl_bvals_format, fsl_bvecs_format)
 if __name__ == '__main__':
-    from neuroanalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport
+    from nianalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport
 else:
-    from neuroanalysis.testing import BaseImageTestCase as TestCase  # @IgnorePep8 @Reimport
+    from nianalysis.testing import BaseImageTestCase as TestCase  # @IgnorePep8 @Reimport
 
 
 class TestDiffusion(TestCase):

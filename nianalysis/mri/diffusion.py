@@ -10,15 +10,15 @@ from ..interfaces.noddi import (
 from .t2 import T2Dataset
 from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from ..interfaces.utils import MergeTuple
-from neuroanalysis.citations import (
+from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
-from neuroanalysis.file_formats import (
+from nianalysis.file_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
-from neuroanalysis.requirements import (
+from nianalysis.requirements import (
     fsl5_req, mrtrix3_req, Requirement, ants2_req)
-from neuroanalysis.exception import NeuroAnalysisError
+from nianalysis.exception import NeuroAnalysisError
 
 
 class DiffusionDataset(T2Dataset):
