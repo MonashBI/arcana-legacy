@@ -8,7 +8,7 @@ import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Session
-from nianalysis.exception import NeuroAnalysisError
+from nianalysis.exceptions import NeuroAnalysisError
 
 
 logger = logging.getLogger('NeuroAnalysis')

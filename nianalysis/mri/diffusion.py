@@ -13,12 +13,12 @@ from ..interfaces.utils import MergeTuple
 from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
-from nianalysis.file_formats import (
+from nianalysis.scans import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
 from nianalysis.requirements import (
     fsl5_req, mrtrix3_req, Requirement, ants2_req)
-from nianalysis.exception import NeuroAnalysisError
+from nianalysis.exceptions import NeuroAnalysisError
 
 
 class DiffusionDataset(T2Dataset):

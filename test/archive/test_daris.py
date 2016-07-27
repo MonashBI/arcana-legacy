@@ -6,9 +6,9 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
     DarisSession, DarisArchive)
-from nianalysis.exception import DarisException
-from nianalysis import Scan, Session
-from nianalysis.file_formats import nifti_gz_format
+from nianalysis.exceptions import DarisException
+from nianalysis import Session
+from nianalysis.scans import nifti_gz_format, Scan
 
 
 # The projects/subjects/studies to alter on DaRIS

@@ -3,7 +3,7 @@ from nipype.interfaces import fsl
 from ..base import Dataset
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
-from nianalysis.file_formats import nifti_gz_format
+from nianalysis.scans import nifti_gz_format
 
 
 class MRDataset(Dataset):

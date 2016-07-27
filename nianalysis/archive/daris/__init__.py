@@ -8,12 +8,11 @@ from collections import defaultdict
 from lxml import etree
 from nipype.interfaces.base import (
     Directory, traits, isdefined)
-from nianalysis.exception import (
+from nianalysis.exceptions import (
     DarisException, DarisNameNotFoundException)
-from .base import (
+from ..base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
-    ArchiveSinkInputSpec)
-from .base import Session
+    ArchiveSinkInputSpec, Session)
 import getpass
 
 
@@ -730,7 +729,7 @@ class DarisSession:
     @classmethod
     def aterm_path(cls):
         return os.path.join(os.path.dirname(os.path.realpath(__file__)),
-                            '_extern', 'aterm.jar')
+                            'aterm.jar')
 
 
 class DarisEntry(object):

@@ -4,13 +4,14 @@ from itertools import chain
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
-from nianalysis.exception import (
+from nianalysis.exceptions import (
     AcquiredComponentException, NoMatchingPipelineException,
     NeuroAnalysisError)
 from .interfaces.mrtrix import MRConvert
-from nianalysis.exception import (
+from nianalysis.exceptions import (
     NeuroAnalysisScanNameError, NeuroAnalysisMissingScanError)
-from .archive import Scan, Session
+from .archive import Session
+from .scans import Scan
 
 
 logger = Logger('NeuroAnalysis')
@@ -54,7 +55,7 @@ class Dataset(object):
         self._archive = archive
 
     def __repr__(self):
-        return "{}(name='{}'".format(self.__class__.__name__, self.name)
+        return "{}(name='{}')".format(self.__class__.__name__, self.name)
 
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False, study_id=None):
