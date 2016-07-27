@@ -1,24 +1,24 @@
-class NeuroAnalysisException(Exception):
+class NiAnalysisException(Exception):
     pass
 
 
-class NeuroAnalysisError(NeuroAnalysisException):
+class NiAnalysisError(NiAnalysisException):
     pass
 
 
-class NeuroAnalysisScanNameError(NeuroAnalysisError):
+class NiAnalysisScanNameError(NiAnalysisError):
     pass
 
 
-class NeuroAnalysisMissingScanError(NeuroAnalysisError):
+class NiAnalysisMissingScanError(NiAnalysisError):
     pass
 
 
-class AcquiredComponentException(NeuroAnalysisException):
+class AcquiredComponentException(NiAnalysisException):
     pass
 
 
-class NoMatchingPipelineException(NeuroAnalysisException):
+class NoMatchingPipelineException(NiAnalysisException):
     pass
 
 

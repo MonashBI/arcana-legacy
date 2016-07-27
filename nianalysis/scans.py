@@ -3,8 +3,7 @@ import os.path
 
 class Scan(object):
 
-    def __init__(self, name, format=None, processed=False, input=False,  # @ReservedAssignment @IgnorePep8
-                 required_format=None):
+    def __init__(self, name, format=None, pipeline=None):  # @ReservedAssignment @IgnorePep8
         """
         Parameters
         ----------
@@ -27,9 +26,7 @@ class Scan(object):
         assert isinstance(format, ScanFormat)
         self._name = name
         self._format = format
-        self._processed = processed
-        self._required_format = required_format
-        self._input = input
+        self._pipeline = pipeline
 
     def __eq__(self, other):
         return (self.name == other.name and self.format == other.format and
@@ -48,50 +45,29 @@ class Scan(object):
         return self._format
 
     @property
-    def converted_format(self):
-        if self._required_format is None:
-            conv_format = self.format
-        else:
-            conv_format = self._required_format
-        return conv_format
+    def pipeline(self):
+        return self._pipeline
 
     @property
     def processed(self):
-        return self._processed
+        return self._pipeline is not None
 
     @property
-    def input(self):
-        return self._input
-
-    @property
-    def filename(self):
-        return self._get_filename(self.format)
-
-    @property
-    def converted_filename(self):
-        return self._get_filename(self.converted_format)
-
-    def _get_filename(self, format):  # @ReservedAssignment
-        ext = format.extension if format is not None else ''
-        if ext:
-            fname = self.name + '.' + ext
-        else:
-            fname = self.name
-        return fname
+    def filename(self, format=None):  # @ReservedAssignment
+        if format is None:
+            assert self.format is not None, "Scan format'{}' is undefined"
+            format = self.format  # @ReservedAssignment
+        return (self.name + '.' + format.extension
+                if format.extension is not None else self.name)
 
     def match(self, filename):
         base, ext = os.path.splitext(filename)
-        if base != self.name:
-            match = False
-        elif ext == self.format.extension or self.format is None:
-            match = True
-        else:
-            match = False
-        return match
+        return base == self.name and (ext == self.format.extension or
+                                      self.format is None)
 
     def __repr__(self):
-        return ("Scan(name='{}', format={}, processed={}, input={})"
-                .format(self.name, self.format, self.processed, self.input))
+        return ("Scan(name='{}', format={}, pipeline={})"
+                .format(self.name, self.format, self.pipeline))
 
 
 class ScanFormat(object):
@@ -101,7 +77,7 @@ class ScanFormat(object):
         self._extension = extension
 
     def __repr__(self):
-        return "FileFormat(name='{}', extension='{}')".format(self.name,
+        return "ScanFormat(name='{}', extension='{}')".format(self.name,
                                                               self.extension)
 
     @property

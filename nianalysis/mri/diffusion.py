@@ -14,11 +14,11 @@ from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
 from nianalysis.scans import (
-    mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
+    Scan, mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
 from nianalysis.requirements import (
     fsl5_req, mrtrix3_req, Requirement, ants2_req)
-from nianalysis.exceptions import NeuroAnalysisError
+from nianalysis.exceptions import NiAnalysisError
 
 
 class DiffusionDataset(T2Dataset):
@@ -102,7 +102,7 @@ class DiffusionDataset(T2Dataset):
             # Check inputs/outputs are connected
             pipeline.assert_connected()
         else:
-            raise NeuroAnalysisError(
+            raise NiAnalysisError(
                 "Unrecognised mask_tool '{}' (valid options 'bet' or "
                 "'dwi2mask')")
         return pipeline
@@ -112,7 +112,7 @@ class DiffusionDataset(T2Dataset):
         Corrects B1 field inhomogeneities
         """
         if bias_method not in ('ants', 'fsl'):
-            raise NeuroAnalysisError(
+            raise NiAnalysisError(
                 "Unrecognised value for 'bias_method' option '{}'. It can be "
                 "one of 'ants' or 'fsl'.".format(bias_method))
         pipeline = self._create_pipeline(
@@ -311,26 +311,26 @@ class DiffusionDataset(T2Dataset):
         return pipeline
 
     # The list of dataset components that are acquired by the scanner
-    acquired_components = {
-        'dwi_scan': mrtrix_format,
-        'forward_rpe': mrtrix_format,
-        'reverse_rpe': mrtrix_format}
+    acquired_components = [
+        Scan('dwi_scan', mrtrix_format),
+        Scan('forward_rpe', mrtrix_format),
+        Scan('reverse_rpe', mrtrix_format)]
 
-    generated_components = dict(
-        T2Dataset.generated_components.items() +
-        [('mri_scan', (extract_b0_pipeline, nifti_gz_format)),
-         ('tensor', (tensor_pipeline, nifti_gz_format)),
-         ('fa', (tensor_pipeline, nifti_gz_format)),
-         ('adc', (tensor_pipeline, nifti_gz_format)),
-         ('fod', (tensor_pipeline, mrtrix_format)),
-         ('dwi_preproc', (preprocess_pipeline, nifti_gz_format)),
-         ('bias_correct', (bias_correct_pipeline, nifti_gz_format)),
-         ('grad_dirs', (preprocess_pipeline, fsl_bvecs_format)),
-         ('bvalues', (preprocess_pipeline, fsl_bvals_format)),
-         ('tbss_mean_fa', (tbss_pipeline, nifti_gz_format)),
-         ('tbss_proj_fa', (tbss_pipeline, nifti_gz_format)),
-         ('tbss_skeleton', (tbss_pipeline, nifti_gz_format)),
-         ('tbss_skeleton_mask', (tbss_pipeline, nifti_gz_format))])
+    generated_components = (
+        T2Dataset.generated_components +
+        [Scan('mri_scan', nifti_gz_format, extract_b0_pipeline),
+         Scan('tensor', nifti_gz_format, tensor_pipeline),
+         Scan('fa', nifti_gz_format, tensor_pipeline),
+         Scan('adc', nifti_gz_format, tensor_pipeline),
+         Scan('fod', mrtrix_format, tensor_pipeline),
+         Scan('dwi_preproc', nifti_gz_format, preprocess_pipeline),
+         Scan('bias_correct', nifti_gz_format, bias_correct_pipeline),
+         Scan('grad_dirs', fsl_bvecs_format, preprocess_pipeline),
+         Scan('bvalues', fsl_bvals_format, preprocess_pipeline),
+         Scan('tbss_mean_fa', nifti_gz_format, tbss_pipeline),
+         Scan('tbss_proj_fa', nifti_gz_format, tbss_pipeline),
+         Scan('tbss_skeleton', nifti_gz_format, tbss_pipeline),
+         Scan('tbss_skeleton_mask', nifti_gz_format, tbss_pipeline)])
 
 
 class NODDIDataset(DiffusionDataset):
@@ -444,19 +444,21 @@ class NODDIDataset(DiffusionDataset):
         pipeline.assert_connected()
         return pipeline
 
-    acquired_components = {
-        'low_b_dw_scan': mrtrix_format, 'high_b_dw_scan': mrtrix_format,
-        'forward_rpe': mrtrix_format, 'reverse_rpe': mrtrix_format}
+    acquired_components = [
+        Scan('low_b_dw_scan', mrtrix_format),
+        Scan('high_b_dw_scan', mrtrix_format),
+        Scan('forward_rpe', mrtrix_format),
+        Scan('reverse_rpe', mrtrix_format)]
 
-    generated_components = dict(
-        DiffusionDataset.generated_components.items() +
-        [('dwi_scan', (concatenate_pipeline, mrtrix_format)),
-         ('ficvf', (noddi_fitting_pipeline, nifti_format)),
-         ('odi', (noddi_fitting_pipeline, nifti_format)),
-         ('fiso', (noddi_fitting_pipeline, nifti_format)),
-         ('fibredirs_xvec', (noddi_fitting_pipeline, nifti_format)),
-         ('fibredirs_yvec', (noddi_fitting_pipeline, nifti_format)),
-         ('fibredirs_zvec', (noddi_fitting_pipeline, nifti_format)),
-         ('fmin', (noddi_fitting_pipeline, nifti_format)),
-         ('kappa', (noddi_fitting_pipeline, nifti_format)),
-         ('error_code', (noddi_fitting_pipeline, nifti_format))])
+    generated_components = (
+        DiffusionDataset.generated_components +
+        [Scan('dwi_scan', mrtrix_format, concatenate_pipeline),
+         Scan('ficvf', nifti_format, noddi_fitting_pipeline),
+         Scan('odi', nifti_format, noddi_fitting_pipeline),
+         Scan('fiso', nifti_format, noddi_fitting_pipeline),
+         Scan('fibredirs_xvec', nifti_format, noddi_fitting_pipeline),
+         Scan('fibredirs_yvec', nifti_format, noddi_fitting_pipeline),
+         Scan('fibredirs_zvec', nifti_format, noddi_fitting_pipeline),
+         Scan('fmin', nifti_format, noddi_fitting_pipeline),
+         Scan('kappa', nifti_format, noddi_fitting_pipeline),
+         Scan('error_code', nifti_format, noddi_fitting_pipeline)])

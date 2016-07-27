@@ -16,7 +16,7 @@ from ..base import (
 import getpass
 
 
-logger = logging.getLogger('NeuroAnalysis')
+logger = logging.getLogger('NiAnalysis')
 
 
 def swap_session_ids(self, project_id, subject_id, old_study_id, new_study_id,

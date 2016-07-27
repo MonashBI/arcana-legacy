@@ -8,10 +8,10 @@ import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Session
-from nianalysis.exceptions import NeuroAnalysisError
+from nianalysis.exceptions import NiAnalysisError
 
 
-logger = logging.getLogger('NeuroAnalysis')
+logger = logging.getLogger('NiAnalysis')
 
 
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
@@ -65,7 +65,7 @@ class LocalSink(ArchiveSink):
         # cache directory and upload to daris.
         for name, filename in self.inputs._outputs.iteritems():
             if not isdefined(filename):
-                raise NeuroAnalysisError(
+                raise NiAnalysisError(
                     "Previous node returned undefined input to Local sink for "
                     "'{}' output".format(name))
             src_path = os.path.abspath(filename)
@@ -101,7 +101,7 @@ class LocalArchive(Archive):
 
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
-            raise NeuroAnalysisError(
+            raise NiAnalysisError(
                 "Base directory for LocalArchive '{}' does not exist"
                 .format(base_dir))
         self._base_dir = os.path.abspath(base_dir)
@@ -137,7 +137,7 @@ class LocalArchive(Archive):
                 if not all(os.path.isdir(os.path.join(project_dir,
                                                       subject_dir, d))
                            for d in study_dirs):
-                    raise NeuroAnalysisError(
+                    raise NiAnalysisError(
                         "Files found in local archive subject directory '{}' "
                         "('{}') instead of study directories".format(
                             os.path.join(project_dir, subject_dir),
