@@ -2,7 +2,7 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from nianalysis.archive import Scan  # @IgnorePep8
+from nianalysis.scans import Scan  # @IgnorePep8
 from nianalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 from nianalysis.scans import (  # @IgnorePep8
