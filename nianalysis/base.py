@@ -41,13 +41,13 @@ class Dataset(object):
         self._name = name
         self._project_id = project_id
         self._input_scans = copy(input_scans)
-        for scan in self.acquired_components:
-            if scan.name not in self._input_scans:
+        for scan_name in self.acquired_components:
+            if scan_name not in self._input_scans:
                 logger.warning(
                     "'{}' acquired component was not specified in {} '{}' "
                     "(provided '{}'). Pipelines depending on this component "
                     "will not run".format(
-                        scan.name, self.__class__.__name__, self.name,
+                        scan_name, self.__class__.__name__, self.name,
                         "', '".join(self._input_scans)))
         # TODO: Check that every session has the acquired scans
         self._archive = archive
@@ -86,6 +86,9 @@ class Dataset(object):
                     raise NiAnalysisScanNameError(
                         "'{}' is not a recognised scan name for {} datasets."
                         .format(name, self.__class__.__name__))
+
+    def scan_template(self, name):
+        raise NotImplementedError
 
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False, study_id=None):
@@ -255,27 +258,27 @@ class Dataset(object):
 #             scan.name, format=scan.format, processed=scan.processed,
 #             input=True, required_format=required_format)
 
-    def scan(self, name):
-        # If an input scan has been mapped to a component of the dataset return
-        # a Scan object pointing to it
-        try:
-            scan = self._input_scans[name]
-        except KeyError:
-            if name in self.generated_components:
-                # Prepend dataset name to distinguish from scans generated from
-                # other datasets
-                scan = Scan(self.name + '_' + name,
-                            self.generated_components[name][1], processed=True)
-            elif name in self.acquired_components:
-                raise NiAnalysisMissingScanError(
-                    "Required input scan '{}' was not provided (provided '{}')"
-                    .format(name, "', '".join(self._input_scans)))
-            else:
-                raise NiAnalysisScanNameError(
-                    "Unrecognised scan name '{}'. It is not present in either "
-                    "the acquired or generated components ('{}')"
-                    .format(name, "', '".join(self.component_names)))
-        return scan
+#     def scan(self, name):
+#         # If an input scan has been mapped to a component of the dataset return
+#         # a Scan object pointing to it
+#         try:
+#             scan = self._input_scans[name]
+#         except KeyError:
+#             if name in self.generated_components:
+#                 # Prepend dataset name to distinguish from scans generated from
+#                 # other datasets
+#                 scan = Scan(self.name + '_' + name,
+#                             self.generated_components[name][1], processed=True)
+#             elif name in self.acquired_components:
+#                 raise NiAnalysisMissingScanError(
+#                     "Required input scan '{}' was not provided (provided '{}')"
+#                     .format(name, "', '".join(self._input_scans)))
+#             else:
+#                 raise NiAnalysisScanNameError(
+#                     "Unrecognised scan name '{}'. It is not present in either "
+#                     "the acquired or generated components ('{}')"
+#                     .format(name, "', '".join(self.component_names)))
+#         return scan
 
     @property
     def project_id(self):
@@ -542,3 +545,17 @@ class Pipeline(object):
                     "', '".join(self._unconnected_outputs),
                     ('s are' if len(self._unconnected_outputs) > 1
                      else ' is')))
+
+
+def _create_component_dict(*comps, **kwargs):
+    dct = {}
+    for comp in comps:
+        if comp.name in dct:
+            assert False, ("Multiple values for '{}' found in component list"
+                           .format(comp.name))
+        dct[comp.name] = comp
+    if 'inherit_from' in kwargs:
+        combined = copy(kwargs['inherit_from'])
+        combined.update(dct)
+        dct = combined
+    return dct

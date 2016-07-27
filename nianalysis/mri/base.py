@@ -1,6 +1,6 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
-from ..base import Dataset
+from nianalysis.base import Dataset, _create_component_dict
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
 from nianalysis.scans import Scan, nifti_gz_format
@@ -35,9 +35,8 @@ class MRDataset(Dataset):
     def eroded_mask_pipeline(self, **kwargs):
         raise NotImplementedError
 
-    acquired_components = [Scan('mri_scan', nifti_gz_format)]
-
-    generated_components = [
+    _components = _create_component_dict(
+        Scan('mri_scan', nifti_gz_format),
         Scan('masked_mri_scan', nifti_gz_format, brain_mask_pipeline),
         Scan('brain_mask', nifti_gz_format, brain_mask_pipeline),
-        Scan('eroded_mask', nifti_gz_format, eroded_mask_pipeline)]
+        Scan('eroded_mask', nifti_gz_format, eroded_mask_pipeline))
