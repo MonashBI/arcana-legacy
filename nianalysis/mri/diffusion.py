@@ -330,7 +330,7 @@ class DiffusionDataset(T2Dataset):
         Scan('tbss_proj_fa', nifti_gz_format, tbss_pipeline),
         Scan('tbss_skeleton', nifti_gz_format, tbss_pipeline),
         Scan('tbss_skeleton_mask', nifti_gz_format, tbss_pipeline),
-        inherit_from=T2Dataset.generated_components)
+        inherit_from=T2Dataset.generated_components())
 
 
 class NODDIDataset(DiffusionDataset):
@@ -459,4 +459,4 @@ class NODDIDataset(DiffusionDataset):
         Scan('fmin', nifti_format, noddi_fitting_pipeline),
         Scan('kappa', nifti_format, noddi_fitting_pipeline),
         Scan('error_code', nifti_format, noddi_fitting_pipeline),
-        inherit_from=DiffusionDataset.generated_components)
+        inherit_from=DiffusionDataset.generated_components())

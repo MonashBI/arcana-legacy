@@ -11,7 +11,6 @@ class BaseImageTestCase(TestCase):
     EXAMPLE_INPUT_PROJECT = 'example_input'
     PILOT_PROJECT = 'pilot'
     EXAMPLE_OUTPUT_PROJECT = 'example_output'
-    DATASET_NAME = 'noddi'
     SUBJECT = 'SUBJECT1'
     SESSION = 'SESSION1'
 

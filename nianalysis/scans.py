@@ -1,4 +1,5 @@
 import os.path
+from copy import copy
 
 
 class Scan(object):
@@ -27,6 +28,7 @@ class Scan(object):
         self._name = name
         self._format = format
         self._pipeline = pipeline
+        self._prefix = ''
 
     def __eq__(self, other):
         return (self.name == other.name and self.format == other.format and
@@ -57,13 +59,20 @@ class Scan(object):
         if format is None:
             assert self.format is not None, "Scan format'{}' is undefined"
             format = self.format  # @ReservedAssignment
-        return (self.name + '.' + format.extension
-                if format.extension is not None else self.name)
+        return (self._prefix + self.name + (
+            '.' + format.extension if format.extension is not None
+            else self.name))
 
     def match(self, filename):
         base, ext = os.path.splitext(filename)
         return base == self.name and (ext == self.format.extension or
                                       self.format is None)
+
+    def prefix(self, prefix):
+        """Duplicate the scan and provide a prefix to apply to the filename"""
+        duplicate = copy(self)
+        duplicate._prefix = prefix
+        return duplicate
 
     def __repr__(self):
         return ("Scan(name='{}', format={}, pipeline={})"

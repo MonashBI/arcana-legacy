@@ -11,7 +11,9 @@ else:
     from nianalysis.testing import BaseImageTestCase as TestCase  # @IgnorePep8 @Reimport
 
 
-class TestMRDataset(TestCase):
+class TestMRI(TestCase):
+
+    DATASET_NAME = 'MR'
 
     def test_brain_mask(self):
         self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
@@ -36,7 +38,7 @@ if __name__ == '__main__':
     parser.add_argument('--test', default='preprocess', type=str,
                         help="Which test to run")
     args = parser.parse_args()
-    tester = TestMRDataset()
+    tester = TestMRI()
     tester.setUp()
     try:
         getattr(tester, 'test_' + args.test)()

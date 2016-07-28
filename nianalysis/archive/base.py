@@ -105,15 +105,15 @@ class Archive(object):
         """
 
     @abstractmethod
-    def sessions_with_file(self, file_, project_id, sessions=None):
+    def sessions_with_file(self, scan, project_id, sessions=None):
         """
         Returns all the sessions (nianalysis.Session) in the given project
         that contain the given file
 
         Parameters
         ----------
-        file_ : nianalysis.BaseFile
-            A file object which all sessions will be checked against to see
+        scan : nianalysis.Scan
+            A Scan object which all sessions will be checked against to see
             whether they contain it
         project_id : str
             The ID of the project to return the sessions for

@@ -294,7 +294,7 @@ class DarisArchive(Archive):
                 entries = [e for e in entries if e.id in study_ids]
         return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
 
-    def sessions_with_file(self, file_, project_id, sessions):
+    def sessions_with_file(self, scan, project_id, sessions):
         """
         Parameters
         ----------
@@ -312,8 +312,8 @@ class DarisArchive(Archive):
             for session in sessions:
                 entries = daris.get_files(
                     project_id, session.subject_id, session.study_id,
-                    repo_id=self._repo_id, processed=file_.processed)
-                if file_.filename() in (e.name for e in entries):
+                    repo_id=self._repo_id, processed=scan.processed)
+                if scan.filename() in (e.name for e in entries):
                     sess_with_file.append(session)
         return sess_with_file
 

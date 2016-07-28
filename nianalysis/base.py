@@ -1,94 +1,97 @@
 from abc import ABCMeta
 from copy import copy
-from itertools import chain
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
-from nianalysis.exceptions import (
-    AcquiredComponentException, NoMatchingPipelineException,
-    NiAnalysisError)
+from nianalysis.exceptions import NiAnalysisError  
 from .interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
     NiAnalysisScanNameError, NiAnalysisMissingScanError)
 from .archive import Session
-from .scans import Scan
 
 
 logger = Logger('NiAnalysis')
 
 
 class Dataset(object):
+    """
+    Base dataset class from which all derive.
+
+    Parameters
+    ----------
+    project_name : str
+        The name of the project. For DaRIS it is the project
+        id minus the proceeding 1008.2. For XNAT it will be
+        the project code. For local files it is the full path
+        to the directory.
+    archive : Archive
+        An Archive object referring either to a DaRIS, XNAT or local file
+        system project
+    input_scans : Dict[str,base.Scan]
+        A dict containing the a mapping between names of dataset components
+        and existing scans (typically acquired from the scanner but can
+        also be replacements for generated components)
+    """
 
     __metaclass__ = ABCMeta
 
     def __init__(self, name, project_id, archive, input_scans):
-        """
-        Parameters
-        ----------
-        project_name : str
-            The name of the project. For DaRIS it is the project
-            id minus the proceeding 1008.2. For XNAT it will be
-            the project code. For local files it is the full path
-            to the directory.
-        archive : Archive
-            An Archive object referring either to a DaRIS, XNAT or local file
-            system project
-        input_scans : Dict[str,base.Scan]
-            A dict containing the a mapping between names of dataset components
-            and existing scans (typically acquired from the scanner but can
-            also be replacements for generated components)
-        """
         self._name = name
         self._project_id = project_id
-        self._input_scans = copy(input_scans)
-        for scan_name in self.acquired_components:
-            if scan_name not in self._input_scans:
+        self._input_scans = {}
+        # Add each "input scan" checking to see whether the given component
+        # name is valid for the dataset type
+        for comp_name, scan in input_scans.iteritems():
+            if comp_name not in self._components:
+                raise NiAnalysisScanNameError(
+                    "Input scan component name '{}' doesn't match any "
+                    "components in {} datasets".format(
+                        comp_name, self.__class__.__name__))
+            self._input_scans[comp_name] = scan
+        # Emit a warning if an acquired component has not been provided for an
+        # "acquired component"
+        for scan in self.acquired_components():
+            if scan.name not in self._input_scans:
                 logger.warning(
                     "'{}' acquired component was not specified in {} '{}' "
                     "(provided '{}'). Pipelines depending on this component "
                     "will not run".format(
-                        scan_name, self.__class__.__name__, self.name,
+                        scan.name, self.__class__.__name__, self.name,
                         "', '".join(self._input_scans)))
         # TODO: Check that every session has the acquired scans
         self._archive = archive
 
     def __repr__(self):
+        """String representation of the dataset"""
         return "{}(name='{}')".format(self.__class__.__name__, self.name)
 
-    def input_scan(self, name):
-        try:
-            return self._input_scans[name]
-        except KeyError:
-            raise NiAnalysisScanNameError(
-                "'{}' was not specified as an input to this dataset."
-                .format(name))
-
-    def generated_scan(self, name):
-        try:
-            return next(s for s in self.generated_components if s.name == name)
-        except StopIteration:
-            raise NiAnalysisScanNameError(
-                "'{}' is not a generated component for {} datasets."
-                .format(name, self.__class__.__name__))
-
     def scan(self, name):
-        try:
-            return self.input_scan(name)
-        except NiAnalysisScanNameError:
-            try:
-                return self.generated_scan(name)
-            except NiAnalysisScanNameError:
-                if name in (s.name for s in self.acquired_components):
-                    raise NiAnalysisMissingScanError(
-                        "'{}' scan is required for requested pipelines but was"
-                        " not supplied".format(name))
-                else:
-                    raise NiAnalysisScanNameError(
-                        "'{}' is not a recognised scan name for {} datasets."
-                        .format(name, self.__class__.__name__))
+        """
+        Returns either the scan that has been passed to the dataset __init__
+        matching the component name provided or the processed scan that is to
+        be generated using the pipeline associated with the generated component
 
-    def scan_template(self, name):
-        raise NotImplementedError
+        Parameters
+        ----------
+        scan : Str
+            Name of the component to the find the corresponding acquired scan
+            or processed scan to be generated
+        """
+        try:
+            scan = self._input_scans[name]
+        except KeyError:
+            try:
+                scan = self._components[name].prefix(self.name + '_')
+            except KeyError:
+                raise NiAnalysisScanNameError(
+                    "'{}' is not a recognised component name for {} datasets."
+                    .format(name, self.__class__.__name__))
+            if not scan.processed:
+                raise NiAnalysisMissingScanError(
+                    "Acquired (i.e. non-generated) scan '{}' is required for "
+                    "requested pipelines but was not supplied when the dataset"
+                    "was initiated.".format(name))
+        return scan
 
     def run_pipeline(self, pipeline, sessions=None, work_dir=None,
                      reprocess=False, study_id=None):
@@ -157,144 +160,63 @@ class Dataset(object):
         inputnode.iterables = ('session',
                                [(s.subject_id, s.study_id) for s in sessions])
         # Create source and sinks from the archive
-        source = self.archive.source(
-            self._project_id, (self.scan(i) for i in pipeline.inputs))
+        source = self.archive.source(self._project_id,
+                                     (self.scan(i) for i in pipeline.inputs))
         sink = self.archive.sink(self._project_id)
         sink.inputs.description = pipeline.description
         sink.inputs.name = self.name
         # Add all extra nodes and the pipelines workflow to a wrapper workflow
-        complete_workflow.add_nodes(
-            (inputnode, source, pipeline.workflow, sink))
+        complete_workflow.add_nodes((inputnode, source, pipeline.workflow,
+                                     sink))
         # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(inputnode, 'session',
-                                  source, 'session')
-        complete_workflow.connect(inputnode, 'session',
-                                  sink, 'session')
+        complete_workflow.connect(inputnode, 'session', source, 'session')
+        complete_workflow.connect(inputnode, 'session', sink, 'session')
         for inpt in pipeline.inputs:
+            # Get the scan corresponding to the pipeline's input
             scan = self.scan(inpt)
-            if scan.input and scan.converted_format != scan.format:
-                # If the scan is not in the required format for the dataset
-                # user MRConvert to convert it
-                conversion = pe.Node(
-                    MRConvert(), name=(scan.name + '_input_conversion'))
-                conversion.inputs.out_ext = scan.converted_format.extension
+            # Get the component (scan template) corresponding to the pipeline's
+            # input
+            comp = self.component(inpt)
+            # If the scan is not in the required format for the dataset
+            # user MRConvert to convert it
+            if scan.format != comp.format:
+                conversion = pe.Node(MRConvert(),
+                                     name=(comp.name + '_input_conversion'))
+                conversion.inputs.out_ext = comp.format.extension
                 conversion.inputs.quiet = True
-                complete_workflow.connect(
-                    source, scan.filename, conversion, 'in_file')
+                complete_workflow.connect(source, scan.filename,
+                                          conversion, 'in_file')
                 scan_source = conversion
                 scan_name = 'out_file'
             else:
                 scan_source = source
                 scan_name = scan.filename
             # Connect the scan to the pipeline input
-            complete_workflow.connect(
-                scan_source, scan_name, pipeline.inputnode, inpt)
+            complete_workflow.connect(scan_source, scan_name,
+                                      pipeline.inputnode, inpt)
         # Connect all outputs to the archive sink
         for output in pipeline.outputs:
             scan = self.scan(output)
-            complete_workflow.connect(
-                pipeline.outputnode, output, sink, scan.filename)
+            if scan.processed:  # Skip scans which are already input scans
+                complete_workflow.connect(pipeline.outputnode, output, sink,
+                                          scan.filename)
         # Run the workflow
         complete_workflow.run()
 
-    def is_generated(self, input_name):
-        # generated_components should be defined by the derived class
-        return input_name in self.generated_components
-
-    def generating_pipeline(self, scan_name, **options):
-        """
-        Looks up the pipeline that generates the given file (as
-        determined by the 'generated_components dict class member) and creates
-        a pipeline for the dataset with the given pipeline options
-
-        Parameters
-        ----------
-        scan : ProcessedFile
-            The file for which the pipeline that generates it is to be returned
-        """
-        try:
-            # Get 'getter' method from class dictionary 'generated_components'
-            getter = self.generated_components[scan_name][0]
-            # Call getter on dataset and generate the pipeline with appropriate
-            # options
-            return getter(self, **options)
-        except KeyError:
-            if scan_name in self.acquired_components:
-                raise AcquiredComponentException(scan_name)
-            else:
-                raise NoMatchingPipelineException(scan_name)
-
-#     def set_input_scan(self, name, scan):
-#         """
-#         Saves a copy of the scan in the "input scans" (i.e. the scans that
-#         exist already and don't need to be generated by the dataset) dictionary
-#         of the dataset, along with their mappings to the standard names used by
-#         the Dataset class to refer to them. See members 'acquired_components'
-#         and 'generated_components' of non-abstract Dataset classes.
-# 
-#         Parameters
-#         ----------
-#         name : Str
-#             The name used by the Dataset class to refer to the scan
-#         scan : Scan
-#             A scan object referring to a path and format of an existing scan
-#         """
-#         # Create a copy of the scan, setting 'input' to true
-#         try:
-#             required_format = self.acquired_components[name]
-#         except KeyError:
-#             try:
-#                 required_format = self.generated_components[name][1]
-#                 logger.warning(
-#                     "Providing input scan for generated component '{}' ({})"
-#                     .format(name, scan))
-#             except KeyError:
-#                 raise NiAnalysisScanNameError(
-#                     "'{}' does not name an expected acquired ('{}') or "
-#                     "generated  ('{}')".format(
-#                         name, "', '".join(self.acquired_components),
-#                         "', '".join(self.generated_components)))
-#         self._input_scans[name] = Scan(
-#             scan.name, format=scan.format, processed=scan.processed,
-#             input=True, required_format=required_format)
-
-#     def scan(self, name):
-#         # If an input scan has been mapped to a component of the dataset return
-#         # a Scan object pointing to it
-#         try:
-#             scan = self._input_scans[name]
-#         except KeyError:
-#             if name in self.generated_components:
-#                 # Prepend dataset name to distinguish from scans generated from
-#                 # other datasets
-#                 scan = Scan(self.name + '_' + name,
-#                             self.generated_components[name][1], processed=True)
-#             elif name in self.acquired_components:
-#                 raise NiAnalysisMissingScanError(
-#                     "Required input scan '{}' was not provided (provided '{}')"
-#                     .format(name, "', '".join(self._input_scans)))
-#             else:
-#                 raise NiAnalysisScanNameError(
-#                     "Unrecognised scan name '{}'. It is not present in either "
-#                     "the acquired or generated components ('{}')"
-#                     .format(name, "', '".join(self.component_names)))
-#         return scan
-
     @property
     def project_id(self):
+        """Accessor for the project id"""
         return self._project_id
 
     @property
     def name(self):
+        """Accessor for the unique dataset name"""
         return self._name
 
     @property
     def archive(self):
+        """Accessor for the archive member (e.g. Daris, XNAT, MyTardis)"""
         return self._archive
-
-    @property
-    def all_component_names(self):
-        return chain(self.acquired_components, self.generated_components)
 
     def _create_pipeline(self, *args, **kwargs):
         """
@@ -303,16 +225,54 @@ class Dataset(object):
         """
         return Pipeline(self, *args, **kwargs)
 
-    @property
-    def component_names(self):
-        return chain(self.acquired_components.iterkeys(),
-                     self.generated_components.iterkeys())
+    @classmethod
+    def component(cls, name):
+        """
+        Return the component, i.e. the template of the scan expected to be
+        supplied or generated corresponding to the component name.
 
-    def component_format(self, name):
-        try:
-            return self.acquired_components[name]
-        except KeyError:
-            return self.generated_components[name][1]
+        Parameters
+        ----------
+        name : Str
+            Name of the component to return
+        """
+        return cls._components[name]
+
+    @classmethod
+    def component_names(cls):
+        """Lists the names of all components defined in the dataset"""
+        return cls._components.iterkeys()
+
+    @classmethod
+    def components(cls):
+        """Lists all components defined in the dataset class"""
+        return cls._components.itervalues()
+
+    @classmethod
+    def acquired_components(cls):
+        """
+        Lists all components defined in the dataset class that are provided as
+        inputs to the dataset
+        """
+        return (c for c in cls.components() if not c.processed)
+
+    @classmethod
+    def generated_components(cls):
+        """
+        Lists all components defined in the dataset class that are typically
+        generated from other components (but can be overridden in input scans)
+        """
+        return (c for c in cls.components() if c.processed)
+
+    @classmethod
+    def generated_component_names(cls):
+        """Lists the names of generated components defined in the dataset"""
+        return (c.name for c in cls.generated_components())
+
+    @classmethod
+    def acquired_component_names(cls):
+        """Lists the names of acquired components defined in the dataset"""
+        return (c.name for c in cls.acquired_components())
 
 
 class Pipeline(object):
@@ -357,36 +317,31 @@ class Pipeline(object):
             The maximum number of threads the pipeline can use effectively.
             Use None if there is no effective limit
         """
+        # Check for unrecognised inputs/outputs
+        unrecog_inputs = set(n for n in inputs
+                             if n not in dataset.component_names())
+        assert not unrecog_inputs, (
+            "'{}' are not valid inputs names for {} dataset ('{}')"
+            .format("', '".join(unrecog_inputs), dataset.__class__.__name__,
+                    "', '".join(dataset.component_names())))
+        self._inputs = inputs
+        unrecog_outputs = set(n for n in outputs
+                              if n not in dataset.generated_component_names())
+        assert not unrecog_outputs, (
+            "'{}' are not valid output names for {} dataset ('{}')"
+            .format("', '".join(unrecog_outputs), dataset.__class__.__name__,
+                    "', '".join(dataset.generated_component_names())))
         self._name = name
         self._dataset = dataset
         self._workflow = pe.Workflow(name=name)
-        # Convert input names into files
-        unrecog_inputs = set(n for n in inputs
-                             if n not in dataset.all_component_names)
-        if unrecog_inputs:
-            raise NiAnalysisScanNameError(
-                "'{}' are not valid inputs names for {} dataset ('{}')"
-                .format("', '".join(unrecog_inputs),
-                        dataset.__class__.__name__,
-                        "', '".join(dataset.all_component_names)))
-        self._inputs = inputs
-        unrecog_outputs = set(n for n in outputs
-                              if n not in dataset.generated_components)
-        if unrecog_outputs:
-            raise NiAnalysisScanNameError(
-                "'{}' are not valid output names for {} dataset ('{}')"
-                .format("', '".join(unrecog_outputs),
-                        dataset.__class__.__name__,
-                        "', '".join(dataset.generated_components.keys())))
         self._outputs = outputs
+        # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(inputs)
         self._unconnected_outputs = set(outputs)
-        if len(inputs) != len(self._unconnected_inputs):
-            raise NiAnalysisError(
-                "Duplicate inputs found in '{}'".format("', '".join(inputs)))
-        if len(outputs) != len(self._unconnected_outputs):
-            raise NiAnalysisError(
-                "Duplicate outputs found in '{}'".format("', '".join(outputs)))
+        assert len(inputs) == len(self._unconnected_inputs), (
+            "Duplicate inputs found in '{}'".format("', '".join(inputs)))
+        assert len(outputs) == len(self._unconnected_outputs), (
+            "Duplicate outputs found in '{}'".format("', '".join(outputs)))
         self._inputnode = pe.Node(IdentityInterface(fields=inputs),
                                   name="{}_inputnode".format(name))
         self._outputnode = pe.Node(IdentityInterface(fields=outputs),
@@ -435,24 +390,16 @@ class Pipeline(object):
         Recursively append prerequisite pipelines along with their
         prerequisites onto the list of pipelines if they are not already
         present
-
-        Parameters
-        ----------
-        pipelines : List[Pipeline]
-            A collection of prerequisite pipelines that is built up via
-            recursion
         """
-        prereqs = []
-        # Loop through the inputs to the pipeline and add the getter method
-        # for the pipeline to generate each one
-        for input_ in self.inputs:
-            try:
-                pipeline = self._dataset.generating_pipeline(input_)
-                if pipeline not in prereqs:
-                    prereqs.append(pipeline)
-            except AcquiredComponentException:
-                pass
-        return prereqs
+        # Loop through the inputs to the pipeline and add the instancemethods
+        # for the pipelines to generate each of the processed inputs
+        pipelines = set()
+        for input in self.inputs:  # @ReservedAssignment
+            comp = self._dataset.component(input)
+            if comp.processed:
+                pipelines.add(comp.pipeline)
+        # Call pipeline instancemethods to dataset with provided options
+        return (p(self._dataset, **self.options) for p in pipelines)
 
     def connect(self, *args, **kwargs):
         """
@@ -461,22 +408,19 @@ class Pipeline(object):
         self._workflow.connect(*args, **kwargs)
 
     def connect_input(self, input, node, node_input):  # @ReservedAssignment
-        if input not in self._inputs:
-            raise NiAnalysisScanNameError(
-                "'{}' is not a valid input for '{}' pipeline ('{}')"
-                .format(input, self.name, "', '".join(self._inputs)))
+        assert input in self._inputs, (
+            "'{}' is not a valid input for '{}' pipeline ('{}')"
+            .format(input, self.name, "', '".join(self._inputs)))
         self._workflow.connect(self._inputnode, input, node, node_input)
         if input in self._unconnected_inputs:
             self._unconnected_inputs.remove(input)
 
     def connect_output(self, output, node, node_output):
-        if output not in self._outputs:
-            raise NiAnalysisScanNameError(
-                "'{}' is not a valid output for '{}' pipeline ('{}')"
-                .format(output, self.name, "', '".join(self._outputs)))
-        if output not in self._unconnected_outputs:
-            raise NiAnalysisError(
-                "'{}' output has been connected already")
+        assert output in self._outputs, (
+            "'{}' is not a valid output for '{}' pipeline ('{}')"
+            .format(output, self.name, "', '".join(self._outputs)))
+        assert output in self._unconnected_outputs, (
+            "'{}' output has been connected already")
         self._workflow.connect(node, node_output, self._outputnode, output)
         self._unconnected_outputs.remove(output)
 
@@ -534,17 +478,17 @@ class Pipeline(object):
                          for k, v in self.options.iteritems())
 
     def assert_connected(self):
-        if self._unconnected_inputs:
-            raise NiAnalysisError(
-                "'{}' input{} not connected".format(
-                    "', '".join(self._unconnected_inputs),
-                    ('s are' if len(self._unconnected_inputs) > 1 else ' is')))
-        if self._unconnected_outputs:
-            raise NiAnalysisError(
-                "'{}' output{} not connected".format(
-                    "', '".join(self._unconnected_outputs),
-                    ('s are' if len(self._unconnected_outputs) > 1
-                     else ' is')))
+        """
+        Check for unconnected inputs and outputs after pipeline construction
+        """
+        assert not self._unconnected_inputs, (
+            "'{}' input{} not connected".format(
+                "', '".join(self._unconnected_inputs),
+                ('s are' if len(self._unconnected_inputs) > 1 else ' is')))
+        assert not self._unconnected_outputs, (
+            "'{}' output{} not connected".format(
+                "', '".join(self._unconnected_outputs),
+                ('s are' if len(self._unconnected_outputs) > 1 else ' is')))
 
 
 def _create_component_dict(*comps, **kwargs):
@@ -555,7 +499,7 @@ def _create_component_dict(*comps, **kwargs):
                            .format(comp.name))
         dct[comp.name] = comp
     if 'inherit_from' in kwargs:
-        combined = copy(kwargs['inherit_from'])
+        combined = _create_component_dict(*kwargs['inherit_from'])
         combined.update(dct)
         dct = combined
     return dct

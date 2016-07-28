@@ -15,6 +15,8 @@ else:
 
 class TestDiffusion(TestCase):
 
+    DATASET_NAME = 'Diffusion'
+
     def test_preprocess(self):
         self._remove_generated_files(self.PILOT_PROJECT)
         dataset = DiffusionDataset(
@@ -66,6 +68,8 @@ class TestDiffusion(TestCase):
 
 
 class TestNODDI(TestCase):
+
+    DATASET_NAME = 'NODDI'
 
     def test_concatenate(self):
         self._remove_generated_files(self.PILOT_PROJECT)
