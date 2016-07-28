@@ -8,7 +8,8 @@ from nianalysis.archive.daris import (
     DarisSession, DarisArchive)
 from nianalysis.exceptions import DarisException
 from nianalysis import Session
-from nianalysis.scans import nifti_gz_format, Scan
+from nianalysis.formats import nifti_gz_format
+from nianalysis.base import Scan
 
 
 # The projects/subjects/studies to alter on DaRIS

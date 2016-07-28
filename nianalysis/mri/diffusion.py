@@ -13,13 +13,13 @@ from ..interfaces.utils import MergeTuple
 from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
-from nianalysis.scans import (
-    Scan, mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
+from nianalysis.formats import (
+    mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
 from nianalysis.requirements import (
     fsl5_req, mrtrix3_req, Requirement, ants2_req)
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.base import _create_component_dict
+from nianalysis.base import _create_component_dict, Scan
 
 
 class DiffusionDataset(T2Dataset):
@@ -326,10 +326,14 @@ class DiffusionDataset(T2Dataset):
         Scan('bias_correct', nifti_gz_format, bias_correct_pipeline),
         Scan('grad_dirs', fsl_bvecs_format, preprocess_pipeline),
         Scan('bvalues', fsl_bvals_format, preprocess_pipeline),
-        Scan('tbss_mean_fa', nifti_gz_format, tbss_pipeline),
-        Scan('tbss_proj_fa', nifti_gz_format, tbss_pipeline),
-        Scan('tbss_skeleton', nifti_gz_format, tbss_pipeline),
-        Scan('tbss_skeleton_mask', nifti_gz_format, tbss_pipeline),
+        Scan('tbss_mean_fa', nifti_gz_format, tbss_pipeline,
+             multiplicity='per_project'),
+        Scan('tbss_proj_fa', nifti_gz_format, tbss_pipeline,
+             multiplicity='per_project'),
+        Scan('tbss_skeleton', nifti_gz_format, tbss_pipeline,
+             multiplicity='per_project'),
+        Scan('tbss_skeleton_mask', nifti_gz_format, tbss_pipeline,
+             multiplicity='per_project'),
         inherit_from=T2Dataset.generated_components())
 
 

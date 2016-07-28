@@ -2,7 +2,8 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from nianalysis.scans import Scan, nifti_gz_format  # @IgnorePep8
+from nianalysis.base import Scan  # @IgnorePep8
+from nianalysis.formats import nifti_gz_format  # @IgnorePep8
 from nianalysis.mri import MRDataset  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':

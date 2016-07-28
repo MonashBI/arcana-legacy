@@ -1,9 +1,9 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
-from nianalysis.base import Dataset, _create_component_dict
+from nianalysis.base import Dataset, _create_component_dict, Scan
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
-from nianalysis.scans import Scan, nifti_gz_format
+from nianalysis.formats import nifti_gz_format
 
 
 class MRDataset(Dataset):

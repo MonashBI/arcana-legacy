@@ -4,7 +4,8 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
-from nianalysis.scans import nifti_gz_format, Scan
+from nianalysis.formats import nifti_gz_format
+from nianalysis import Scan
 
 
 class TestLocalArchive(TestCase):

@@ -2,10 +2,10 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from nianalysis.scans import Scan  # @IgnorePep8
+from nianalysis import Scan  # @IgnorePep8
 from nianalysis.mri import DiffusionDataset, NODDIDataset  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
-from nianalysis.scans import (  # @IgnorePep8
+from nianalysis.formats import (  # @IgnorePep8
     mrtrix_format, analyze_format, fsl_bvals_format, fsl_bvecs_format)
 if __name__ == '__main__':
     from nianalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport
