@@ -7,7 +7,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
     DarisSession, DarisArchive)
 from nianalysis.exceptions import DarisException
-from nianalysis import Session
+from nianalysis.archive import Session
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
 
@@ -48,7 +48,7 @@ class TestDarisSession(TestCase):
 
     def test_get_studies(self):
         studies = self._daris.get_studies(project_id=4, subject_id=1,
-                                          repo_id=REPO_ID, processed=False)
+                                          repo_id=REPO_ID, ex_method=1)
         self.assertEqual(len(studies), 3)
         self.assertEqual(studies[1].name, 'Study1')
         self.assertEqual(studies[2].name, 'Study2')
@@ -57,7 +57,7 @@ class TestDarisSession(TestCase):
     def test_get_files(self):
         files = self._daris.get_files(
             project_id=4, subject_id=1, study_id=3, repo_id=REPO_ID,
-            processed=False)
+            ex_method=1)
         self.assertEqual(len(files), 8)
         self.assertEqual(
             files[1].name,
@@ -96,75 +96,75 @@ class TestDarisSession(TestCase):
             len(self._daris.get_subjects(project_id=PROJECT_ID)))
 
     def test_add_remove_study(self):
-        for processed in (False, True):
+        for ex_method in (1, 2):
             num_studies = len(self._daris.get_studies(project_id=PROJECT_ID,
                                                       subject_id=SUBJECT_ID,
-                                                      processed=processed))
+                                                      ex_method=ex_method))
             study_id = self._daris.add_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 name='unittest-study', repo_id=REPO_ID,
                 description=("A study added by a unit-test that should be "
-                             "removed by the same test"), processed=processed)
+                             "removed by the same test"), ex_method=ex_method)
             self._daris.add_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=(study_id + 1),
                 name='unittest-study2', repo_id=REPO_ID,
                 description=("A study added by a unit-test that should be "
-                             "removed by the same test"), processed=processed)
+                             "removed by the same test"), ex_method=ex_method)
             self.assertEqual(
                 len(self._daris.get_studies(project_id=PROJECT_ID,
                                             subject_id=SUBJECT_ID,
-                                            processed=processed)),
+                                            ex_method=ex_method)),
                 num_studies + 2)
             self._daris.delete_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=study_id, repo_id=REPO_ID, processed=processed)
+                study_id=study_id, repo_id=REPO_ID, ex_method=ex_method)
             self._daris.delete_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=(study_id + 1), repo_id=REPO_ID,
-                processed=processed)
+                ex_method=ex_method)
             self.assertEqual(
                 num_studies,
                 len(self._daris.get_studies(project_id=PROJECT_ID,
                                             subject_id=SUBJECT_ID,
-                                            processed=processed)))
+                                            ex_method=ex_method)))
 
     def test_add_remove_file(self):
-        for processed in (False, True):
+        for ex_method in (1, 2):
             num_files = len(self._daris.get_files(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, processed=processed))
+                study_id=STUDY_ID, ex_method=ex_method))
             file_id = self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=STUDY_ID, name='unittest-file',
                 repo_id=REPO_ID,
                 description=("A file added by a unit-test that should be "
-                             "removed by the same test"), processed=processed)
+                             "removed by the same test"), ex_method=ex_method)
             self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 file_id=(file_id + 1),
                 study_id=STUDY_ID, name='unittest-file2',
                 repo_id=REPO_ID,
                 description=("A file added by a unit-test that should be "
-                             "removed by the same test"), processed=processed)
+                             "removed by the same test"), ex_method=ex_method)
             self.assertEqual(
                 len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    study_id=STUDY_ID, processed=processed)),
+                    study_id=STUDY_ID, ex_method=ex_method)),
                 num_files + 2)
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=STUDY_ID, file_id=file_id,
-                repo_id=REPO_ID, processed=processed)
+                repo_id=REPO_ID, ex_method=ex_method)
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 file_id=(file_id + 1), repo_id=REPO_ID,
-                study_id=STUDY_ID, processed=processed)
+                study_id=STUDY_ID, ex_method=ex_method)
             self.assertEqual(
                 num_files,
                 len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    study_id=STUDY_ID, processed=processed)))
+                    study_id=STUDY_ID, ex_method=ex_method)))
 
     def test_upload_download(self):
         file_id = self._daris.add_file(
@@ -174,16 +174,16 @@ class TestDarisSession(TestCase):
             description=(
                 "A file added by a unit-test for testing the "
                 "upload/download functionality that should be "
-                "removed by the same test"), processed=True)
+                "removed by the same test"), ex_method=2)
         try:
             self._daris.upload(
                 TEST_IMAGE, project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, study_id=STUDY_ID,
-                file_id=file_id, repo_id=REPO_ID, processed=True)
+                file_id=file_id, repo_id=REPO_ID, ex_method=2)
             self._daris.download(
                 TEST_IMAGE + '.dnld', project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, study_id=STUDY_ID,
-                file_id=file_id, repo_id=REPO_ID, processed=True)
+                file_id=file_id, repo_id=REPO_ID, ex_method=2)
             self.assertEqual(
                 hashlib.md5(open(TEST_IMAGE, 'rb').read()).hexdigest(),
                 hashlib.md5(
@@ -193,7 +193,7 @@ class TestDarisSession(TestCase):
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=STUDY_ID, file_id=file_id,
-                repo_id=REPO_ID, processed=True)
+                repo_id=REPO_ID, ex_method=2)
             try:
                 # Clean up downloaded file
                 os.remove(TEST_IMAGE + '.dnld')
@@ -242,19 +242,19 @@ class TestDarisArchive(TestCase):
         with self.daris:  # Opens the daris session
             self.study_id = self.daris.add_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                processed=False, name='source-sink-unittest-study',
+                ex_method=1, name='source-sink-unittest-study',
                 description="Used in DarisSource/Sink unittest")
             for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
                          'source4.nii.gz'):
                 file_id = self.daris.add_file(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    study_id=self.study_id, processed=False,
+                    study_id=self.study_id, ex_method=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
                 self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
                                   subject_id=SUBJECT_ID,
                                   study_id=self.study_id,
-                                  processed=False, file_id=file_id)
+                                  ex_method=1, file_id=file_id)
 
     def tearDown(self):
         # Clean up working dirs
@@ -265,10 +265,10 @@ class TestDarisArchive(TestCase):
                 with self.daris:
                     self.daris.delete_study(
                         project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                        processed=False, study_id=self.study_id)
+                        ex_method=1, study_id=self.study_id)
                     self.daris.delete_study(
                         project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                        processed=True, study_id=self.study_id)
+                        ex_method=2, study_id=self.study_id)
             except DarisException:
                 pass
 
@@ -319,6 +319,6 @@ class TestDarisArchive(TestCase):
         with self.daris:
             files = self.daris.get_files(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=self.study_id, processed=True, repo_id=REPO_ID)
+                study_id=self.study_id, ex_method=2, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in files.itervalues()),
                          ['sink1.nii.gz', 'sink3.nii.gz', 'sink4.nii.gz'])

@@ -570,9 +570,7 @@ class Scan(object):
         if format is None:
             assert self.format is not None, "Scan format is undefined"
             format = self.format  # @ReservedAssignment
-        return (self._prefix + self.name + (
-            '.' + format.extension if format.extension is not None
-            else self.name))
+        return self._prefix + self.name + format.extension
 
     def match(self, filename):
         base, ext = os.path.splitext(filename)

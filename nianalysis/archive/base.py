@@ -4,6 +4,7 @@ from nipype.interfaces.io import IOBase, add_traits, DataSink
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined, Undefined)
+from nianalysis.formats import scan_formats
 
 
 class Session(object):
@@ -68,7 +69,7 @@ class Archive(object):
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [(s.name, s.format.extension, s.processed)
+        source.inputs.files = [(s.name, s.format.name, s.processed)
                                for s in input_scans]
         return source
 
@@ -146,7 +147,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
                 desc="name of file"),
             traits.Str(  # @UndefinedVariable
                 mandatory=True,
-                desc="extension of file"),
+                desc="name of the scan format"),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
                         desc="whether the file is processed or not")),
         desc="Names of all files that comprise the complete file")
@@ -189,8 +190,9 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [(name + '.' + ext if ext else name)
-                                 for name, ext, _ in self.inputs.files])
+        return add_traits(base,
+                          [name + scan_formats[scan_format].extension
+                           for name, scan_format, _ in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -213,7 +215,8 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
-    file_format = traits.Str('nifti', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
+    # FIXME: Need to check these files are actually the format we say they are
+    scan_format = traits.Str('nifti_gz', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                              desc="The file format of the files to sink")
     _outputs = traits.Dict(  # @UndefinedVariable
         traits.Str,  # @UndefinedVariable

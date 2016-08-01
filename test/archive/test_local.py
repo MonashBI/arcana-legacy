@@ -5,7 +5,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.formats import nifti_gz_format
-from nianalysis import Scan
+from nianalysis.base import Scan
 
 
 class TestLocalArchive(TestCase):

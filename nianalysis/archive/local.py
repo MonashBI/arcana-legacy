@@ -9,6 +9,7 @@ from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Session
 from nianalysis.exceptions import NiAnalysisError
+from nianalysis.formats import scan_formats
 
 
 logger = logging.getLogger('NiAnalysis')
@@ -30,8 +31,8 @@ class LocalSource(ArchiveSource):
             self.inputs.base_dir, self.inputs.project_id,
             self.inputs.session[0], self.inputs.session[1])))
         outputs = {}
-        for name, ext, _ in self.inputs.files:
-            fname = (name + '.' + ext if ext else name)
+        for name, scan_format, _ in self.inputs.files:
+            fname = name + scan_formats[scan_format].extension
             outputs[fname] = os.path.join(session_dir, fname)
         return outputs
 

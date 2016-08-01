@@ -14,8 +14,10 @@ from nianalysis.exceptions import (
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, Session)
-import getpass
+from nianalysis.formats import scan_formats
 
+lctypes = {'nifti_gz': 'nifti/gz',
+           'dicom': 'dicom/series'}
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -71,10 +73,10 @@ class DarisSource(ArchiveSource):
                     # Make cache directory with group write permissions
                     os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
                 cache_dirs[processed] = cache_dir
-            for name, ext, processed in self.inputs.files:
+            for name, scan_format, processed in self.inputs.files:
                 # ex-method=1 is used for unprocessed, 2 for processed
                 ex_method = int(processed) + 1
-                fname = name + '.' + ext
+                fname = name + scan_formats[scan_format].extension
                 try:
                     file_ = files_dict[processed][fname]
                 except KeyError:
@@ -173,7 +175,7 @@ class DarisSink(ArchiveSink):
                     subject_id=self.inputs.session[0],
                     repo_id=self.inputs.repo_id, ex_method=2,
                     study_id=self.inputs.session[1], file_id=file_id,
-                    file_format=self.inputs.file_format)
+                    lctype=lctypes[self.inputs.scan_format])
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
@@ -410,6 +412,17 @@ class DarisSession:
             "cid starts with '1008.{}.{}' and model='om.pssd.subject'"
             .format(repo_id, project_id))
 
+    def get_ex_methods(self, project_id, subject_id, repo_id=2):
+        """
+        Lists all projects in a project
+
+        project_id  -- the ID of the project to list the subjects for
+        repo_id     -- the ID of the DaRIS repo (Monash is 2)
+        """
+        return self.query(
+            "cid starts with '1008.{}.{}.{}' and model='om.pssd.ex-method'"
+            .format(repo_id, project_id, subject_id))
+
     def get_studies(self, project_id, subject_id, repo_id=2, ex_method=1):
         return self.query(
             "cid starts with '1008.{}.{}.{}.{}' and model='om.pssd.study'"
@@ -462,6 +475,25 @@ class DarisSession:
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
+    def add_ex_method(self, project_id, subject_id, ex_method_id, repo_id=2):
+        """
+        Adds a new subject with the given subject_id within the given
+        project_id.
+
+        project_id  -- The id of the project to add the subject to
+        subject_id  -- The subject_id of the subject to add. If not provided
+                       the next available subject_id is used
+        name        -- The name of the subject
+        description -- A description of the subject
+        """
+        cmd = (
+            "om.pssd.ex-method.create :mid \"1008.1.3\" "
+            ":sid 1008.{}.{}.{} :exmethod-number {}".format(
+                repo_id, project_id, subject_id, ex_method_id))
+        # Return the id of the newly created subject
+        return int(
+            self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
+
     def add_study(self, project_id, subject_id, study_id=None, name=None,
                   description='\"\"', ex_method=2, repo_id=2):
         """
@@ -506,8 +538,9 @@ class DarisSession:
 
     def copy_study(self, project_id, old_subject_id, old_study_id,
                    new_study_id, new_subject_id=None, repo_id=2,
-                   ex_method=1, tmp_dir=None, download=True,
-                   create_study=True, new_study_name=None):
+                   old_ex_method_id=1, tmp_dir=None, download=True,
+                   create_study=True, new_study_name=None,
+                   new_ex_method_id=None):
         """
         Swaps a study and its meta-data from an incorrect ID to the desired one
 
@@ -521,7 +554,7 @@ class DarisSession:
             tmp_dir = tempfile.mkdtemp()
         scans = self.get_files(project_id, old_subject_id,
                                study_id=old_study_id,
-                               repo_id=repo_id, ex_method=ex_method)
+                               repo_id=repo_id, ex_method=old_ex_method_id)
         # Download scans first just to check whether there are any problems
         # before creating the new study
         for scan in scans.itervalues():
@@ -531,10 +564,8 @@ class DarisSession:
                           study_id=old_study_id,
                           file_id=scan.id,
                           repo_id=repo_id,
-                          ex_method=ex_method)
+                          ex_method=old_ex_method_id)
         # Create a new subject if required
-        old_studies = self.get_studies(project_id, old_subject_id,
-                                       ex_method=ex_method, repo_id=repo_id)
         if new_subject_id is not None:
             subjects = self.get_subjects(project_id, repo_id=repo_id)
             old_subject = subjects[old_subject_id]
@@ -542,14 +573,26 @@ class DarisSession:
                 self.add_subject(project_id, new_subject_id, repo_id=repo_id,
                                   name=old_subject.name,
                                   description=old_subject.description)
-            new_studies = self.get_studies(project_id, new_subject_id,
-                                           ex_method=ex_method,
-                                           repo_id=repo_id)
         else:
             new_subject_id = old_subject_id
-            new_studies = old_studies
+        # Add the ex-method if required
+        if new_ex_method_id is not None:
+            methods = self.get_ex_methods(project_id, new_subject_id,
+                                          repo_id=repo_id)
+            if new_ex_method_id not in methods:
+                self.add_ex_method(project_id, new_subject_id,
+                                   new_ex_method_id, repo_id=repo_id)
+        else:
+            new_ex_method_id = old_ex_method_id
+        # Get list of studies in old and new locations
+        old_studies = self.get_studies(project_id, old_subject_id,
+                                       ex_method=old_ex_method_id,
+                                       repo_id=repo_id)
+        new_studies = self.get_studies(project_id, new_subject_id,
+                                       ex_method=new_ex_method_id,
+                                       repo_id=repo_id)
         old_study = old_studies[old_study_id]
-        # Add the new study
+        # Add the new study if required
         if new_study_id not in new_studies:
             if not create_study:
                 raise DarisException("Study {} is not present for subject {} "
@@ -561,26 +604,26 @@ class DarisSession:
                 name=(new_study_name
                       if new_study_name is not None else old_study.name),
                 description=old_study.description,
-                ex_method=ex_method, repo_id=repo_id)
+                ex_method=new_ex_method_id, repo_id=repo_id)
         if download:
             for scan in scans.itervalues():
                 new_file_id = self.add_file(
                     project_id, new_subject_id, study_id=new_study_id,
                     file_id=scan.id, name=scan.name,
-                    description=scan.description, ex_method=ex_method,
+                    description=scan.description, ex_method=new_ex_method_id,
                     repo_id=repo_id)
                 self.upload(os.path.join(tmp_dir, '{}.zip'.format(scan.name)),
                             project_id, new_subject_id, study_id=new_study_id,
-                            file_id=new_file_id, ex_method=ex_method,
+                            file_id=new_file_id, ex_method=new_ex_method_id,
                             repo_id=repo_id, lctype=scan.lctype)
         else:
             study_cid = construct_cid(
                 project_id, subject_id=new_subject_id, study_id=new_study_id,
-                ex_method=ex_method, repo_id=repo_id)
+                ex_method=new_ex_method_id, repo_id=repo_id)
             for scan_id in sorted(scans):
                 scan_cid = construct_cid(
                     project_id, subject_id=old_subject_id,
-                    study_id=old_study_id, ex_method=ex_method,
+                    study_id=old_study_id, ex_method=new_ex_method_id,
                     file_id=scan_id, repo_id=repo_id)
                 self.run('om.pssd.dataset.move :id {} :pid {}'
                          .format(scan_cid, study_cid))
@@ -649,20 +692,28 @@ class DarisSession:
         # Determine whether file is NifTI depending on file extension
         # FIXME: Need a better way to determine the filetype
         if lctype is not None:
-            file_format = " :lctype {}".format(lctype)
+            lctype_str = " :lctype {}".format(lctype)
         else:
-            file_format = ""
+            lctype_str = ""
         cmd = (
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
             " :in file:{} :filename \"{}\"{}".format(
                 repo_id, project_id, subject_id, ex_method, study_id,
-                file_id, location, name, file_format))
+                file_id, location, name, lctype_str))
         self.run(cmd)
 
     def delete_subject(self, project_id, subject_id, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{} "
             ":destroy-cid true".format(repo_id, project_id, subject_id))
+        self.run(cmd)
+
+    def delete_ex_method(self, project_id, subject_id, ex_method_id,
+                         repo_id=2):
+        cmd = (
+            "om.pssd.object.destroy :cid 1008.{}.{}.{}.{} "
+            ":destroy-cid true".format(repo_id, project_id, subject_id,
+                                       ex_method_id))
         self.run(cmd)
 
     def delete_study(self, project_id, subject_id, study_id, ex_method=2,
