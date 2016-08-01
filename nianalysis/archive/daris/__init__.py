@@ -384,6 +384,13 @@ class DarisSession:
     def __exit__(self, type_, value, traceback):  # @UnusedVariable
         self.close()
 
+    def __del__(self):
+        if self.is_open():
+            self.close()
+
+    def is_open(self):
+        return self._mfsid is not None
+
     def get_projects(self, repo_id=2):
         """
         Lists all projects in the repository
