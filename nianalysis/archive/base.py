@@ -196,7 +196,7 @@ class ArchiveSource(IOBase):
     def _add_output_traits(self, base):
         return add_traits(base,
                           [name + scan_formats[scan_format].extension
-                           for name, scan_format, _ in self.inputs.files])
+                           for name, scan_format, _, _ in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):

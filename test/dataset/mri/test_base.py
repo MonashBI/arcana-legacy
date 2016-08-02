@@ -4,7 +4,7 @@ config.enable_debug_mode()
 import os.path  # @IgnorePep8
 from nianalysis.base import Scan  # @IgnorePep8
 from nianalysis.formats import nifti_gz_format  # @IgnorePep8
-from nianalysis.mri import MRDataset  # @IgnorePep8
+from nianalysis.dataset.mri import MRDataset  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':
     from nianalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport

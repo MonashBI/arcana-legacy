@@ -2,14 +2,14 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.mrtrix3.utils import BrainMask, TensorMetrics
 from nipype.interfaces.mrtrix3.reconst import FitTensor, EstimateFOD
 from nipype.interfaces.mrtrix3.preprocess import ResponseSD
-from ..interfaces.mrtrix import (
+from nianalysis.interfaces.mrtrix import (
     DWIPreproc, MRCat, ExtractDWIorB0, MRMath, DWIBiasCorrect)
 from nipype.workflows.dmri.fsl.tbss import create_tbss_all
-from ..interfaces.noddi import (
+from nianalysis.interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
 from .t2 import T2Dataset
-from ..interfaces.mrtrix import MRConvert, ExtractFSLGradients
-from ..interfaces.utils import MergeTuple
+from nianalysis.interfaces.mrtrix import MRConvert, ExtractFSLGradients
+from nianalysis.interfaces.utils import MergeTuple
 from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
@@ -19,7 +19,7 @@ from nianalysis.formats import (
 from nianalysis.requirements import (
     fsl5_req, mrtrix3_req, Requirement, ants2_req)
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.base import _create_component_dict, Scan
+from .base import _create_component_dict, Scan
 
 
 class DiffusionDataset(T2Dataset):

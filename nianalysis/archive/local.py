@@ -26,14 +26,32 @@ class LocalSource(ArchiveSource):
 
     input_spec = LocalSourceInputSpec
 
+    PROJECT_SUMMARY_DIR = '__PROJECT_SUMMARY__'
+    SUBJECT_SUMMARY_DIR = '__SUBJECT_SUMMARY__'
+
     def _list_outputs(self):
-        session_dir = os.path.join(*(str(p) for p in (
+        # Directory that holds session-specific
+        base_subject_dir = os.path.join(*(str(p) for p in (
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.session[0], self.inputs.session[1])))
+            self.inputs.session[0])))
+        session_dir = os.path.join(base_subject_dir,
+                                   str(self.inputs.session[1]))
+        subject_dir = os.path.join(base_subject_dir, self.SUBJECT_SUMMARY_DIR)
+        project_dir = os.path.join(self.inputs.base_dir,
+                                   self.PROJECT_SUMMARY_DIR)
         outputs = {}
-        for name, scan_format, _ in self.inputs.files:
+        for name, scan_format, _, multiplicity in self.inputs.files:
+            if multiplicity == 'per_project':
+                download_dir = project_dir
+            elif multiplicity.startswith('per_subject'):
+                download_dir = subject_dir
+            elif multiplicity.startswith('per_session'):
+                download_dir = session_dir
+            else:
+                assert False, "Unrecognised multiplicity '{}'".format(
+                    multiplicity)
             fname = name + scan_formats[scan_format].extension
-            outputs[fname] = os.path.join(session_dir, fname)
+            outputs[fname] = os.path.join(download_dir, fname)
         return outputs
 
 

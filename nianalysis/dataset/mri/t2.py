@@ -4,8 +4,8 @@ from .base import MRDataset
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
 from nianalysis.formats import mrtrix_format, nifti_gz_format
+from .base import _create_component_dict
 
 
 class T2Dataset(MRDataset):
-
     pass

@@ -1,6 +1,7 @@
 from nipype.pipeline import engine as pe
 from nipype.interfaces import fsl
-from nianalysis.base import Dataset, _create_component_dict, Scan
+from nianalysis.base import Scan
+from nianalysis.dataset.base import Dataset, _create_component_dict
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
 from nianalysis.formats import nifti_gz_format

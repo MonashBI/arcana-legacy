@@ -2,7 +2,7 @@ import os.path
 import shutil
 from unittest import TestCase
 from nipype.pipeline import engine as pe
-from nianalysis.base import Dataset, Pipeline
+from nianalysis.dataset.base import Dataset, Pipeline
 from nianalysis.interfaces.mrtrix import MRConvert
 
 
