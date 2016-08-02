@@ -133,20 +133,22 @@ class Dataset(object):
         sessions = set(Session(session) for session in sessions)
         if not reprocess:
             # If the pipeline can be run independently for each session check
-            # to see the sessions which have already been processed.
-            if all(o.multiplicty == 'per_subject' for o in pipeline.outputs):
+            # to see the sessions which have already been completed and omit
+            # them from the sessions to be processed
+            if not any(o.multiplicty == 'per_project'
+                       for o in pipeline.outputs):
                 # Check which sessions already have all the required output
                 # files in the archive and don't rerun for those
                 # subjects/studies
-                complete_sessions = copy(sessions)
+                completed_sessions = copy(sessions)
                 # TODO: Should be able to provide list of outputs required by
-                #       upstream pipeline, so if only the outputs that are
+                #       the upstream pipeline, so if only the outputs that are
                 #       required are present then the pipeline doesn't need to
                 #       be rerun
                 for output in pipeline.outputs:
-                    complete_sessions &= set(self._archive.sessions_with_file(
+                    completed_sessions &= set(self._archive.sessions_with_file(
                         self.scan(output), self.project_id))
-                sessions -= complete_sessions
+                sessions -= completed_sessions
                 if not sessions:
                     logger.info(
                         "Pipeline '{}' wasn't run as all requested sessions "
@@ -154,8 +156,8 @@ class Dataset(object):
                     return  # No sessions need to be rerun
         # Run prerequisite pipelines and save their results into the archive
         for prereq in pipeline.prerequisities:
-            # If reprocess is True, prerequisite pipelines are not reprocessed,
-            # only if reprocess == 'all'
+            # NB: Even if reprocess==True, the prerequisite pipelines are not
+            #     re-processed, they are only reprocessed if reprocess == 'all'
             self.run_pipeline(prereq, sessions, work_dir,
                               (reprocess if reprocess == 'all' else False))
         # Set up workflow to run the pipeline, loading and saving from the
@@ -206,7 +208,8 @@ class Dataset(object):
             scan = self.scan(output)
             if scan.processed:  # Skip scans which are already input scans
                 complete_workflow.connect(pipeline.outputnode, output, sink,
-                                          scan.filename)
+                                          (scan.name, scan.format.name,
+                                           scan.multiplicity))
         # Run the workflow
         complete_workflow.run()
 

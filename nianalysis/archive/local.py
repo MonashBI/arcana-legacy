@@ -64,7 +64,9 @@ class LocalSink(ArchiveSink):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through files connected to the sink and copy them to the
         # cache directory and upload to daris.
-        for name, filename in self.inputs._outputs.iteritems():
+        for name, (scan_name, scan_format,
+                   multiplicty) in self.inputs._outputs.iteritems():
+            filename = scan_name + scan_formats[scan_format].extension
             if not isdefined(filename):
                 raise NiAnalysisError(
                     "Previous node returned undefined input to Local sink for "

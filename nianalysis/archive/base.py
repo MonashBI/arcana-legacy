@@ -69,7 +69,8 @@ class Archive(object):
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [(s.name, s.format.name, s.processed)
+        source.inputs.files = [(s.name, s.format.name, s.processed,
+                                s.multiplicity)
                                for s in input_scans]
         return source
 
@@ -149,7 +150,10 @@ class ArchiveSourceInputSpec(TraitedSpec):
                 mandatory=True,
                 desc="name of the scan format"),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc="whether the file is processed or not")),
+                        desc="whether the file is processed or not"),
+            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                       desc=("multiplicity of the scan (i.e. 'per_subject', "
+                             "'per_project' or 'project_subset')"))),
         desc="Names of all files that comprise the complete file")
 
 
@@ -219,7 +223,16 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     scan_format = traits.Str('nifti_gz', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                              desc="The file format of the files to sink")
     _outputs = traits.Dict(  # @UndefinedVariable
-        traits.Str,  # @UndefinedVariable
+        traits.Tuple(  # @UndefinedVariable
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of file"),
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of the scan format"),
+            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                       desc=("multiplicity of the scan (i.e. 'per_subject', "
+                             "'per_project' or 'project_subset')"))),
         value={},
         usedefault=True)  # @UndefinedVariable @IgnorePep8
     # TODO: Not implemented yet
@@ -228,7 +241,7 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         desc=("Whether or not to overwrite previously created studies of the "
               "same name"))
 
-    # Copied from the S3DataSink in the nipype.interfaces.io module
+    # Adapted from the S3DataSink in the nipype.interfaces.io module
     def __setattr__(self, key, value):
         if key not in self.copyable_trait_names():
             if not isdefined(value):
