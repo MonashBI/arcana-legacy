@@ -630,11 +630,12 @@ class DarisSession:
         return new_study_id
 
     def move_study(self, project_id, old_subject_id, old_study_id,
-                   new_study_id, ex_method=1, repo_id=2, **kwargs):
+                    new_study_id, old_ex_method_id=1, repo_id=2, **kwargs):
         self.copy_study(project_id, old_subject_id, old_study_id, new_study_id,
-                        ex_method=ex_method, repo_id=repo_id, **kwargs)
+                        old_ex_method_id=old_ex_method_id, repo_id=repo_id,
+                        **kwargs)
         self.delete_study(project_id, old_subject_id, old_study_id,
-                          ex_method=ex_method, repo_id=repo_id)
+                          ex_method=old_ex_method_id, repo_id=repo_id)
 
     def add_file(self, project_id, subject_id, study_id, file_id=None,
                  name=None, description='\"\"', ex_method=2, repo_id=2):
@@ -681,7 +682,7 @@ class DarisSession:
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, ex_method, study_id,
             file_id)
-        self.run("asset.get :cid {} :out file:{}".format(cid, location))
+        self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
     def upload(self, location, project_id, subject_id, study_id, file_id,
                name=None, repo_id=2, ex_method=2, lctype=None):
@@ -697,7 +698,7 @@ class DarisSession:
             lctype_str = ""
         cmd = (
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
-            " :in file:{} :filename \"{}\"{}".format(
+            " :in file:\"{}\" :filename \"{}\"{}".format(
                 repo_id, project_id, subject_id, ex_method, study_id,
                 file_id, location, name, lctype_str))
         self.run(cmd)
