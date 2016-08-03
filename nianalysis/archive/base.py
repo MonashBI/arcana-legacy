@@ -4,6 +4,7 @@ from nipype.interfaces.io import IOBase, add_traits, DataSink
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     isdefined, Undefined)
+from nianalysis.base import Scan
 from nianalysis.formats import scan_formats
 
 
@@ -69,9 +70,7 @@ class Archive(object):
         """
         source = pe.Node(self.Source(), name="{}_source".format(self.type))
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [(s.name, s.format.name, s.processed,
-                                s.multiplicity)
-                               for s in input_scans]
+        source.inputs.files = [s.to_tuple() for s in input_scans]
         return source
 
     @abstractmethod
@@ -141,19 +140,8 @@ class ArchiveSourceInputSpec(TraitedSpec):
         traits.Str(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                    desc="The session or processed group ID"),
         mandatory=True, desc="The subjec/session pair to retrieve")
-    files = traits.List(  # @UndefinedVariable
-        traits.Tuple(  # @UndefinedVariable
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of file"),
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of the scan format"),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc="whether the file is processed or not"),
-            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                       desc=("multiplicity of the scan (i.e. 'per_subject', "
-                             "'per_project' or 'project_subset')"))),
+    files = traits.List(
+        Scan.traits_spec(),
         desc="Names of all files that comprise the complete file")
 
 
@@ -194,9 +182,7 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base,
-                          [name + scan_formats[scan_format].extension
-                           for name, scan_format, _, _ in self.inputs.files])
+        return add_traits(base, [name for name, _, _, _ in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -219,22 +205,9 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
-    # FIXME: Need to check these files are actually the format we say they are
-    scan_format = traits.Str('nifti_gz', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
-                             desc="The file format of the files to sink")
     _outputs = traits.Dict(  # @UndefinedVariable
-        traits.Tuple(  # @UndefinedVariable
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of file"),
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of the scan format"),
-            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                       desc=("multiplicity of the scan (i.e. 'per_subject', "
-                             "'per_project' or 'project_subset')"))),
-        value={},
-        usedefault=True)  # @UndefinedVariable @IgnorePep8
+        traits.Str(desc="The name of the component"), Scan.traits_spec(),
+        value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
@@ -246,7 +219,10 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         if key not in self.copyable_trait_names():
             if not isdefined(value):
                 super(ArchiveSinkInputSpec, self).__setattr__(key, value)
-            self._outputs[key] = value
+            try:
+                self._outputs[key] = value
+            except:
+                raise
         else:
             if key in self._outputs:
                 self._outputs[key] = value

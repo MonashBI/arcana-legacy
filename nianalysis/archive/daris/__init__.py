@@ -536,9 +536,9 @@ class DarisSession:
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def copy_study(self, project_id, old_subject_id, old_study_id,
-                   new_study_id, new_subject_id=None, repo_id=2,
-                   old_ex_method_id=1, tmp_dir=None, download=True,
+    def copy_study(self, old_project_id, old_subject_id, old_study_id,
+                   new_study_id, new_project_id=None, new_subject_id=None,
+                   repo_id=2, old_ex_method_id=1, tmp_dir=None, download=True,
                    create_study=True, new_study_name=None,
                    new_ex_method_id=None):
         """
@@ -552,14 +552,16 @@ class DarisSession:
         """
         if tmp_dir is None:
             tmp_dir = tempfile.mkdtemp()
-        scans = self.get_files(project_id, old_subject_id,
+        if new_project_id is None:
+            new_project_id = old_project_id
+        scans = self.get_files(old_project_id, old_subject_id,
                                study_id=old_study_id,
                                repo_id=repo_id, ex_method=old_ex_method_id)
         # Download scans first just to check whether there are any problems
         # before creating the new study
         for scan in scans.itervalues():
             self.download(os.path.join(tmp_dir, '{}.zip'.format(scan.name)),
-                          project_id=project_id,
+                          project_id=old_project_id,
                           subject_id=old_subject_id,
                           study_id=old_study_id,
                           file_id=scan.id,
@@ -567,28 +569,28 @@ class DarisSession:
                           ex_method=old_ex_method_id)
         # Create a new subject if required
         if new_subject_id is not None:
-            subjects = self.get_subjects(project_id, repo_id=repo_id)
+            subjects = self.get_subjects(old_project_id, repo_id=repo_id)
             old_subject = subjects[old_subject_id]
             if new_subject_id not in subjects:
-                self.add_subject(project_id, new_subject_id, repo_id=repo_id,
-                                  name=old_subject.name,
-                                  description=old_subject.description)
+                self.add_subject(new_project_id, new_subject_id,
+                                 repo_id=repo_id, name=old_subject.name,
+                                 description=old_subject.description)
         else:
             new_subject_id = old_subject_id
         # Add the ex-method if required
         if new_ex_method_id is not None:
-            methods = self.get_ex_methods(project_id, new_subject_id,
+            methods = self.get_ex_methods(new_project_id, new_subject_id,
                                           repo_id=repo_id)
             if new_ex_method_id not in methods:
-                self.add_ex_method(project_id, new_subject_id,
+                self.add_ex_method(new_project_id, new_subject_id,
                                    new_ex_method_id, repo_id=repo_id)
         else:
             new_ex_method_id = old_ex_method_id
         # Get list of studies in old and new locations
-        old_studies = self.get_studies(project_id, old_subject_id,
+        old_studies = self.get_studies(old_project_id, old_subject_id,
                                        ex_method=old_ex_method_id,
                                        repo_id=repo_id)
-        new_studies = self.get_studies(project_id, new_subject_id,
+        new_studies = self.get_studies(new_project_id, new_subject_id,
                                        ex_method=new_ex_method_id,
                                        repo_id=repo_id)
         old_study = old_studies[old_study_id]
@@ -598,9 +600,9 @@ class DarisSession:
                 raise DarisException("Study {} is not present for subject {} "
                                      "in project {}".format(new_study_id,
                                                             new_subject_id,
-                                                            project_id))
+                                                            new_project_id))
             self.add_study(
-                project_id, new_subject_id, study_id=new_study_id,
+                new_project_id, new_subject_id, study_id=new_study_id,
                 name=(new_study_name
                       if new_study_name is not None else old_study.name),
                 description=old_study.description,
@@ -608,21 +610,23 @@ class DarisSession:
         if download:
             for scan in scans.itervalues():
                 new_file_id = self.add_file(
-                    project_id, new_subject_id, study_id=new_study_id,
+                    new_project_id, new_subject_id, study_id=new_study_id,
                     file_id=scan.id, name=scan.name,
                     description=scan.description, ex_method=new_ex_method_id,
                     repo_id=repo_id)
                 self.upload(os.path.join(tmp_dir, '{}.zip'.format(scan.name)),
-                            project_id, new_subject_id, study_id=new_study_id,
-                            file_id=new_file_id, ex_method=new_ex_method_id,
-                            repo_id=repo_id, lctype=scan.lctype)
+                            new_project_id, new_subject_id,
+                            study_id=new_study_id, file_id=new_file_id,
+                            ex_method=new_ex_method_id, repo_id=repo_id,
+                            lctype=scan.lctype)
         else:
             study_cid = construct_cid(
-                project_id, subject_id=new_subject_id, study_id=new_study_id,
-                ex_method=new_ex_method_id, repo_id=repo_id)
+                new_project_id, subject_id=new_subject_id,
+                study_id=new_study_id, ex_method=new_ex_method_id,
+                repo_id=repo_id)
             for scan_id in sorted(scans):
                 scan_cid = construct_cid(
-                    project_id, subject_id=old_subject_id,
+                    new_project_id, subject_id=old_subject_id,
                     study_id=old_study_id, ex_method=new_ex_method_id,
                     file_id=scan_id, repo_id=repo_id)
                 self.run('om.pssd.dataset.move :id {} :pid {}'

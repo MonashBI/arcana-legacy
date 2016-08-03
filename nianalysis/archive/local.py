@@ -40,7 +40,7 @@ class LocalSource(ArchiveSource):
         project_dir = os.path.join(self.inputs.base_dir,
                                    self.PROJECT_SUMMARY_DIR)
         outputs = {}
-        for name, scan_format, _, multiplicity in self.inputs.files:
+        for name, scan_format, multiplicity, _ in self.inputs.files:
             if multiplicity == 'per_project':
                 download_dir = project_dir
             elif multiplicity.startswith('per_subject'):
@@ -82,8 +82,8 @@ class LocalSink(ArchiveSink):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through files connected to the sink and copy them to the
         # cache directory and upload to daris.
-        for name, (scan_name, scan_format,
-                   multiplicty) in self.inputs._outputs.iteritems():
+        for name, (scan_name, scan_format, _,
+                   multiplicity) in self.inputs._outputs.iteritems():
             filename = scan_name + scan_formats[scan_format].extension
             if not isdefined(filename):
                 raise NiAnalysisError(

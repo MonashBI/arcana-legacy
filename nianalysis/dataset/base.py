@@ -205,9 +205,8 @@ class Dataset(object):
         for output in pipeline.outputs:
             scan = self.scan(output)
             if scan.processed:  # Skip scans which are already input scans
-                complete_workflow.connect(pipeline.outputnode, output, sink,
-                                          (scan.name, scan.format.name,
-                                           scan.multiplicity))
+                complete_workflow.connect(
+                    pipeline.outputnode(scan.name), scan.name, sink, scan.name)
         # Run the workflow
         complete_workflow.run()
 

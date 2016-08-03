@@ -6,6 +6,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
+from nianalysis.interfaces.utils import MergeTuple
 
 
 class TestLocalArchive(TestCase):
@@ -36,7 +37,8 @@ class TestLocalArchive(TestCase):
 
     def tearDown(self):
         # Clean up working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
+#         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
+        pass
 
     def test_archive_roundtrip(self):
 
@@ -55,16 +57,22 @@ class TestLocalArchive(TestCase):
         sink.inputs.description = (
             "A test study created by archive roundtrip unittest")
         # Create workflow connecting them together
-        workflow = pe.Workflow('source-sink-unit-test',
+        workflow = pe.Workflow('source_sink_unit_test',
                                base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, sink))
         workflow.connect(inputnode, 'session', source, 'session')
         workflow.connect(inputnode, 'session', sink, 'session')
         for source_file in source_files:
             if source_file.name != 'source2':
-                sink_filename = source_file.name.replace('source', 'sink')
-                workflow.connect(source, source_file.filename,
-                                 sink, sink_filename)
+                sink_name = source_file.name.replace('source', 'sink')
+                merge = pe.Node(MergeTuple(4), name=sink_name + "_tuple")
+                workflow.connect(source, source_file.name, merge, 'in0')
+                merge.inputs.in1 = source_file.format.name
+                merge.inputs.in2 = source_file.multiplicity
+                merge.inputs.in3 = False
+                workflow.connect(merge, 'out', sink, sink_name)
+        workflow.write_graph(simple_form=False)
+        return
         workflow.run()
         # Check cache was created properly
         session_dir = os.path.join(

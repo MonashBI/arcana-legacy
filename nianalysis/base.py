@@ -1,6 +1,8 @@
 import os.path
 from nianalysis.formats import ScanFormat
 from copy import copy
+from nipype.interfaces.base import traits
+from nianalysis.formats import scan_formats
 
 
 class Scan(object):
@@ -28,7 +30,8 @@ class Scan(object):
         one per project.
     """
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project')
+    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project',
+                            'per_session_subset', 'per_subject_subset')
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session'):
@@ -70,6 +73,37 @@ class Scan(object):
     @property
     def multiplicity(self):
         return self._multiplicity
+
+    def __iter__(self):
+        return iter(self.as_tuple())
+
+    def to_tuple(self):
+        return self.name, self.format.name, self.multiplicity, self.processed
+
+    @classmethod
+    def from_tuple(cls, tple):
+        name, format_name, multiplicity, processed = tple
+        scan_format = scan_formats[format_name]
+        return cls(name, scan_format, pipeline=processed,
+                   multiplicity=multiplicity)
+
+    @classmethod
+    def traits_spec(self):
+        """
+        Return the specification for a Scan as a tuple
+        """
+        return traits.Tuple(  # @UndefinedVariable
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of file"),
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of the scan format"),
+            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                       desc="multiplicity of the scan (one of '{}')".format(
+                            "', '".join(self.MULTIPLICITY_OPTIONS))),
+            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        desc="whether the file is processed or not"))
 
     @property
     def filename(self, format=None):  # @ReservedAssignment
