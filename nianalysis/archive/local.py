@@ -10,6 +10,7 @@ from nipype.interfaces.base import (
 from .base import Session
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.formats import scan_formats
+from nianalysis.utils import split_extension
 
 
 logger = logging.getLogger('NiAnalysis')
@@ -82,18 +83,19 @@ class LocalSink(ArchiveSink):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through files connected to the sink and copy them to the
         # cache directory and upload to daris.
-        for name, (scan_name, scan_format, _,
-                   multiplicity) in self.inputs._outputs.iteritems():
-            filename = scan_name + scan_formats[scan_format].extension
+        for name, scan_format, multiplicity, _ in self.inputs.files:
+            filename = getattr(self.inputs, name)
             if not isdefined(filename):
-                raise NiAnalysisError(
-                    "Previous node returned undefined input to Local sink for "
-                    "'{}' output".format(name))
-            src_path = os.path.abspath(filename)
-            if not isdefined(src_path):
-                missing_files.append((name, src_path))
+                missing_files.append(name)
                 continue  # skip the upload for this file
-            # Copy to local cache
+            assert multiplicity.startswith('per_session')
+            assert (split_extension(filename) ==
+                    scan_formats[scan_format].extension), "Mismatching formats"
+            assert isdefined(filename), (
+                "Previous node returned undefined input to Local sink for "
+                "'{}' output".format(name))
+            # Copy to local store
+            src_path = os.path.abspath(filename)
             dst_path = os.path.join(out_dir, name)
             out_files.append(dst_path)
             shutil.copyfile(src_path, dst_path)
@@ -102,11 +104,10 @@ class LocalSink(ArchiveSink):
             #        indicates a problem but stopping now would throw
             #        away the files that were created
             logger.warning(
-                "Missing output files '{}' mapped to names '{}' in "
-                "DarisSink".format("', '".join(f for _, f in missing_files),
-                                   "', '".join(n for n, _ in missing_files)))
+                "Missing output files '{}' in DarisSink".format(
+                    "', '".join(missing_files)))
         # Return cache file paths
-        outputs['out_file'] = out_files
+        outputs['out_files'] = out_files
         return outputs
 
 
@@ -135,8 +136,8 @@ class LocalArchive(Archive):
         source.inputs.base_dir = self.base_dir
         return source
 
-    def sink(self, project_id):
-        sink = super(LocalArchive, self).sink(project_id)
+    def sink(self, project_id, output_files):
+        sink = super(LocalArchive, self).sink(project_id, output_files)
         sink.inputs.base_dir = self.base_dir
         return sink
 

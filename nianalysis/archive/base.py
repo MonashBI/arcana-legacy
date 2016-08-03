@@ -1,11 +1,10 @@
 from abc import ABCMeta, abstractmethod
 from nipype.pipeline import engine as pe
-from nipype.interfaces.io import IOBase, add_traits, DataSink
+from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    isdefined, Undefined)
+    Undefined)
 from nianalysis.base import Scan
-from nianalysis.formats import scan_formats
 
 
 class Session(object):
@@ -74,7 +73,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id):
+    def sink(self, project_id, output_scans):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -86,8 +85,10 @@ class Archive(object):
             The ID of the project to return the sessions for
 
         """
-        sink = pe.Node(self.Sink(), name="{}_sink".format(self.type))
+        sink = pe.Node(self.Sink(output_scans),
+                       name="{}_sink".format(self.type))
         sink.inputs.project_id = str(project_id)
+        sink.inputs.files = [s.to_tuple() for s in output_scans]
         return sink
 
     @abstractmethod
@@ -182,7 +183,7 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [name for name, _, _, _ in self.inputs.files])
+        return add_traits(base, [scan[0] for scan in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -205,40 +206,52 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
-    _outputs = traits.Dict(  # @UndefinedVariable
-        traits.Str(desc="The name of the component"), Scan.traits_spec(),
-        value={}, usedefault=True)  # @UndefinedVariable @IgnorePep8
+    files = traits.List(
+        Scan.traits_spec(),
+        desc="Names of all files that comprise the complete file")
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
         desc=("Whether or not to overwrite previously created studies of the "
               "same name"))
 
-    # Adapted from the S3DataSink in the nipype.interfaces.io module
-    def __setattr__(self, key, value):
-        if key not in self.copyable_trait_names():
-            if not isdefined(value):
-                super(ArchiveSinkInputSpec, self).__setattr__(key, value)
-            try:
-                self._outputs[key] = value
-            except:
-                raise
-        else:
-            if key in self._outputs:
-                self._outputs[key] = value
-            super(ArchiveSinkInputSpec, self).__setattr__(key, value)
-
 
 class ArchiveSinkOutputSpec(TraitedSpec):
 
-    out_file = traits.Any(desc='datasink output')  # @UndefinedVariable
+    out_files = traits.Any(desc='datasink output')  # @UndefinedVariable
 
 
-class ArchiveSink(DataSink):
+class ArchiveSink(IOBase):
 
     __metaclass__ = ABCMeta
 
+    input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
+
+    def __init__(self, output_scans, **kwargs):
+        """
+        Parameters
+        ----------
+        infields : list of str
+            Indicates the input fields to be dynamically created
+
+        outfields: list of str
+            Indicates output fields to be dynamically created
+
+        See class examples for usage
+
+        """
+        outfields = ['out_files']
+        super(ArchiveSink, self).__init__(**kwargs)
+        undefined_traits = {}
+        # used for mandatory inputs check
+        self._infields = None
+        self._outfields = outfields
+        for scan in output_scans:
+            self.inputs.add_trait(
+                scan.name,
+                traits.Str(desc="Path to local copy of scan to sink"))
+            undefined_traits[scan.name] = Undefined
 
     @abstractmethod
     def _list_outputs(self):

@@ -6,7 +6,9 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
-from nianalysis.interfaces.utils import MergeTuple
+import logging
+
+logger = logging.getLogger('NiAnalysis')
 
 
 class TestLocalArchive(TestCase):
@@ -37,8 +39,7 @@ class TestLocalArchive(TestCase):
 
     def tearDown(self):
         # Clean up working dirs
-#         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        pass
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
 
     def test_archive_roundtrip(self):
 
@@ -49,10 +50,13 @@ class TestLocalArchive(TestCase):
                         Scan('source2', nifti_gz_format),
                         Scan('source3', nifti_gz_format),
                         Scan('source4', nifti_gz_format)]
+        sink_files = [Scan('sink1', nifti_gz_format),
+                      Scan('sink3', nifti_gz_format),
+                      Scan('sink4', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
         inputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
         source = archive.source(self.PROJECT_ID, source_files)
-        sink = archive.sink(self.PROJECT_ID)
+        sink = archive.sink(self.PROJECT_ID, sink_files)
         sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
             "A test study created by archive roundtrip unittest")
@@ -63,16 +67,10 @@ class TestLocalArchive(TestCase):
         workflow.connect(inputnode, 'session', source, 'session')
         workflow.connect(inputnode, 'session', sink, 'session')
         for source_file in source_files:
-            if source_file.name != 'source2':
-                sink_name = source_file.name.replace('source', 'sink')
-                merge = pe.Node(MergeTuple(4), name=sink_name + "_tuple")
-                workflow.connect(source, source_file.name, merge, 'in0')
-                merge.inputs.in1 = source_file.format.name
-                merge.inputs.in2 = source_file.multiplicity
-                merge.inputs.in3 = False
-                workflow.connect(merge, 'out', sink, sink_name)
-        workflow.write_graph(simple_form=False)
-        return
+            if not source_file.name.endswith('2'):
+                source_name = source_file.name
+                sink_name = source_name.replace('source', 'sink')
+                workflow.connect(source, source_name, sink, sink_name)
         workflow.run()
         # Check cache was created properly
         session_dir = os.path.join(
