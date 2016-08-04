@@ -22,6 +22,8 @@ def split_extension(filename):
     else:
         num_ext_parts = 1
     ext = '.'.join(parts[-num_ext_parts:])
+    if ext:
+        ext = '.' + ext
     base = '.'.join(parts[:-num_ext_parts])
     return base, ext
 

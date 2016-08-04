@@ -3,7 +3,7 @@ import shutil
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.local import LocalArchive
+from nianalysis.archive.local import LocalArchive, LocalSource, LocalSink
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
 import logging
@@ -70,7 +70,9 @@ class TestLocalArchive(TestCase):
             if not source_file.name.endswith('2'):
                 source_name = source_file.name
                 sink_name = source_name.replace('source', 'sink')
-                workflow.connect(source, source_name, sink, sink_name)
+                workflow.connect(
+                    source, source_name + LocalSource.OUTPUT_SUFFIX,
+                    sink, sink_name + LocalSink.INPUT_SUFFIX)
         workflow.run()
         # Check cache was created properly
         session_dir = os.path.join(

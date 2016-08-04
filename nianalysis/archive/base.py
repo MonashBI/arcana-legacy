@@ -7,6 +7,9 @@ from nipype.interfaces.base import (
 from nianalysis.base import Scan
 
 
+INPUT_OUTPUT_SUFFIX = '_scan'
+
+
 class Session(object):
     """
     A small wrapper class used to define the subject_id and study_id
@@ -153,6 +156,8 @@ class ArchiveSource(IOBase):
     output_spec = DynamicTraitedSpec
     _always_run = True
 
+    OUTPUT_SUFFIX = '_fname'
+
     def __init__(self, infields=None, outfields=None, **kwargs):
         """
         Parameters
@@ -183,7 +188,8 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [scan[0] for scan in self.inputs.files])
+        return add_traits(base, [scan[0] + self.OUTPUT_SUFFIX
+                                 for scan in self.inputs.files])
 
 
 class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -228,6 +234,8 @@ class ArchiveSink(IOBase):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
+    INPUT_SUFFIX = '_fname'
+
     def __init__(self, output_scans, **kwargs):
         """
         Parameters
@@ -241,17 +249,12 @@ class ArchiveSink(IOBase):
         See class examples for usage
 
         """
-        outfields = ['out_files']
         super(ArchiveSink, self).__init__(**kwargs)
-        undefined_traits = {}
         # used for mandatory inputs check
         self._infields = None
-        self._outfields = outfields
-        for scan in output_scans:
-            self.inputs.add_trait(
-                scan.name,
-                traits.Str(desc="Path to local copy of scan to sink"))
-            undefined_traits[scan.name] = Undefined
+        self._outfields = None
+        add_traits(self.inputs, [s.name + self.INPUT_SUFFIX
+                                 for s in output_scans])
 
     @abstractmethod
     def _list_outputs(self):

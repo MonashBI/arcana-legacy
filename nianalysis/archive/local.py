@@ -52,7 +52,8 @@ class LocalSource(ArchiveSource):
                 assert False, "Unrecognised multiplicity '{}'".format(
                     multiplicity)
             fname = name + scan_formats[scan_format].extension
-            outputs[fname] = os.path.join(download_dir, fname)
+            outputs[name + self.OUTPUT_SUFFIX] = os.path.join(download_dir,
+                                                              fname)
         return outputs
 
 
@@ -84,13 +85,17 @@ class LocalSink(ArchiveSink):
         # Loop through files connected to the sink and copy them to the
         # cache directory and upload to daris.
         for name, scan_format, multiplicity, _ in self.inputs.files:
-            filename = getattr(self.inputs, name)
+            filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
             assert multiplicity.startswith('per_session')
-            assert (split_extension(filename) ==
-                    scan_formats[scan_format].extension), "Mismatching formats"
+            assert (split_extension(filename)[1] ==
+                    scan_formats[scan_format].extension), (
+                "Mismatching extension '{}' for format '{}' ('{}')"
+                .format(split_extension(filename)[1],
+                        scan_formats[scan_format].name,
+                        scan_formats[scan_format].extension))
             assert isdefined(filename), (
                 "Previous node returned undefined input to Local sink for "
                 "'{}' output".format(name))
@@ -104,7 +109,7 @@ class LocalSink(ArchiveSink):
             #        indicates a problem but stopping now would throw
             #        away the files that were created
             logger.warning(
-                "Missing output files '{}' in DarisSink".format(
+                "Missing input files '{}' in DarisSink".format(
                     "', '".join(missing_files)))
         # Return cache file paths
         outputs['out_files'] = out_files
