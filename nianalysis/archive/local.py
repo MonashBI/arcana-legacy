@@ -27,9 +27,6 @@ class LocalSource(ArchiveSource):
 
     input_spec = LocalSourceInputSpec
 
-    PROJECT_SUMMARY_DIR = '__PROJECT_SUMMARY__'
-    SUBJECT_SUMMARY_DIR = '__SUBJECT_SUMMARY__'
-
     def _list_outputs(self):
         # Directory that holds session-specific
         base_subject_dir = os.path.join(*(str(p) for p in (
@@ -37,9 +34,9 @@ class LocalSource(ArchiveSource):
             self.inputs.session[0])))
         session_dir = os.path.join(base_subject_dir,
                                    str(self.inputs.session[1]))
-        subject_dir = os.path.join(base_subject_dir, self.SUBJECT_SUMMARY_DIR)
+        subject_dir = os.path.join(base_subject_dir, LocalSubjectSink.DIRNAME)
         project_dir = os.path.join(self.inputs.base_dir,
-                                   self.PROJECT_SUMMARY_DIR)
+                                   LocalProjectSink.DIRNAME)
         outputs = {}
         for name, scan_format, multiplicity, _ in self.inputs.files:
             if multiplicity == 'per_project':
@@ -68,6 +65,8 @@ class LocalSink(ArchiveSink):
 
     input_spec = LocalSinkInputSpec
 
+    ACCEPTED_MULTIPLICITIES = ('per_session', 'per_session_subset')
+
     def _list_outputs(self):
         """Execute this module.
         """
@@ -76,9 +75,7 @@ class LocalSink(ArchiveSink):
         out_files = []
         missing_files = []
         # Get cache dir for study
-        out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
-            self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.session[0], self.inputs.session[1]))))
+        out_dir = self._get_output_dir()
         # Make study cache dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -86,22 +83,24 @@ class LocalSink(ArchiveSink):
         # cache directory and upload to daris.
         for name, scan_format, multiplicity, _ in self.inputs.files:
             filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
+            ext = scan_formats[scan_format].extension
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
-            assert multiplicity.startswith('per_session')
-            assert (split_extension(filename)[1] ==
-                    scan_formats[scan_format].extension), (
+            assert (split_extension(filename)[1] == ext), (
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
-                        scan_formats[scan_format].name,
-                        scan_formats[scan_format].extension))
+                        scan_formats[scan_format].name, ext))
             assert isdefined(filename), (
                 "Previous node returned undefined input to Local sink for "
                 "'{}' output".format(name))
+            try:
+                assert multiplicity in self.ACCEPTED_MULTIPLICITIES
+            except:
+                raise
             # Copy to local store
             src_path = os.path.abspath(filename)
-            dst_path = os.path.join(out_dir, name)
+            dst_path = os.path.join(out_dir, name + ext)
             out_files.append(dst_path)
             shutil.copyfile(src_path, dst_path)
         if missing_files:
@@ -115,6 +114,32 @@ class LocalSink(ArchiveSink):
         outputs['out_files'] = out_files
         return outputs
 
+    def _get_output_dir(self):
+        return os.path.abspath(os.path.join(*(str(d) for d in (
+            self.inputs.base_dir, self.inputs.project_id,
+            self.inputs.session[0], self.inputs.session[1]))))
+
+
+class LocalSubjectSink(LocalSink):
+
+    DIRNAME = '__SUBJECT_SUMMARY__'
+    ACCEPTED_MULTIPLICITIES = ('per_subject', 'per_subject_subset')
+
+    def _get_output_dir(self):
+        return os.path.abspath(os.path.join(*(str(d) for d in (
+            self.inputs.base_dir, self.inputs.project_id,
+            self.inputs.session[0], self.DIRNAME))))
+
+
+class LocalProjectSink(LocalSink):
+
+    DIRNAME = '__PROJECT_SUMMARY__'
+    ACCEPTED_MULTIPLICITIES = ('per_project',)
+
+    def _get_output_dir(self):
+        return os.path.abspath(os.path.join(*(str(d) for d in (
+            self.inputs.base_dir, self.inputs.project_id, self.DIRNAME))))
+
 
 class LocalArchive(Archive):
     """
@@ -125,6 +150,8 @@ class LocalArchive(Archive):
     type = 'local'
     Source = LocalSource
     Sink = LocalSink
+    SubjectSink = LocalSubjectSink
+    ProjectSink = LocalProjectSink
 
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
@@ -136,13 +163,13 @@ class LocalArchive(Archive):
     def __repr__(self):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
 
-    def source(self, project_id, input_files):
-        source = super(LocalArchive, self).source(project_id, input_files)
+    def source(self, *args, **kwargs):
+        source = super(LocalArchive, self).source(*args, **kwargs)
         source.inputs.base_dir = self.base_dir
         return source
 
-    def sink(self, project_id, output_files):
-        sink = super(LocalArchive, self).sink(project_id, output_files)
+    def sink(self, *args, **kwargs):
+        sink = super(LocalArchive, self).sink(*args, **kwargs)
         sink.inputs.base_dir = self.base_dir
         return sink
 

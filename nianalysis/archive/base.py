@@ -5,6 +5,7 @@ from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     Undefined)
 from nianalysis.base import Scan
+from nianalysis.exceptions import NiAnalysisError
 
 
 INPUT_OUTPUT_SUFFIX = '_scan'
@@ -76,7 +77,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_scans):
+    def sink(self, project_id, output_scans, multiplicity='per_session'):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -88,8 +89,18 @@ class Archive(object):
             The ID of the project to return the sessions for
 
         """
-        sink = pe.Node(self.Sink(output_scans),
-                       name="{}_sink".format(self.type))
+        if multiplicity.startswith('per_session'):
+            sink_class = self.Sink
+        elif multiplicity.startswith('per_subject'):
+            sink_class = self.SubjectSink
+        elif multiplicity.startswith('per_project'):
+            sink_class = self.ProjectSink
+        else:
+            raise NiAnalysisError(
+                "Unrecognised multiplicity '{}' can be one of '{}'"
+                .format(multiplicity, "', '".join(Scan.MULTIPLICITY_OPTIONS)))
+        sink = pe.Node(sink_class(output_scans),
+                       name="{}_{}_sink".format(self.type, multiplicity))
         sink.inputs.project_id = str(project_id)
         sink.inputs.files = [s.to_tuple() for s in output_scans]
         return sink
