@@ -4,3 +4,4 @@
 /test/data_access/test_data/cache_dir
 /test/data_access/test_data/working_dir
 *.pklz
+*~

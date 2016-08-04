@@ -15,6 +15,8 @@ from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, Session)
 from nianalysis.formats import scan_formats
+import re
+import collections
 
 lctypes = {'nifti_gz': 'nifti/gz',
            'dicom': 'dicom/series'}
@@ -709,6 +711,68 @@ class DarisSession:
             repo_id, project_id, subject_id, ex_method, study_id,
             file_id)
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
+
+
+    def download_match(self, location, project_id, sub_id, match_scan=None,scan_type=None):
+        """
+        Downloads multiple assets to a location on the local file system
+
+        Parameters
+        ----------
+        location : str (file path)
+            Path on the local file system to download the assets to.
+        project_id: int
+            Id of the project
+        subject_id: int
+            Id of the subject
+        match_scan: string
+            Recursive expression to match in order to download the asset
+        scan_type: list or string
+            Name(s) of the scan to download. Available scans: asl (arterial spin labeling)
+	    t1,t2,epi,diffusion,proton_density, mt(Magnetization Transfer), ute
+	    umap(UTE umap), dixon,gre(field map),multiband
+        """
+	if match_scan==None and scan_type==None:
+	    raise Exception("You must provide one between match_scan OR scan_type")
+	
+	files=self.get_files(project_id,sub_id)
+
+	list_scans={}
+	list_scans['diffusion']=r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)_p2$'
+	list_scans['epi']=r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)'
+	list_scans['multiband']=list_scans['mb']=r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$'
+	list_scans['asl']=r'ep2d_tra_pasl$'
+	list_scans['pd']=list_scans['proton density']=list_scans['proton_density']=r'pd_tse.*'
+	list_scans['t2']=r't2_spc.*|FLAIR'
+	list_scans['t1']=r't1_mprage.*|MPRAGE'
+	list_scans['mt']=r'(.*)MT fl3d([a-zA-Z_ ]+)'
+	list_scans['ute']=r'([a-zA-Z_ ]+)UTE$'
+	list_scans['dixon']=r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
+	list_scans['gre']=list_scans['field_map']=list_scans['field map']=r'gre([a-zA-Z_ ]+)field_map'
+	list_scans['umap']=r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'	
+
+	if isinstance(scan_type,basestring):
+      	    scan_type=re.split(' |,',scan_type)
+	elif not isinstance(scan_type, collections.Iterable) and scan_type is not None:
+    	    raise Exception("Scan type '{}' is not a list or string".format(scan_type))
+
+	if scan_type is not None:
+    	    if match_scan is not None:
+        	raise Exception("You need to provied just ONE input between scan_type and match_scan")
+    	    for scan in scan_type:
+                match_scan=list_scans[scan]
+        	for id in files:
+            	    if re.match(match_scan,files[id].name):
+                	match=re.match(match_scan,files[id].name)
+                        name=match.group(0)
+                	self.download(location+name+'.zip',project_id,sub_id,id)
+	else:
+            for id in files:
+        	if re.match(match_scan,files[id].name):
+            	    match=re.match(match_scan,files[id].name)
+            	    name=match.group(0)
+		    self.download(location+name+'.zip',project_id,sub_id,id)
+
 
     def upload(self, location, project_id, subject_id, study_id, file_id,
                name=None, repo_id=2, ex_method=2, lctype=None):
