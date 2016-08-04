@@ -764,13 +764,13 @@ class DarisSession:
         	for id in files:
             	    if re.match(match_scan,files[id].name):
                 	match=re.match(match_scan,files[id].name)
-                        name=match.group(0)
+                        name=files[id].cid
                 	self.download(location+name+'.zip',project_id,sub_id,id)
 	else:
             for id in files:
         	if re.match(match_scan,files[id].name):
             	    match=re.match(match_scan,files[id].name)
-            	    name=match.group(0)
+            	    name=files[id].cid
 		    self.download(location+name+'.zip',project_id,sub_id,id)
 
 
