@@ -682,6 +682,28 @@ class DarisSession:
 
     def download(self, location, project_id, subject_id, file_id,
                  study_id=1, ex_method=1, repo_id=2):
+        """
+        Downloads an asset to a location on the local file system
+
+        Parameters
+        ----------
+        location : str (file path)
+            Path on the local file system to download the asset to.
+            The extension must match the extension of the asset on DaRIS, i.e.
+            typically '.zip'.
+        project_id: int
+            Id of the project
+        subject_id: int
+            Id of the subject
+        file_id: int
+            Id of the scan/file to download
+        study_id: int
+            Id of the study
+        ex_method: int
+            Id of the experiment/method
+        repo_id: int
+            Id of the repo. 2 corrresponds to the Monash DaRIS instance.
+        """
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, ex_method, study_id,
