@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined)
+    Undefined, isdefined)
 from nianalysis.base import Scan
 from nianalysis.exceptions import NiAnalysisError
 
@@ -57,7 +57,7 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_scans):
+    def source(self, project_id, input_scans, name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -71,13 +71,16 @@ class Archive(object):
             An iterable of nianalysis.BaseFile objects, which specify the
             files to extract from the archive system for each session
         """
-        source = pe.Node(self.Source(), name="{}_source".format(self.type))
+        if name is None:
+            name = "{}_source".format(self.type)
+        source = pe.Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
         source.inputs.files = [s.to_tuple() for s in input_scans]
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_scans, multiplicity='per_session'):
+    def sink(self, project_id, output_scans, multiplicity='per_session',
+             name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -99,8 +102,9 @@ class Archive(object):
             raise NiAnalysisError(
                 "Unrecognised multiplicity '{}' can be one of '{}'"
                 .format(multiplicity, "', '".join(Scan.MULTIPLICITY_OPTIONS)))
-        sink = pe.Node(sink_class(output_scans),
-                       name="{}_{}_sink".format(self.type, multiplicity))
+        if name is None:
+            name = "{}_{}_sink".format(self.type, multiplicity)
+        sink = pe.Node(sink_class(output_scans), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.files = [s.to_tuple() for s in output_scans]
         return sink
@@ -203,7 +207,7 @@ class ArchiveSource(IOBase):
                                  for scan in self.inputs.files])
 
 
-class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     """
     Base class for archive sink input specifications. Provides a common
     interface for 'run_pipeline' when using the archive save
@@ -212,12 +216,7 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')  # @UndefinedVariable @IgnorePep8
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Str(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-        traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"))
+
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
                               "'tractography'"))
@@ -231,6 +230,36 @@ class ArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         False, mandatory=True, usedefault=True,
         desc=("Whether or not to overwrite previously created studies of the "
               "same name"))
+
+    def __setattr__(self, name, val):
+        if isdefined(self.files) and not hasattr(self, name):
+            accepted = [s[0] + ArchiveSink.INPUT_SUFFIX for s in self.files]
+            assert name in accepted, (
+                "'{}' is not a valid input filename for '{}' archive sink "
+                "(accepts '{}')".format(name, self.name,
+                                        "', '".join(accepted)))
+        super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
+
+
+class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
+
+    session = traits.Tuple(  # @UndefinedVariable
+        traits.Str(  # @UndefinedVariable
+            mandatory=True,
+            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
+        traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
+                   desc="The session or processed group ID"))
+
+
+class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
+
+    subject_id = traits.Str(  # @UndefinedVariable
+        mandatory=True,
+        desc="The subject ID")
+
+
+class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
+    pass
 
 
 class ArchiveSinkOutputSpec(TraitedSpec):

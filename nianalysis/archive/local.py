@@ -1,7 +1,8 @@
 import os.path
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
-    ArchiveSinkInputSpec)
+    ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
+    ArchiveProjectSinkInputSpec)
 import stat
 import shutil
 import logging
@@ -35,8 +36,9 @@ class LocalSource(ArchiveSource):
         session_dir = os.path.join(base_subject_dir,
                                    str(self.inputs.session[1]))
         subject_dir = os.path.join(base_subject_dir, LocalSubjectSink.DIRNAME)
-        project_dir = os.path.join(self.inputs.base_dir,
-                                   LocalProjectSink.DIRNAME)
+        project_dir = os.path.join(
+            self.inputs.base_dir, self.inputs.project_id,
+            LocalProjectSink.DIRNAME)
         outputs = {}
         for name, scan_format, multiplicity, _ in self.inputs.files:
             if multiplicity == 'per_project':
@@ -54,11 +56,28 @@ class LocalSource(ArchiveSource):
         return outputs
 
 
-class LocalSinkInputSpec(ArchiveSinkInputSpec):
+class LocalSinkInputSpecMixin(object):
 
     base_dir = Directory(
         exists=True, desc=("Path to the base directory where the files will"
                            " be cached before uploading"))
+
+
+class LocalSinkInputSpec(ArchiveSinkInputSpec, LocalSinkInputSpecMixin):
+
+    pass
+
+
+class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
+                                LocalSinkInputSpecMixin):
+
+    pass
+
+
+class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
+                                LocalSinkInputSpecMixin):
+
+    pass
 
 
 class LocalSink(ArchiveSink):
@@ -94,15 +113,15 @@ class LocalSink(ArchiveSink):
             assert isdefined(filename), (
                 "Previous node returned undefined input to Local sink for "
                 "'{}' output".format(name))
-            try:
-                assert multiplicity in self.ACCEPTED_MULTIPLICITIES
-            except:
-                raise
+            assert multiplicity in self.ACCEPTED_MULTIPLICITIES
             # Copy to local store
             src_path = os.path.abspath(filename)
             dst_path = os.path.join(out_dir, name + ext)
             out_files.append(dst_path)
-            shutil.copyfile(src_path, dst_path)
+            try:
+                shutil.copyfile(src_path, dst_path)
+            except:
+                raise
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
@@ -122,18 +141,22 @@ class LocalSink(ArchiveSink):
 
 class LocalSubjectSink(LocalSink):
 
-    DIRNAME = '__SUBJECT_SUMMARY__'
+    input_spec = LocalSubjectSinkInputSpec
+
+    DIRNAME = '__SUMMARY__'
     ACCEPTED_MULTIPLICITIES = ('per_subject', 'per_subject_subset')
 
     def _get_output_dir(self):
         return os.path.abspath(os.path.join(*(str(d) for d in (
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.session[0], self.DIRNAME))))
+            self.inputs.subject_id, self.DIRNAME))))
 
 
 class LocalProjectSink(LocalSink):
 
-    DIRNAME = '__PROJECT_SUMMARY__'
+    input_spec = LocalProjectSinkInputSpec
+
+    DIRNAME = '__SUMMARY__'
     ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_output_dir(self):
