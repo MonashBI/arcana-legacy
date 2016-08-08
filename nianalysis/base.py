@@ -26,12 +26,11 @@ class Scan(object):
         the scan is assumed to be acquired externall
     multiplicity : str
         One of 'per_subject', 'subject_subset', and 'per_project', specifying
-        whether the scan is present for each session, a subset of sessions,
-        each subject, a subset of subjects or one per project.
+        whether the scan is present for each session, subject or project.
     """
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project',
-                            'per_session_subset', 'per_subject_subset')
+    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project')
+    #                        'per_session_subset', 'per_subject_subset')
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session'):

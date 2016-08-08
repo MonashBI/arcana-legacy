@@ -1,5 +1,7 @@
 from abc import ABCMeta
 from copy import copy
+from itertools import chain
+from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import Logger
@@ -223,7 +225,15 @@ class Pipeline(object):
         self._name = name
         self._dataset = dataset
         self._workflow = pe.Workflow(name=name)
-        self._outputs = outputs
+        self._outputs = defaultdict(list)
+        for output in outputs:
+            mult = self.self._dataset.component(output).multiplicity
+            self._outputs[mult] = output
+        self._outputnodes = {}
+        for mult in self._outputs:
+            self._outputnodes[mult] = pe.Node(
+                IdentityInterface(fields=self._outputs[mult]),
+                name="{}_{}_outputnode".format(name, mult))
         # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(inputs)
         self._unconnected_outputs = set(outputs)
@@ -233,8 +243,6 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'".format("', '".join(outputs)))
         self._inputnode = pe.Node(IdentityInterface(fields=inputs),
                                   name="{}_inputnode".format(name))
-        self._outputnode = pe.Node(IdentityInterface(fields=outputs),
-                                   name="{}_outputnode".format(name))
         self._citations = citations
         self._options = options
         self._description = description
@@ -255,7 +263,12 @@ class Pipeline(object):
             self._workflow == other._workflow and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
-            self._options == other._options)
+            self._options == other._options and
+            self._citations == other._citations and
+            self._requirements == other._requirements and
+            self._approx_runtime == other._approx_runtime and
+            self._min_nthreads == other._min_nthreads and
+            self._max_nthreads == other._max_nthreads)
 
     def __ne__(self, other):
         return not (self == other)
@@ -297,8 +310,10 @@ class Pipeline(object):
             # If the pipeline can be run independently for each session check
             # to see the sessions which have already been completed and omit
             # them from the sessions to be processed
-            if not any(self._dataset.component(o).multiplicity == 'per_project'
-                       for o in self.outputs):
+            multiplicities = (self._dataset.component(o).multiplicity
+                              for o in self.outputs)
+            if all(multiplicities not in ('per_project', 'per_subject',
+                                          'per_subject_subset')):
                 # Check which sessions already have all the required output
                 # files in the archive and don't rerun for those
                 # subjects/studies
@@ -337,15 +352,8 @@ class Pipeline(object):
         source = self._dataset.archive.source(
             self._dataset.project_id,
             (self._dataset.scan(i) for i in self.inputs))
-        sink = self._dataset.archive.sink(self._dataset._project_id)
-        sink.inputs.description = self.description
-        sink.inputs.name = self._dataset.name
-        # Add all extra nodes and the pipelines workflow to a wrapper workflow
-        complete_workflow.add_nodes((inputnode, source, self.workflow,
-                                     sink))
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(inputnode, 'session', source, 'session')
-        complete_workflow.connect(inputnode, 'session', sink, 'session')
         for inpt in self.inputs:
             # Get the scan corresponding to the pipeline's input
             scan = self._dataset.scan(inpt)
@@ -370,11 +378,27 @@ class Pipeline(object):
             complete_workflow.connect(scan_source, scan_name,
                                       self.inputnode, inpt)
         # Connect all outputs to the archive sink
-        for output in self.outputs:
-            scan = self._dataset.scan(output)
-            if scan.processed:  # Skip scans which are already input scans
-                complete_workflow.connect(
-                    self.outputnode(scan.name), scan.name, sink, scan.name)
+        for mult, outputs in self._outputs.iteritems():
+            # Create a new sink for the level of multiplicity (i.e 'session',
+            # 'subject' or 'project')
+            sink = self._dataset.archive.sink(self._dataset._project_id,
+                                              multiplicity=mult)
+            sink.inputs.description = self.description
+            sink.inputs.name = self._dataset.name
+            if mult == 'per_session':
+                complete_workflow.connect(inputnode, 'session',
+                                          sink, 'session')
+            elif mult == 'per_subject':
+                complete_workflow.connect(inputnode, 'session',
+                                          sink, 'session')
+            else:
+                assert mult == 'per_project'
+            for output in outputs:
+                scan = self._dataset.scan(output)
+                if scan.processed:  # Skip scans which are already input scans
+                    complete_workflow.connect(
+                        self._outputnodes[mult](scan.name), scan.name,
+                        sink, scan.name)
         # Run the workflow
         complete_workflow.run()
 
@@ -415,7 +439,9 @@ class Pipeline(object):
             .format(output, self.name, "', '".join(self._outputs)))
         assert output in self._unconnected_outputs, (
             "'{}' output has been connected already")
-        self._workflow.connect(node, node_output, self._outputnode, output)
+        outputnode = self._outputnodes[
+            self._dataset.component(output).multiplicity]
+        self._workflow.connect(node, node_output, outputnode, output)
         self._unconnected_outputs.remove(output)
 
     @property
@@ -432,7 +458,20 @@ class Pipeline(object):
 
     @property
     def outputs(self):
-        return self._outputs
+        return chain(self.session_outputs, self.subject_outputs,
+                     self.project_outputs)
+
+    @property
+    def session_outputs(self):
+        return self._session_outputs
+
+    @property
+    def subject_outputs(self):
+        return self._subject_outputs
+
+    @property
+    def project_outputs(self):
+        return self._project_outputs
 
     @property
     def options(self):
@@ -447,8 +486,16 @@ class Pipeline(object):
         return self._inputnode
 
     @property
-    def outputnode(self):
-        return self._outputnode
+    def session_outputnode(self):
+        return self._session_outputnode
+
+    @property
+    def subject_outputnode(self):
+        return self._subject_outputnode
+
+    @property
+    def project_outputnode(self):
+        return self._project_outputnode
 
     @property
     def approx_runtime(self):
