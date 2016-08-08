@@ -93,123 +93,6 @@ class Dataset(object):
                     "was initiated.".format(name))
         return scan
 
-    def run_pipeline(self, pipeline, sessions=None, work_dir=None,
-                     reprocess=False, study_id=None):
-        """
-        Gets a data source and data sink from the archive for the requested
-        sessions, connects them to the pipeline's NiPyPE workflow and runs
-        the pipeline
-
-
-        Parameters
-        ----------
-        pipeline : Pipeline
-            The pipeline to run
-        sessions : List[Session|int]
-            A list (or iterable) of Session objects or ints, which will be
-            interpreted as subject ids for the first (unprocessed) study
-        work_dir : str
-            A directory in which to run the nipype workflows
-        reprocess: True|False|'all'
-            A flag which determines whether to rerun the processing for this
-            step. If set to 'all' then pre-requisite pipelines will also be
-            reprocessed.
-        study_ids: int|List[int]|None
-            Id or ids of studies of which to return sessions for. If None all
-            are returned
-        """
-        # Check all inputs and outputs are connected
-        pipeline.assert_connected()
-        # If subject_ids is none use all associated with the project
-        if sessions is None:
-            sessions = self._archive.all_sessions(self._project_id,
-                                                  study_id=study_id)
-        elif study_id is not None:
-            raise NiAnalysisError(
-                "study_id is only relevant if sessions argument is None")
-        # Ensure all sessions are session objects and they are unique
-        sessions = set(Session(session) for session in sessions)
-        if not reprocess:
-            # If the pipeline can be run independently for each session check
-            # to see the sessions which have already been completed and omit
-            # them from the sessions to be processed
-            if not any(self.component(o).multiplicity == 'per_project'
-                       for o in pipeline.outputs):
-                # Check which sessions already have all the required output
-                # files in the archive and don't rerun for those
-                # subjects/studies
-                completed_sessions = copy(sessions)
-                # TODO: Should be able to provide list of outputs required by
-                #       the upstream pipeline, so if only the outputs that are
-                #       required are present then the pipeline doesn't need to
-                #       be rerun
-                for output in pipeline.outputs:
-                    completed_sessions &= set(self._archive.sessions_with_file(
-                        self.scan(output), self.project_id))
-                sessions -= completed_sessions
-                if not sessions:
-                    logger.info(
-                        "Pipeline '{}' wasn't run as all requested sessions "
-                        "were present")
-                    return  # No sessions need to be rerun
-        # Run prerequisite pipelines and save their results into the archive
-        for prereq in pipeline.prerequisities:
-            # NB: Even if reprocess==True, the prerequisite pipelines are not
-            #     re-processed, they are only reprocessed if reprocess == 'all'
-            self.run_pipeline(prereq, sessions, work_dir,
-                              (reprocess if reprocess == 'all' else False))
-        # Set up workflow to run the pipeline, loading and saving from the
-        # archive
-        complete_workflow = pe.Workflow(name=pipeline.name, base_dir=work_dir)
-        # Generate an input node for the sessions iterable
-        inputnode = pe.Node(IdentityInterface(['session']),
-                            name='session_input')
-        inputnode.iterables = ('session',
-                               [(s.subject_id, s.study_id) for s in sessions])
-        # Create source and sinks from the archive
-        source = self.archive.source(self._project_id,
-                                     (self.scan(i) for i in pipeline.inputs))
-        sink = self.archive.sink(self._project_id)
-        sink.inputs.description = pipeline.description
-        sink.inputs.name = self.name
-        # Add all extra nodes and the pipelines workflow to a wrapper workflow
-        complete_workflow.add_nodes((inputnode, source, pipeline.workflow,
-                                     sink))
-        # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(inputnode, 'session', source, 'session')
-        complete_workflow.connect(inputnode, 'session', sink, 'session')
-        for inpt in pipeline.inputs:
-            # Get the scan corresponding to the pipeline's input
-            scan = self.scan(inpt)
-            # Get the component (scan template) corresponding to the pipeline's
-            # input
-            comp = self.component(inpt)
-            # If the scan is not in the required format for the dataset
-            # user MRConvert to convert it
-            if scan.format != comp.format:
-                conversion = pe.Node(MRConvert(),
-                                     name=(comp.name + '_input_conversion'))
-                conversion.inputs.out_ext = comp.format.extension
-                conversion.inputs.quiet = True
-                complete_workflow.connect(source, scan.filename,
-                                          conversion, 'in_file')
-                scan_source = conversion
-                scan_name = 'out_file'
-            else:
-                scan_source = source
-                scan_name = scan.filename
-            # Connect the scan to the pipeline input
-            complete_workflow.connect(scan_source, scan_name,
-                                      pipeline.inputnode, inpt)
-        # Connect all outputs to the archive sink
-        for output in pipeline.outputs:
-            scan = self.scan(output)
-            if scan.processed:  # Skip scans which are already input scans
-                complete_workflow.connect(
-                    pipeline.outputnode(scan.name), scan.name, sink, scan.name)
-        # Run the workflow
-        complete_workflow.run()
-
     @property
     def project_id(self):
         """Accessor for the project id"""
@@ -377,18 +260,123 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, sessions=None, work_dir=None):
+    def run(self, sessions=None, work_dir=None, reprocess=False,
+            study_id=None):
         """
-        Run a pipeline on the dataset it is bound to for the sessions provided,
-        where a "session" is a particular study (or pipeline output) for a
-        subject
+        Gets a data source and data sink from the archive for the requested
+        sessions, connects them to the pipeline's NiPyPE workflow and runs
+        the pipeline
 
         Parameters
         ----------
-        sessions : Session
-            The list of subject/studies to run the pipeline on
+        sessions : List[Session|int]
+            A list (or iterable) of Session objects or ints, which will be
+            interpreted as subject ids for the first (unprocessed) study
+        work_dir : str
+            A directory in which to run the nipype workflows
+        reprocess: True|False|'all'
+            A flag which determines whether to rerun the processing for this
+            step. If set to 'all' then pre-requisite pipelines will also be
+            reprocessed.
+        study_id: int|List[int]|None
+            Id or ids of studies of which to return sessions for. If None all
+            are returned
         """
-        self._dataset.run_pipeline(self, sessions, work_dir=work_dir)
+        # Check all inputs and outputs are connected
+        self.assert_connected()
+        # If subject_ids is none use all associated with the project
+        if sessions is None:
+            sessions = self._dataset.archive.all_sessions(
+                self._dataset._project_id, study_id=study_id)
+        elif study_id is not None:
+            raise NiAnalysisError(
+                "study_id is only relevant if sessions argument is None")
+        # Ensure all sessions are session objects and they are unique
+        sessions = set(Session(session) for session in sessions)
+        if not reprocess:
+            # If the pipeline can be run independently for each session check
+            # to see the sessions which have already been completed and omit
+            # them from the sessions to be processed
+            if not any(self._dataset.component(o).multiplicity == 'per_project'
+                       for o in self.outputs):
+                # Check which sessions already have all the required output
+                # files in the archive and don't rerun for those
+                # subjects/studies
+                completed_sessions = copy(sessions)
+                # TODO: Should be able to provide list of outputs required by
+                #       the upstream pipeline, so if only the outputs that are
+                #       required are present then the pipeline doesn't need to
+                #       be rerun
+                for output in self.outputs:
+                    completed_sessions &= set(
+                        self._dataset.archive.sessions_with_file(
+                            self._dataset.scan(output),
+                            self._dataset.project_id))
+                sessions -= completed_sessions
+                if not sessions:
+                    logger.info(
+                        "Pipeline '{}' wasn't run as all requested sessions "
+                        "were present")
+                    return  # No sessions need to be rerun
+        # Run prerequisite pipelines and save their results into the archive
+        for prereq in self.prerequisities:
+            # NB: Even if reprocess==True, the prerequisite pipelines are not
+            #     re-processed, they are only reprocessed if reprocess == 'all'
+            self._dataset.run_pipeline(
+                prereq, sessions, work_dir, (reprocess
+                                             if reprocess == 'all' else False))
+        # Set up workflow to run the pipeline, loading and saving from the
+        # archive
+        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
+        # Generate an input node for the sessions iterable
+        inputnode = pe.Node(IdentityInterface(['session']),
+                            name='session_input')
+        inputnode.iterables = ('session',
+                               [(s.subject_id, s.study_id) for s in sessions])
+        # Create source and sinks from the archive
+        source = self._dataset.archive.source(
+            self._dataset.project_id,
+            (self._dataset.scan(i) for i in self.inputs))
+        sink = self._dataset.archive.sink(self._dataset._project_id)
+        sink.inputs.description = self.description
+        sink.inputs.name = self._dataset.name
+        # Add all extra nodes and the pipelines workflow to a wrapper workflow
+        complete_workflow.add_nodes((inputnode, source, self.workflow,
+                                     sink))
+        # Connect the nodes of the wrapper workflow
+        complete_workflow.connect(inputnode, 'session', source, 'session')
+        complete_workflow.connect(inputnode, 'session', sink, 'session')
+        for inpt in self.inputs:
+            # Get the scan corresponding to the pipeline's input
+            scan = self._dataset.scan(inpt)
+            # Get the component (scan template) corresponding to the pipeline's
+            # input
+            comp = self._dataset.component(inpt)
+            # If the scan is not in the required format for the dataset
+            # user MRConvert to convert it
+            if scan.format != comp.format:
+                conversion = pe.Node(MRConvert(),
+                                     name=(comp.name + '_input_conversion'))
+                conversion.inputs.out_ext = comp.format.extension
+                conversion.inputs.quiet = True
+                complete_workflow.connect(source, scan.filename,
+                                          conversion, 'in_file')
+                scan_source = conversion
+                scan_name = 'out_file'
+            else:
+                scan_source = source
+                scan_name = scan.filename
+            # Connect the scan to the pipeline input
+            complete_workflow.connect(scan_source, scan_name,
+                                      self.inputnode, inpt)
+        # Connect all outputs to the archive sink
+        for output in self.outputs:
+            scan = self._dataset.scan(output)
+            if scan.processed:  # Skip scans which are already input scans
+                complete_workflow.connect(
+                    self.outputnode(scan.name), scan.name, sink, scan.name)
+        # Run the workflow
+        complete_workflow.run()
 
     @property
     def prerequisities(self):

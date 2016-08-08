@@ -26,8 +26,8 @@ class Scan(object):
         the scan is assumed to be acquired externall
     multiplicity : str
         One of 'per_subject', 'subject_subset', and 'per_project', specifying
-        whether the scan is present for each subject, a subset of subjects or
-        one per project.
+        whether the scan is present for each session, a subset of sessions,
+        each subject, a subset of subjects or one per project.
     """
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project',
