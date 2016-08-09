@@ -562,7 +562,7 @@ class DarisSession:
         # Download scans first just to check whether there are any problems
         # before creating the new study
         for scan in scans.itervalues():
-            self.download(os.path.join(tmp_dir, '{}.zip'.format(scan.name)),
+            self.download(os.path.join(tmp_dir, '{}.zip'.format(scan.id)),
                           project_id=old_project_id,
                           subject_id=old_subject_id,
                           study_id=old_study_id,
@@ -616,7 +616,7 @@ class DarisSession:
                     file_id=scan.id, name=scan.name,
                     description=scan.description, ex_method=new_ex_method_id,
                     repo_id=repo_id)
-                self.upload(os.path.join(tmp_dir, '{}.zip'.format(scan.name)),
+                self.upload(os.path.join(tmp_dir, '{}.zip'.format(scan.id)),
                             new_project_id, new_subject_id,
                             study_id=new_study_id, file_id=new_file_id,
                             ex_method=new_ex_method_id, repo_id=repo_id,
@@ -636,7 +636,7 @@ class DarisSession:
         return new_study_id
 
     def move_study(self, project_id, old_subject_id, old_study_id,
-                    new_study_id, old_ex_method_id=1, repo_id=2, **kwargs):
+                   new_study_id, old_ex_method_id=1, repo_id=2, **kwargs):
         self.copy_study(project_id, old_subject_id, old_study_id, new_study_id,
                         old_ex_method_id=old_ex_method_id, repo_id=repo_id,
                         **kwargs)
@@ -712,8 +712,8 @@ class DarisSession:
             file_id)
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
-
-    def download_match(self, location, project_id, sub_id, match_scan=None,scan_type=None):
+    def download_match(self, location, project_id, sub_id, match_scan=None,
+                       scan_type=None):
         """
         Downloads multiple assets to a location on the local file system
 
@@ -728,51 +728,61 @@ class DarisSession:
         match_scan: string
             Recursive expression to match in order to download the asset
         scan_type: list or string
-            Name(s) of the scan to download. Available scans: asl (arterial spin labeling)
-	    t1,t2,epi,diffusion,proton_density, mt(Magnetization Transfer), ute
-	    umap(UTE umap), dixon,gre(field map),multiband
+            Name(s) of the scan to download. Available scans: asl (arterial
+            spin labeling) t1,t2,epi,diffusion,proton_density, mt(Magnetization
+            Transfer), ute umap(UTE umap), dixon,gre(field map),multiband
         """
-	if match_scan==None and scan_type==None:
-	    raise Exception("You must provide one between match_scan OR scan_type")
-	
-	files=self.get_files(project_id,sub_id)
+        if match_scan is None and scan_type is None:
+            raise Exception(
+                "You must provide one between match_scan OR scan_type")
 
-	list_scans={}
-	list_scans['diffusion']=r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)_p2$'
-	list_scans['epi']=r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)'
-	list_scans['multiband']=list_scans['mb']=r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$'
-	list_scans['asl']=r'ep2d_tra_pasl$'
-	list_scans['pd']=list_scans['proton density']=list_scans['proton_density']=r'pd_tse.*'
-	list_scans['t2']=r't2_spc.*|FLAIR'
-	list_scans['t1']=r't1_mprage.*|MPRAGE'
-	list_scans['mt']=r'(.*)MT fl3d([a-zA-Z_ ]+)'
-	list_scans['ute']=r'([a-zA-Z_ ]+)UTE$'
-	list_scans['dixon']=r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
-	list_scans['gre']=list_scans['field_map']=list_scans['field map']=r'gre([a-zA-Z_ ]+)field_map'
-	list_scans['umap']=r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'	
+        files = self.get_files(project_id, sub_id)
 
-	if isinstance(scan_type,basestring):
-      	    scan_type=re.split(' |,',scan_type)
-	elif not isinstance(scan_type, collections.Iterable) and scan_type is not None:
-    	    raise Exception("Scan type '{}' is not a list or string".format(scan_type))
+        list_scans = {}
+        list_scans['diffusion'] = r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)_p2$'
+        list_scans['epi'] = (
+            r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)'
+            r'ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)')
+        list_scans['multiband'] = list_scans['mb'] = (
+            r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$')
+        list_scans['asl'] = r'ep2d_tra_pasl$'
+        list_scans['pd'] = r'pd_tse.*'
+        list_scans['proton density'] = list_scans['pd']
+        list_scans['proton_density'] = list_scans['pd']
+        list_scans['t2'] = r't2_spc.*|FLAIR'
+        list_scans['t1'] = r't1_mprage.*|MPRAGE'
+        list_scans['mt'] = r'(.*)MT fl3d([a-zA-Z_ ]+)'
+        list_scans['ute'] = r'([a-zA-Z_ ]+)UTE$'
+        list_scans['dixon'] = r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
+        list_scans['gre'] = r'gre([a-zA-Z_ ]+)field_map'
+        list_scans['field_map'] = list_scans['field map'] = list_scans['gre']
+        list_scans['umap'] = r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'
 
-	if scan_type is not None:
-    	    if match_scan is not None:
-        	raise Exception("You need to provied just ONE input between scan_type and match_scan")
-    	    for scan in scan_type:
-                match_scan=list_scans[scan]
-        	for id in files:
-            	    if re.match(match_scan,files[id].name):
-                	match=re.match(match_scan,files[id].name)
-                        name=files[id].cid
-                	self.download(location+name+'.zip',project_id,sub_id,id)
-	else:
-            for id in files:
-        	if re.match(match_scan,files[id].name):
-            	    match=re.match(match_scan,files[id].name)
-            	    name=files[id].cid
-		    self.download(location+name+'.zip',project_id,sub_id,id)
+        if isinstance(scan_type, basestring):
+            scan_type = re.split(' |,', scan_type)
+        elif (not isinstance(scan_type, collections.Iterable) and
+              scan_type is not None):
+            raise Exception(
+                "Scan type '{}' is not a list or string".format(scan_type))
 
+        if scan_type is not None:
+            if match_scan is not None:
+                raise Exception(
+                    "You need to provied just ONE input between scan_type and "
+                    "match_scan")
+            for scan in scan_type:
+                match_scan = list_scans[scan]
+                for file_id in files:
+                    if re.match(match_scan, files[file_id].name):
+                        name = files[id].cid
+                        self.download(location + name + '.zip', project_id,
+                                      sub_id, file_id)
+        else:
+            for file_id in files:
+                if re.match(match_scan, files[file_id].name):
+                    name = files[file_id].cid
+                    self.download(location + name + '.zip', project_id, sub_id,
+                                  file_id)
 
     def upload(self, location, project_id, subject_id, study_id, file_id,
                name=None, repo_id=2, ex_method=2, lctype=None):
