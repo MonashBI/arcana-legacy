@@ -284,11 +284,14 @@ class TestDarisArchive(TestCase):
                         Scan('source2', nifti_gz_format),
                         Scan('source3', nifti_gz_format),
                         Scan('source4', nifti_gz_format)]
+        sink_files = [Scan('sink1', nifti_gz_format),
+                      Scan('sink3', nifti_gz_format),
+                      Scan('sink4', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
         session = Session(SUBJECT_ID, self.study_id)
         inputnode.inputs.session = (session.subject_id, session.study_id)
         source = archive.source(PROJECT_ID, source_files)
-        sink = archive.sink(PROJECT_ID)
+        sink = archive.sink(PROJECT_ID, sink_files)
         sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
             "A test study created by archive roundtrip unittest")
@@ -300,9 +303,8 @@ class TestDarisArchive(TestCase):
         workflow.connect(inputnode, 'session', sink, 'session')
         for source_file in source_files:
             if source_file.name != 'source2':
-                sink_filename = source_file.filename.replace('source', 'sink')
-                workflow.connect(source, source_file.filename,
-                                 sink, sink_filename)
+                sink_name = source_file.name.replace('source', 'sink')
+                workflow.connect(source, source_file.name, sink, sink_name)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(

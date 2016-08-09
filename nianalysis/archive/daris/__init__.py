@@ -219,8 +219,8 @@ class DarisArchive(Archive):
         source.inputs.repo_id = self._repo_id
         return source
 
-    def sink(self, project_id):
-        sink = super(DarisArchive, self).sink(project_id)
+    def sink(self, project_id, output_files):
+        sink = super(DarisArchive, self).sink(project_id, output_files)
         sink.inputs.server = self._server
         sink.inputs.domain = self._domain
         sink.inputs.user = self._user
@@ -299,7 +299,12 @@ class DarisSession:
               'description': 'meta/daris:pssd-object/description',
               'ctime': 'ctime',
               'mtime': 'mtime',
-              'lctype': 'type'}
+              'lctype': 'type',
+              'processed': 'meta/daris:pssd-derivation/processed',
+              'method': 'meta/daris:pssd-derivation/method',
+              'dataset_type': 'meta/daris:pssd-dataset/type',
+              'creator_domain': 'creator/domain',
+              'creator_user': 'creator/user'}
 
     def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
                  user=None, password=None, token_path=None,
@@ -497,7 +502,7 @@ class DarisSession:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_study(self, project_id, subject_id, study_id=None, name=None,
-                  description='\"\"', ex_method=2, repo_id=2):
+                  description='\"\"', ex_method=2, repo_id=2, processed=None):
         """
         Adds a new subject with the given subject_id within the given
         project_id
@@ -529,11 +534,13 @@ class DarisSession:
             if not self.exists(sid + '.2'):
                 self.run("om.pssd.ex-method.create :mid 1008.1.19 :sid {}"
                          " :exmethod-number 2".format(sid))
+        if processed is None:
+            processed = (ex_method > 1)
         cmd = (
             "om.pssd.study.create :pid 1008.{}.{}.{}.{} :processed {} "
             ":name \"{}\" :description \"{}\" :step 1 :study-number {}".format(
                 repo_id, project_id, subject_id, ex_method,
-                str(bool(ex_method - 1)).lower(), name, description, study_id))
+                str(processed).lower(), name, description, study_id))
         # Return the id of the newly created study
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
@@ -562,7 +569,8 @@ class DarisSession:
         # Download scans first just to check whether there are any problems
         # before creating the new study
         for scan in scans.itervalues():
-            self.download(os.path.join(tmp_dir, '{}.zip'.format(scan.id)),
+            self.download(os.path.join(tmp_dir, '{}_{}.zip'.format(scan.id,
+                                                                   scan.name)),
                           project_id=old_project_id,
                           subject_id=old_subject_id,
                           study_id=old_study_id,
@@ -616,7 +624,9 @@ class DarisSession:
                     file_id=scan.id, name=scan.name,
                     description=scan.description, ex_method=new_ex_method_id,
                     repo_id=repo_id)
-                self.upload(os.path.join(tmp_dir, '{}.zip'.format(scan.id)),
+                self.upload(os.path.join(tmp_dir,
+                                         '{}_{}.zip'.format(scan.id,
+                                                            scan.name)),
                             new_project_id, new_subject_id,
                             study_id=new_study_id, file_id=new_file_id,
                             ex_method=new_ex_method_id, repo_id=repo_id,
@@ -644,7 +654,8 @@ class DarisSession:
                           ex_method=old_ex_method_id, repo_id=repo_id)
 
     def add_file(self, project_id, subject_id, study_id, file_id=None,
-                 name=None, description='\"\"', ex_method=2, repo_id=2):
+                 name=None, description='\"\"', ex_method=2, repo_id=2,
+                 processed=None):
         """
         Adds a new file with the given subject_id within the given study id
 
@@ -674,10 +685,12 @@ class DarisSession:
                         repo_id, project_id, subject_id))
         else:
             meta = ""
+        if processed is None:
+            processed = (ex_method > 1)
         cmd = ("om.pssd.dataset.derivation.create :pid 1008.{}.{}.{}.{}.{}"
                " :processed {} :name \"{}\" :description \"{}\"{}".format(
                    repo_id, project_id, subject_id, ex_method, study_id,
-                   str(bool(ex_method - 1)).lower(), name, description, meta))
+                   str(processed).lower(), name, description, meta))
         # Return the id of the newly created remote file
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
@@ -944,13 +957,19 @@ class DarisSession:
 class DarisEntry(object):
 
     def __init__(self, cid, name, description, ctime=None, mtime=None,
-                 lctype=None):  # @ReservedAssignment
+                 lctype=None, processed=None, method=None, dataset_type=None,
+                 creator_domain=None, creator_user=None):
         self._cid = cid
         self._name = name
         self._description = description
         self._ctime = ctime
         self._mtime = mtime
         self._lctype = lctype
+        self._processed = processed
+        self._method = method
+        self._dataset_type = dataset_type
+        self._creator_domain = creator_domain
+        self._creator_user = creator_user
 
     def __repr__(self):
         return ("DarisEntry(cid={}, name={}, description='{}'{})"
@@ -986,6 +1005,26 @@ class DarisEntry(object):
     def mtime(self):
         return self._mtime
 
+    @property
+    def processed(self):
+        return self._processed
+
+    @property
+    def method(self):
+        return self._method
+
+    @property
+    def dataset_type(self):
+        return self._dataset_type
+
+    @property
+    def creator_domain(self):
+        return self._creator_domain
+
+    @property
+    def creator_user(self):
+        return self._creator_user
+
 
 def construct_cid(project_id, subject_id=None, study_id=None,
                   ex_method=None, file_id=None, repo_id=2):
@@ -1006,3 +1045,10 @@ def construct_cid(project_id, subject_id=None, study_id=None,
             else:
                 break
     return cid
+
+
+if __name__ == '__main__':
+    daris = DarisSession(domain='system', user='manager',
+                         password='t0gp154sp!')
+    with daris:
+        daris.copy_study(135,3,2,new_project_id=144,new_subject_id=2,new_study_id=1)
