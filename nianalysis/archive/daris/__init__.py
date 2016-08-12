@@ -787,7 +787,7 @@ class DarisSession:
                 match_scan = list_scans[scan]
                 for file_id in files:
                     if re.match(match_scan, files[file_id].name):
-                        name = files[id].cid
+                        name = files[file_id].cid
                         self.download(location + name + '.zip', project_id,
                                       sub_id, file_id)
         else:
