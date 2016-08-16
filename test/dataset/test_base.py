@@ -5,8 +5,9 @@ from nipype.pipeline import engine as pe
 from nianalysis.base import Scan
 from nianalysis.formats import nifti_gz_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.dataset.base import Dataset, Pipeline
+from nianalysis.dataset.base import Dataset
 from nianalysis.interfaces.mrtrix import MRConvert
+from nianalysis.archive.local import LocalArchive
 
 
 TEST_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '_data',
@@ -96,13 +97,17 @@ class DummyDataset(Dataset):
         Scan('pipeline1_1', nifti_gz_format, pipeline1),
         Scan('pipeline1_2', nifti_gz_format, pipeline1),
         Scan('pipeline2', nifti_gz_format, pipeline2),
-        Scan('pipeline3', nifti_gz_format, pipeline3)]
+        Scan('pipeline3', nifti_gz_format, pipeline3),
+        Scan('pipeline4', nifti_gz_format, pipeline4)]
 
 
 class TestRunPipeline(TestCase):
 
     def setUp(self):
         os.makedirs(TEST_DIR)
+        archive = LocalArchive(TEST_DIR)
+        self.dataset = DummyDataset('dummy', '1', archive,
+                                    input_scans={'start', Scan()})
 
     def tearDown(self):
         shutil.rmtree(TEST_DIR, ignore_errors=True)

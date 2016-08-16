@@ -184,3 +184,12 @@ tbss_cite = Citation(
     title=("Tract-based spatial statistics: Voxelwise analysis of "
            "multi-subject diffusion data"),
     journal="NeuroImage", volume=31, pages='1487-1505', year=2006)
+
+spm_cite = Citation(
+    short_name='spm',
+    authors=['Penny, W.', 'Friston, K.', 'Ashburner, J.', 'Kiebel, S.',
+             'Nichols, T.'],
+    title=("Statistical Parametric Mapping: The Analysis of Functional Brain "
+           "Images"),
+    year=2006)
+# publisher='Academic Press'

@@ -23,3 +23,5 @@ mrtrix3_req = Requirement('mrtrix3', min_version=(0, 3, 12))
 fsl5_req = Requirement('fsl', min_version=(5, 0))
 
 ants2_req = Requirement('ANTs', min_version=(2, 0))
+
+spm12_req = Requirement('SPM', min_version=(12, 0))
