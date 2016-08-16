@@ -44,11 +44,16 @@ class Scan(object):
         self._prefix = ''
 
     def __eq__(self, other):
-        return (self.name == other.name and
-                self.format == other.format and
-                self.pipeline == other.pipeline and
-                self.multiplicity == other.multiplicity and
-                self._prefix == other._prefix)
+        try:
+            return (self.name == other.name and
+                    self.format == other.format and
+                    self.pipeline == other.pipeline and
+                    self.multiplicity == other.multiplicity and
+                    self._prefix == other._prefix)
+        except AttributeError as e:
+            assert not e.message.startswith(
+                "'{}'".format(self.__class__.__name__))
+            return False
 
     def __ne__(self, other):
         return not (self == other)

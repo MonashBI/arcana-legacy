@@ -227,8 +227,8 @@ class Pipeline(object):
         self._workflow = pe.Workflow(name=name)
         self._outputs = defaultdict(list)
         for output in outputs:
-            mult = self.self._dataset.component(output).multiplicity
-            self._outputs[mult] = output
+            mult = self._dataset.component(output).multiplicity
+            self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
             self._outputnodes[mult] = pe.Node(
@@ -311,9 +311,9 @@ class Pipeline(object):
             # to see the sessions which have already been completed and omit
             # them from the sessions to be processed
             multiplicities = (self._dataset.component(o).multiplicity
-                              for o in self.outputs)
-            if all(multiplicities not in ('per_project', 'per_subject',
-                                          'per_subject_subset')):
+                              for o in self.outputs())
+            if all(m not in ('per_project', 'per_subject')
+                   for m in multiplicities):
                 # Check which sessions already have all the required output
                 # files in the archive and don't rerun for those
                 # subjects/studies
@@ -322,7 +322,7 @@ class Pipeline(object):
                 #       the upstream pipeline, so if only the outputs that are
                 #       required are present then the pipeline doesn't need to
                 #       be rerun
-                for output in self.outputs:
+                for output in self.outputs():
                     completed_sessions &= set(
                         self._dataset.archive.sessions_with_file(
                             self._dataset.scan(output),
@@ -337,9 +337,8 @@ class Pipeline(object):
         for prereq in self.prerequisities:
             # NB: Even if reprocess==True, the prerequisite pipelines are not
             #     re-processed, they are only reprocessed if reprocess == 'all'
-            self._dataset.run_pipeline(
-                prereq, sessions, work_dir, (reprocess
-                                             if reprocess == 'all' else False))
+            prereq.run(sessions, work_dir,
+                       (reprocess if reprocess == 'all' else False))
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
@@ -412,7 +411,7 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         pipelines = set()
-        for input in self.inputs:  # @ReservedAssignment
+        for input in self.inputs():  # @ReservedAssignment
             comp = self._dataset.component(input)
             if comp.processed:
                 pipelines.add(comp.pipeline)
@@ -434,9 +433,10 @@ class Pipeline(object):
             self._unconnected_inputs.remove(input)
 
     def connect_output(self, output, node, node_output):
-        assert output in self._outputs, (
+        assert output in chain(*self._outputs.values()), (
             "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(output, self.name, "', '".join(self._outputs)))
+            .format(output, self.name,
+                    "', '".join(chain(*self._outputs.values()))))
         assert output in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
@@ -452,26 +452,32 @@ class Pipeline(object):
     def workflow(self):
         return self._workflow
 
-    @property
     def inputs(self):
-        return self._inputs
+        """
+        Returns an iterator over the inputs of the pipeline
+        """
+        return iter(self._inputs)
 
-    @property
-    def outputs(self):
-        return chain(self.session_outputs, self.subject_outputs,
-                     self.project_outputs)
+    def outputs(self, multiplicity=None):
+        """
+        Returns an iterator over the outputs of the pipeline
 
-    @property
-    def session_outputs(self):
-        return self._session_outputs
+        Parameters
+        ----------
+        multiplicity : str | None
+            The multiplicity of the outputs to return. If None all outputs are
+            returned
 
-    @property
-    def subject_outputs(self):
-        return self._subject_outputs
-
-    @property
-    def project_outputs(self):
-        return self._project_outputs
+        Returns
+        -------
+        outputs : Iterator[str]
+            an iterator over the specified output names of the pipeline
+        """
+        if multiplicity is None:
+            outputs = chain(*self._outputs.values())
+        else:
+            outputs = iter(self._outputs[multiplicity])
+        return outputs
 
     @property
     def options(self):
