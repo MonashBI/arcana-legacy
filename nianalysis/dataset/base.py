@@ -9,7 +9,7 @@ from nianalysis.exceptions import NiAnalysisError
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
     NiAnalysisScanNameError, NiAnalysisMissingScanError)
-from nianalysis.archive import Session
+from nianalysis.archive.base import Session, ArchiveSource, ArchiveSink
 
 
 logger = Logger('NiAnalysis')
@@ -311,7 +311,7 @@ class Pipeline(object):
             # to see the sessions which have already been completed and omit
             # them from the sessions to be processed
             multiplicities = (self._dataset.component(o).multiplicity
-                              for o in self.outputs())
+                              for o in self.outputs)
             if all(m not in ('per_project', 'per_subject')
                    for m in multiplicities):
                 # Check which sessions already have all the required output
@@ -322,7 +322,7 @@ class Pipeline(object):
                 #       the upstream pipeline, so if only the outputs that are
                 #       required are present then the pipeline doesn't need to
                 #       be rerun
-                for output in self.outputs():
+                for output in self.outputs:
                     completed_sessions &= set(
                         self._dataset.archive.sessions_with_file(
                             self._dataset.scan(output),
@@ -342,6 +342,7 @@ class Pipeline(object):
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
+        complete_workflow.add_nodes([self._workflow])
         # Generate an input node for the sessions iterable
         inputnode = pe.Node(IdentityInterface(['session']),
                             name='session_input')
@@ -372,16 +373,17 @@ class Pipeline(object):
                 scan_name = 'out_file'
             else:
                 scan_source = source
-                scan_name = scan.filename
+                scan_name = scan.name + ArchiveSource.OUTPUT_SUFFIX
             # Connect the scan to the pipeline input
             complete_workflow.connect(scan_source, scan_name,
                                       self.inputnode, inpt)
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
-            # Create a new sink for the level of multiplicity (i.e 'session',
-            # 'subject' or 'project')
-            sink = self._dataset.archive.sink(self._dataset._project_id,
-                                              multiplicity=mult)
+            # Create a new sink for each multiplicity level (i.e 'per_session',
+            # 'per_subject' or 'per_project')
+            sink = self._dataset.archive.sink(
+                self._dataset._project_id,
+                (self._dataset.scan(i) for i in outputs), mult)
             sink.inputs.description = self.description
             sink.inputs.name = self._dataset.name
             if mult == 'per_session':
@@ -396,8 +398,8 @@ class Pipeline(object):
                 scan = self._dataset.scan(output)
                 if scan.processed:  # Skip scans which are already input scans
                     complete_workflow.connect(
-                        self._outputnodes[mult](scan.name), scan.name,
-                        sink, scan.name)
+                        self._outputnodes[mult], scan.name,
+                        sink, scan.name + ArchiveSink.INPUT_SUFFIX)
         # Run the workflow
         complete_workflow.run()
 
@@ -411,7 +413,7 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         pipelines = set()
-        for input in self.inputs():  # @ReservedAssignment
+        for input in self.inputs:  # @ReservedAssignment
             comp = self._dataset.component(input)
             if comp.processed:
                 pipelines.add(comp.pipeline)
@@ -424,13 +426,13 @@ class Pipeline(object):
         """
         self._workflow.connect(*args, **kwargs)
 
-    def connect_input(self, input, node, node_input):  # @ReservedAssignment
-        assert input in self._inputs, (
+    def connect_input(self, inpt, node, node_input):  # @ReservedAssignment
+        assert inpt in self._inputs, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(input, self.name, "', '".join(self._inputs)))
-        self._workflow.connect(self._inputnode, input, node, node_input)
-        if input in self._unconnected_inputs:
-            self._unconnected_inputs.remove(input)
+        self._workflow.connect(self._inputnode, inpt, node, node_input)
+        if inpt in self._unconnected_inputs:
+            self._unconnected_inputs.remove(inpt)
 
     def connect_output(self, output, node, node_output):
         assert output in chain(*self._outputs.values()), (
@@ -452,32 +454,13 @@ class Pipeline(object):
     def workflow(self):
         return self._workflow
 
+    @property
     def inputs(self):
-        """
-        Returns an iterator over the inputs of the pipeline
-        """
         return iter(self._inputs)
 
-    def outputs(self, multiplicity=None):
-        """
-        Returns an iterator over the outputs of the pipeline
-
-        Parameters
-        ----------
-        multiplicity : str | None
-            The multiplicity of the outputs to return. If None all outputs are
-            returned
-
-        Returns
-        -------
-        outputs : Iterator[str]
-            an iterator over the specified output names of the pipeline
-        """
-        if multiplicity is None:
-            outputs = chain(*self._outputs.values())
-        else:
-            outputs = iter(self._outputs[multiplicity])
-        return outputs
+    @property
+    def outputs(self):
+        return chain(*self._outputs.values())
 
     @property
     def options(self):

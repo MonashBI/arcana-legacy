@@ -8,6 +8,7 @@ from nianalysis.archive.local import (
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
 from nianalysis.interfaces.utils import SplitSession
+from nianalysis.testing import test_data_dir
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -18,10 +19,9 @@ class TestLocalArchive(TestCase):
     PROJECT_ID = 'DUMMYPROJECTID'
     SUBJECT_ID = 'DUMMYSUBJECTID'
     SESSION_ID = 'DUMMYSESSIONID'
-    TEST_IMAGE = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'test_image.nii.gz'))
-    TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'local'))
+    TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
+                                              'test_image.nii.gz'))
+    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'local'))
     BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 

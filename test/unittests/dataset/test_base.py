@@ -6,8 +6,17 @@ from nianalysis.base import Scan
 from nianalysis.formats import nifti_gz_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.dataset.base import Dataset, _create_component_dict
-from nianalysis.interfaces.mrtrix import MRConvert
+from nianalysis.interfaces.mrtrix import MRConvert, MRCat
 from nianalysis.archive.local import LocalArchive
+import logging
+
+logger = logging.getLogger('NiAnalysis')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+handler.setLevel(logging.INFO)
+formatter = logging.Formatter("%(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class DummyDataset(Dataset):
@@ -44,9 +53,11 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.Node(MRMath(), name="math")
+        mrmath = pe.Node(MRCat(), name="mrcat")
+        mrmath.inputs.axis = 0
         # Connect inputs
-        pipeline.connect_input('start', mrmath, 'in_file')
+        pipeline.connect_input('start', mrmath, 'first_scan')
+        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline2', mrmath, 'out_file')
         # Check inputs/outputs are connected
@@ -56,7 +67,7 @@ class DummyDataset(Dataset):
     def pipeline3(self):
         pipeline = self._create_pipeline(
             name='pipeline3',
-            inputs=['pipeline1_2'],
+            inputs=['pipeline2'],
             outputs=['pipeline3'],
             description="A dummy pipeline used to test 'run_pipeline' method",
             options={},
@@ -65,7 +76,7 @@ class DummyDataset(Dataset):
             approx_runtime=1)
         mrconvert = pe.Node(MRConvert(), name="convert")
         # Connect inputs
-        pipeline.connect_input('pipeline1_2', mrconvert, 'in_file')
+        pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
         pipeline.connect_output('pipeline3', mrconvert, 'out_file')
         # Check inputs/outputs are connected
@@ -134,7 +145,7 @@ class TestRunPipeline(TestCase):
             'TestDummy', self.PROJECT_ID, archive,
             input_scans={'start': Scan('start', nifti_gz_format)})
         dataset.pipeline4().run()
-        for scan in DummyDataset.components:
+        for scan in DummyDataset.components():
             self.assertTrue(
                 os.path.exists(os.path.join(
                     self.session_path, scan.name + scan.format.extension)))

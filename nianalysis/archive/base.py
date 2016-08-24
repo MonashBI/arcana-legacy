@@ -104,6 +104,7 @@ class Archive(object):
                 .format(multiplicity, "', '".join(Scan.MULTIPLICITY_OPTIONS)))
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
+        output_scans = list(output_scans)  # Ensure iterators aren't exhausted
         sink = pe.Node(sink_class(output_scans), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.files = [s.to_tuple() for s in output_scans]
@@ -234,10 +235,13 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     def __setattr__(self, name, val):
         if isdefined(self.files) and not hasattr(self, name):
             accepted = [s[0] + ArchiveSink.INPUT_SUFFIX for s in self.files]
-            assert name in accepted, (
-                "'{}' is not a valid input filename for '{}' archive sink "
-                "(accepts '{}')".format(name, self.name,
-                                        "', '".join(accepted)))
+            try:
+                assert name in accepted, (
+                    "'{}' is not a valid input filename for '{}' archive sink "
+                    "(accepts '{}')".format(name, self.name,
+                                            "', '".join(accepted)))
+            except:
+                raise
         super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
 
 

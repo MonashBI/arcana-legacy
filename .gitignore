@@ -5,3 +5,4 @@
 /test/data_access/test_data/working_dir
 *.pklz
 *~
+.DS_Store
