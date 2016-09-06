@@ -291,7 +291,7 @@ class DiffusionDataset(T2Dataset):
         # Mean calculation node
         mean = pe.Node(MRMath(), name="mean")
         mean.inputs.axis = 3
-        mean.inputs.operator = 'mean'
+        mean.inputs.operation = 'mean'
         mean.inputs.quiet = True
         # Convert to Nifti
         mrconvert = pe.Node(MRConvert(), name="output_conversion")

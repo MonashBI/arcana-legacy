@@ -11,41 +11,125 @@ from nianalysis.exceptions import NiAnalysisError
 INPUT_OUTPUT_SUFFIX = '_scan'
 
 
-class Session(object):
-    """
-    A small wrapper class used to define the subject_id and study_id
-    """
+class Project(object):
 
-    def __init__(self, subject_id, study_id='1'):
-        if isinstance(subject_id, self.__class__):
-            # If subject_id is actually another Session just copy values
-            self._subject_id = subject_id.subject_id
-            self._study_id = subject_id.study_id
-        else:
-            self._subject_id = str(subject_id)
-            self._study_id = str(study_id)
+    def __init__(self, project_id, subjects, scans):
+        self._id = project_id
+        self._subject = subjects
+        self._scans = scans
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def subjects(self):
+        return iter(self._subjects)
+
+    @property
+    def scans(self):
+        return self._scans
 
     def __eq__(self, other):
-        return (self.subject_id == other.subject_id and
-                self.study_id == other.study_id)
+        if not isinstance(other, Project):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
 
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return "Session(subject_id='{}', session_id='{}')".format(
-            self.subject_id, self.study_id)
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
 
     def __hash__(self):
-        return hash((self.subject_id, self.study_id))
+        return hash(self._id)
+
+
+class Subject(object):
+    """
+    Holds a subject id and a list of sessions
+    """
+
+    def __init__(self, subject_id, sessions, scans):
+        self._id = subject_id
+        self._sessions = sessions
+        self._scans = scans
+        for session in sessions:
+            session.subject = self
 
     @property
-    def subject_id(self):
-        return self._subject_id
+    def id(self):
+        return self._id
 
     @property
-    def study_id(self):
-        return self._study_id
+    def sessions(self):
+        return iter(self._sessions)
+
+    @property
+    def scans(self):
+        return self._scans
+
+    def __eq__(self, other):
+        if not isinstance(other, Subject):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
+
+    def __hash__(self):
+        return hash(self._id)
+
+
+class Session(object):
+    """
+    Holds the session id and the list of scans loaded from it
+    """
+
+    def __init__(self, session_id, scans):
+        self._id = session_id
+        self._scans = scans
+        self._subject = None
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def subject(self):
+        return self._subject
+
+    @subject.setter
+    def subject(self, subject):
+        self._subject = subject
+
+    @property
+    def scans(self):
+        return iter(self._scans)
+
+    def __eq__(self, other):
+        if not isinstance(other, Session):
+            return False
+        return (self._id == other._id and
+                self._subject_id == other._subject_id and
+                self._scans == other._scans)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Session(id='{}', num_scans={})".format(self._id,
+                                                       len(self._scans))
+
+    def __hash__(self):
+        return hash(self._id)
 
 
 class Archive(object):
@@ -111,36 +195,22 @@ class Archive(object):
         return sink
 
     @abstractmethod
-    def all_sessions(self, project_id, study_id=None):
+    def project(self, project_id, subject_ids=None, session_ids=None):
         """
-        Returns a nianalysis.Session object for each session acquired
-        for the project.
+        Returns a nianalysis.archive.Project object for the given project id,
+        which holds information on all available subjects, sessions and scans
+        in the project.
 
         Parameters
         ----------
         project_id : str
             The ID of the project to return the sessions for
-        study_id : str
-            The ID of the study to return for each subject. If None then all
-            studies are return for each subject.
-        """
-
-    @abstractmethod
-    def sessions_with_file(self, scan, project_id, sessions=None):
-        """
-        Returns all the sessions (nianalysis.Session) in the given project
-        that contain the given file
-
-        Parameters
-        ----------
-        scan : nianalysis.Scan
-            A Scan object which all sessions will be checked against to see
-            whether they contain it
-        project_id : str
-            The ID of the project to return the sessions for
-        sessions : List[Session]
-            The list of sessions to check. If None then all sessions are
-            checked for the given project
+        subject_ids : list(str)
+            List of subject ids to filter the returned subjects. If None all
+            subjects will be returned.
+        session_ids : list(str)
+            List of session ids to filter the returned sessions. If None all
+            sessions will be returned
         """
 
 

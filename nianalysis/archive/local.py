@@ -8,13 +8,17 @@ import shutil
 import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
-from .base import Session
+from .base import Project, Subject, Session
+from nianalysis.base import Scan
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.formats import scan_formats
+from nianalysis.formats import scan_formats, scan_formats_by_ext
 from nianalysis.utils import split_extension
 
 
 logger = logging.getLogger('NiAnalysis')
+
+PROJECT_SUMMARY_NAME = '__SUMMARY__'
+SUBJECT_SUMMARY_NAME = '__SUMMARY__'
 
 
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
@@ -35,10 +39,10 @@ class LocalSource(ArchiveSource):
             self.inputs.session[0])))
         session_dir = os.path.join(base_subject_dir,
                                    str(self.inputs.session[1]))
-        subject_dir = os.path.join(base_subject_dir, LocalSubjectSink.DIRNAME)
+        subject_dir = os.path.join(base_subject_dir, SUBJECT_SUMMARY_NAME)
         project_dir = os.path.join(
             self.inputs.base_dir, self.inputs.project_id,
-            LocalProjectSink.DIRNAME)
+            PROJECT_SUMMARY_NAME)
         outputs = {}
         for name, scan_format, multiplicity, _ in self.inputs.files:
             if multiplicity == 'per_project':
@@ -143,25 +147,24 @@ class LocalSubjectSink(LocalSink):
 
     input_spec = LocalSubjectSinkInputSpec
 
-    DIRNAME = '__SUMMARY__'
     ACCEPTED_MULTIPLICITIES = ('per_subject', 'per_subject_subset')
 
     def _get_output_dir(self):
         return os.path.abspath(os.path.join(*(str(d) for d in (
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, self.DIRNAME))))
+            self.inputs.subject_id, PROJECT_SUMMARY_NAME))))
 
 
 class LocalProjectSink(LocalSink):
 
     input_spec = LocalProjectSinkInputSpec
 
-    DIRNAME = '__SUMMARY__'
     ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_output_dir(self):
         return os.path.abspath(os.path.join(*(str(d) for d in (
-            self.inputs.base_dir, self.inputs.project_id, self.DIRNAME))))
+            self.inputs.base_dir, self.inputs.project_id,
+            SUBJECT_SUMMARY_NAME))))
 
 
 class LocalArchive(Archive):
@@ -196,35 +199,76 @@ class LocalArchive(Archive):
         sink.inputs.base_dir = self.base_dir
         return sink
 
-    def all_sessions(self, project_id, study_id=None):
+    def project(self, project_id, subject_ids=None, session_ids=None):
         project_dir = os.path.join(self.base_dir, str(project_id))
-        sessions = []
-        for subject_dir in os.listdir(project_dir):
-            if not subject_dir.startswith('.'):
-                study_dirs = [
-                    d for d in os.listdir(os.path.join(project_dir,
-                                                       subject_dir))
-                    if not d.startswith('.')]
-                if study_id is not None:
-                    try:
-                        study_ids = [study_id]
-                    except TypeError:
-                        study_ids = study_id
-                    study_dirs = [d for d in study_dirs if d in study_ids]
-                if not all(os.path.isdir(os.path.join(project_dir,
-                                                      subject_dir, d))
-                           for d in study_dirs):
+        subjects = []
+        subject_dirs = [d for d in os.listdir(project_dir)
+                        if not d.startswith('.') and d != PROJECT_SUMMARY_NAME]
+        if subject_ids is not None:
+            if any(subject_id not in subject_dirs
+                   for subject_id in subject_ids):
+                raise NiAnalysisError(
+                    "'{}' sujbect(s) is/are missing from '{}' project in local"
+                    " archive (found '{}')".format("', '".join(subject_ids),
+                                                   project_id,
+                                                   "', '".join(subject_dirs)))
+            subject_dirs = subject_ids
+        self._check_only_dirs(subject_dirs, project_dir)
+        for subject_dir in subject_dirs:
+            subject_path = os.path.join(project_dir, subject_dir)
+            sessions = []
+            session_dirs = [d for d in os.listdir(subject_path)
+                            if (not d.startswith('.') and
+                                d != SUBJECT_SUMMARY_NAME)]
+            if session_ids is not None:
+                if any(session_id not in session_dirs
+                       for session_id in session_ids):
                     raise NiAnalysisError(
-                        "Files found in local archive subject directory '{}' "
-                        "('{}') instead of study directories".format(
-                            os.path.join(project_dir, subject_dir),
-                            "', '".join(
-                                d for d in study_dirs
-                                if not os.path.isdir(os.path.join(
-                                    project_dir, subject_dir, d)))))
-                sessions.extend(Session(subject_dir, study_dir)
-                                for study_dir in study_dirs)
-        return sessions
+                        "'{}' sessions(s) is/are missing from '{}' subject of "
+                        "'{}' project in local archive (found '{}')"
+                        .format("', '".join(session_ids), subject_dir,
+                                project_id, "', '".join(session_dirs)))
+                session_dirs = session_ids
+            self._check_only_dirs(session_dirs, subject_path)
+            for session_dir in session_dirs:
+                session_path = os.path.join(subject_path, session_dir)
+                scans = []
+                files = [d for d in os.listdir(session_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    basename, ext = split_extension(f)
+                    scans.append(
+                        Scan(name=basename, format=scan_formats_by_ext[ext]))
+                sessions.append(Session(session_dir, subject_dir, scans))
+            subject_summary_path = os.path.join(subject_path,
+                                                SUBJECT_SUMMARY_NAME)
+            if os.path.exists(subject_summary_path):
+                files = [d for d in os.listdir(subject_summary_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    basename, ext = split_extension(f)
+                    scans.append(
+                        Scan(name=basename, format=scan_formats_by_ext[ext]))
+            subjects.append(Subject(subject_dir, sessions, scans))
+        project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
+        if os.path.exists(subject_summary_path):
+            files = [d for d in os.listdir(project_summary_path)
+                     if not os.path.isdir(d)]
+            for f in files:
+                basename, ext = split_extension(f)
+                scans.append(
+                    Scan(name=basename, format=scan_formats_by_ext[ext]))
+        project = Project(project_id, subjects, scans)
+        return project
+
+    @classmethod
+    def _check_only_dirs(cls, dirs, path):
+        if any(not os.path.isdir(os.path.join(path, d))
+               for d in dirs):
+            raise NiAnalysisError(
+                "Files found in local archive directory '{}' "
+                "('{}') instead of sub-directories".format(
+                    path, "', '".join(dirs)))
 
     def sessions_with_file(self, scan, project_id, sessions=None):
         if sessions is None:

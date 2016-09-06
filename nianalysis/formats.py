@@ -35,3 +35,6 @@ matlab_format = ScanFormat(name='matlab', extension='.mat')
 scan_formats = dict(
     (f.name, f) for f in copy(globals()).itervalues()
     if isinstance(f, ScanFormat))
+
+scan_formats_by_ext = dict(
+    (f.extension, f) for f in scan_formats.itervalues())

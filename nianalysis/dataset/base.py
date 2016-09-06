@@ -273,8 +273,8 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, sessions=None, work_dir=None, reprocess=False,
-            study_id=None):
+    def run(self, subject_ids=None, session_ids=None, work_dir=None,
+            reprocess=False, project=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow and runs
@@ -297,48 +297,53 @@ class Pipeline(object):
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
-        # If subject_ids is none use all associated with the project
-        if sessions is None:
-            sessions = self._dataset.archive.all_sessions(
-                self._dataset._project_id, study_id=study_id)
-        elif study_id is not None:
-            raise NiAnalysisError(
-                "study_id is only relevant if sessions argument is None")
-        # Ensure all sessions are session objects and they are unique
-        sessions = set(Session(session) for session in sessions)
-        if not reprocess:
-            # If the pipeline can be run independently for each session check
-            # to see the sessions which have already been completed and omit
-            # them from the sessions to be processed
-            multiplicities = (self._dataset.component(o).multiplicity
-                              for o in self.outputs)
-            if all(m not in ('per_project', 'per_subject')
-                   for m in multiplicities):
-                # Check which sessions already have all the required output
-                # files in the archive and don't rerun for those
-                # subjects/studies
-                completed_sessions = copy(sessions)
-                # TODO: Should be able to provide list of outputs required by
-                #       the upstream pipeline, so if only the outputs that are
-                #       required are present then the pipeline doesn't need to
-                #       be rerun
-                for output in self.outputs:
-                    completed_sessions &= set(
-                        self._dataset.archive.sessions_with_file(
-                            self._dataset.scan(output),
-                            self._dataset.project_id))
-                sessions -= completed_sessions
-                if not sessions:
-                    logger.info(
-                        "Pipeline '{}' wasn't run as all requested sessions "
-                        "were present")
-                    return  # No sessions need to be rerun
+        multiplicities = [self._dataset.component(o).multiplicity
+                          for o in self.outputs]
+        # Check the outputs of the pipeline to see which has the broadest
+        # scope (to determine whether the pipeline needs to be rerun and for
+        # which sessions/subjects
+        session_outputs = [o for o, m in zip(self.outputs, multiplicities)
+                           if m == 'per_session']
+        subject_outputs = [o for o, m in zip(self.outputs, multiplicities)
+                           if m == 'per_subject']
+        project_outputs = [o for o, m in zip(self.outputs, multiplicities)
+                           if m == 'per_project']
+        # Get list of available subjects and their associated sessions/scans
+        # from the archive
+        if project is None:
+            project = self._dataset.archive.project(
+                self._dataset._project_id, subject_ids=subject_ids,
+                session_ids=session_ids)
+        # If the pipeline can be run independently for each session check
+        # to see the sessions which have already been completed and omit
+        # them from the sessions to be processed
+
+        # Get all requested sessions that are missing at least one of
+        # the output files
+        if reprocess or not all(o in project.scans for o in project_outputs):
+            subjects_to_process = project.subjects
+        else:
+            sessions_to_process = list(chain(*[
+                (sess for sess in subj.sessions
+                 if not all(o in sess.scans for o in session_outputs))
+                for subj in project.subjects]))
+            subjects_to_process = set(
+                sess.subject for sess in sessions_to_process)
+            subjects_to_process |= set(
+                subj for subj in project.subjects
+                if not all(o in subj.scans for o in subject_outputs))
+            if not subjects_to_process and not sessions_to_process:
+                logger.info(
+                    "Pipeline '{}' wasn't run as all requested sessions "
+                    "were present")
+                return  # No sessions need to be rerun
         # Run prerequisite pipelines and save their results into the archive
         for prereq in self.prerequisities:
             # NB: Even if reprocess==True, the prerequisite pipelines are not
             #     re-processed, they are only reprocessed if reprocess == 'all'
-            prereq.run(sessions, work_dir,
-                       (reprocess if reprocess == 'all' else False))
+            prereq.run([s.id for s in subjects_to_process], session_ids,
+                       work_dir, (reprocess if reprocess == 'all' else False),
+                       project=project)
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)

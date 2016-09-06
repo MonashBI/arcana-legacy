@@ -6,8 +6,10 @@ from nianalysis.base import Scan
 from nianalysis.formats import nifti_gz_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.dataset.base import Dataset, _create_component_dict
-from nianalysis.interfaces.mrtrix import MRConvert, MRCat
-from nianalysis.archive.local import LocalArchive
+from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
+from nianalysis.archive.local import (
+    LocalArchive, LocalSubjectSink, LocalProjectSink)
+from nianalysis.testing import test_data_dir
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -102,24 +104,63 @@ class DummyDataset(Dataset):
         pipeline.assert_connected()
         return pipeline
 
+    def subject_summary_pipeline(self):
+        pipeline = self._create_pipeline(
+            name="subject_summary",
+            inputs=['start'],
+            outputs=["subject_summary"],
+            description=("Test of project summary variables"),
+            options={},
+            requirements=[mrtrix3_req],
+            citations=[],
+            approx_runtime=1)
+        mrmath = pe.Node(MRMath(), 'mrmath')
+        # Connect inputs
+        pipeline.connect_input('start', mrmath, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('subject_summary', mrmath, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
+
+    def project_summary_pipeline(self):
+        pipeline = self._create_pipeline(
+            name="project_summary",
+            inputs=['start'],
+            outputs=["project_summary"],
+            description=("Test of project summary variables"),
+            options={},
+            requirements=[mrtrix3_req],
+            citations=[],
+            approx_runtime=1)
+        mrmath = pe.Node(MRMath(), 'mrmath')
+        # Connect inputs
+        pipeline.connect_input('start', mrmath, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('project_summary', mrmath, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
+
     _components = _create_component_dict(
         Scan('start', nifti_gz_format),
         Scan('pipeline1_1', nifti_gz_format, pipeline1),
         Scan('pipeline1_2', nifti_gz_format, pipeline1),
         Scan('pipeline2', nifti_gz_format, pipeline2),
         Scan('pipeline3', nifti_gz_format, pipeline3),
-        Scan('pipeline4', nifti_gz_format, pipeline4))
+        Scan('pipeline4', nifti_gz_format, pipeline4),
+        Scan('subject_summary', nifti_gz_format, subject_summary_pipeline,
+             multiplicity='per_subject'),
+        Scan('project_summary', nifti_gz_format, project_summary_pipeline,
+             multiplicity='per_project'))
 
 
 class TestRunPipeline(TestCase):
 
-    PROJECT_ID = 'DUMMYPROJECTID'
-    SUBJECT_ID = 'DUMMYSUBJECTID'
-    SESSION_ID = 'DUMMYSESSIONID'
-    TEST_IMAGE = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'test_image.nii.gz'))
-    TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'dataset'))
+    PROJECT_ID = 'PROJECTID'
+    SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2']
+    SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
+    TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
+                                              'test_image.nii.gz'))
+    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'dataset'))
     BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
@@ -129,23 +170,47 @@ class TestRunPipeline(TestCase):
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.WORKFLOW_DIR)
-        self.session_path = os.path.join(
-            self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID, self.SESSION_ID)
-        os.makedirs(self.session_path)
-        shutil.copy(self.TEST_IMAGE,
-                    os.path.join(self.session_path, 'start.nii.gz'))
+        self.subject_paths = []
+        self.session_paths = []
+        for subject_id in self.SUBJECT_IDS:
+            subject_path = os.path.join(self.BASE_DIR, self.PROJECT_ID,
+                                        subject_id)
+            self.subject_paths.append(subject_path)
+            for session_id in self.SESSION_IDS:
+                session_path = os.path.join(subject_path, session_id)
+                self.session_paths.append(session_path)
+                os.makedirs(session_path)
+                shutil.copy(self.TEST_IMAGE,
+                            os.path.join(session_path, 'start.nii.gz'))
+        archive = LocalArchive(self.BASE_DIR)
+        self.dataset = DummyDataset(
+            'TestDummy', self.PROJECT_ID, archive,
+            input_scans={'start': Scan('start', nifti_gz_format)})
 
     def tearDown(self):
         # Clean up working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
 
-    def test_run_pipeline(self):
-        archive = LocalArchive(self.BASE_DIR)
-        dataset = DummyDataset(
-            'TestDummy', self.PROJECT_ID, archive,
-            input_scans={'start': Scan('start', nifti_gz_format)})
-        dataset.pipeline4().run()
+    def test_pipeline_prerequisites(self):
+        self.dataset.pipeline4().run()
         for scan in DummyDataset.components():
+            if scan.multiplicity == 'per_session':
+                for session_path in self.session_paths:
+                    self.assertTrue(
+                        os.path.exists(os.path.join(
+                            session_path, scan.name + scan.format.extension)))
+
+    def test_subject_summary(self):
+        self.dataset.subject_summary_pipeline().run()
+        for subject_path in self.subject_paths:
             self.assertTrue(
                 os.path.exists(os.path.join(
-                    self.session_path, scan.name + scan.format.extension)))
+                    subject_path, LocalSubjectSink.DIRNAME,
+                    'project_summary.nii.gz')))
+
+    def test_project_summary(self):
+        self.dataset.project_summary_pipeline().run()
+        self.assertTrue(
+            os.path.exists(os.path.join(
+                self.BASE_DIR, self.PROJECT_ID, LocalProjectSink.DIRNAME,
+                'project_summary.nii.gz')))
