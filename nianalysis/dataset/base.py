@@ -1,15 +1,13 @@
 from abc import ABCMeta
-from copy import copy
 from itertools import chain
 from collections import defaultdict
 from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import IdentityInterface
+from nipype.interfaces.utility import IdentityInterface, Split
 from logging import Logger
-from nianalysis.exceptions import NiAnalysisError
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
     NiAnalysisScanNameError, NiAnalysisMissingScanError)
-from nianalysis.archive.base import Session, ArchiveSource, ArchiveSink
+from nianalysis.archive.base import ArchiveSource, ArchiveSink
 
 
 logger = Logger('NiAnalysis')
@@ -282,18 +280,23 @@ class Pipeline(object):
 
         Parameters
         ----------
-        sessions : List[Session|int]
-            A list (or iterable) of Session objects or ints, which will be
-            interpreted as subject ids for the first (unprocessed) study
+        subject_ids : List[str]
+            The subset of subject IDs to process. If None all available will be
+            reprocessed
+        session_ids: List[str]
+            The subset of session IDs to process. If None all available will be
+            reprocessed
         work_dir : str
             A directory in which to run the nipype workflows
         reprocess: True|False|'all'
             A flag which determines whether to rerun the processing for this
             step. If set to 'all' then pre-requisite pipelines will also be
             reprocessed.
-        study_id: int|List[int]|None
-            Id or ids of studies of which to return sessions for. If None all
-            are returned
+        project: Project
+            Project info loaded from archive. It is typically only passed to
+            runs of prerequisite pipelines to avoid having to requery the
+            archive. If None, the project info is loaded from the dataset
+            archive.
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
@@ -349,16 +352,41 @@ class Pipeline(object):
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         complete_workflow.add_nodes([self._workflow])
         # Generate an input node for the sessions iterable
-        inputnode = pe.Node(IdentityInterface(['session']),
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             name='session_input')
-        inputnode.iterables = ('session',
-                               [(s.subject_id, s.study_id) for s in sessions])
+        if subject_outputs or project_outputs:
+            # If subject or project outputs iterate through subjects and
+            # sessions independently (like nested 'for' loops)
+            inputnode.iterables = (
+                ('subject_id', [s.id for s in subjects_to_process]),
+                ('session_id', [s.id for s in session_ids]))
+        else:
+            # If only session outputs loop through all subject/session pairs
+            # so that complete sessions can be skipped for subjects they are
+            # required for.
+            preinputnode = pe.Node(IdentityInterface(['id_pair']),
+                                   name='preinputnode')
+            preinputnode.iterables = (
+                'id_pair',
+                [[s.subject.id, s.id] for s in sessions_to_process])
+            splitnode = pe.Node(Split(), name='splitnode')
+            splitnode.inputs.splits = [1, 1]
+            splitnode.inputs.squeeze = True
+            complete_workflow.connect(preinputnode, 'id_pair',
+                                      splitnode, 'inlist')
+            complete_workflow.connect(splitnode, 'out1',
+                                      inputnode, 'subject_id')
+            complete_workflow.connect(splitnode, 'out2',
+                                      inputnode, 'session_id')
         # Create source and sinks from the archive
         source = self._dataset.archive.source(
             self._dataset.project_id,
             (self._dataset.scan(i) for i in self.inputs))
         # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(inputnode, 'session', source, 'session')
+        complete_workflow.connect(inputnode, 'subject_id',
+                                  source, 'subject_id')
+        complete_workflow.connect(inputnode, 'session_id',
+                                  source, 'session_id')
         for inpt in self.inputs:
             # Get the scan corresponding to the pipeline's input
             scan = self._dataset.scan(inpt)
@@ -391,14 +419,12 @@ class Pipeline(object):
                 (self._dataset.scan(i) for i in outputs), mult)
             sink.inputs.description = self.description
             sink.inputs.name = self._dataset.name
-            if mult == 'per_session':
-                complete_workflow.connect(inputnode, 'session',
-                                          sink, 'session')
-            elif mult == 'per_subject':
-                complete_workflow.connect(inputnode, 'session',
-                                          sink, 'session')
-            else:
-                assert mult == 'per_project'
+            if mult != 'per_project':
+                complete_workflow.connect(inputnode, 'subject_id',
+                                          sink, 'subject_id')
+                if mult == 'per_session':
+                    complete_workflow.connect(inputnode, 'session_id',
+                                              sink, 'session_id')
             for output in outputs:
                 scan = self._dataset.scan(output)
                 if scan.processed:  # Skip scans which are already input scans

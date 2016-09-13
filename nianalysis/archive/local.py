@@ -36,9 +36,9 @@ class LocalSource(ArchiveSource):
         # Directory that holds session-specific
         base_subject_dir = os.path.join(*(str(p) for p in (
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.session[0])))
+            self.inputs.subject_id)))
         session_dir = os.path.join(base_subject_dir,
-                                   str(self.inputs.session[1]))
+                                   self.inputs.session_id)
         subject_dir = os.path.join(base_subject_dir, SUBJECT_SUMMARY_NAME)
         project_dir = os.path.join(
             self.inputs.base_dir, self.inputs.project_id,
@@ -140,7 +140,7 @@ class LocalSink(ArchiveSink):
     def _get_output_dir(self):
         return os.path.abspath(os.path.join(*(str(d) for d in (
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.session[0], self.inputs.session[1]))))
+            self.inputs.subject_id, self.inputs.session_id))))
 
 
 class LocalSubjectSink(LocalSink):
@@ -239,7 +239,7 @@ class LocalArchive(Archive):
                     basename, ext = split_extension(f)
                     scans.append(
                         Scan(name=basename, format=scan_formats_by_ext[ext]))
-                sessions.append(Session(session_dir, subject_dir, scans))
+                sessions.append(Session(session_dir, scans))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
             if os.path.exists(subject_summary_path):

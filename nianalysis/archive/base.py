@@ -15,7 +15,7 @@ class Project(object):
 
     def __init__(self, project_id, subjects, scans):
         self._id = project_id
-        self._subject = subjects
+        self._subjects = subjects
         self._scans = scans
 
     @property
@@ -223,13 +223,9 @@ class ArchiveSourceInputSpec(TraitedSpec):
     project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
         desc='The project ID')
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Str(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),
-        traits.Str(1, mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"),
-        mandatory=True, desc="The subjec/session pair to retrieve")
+    subject_id = traits.Str(mandatory=True, desc="The subject ID")
+    session_id = traits.Str(mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+                            desc="The session or processed group ID")
     files = traits.List(
         Scan.traits_spec(),
         desc="Names of all files that comprise the complete file")
@@ -317,12 +313,9 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
 class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    session = traits.Tuple(  # @UndefinedVariable
-        traits.Str(  # @UndefinedVariable
-            mandatory=True,
-            desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-        traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
-                   desc="The session or processed group ID"))
+    subject_id = traits.Str(mandatory=True, desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
+    session_id = traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
+                            desc="The session or processed group ID")
 
 
 class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
