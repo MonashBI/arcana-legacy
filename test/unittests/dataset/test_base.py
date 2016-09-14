@@ -136,13 +136,17 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.JoinNode(MRMath(), joinsource='subjects',
-                             joinfield=['in_files'], name='mrmath')
-        mrmath.inputs.operation = 'sum'
+        mrmath1 = pe.JoinNode(MRMath(), joinsource='sessions',
+                              joinfield=['in_files'], name='mrmath1')
+        mrmath2 = pe.JoinNode(MRMath(), joinsource='subjects',
+                              joinfield=['in_files'], name='mrmath2')
+        mrmath1.inputs.operation = 'sum'
+        mrmath2.inputs.operation = 'sum'
         # Connect inputs
-        pipeline.connect_input('ones_slice', mrmath, 'in_files')
+        pipeline.connect_input('ones_slice', mrmath1, 'in_files')
+        pipeline.connect(mrmath1, 'out_file', mrmath2, 'in_files')
         # Connect outputs
-        pipeline.connect_output('project_summary', mrmath, 'out_file')
+        pipeline.connect_output('project_summary', mrmath2, 'out_file')
         pipeline.assert_connected()
         return pipeline
 
