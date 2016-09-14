@@ -115,7 +115,7 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.JoinNode(MRMath(), joinsource='session',
+        mrmath = pe.JoinNode(MRMath(), joinsource='sessions',
                              joinfield=['in_files'], name='mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
@@ -135,7 +135,7 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.JoinNode(MRMath(), joinsource='session',
+        mrmath = pe.JoinNode(MRMath(), joinsource='sessions',
                              joinfield=['in_files'], name='mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
@@ -211,7 +211,7 @@ class TestRunPipeline(TestCase):
             self.assertTrue(
                 os.path.exists(os.path.join(
                     subject_path, SUBJECT_SUMMARY_NAME,
-                    'project_summary.nii.gz')))
+                    'subject_summary.nii.gz')))
 
     def test_project_summary(self):
         self.dataset.project_summary_pipeline().run()
