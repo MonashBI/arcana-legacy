@@ -8,7 +8,8 @@ from nianalysis.requirements import mrtrix3_req
 from nianalysis.dataset.base import Dataset, _create_component_dict
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
 from nianalysis.archive.local import (
-    LocalArchive, LocalSubjectSink, LocalProjectSink)
+    LocalArchive, LocalSubjectSink, LocalProjectSink, SUBJECT_SUMMARY_NAME,
+    PROJECT_SUMMARY_NAME)
 from nianalysis.testing import test_data_dir
 import logging
 
@@ -114,9 +115,11 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.Node(MRMath(), 'mrmath')
+        mrmath = pe.JoinNode(MRMath(), joinsource='session',
+                             joinfield=['in_files'], name='mrmath')
+        mrmath.inputs.operation = 'sum'
         # Connect inputs
-        pipeline.connect_input('start', mrmath, 'in_file')
+        pipeline.connect_input('start', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('subject_summary', mrmath, 'out_file')
         pipeline.assert_connected()
@@ -132,9 +135,11 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.Node(MRMath(), 'mrmath')
+        mrmath = pe.JoinNode(MRMath(), joinsource='session',
+                             joinfield=['in_files'], name='mrmath')
+        mrmath.inputs.operation = 'sum'
         # Connect inputs
-        pipeline.connect_input('start', mrmath, 'in_file')
+        pipeline.connect_input('start', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('project_summary', mrmath, 'out_file')
         pipeline.assert_connected()
@@ -205,12 +210,12 @@ class TestRunPipeline(TestCase):
         for subject_path in self.subject_paths:
             self.assertTrue(
                 os.path.exists(os.path.join(
-                    subject_path, LocalSubjectSink.DIRNAME,
+                    subject_path, SUBJECT_SUMMARY_NAME,
                     'project_summary.nii.gz')))
 
     def test_project_summary(self):
         self.dataset.project_summary_pipeline().run()
         self.assertTrue(
             os.path.exists(os.path.join(
-                self.BASE_DIR, self.PROJECT_ID, LocalProjectSink.DIRNAME,
+                self.BASE_DIR, self.PROJECT_ID, PROJECT_SUMMARY_NAME,
                 'project_summary.nii.gz')))

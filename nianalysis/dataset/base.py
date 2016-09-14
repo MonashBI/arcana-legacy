@@ -352,14 +352,38 @@ class Pipeline(object):
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         complete_workflow.add_nodes([self._workflow])
         # Generate an input node for the sessions iterable
-        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
-                            name='session_input')
+        sessions = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+                           name='sessions')
+        complete_workflow.add_nodes([sessions])
         if subject_outputs or project_outputs:
             # If subject or project outputs iterate through subjects and
             # sessions independently (like nested 'for' loops)
-            inputnode.iterables = (
-                ('subject_id', [s.id for s in subjects_to_process]),
-                ('session_id', [s.id for s in session_ids]))
+            most_sessions = []
+            if session_ids is None:
+                for subject in subjects_to_process:
+                    subject_session_ids = set(s.id for s in subject.sessions)
+                    if len(subject_session_ids) > len(most_sessions):
+                        most_sessions = subject_session_ids
+                    if session_ids is None:
+                        session_ids = subject_session_ids
+                    else:
+                        session_ids &= subject_session_ids
+            if len(session_ids) < len(most_sessions):
+                logger.warning(
+                    "Not all sessions will be processed for some subjects as "
+                    "there are an inconsistent number of sessions between "
+                    "subjects.\n"
+                    "Intersection of sessions: '{}'\n"
+                    "Subject with most sessions: '{}'".format(
+                        "', '".join(session_ids), "', '".join(most_sessions)))
+            subjects = pe.Node(IdentityInterface(['subject_id']),
+                               name='subjects')
+            complete_workflow.add_nodes([subjects])
+            subjects.iterables = ('subject_id',
+                                  tuple(s.id for s in subjects_to_process))
+            sessions.iterables = ('session_id', tuple(session_ids))
+            complete_workflow.connect(subjects, 'subject_id',
+                                      sessions, 'subject_id')
         else:
             # If only session outputs loop through all subject/session pairs
             # so that complete sessions can be skipped for subjects they are
@@ -372,20 +396,21 @@ class Pipeline(object):
             splitnode = pe.Node(Split(), name='splitnode')
             splitnode.inputs.splits = [1, 1]
             splitnode.inputs.squeeze = True
+            complete_workflow.add_nodes((preinputnode, splitnode))
             complete_workflow.connect(preinputnode, 'id_pair',
                                       splitnode, 'inlist')
             complete_workflow.connect(splitnode, 'out1',
-                                      inputnode, 'subject_id')
+                                      sessions, 'subject_id')
             complete_workflow.connect(splitnode, 'out2',
-                                      inputnode, 'session_id')
+                                      sessions, 'session_id')
         # Create source and sinks from the archive
         source = self._dataset.archive.source(
             self._dataset.project_id,
             (self._dataset.scan(i) for i in self.inputs))
         # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(inputnode, 'subject_id',
+        complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
-        complete_workflow.connect(inputnode, 'session_id',
+        complete_workflow.connect(sessions, 'session_id',
                                   source, 'session_id')
         for inpt in self.inputs:
             # Get the scan corresponding to the pipeline's input
@@ -420,10 +445,10 @@ class Pipeline(object):
             sink.inputs.description = self.description
             sink.inputs.name = self._dataset.name
             if mult != 'per_project':
-                complete_workflow.connect(inputnode, 'subject_id',
+                complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
                 if mult == 'per_session':
-                    complete_workflow.connect(inputnode, 'session_id',
+                    complete_workflow.connect(sessions, 'session_id',
                                               sink, 'session_id')
             for output in outputs:
                 scan = self._dataset.scan(output)
