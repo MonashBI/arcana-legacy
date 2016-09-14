@@ -324,7 +324,7 @@ class Pipeline(object):
         # Get all requested sessions that are missing at least one of
         # the output files
         if reprocess or not all(o in project.scans for o in project_outputs):
-            subjects_to_process = project.subjects
+            subjects_to_process = list(project.subjects)
         else:
             sessions_to_process = list(chain(*[
                 (sess for sess in subj.sessions

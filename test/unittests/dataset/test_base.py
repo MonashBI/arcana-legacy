@@ -135,7 +135,7 @@ class DummyDataset(Dataset):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.JoinNode(MRMath(), joinsource='sessions',
+        mrmath = pe.JoinNode(MRMath(), joinsource='subjects',
                              joinfield=['in_files'], name='mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
