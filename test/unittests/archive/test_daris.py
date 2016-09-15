@@ -120,7 +120,7 @@ class TestDarisSession(TestCase):
             self._daris.delete_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=study_id, repo_id=REPO_ID,
-                ex_method_id_id=ex_method_id)
+                ex_method_id=ex_method_id)
             self._daris.delete_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=(study_id + 1), repo_id=REPO_ID,
