@@ -320,9 +320,7 @@ class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    subject_id = traits.Str(  # @UndefinedVariable
-        mandatory=True,
-        desc="The subject ID")
+    subject_id = traits.Str(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
 
 
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
