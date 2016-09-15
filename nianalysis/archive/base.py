@@ -93,10 +93,11 @@ class Session(object):
     Holds the session id and the list of scans loaded from it
     """
 
-    def __init__(self, session_id, scans):
+    def __init__(self, session_id, scans, processed=None):
         self._id = session_id
         self._scans = scans
         self._subject = None
+        self._processed = processed
 
     @property
     def id(self):
@@ -109,6 +110,10 @@ class Session(object):
     @subject.setter
     def subject(self, subject):
         self._subject = subject
+
+    @property
+    def processed(self):
+        return self._processed
 
     @property
     def scans(self):

@@ -14,7 +14,7 @@ from nianalysis.exceptions import (
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec, Session)
+    ArchiveProjectSinkInputSpec, Session, Subject, Project)
 from nianalysis.formats import scan_formats
 import re
 import collections
@@ -351,65 +351,53 @@ class DarisArchive(Archive):
         return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
 
     def project(self, project_id, subject_ids=None, session_ids=None):
-        project_dir = os.path.join(self.base_dir, str(project_id))
+        with self._daris() as daris:
+            # Get all files in project
+            entries = daris.get_files(self, project_id, repo_id=self._repo_id,
+                                      subject_id=None, study_id=None,
+                                      ex_method_id=None)
+        subject_dict = defaultdict(defaultdict(defaultdict(list)))
+        for entry in entries:
+            (subject_id, ex_method_id,
+             study_id, file_id) = entry.cid.split('.')[-4:]
+            subject_dict[subject_id][ex_method_id][study_id].append(file_id)
         subjects = []
-        subject_dirs = [d for d in os.listdir(project_dir)
-                        if not d.startswith('.') and d != PROJECT_SUMMARY_NAME]
-        if subject_ids is not None:
-            if any(subject_id not in subject_dirs
-                   for subject_id in subject_ids):
-                raise NiAnalysisError(
-                    "'{}' sujbect(s) is/are missing from '{}' project in local"
-                    " archive (found '{}')".format("', '".join(subject_ids),
-                                                   project_id,
-                                                   "', '".join(subject_dirs)))
-            subject_dirs = subject_ids
-        self._check_only_dirs(subject_dirs, project_dir)
-        for subject_dir in subject_dirs:
-            subject_path = os.path.join(project_dir, subject_dir)
+        project_summary = []
+        for subject_id, method_dict in subject_dict.iteritems():
+            if subject_ids is not None and subject_id not in subject_ids:
+                continue
+            if any(int(m) > 4 or int(m) < 0 for m in method_dict):
+                raise DarisException(
+                    "Unrecognised ex-method IDs {} found in subject {}"
+                    .format(', '.join(str(m) for m in method_dict
+                                      if int(m) > 4 or int(m) < 0),
+                            subject_id))
             sessions = []
-            session_dirs = [d for d in os.listdir(subject_path)
-                            if (not d.startswith('.') and
-                                d != SUBJECT_SUMMARY_NAME)]
-            if session_ids is not None:
-                if any(session_id not in session_dirs
-                       for session_id in session_ids):
-                    raise NiAnalysisError(
-                        "'{}' sessions(s) is/are missing from '{}' subject of "
-                        "'{}' project in local archive (found '{}')"
-                        .format("', '".join(session_ids), subject_dir,
-                                project_id, "', '".join(session_dirs)))
-                session_dirs = session_ids
-            self._check_only_dirs(session_dirs, subject_path)
-            for session_dir in session_dirs:
-                session_path = os.path.join(subject_path, session_dir)
-                scans = []
-                files = [d for d in os.listdir(session_path)
-                         if not os.path.isdir(d)]
-                for f in files:
-                    basename, ext = split_extension(f)
-                    scans.append(
-                        Scan(name=basename, format=scan_formats_by_ext[ext]))
-                sessions.append(Session(session_dir, scans))
-            subject_summary_path = os.path.join(subject_path,
-                                                SUBJECT_SUMMARY_NAME)
-            if os.path.exists(subject_summary_path):
-                files = [d for d in os.listdir(subject_summary_path)
-                         if not os.path.isdir(d)]
-                for f in files:
-                    basename, ext = split_extension(f)
-                    scans.append(
-                        Scan(name=basename, format=scan_formats_by_ext[ext]))
-            subjects.append(Subject(subject_dir, sessions, scans))
-        project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
-        if os.path.exists(subject_summary_path):
-            files = [d for d in os.listdir(project_summary_path)
-                     if not os.path.isdir(d)]
-            for f in files:
-                basename, ext = split_extension(f)
-                scans.append(
-                    Scan(name=basename, format=scan_formats_by_ext[ext]))
-        project = Project(project_id, subjects, scans)
+            subject_summary = []
+            for ex_method_id, study_dict in method_dict.iteritems():
+                processed = ex_method_id > 1
+                if ex_method_id == 4:
+                    if subject_id != 1 or study_dict.keys() != ['1']:
+                        raise DarisException(
+                            "Study(ies) {} found in ex-method 4 of subject {}."
+                            "Project summaries are only allowed in study 1 of "
+                            "subject 1".format(', '.join(study_dict),
+                                               subject_id))
+                    project_summary = study_dict['1']
+                elif ex_method_id == 3:
+                    if study_dict.keys() != ['1']:
+                        raise DarisException(
+                            "Study(ies) {} found in ex-method 3 of subject {}."
+                            "Subject summaries are only allowed in study 1"
+                            .format(', '.join(study_dict), subject_id))
+                    subject_summary = study_dict['1']
+                else:
+                    for study_id, files in study_dict.iteritems():
+                        if session_ids is None or study_id in session_ids:
+                            sessions.append(Session(study_id, files,
+                                                    processed=processed))
+            subjects.append(Subject(subject_id, sessions, subject_summary))
+        project = Project(project_id, subjects, project_summary)
         return project
 
     def sessions_with_file(self, scan, project_id, sessions):
@@ -430,7 +418,8 @@ class DarisArchive(Archive):
             for session in sessions:
                 entries = daris.get_files(
                     project_id, session.subject_id, session.study_id,
-                    repo_id=self._repo_id, ex_method_id=int(scan.processed) + 1)
+                    repo_id=self._repo_id,
+                    ex_method_id=int(scan.processed) + 1)
                 if scan.filename() in (e.name for e in entries):
                     sess_with_file.append(session)
         return sess_with_file
@@ -584,20 +573,25 @@ class DarisSession:
         repo_id     -- the ID of the DaRIS repo (Monash is 2)
         """
         return self.query(
-            "cid starts with '1008.{}.{}.{}' and model='om.pssd.ex-method'"
-            .format(repo_id, project_id, subject_id))
+            "cid starts with '{}' and model='om.pssd.ex-method'"
+            .format(construct_cid(project_id=project_id, subject_id=subject_id,
+                                  repo_id=repo_id)))
 
     def get_studies(self, project_id, subject_id, ex_method_id=1,
                     repo_id=2):
         return self.query(
-            "cid starts with '{}' and model='om.pssd.study'".format(cid))
+            "cid starts with '{}' and model='om.pssd.study'"
+            .format(construct_cid(project_id=project_id, subject_id=subject_id,
+                                  ex_method_id=ex_method_id, repo_id=repo_id)))
 
     def get_files(self, project_id, subject_id, study_id=1, repo_id=2,
                   ex_method_id=1):
         return self.query(
-            "cid starts with '1008.{}.{}.{}.{}.{}' and model='om.pssd.dataset'"
-            .format(repo_id, project_id, subject_id, ex_method_id,
-                    study_id))
+            "cid starts with '{}' and model='om.pssd.dataset'"
+            .format(construct_cid(
+                project_id=project_id, subject_id=subject_id,
+                ex_method_id=ex_method_id, repo_id=repo_id,
+                study_id=study_id)))
 
     def print_entries(self, entries):
         for entry in entries.itervalues():
@@ -654,7 +648,8 @@ class DarisSession:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_study(self, project_id, subject_id, study_id=None, name=None,
-                  description='\"\"', ex_method_id=2, repo_id=2, processed=None):
+                  description='\"\"', ex_method_id=2, repo_id=2,
+                  processed=None):
         """
         Adds a new subject with the given subject_id within the given
         project_id
@@ -671,7 +666,8 @@ class DarisSession:
             try:
                 max_study_id = max(
                     self.get_studies(project_id, subject_id,
-                                     ex_method_id=ex_method_id, repo_id=repo_id))
+                                     ex_method_id=ex_method_id,
+                                     repo_id=repo_id))
             except ValueError:
                 max_study_id = 0
             study_id = max_study_id + 1
@@ -774,8 +770,8 @@ class DarisSession:
                 new_file_id = self.add_file(
                     new_project_id, new_subject_id, study_id=new_study_id,
                     file_id=scan.id, name=scan.name,
-                    description=scan.description, ex_method_id=new_ex_method_id,
-                    repo_id=repo_id)
+                    description=scan.description,
+                    ex_method_id=new_ex_method_id, repo_id=repo_id)
                 self.upload(os.path.join(tmp_dir,
                                          '{}_{}.zip'.format(scan.id,
                                                             scan.name)),
@@ -824,8 +820,8 @@ class DarisSession:
             try:
                 max_file_id = max(
                     self.get_files(project_id, subject_id,
-                                   study_id=study_id, ex_method_id=ex_method_id,
-                                   repo_id=repo_id))
+                                   study_id=study_id,
+                                   ex_method_id=ex_method_id, repo_id=repo_id))
             except ValueError:
                 max_file_id = 0
             file_id = max_file_id + 1
@@ -999,7 +995,8 @@ class DarisSession:
                 file_id))
         self.run(cmd)
 
-    def find_study(self, name, project_id, subject_id, ex_method_id, repo_id=2):
+    def find_study(self, name, project_id, subject_id, ex_method_id,
+                   repo_id=2):
         studies = self.get_studies(
             project_id=project_id, subject_id=subject_id,
             repo_id=self.inputs.repo_id, ex_method_id=2).itervalues()
@@ -1203,4 +1200,5 @@ if __name__ == '__main__':
     daris = DarisSession(domain='system', user='manager',
                          password='t0gp154sp!')
     with daris:
-        daris.copy_study(135,3,2,new_project_id=144,new_subject_id=2,new_study_id=1)
+        daris.copy_study(135, 3, 2, new_project_id=144, new_subject_id=2,
+                         new_study_id=1)
