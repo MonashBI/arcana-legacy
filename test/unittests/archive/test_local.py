@@ -4,10 +4,10 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
-    LocalArchive, LocalSource, LocalSink, LocalSubjectSink, LocalProjectSink)
+    LocalArchive, LocalSource, LocalSink, SUBJECT_SUMMARY_NAME,
+    PROJECT_SUMMARY_NAME)
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
-from nianalysis.interfaces.utils import SplitSession
 from nianalysis.testing import test_data_dir
 import logging
 
@@ -55,8 +55,10 @@ class TestLocalArchive(TestCase):
         sink_files = [Scan('sink1', nifti_gz_format),
                       Scan('sink3', nifti_gz_format),
                       Scan('sink4', nifti_gz_format)]
-        inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
-        inputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+                            'inputnode')
+        inputnode.inputs.subject_id = self.SUBJECT_ID
+        inputnode.inputs.session_id = self.SESSION_ID
         source = archive.source(self.PROJECT_ID, source_files)
         sink = archive.sink(self.PROJECT_ID, sink_files)
         sink.inputs.name = 'archive_sink'
@@ -66,8 +68,10 @@ class TestLocalArchive(TestCase):
         workflow = pe.Workflow('source_sink_unit_test',
                                base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, sink))
-        workflow.connect(inputnode, 'session', source, 'session')
-        workflow.connect(inputnode, 'session', sink, 'session')
+        workflow.connect(inputnode, 'subject_id', source, 'subject_id')
+        workflow.connect(inputnode, 'session_id', source, 'session_id')
+        workflow.connect(inputnode, 'subject_id', sink, 'subject_id')
+        workflow.connect(inputnode, 'session_id', sink, 'session_id')
         for source_file in source_files:
             if not source_file.name.endswith('2'):
                 source_name = source_file.name
@@ -92,8 +96,10 @@ class TestLocalArchive(TestCase):
         # TODO: Should test out other file formats as well.
         source_files = [Scan('source1', nifti_gz_format),
                         Scan('source2', nifti_gz_format)]
-        inputnode = pe.Node(IdentityInterface(['session']), 'inputnode')
-        inputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+                            'inputnode')
+        inputnode.inputs.subject_id = self.SUBJECT_ID
+        inputnode.inputs.session_id = self.SESSION_ID
         source = archive.source(self.PROJECT_ID, source_files)
         subject_sink_files = [Scan('sink1', nifti_gz_format,
                                    multiplicity='per_subject')]
@@ -112,14 +118,13 @@ class TestLocalArchive(TestCase):
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.description = (
             "Tests the sinking of project-wide scans")
-        split = pe.Node(SplitSession(), name="split")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
                                base_dir=self.WORKFLOW_DIR)
         workflow.add_nodes((source, subject_sink, project_sink))
-        workflow.connect(inputnode, 'session', source, 'session')
-        workflow.connect(inputnode, 'session', split, 'session')
-        workflow.connect(split, 'subject', subject_sink, 'subject_id')
+        workflow.connect(inputnode, 'subject_id', source, 'subject_id')
+        workflow.connect(inputnode, 'session_id', source, 'session_id')
+        workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(
             source, 'source1' + LocalSource.OUTPUT_SUFFIX,
             subject_sink, 'sink1' + LocalSink.INPUT_SUFFIX)
@@ -130,17 +135,19 @@ class TestLocalArchive(TestCase):
         # Check local summary directories were created properly
         subject_dir = os.path.join(
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
-            LocalSubjectSink.DIRNAME)
+            SUBJECT_SUMMARY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          ['sink1.nii.gz'])
         project_dir = os.path.join(
-            self.BASE_DIR, str(self.PROJECT_ID), LocalProjectSink.DIRNAME)
+            self.BASE_DIR, str(self.PROJECT_ID), PROJECT_SUMMARY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['sink2.nii.gz'])
         # Reload the data from the summary directories
-        reloadinputnode = pe.Node(IdentityInterface(['session']),
+        reloadinputnode = pe.Node(IdentityInterface(['subject_id',
+                                                     'session_id']),
                                   'reload_inputnode')
-        reloadinputnode.inputs.session = (self.SUBJECT_ID, self.SESSION_ID)
+        reloadinputnode.inputs.subject_id = self.SUBJECT_ID
+        reloadinputnode.inputs.session_id = self.SESSION_ID
         reloadsource = archive.source(
             self.PROJECT_ID,
             source_files + subject_sink_files + project_sink_files,
@@ -153,10 +160,14 @@ class TestLocalArchive(TestCase):
             "Tests the reloading of subject and project summary scans")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.WORKFLOW_DIR)
-        reloadworkflow.connect(reloadinputnode, 'session',
-                               reloadsource, 'session')
-        reloadworkflow.connect(reloadinputnode, 'session',
-                               reloadsink, 'session')
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsource, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'session_id',
+                               reloadsource, 'session_id')
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsink, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'session_id',
+                               reloadsink, 'session_id')
         reloadworkflow.connect(reloadsource,
                                'sink1' + LocalSource.OUTPUT_SUFFIX,
                                reloadsink,

@@ -5,7 +5,8 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
-    DarisSession, DarisArchive, DarisSource, DarisSink)
+    DarisSession, DarisArchive, DarisSource, DarisSink, SUBJECT_SUMMARY_ID,
+    PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
@@ -225,9 +226,11 @@ class TestDarisToken(TestCase):
 
 
 class TestDarisArchive(TestCase):
+
     TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'daris'))
+        os.path.dirname(__file__), '..', '..', '_data', 'daris-archive'))
     CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
+    SUBJECT_ID = 99
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
     DOMAIN = 'mon-daris'
     USER = 'test123'
@@ -244,19 +247,29 @@ class TestDarisArchive(TestCase):
         os.makedirs(self.WORKFLOW_DIR)
         # Upload test study
         with self.daris:  # Opens the daris session
+            try:
+                self.daris.delete_subject(project_id=PROJECT_ID,
+                                          subject_id=self.SUBJECT_ID)
+            except DarisException:
+                pass  # Ignore if present
+            self.subject_id = self.daris.add_subject(
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                name="NiAnalyais Unittest",
+                description=(
+                    "Automatically generated subject to run DaRIS unittests"))
             self.study_id = self.daris.add_study(
-                project_id=PROJECT_ID, subject_id=SUBJECT_ID,
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
                 ex_method_id=1, name='source-sink-unittest-study',
                 description="Used in DarisSource/Sink unittest")
             for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
                          'source4.nii.gz'):
                 file_id = self.daris.add_file(
-                    project_id=PROJECT_ID, subject_id=SUBJECT_ID,
+                    project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
                     study_id=self.study_id, ex_method_id=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
                 self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
-                                  subject_id=SUBJECT_ID,
+                                  subject_id=self.SUBJECT_ID,
                                   study_id=self.study_id,
                                   ex_method_id=1, file_id=file_id)
 
@@ -267,12 +280,14 @@ class TestDarisArchive(TestCase):
         if self.study_id is not None:
             try:
                 with self.daris:
-                    self.daris.delete_study(
-                        project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                        ex_method_id=1, study_id=self.study_id)
-                    self.daris.delete_study(
-                        project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                        ex_method_id=2, study_id=self.study_id)
+                    self.daris.delete_subject(
+                        project_id=PROJECT_ID, subject_id=self.SUBJECT_ID)
+#                     self.daris.delete_study(
+#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+#                         ex_method_id=1, study_id=self.study_id)
+#                     self.daris.delete_study(
+#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+#                         ex_method_id=2, study_id=self.study_id)
             except DarisException:
                 pass
 
@@ -296,7 +311,7 @@ class TestDarisArchive(TestCase):
                       Scan('sink4', nifti_gz_format, pipeline=True)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
-        inputnode.inputs.subject_id = str(SUBJECT_ID)
+        inputnode.inputs.subject_id = str(self.SUBJECT_ID)
         inputnode.inputs.session_id = str(self.study_id)
         source = archive.source(PROJECT_ID, source_files)
         sink = archive.sink(PROJECT_ID, sink_files)
@@ -320,10 +335,10 @@ class TestDarisArchive(TestCase):
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(SUBJECT_ID),
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(self.SUBJECT_ID),
             '1', str(self.study_id))
         sink_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(SUBJECT_ID),
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(self.SUBJECT_ID),
             '2', str(self.study_id))
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
@@ -332,7 +347,171 @@ class TestDarisArchive(TestCase):
                          ['sink1.nii.gz', 'sink3.nii.gz', 'sink4.nii.gz'])
         with self.daris:
             files = self.daris.get_files(
-                project_id=PROJECT_ID, subject_id=SUBJECT_ID,
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
                 study_id=self.study_id, ex_method_id=2, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in files.itervalues()),
                          ['sink1', 'sink3', 'sink4'])
+
+
+class TestDarisArchiveSummary(TestCase):
+
+    TEST_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(__file__), '..', '..', '_data', 'daris-summary'))
+    CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
+    SUBJECT_ID = 98
+    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
+    DOMAIN = 'mon-daris'
+    USER = 'test123'
+    PASSWORD = 'GaryEgan1'
+
+    def setUp(self):
+        # Create test data on DaRIS
+        self._study_id = None
+        self.daris = DarisSession(user='test123', password='GaryEgan1',
+                                  domain='mon-daris', server=SERVER)
+        # Make cache and working dirs
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
+        os.makedirs(self.CACHE_DIR)
+        os.makedirs(self.WORKFLOW_DIR)
+        # Upload test study
+        with self.daris:  # Opens the daris session
+            try:
+                self.daris.delete_subject(project_id=PROJECT_ID,
+                                          subject_id=self.SUBJECT_ID)
+            except DarisException:
+                pass  # Ignore if present
+            self.subject_id = self.daris.add_subject(
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                name="NiAnalyais Unittest",
+                description=(
+                    "Automatically generated subject to run DaRIS unittests"))
+            self.study_id = self.daris.add_study(
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                ex_method_id=1, name='source-sink-unittest-study',
+                description="Used in DarisSource/Sink unittest")
+            for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
+                         'source4.nii.gz'):
+                file_id = self.daris.add_file(
+                    project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                    study_id=self.study_id, ex_method_id=1,
+                    name=name, description=(
+                        "A file added for DarisSink/Source unittest"))
+                self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
+                                  subject_id=self.SUBJECT_ID,
+                                  study_id=self.study_id,
+                                  ex_method_id=1, file_id=file_id)
+
+    def tearDown(self):
+        # Clean up working dirs
+        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
+        # Clean up study created for unit-test
+        if self.study_id is not None:
+            try:
+                with self.daris:
+                    self.daris.delete_subject(
+                        project_id=PROJECT_ID, subject_id=self.SUBJECT_ID)
+#                     self.daris.delete_study(
+#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+#                         ex_method_id=1, study_id=self.study_id)
+#                     self.daris.delete_study(
+#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+#                         ex_method_id=2, study_id=self.study_id)
+            except DarisException:
+                pass
+
+    def test_summary(self):
+        # Create working dirs
+        # Create LocalSource node
+        archive = DarisArchive(base_dir=self.BASE_DIR)
+        # TODO: Should test out other file formats as well.
+        source_files = [Scan('source1', nifti_gz_format),
+                        Scan('source2', nifti_gz_format)]
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+                            'inputnode')
+        inputnode.inputs.subject_id = self.SUBJECT_ID
+        inputnode.inputs.session_id = self.study_id
+        source = archive.source(self.PROJECT_ID, source_files)
+        subject_sink_files = [Scan('sink1', nifti_gz_format,
+                                   multiplicity='per_subject')]
+        subject_sink = archive.sink(self.PROJECT_ID,
+                                    subject_sink_files,
+                                    multiplicity='per_subject')
+        subject_sink.inputs.name = 'subject_summary'
+        subject_sink.inputs.description = (
+            "Tests the sinking of subject-wide scans")
+        project_sink_files = [Scan('sink2', nifti_gz_format,
+                                   multiplicity='per_project')]
+        project_sink = archive.sink(self.PROJECT_ID,
+                                    project_sink_files,
+                                    multiplicity='per_project')
+
+        project_sink.inputs.name = 'project_summary'
+        project_sink.inputs.description = (
+            "Tests the sinking of project-wide scans")
+        # Create workflow connecting them together
+        workflow = pe.Workflow('summary_unittest',
+                               base_dir=self.WORKFLOW_DIR)
+        workflow.add_nodes((source, subject_sink, project_sink))
+        workflow.connect(inputnode, 'subject_id', source, 'subject_id')
+        workflow.connect(inputnode, 'session_id', source, 'session_id')
+        workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
+        workflow.connect(
+            source, 'source1' + DarisSource.OUTPUT_SUFFIX,
+            subject_sink, 'sink1' + DarisSink.INPUT_SUFFIX)
+        workflow.connect(
+            source, 'source2' + DarisSource.OUTPUT_SUFFIX,
+            project_sink, 'sink2' + DarisSink.INPUT_SUFFIX)
+        workflow.run()
+        # Check cached summary directories were created properly
+        subject_dir = os.path.join(
+            self.CACHE_DIR, str(PROJECT_ID), str(SUBJECT_ID),
+            str(SUBJECT_SUMMARY_ID), '1')
+        self.assertEqual(sorted(os.listdir(subject_dir)),
+                         ['sink1.nii.gz'])
+        project_dir = os.path.join(
+            self.CACHE_DIR, str(PROJECT_ID), '1', str(PROJECT_SUMMARY_ID),
+            '1')
+        self.assertEqual(sorted(os.listdir(project_dir)),
+                         ['sink2.nii.gz'])
+        # Reload the data from the summary directories
+        reloadinputnode = pe.Node(IdentityInterface(['subject_id',
+                                                     'session_id']),
+                                  'reload_inputnode')
+        reloadinputnode.inputs.subject_id = self.SUBJECT_ID
+        reloadinputnode.inputs.session_id = self.study_id
+        reloadsource = archive.source(
+            self.PROJECT_ID,
+            source_files + subject_sink_files + project_sink_files,
+            name='reload_source')
+        reloadsink = archive.sink(self.PROJECT_ID,
+                                  [Scan('resink1', nifti_gz_format),
+                                   Scan('resink2', nifti_gz_format)])
+        reloadsink.inputs.name = 'reload_summary'
+        reloadsink.inputs.description = (
+            "Tests the reloading of subject and project summary scans")
+        reloadworkflow = pe.Workflow('reload_summary_unittest',
+                                     base_dir=self.WORKFLOW_DIR)
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsource, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'session_id',
+                               reloadsource, 'session_id')
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsink, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'session_id',
+                               reloadsink, 'session_id')
+        reloadworkflow.connect(reloadsource,
+                               'sink1' + DarisSource.OUTPUT_SUFFIX,
+                               reloadsink,
+                               'resink1' + DarisSink.INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'sink2' + DarisSource.OUTPUT_SUFFIX,
+                               reloadsink,
+                               'resink2' + DarisSink.INPUT_SUFFIX)
+        reloadworkflow.run()
+        session_dir = os.path.join(
+            self.CACHE_DIR, str(PROJECT_ID), str(self.SUBJECT_ID), '2',
+            str(self.SESSION_ID))
+        self.assertEqual(sorted(os.listdir(session_dir)),
+                         ['resink1.nii.gz', 'resink2.nii.gz',
+                          'source1.nii.gz', 'source2.nii.gz',
+                          'source3.nii.gz', 'source4.nii.gz'])
