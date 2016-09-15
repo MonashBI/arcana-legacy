@@ -122,10 +122,7 @@ class LocalSink(ArchiveSink):
             src_path = os.path.abspath(filename)
             dst_path = os.path.join(out_dir, name + ext)
             out_files.append(dst_path)
-            try:
-                shutil.copyfile(src_path, dst_path)
-            except:
-                raise
+            shutil.copyfile(src_path, dst_path)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw

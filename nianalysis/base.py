@@ -107,7 +107,8 @@ class Scan(object):
                        desc="multiplicity of the scan (one of '{}')".format(
                             "', '".join(self.MULTIPLICITY_OPTIONS))),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc="whether the file is processed or not"))
+                        desc=("whether the file was generate by a pipeline "
+                              "or not")))
 
     @property
     def filename(self, format=None):  # @ReservedAssignment

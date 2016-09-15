@@ -18,9 +18,7 @@ from nianalysis.archive.base import (
 from nianalysis.formats import scan_formats
 import re
 import collections
-
-lctypes = {'nifti_gz': 'nifti/gz',
-           'dicom': 'dicom/series'}
+from nianalysis.utils import split_extension
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -97,7 +95,7 @@ class DarisSource(ArchiveSource):
                         ex_method_id=ex_method_id,
                         study_id=session_id,
                         file_id=file_.id)
-                outputs[fname] = cache_path
+                outputs[name + self.OUTPUT_SUFFIX] = cache_path
         return outputs
 
     def _get_daris_ids(self, multiplicity, processed):
@@ -181,6 +179,7 @@ class DarisSink(ArchiveSink):
     """
 
     input_spec = DarisSinkInputSpec
+    ACCEPTED_MULTIPLICITIES = ('per_session',)
 
     def _list_outputs(self):
         """Execute this module.
@@ -219,13 +218,23 @@ class DarisSink(ArchiveSink):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through files connected to the sink and copy them to the
             # cache directory and upload to daris.
-            for name, filename in self.inputs._outputs.iteritems():
-                src_path = os.path.abspath(filename)
-                if not isdefined(src_path):
-                    missing_files.append((name, src_path))
+            for name, format_name, mult, processed in self.inputs.files:
+                assert mult in self.ACCEPTED_MULTIPLICITIES
+                assert processed
+                filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
+                if not isdefined(filename):
+                    missing_files.append(name)
                     continue  # skip the upload for this file
+                scan_format = scan_formats[format_name]
+                assert (
+                    split_extension(filename)[1] == scan_format.extension), (
+                    "Mismatching extension '{}' for format '{}' ('{}')"
+                    .format(split_extension(filename)[1],
+                            scan_formats[format_name].name,
+                            scan_format.extension))
+                src_path = os.path.abspath(filename)
                 # Copy to local cache
-                dst_path = os.path.join(out_dir, name)
+                dst_path = os.path.join(out_dir, name + scan_format.extension)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to DaRIS
@@ -240,17 +249,16 @@ class DarisSink(ArchiveSink):
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
                     study_id=study_id, file_id=file_id,
-                    lctype=lctypes[self.inputs.scan_format])
+                    lctype=scan_format.lctype)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
             #        away the files that were created
             logger.warning(
-                "Missing output files '{}' mapped to names '{}' in "
-                "DarisSink".format("', '".join(f for _, f in missing_files),
-                                   "', '".join(n for n, _ in missing_files)))
+                "Missing output files '{}' in DarisSink".format(
+                    "', '".join(str(f) for f in missing_files)))
         # Return cache file paths
-        outputs['out_file'] = out_files
+        outputs['out_files'] = out_files
         return outputs
 
     def _get_daris_ids(self):
@@ -1182,7 +1190,7 @@ def construct_cid(project_id, subject_id=None, study_id=None,
     sub ids
     """
     cid = '1008.{}.{}'.format(repo_id, project_id)
-    ids = (subject_id, study_id, ex_method_id, file_id)
+    ids = (subject_id, ex_method_id, study_id, file_id)
     for i, id_ in enumerate(ids):
         if id_ is not None:
             cid += '.{}'.format(int(id_))
@@ -1190,7 +1198,14 @@ def construct_cid(project_id, subject_id=None, study_id=None,
             # Check to see that all subsequent ids are None (which they should
             # be).
             if any(d is not None for d in ids[(i + 1):]):
-                assert False
+                raise DarisException(
+                    "Not None IDs followed None value in constructing CID for "
+                    "project_id={project_id}, subject_id={subject_id}, "
+                    "study_id={study_id}, ex_method_id={ex_method_id}, "
+                    "file_id={file_id}, repo_id={repo_id}".format(
+                        project_id=project_id, subject_id=subject_id,
+                        study_id=study_id, ex_method_id=ex_method_id,
+                        file_id=file_id, repo_id=repo_id))
             else:
                 break
     return cid

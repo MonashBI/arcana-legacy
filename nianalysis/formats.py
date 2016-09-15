@@ -3,9 +3,10 @@ from copy import copy
 
 class ScanFormat(object):
 
-    def __init__(self, name, extension):
+    def __init__(self, name, extension, lctype=None):
         self._name = name
         self._extension = extension
+        self._lctype = lctype
 
     def __repr__(self):
         return "ScanFormat(name='{}', extension='{}')".format(self.name,
@@ -19,12 +20,18 @@ class ScanFormat(object):
     def extension(self):
         return self._extension
 
+    @property
+    def lctype(self):
+        return self._lctype
 
-nifti_format = ScanFormat(name='nifti', extension='.nii')
-nifti_gz_format = ScanFormat(name='nifti_gz', extension='.nii.gz')
+
+nifti_format = ScanFormat(name='nifti', extension='.nii',
+                          lctype='nifti/series')
+nifti_gz_format = ScanFormat(name='nifti_gz', extension='.nii.gz',
+                             lctype='nifti/gz')
 mrtrix_format = ScanFormat(name='mrtrix', extension='.mif')
 analyze_format = ScanFormat(name='analyze', extension='.img')
-dicom_format = ScanFormat(name='dicom', extension='')
+dicom_format = ScanFormat(name='dicom', extension='', lctype='dicom/series')
 fsl_bvecs_format = ScanFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = ScanFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = ScanFormat(name='mrtrix_grad', extension='.b')
