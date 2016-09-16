@@ -196,6 +196,17 @@ class DarisSink(ArchiveSink):
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
+            # Add ex-method if not present
+            if not daris.exists(project_id=self.inputs.project_id,
+                                subject_id=subject_id,
+                                ex_method_id=ex_method_id,
+                                repo_id=self.inputs.repo_id):
+                daris.add_ex_method(
+                    project_id=self.inputs.project_id,
+                    subject_id=subject_id,
+                    repo_id=self.inputs.repo_id,
+                    ex_method_id=ex_method_id)
+            # Add study if not present
             if not daris.exists(project_id=self.inputs.project_id,
                                 subject_id=subject_id,
                                 study_id=study_id,
@@ -220,7 +231,8 @@ class DarisSink(ArchiveSink):
             # cache directory and upload to daris.
             for name, format_name, mult, processed in self.inputs.files:
                 assert mult in self.ACCEPTED_MULTIPLICITIES
-                assert processed
+                assert processed, ("{} (format: {}, mult: {}) isn't processed"
+                                   .format(name, format_name, mult))
                 filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
                 if not isdefined(filename):
                     missing_files.append(name)
@@ -302,6 +314,8 @@ class DarisArchive(Archive):
     type = 'daris'
     Sink = DarisSink
     Source = DarisSource
+    SubjectSink = DarisSubjectSink
+    ProjectSink = DarisProjectSink
 
     def __init__(self, user, password, cache_dir, repo_id=2,
                  server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
@@ -312,8 +326,8 @@ class DarisArchive(Archive):
         self._cache_dir = cache_dir
         self._repo_id = repo_id
 
-    def source(self, project_id, input_files):
-        source = super(DarisArchive, self).source(project_id, input_files)
+    def source(self, *args, **kwargs):
+        source = super(DarisArchive, self).source(*args, **kwargs)
         source.inputs.server = self._server
         source.inputs.domain = self._domain
         source.inputs.user = self._user
@@ -322,8 +336,8 @@ class DarisArchive(Archive):
         source.inputs.repo_id = self._repo_id
         return source
 
-    def sink(self, project_id, output_files):
-        sink = super(DarisArchive, self).sink(project_id, output_files)
+    def sink(self, *args, **kwargs):
+        sink = super(DarisArchive, self).sink(*args, **kwargs)
         sink.inputs.server = self._server
         sink.inputs.domain = self._domain
         sink.inputs.user = self._user
@@ -681,15 +695,6 @@ class DarisSession:
             study_id = max_study_id + 1
         if name is None:
             name = str(study_id)
-        if ex_method_id:
-            # Check to see whether the processed "ex-method" exists
-            # (daris' ex-method is being co-opted to differentiate between raw
-            # and processed data)
-            sid = '1008.{}.{}.{}'.format(repo_id, project_id, subject_id)
-            # Create an "ex-method" to hold the processed data
-            if not self.exists(sid + '.2'):
-                self.run("om.pssd.ex-method.create :mid 1008.1.19 :sid {}"
-                         " :exmethod-number 2".format(sid))
         if processed is None:
             processed = (ex_method_id > 1)
         cmd = (

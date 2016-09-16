@@ -282,12 +282,6 @@ class TestDarisArchive(TestCase):
                 with self.daris:
                     self.daris.delete_subject(
                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID)
-#                     self.daris.delete_study(
-#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-#                         ex_method_id=1, study_id=self.study_id)
-#                     self.daris.delete_study(
-#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-#                         ex_method_id=2, study_id=self.study_id)
             except DarisException:
                 pass
 
@@ -335,11 +329,11 @@ class TestDarisArchive(TestCase):
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(self.SUBJECT_ID),
-            '1', str(self.study_id))
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            str(self.SUBJECT_ID), '1', str(self.study_id))
         sink_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), str(self.SUBJECT_ID),
-            '2', str(self.study_id))
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            str(self.SUBJECT_ID), '2', str(self.study_id))
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
@@ -378,6 +372,9 @@ class TestDarisArchiveSummary(TestCase):
             try:
                 self.daris.delete_subject(project_id=PROJECT_ID,
                                           subject_id=self.SUBJECT_ID)
+                self.daris.delete_ex_method(
+                    project_id=PROJECT_ID, subject_id=1,
+                    ex_method_id=4)
             except DarisException:
                 pass  # Ignore if present
             self.subject_id = self.daris.add_subject(
@@ -410,38 +407,38 @@ class TestDarisArchiveSummary(TestCase):
                 with self.daris:
                     self.daris.delete_subject(
                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID)
-#                     self.daris.delete_study(
-#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-#                         ex_method_id=1, study_id=self.study_id)
-#                     self.daris.delete_study(
-#                         project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-#                         ex_method_id=2, study_id=self.study_id)
+                    self.daris.delete_ex_method(
+                        project_id=PROJECT_ID, subject_id=1,
+                        ex_method_id=4)
             except DarisException:
                 pass
 
     def test_summary(self):
         # Create working dirs
         # Create LocalSource node
-        archive = DarisArchive(base_dir=self.BASE_DIR)
+        archive = DarisArchive(
+            server=SERVER, repo_id=REPO_ID,
+            cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
+            user=self.USER, password=self.PASSWORD)
         # TODO: Should test out other file formats as well.
         source_files = [Scan('source1', nifti_gz_format),
                         Scan('source2', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
-        inputnode.inputs.subject_id = self.SUBJECT_ID
-        inputnode.inputs.session_id = self.study_id
-        source = archive.source(self.PROJECT_ID, source_files)
-        subject_sink_files = [Scan('sink1', nifti_gz_format,
+        inputnode.inputs.subject_id = str(self.SUBJECT_ID)
+        inputnode.inputs.session_id = str(self.study_id)
+        source = archive.source(str(PROJECT_ID), source_files)
+        subject_sink_files = [Scan('sink1', nifti_gz_format, pipeline=True,
                                    multiplicity='per_subject')]
-        subject_sink = archive.sink(self.PROJECT_ID,
+        subject_sink = archive.sink(str(PROJECT_ID),
                                     subject_sink_files,
                                     multiplicity='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide scans")
-        project_sink_files = [Scan('sink2', nifti_gz_format,
+        project_sink_files = [Scan('sink2', nifti_gz_format, pipeline=True,
                                    multiplicity='per_project')]
-        project_sink = archive.sink(self.PROJECT_ID,
+        project_sink = archive.sink(PROJECT_ID,
                                     project_sink_files,
                                     multiplicity='per_project')
 
@@ -464,28 +461,42 @@ class TestDarisArchiveSummary(TestCase):
         workflow.run()
         # Check cached summary directories were created properly
         subject_dir = os.path.join(
-            self.CACHE_DIR, str(PROJECT_ID), str(SUBJECT_ID),
-            str(SUBJECT_SUMMARY_ID), '1')
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            str(self.SUBJECT_ID), str(SUBJECT_SUMMARY_ID), '1')
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          ['sink1.nii.gz'])
         project_dir = os.path.join(
-            self.CACHE_DIR, str(PROJECT_ID), '1', str(PROJECT_SUMMARY_ID),
-            '1')
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), '1',
+            str(PROJECT_SUMMARY_ID), '1')
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['sink2.nii.gz'])
+        with self.daris:
+            subject_files = self.daris.get_files(
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                study_id=1, ex_method_id=SUBJECT_SUMMARY_ID,
+                repo_id=REPO_ID)
+            project_files = self.daris.get_files(
+                project_id=PROJECT_ID, subject_id=1, study_id=1,
+                ex_method_id=PROJECT_SUMMARY_ID, repo_id=REPO_ID)
+        self.assertEqual(sorted(d.name for d in subject_files.itervalues()),
+                         ['sink1'])
+        self.assertEqual(sorted(d.name for d in project_files.itervalues()),
+                         ['sink2'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'session_id']),
                                   'reload_inputnode')
-        reloadinputnode.inputs.subject_id = self.SUBJECT_ID
-        reloadinputnode.inputs.session_id = self.study_id
+        reloadinputnode.inputs.subject_id = str(self.SUBJECT_ID)
+        reloadinputnode.inputs.session_id = str(self.study_id)
         reloadsource = archive.source(
-            self.PROJECT_ID,
+            PROJECT_ID,
             source_files + subject_sink_files + project_sink_files,
             name='reload_source')
-        reloadsink = archive.sink(self.PROJECT_ID,
-                                  [Scan('resink1', nifti_gz_format),
-                                   Scan('resink2', nifti_gz_format)])
+        reloadsink = archive.sink(PROJECT_ID,
+                                  [Scan('resink1', nifti_gz_format,
+                                        pipeline=True),
+                                   Scan('resink2', nifti_gz_format,
+                                        pipeline=True)])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary scans")
@@ -509,9 +520,13 @@ class TestDarisArchiveSummary(TestCase):
                                'resink2' + DarisSink.INPUT_SUFFIX)
         reloadworkflow.run()
         session_dir = os.path.join(
-            self.CACHE_DIR, str(PROJECT_ID), str(self.SUBJECT_ID), '2',
-            str(self.SESSION_ID))
+            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            str(self.SUBJECT_ID), '2', str(self.study_id))
         self.assertEqual(sorted(os.listdir(session_dir)),
-                         ['resink1.nii.gz', 'resink2.nii.gz',
-                          'source1.nii.gz', 'source2.nii.gz',
-                          'source3.nii.gz', 'source4.nii.gz'])
+                         ['resink1.nii.gz', 'resink2.nii.gz'])
+        with self.daris:
+            session_files = self.daris.get_files(
+                project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
+                study_id=self.study_id, ex_method_id=2, repo_id=REPO_ID)
+        self.assertEqual(sorted(d.name for d in session_files.itervalues()),
+                         ['resink1', 'resink2'])
