@@ -6,7 +6,7 @@ from nipype.interfaces.utility import IdentityInterface, Split
 from logging import Logger
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
-    NiAnalysisScanNameError, NiAnalysisMissingScanError)
+    NiAnalysisScanNameError, NiAnalysisMissingScanError, NiAnalysisError)
 from nianalysis.archive.base import ArchiveSource, ArchiveSink
 
 
@@ -497,19 +497,51 @@ class Pipeline(object):
         join : str  (not implemented)  # TODO
             Whether to join the input over sessions, subjects or the whole
             project. Can be one of:
-              'sessions'       - Sessions for each subject are joined into a
-                                 list
-              'subjects'       - Subjects for each session are joined into a
-                                 list
-              'project_flat'   - All sessions across all subjects are joined
-                                 into a single list
-              'project_nested' - Sessions for each are joined into a list
-                                 and then nested in a list over all subjects
+              'sessions'     - Sessions for each subject are joined into a
+                               list
+              'subjects'     - Subjects for each session are joined into a
+                               list
+              'project'      - Sessions for each are joined into a list
+                               and then nested in a list over all subjects
+              'project_flat' - All sessions across all subjects are joined
+                               into a single list
         """
         assert comp in self._inputs, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(input, self.name, "', '".join(self._inputs)))
-        self._workflow.connect(self._inputnode, comp, node, node_input)
+        if join is not None:
+            join_name = '{}_{}_{}_join_'.format(comp, node.name, node_input)
+            if join.startswith('project'):
+                # Create node to join the sessions first
+                session_join = pe.JoinNode(
+                    IdentityInterface([comp]), name='session_' + join_name,
+                    joinsource='sessions', joinfield=[comp])
+                if join == 'project':
+                    inputnode = pe.JoinNode(
+                        IdentityInterface([comp]), name='subject_' + join_name,
+                        joinsource='subjects', joinfield=[comp])
+                elif join == 'project_flat':
+                    # TODO: Need to implemente Chain interface for
+                    # concatenating the session lists into a single list
+                    inputnode = pe.JoinNode(
+                        Chain([comp]), name='subject_' + join_name,
+                        joinsource='subjects', joinfield=[comp])
+                else:
+                    raise NiAnalysisError(
+                        "Unrecognised join command '{}' can be one of ("
+                        "'sessions', 'subjects', 'project', 'project_flat')"
+                        .format(join))
+                self._workflow.connect(self._inputnode, comp, session_join,
+                                       comp)
+                self._workflow.connect(session_join, comp, inputnode, comp)
+            else:
+                inputnode = pe.JoinNode(
+                    IdentityInterface([comp]), name=join_name,
+                    joinsource=join, joinfield=[comp])
+                self._workflow.connect(self._inputnode, comp, inputnode, comp)
+        else:
+            inputnode = self._inputnode
+        self._workflow.connect(inputnode, comp, node, node_input)
         if comp in self._unconnected_inputs:
             self._unconnected_inputs.remove(comp)
 
