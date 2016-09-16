@@ -482,25 +482,60 @@ class Pipeline(object):
         """
         self._workflow.connect(*args, **kwargs)
 
-    def connect_input(self, inpt, node, node_input):  # @ReservedAssignment
-        assert inpt in self._inputs, (
+    def connect_input(self, comp, node, node_input, join=None):
+        """
+        Connects a dataset component as an input to the provided node
+
+        Parameters
+        ----------
+        comp : str
+            Name of the dataset component to join to the node
+        node : nipype.pipeline.BaseNode
+            A NiPype node to connect the input to
+        node_input : str
+            Name of the input on the node to connect the component to
+        join : str  (not implemented)  # TODO
+            Whether to join the input over sessions, subjects or the whole
+            project. Can be one of:
+              'sessions'       - Sessions for each subject are joined into a
+                                 list
+              'subjects'       - Subjects for each session are joined into a
+                                 list
+              'project_flat'   - All sessions across all subjects are joined
+                                 into a single list
+              'project_nested' - Sessions for each are joined into a list
+                                 and then nested in a list over all subjects
+        """
+        assert comp in self._inputs, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(input, self.name, "', '".join(self._inputs)))
-        self._workflow.connect(self._inputnode, inpt, node, node_input)
-        if inpt in self._unconnected_inputs:
-            self._unconnected_inputs.remove(inpt)
+        self._workflow.connect(self._inputnode, comp, node, node_input)
+        if comp in self._unconnected_inputs:
+            self._unconnected_inputs.remove(comp)
 
-    def connect_output(self, output, node, node_output):
-        assert output in chain(*self._outputs.values()), (
+    def connect_output(self, comp, node, node_output):
+        """
+        Connects an output to a dataset component
+
+        Parameters
+        ----------
+        comp : str
+            Name of the dataset component to connect to
+        node : nipype.pipeline.BaseNode
+            A NiPype to connect the output from
+        node_output : str
+            Name of the output on the node to connect to the component
+        """
+        assert comp in chain(*self._outputs.values()), (
             "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(output, self.name,
+            .format(comp, self.name,
                     "', '".join(chain(*self._outputs.values()))))
-        assert output in self._unconnected_outputs, (
+        assert comp in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
-            self._dataset.component(output).multiplicity]
-        self._workflow.connect(node, node_output, outputnode, output)
-        self._unconnected_outputs.remove(output)
+            self._dataset.component(comp).multiplicity]
+        self._workflow.connect(node, node_output, outputnode, comp)
+        self._unconnected_outputs.remove(comp)
 
     @property
     def name(self):
