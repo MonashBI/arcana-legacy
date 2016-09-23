@@ -46,7 +46,7 @@ class TestT1AndT2(TestCase):
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.PROJECT_NAME),
-                't2_coreg.nii'.format(self.DATASET_NAME))))
+                't2_reg_to_t1.nii'.format(self.DATASET_NAME))))
 
 if __name__ == '__main__':
     tester = TestT1AndT2()
