@@ -317,13 +317,14 @@ class DarisArchive(Archive):
     SubjectSink = DarisSubjectSink
     ProjectSink = DarisProjectSink
 
-    def __init__(self, user, password, cache_dir, repo_id=2,
+    def __init__(self, user, password, cache_dir=None, repo_id=2,
                  server='mf-erc.its.monash.edu.au', domain='monash-ldap'):
         self._server = server
         self._domain = domain
         self._user = user
         self._password = password
-        self._cache_dir = cache_dir
+        if cache_dir is None:
+            self._cache_dir = os.path.join(os.getcwd(), '.daris')
         self._repo_id = repo_id
 
     def source(self, *args, **kwargs):

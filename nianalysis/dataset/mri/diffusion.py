@@ -302,7 +302,7 @@ class DiffusionDataset(T2Dataset):
         pipeline.connect_input('grad_dirs', fsl_grads, 'in1')
         pipeline.connect_input('bvalues', fsl_grads, 'in2')
         # Connect between nodes
-        pipeline.connect(extract_b0s, 'out_file', mean, 'in_file')
+        pipeline.connect(extract_b0s, 'out_file', mean, 'in_files')
         pipeline.connect(fsl_grads, 'out', extract_b0s, 'fslgrad')
         pipeline.connect(mean, 'out_file', mrconvert, 'in_file')
         # Connect outputs

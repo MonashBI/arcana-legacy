@@ -2,8 +2,9 @@ from itertools import chain
 from nipype.pipeline import engine as pe
 from nipype.interfaces.spm.preprocess import Coregister
 from nianalysis.dataset.base import _create_component_dict
+from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.base import Scan
-from nianalysis.formats import nifti_gz_format
+from nianalysis.formats import nifti_format
 from nianalysis.requirements import spm12_req
 from nianalysis.citations import spm_cite
 from .t1 import T1Dataset
@@ -47,8 +48,8 @@ class T1AndT2Dataset(T1Dataset, T2Dataset):
         return pipeline
 
     _components = _create_component_dict(
-        Scan('t1', nifti_gz_format),
-        Scan('t2', nifti_gz_format),
-        Scan('t2_coreg', nifti_gz_format, coregistration_pipeline),
+        Scan('t1', nifti_format),
+        Scan('t2', nifti_format),
+        Scan('t2_coreg', nifti_format, coregistration_pipeline),
         inherit_from=chain(T1Dataset.generated_components(),
                            T2Dataset.generated_components()))

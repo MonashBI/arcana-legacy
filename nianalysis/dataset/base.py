@@ -253,6 +253,8 @@ class Pipeline(object):
         return "Pipeline(name='{}')".format(self.name)
 
     def __eq__(self, other):
+        if not isinstance(other, self.__class__):
+            return False
         # NB: Workflows should be the same for pipelines of the same name so
         #     may not need to be checked.
         return (
