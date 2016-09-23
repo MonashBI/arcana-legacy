@@ -31,8 +31,7 @@ class TestT1AndT2(TestCase):
                                      fname))
 
     def tearDown(self):
-#         shutil.rmtree(self.ARCHIVE_PATH, ignore_errors=True)
-        pass
+        shutil.rmtree(self.ARCHIVE_PATH, ignore_errors=True)
 
     def test_coregistration_pipeline(self):
         self._remove_generated_files(self.PROJECT_NAME)
