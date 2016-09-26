@@ -33,6 +33,12 @@ class T1AndT2Dataset(T1Dataset, T2Dataset):
         T2Dataset.__init__(self, *args, **kwargs)
 
     def coregistration_pipeline(self):
+        """
+        Coregisters T2 image to T1 image using SPM's
+        "Register" method.
+
+        NB: Default values come from the W2MHS toolbox
+        """
         pipeline = self._create_pipeline(
             name='coregistration',
             inputs=['t1', 't2'],
@@ -63,6 +69,12 @@ class T1AndT2Dataset(T1Dataset, T2Dataset):
         return pipeline
 
     def joint_segmentation_pipeline(self):
+        """
+        Segments grey matter, white matter and CSF from T1 and T2 images using
+        SPM "NewSegment" function.
+
+        NB: Default values come from the W2MHS toolbox
+        """
         pipeline = self._create_pipeline(
             name='segmentation',
             inputs=['t1'],
