@@ -73,18 +73,22 @@ class T1AndT2Dataset(T1Dataset, T2Dataset):
             citations=[spm_cite],
             approx_runtime=5)
         seg = pe.Node(NewSegment(), name='seg')
-        tmp_path = os.path.join(spm_path, 'tpm', 'TPM.nii')
+        tpm_path = os.path.join(spm_path, 'tpm', 'TPM.nii')
         seg.inputs.tissues = [
-            ((tmp_path, 1), 5, (True, False), (False, False)),
-            ((tmp_path, 2), 5, (True, False), (False, False)),
-            ((tmp_path, 3), 5, (True, False), (False, False)),
-            ((tmp_path, 4), 3, (False, False), (False, False)),
-            ((tmp_path, 5), 4, (False, False), (False, False)),
-            ((tmp_path, 6), 2, (False, False), (False, False))]
+            ((tpm_path, 1), 5, (True, False), (False, False)),
+            ((tpm_path, 2), 5, (True, False), (False, False)),
+            ((tpm_path, 3), 5, (True, False), (False, False)),
+            ((tpm_path, 4), 3, (False, False), (False, False)),
+            ((tpm_path, 5), 4, (False, False), (False, False)),
+            ((tpm_path, 6), 2, (False, False), (False, False))]
+        seg.inputs.channel_info = (
+            0, 120, (False, False),
+#             0, 120, (False, True),
+            )  # @IgnorePep8
         seg.inputs.affine_regularization = 'mni'
         seg.inputs.warping_regularization = [0.0, 0.001, 0.5, 0.025, 0.1]
         seg.inputs.sampling_distance = 3.0
-        seg.write_deformation_fields = False
+        seg.inputs.write_deformation_fields = False
         # Not sure what inputs these should correspond to
 #         seg.inputs.mrf = 2.0
 #         seg.inputs.fwhm = 0.0
