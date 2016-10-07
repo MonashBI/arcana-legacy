@@ -24,14 +24,16 @@ class TestT1AndT2(TestCase):
 
     def setUp(self):
         shutil.rmtree(self.ARCHIVE_PATH, ignore_errors=True)
-        os.makedirs(self._session_dir(self.PROJECT_NAME))
-        for fname in ('t1.nii', 't2.nii'):
-            shutil.copy(os.path.join(test_data_dir, fname),
-                        os.path.join(self._session_dir(self.PROJECT_NAME),
-                                     fname))
+        if not os.path.exists(self._session_dir(self.PROJECT_NAME)):
+            os.makedirs(self._session_dir(self.PROJECT_NAME))
+            for fname in ('t1.nii', 't2.nii'):
+                shutil.copy(os.path.join(test_data_dir, fname),
+                            os.path.join(self._session_dir(self.PROJECT_NAME),
+                                         fname))
 
     def tearDown(self):
-        shutil.rmtree(self.ARCHIVE_PATH, ignore_errors=True)
+#         shutil.rmtree(self.ARCHIVE_PATH, ignore_errors=True)
+        pass
 
     def test_coregistration_pipeline(self):
         self._remove_generated_files(self.PROJECT_NAME)
