@@ -473,7 +473,8 @@ class DarisSession:
               'method': 'meta/daris:pssd-derivation/method',
               'dataset_type': 'meta/daris:pssd-dataset/type',
               'creator_domain': 'creator/domain',
-              'creator_user': 'creator/user'}
+              'creator_user': 'creator/user',
+              'url': 'content/url'}
 
     def __init__(self, server='mf-erc.its.monash.edu.au', domain='monash-ldap',
                  user=None, password=None, token_path=None,
@@ -1066,7 +1067,7 @@ class DarisSession:
                 result = [self._extract_from_xml(result, p) for p in xpath]
         return result
 
-    def query(self, query):
+    def query(self, query, cid_index=False):
         """
         Runs a query command and returns the elements corresponding to the
         provided xpaths
@@ -1091,7 +1092,11 @@ class DarisSession:
             # Strip the ID of the entry from the returned CID (i.e. the
             # number after the last '.'
             entries.append(DarisEntry(**kwargs))
-        return dict((e.id, e) for e in entries)
+        if cid_index:
+            id_attr = 'cid'
+        else:
+            id_attr = 'id'
+        return dict((getattr(e, id_attr), e) for e in entries)
 
     def exists(self, *args, **kwargs):
         if args:
@@ -1121,7 +1126,7 @@ class DarisEntry(object):
 
     def __init__(self, cid, name, description, ctime=None, mtime=None,
                  lctype=None, processed=None, method=None, dataset_type=None,
-                 creator_domain=None, creator_user=None):
+                 creator_domain=None, creator_user=None, url=None):
         self._cid = cid
         self._name = name
         self._description = description
@@ -1133,6 +1138,7 @@ class DarisEntry(object):
         self._dataset_type = dataset_type
         self._creator_domain = creator_domain
         self._creator_user = creator_user
+        self._url = url
 
     def __repr__(self):
         return ("DarisEntry(cid={}, name={}, description='{}'{})"
@@ -1187,6 +1193,10 @@ class DarisEntry(object):
     @property
     def creator_user(self):
         return self._creator_user
+
+    @property
+    def url(self):
+        return self._url
 
 
 def construct_cid(project_id, subject_id=None, study_id=None,
