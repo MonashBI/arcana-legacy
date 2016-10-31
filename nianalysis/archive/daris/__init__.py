@@ -923,16 +923,16 @@ class DarisSession:
             r'(.*)ep2d([_ ])bold([a-zA-Z_ ]+)')
         list_scans['multiband'] = list_scans['mb'] = (
             r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$')
-        list_scans['asl'] = r'ep2d_tra_pasl$'
+        list_scans['asl'] = r'(.*)ep2d_tra_pasl$'
         list_scans['pd'] = r'pd_tse.*'
         list_scans['proton density'] = list_scans['pd']
         list_scans['proton_density'] = list_scans['pd']
-        list_scans['t2'] = r't2_spc.*|FLAIR'
-        list_scans['t1'] = r't1_mprage.*|MPRAGE'
+        list_scans['t2'] = r'(.*)t2_spc.*|FLAIR'
+        list_scans['t1'] = r'(.*)t1_mprage.*|MPRAGE'
         list_scans['mt'] = r'(.*)MT fl3d([a-zA-Z_ ]+)'
         list_scans['ute'] = r'([a-zA-Z_ ]+)UTE$'
         list_scans['dixon'] = r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
-        list_scans['gre'] = r'gre([a-zA-Z_ ]+)field_map'
+        list_scans['gre'] = r'(.*)gre([a-zA-Z_ ]+)field_map'
         list_scans['field_map'] = list_scans['field map'] = list_scans['gre']
         list_scans['umap'] = r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'
 
