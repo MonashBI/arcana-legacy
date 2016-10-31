@@ -887,8 +887,8 @@ class DarisSession:
             file_id)
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
-    def download_match(self, location, project_id, sub_id, match_scan=None,
-                       scan_type=None):
+    def download_match(self, location, project_id, sub_id, study_id=1,
+                       match_scan=None, scan_type=None):
         """
         Downloads multiple assets to a location on the local file system
 
@@ -911,13 +911,16 @@ class DarisSession:
             raise Exception(
                 "You must provide one between match_scan OR scan_type")
 
-        files = self.get_files(project_id, sub_id)
+        files = self.get_files(project_id, sub_id, study_id=study_id)
 
         list_scans = {}
-        list_scans['diffusion'] = r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)_p2$'
+        list_scans['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
+                                   r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff_motion$|'
+                                   r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff$')
         list_scans['epi'] = (
             r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)'
-            r'ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)')
+            r'ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)|'
+            r'(.*)ep2d([_ ])bold([a-zA-Z_ ]+)')
         list_scans['multiband'] = list_scans['mb'] = (
             r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$')
         list_scans['asl'] = r'ep2d_tra_pasl$'
@@ -951,13 +954,13 @@ class DarisSession:
                     if re.match(match_scan, files[file_id].name):
                         name = files[file_id].cid
                         self.download(location + name + '.zip', project_id,
-                                      sub_id, file_id)
+                                      sub_id, file_id, study_id=study_id)
         else:
             for file_id in files:
                 if re.match(match_scan, files[file_id].name):
                     name = files[file_id].cid
                     self.download(location + name + '.zip', project_id, sub_id,
-                                  file_id)
+                                  file_id, study_id=study_id)
 
     def upload(self, location, project_id, subject_id, study_id, file_id,
                name=None, repo_id=2, ex_method_id=2, lctype=None):
