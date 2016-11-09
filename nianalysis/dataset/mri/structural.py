@@ -10,7 +10,7 @@ from nianalysis.citations import spm_cite, freesurfer_cites
 from nianalysis.formats import nifti_format
 from nipype.interfaces.spm.preprocess import Coregister
 from nipype.interfaces.utility import Merge, Split
-from nianalysis.base import Scan
+from .base import _create_component_dict, Scan
 from nianalysis.interfaces.spm import MultiChannelSegment
 from .base import MRDataset
 
@@ -93,18 +93,9 @@ class T1Dataset(StructuralDataset):
             citations=copy(freesurfer_cites),
             approx_runtime=500)
         recon_all = pe.Node(interface=ReconAll(), name='recon_all')
+        # Connect inputs
         pipeline.connect_input('t1', recon_all, 'T1_files')
-        
-        """
-        Make average subject
-        """
-        
-        average = pe.Node(interface=MakeAverageSubject(), name="average")
-        average.inputs.subjects_dir = subjects_dir
-        
-        wf.connect(recon_all, 'subject_id', average, 'subjects_ids')
-        
-        wf.run("MultiProc", plugin_args={'n_procs': 4})
+        pipeline.connect(recon_all, 'subject_id', average, 'subjects_ids')
 
     _components = _create_component_dict(
         Scan('t1', nifti_format),
