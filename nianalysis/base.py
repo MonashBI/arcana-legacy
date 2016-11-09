@@ -19,7 +19,7 @@ class Scan(object):
     name : str
         The name of the scan
     format : FileFormat
-        The file format used to store the scan. Can be one of the
+        The file format used to store the dataset. Can be one of the
         recognised formats
     pipeline : Project.method
         The method of the project that is used to generate the scan. If None

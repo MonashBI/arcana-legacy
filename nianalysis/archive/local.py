@@ -24,7 +24,7 @@ SUBJECT_SUMMARY_NAME = '__SUMMARY__'
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
 
     base_dir = Directory(
-        exists=True, desc=("Path to the base directory where the files will"
+        exists=True, desc=("Path to the base directory where the datasets will"
                            " be cached before uploading"))
 
 
@@ -44,7 +44,7 @@ class LocalSource(ArchiveSource):
             self.inputs.base_dir, self.inputs.project_id,
             PROJECT_SUMMARY_NAME)
         outputs = {}
-        for name, scan_format, multiplicity, _ in self.inputs.files:
+        for name, scan_format, multiplicity, _ in self.inputs.datasets:
             if multiplicity == 'per_project':
                 download_dir = project_dir
             elif multiplicity.startswith('per_subject'):
@@ -63,7 +63,7 @@ class LocalSource(ArchiveSource):
 class LocalSinkInputSpecMixin(object):
 
     base_dir = Directory(
-        exists=True, desc=("Path to the base directory where the files will"
+        exists=True, desc=("Path to the base directory where the datasets will"
                            " be cached before uploading"))
 
 
@@ -102,9 +102,9 @@ class LocalSink(ArchiveSink):
         # Make session cache dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-        # Loop through files connected to the sink and copy them to the
+        # Loop through datasets connected to the sink and copy them to the
         # cache directory and upload to daris.
-        for name, scan_format, multiplicity, _ in self.inputs.files:
+        for name, scan_format, multiplicity, _ in self.inputs.datasets:
             filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
             ext = scan_formats[scan_format].extension
             if not isdefined(filename):
@@ -126,9 +126,9 @@ class LocalSink(ArchiveSink):
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
-            #        away the files that were created
+            #        away the datasets that were created
             logger.warning(
-                "Missing input files '{}' in DarisSink".format(
+                "Missing input datasets '{}' in DarisSink".format(
                     "', '".join(missing_files)))
         # Return cache file paths
         outputs['out_files'] = out_files
@@ -230,9 +230,9 @@ class LocalArchive(Archive):
             for session_dir in session_dirs:
                 session_path = os.path.join(subject_path, session_dir)
                 scans = []
-                files = [d for d in os.listdir(session_path)
+                datasets = [d for d in os.listdir(session_path)
                          if not os.path.isdir(d)]
-                for f in files:
+                for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
                         Scan(name=basename, format=scan_formats_by_ext[ext]))
@@ -240,18 +240,18 @@ class LocalArchive(Archive):
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
-                files = [d for d in os.listdir(subject_summary_path)
+                datasets = [d for d in os.listdir(subject_summary_path)
                          if not os.path.isdir(d)]
-                for f in files:
+                for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
                         Scan(name=basename, format=scan_formats_by_ext[ext]))
             subjects.append(Subject(subject_dir, sessions, scans))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(subject_summary_path):
-            files = [d for d in os.listdir(project_summary_path)
+            datasets = [d for d in os.listdir(project_summary_path)
                      if not os.path.isdir(d)]
-            for f in files:
+            for f in datasets:
                 basename, ext = split_extension(f)
                 scans.append(
                     Scan(name=basename, format=scan_formats_by_ext[ext]))
@@ -267,7 +267,7 @@ class LocalArchive(Archive):
                 "('{}') instead of sub-directories".format(
                     path, "', '".join(dirs)))
 
-    def sessions_with_file(self, scan, project_id, sessions=None):
+    def sessions_with_dataset(self, scan, project_id, sessions=None):
         if sessions is None:
             sessions = self.all_sessions(project_id)
         with_dataset = []

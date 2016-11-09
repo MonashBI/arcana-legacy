@@ -32,7 +32,7 @@ class DarisSourceInputSpec(ArchiveSourceInputSpec):
                          desc='The ID of the repository')
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
-                           "files will be cached"))
+                           "datasets will be cached"))
     server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
                         usedefault=True, desc="The address of the MF server")
     domain = traits.Str('monash-ldap', mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
@@ -45,7 +45,7 @@ class DarisSourceInputSpec(ArchiveSourceInputSpec):
 
 class DarisSource(ArchiveSource):
     """
-    A NiPype IO interface for grabbing files off DaRIS (analogous to
+    A NiPype IO interface for grabbing datasets off DaRIS (analogous to
     DataGrabber)
     """
 
@@ -57,13 +57,13 @@ class DarisSource(ArchiveSource):
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
             outputs = {}
-            files = {}
+            datasets = {}
             for mult_proc in (('per_session', False), ('per_session', True),
                               ('per_subject', True), ('per_project', True)):
                 (ex_method_id,
                  subject_id, session_id) = self._get_daris_ids(*mult_proc)
-                files[mult_proc] = dict(
-                    (d.name, d) for d in daris.get_files(
+                datasets[mult_proc] = dict(
+                    (d.name, d) for d in daris.get_datasets(
                         repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
                         subject_id=subject_id,
@@ -72,7 +72,7 @@ class DarisSource(ArchiveSource):
             base_cache_dir = os.path.join(*(str(p) for p in (
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id)))
-            for (name, scan_format, mult, processed) in self.inputs.files:
+            for (name, scan_format, mult, processed) in self.inputs.datasets:
                 (ex_method_id,
                  subject_id, session_id) = self._get_daris_ids(mult, processed)
 
@@ -82,10 +82,10 @@ class DarisSource(ArchiveSource):
                     os.makedirs(cache_dir)
                 fname = name + scan_formats[scan_format].extension
                 try:
-                    file_ = files[(mult, processed)][fname]
+                    dataset = datasets[(mult, processed)][fname]
                 except KeyError:
                     # The extension is not always saved in the filename
-                    file_ = files[(mult, processed)][name]
+                    dataset = datasets[(mult, processed)][name]
                 cache_path = os.path.join(cache_dir, fname)
                 if not os.path.exists(cache_path):
                     daris.download(
@@ -94,7 +94,7 @@ class DarisSource(ArchiveSource):
                         subject_id=subject_id,
                         ex_method_id=ex_method_id,
                         session_id=session_id,
-                        file_id=file_.id)
+                        dataset_id=dataset.id)
                 outputs[name + self.OUTPUT_SUFFIX] = cache_path
         return outputs
 
@@ -143,7 +143,7 @@ class DarisSinkInputSpecMixin(object):
     repo_id = traits.Int(2, mandatory=True, usedefault=True,  # @UndefinedVariable @IgnorePep8
                          desc='The ID of the repository')
     cache_dir = Directory(
-        exists=True, desc=("Path to the base directory where the files will"
+        exists=True, desc=("Path to the base directory where the datasets will"
                            " be cached before uploading"))
     server = traits.Str('mf-erc.its.monash.edu.au', mandatory=True,  # @UndefinedVariable @IgnorePep8
                         usedefault=True, desc="The address of the MF server")
@@ -174,7 +174,7 @@ class DarisProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
 
 class DarisSink(ArchiveSink):
     """
-    A NiPype IO interface for putting processed files onto DaRIS (analogous to
+    A NiPype IO interface for putting processed datasets onto DaRIS (analogous to
     DataSink)
     """
 
@@ -227,9 +227,9 @@ class DarisSink(ArchiveSink):
             # Make session cache dir
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-            # Loop through files connected to the sink and copy them to the
+            # Loop through datasets connected to the sink and copy them to the
             # cache directory and upload to daris.
-            for name, format_name, mult, processed in self.inputs.files:
+            for name, format_name, mult, processed in self.inputs.datasets:
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
@@ -250,7 +250,7 @@ class DarisSink(ArchiveSink):
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to DaRIS
-                file_id = daris.add_file(
+                dataset_id = daris.add_dataset(
                     project_id=self.inputs.project_id,
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
@@ -260,14 +260,14 @@ class DarisSink(ArchiveSink):
                     src_path, project_id=self.inputs.project_id,
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
-                    session_id=session_id, file_id=file_id,
+                    session_id=session_id, dataset_id=dataset_id,
                     lctype=scan_format.lctype)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
-            #        away the files that were created
+            #        away the datasets that were created
             logger.warning(
-                "Missing output files '{}' in DarisSink".format(
+                "Missing output datasets '{}' in DarisSink".format(
                     "', '".join(str(f) for f in missing_files)))
         # Return cache file paths
         outputs['out_files'] = out_files
@@ -377,15 +377,15 @@ class DarisArchive(Archive):
 
     def project(self, project_id, subject_ids=None, session_ids=None):
         with self._daris() as daris:
-            # Get all files in project
-            entries = daris.get_files(self, project_id, repo_id=self._repo_id,
+            # Get all datasets in project
+            entries = daris.get_datasets(self, project_id, repo_id=self._repo_id,
                                       subject_id=None, session_id=None,
                                       ex_method_id=None)
         subject_dict = defaultdict(defaultdict(defaultdict(list)))
         for entry in entries:
             (subject_id, ex_method_id,
-             session_id, file_id) = entry.cid.split('.')[-4:]
-            subject_dict[subject_id][ex_method_id][session_id].append(file_id)
+             session_id, dataset_id) = entry.cid.split('.')[-4:]
+            subject_dict[subject_id][ex_method_id][session_id].append(dataset_id)
         subjects = []
         project_summary = []
         for subject_id, method_dict in subject_dict.iteritems():
@@ -405,9 +405,9 @@ class DarisArchive(Archive):
                     if subject_id != 1 or session_dict.keys() != ['1']:
                         raise DarisException(
                             "Session(s) {} found in ex-method 4 of subject {}."
-                            "Project summaries are only allowed in session 1 of "
-                            "subject 1".format(', '.join(session_dict),
-                                               subject_id))
+                            "Project summaries are only allowed in session 1 "
+                            "of subject 1".format(', '.join(session_dict),
+                                                  subject_id))
                     project_summary = session_dict['1']
                 elif ex_method_id == 3:
                     if session_dict.keys() != ['1']:
@@ -417,37 +417,37 @@ class DarisArchive(Archive):
                             .format(', '.join(session_dict), subject_id))
                     subject_summary = session_dict['1']
                 else:
-                    for session_id, files in session_dict.iteritems():
+                    for session_id, datasets in session_dict.iteritems():
                         if session_ids is None or session_id in session_ids:
-                            sessions.append(Session(session_id, files,
+                            sessions.append(Session(session_id, datasets,
                                                     processed=processed))
             subjects.append(Subject(subject_id, sessions, subject_summary))
         project = Project(project_id, subjects, project_summary)
         return project
 
-    def sessions_with_file(self, scan, project_id, sessions):
+    def sessions_with_dataset(self, scan, project_id, sessions):
         """
         Parameters
         ----------
-        file_ : BaseFile
+        dataset : Dataset
             A file (name) for which to return the sessions that contain it
         project_id : int
             The id of the project
         sessions : List[Session]
-            List of sessions of which to test for the file_
+            List of sessions of which to test for the dataset
         """
         if sessions is None:
             sessions = self.all_sessions(project_id=project_id)
-        sess_with_file = []
+        sess_with_dataset = []
         with self._daris() as daris:
             for session in sessions:
-                entries = daris.get_files(
+                entries = daris.get_datasets(
                     project_id, session.subject_id, session.session_id,
                     repo_id=self._repo_id,
                     ex_method_id=int(scan.processed) + 1)
                 if scan.filename() in (e.name for e in entries):
-                    sess_with_file.append(session)
-        return sess_with_file
+                    sess_with_dataset.append(session)
+        return sess_with_dataset
 
     def _daris(self):
         return DarisLogin(server=self._server, domain=self._domain,
@@ -604,14 +604,14 @@ class DarisLogin:
                                   repo_id=repo_id)))
 
     def get_sessions(self, project_id, subject_id, ex_method_id=1,
-                    repo_id=2):
+                     repo_id=2):
         return self.query(
             "cid starts with '{}' and model='om.pssd.study'"
             .format(construct_cid(project_id=project_id, subject_id=subject_id,
                                   ex_method_id=ex_method_id, repo_id=repo_id)))
 
-    def get_files(self, project_id, subject_id, session_id=1, repo_id=2,
-                  ex_method_id=1):
+    def get_datasets(self, project_id, subject_id, session_id=1, repo_id=2,
+                     ex_method_id=1):
         return self.query(
             "cid starts with '{}' and model='om.pssd.dataset'"
             .format(construct_cid(
@@ -674,8 +674,8 @@ class DarisLogin:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def add_session(self, project_id, subject_id, session_id=None, name=None,
-                  description='\"\"', ex_method_id=2, repo_id=2,
-                  processed=None):
+                    description='\"\"', ex_method_id=2, repo_id=2,
+                    processed=None):
         """
         Adds a new subject with the given subject_id within the given
         project_id
@@ -714,12 +714,13 @@ class DarisLogin:
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def copy_session(self, old_project_id, old_subject_id, old_session_id,
-                   new_session_id, new_project_id=None, new_subject_id=None,
-                   repo_id=2, old_ex_method_id=1, tmp_dir=None, download=True,
-                   create_session=True, new_session_name=None,
-                   new_ex_method_id=None):
+                     new_session_id, new_project_id=None, new_subject_id=None,
+                     repo_id=2, old_ex_method_id=1, tmp_dir=None,
+                     download=True, create_session=True, new_session_name=None,
+                     new_ex_method_id=None):
         """
-        Swaps a session and its meta-data from an incorrect ID to the desired one
+        Swaps a session and its meta-data from an incorrect ID to the desired
+        one
 
         Parameters
         ----------
@@ -731,9 +732,10 @@ class DarisLogin:
             tmp_dir = tempfile.mkdtemp()
         if new_project_id is None:
             new_project_id = old_project_id
-        scans = self.get_files(old_project_id, old_subject_id,
-                               session_id=old_session_id,
-                               repo_id=repo_id, ex_method_id=old_ex_method_id)
+        scans = self.get_datasets(old_project_id, old_subject_id,
+                                  session_id=old_session_id,
+                                  repo_id=repo_id,
+                                  ex_method_id=old_ex_method_id)
         # Download scans first just to check whether there are any problems
         # before creating the new session
         for scan in scans.itervalues():
@@ -742,7 +744,7 @@ class DarisLogin:
                           project_id=old_project_id,
                           subject_id=old_subject_id,
                           session_id=old_session_id,
-                          file_id=scan.id,
+                          dataset_id=scan.id,
                           repo_id=repo_id,
                           ex_method_id=old_ex_method_id)
         # Create a new subject if required
@@ -766,11 +768,11 @@ class DarisLogin:
             new_ex_method_id = old_ex_method_id
         # Get list of sessions in old and new locations
         old_sessions = self.get_sessions(old_project_id, old_subject_id,
-                                       ex_method_id=old_ex_method_id,
-                                       repo_id=repo_id)
+                                         ex_method_id=old_ex_method_id,
+                                         repo_id=repo_id)
         new_sessions = self.get_sessions(new_project_id, new_subject_id,
-                                       ex_method_id=new_ex_method_id,
-                                       repo_id=repo_id)
+                                         ex_method_id=new_ex_method_id,
+                                         repo_id=repo_id)
         old_session = old_sessions[old_session_id]
         # Add the new session if required
         if new_session_id not in new_sessions:
@@ -787,16 +789,16 @@ class DarisLogin:
                 ex_method_id=new_ex_method_id, repo_id=repo_id)
         if download:
             for scan in scans.itervalues():
-                new_file_id = self.add_file(
+                new_dataset_id = self.add_dataset(
                     new_project_id, new_subject_id, session_id=new_session_id,
-                    file_id=scan.id, name=scan.name,
+                    dataset_id=scan.id, name=scan.name,
                     description=scan.description,
                     ex_method_id=new_ex_method_id, repo_id=repo_id)
                 self.upload(os.path.join(tmp_dir,
                                          '{}_{}.zip'.format(scan.id,
                                                             scan.name)),
                             new_project_id, new_subject_id,
-                            session_id=new_session_id, file_id=new_file_id,
+                            session_id=new_session_id, dataset_id=new_dataset_id,
                             ex_method_id=new_ex_method_id, repo_id=repo_id,
                             lctype=scan.lctype)
         else:
@@ -808,45 +810,46 @@ class DarisLogin:
                 scan_cid = construct_cid(
                     project_id=new_project_id, subject_id=old_subject_id,
                     session_id=old_session_id, ex_method_id=new_ex_method_id,
-                    file_id=scan_id, repo_id=repo_id)
+                    dataset_id=scan_id, repo_id=repo_id)
                 self.run('om.pssd.dataset.move :id {} :pid {}'
                          .format(scan_cid, session_cid))
         return new_session_id
 
     def move_session(self, project_id, old_subject_id, old_session_id,
-                   new_session_id, old_ex_method_id=1, repo_id=2, **kwargs):
-        self.copy_session(project_id, old_subject_id, old_session_id, new_session_id,
-                        old_ex_method_id=old_ex_method_id, repo_id=repo_id,
-                        **kwargs)
+                     new_session_id, old_ex_method_id=1, repo_id=2, **kwargs):
+        self.copy_session(project_id, old_subject_id, old_session_id,
+                          new_session_id, old_ex_method_id=old_ex_method_id,
+                          repo_id=repo_id, **kwargs)
         self.delete_session(project_id, old_subject_id, old_session_id,
-                          ex_method_id=old_ex_method_id, repo_id=repo_id)
+                            ex_method_id=old_ex_method_id, repo_id=repo_id)
 
-    def add_file(self, project_id, subject_id, session_id, file_id=None,
-                 name=None, description='\"\"', ex_method_id=2, repo_id=2,
-                 processed=None):
+    def add_dataset(self, project_id, subject_id, session_id, dataset_id=None,
+                    name=None, description='\"\"', ex_method_id=2, repo_id=2,
+                    processed=None):
         """
-        Adds a new file with the given subject_id within the given session id
+        Adds a new dataset with the given subject_id within the given session id
 
-        project_id  -- The id of the project to add the file to
-        subject_id  -- The id of the subject to add the file to
-        session_id    -- The id of the session to add the file to
-        file_id     -- The file_id of the file to add. If not provided
-                       the next available file_id is used
+        project_id  -- The id of the project to add the dataset to
+        subject_id  -- The id of the subject to add the dataset to
+        session_id    -- The id of the session to add the dataset to
+        dataset_id     -- The dataset_id of the dataset to add. If not provided
+                       the next available dataset_id is used
         name        -- The name of the subject
         description -- A description of the subject
         """
-        if file_id is None:
-            # Get the next unused file id
+        if dataset_id is None:
+            # Get the next unused dataset id
             try:
-                max_file_id = max(
-                    self.get_files(project_id, subject_id,
-                                   session_id=session_id,
-                                   ex_method_id=ex_method_id, repo_id=repo_id))
+                max_dataset_id = max(
+                    self.get_datasets(project_id, subject_id,
+                                      session_id=session_id,
+                                      ex_method_id=ex_method_id,
+                                      repo_id=repo_id))
             except ValueError:
-                max_file_id = 0
-            file_id = max_file_id + 1
+                max_dataset_id = 0
+            dataset_id = max_dataset_id + 1
         if name is None:
-            name = 'Project_{}'.format(file_id)
+            name = 'Project_{}'.format(dataset_id)
         if ex_method_id:
             meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1
                     ":study-reference 1008.{}.{}.{}.1 \> \>".format(
@@ -859,11 +862,11 @@ class DarisLogin:
                " :processed {} :name \"{}\" :description \"{}\"{}".format(
                    repo_id, project_id, subject_id, ex_method_id, session_id,
                    str(processed).lower(), name, description, meta))
-        # Return the id of the newly created remote file
+        # Return the id of the newly created remote dataset
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def download(self, location, project_id, subject_id, file_id,
+    def download(self, location, project_id, subject_id, dataset_id,
                  session_id=1, ex_method_id=1, repo_id=2):
         """
         Downloads an asset to a location on the local file system
@@ -878,8 +881,8 @@ class DarisLogin:
             Id of the project
         subject_id: int
             Id of the subject
-        file_id: int
-            Id of the scan/file to download
+        dataset_id: int
+            Id of the dataset to download
         session_id: int
             Id of the session
         ex_method_id: int
@@ -890,7 +893,7 @@ class DarisLogin:
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
             repo_id, project_id, subject_id, ex_method_id, session_id,
-            file_id)
+            dataset_id)
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
     def download_match(self, location, project_id, sub_id, session_id=1,
@@ -917,7 +920,7 @@ class DarisLogin:
             raise Exception(
                 "You must provide one between match_scan OR scan_type")
 
-        files = self.get_files(project_id, sub_id, session_id=session_id)
+        datasets = self.get_datasets(project_id, sub_id, session_id=session_id)
 
         list_scans = {}
         list_scans['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
@@ -956,19 +959,20 @@ class DarisLogin:
                     "match_scan")
             for scan in scan_type:
                 match_scan = list_scans[scan]
-                for file_id in files:
-                    if re.match(match_scan, files[file_id].name):
-                        name = files[file_id].cid
+                for dataset_id in datasets:
+                    if re.match(match_scan, datasets[dataset_id].name):
+                        name = datasets[dataset_id].cid
                         self.download(location + name + '.zip', project_id,
-                                      sub_id, file_id, session_id=session_id)
+                                      sub_id, dataset_id,
+                                      session_id=session_id)
         else:
-            for file_id in files:
-                if re.match(match_scan, files[file_id].name):
-                    name = files[file_id].cid
+            for dataset_id in datasets:
+                if re.match(match_scan, datasets[dataset_id].name):
+                    name = datasets[dataset_id].cid
                     self.download(location + name + '.zip', project_id, sub_id,
-                                  file_id, session_id=session_id)
+                                  dataset_id, session_id=session_id)
 
-    def upload(self, location, project_id, subject_id, session_id, file_id,
+    def upload(self, location, project_id, subject_id, session_id, dataset_id,
                name=None, repo_id=2, ex_method_id=2, lctype=None):
         # Use the name of the file to be uploaded if the 'name' kwarg is
         # present
@@ -984,7 +988,7 @@ class DarisLogin:
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
             " :in file:\"{}\" :filename \"{}\"{}".format(
                 repo_id, project_id, subject_id, ex_method_id, session_id,
-                file_id, location, name, lctype_str))
+                dataset_id, location, name, lctype_str))
         self.run(cmd)
 
     def delete_subject(self, project_id, subject_id, repo_id=2):
@@ -1001,25 +1005,25 @@ class DarisLogin:
                                        ex_method_id))
         self.run(cmd)
 
-    def delete_session(self, project_id, subject_id, session_id, ex_method_id=2,
-                     repo_id=2):
+    def delete_session(self, project_id, subject_id, session_id,
+                       ex_method_id=2, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
                 repo_id, project_id, subject_id, ex_method_id, session_id))
         self.run(cmd)
 
-    def delete_file(self, project_id, subject_id, session_id, file_id,
-                    ex_method_id=2, repo_id=2):
+    def delete_dataset(self, project_id, subject_id, session_id, dataset_id,
+                       ex_method_id=2, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
                 repo_id, project_id, subject_id, ex_method_id, session_id,
-                file_id))
+                dataset_id))
         self.run(cmd)
 
     def find_session(self, name, project_id, subject_id, ex_method_id,
-                   repo_id=2):
+                     repo_id=2):
         sessions = self.get_sessions(
             project_id=project_id, subject_id=subject_id,
             repo_id=self.inputs.repo_id, ex_method_id=2).itervalues()
@@ -1208,13 +1212,13 @@ class DarisEntry(object):
 
 
 def construct_cid(project_id, subject_id=None, session_id=None,
-                  ex_method_id=None, file_id=None, repo_id=2):
+                  ex_method_id=None, dataset_id=None, repo_id=2):
     """
     Returns the CID (unique asset identifier for DaRIS) from the combination of
     sub ids
     """
     cid = '1008.{}.{}'.format(repo_id, project_id)
-    ids = (subject_id, ex_method_id, session_id, file_id)
+    ids = (subject_id, ex_method_id, session_id, dataset_id)
     for i, id_ in enumerate(ids):
         if id_ is not None:
             cid += '.{}'.format(int(id_))
@@ -1226,10 +1230,10 @@ def construct_cid(project_id, subject_id=None, session_id=None,
                     "Not None IDs followed None value in constructing CID for "
                     "project_id={project_id}, subject_id={subject_id}, "
                     "session_id={session_id}, ex_method_id={ex_method_id}, "
-                    "file_id={file_id}, repo_id={repo_id}".format(
+                    "dataset_id={dataset_id}, repo_id={repo_id}".format(
                         project_id=project_id, subject_id=subject_id,
                         session_id=session_id, ex_method_id=ex_method_id,
-                        file_id=file_id, repo_id=repo_id))
+                        dataset_id=dataset_id, repo_id=repo_id))
             else:
                 break
     return cid

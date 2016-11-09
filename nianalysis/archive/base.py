@@ -158,13 +158,13 @@ class Archive(object):
             The ID of the project to return the sessions for
         input_files : List[BaseFile]
             An iterable of nianalysis.BaseFile objects, which specify the
-            files to extract from the archive system for each session
+            datasets to extract from the archive system for each session
         """
         if name is None:
             name = "{}_source".format(self.type)
         source = pe.Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
-        source.inputs.files = [s.to_tuple() for s in input_scans]
+        source.inputs.datasets = [s.to_tuple() for s in input_scans]
         return source
 
     @abstractmethod
@@ -196,7 +196,7 @@ class Archive(object):
         output_scans = list(output_scans)  # Ensure iterators aren't exhausted
         sink = pe.Node(sink_class(output_scans), name=name)
         sink.inputs.project_id = str(project_id)
-        sink.inputs.files = [s.to_tuple() for s in output_scans]
+        sink.inputs.datasets = [s.to_tuple() for s in output_scans]
         return sink
 
     @abstractmethod
@@ -223,7 +223,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
     """
     Base class for archive source input specifications. Provides a common
     interface for 'run_pipeline' when using the archive source to extract
-    acquired and preprocessed files from the archive system
+    acquired and preprocessed datasets from the archive system
     """
     project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
@@ -231,9 +231,9 @@ class ArchiveSourceInputSpec(TraitedSpec):
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     session_id = traits.Str(mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                             desc="The session or processed group ID")
-    files = traits.List(
+    datasets = traits.List(
         Scan.traits_spec(),
-        desc="Names of all files that comprise the complete file")
+        desc="Names of all datasets that comprise the (sub)project")
 
 
 class ArchiveSource(IOBase):
@@ -276,14 +276,14 @@ class ArchiveSource(IOBase):
 
     def _add_output_traits(self, base):
         return add_traits(base, [scan[0] + self.OUTPUT_SUFFIX
-                                 for scan in self.inputs.files])
+                                 for scan in self.inputs.datasets])
 
 
 class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     """
     Base class for archive sink input specifications. Provides a common
     interface for 'run_pipeline' when using the archive save
-    processed files in the archive system
+    processed datasets in the archive system
     """
     project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
@@ -294,9 +294,9 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
-    files = traits.List(
+    datasets = traits.List(
         Scan.traits_spec(),
-        desc="Names of all files that comprise the complete file")
+        desc="Names of all datasets that comprise the (sub)project")
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
@@ -304,8 +304,8 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
               "same name"))
 
     def __setattr__(self, name, val):
-        if isdefined(self.files) and not hasattr(self, name):
-            accepted = [s[0] + ArchiveSink.INPUT_SUFFIX for s in self.files]
+        if isdefined(self.datasets) and not hasattr(self, name):
+            accepted = [s[0] + ArchiveSink.INPUT_SUFFIX for s in self.datasets]
             try:
                 assert name in accepted, (
                     "'{}' is not a valid input filename for '{}' archive sink "

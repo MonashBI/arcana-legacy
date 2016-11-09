@@ -22,7 +22,7 @@ class Project(object):
     project_name : str
         The name of the project. For DaRIS it is the project
         id minus the proceeding 1008.2. For XNAT it will be
-        the project code. For local files it is the full path
+        the project code. For local datasets it is the full path
         to the directory.
     archive : Archive
         An Archive object referring either to a DaRIS, XNAT or local file
@@ -180,11 +180,11 @@ class Pipeline(object):
     workflow : nipype.Workflow
         The NiPype workflow to run
     inputs : List[BaseFile]
-        The list of input files required for the pipeline
-        un/processed files, and the options used to generate them for
-        unprocessed files
+        The list of input datasets required for the pipeline
+        un/processed datasets, and the options used to generate them for
+        unprocessed datasets
     outputs : List[ProcessedFile]
-        The list of outputs (hard-coded names for un/processed scans/files)
+        The list of outputs (hard-coded names for un/processed scans/datasets)
     options : Dict[str, *]
         Options that effect the output of the pipeline
     citations : List[Citation]
@@ -324,7 +324,7 @@ class Pipeline(object):
         # them from the sessions to be processed
 
         # Get all requested sessions that are missing at least one of
-        # the output files
+        # the output datasets
         if reprocess or not all(o in project.scans for o in project_outputs):
             subjects_to_process = list(project.subjects)
         else:
