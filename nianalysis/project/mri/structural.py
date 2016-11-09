@@ -9,7 +9,7 @@ from nianalysis.citations import spm_cite, freesurfer_cites
 from nianalysis.formats import nifti_format
 from nipype.interfaces.spm.preprocess import Coregister
 from nipype.interfaces.utility import Merge, Split
-from .base import _create_component_dict, Scan
+from .base import _create_component_dict, Dataset
 from nianalysis.interfaces.spm import MultiChannelSegment
 from .base import MRProject
 
@@ -97,10 +97,10 @@ class T1Project(StructuralProject):
         pipeline.connect(recon_all, 'subject_id', average, 'subjects_ids')
 
     _components = _create_component_dict(
-        Scan('t1', nifti_format),
-        Scan('t1_white_matter', nifti_format, spm_segmentation_pipeline),
-        Scan('t1_grey_matter', nifti_format, spm_segmentation_pipeline),
-        Scan('t1_csf', nifti_format, spm_segmentation_pipeline),
+        Dataset('t1', nifti_format),
+        Dataset('t1_white_matter', nifti_format, spm_segmentation_pipeline),
+        Dataset('t1_grey_matter', nifti_format, spm_segmentation_pipeline),
+        Dataset('t1_csf', nifti_format, spm_segmentation_pipeline),
         inherit_from=chain(MRProject.generated_components()))
 
 
@@ -216,14 +216,14 @@ class CombinedT1T2Project(T1Project, T2Project):
         return pipeline
 
     _components = _create_component_dict(
-        Scan('t1', nifti_format),
-        Scan('t2', nifti_format),
-        Scan('t2_coreg_t1', nifti_format, coregistration_pipeline),
-        Scan('t1_white_matter', nifti_format, joint_segmentation_pipeline),
-        Scan('t1_grey_matter', nifti_format, joint_segmentation_pipeline),
-        Scan('t1_csf', nifti_format, joint_segmentation_pipeline),
-        Scan('t2_white_matter', nifti_format, joint_segmentation_pipeline),
-        Scan('t2_grey_matter', nifti_format, joint_segmentation_pipeline),
-        Scan('t2_csf', nifti_format, joint_segmentation_pipeline),
+        Dataset('t1', nifti_format),
+        Dataset('t2', nifti_format),
+        Dataset('t2_coreg_t1', nifti_format, coregistration_pipeline),
+        Dataset('t1_white_matter', nifti_format, joint_segmentation_pipeline),
+        Dataset('t1_grey_matter', nifti_format, joint_segmentation_pipeline),
+        Dataset('t1_csf', nifti_format, joint_segmentation_pipeline),
+        Dataset('t2_white_matter', nifti_format, joint_segmentation_pipeline),
+        Dataset('t2_grey_matter', nifti_format, joint_segmentation_pipeline),
+        Dataset('t2_csf', nifti_format, joint_segmentation_pipeline),
         inherit_from=chain(T1Project.generated_components(),
                            T2Project.generated_components()))

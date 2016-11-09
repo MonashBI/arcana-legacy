@@ -950,7 +950,7 @@ class DarisLogin:
         elif (not isinstance(scan_type, collections.Iterable) and
               scan_type is not None):
             raise Exception(
-                "Scan type '{}' is not a list or string".format(scan_type))
+                "Dataset type '{}' is not a list or string".format(scan_type))
 
         if scan_type is not None:
             if match_scan is not None:

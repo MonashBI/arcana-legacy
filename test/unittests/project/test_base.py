@@ -3,7 +3,7 @@ import shutil
 from unittest import TestCase
 import subprocess as sp
 from nipype.pipeline import engine as pe
-from nianalysis.base import Scan
+from nianalysis.base import Dataset
 from nianalysis.formats import nifti_gz_format, mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.project.base import Project, _create_component_dict
@@ -151,16 +151,16 @@ class DummyProject(Project):
         return pipeline
 
     _components = _create_component_dict(
-        Scan('start', nifti_gz_format),
-        Scan('ones_slice', mrtrix_format),
-        Scan('pipeline1_1', nifti_gz_format, pipeline1),
-        Scan('pipeline1_2', nifti_gz_format, pipeline1),
-        Scan('pipeline2', nifti_gz_format, pipeline2),
-        Scan('pipeline3', nifti_gz_format, pipeline3),
-        Scan('pipeline4', nifti_gz_format, pipeline4),
-        Scan('subject_summary', mrtrix_format, subject_summary_pipeline,
+        Dataset('start', nifti_gz_format),
+        Dataset('ones_slice', mrtrix_format),
+        Dataset('pipeline1_1', nifti_gz_format, pipeline1),
+        Dataset('pipeline1_2', nifti_gz_format, pipeline1),
+        Dataset('pipeline2', nifti_gz_format, pipeline2),
+        Dataset('pipeline3', nifti_gz_format, pipeline3),
+        Dataset('pipeline4', nifti_gz_format, pipeline4),
+        Dataset('subject_summary', mrtrix_format, subject_summary_pipeline,
              multiplicity='per_subject'),
-        Scan('project_summary', mrtrix_format, project_summary_pipeline,
+        Dataset('project_summary', mrtrix_format, project_summary_pipeline,
              multiplicity='per_project'))
 
 
@@ -200,8 +200,8 @@ class TestRunPipeline(TestCase):
         archive = LocalArchive(self.BASE_DIR)
         self.project = DummyProject(
             'TestDummy', self.PROJECT_ID, archive,
-            input_scans={'start': Scan('start', nifti_gz_format),
-                         'ones_slice': Scan('ones_slice', mrtrix_format)})
+            input_scans={'start': Dataset('start', nifti_gz_format),
+                         'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
     def tearDown(self):
         # Clean up working dirs

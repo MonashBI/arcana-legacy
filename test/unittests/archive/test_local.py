@@ -7,7 +7,7 @@ from nianalysis.archive.local import (
     LocalArchive, LocalSource, LocalSink, SUBJECT_SUMMARY_NAME,
     PROJECT_SUMMARY_NAME)
 from nianalysis.formats import nifti_gz_format
-from nianalysis.base import Scan
+from nianalysis.base import Dataset
 from nianalysis.testing import test_data_dir
 import logging
 
@@ -48,13 +48,13 @@ class TestLocalArchive(TestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.BASE_DIR)
         # TODO: Should test out other file formats as well.
-        source_files = [Scan('source1', nifti_gz_format),
-                        Scan('source2', nifti_gz_format),
-                        Scan('source3', nifti_gz_format),
-                        Scan('source4', nifti_gz_format)]
-        sink_files = [Scan('sink1', nifti_gz_format),
-                      Scan('sink3', nifti_gz_format),
-                      Scan('sink4', nifti_gz_format)]
+        source_files = [Dataset('source1', nifti_gz_format),
+                        Dataset('source2', nifti_gz_format),
+                        Dataset('source3', nifti_gz_format),
+                        Dataset('source4', nifti_gz_format)]
+        sink_files = [Dataset('sink1', nifti_gz_format),
+                      Dataset('sink3', nifti_gz_format),
+                      Dataset('sink4', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT_ID
@@ -94,14 +94,14 @@ class TestLocalArchive(TestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.BASE_DIR)
         # TODO: Should test out other file formats as well.
-        source_files = [Scan('source1', nifti_gz_format),
-                        Scan('source2', nifti_gz_format)]
+        source_files = [Dataset('source1', nifti_gz_format),
+                        Dataset('source2', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT_ID
         inputnode.inputs.session_id = self.SESSION_ID
         source = archive.source(self.PROJECT_ID, source_files)
-        subject_sink_files = [Scan('sink1', nifti_gz_format,
+        subject_sink_files = [Dataset('sink1', nifti_gz_format,
                                    multiplicity='per_subject')]
         subject_sink = archive.sink(self.PROJECT_ID,
                                     subject_sink_files,
@@ -109,7 +109,7 @@ class TestLocalArchive(TestCase):
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide scans")
-        project_sink_files = [Scan('sink2', nifti_gz_format,
+        project_sink_files = [Dataset('sink2', nifti_gz_format,
                                    multiplicity='per_project')]
         project_sink = archive.sink(self.PROJECT_ID,
                                     project_sink_files,
@@ -153,8 +153,8 @@ class TestLocalArchive(TestCase):
             source_files + subject_sink_files + project_sink_files,
             name='reload_source')
         reloadsink = archive.sink(self.PROJECT_ID,
-                                  [Scan('resink1', nifti_gz_format),
-                                   Scan('resink2', nifti_gz_format)])
+                                  [Dataset('resink1', nifti_gz_format),
+                                   Dataset('resink2', nifti_gz_format)])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary scans")

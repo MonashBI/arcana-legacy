@@ -9,7 +9,7 @@ from nianalysis.archive.daris import (
     PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.formats import nifti_gz_format
-from nianalysis.base import Scan
+from nianalysis.base import Dataset
 
 
 # The projects/subjects/sessions to alter on DaRIS
@@ -293,16 +293,16 @@ class TestDarisArchive(TestCase):
             server=SERVER, repo_id=REPO_ID,
             cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
             user=self.USER, password=self.PASSWORD)
-        source_files = [Scan('source1', nifti_gz_format),
-                        Scan('source2', nifti_gz_format),
-                        Scan('source3', nifti_gz_format),
-                        Scan('source4', nifti_gz_format)]
+        source_files = [Dataset('source1', nifti_gz_format),
+                        Dataset('source2', nifti_gz_format),
+                        Dataset('source3', nifti_gz_format),
+                        Dataset('source4', nifti_gz_format)]
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
-        # checks on valid pipelines are included in Scan __init__ method
-        sink_files = [Scan('sink1', nifti_gz_format, pipeline=True),
-                      Scan('sink3', nifti_gz_format, pipeline=True),
-                      Scan('sink4', nifti_gz_format, pipeline=True)]
+        # checks on valid pipelines are included in Dataset __init__ method
+        sink_files = [Dataset('sink1', nifti_gz_format, pipeline=True),
+                      Dataset('sink3', nifti_gz_format, pipeline=True),
+                      Dataset('sink4', nifti_gz_format, pipeline=True)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
@@ -421,14 +421,14 @@ class TestDarisArchiveSummary(TestCase):
             cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
             user=self.USER, password=self.PASSWORD)
         # TODO: Should test out other file formats as well.
-        source_files = [Scan('source1', nifti_gz_format),
-                        Scan('source2', nifti_gz_format)]
+        source_files = [Dataset('source1', nifti_gz_format),
+                        Dataset('source2', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
         inputnode.inputs.session_id = str(self.session_id)
         source = archive.source(str(PROJECT_ID), source_files)
-        subject_sink_files = [Scan('sink1', nifti_gz_format, pipeline=True,
+        subject_sink_files = [Dataset('sink1', nifti_gz_format, pipeline=True,
                                    multiplicity='per_subject')]
         subject_sink = archive.sink(str(PROJECT_ID),
                                     subject_sink_files,
@@ -436,7 +436,7 @@ class TestDarisArchiveSummary(TestCase):
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide scans")
-        project_sink_files = [Scan('sink2', nifti_gz_format, pipeline=True,
+        project_sink_files = [Dataset('sink2', nifti_gz_format, pipeline=True,
                                    multiplicity='per_project')]
         project_sink = archive.sink(PROJECT_ID,
                                     project_sink_files,
@@ -493,9 +493,9 @@ class TestDarisArchiveSummary(TestCase):
             source_files + subject_sink_files + project_sink_files,
             name='reload_source')
         reloadsink = archive.sink(PROJECT_ID,
-                                  [Scan('resink1', nifti_gz_format,
+                                  [Dataset('resink1', nifti_gz_format,
                                         pipeline=True),
-                                   Scan('resink2', nifti_gz_format,
+                                   Dataset('resink2', nifti_gz_format,
                                         pipeline=True)])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (

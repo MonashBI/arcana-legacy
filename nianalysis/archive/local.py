@@ -9,7 +9,7 @@ import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session
-from nianalysis.base import Scan
+from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.formats import scan_formats, scan_formats_by_ext
 from nianalysis.utils import split_extension
@@ -235,7 +235,7 @@ class LocalArchive(Archive):
                 for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
-                        Scan(name=basename, format=scan_formats_by_ext[ext]))
+                        Dataset(name=basename, format=scan_formats_by_ext[ext]))
                 sessions.append(Session(session_dir, scans))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
@@ -245,7 +245,7 @@ class LocalArchive(Archive):
                 for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
-                        Scan(name=basename, format=scan_formats_by_ext[ext]))
+                        Dataset(name=basename, format=scan_formats_by_ext[ext]))
             subjects.append(Subject(subject_dir, sessions, scans))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(subject_summary_path):
@@ -254,7 +254,7 @@ class LocalArchive(Archive):
             for f in datasets:
                 basename, ext = split_extension(f)
                 scans.append(
-                    Scan(name=basename, format=scan_formats_by_ext[ext]))
+                    Dataset(name=basename, format=scan_formats_by_ext[ext]))
         project = Project(project_id, subjects, scans)
         return project
 

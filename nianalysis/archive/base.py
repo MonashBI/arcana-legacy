@@ -4,7 +4,7 @@ from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     Undefined, isdefined)
-from nianalysis.base import Scan
+from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
 
 
@@ -190,7 +190,7 @@ class Archive(object):
         else:
             raise NiAnalysisError(
                 "Unrecognised multiplicity '{}' can be one of '{}'"
-                .format(multiplicity, "', '".join(Scan.MULTIPLICITY_OPTIONS)))
+                .format(multiplicity, "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
         output_scans = list(output_scans)  # Ensure iterators aren't exhausted
@@ -232,7 +232,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
     session_id = traits.Str(mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                             desc="The session or processed group ID")
     datasets = traits.List(
-        Scan.traits_spec(),
+        Dataset.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
 
 
@@ -295,7 +295,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
     datasets = traits.List(
-        Scan.traits_spec(),
+        Dataset.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable

@@ -2,7 +2,7 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from nianalysis.base import Scan  # @IgnorePep8
+from nianalysis.base import Dataset  # @IgnorePep8
 from nianalysis.project.mri import DiffusionProject, NODDIProject  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 from nianalysis.formats import (  # @IgnorePep8
@@ -25,9 +25,9 @@ class TestDiffusion(TestCase):
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 'dwi_scan':
-                Scan('r_l_noddi_b700_30_directions', mrtrix_format),
-                'forward_rpe': Scan('r_l_noddi_b0_6', mrtrix_format),
-                'reverse_rpe': Scan('l_r_noddi_b0_6', mrtrix_format)})
+                Dataset('r_l_noddi_b700_30_directions', mrtrix_format),
+                'forward_rpe': Dataset('r_l_noddi_b0_6', mrtrix_format),
+                'reverse_rpe': Dataset('l_r_noddi_b0_6', mrtrix_format)})
         project.preprocess_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
@@ -41,9 +41,9 @@ class TestDiffusion(TestCase):
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
-                'dwi_preproc': Scan('NODDI_DWI', analyze_format),
-                'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
-                'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+                'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
+                'grad_dirs': Dataset('NODDI_protocol', fsl_bvecs_format),
+                'bvalues': Dataset('NODDI_protocol', fsl_bvals_format)})
         project.extract_b0_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
@@ -57,9 +57,9 @@ class TestDiffusion(TestCase):
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
-                'dwi_preproc': Scan('NODDI_DWI', analyze_format),
-                'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
-                'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+                'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
+                'grad_dirs': Dataset('NODDI_protocol', fsl_bvecs_format),
+                'bvalues': Dataset('NODDI_protocol', fsl_bvals_format)})
         project.bias_correct_pipeline(mask_tool='dwi2mask').run()
         self.assert_(
             os.path.exists(os.path.join(
@@ -78,9 +78,9 @@ class TestNODDI(TestCase):
             project_id=self.PILOT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
-                'low_b_dw_scan': Scan('r_l_noddi_b700_30_directions',
+                'low_b_dw_scan': Dataset('r_l_noddi_b700_30_directions',
                                       mrtrix_format),
-                'high_b_dw_scan': Scan('r_l_noddi_b2000_60_directions',
+                'high_b_dw_scan': Dataset('r_l_noddi_b2000_60_directions',
                                        mrtrix_format)})
         project.concatenate_pipeline().run()
         self.assert_(
@@ -96,10 +96,10 @@ class TestNODDI(TestCase):
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={'dwi_preproc': Scan('NODDI_DWI', analyze_format),
-                         'brain_mask': Scan('roi_mask', analyze_format),
-                         'grad_dirs': Scan('NODDI_protocol', fsl_bvecs_format),
-                         'bvalues': Scan('NODDI_protocol', fsl_bvals_format)})
+            input_scans={'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
+                         'brain_mask': Dataset('roi_mask', analyze_format),
+                         'grad_dirs': Dataset('NODDI_protocol', fsl_bvecs_format),
+                         'bvalues': Dataset('NODDI_protocol', fsl_bvals_format)})
         project.noddi_fitting_pipeline(nthreads=nthreads).run()
         ref_out_path = os.path.join(
             self.ARCHIVE_PATH, self.EXAMPLE_OUTPUT_PROJECT, self.SUBJECT,

@@ -6,11 +6,11 @@ class NiAnalysisError(NiAnalysisException):
     pass
 
 
-class NiAnalysisScanNameError(NiAnalysisError):
+class NiAnalysisDatasetNameError(NiAnalysisError):
     pass
 
 
-class NiAnalysisMissingScanError(NiAnalysisError):
+class NiAnalysisMissingDatasetError(NiAnalysisError):
     pass
 
 

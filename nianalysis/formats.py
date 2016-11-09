@@ -1,7 +1,7 @@
 from copy import copy
 
 
-class ScanFormat(object):
+class DatasetFormat(object):
 
     def __init__(self, name, extension, lctype=None):
         self._name = name
@@ -9,7 +9,7 @@ class ScanFormat(object):
         self._lctype = lctype
 
     def __repr__(self):
-        return "ScanFormat(name='{}', extension='{}')".format(self.name,
+        return "DatasetFormat(name='{}', extension='{}')".format(self.name,
                                                               self.extension)
 
     @property
@@ -25,23 +25,23 @@ class ScanFormat(object):
         return self._lctype
 
 
-nifti_format = ScanFormat(name='nifti', extension='.nii',
+nifti_format = DatasetFormat(name='nifti', extension='.nii',
                           lctype='nifti/series')
-nifti_gz_format = ScanFormat(name='nifti_gz', extension='.nii.gz',
+nifti_gz_format = DatasetFormat(name='nifti_gz', extension='.nii.gz',
                              lctype='nifti/gz')
-mrtrix_format = ScanFormat(name='mrtrix', extension='.mif')
-analyze_format = ScanFormat(name='analyze', extension='.img')
-dicom_format = ScanFormat(name='dicom', extension='', lctype='dicom/series')
-fsl_bvecs_format = ScanFormat(name='fsl_bvecs', extension='.bvec')
-fsl_bvals_format = ScanFormat(name='fsl_bvals', extension='.bval')
-mrtrix_grad_format = ScanFormat(name='mrtrix_grad', extension='.b')
-matlab_format = ScanFormat(name='matlab', extension='.mat')
+mrtrix_format = DatasetFormat(name='mrtrix', extension='.mif')
+analyze_format = DatasetFormat(name='analyze', extension='.img')
+dicom_format = DatasetFormat(name='dicom', extension='', lctype='dicom/series')
+fsl_bvecs_format = DatasetFormat(name='fsl_bvecs', extension='.bvec')
+fsl_bvals_format = DatasetFormat(name='fsl_bvals', extension='.bval')
+mrtrix_grad_format = DatasetFormat(name='mrtrix_grad', extension='.b')
+matlab_format = DatasetFormat(name='matlab', extension='.mat')
 
 
 # A dictionary to access all the formats by name
 scan_formats = dict(
     (f.name, f) for f in copy(globals()).itervalues()
-    if isinstance(f, ScanFormat))
+    if isinstance(f, DatasetFormat))
 
 scan_formats_by_ext = dict(
     (f.extension, f) for f in scan_formats.itervalues())

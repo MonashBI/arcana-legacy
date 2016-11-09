@@ -2,7 +2,7 @@
 from nipype import config
 config.enable_debug_mode()
 import os.path  # @IgnorePep8
-from nianalysis.base import Scan  # @IgnorePep8
+from nianalysis.base import Dataset  # @IgnorePep8
 from nianalysis.formats import nifti_gz_format  # @IgnorePep8
 from nianalysis.project.mri import MRProject  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
@@ -23,7 +23,7 @@ class TestMRI(TestCase):
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
-                'mri_scan': Scan('mri_scan', nifti_gz_format)})
+                'mri_scan': Dataset('mri_scan', nifti_gz_format)})
         project.brain_mask_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(

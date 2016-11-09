@@ -6,7 +6,7 @@ from nipype.interfaces.utility import IdentityInterface, Split
 from logging import Logger
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
-    NiAnalysisScanNameError, NiAnalysisMissingScanError, NiAnalysisError)
+    NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError, NiAnalysisError)
 from nianalysis.archive.base import ArchiveSource, ArchiveSink
 
 
@@ -27,7 +27,7 @@ class Project(object):
     archive : Archive
         An Archive object referring either to a DaRIS, XNAT or local file
         system project
-    input_scans : Dict[str,base.Scan]
+    input_scans : Dict[str,base.Dataset]
         A dict containing the a mapping between names of project components
         and existing scans (typically acquired from the scanner but can
         also be replacements for generated components)
@@ -43,7 +43,7 @@ class Project(object):
         # name is valid for the project type
         for comp_name, scan in input_scans.iteritems():
             if comp_name not in self._components:
-                raise NiAnalysisScanNameError(
+                raise NiAnalysisDatasetNameError(
                     "Input scan component name '{}' doesn't match any "
                     "components in {} studies".format(
                         comp_name, self.__class__.__name__))
@@ -83,11 +83,11 @@ class Project(object):
             try:
                 scan = self._components[name].apply_prefix(self.name + '_')
             except KeyError:
-                raise NiAnalysisScanNameError(
+                raise NiAnalysisDatasetNameError(
                     "'{}' is not a recognised component name for {} studies."
                     .format(name, self.__class__.__name__))
             if not scan.processed:
-                raise NiAnalysisMissingScanError(
+                raise NiAnalysisMissingDatasetError(
                     "Acquired (i.e. non-generated) scan '{}' is required for "
                     "requested pipelines but was not supplied when the project"
                     "was initiated.".format(name))
