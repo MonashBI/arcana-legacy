@@ -335,7 +335,7 @@ freesurfer_cites = [
         title=("Highly Accurate Inverse Consistent Registration: A Robust "
                "Approach"),
         journal='Neuroimage', volume=53, issue=4,
-        pages='1181–1196', year=2010,
+        pages='1181-1196', year=2010,
         pdf='http://reuter.mit.edu/papers/reuter-robreg10.pdf'),
     Citation(
         short_name='',

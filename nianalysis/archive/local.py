@@ -231,7 +231,7 @@ class LocalArchive(Archive):
                 session_path = os.path.join(subject_path, session_dir)
                 scans = []
                 datasets = [d for d in os.listdir(session_path)
-                         if not os.path.isdir(d)]
+                            if not os.path.isdir(d)]
                 for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
@@ -241,7 +241,7 @@ class LocalArchive(Archive):
                                                 SUBJECT_SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
                 datasets = [d for d in os.listdir(subject_summary_path)
-                         if not os.path.isdir(d)]
+                            if not os.path.isdir(d)]
                 for f in datasets:
                     basename, ext = split_extension(f)
                     scans.append(
@@ -250,7 +250,7 @@ class LocalArchive(Archive):
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(subject_summary_path):
             datasets = [d for d in os.listdir(project_summary_path)
-                     if not os.path.isdir(d)]
+                        if not os.path.isdir(d)]
             for f in datasets:
                 basename, ext = split_extension(f)
                 scans.append(
