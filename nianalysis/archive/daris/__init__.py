@@ -52,7 +52,7 @@ class DarisSource(ArchiveSource):
     input_spec = DarisSourceInputSpec
 
     def _list_outputs(self):
-        with DarisSession(server=self.inputs.server,
+        with DarisLogin(server=self.inputs.server,
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
@@ -192,7 +192,7 @@ class DarisSink(ArchiveSink):
         # multiplicity (overridden in derived classes)
         ex_method_id, subject_id, study_id = self._get_daris_ids()
         # Open DaRIS session
-        with DarisSession(server=self.inputs.server,
+        with DarisLogin(server=self.inputs.server,
                           domain=self.inputs.domain,
                           user=self.inputs.user,
                           password=self.inputs.password) as daris:
@@ -402,7 +402,7 @@ class DarisArchive(Archive):
                 if ex_method_id == 4:
                     if subject_id != 1 or study_dict.keys() != ['1']:
                         raise DarisException(
-                            "Study(ies) {} found in ex-method 4 of subject {}."
+                            "Session(s) {} found in ex-method 4 of subject {}."
                             "Project summaries are only allowed in study 1 of "
                             "subject 1".format(', '.join(study_dict),
                                                subject_id))
@@ -410,7 +410,7 @@ class DarisArchive(Archive):
                 elif ex_method_id == 3:
                     if study_dict.keys() != ['1']:
                         raise DarisException(
-                            "Study(ies) {} found in ex-method 3 of subject {}."
+                            "Session(s) {} found in ex-method 3 of subject {}."
                             "Subject summaries are only allowed in study 1"
                             .format(', '.join(study_dict), subject_id))
                     subject_summary = study_dict['1']
@@ -448,7 +448,7 @@ class DarisArchive(Archive):
         return sess_with_file
 
     def _daris(self):
-        return DarisSession(server=self._server, domain=self._domain,
+        return DarisLogin(server=self._server, domain=self._domain,
                             user=self._user, password=self._password)
 
     @property
@@ -456,7 +456,7 @@ class DarisArchive(Archive):
         return self._cache_dir
 
 
-class DarisSession:
+class DarisLogin:
     """
     Handles the connection to the MediaFlux server, logs into the DaRIS
     application and runs MediaFlux commands
@@ -515,7 +515,7 @@ class DarisSession:
         """
         Opens the session. Should usually be used within a 'with' context, e.g.
 
-            with DarisSession() as session:
+            with DarisLogin() as session:
                 session.run("my-cmd")
 
         to ensure that the session is always closed afterwards
@@ -549,7 +549,7 @@ class DarisSession:
         """
         This allows the daris session to be used in 'with' statements, e.g.
 
-            with DarisSession() as daris:
+            with DarisLogin() as daris:
                 daris.print_entries(daris.list_projects())
 
         and ensure that the session is closed again after the code runs
@@ -1040,7 +1040,7 @@ class DarisSession:
         """
         if not logon and self._mfsid is None:
             raise DarisException(
-                "Daris session is closed. DarisSessions are typically used "
+                "Daris session is closed. DarisLogins are typically used "
                 "within 'with' blocks, which ensures they are opened and "
                 "closed properly")
         full_cmd = (
@@ -1234,7 +1234,7 @@ def construct_cid(project_id, subject_id=None, study_id=None,
 
 
 if __name__ == '__main__':
-    daris = DarisSession(domain='system', user='manager',
+    daris = DarisLogin(domain='system', user='manager',
                          password='t0gp154sp!')
     with daris:
         daris.copy_study(135, 3, 2, new_project_id=144, new_subject_id=2,

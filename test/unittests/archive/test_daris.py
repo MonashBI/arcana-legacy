@@ -5,7 +5,7 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
-    DarisSession, DarisArchive, DarisSource, DarisSink, SUBJECT_SUMMARY_ID,
+    DarisLogin, DarisArchive, DarisSource, DarisSink, SUBJECT_SUMMARY_ID,
     PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.formats import nifti_gz_format
@@ -22,10 +22,10 @@ TEST_IMAGE = os.path.abspath(os.path.join(
     os.path.dirname(__file__), '..', '..', '_data', 'test_image.nii.gz'))
 
 
-class TestDarisSession(TestCase):
+class TestDarisLogin(TestCase):
 
     def setUp(self):
-        self._daris = DarisSession(user='test123', password='GaryEgan1',
+        self._daris = DarisLogin(user='test123', password='GaryEgan1',
                                    domain='mon-daris', server=SERVER)
         self._daris.open()
 
@@ -50,9 +50,9 @@ class TestDarisSession(TestCase):
         studies = self._daris.get_studies(project_id=4, subject_id=1,
                                           repo_id=REPO_ID, ex_method_id=1)
         self.assertEqual(len(studies), 3)
-        self.assertEqual(studies[1].name, 'Study1')
-        self.assertEqual(studies[2].name, 'Study2')
-        self.assertEqual(studies[3].name, 'Study3')
+        self.assertEqual(studies[1].name, 'Session1')
+        self.assertEqual(studies[2].name, 'Session2')
+        self.assertEqual(studies[3].name, 'Session3')
 
     def test_get_files(self):
         files = self._daris.get_files(
@@ -217,10 +217,10 @@ class TestDarisToken(TestCase):
     # FIXME: Token authentication is not working. Need to double check how
     # Parnesh did it
 #     def test_create_token_and_login(self):
-#         DarisSession(user='test123', password='GaryEgan1', domain='mon-daris', @IgnorePep8
+#         DarisLogin(user='test123', password='GaryEgan1', domain='mon-daris', @IgnorePep8
 #                      server=SERVER, token_path=self.token_path,
 #                      app_name='unittest').open()
-#         with DarisSession(token_path=self.token_path,
+#         with DarisLogin(token_path=self.token_path,
 #                           app_name='unittest') as daris:
 #             self.assertTrue(len(daris.list_projects))
 
@@ -239,7 +239,7 @@ class TestDarisArchive(TestCase):
     def setUp(self):
         # Create test data on DaRIS
         self._study_id = None
-        self.daris = DarisSession(user='test123', password='GaryEgan1',
+        self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
@@ -361,7 +361,7 @@ class TestDarisArchiveSummary(TestCase):
     def setUp(self):
         # Create test data on DaRIS
         self._study_id = None
-        self.daris = DarisSession(user='test123', password='GaryEgan1',
+        self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)

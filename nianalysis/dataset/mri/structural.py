@@ -3,7 +3,6 @@ from itertools import chain
 from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.freesurfer.preprocess import ReconAll
-from nipype.interfaces.freesurfer.utils import MakeAverageSubject
 from nipype.interfaces.spm import Info, NewSegment
 from nianalysis.requirements import spm12_req, freesurfer_req
 from nianalysis.citations import spm_cite, freesurfer_cites
@@ -228,4 +227,3 @@ class CombinedT1T2Dataset(T1Dataset, T2Dataset):
         Scan('t2_csf', nifti_format, joint_segmentation_pipeline),
         inherit_from=chain(T1Dataset.generated_components(),
                            T2Dataset.generated_components()))
-
