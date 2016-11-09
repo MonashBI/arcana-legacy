@@ -5,7 +5,7 @@ import shutil
 from nipype import config
 config.enable_debug_mode()
 from nianalysis.base import Scan  # @IgnorePep8
-from nianalysis.dataset.mri import T1AndT2Dataset # @IgnorePep8
+from nianalysis.project.mri import T1AndT2Project # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 from nianalysis.formats import (  # @IgnorePep8
     nifti_format)
@@ -37,14 +37,14 @@ class TestT1AndT2(TestCase):
 
     def test_coregistration_pipeline(self):
         self._remove_generated_files(self.PROJECT_NAME)
-        dataset = T1AndT2Dataset(
+        project = T1AndT2Project(
             name=self.DATASET_NAME,
             project_id=self.PROJECT_NAME,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 't1': Scan('t1', nifti_format),
                 't2': Scan('t2', nifti_format)})
-        dataset.coregistration_pipeline().run()
+        project.coregistration_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.PROJECT_NAME),
@@ -52,14 +52,14 @@ class TestT1AndT2(TestCase):
 
     def test_joint_segmentation_pipeline(self):
         self._remove_generated_files(self.PROJECT_NAME)
-        dataset = T1AndT2Dataset(
+        project = T1AndT2Project(
             name=self.DATASET_NAME,
             project_id=self.PROJECT_NAME,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 't1': Scan('t1', nifti_format),
                 't2': Scan('t2', nifti_format)})
-        dataset.joint_segmentation_pipeline().run()
+        project.joint_segmentation_pipeline().run()
         for fname in ('t1_grey_matter.nii', 't1_white_matter.nii',
                       't1_csf.nii'):
             self.assertTrue(

@@ -11,15 +11,15 @@ from nipype.interfaces.spm.preprocess import Coregister
 from nipype.interfaces.utility import Merge, Split
 from .base import _create_component_dict, Scan
 from nianalysis.interfaces.spm import MultiChannelSegment
-from .base import MRDataset
+from .base import MRProject
 
 
-class StructuralDataset(MRDataset):
+class StructuralProject(MRProject):
 
     pass
 
 
-class T1Dataset(StructuralDataset):
+class T1Project(StructuralProject):
 
     def spm_segmentation_pipeline(self):
         """
@@ -101,18 +101,18 @@ class T1Dataset(StructuralDataset):
         Scan('t1_white_matter', nifti_format, spm_segmentation_pipeline),
         Scan('t1_grey_matter', nifti_format, spm_segmentation_pipeline),
         Scan('t1_csf', nifti_format, spm_segmentation_pipeline),
-        inherit_from=chain(MRDataset.generated_components()))
+        inherit_from=chain(MRProject.generated_components()))
 
 
-class T2Dataset(StructuralDataset):
+class T2Project(StructuralProject):
     pass
 
 
-class CombinedT1T2Dataset(T1Dataset, T2Dataset):
+class CombinedT1T2Project(T1Project, T2Project):
 
     def __init__(self, *args, **kwargs):
-        T1Dataset.__init__(self, *args, **kwargs)
-        T2Dataset.__init__(self, *args, **kwargs)
+        T1Project.__init__(self, *args, **kwargs)
+        T2Project.__init__(self, *args, **kwargs)
 
     def coregistration_pipeline(self):
         """
@@ -225,5 +225,5 @@ class CombinedT1T2Dataset(T1Dataset, T2Dataset):
         Scan('t2_white_matter', nifti_format, joint_segmentation_pipeline),
         Scan('t2_grey_matter', nifti_format, joint_segmentation_pipeline),
         Scan('t2_csf', nifti_format, joint_segmentation_pipeline),
-        inherit_from=chain(T1Dataset.generated_components(),
-                           T2Dataset.generated_components()))
+        inherit_from=chain(T1Project.generated_components(),
+                           T2Project.generated_components()))

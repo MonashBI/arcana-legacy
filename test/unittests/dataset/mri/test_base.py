@@ -4,7 +4,7 @@ config.enable_debug_mode()
 import os.path  # @IgnorePep8
 from nianalysis.base import Scan  # @IgnorePep8
 from nianalysis.formats import nifti_gz_format  # @IgnorePep8
-from nianalysis.dataset.mri import MRDataset  # @IgnorePep8
+from nianalysis.project.mri import MRProject  # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
 if __name__ == '__main__':
     from nianalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport
@@ -18,13 +18,13 @@ class TestMRI(TestCase):
 
     def test_brain_mask(self):
         self._remove_generated_files(self.EXAMPLE_INPUT_PROJECT)
-        dataset = MRDataset(
+        project = MRProject(
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
             input_scans={
                 'mri_scan': Scan('mri_scan', nifti_gz_format)})
-        dataset.brain_mask_pipeline().run()
+        project.brain_mask_pipeline().run()
         self.assert_(
             os.path.exists(os.path.join(
                 self._session_dir(self.EXAMPLE_INPUT_PROJECT),

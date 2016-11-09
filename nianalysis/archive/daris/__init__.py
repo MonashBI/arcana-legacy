@@ -846,7 +846,7 @@ class DarisLogin:
                 max_file_id = 0
             file_id = max_file_id + 1
         if name is None:
-            name = 'Dataset_{}'.format(file_id)
+            name = 'Project_{}'.format(file_id)
         if ex_method_id:
             meta = (" :meta \< :mbi.processed.study.properties \< "  # :step 1
                     ":study-reference 1008.{}.{}.{}.1 \> \>".format(
