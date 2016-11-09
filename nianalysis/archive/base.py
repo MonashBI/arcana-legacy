@@ -8,15 +8,15 @@ from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
 
 
-INPUT_OUTPUT_SUFFIX = '_scan'
+INPUT_OUTPUT_SUFFIX = '_dataset'
 
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, scans):
+    def __init__(self, project_id, subjects, datasets):
         self._id = project_id
         self._subjects = subjects
-        self._scans = scans
+        self._datasets = datasets
 
     @property
     def id(self):
@@ -27,8 +27,8 @@ class Project(object):
         return iter(self._subjects)
 
     @property
-    def scans(self):
-        return self._scans
+    def datasets(self):
+        return self._datasets
 
     def __eq__(self, other):
         if not isinstance(other, Project):
@@ -52,10 +52,10 @@ class Subject(object):
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, subject_id, sessions, scans):
+    def __init__(self, subject_id, sessions, datasets):
         self._id = subject_id
         self._sessions = sessions
-        self._scans = scans
+        self._datasets = datasets
         for session in sessions:
             session.subject = self
 
@@ -68,8 +68,8 @@ class Subject(object):
         return iter(self._sessions)
 
     @property
-    def scans(self):
-        return self._scans
+    def datasets(self):
+        return self._datasets
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
@@ -90,12 +90,12 @@ class Subject(object):
 
 class Session(object):
     """
-    Holds the session id and the list of scans loaded from it
+    Holds the session id and the list of datasets loaded from it
     """
 
-    def __init__(self, session_id, scans, processed=None):
+    def __init__(self, session_id, datasets, processed=None):
         self._id = session_id
-        self._scans = scans
+        self._datasets = datasets
         self._subject = None
         self._processed = processed
 
@@ -116,22 +116,22 @@ class Session(object):
         return self._processed
 
     @property
-    def scans(self):
-        return iter(self._scans)
+    def datasets(self):
+        return iter(self._datasets)
 
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
         return (self._id == other._id and
                 self._subject_id == other._subject_id and
-                self._scans == other._scans)
+                self._datasets == other._datasets)
 
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return "Session(id='{}', num_scans={})".format(self._id,
-                                                       len(self._scans))
+        return "Session(id='{}', num_datasets={})".format(self._id,
+                                                       len(self._datasets))
 
     def __hash__(self):
         return hash(self._id)
@@ -146,7 +146,7 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_scans, name=None):
+    def source(self, project_id, input_datasets, name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -164,11 +164,11 @@ class Archive(object):
             name = "{}_source".format(self.type)
         source = pe.Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
-        source.inputs.datasets = [s.to_tuple() for s in input_scans]
+        source.inputs.datasets = [s.to_tuple() for s in input_datasets]
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_scans, multiplicity='per_session',
+    def sink(self, project_id, output_datasets, multiplicity='per_session',
              name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -193,17 +193,17 @@ class Archive(object):
                 .format(multiplicity, "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
-        output_scans = list(output_scans)  # Ensure iterators aren't exhausted
-        sink = pe.Node(sink_class(output_scans), name=name)
+        output_datasets = list(output_datasets)  # Ensure iterators aren't exhausted
+        sink = pe.Node(sink_class(output_datasets), name=name)
         sink.inputs.project_id = str(project_id)
-        sink.inputs.datasets = [s.to_tuple() for s in output_scans]
+        sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
         return sink
 
     @abstractmethod
     def project(self, project_id, subject_ids=None, session_ids=None):
         """
         Returns a nianalysis.archive.Project object for the given project id,
-        which holds information on all available subjects, sessions and scans
+        which holds information on all available subjects, sessions and datasets
         in the project.
 
         Parameters
@@ -275,8 +275,8 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [scan[0] + self.OUTPUT_SUFFIX
-                                 for scan in self.inputs.datasets])
+        return add_traits(base, [dataset[0] + self.OUTPUT_SUFFIX
+                                 for dataset in self.inputs.datasets])
 
 
 class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
@@ -346,7 +346,7 @@ class ArchiveSink(IOBase):
 
     INPUT_SUFFIX = '_fname'
 
-    def __init__(self, output_scans, **kwargs):
+    def __init__(self, output_datasets, **kwargs):
         """
         Parameters
         ----------
@@ -364,7 +364,7 @@ class ArchiveSink(IOBase):
         self._infields = None
         self._outfields = None
         add_traits(self.inputs, [s.name + self.INPUT_SUFFIX
-                                 for s in output_scans])
+                                 for s in output_datasets])
 
     @abstractmethod
     def _list_outputs(self):

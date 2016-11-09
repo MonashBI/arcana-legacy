@@ -23,7 +23,7 @@ class TestDiffusion(TestCase):
             name=self.DATASET_NAME,
             project_id=self.PILOT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 'dwi_scan':
                 Dataset('r_l_noddi_b700_30_directions', mrtrix_format),
                 'forward_rpe': Dataset('r_l_noddi_b0_6', mrtrix_format),
@@ -56,7 +56,7 @@ class TestDiffusion(TestCase):
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
                 'grad_dirs': Dataset('NODDI_protocol', fsl_bvecs_format),
                 'bvalues': Dataset('NODDI_protocol', fsl_bvals_format)})
@@ -77,7 +77,7 @@ class TestNODDI(TestCase):
             name=self.DATASET_NAME,
             project_id=self.PILOT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 'low_b_dw_scan': Dataset('r_l_noddi_b700_30_directions',
                                       mrtrix_format),
                 'high_b_dw_scan': Dataset('r_l_noddi_b2000_60_directions',
@@ -96,7 +96,7 @@ class TestNODDI(TestCase):
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
+            input_datasets={'dwi_preproc': Dataset('NODDI_DWI', analyze_format),
                          'brain_mask': Dataset('roi_mask', analyze_format),
                          'grad_dirs': Dataset('NODDI_protocol', fsl_bvecs_format),
                          'bvalues': Dataset('NODDI_protocol', fsl_bvals_format)})

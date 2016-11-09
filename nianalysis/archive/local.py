@@ -11,7 +11,7 @@ from nipype.interfaces.base import (
 from .base import Project, Subject, Session
 from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.formats import scan_formats, scan_formats_by_ext
+from nianalysis.formats import dataset_formats, dataset_formats_by_ext
 from nianalysis.utils import split_extension
 
 
@@ -44,7 +44,7 @@ class LocalSource(ArchiveSource):
             self.inputs.base_dir, self.inputs.project_id,
             PROJECT_SUMMARY_NAME)
         outputs = {}
-        for name, scan_format, multiplicity, _ in self.inputs.datasets:
+        for name, dataset_format, multiplicity, _ in self.inputs.datasets:
             if multiplicity == 'per_project':
                 download_dir = project_dir
             elif multiplicity.startswith('per_subject'):
@@ -54,7 +54,7 @@ class LocalSource(ArchiveSource):
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(
                     multiplicity)
-            fname = name + scan_formats[scan_format].extension
+            fname = name + dataset_formats[dataset_format].extension
             outputs[name + self.OUTPUT_SUFFIX] = os.path.join(download_dir,
                                                               fname)
         return outputs
@@ -104,16 +104,16 @@ class LocalSink(ArchiveSink):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through datasets connected to the sink and copy them to the
         # cache directory and upload to daris.
-        for name, scan_format, multiplicity, _ in self.inputs.datasets:
+        for name, dataset_format, multiplicity, _ in self.inputs.datasets:
             filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
-            ext = scan_formats[scan_format].extension
+            ext = dataset_formats[dataset_format].extension
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
             assert (split_extension(filename)[1] == ext), (
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
-                        scan_formats[scan_format].name, ext))
+                        dataset_formats[dataset_format].name, ext))
             assert isdefined(filename), (
                 "Previous node returned undefined input to Local sink for "
                 "'{}' output".format(name))
@@ -229,14 +229,14 @@ class LocalArchive(Archive):
             self._check_only_dirs(session_dirs, subject_path)
             for session_dir in session_dirs:
                 session_path = os.path.join(subject_path, session_dir)
-                scans = []
+                datasets = []
                 datasets = [d for d in os.listdir(session_path)
                             if not os.path.isdir(d)]
                 for f in datasets:
                     basename, ext = split_extension(f)
-                    scans.append(
-                        Dataset(name=basename, format=scan_formats_by_ext[ext]))
-                sessions.append(Session(session_dir, scans))
+                    datasets.append(
+                        Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+                sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
@@ -244,18 +244,18 @@ class LocalArchive(Archive):
                             if not os.path.isdir(d)]
                 for f in datasets:
                     basename, ext = split_extension(f)
-                    scans.append(
-                        Dataset(name=basename, format=scan_formats_by_ext[ext]))
-            subjects.append(Subject(subject_dir, sessions, scans))
+                    datasets.append(
+                        Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+            subjects.append(Subject(subject_dir, sessions, datasets))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(subject_summary_path):
             datasets = [d for d in os.listdir(project_summary_path)
                         if not os.path.isdir(d)]
             for f in datasets:
                 basename, ext = split_extension(f)
-                scans.append(
-                    Dataset(name=basename, format=scan_formats_by_ext[ext]))
-        project = Project(project_id, subjects, scans)
+                datasets.append(
+                    Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+        project = Project(project_id, subjects, datasets)
         return project
 
     @classmethod
@@ -267,7 +267,7 @@ class LocalArchive(Archive):
                 "('{}') instead of sub-directories".format(
                     path, "', '".join(dirs)))
 
-    def sessions_with_dataset(self, scan, project_id, sessions=None):
+    def sessions_with_dataset(self, dataset, project_id, sessions=None):
         if sessions is None:
             sessions = self.all_sessions(project_id)
         with_dataset = []
@@ -275,7 +275,7 @@ class LocalArchive(Archive):
             if os.path.exists(
                 os.path.join(self._base_dir, str(project_id),
                              session.subject_id, session.session_id,
-                             scan.filename)):
+                             dataset.filename)):
                 with_dataset.append(session)
         return with_dataset
 

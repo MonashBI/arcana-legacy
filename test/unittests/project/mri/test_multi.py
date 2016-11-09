@@ -41,7 +41,7 @@ class TestT1AndT2(TestCase):
             name=self.DATASET_NAME,
             project_id=self.PROJECT_NAME,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 't1': Dataset('t1', nifti_format),
                 't2': Dataset('t2', nifti_format)})
         project.coregistration_pipeline().run()
@@ -56,7 +56,7 @@ class TestT1AndT2(TestCase):
             name=self.DATASET_NAME,
             project_id=self.PROJECT_NAME,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 't1': Dataset('t1', nifti_format),
                 't2': Dataset('t2', nifti_format)})
         project.joint_segmentation_pipeline().run()

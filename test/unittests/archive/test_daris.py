@@ -435,7 +435,7 @@ class TestDarisArchiveSummary(TestCase):
                                     multiplicity='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
-            "Tests the sinking of subject-wide scans")
+            "Tests the sinking of subject-wide datasets")
         project_sink_files = [Dataset('sink2', nifti_gz_format, pipeline=True,
                                    multiplicity='per_project')]
         project_sink = archive.sink(PROJECT_ID,
@@ -444,7 +444,7 @@ class TestDarisArchiveSummary(TestCase):
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.description = (
-            "Tests the sinking of project-wide scans")
+            "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
                                base_dir=self.WORKFLOW_DIR)
@@ -499,7 +499,7 @@ class TestDarisArchiveSummary(TestCase):
                                         pipeline=True)])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
-            "Tests the reloading of subject and project summary scans")
+            "Tests the reloading of subject and project summary datasets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.WORKFLOW_DIR)
         reloadworkflow.connect(reloadinputnode, 'subject_id',

@@ -200,7 +200,7 @@ class TestRunPipeline(TestCase):
         archive = LocalArchive(self.BASE_DIR)
         self.project = DummyProject(
             'TestDummy', self.PROJECT_ID, archive,
-            input_scans={'start': Dataset('start', nifti_gz_format),
+            input_datasets={'start': Dataset('start', nifti_gz_format),
                          'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
     def tearDown(self):
@@ -209,12 +209,12 @@ class TestRunPipeline(TestCase):
 
     def test_pipeline_prerequisites(self):
         self.project.pipeline4().run()
-        for scan in DummyProject.components():
-            if scan.multiplicity == 'per_session':
+        for dataset in DummyProject.components():
+            if dataset.multiplicity == 'per_session':
                 for session_path in self.session_paths:
                     self.assertTrue(
                         os.path.exists(os.path.join(
-                            session_path, scan.name + scan.format.extension)))
+                            session_path, dataset.name + dataset.format.extension)))
 
     def test_subject_summary(self):
         self.project.subject_summary_pipeline().run()

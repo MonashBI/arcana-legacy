@@ -22,7 +22,7 @@ class TestMRI(TestCase):
             name=self.DATASET_NAME,
             project_id=self.EXAMPLE_INPUT_PROJECT,
             archive=LocalArchive(self.ARCHIVE_PATH),
-            input_scans={
+            input_datasets={
                 'mri_scan': Dataset('mri_scan', nifti_gz_format)})
         project.brain_mask_pipeline().run()
         self.assert_(

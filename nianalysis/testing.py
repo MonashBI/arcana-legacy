@@ -19,7 +19,7 @@ class BaseImageTestCase(TestCase):
                             self.SESSION)
 
     def _remove_generated_files(self, project):
-        # Remove processed scans
+        # Remove processed datasets
         for fname in os.listdir(self._session_dir(project)):
             if fname.startswith(self.DATASET_NAME):
                 os.remove(os.path.join(self._session_dir(project), fname))

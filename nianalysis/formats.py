@@ -39,9 +39,9 @@ matlab_format = DatasetFormat(name='matlab', extension='.mat')
 
 
 # A dictionary to access all the formats by name
-scan_formats = dict(
+dataset_formats = dict(
     (f.name, f) for f in copy(globals()).itervalues()
     if isinstance(f, DatasetFormat))
 
-scan_formats_by_ext = dict(
-    (f.extension, f) for f in scan_formats.itervalues())
+dataset_formats_by_ext = dict(
+    (f.extension, f) for f in dataset_formats.itervalues())

@@ -15,7 +15,7 @@ from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project)
-from nianalysis.formats import scan_formats
+from nianalysis.formats import dataset_formats
 import re
 import collections
 from nianalysis.utils import split_extension
@@ -72,7 +72,7 @@ class DarisSource(ArchiveSource):
             base_cache_dir = os.path.join(*(str(p) for p in (
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id)))
-            for (name, scan_format, mult, processed) in self.inputs.datasets:
+            for (name, dataset_format, mult, processed) in self.inputs.datasets:
                 (ex_method_id,
                  subject_id, session_id) = self._get_daris_ids(mult, processed)
 
@@ -80,7 +80,7 @@ class DarisSource(ArchiveSource):
                                          str(ex_method_id), str(session_id))
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                fname = name + scan_formats[scan_format].extension
+                fname = name + dataset_formats[dataset_format].extension
                 try:
                     dataset = datasets[(mult, processed)][fname]
                 except KeyError:
@@ -102,15 +102,15 @@ class DarisSource(ArchiveSource):
         """
         Returns the ex-method ID, subject ID and session ID for a given
         multiplicity (i.e. 'per_session', 'per_subject' or 'per_project')
-        whether the input scan is processed or not
+        whether the input dataset is processed or not
 
         Parameters
         ----------
         multiplicity : str
-            The "multiplicity" of the input scan, one of 'per_session',
+            The "multiplicity" of the input dataset, one of 'per_session',
             'per_subject' or 'per_project'
         processed: bool
-            Whether the scan is processed (by this package) or not
+            Whether the dataset is processed (by this package) or not
 
         Returns
         -------
@@ -237,16 +237,16 @@ class DarisSink(ArchiveSink):
                 if not isdefined(filename):
                     missing_files.append(name)
                     continue  # skip the upload for this file
-                scan_format = scan_formats[format_name]
+                dataset_format = dataset_formats[format_name]
                 assert (
-                    split_extension(filename)[1] == scan_format.extension), (
+                    split_extension(filename)[1] == dataset_format.extension), (
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
-                            scan_formats[format_name].name,
-                            scan_format.extension))
+                            dataset_formats[format_name].name,
+                            dataset_format.extension))
                 src_path = os.path.abspath(filename)
                 # Copy to local cache
-                dst_path = os.path.join(out_dir, name + scan_format.extension)
+                dst_path = os.path.join(out_dir, name + dataset_format.extension)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to DaRIS
@@ -261,7 +261,7 @@ class DarisSink(ArchiveSink):
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
                     session_id=session_id, dataset_id=dataset_id,
-                    lctype=scan_format.lctype)
+                    lctype=dataset_format.lctype)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
@@ -425,7 +425,7 @@ class DarisArchive(Archive):
         project = Project(project_id, subjects, project_summary)
         return project
 
-    def sessions_with_dataset(self, scan, project_id, sessions):
+    def sessions_with_dataset(self, dataset, project_id, sessions):
         """
         Parameters
         ----------
@@ -444,8 +444,8 @@ class DarisArchive(Archive):
                 entries = daris.get_datasets(
                     project_id, session.subject_id, session.session_id,
                     repo_id=self._repo_id,
-                    ex_method_id=int(scan.processed) + 1)
-                if scan.filename() in (e.name for e in entries):
+                    ex_method_id=int(dataset.processed) + 1)
+                if dataset.filename() in (e.name for e in entries):
                     sess_with_dataset.append(session)
         return sess_with_dataset
 
@@ -732,19 +732,19 @@ class DarisLogin:
             tmp_dir = tempfile.mkdtemp()
         if new_project_id is None:
             new_project_id = old_project_id
-        scans = self.get_datasets(old_project_id, old_subject_id,
+        datasets = self.get_datasets(old_project_id, old_subject_id,
                                   session_id=old_session_id,
                                   repo_id=repo_id,
                                   ex_method_id=old_ex_method_id)
-        # Download scans first just to check whether there are any problems
+        # Download datasets first just to check whether there are any problems
         # before creating the new session
-        for scan in scans.itervalues():
-            self.download(os.path.join(tmp_dir, '{}_{}.zip'.format(scan.id,
-                                                                   scan.name)),
+        for dataset in datasets.itervalues():
+            self.download(os.path.join(tmp_dir, '{}_{}.zip'.format(dataset.id,
+                                                                   dataset.name)),
                           project_id=old_project_id,
                           subject_id=old_subject_id,
                           session_id=old_session_id,
-                          dataset_id=scan.id,
+                          dataset_id=dataset.id,
                           repo_id=repo_id,
                           ex_method_id=old_ex_method_id)
         # Create a new subject if required
@@ -788,31 +788,31 @@ class DarisLogin:
                 description=old_session.description,
                 ex_method_id=new_ex_method_id, repo_id=repo_id)
         if download:
-            for scan in scans.itervalues():
+            for dataset in datasets.itervalues():
                 new_dataset_id = self.add_dataset(
                     new_project_id, new_subject_id, session_id=new_session_id,
-                    dataset_id=scan.id, name=scan.name,
-                    description=scan.description,
+                    dataset_id=dataset.id, name=dataset.name,
+                    description=dataset.description,
                     ex_method_id=new_ex_method_id, repo_id=repo_id)
                 self.upload(os.path.join(tmp_dir,
-                                         '{}_{}.zip'.format(scan.id,
-                                                            scan.name)),
+                                         '{}_{}.zip'.format(dataset.id,
+                                                            dataset.name)),
                             new_project_id, new_subject_id,
                             session_id=new_session_id, dataset_id=new_dataset_id,
                             ex_method_id=new_ex_method_id, repo_id=repo_id,
-                            lctype=scan.lctype)
+                            lctype=dataset.lctype)
         else:
             session_cid = construct_cid(
                 project_id=new_project_id, subject_id=new_subject_id,
                 session_id=new_session_id, ex_method_id=new_ex_method_id,
                 repo_id=repo_id)
-            for scan_id in sorted(scans):
-                scan_cid = construct_cid(
+            for dataset_id in sorted(datasets):
+                dataset_cid = construct_cid(
                     project_id=new_project_id, subject_id=old_subject_id,
                     session_id=old_session_id, ex_method_id=new_ex_method_id,
-                    dataset_id=scan_id, repo_id=repo_id)
+                    dataset_id=dataset_id, repo_id=repo_id)
                 self.run('om.pssd.dataset.move :id {} :pid {}'
-                         .format(scan_cid, session_cid))
+                         .format(dataset_cid, session_cid))
         return new_session_id
 
     def move_session(self, project_id, old_subject_id, old_session_id,
@@ -897,7 +897,7 @@ class DarisLogin:
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
     def download_match(self, location, project_id, sub_id, session_id=1,
-                       match_scan=None, scan_type=None):
+                       match_dataset=None, dataset_type=None):
         """
         Downloads multiple assets to a location on the local file system
 
@@ -909,65 +909,65 @@ class DarisLogin:
             Id of the project
         subject_id: int
             Id of the subject
-        match_scan: string
+        match_dataset: string
             Recursive expression to match in order to download the asset
-        scan_type: list or string
-            Name(s) of the scan to download. Available scans: asl (arterial
+        dataset_type: list or string
+            Name(s) of the dataset to download. Available datasets: asl (arterial
             spin labeling) t1,t2,epi,diffusion,proton_density, mt(Magnetization
             Transfer), ute umap(UTE umap), dixon,gre(field map),multiband
         """
-        if match_scan is None and scan_type is None:
+        if match_dataset is None and dataset_type is None:
             raise Exception(
-                "You must provide one between match_scan OR scan_type")
+                "You must provide one between match_dataset OR dataset_type")
 
         datasets = self.get_datasets(project_id, sub_id, session_id=session_id)
 
-        list_scans = {}
-        list_scans['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
+        list_datasets = {}
+        list_datasets['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
                                    r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff_motion$|'
                                    r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff$')
-        list_scans['epi'] = (
+        list_datasets['epi'] = (
             r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)'
             r'ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)|'
             r'(.*)ep2d([_ ])bold([a-zA-Z_ ]+)')
-        list_scans['multiband'] = list_scans['mb'] = (
+        list_datasets['multiband'] = list_datasets['mb'] = (
             r'(A-P|P-A)([a-zA-Z_ ]+)mbep2d_bold$')
-        list_scans['asl'] = r'(.*)ep2d_tra_pasl$'
-        list_scans['pd'] = r'pd_tse.*'
-        list_scans['proton density'] = list_scans['pd']
-        list_scans['proton_density'] = list_scans['pd']
-        list_scans['t2'] = r'(.*)t2_spc.*|FLAIR'
-        list_scans['t1'] = r'(.*)t1_mprage.*|MPRAGE'
-        list_scans['mt'] = r'(.*)MT fl3d([a-zA-Z_ ]+)'
-        list_scans['ute'] = r'([a-zA-Z_ ]+)UTE$'
-        list_scans['dixon'] = r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
-        list_scans['gre'] = r'(.*)gre([a-zA-Z_ ]+)field_map'
-        list_scans['field_map'] = list_scans['field map'] = list_scans['gre']
-        list_scans['umap'] = r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'
+        list_datasets['asl'] = r'(.*)ep2d_tra_pasl$'
+        list_datasets['pd'] = r'pd_tse.*'
+        list_datasets['proton density'] = list_datasets['pd']
+        list_datasets['proton_density'] = list_datasets['pd']
+        list_datasets['t2'] = r'(.*)t2_spc.*|FLAIR'
+        list_datasets['t1'] = r'(.*)t1_mprage.*|MPRAGE'
+        list_datasets['mt'] = r'(.*)MT fl3d([a-zA-Z_ ]+)'
+        list_datasets['ute'] = r'([a-zA-Z_ ]+)UTE$'
+        list_datasets['dixon'] = r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
+        list_datasets['gre'] = r'(.*)gre([a-zA-Z_ ]+)field_map'
+        list_datasets['field_map'] = list_datasets['field map'] = list_datasets['gre']
+        list_datasets['umap'] = r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'
 
-        if isinstance(scan_type, basestring):
-            scan_type = re.split(' |,', scan_type)
-        elif (not isinstance(scan_type, collections.Iterable) and
-              scan_type is not None):
+        if isinstance(dataset_type, basestring):
+            dataset_type = re.split(' |,', dataset_type)
+        elif (not isinstance(dataset_type, collections.Iterable) and
+              dataset_type is not None):
             raise Exception(
-                "Dataset type '{}' is not a list or string".format(scan_type))
+                "Dataset type '{}' is not a list or string".format(dataset_type))
 
-        if scan_type is not None:
-            if match_scan is not None:
+        if dataset_type is not None:
+            if match_dataset is not None:
                 raise Exception(
-                    "You need to provied just ONE input between scan_type and "
-                    "match_scan")
-            for scan in scan_type:
-                match_scan = list_scans[scan]
+                    "You need to provied just ONE input between dataset_type and "
+                    "match_dataset")
+            for dataset in dataset_type:
+                match_dataset = list_datasets[dataset]
                 for dataset_id in datasets:
-                    if re.match(match_scan, datasets[dataset_id].name):
+                    if re.match(match_dataset, datasets[dataset_id].name):
                         name = datasets[dataset_id].cid
                         self.download(location + name + '.zip', project_id,
                                       sub_id, dataset_id,
                                       session_id=session_id)
         else:
             for dataset_id in datasets:
-                if re.match(match_scan, datasets[dataset_id].name):
+                if re.match(match_dataset, datasets[dataset_id].name):
                     name = datasets[dataset_id].cid
                     self.download(location + name + '.zip', project_id, sub_id,
                                   dataset_id, session_id=session_id)
