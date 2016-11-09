@@ -88,12 +88,6 @@ class T1Dataset(MRDataset):
             approx_runtime=500)
         recon_all = pe.Node(interface=ReconAll(), name='recon_all')
         pipeline.connect_input('t1', recon_all, 'T1_files')
-        recon_all.inputs.subject_id = subject_list
-        if not os.path.exists(subjects_dir):
-            os.mkdir(subjects_dir)
-        recon_all.inputs.subjects_dir = subjects_dir
-        
-        wf.connect(datasource, 'struct', recon_all, 'T1_files')
         
         """
         Make average subject
