@@ -7,7 +7,7 @@ from nianalysis.interfaces.mrtrix import (
 from nipype.workflows.dmri.fsl.tbss import create_tbss_all
 from nianalysis.interfaces.noddi import (
     CreateROI, BatchNODDIFitting, SaveParamsAsNIfTI)
-from .t2 import T2Dataset
+from .structural import T2Dataset
 from nianalysis.interfaces.mrtrix import MRConvert, ExtractFSLGradients
 from nianalysis.interfaces.utils import MergeTuple
 from nianalysis.citations import (
