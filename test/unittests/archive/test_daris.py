@@ -48,15 +48,15 @@ class TestDarisLogin(TestCase):
 
     def test_get_sessions(self):
         sessions = self._daris.get_sessions(project_id=4, subject_id=1,
-                                          repo_id=REPO_ID, ex_method_id=1)
+                                            repo_id=REPO_ID, ex_method_id=1)
         self.assertEqual(len(sessions), 3)
-        self.assertEqual(sessions[1].name, 'Session1')
-        self.assertEqual(sessions[2].name, 'Session2')
-        self.assertEqual(sessions[3].name, 'Session3')
+        self.assertEqual(sessions[1].name, 'Study1')
+        self.assertEqual(sessions[2].name, 'Study2')
+        self.assertEqual(sessions[3].name, 'Study3')
 
     def test_get_files(self):
         files = self._daris.get_files(
-            project_id=4, subject_id=1, study_id=3, repo_id=REPO_ID,
+            project_id=4, subject_id=1, session_id=3, repo_id=REPO_ID,
             ex_method_id=1)
         self.assertEqual(len(files), 8)
         self.assertEqual(
@@ -95,51 +95,51 @@ class TestDarisLogin(TestCase):
             num_subjects,
             len(self._daris.get_subjects(project_id=PROJECT_ID)))
 
-    def test_add_remove_study(self):
+    def test_add_remove_session(self):
         for ex_method_id in (1, 2):
             num_sessions = len(self._daris.get_sessions(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 ex_method_id=ex_method_id))
-            study_id = self._daris.add_study(
+            session_id = self._daris.add_session(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                name='unittest-study', repo_id=REPO_ID,
-                description=("A study added by a unit-test that should be "
+                name='unittest-session', repo_id=REPO_ID,
+                description=("A session added by a unit-test that should be "
                              "removed by the same test"),
                 ex_method_id=ex_method_id)
-            self._daris.add_study(
+            self._daris.add_session(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=(study_id + 1),
-                name='unittest-study2', repo_id=REPO_ID,
-                description=("A study added by a unit-test that should be "
+                session_id=(session_id + 1),
+                name='unittest-session2', repo_id=REPO_ID,
+                description=("A session added by a unit-test that should be "
                              "removed by the same test"),
                 ex_method_id=ex_method_id)
             self.assertEqual(
                 len(self._daris.get_sessions(project_id=PROJECT_ID,
-                                            subject_id=SUBJECT_ID,
-                                            ex_method_id=ex_method_id)),
+                                             subject_id=SUBJECT_ID,
+                                             ex_method_id=ex_method_id)),
                 num_sessions + 2)
-            self._daris.delete_study(
+            self._daris.delete_session(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=study_id, repo_id=REPO_ID,
+                session_id=session_id, repo_id=REPO_ID,
                 ex_method_id=ex_method_id)
-            self._daris.delete_study(
+            self._daris.delete_session(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=(study_id + 1), repo_id=REPO_ID,
+                session_id=(session_id + 1), repo_id=REPO_ID,
                 ex_method_id=ex_method_id)
             self.assertEqual(
                 num_sessions,
                 len(self._daris.get_sessions(project_id=PROJECT_ID,
-                                            subject_id=SUBJECT_ID,
-                                            ex_method_id=ex_method_id)))
+                                             subject_id=SUBJECT_ID,
+                                             ex_method_id=ex_method_id)))
 
     def test_add_remove_file(self):
         for ex_method_id in (1, 2):
             num_files = len(self._daris.get_files(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, ex_method_id=ex_method_id))
+                session_id=STUDY_ID, ex_method_id=ex_method_id))
             file_id = self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, name='unittest-file',
+                session_id=STUDY_ID, name='unittest-file',
                 repo_id=REPO_ID,
                 description=("A file added by a unit-test that should be "
                              "removed by the same test"),
@@ -147,7 +147,7 @@ class TestDarisLogin(TestCase):
             self._daris.add_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 file_id=(file_id + 1),
-                study_id=STUDY_ID, name='unittest-file2',
+                session_id=STUDY_ID, name='unittest-file2',
                 repo_id=REPO_ID,
                 description=("A file added by a unit-test that should be "
                              "removed by the same test"),
@@ -155,26 +155,26 @@ class TestDarisLogin(TestCase):
             self.assertEqual(
                 len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    study_id=STUDY_ID, ex_method_id=ex_method_id)),
+                    session_id=STUDY_ID, ex_method_id=ex_method_id)),
                 num_files + 2)
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, file_id=file_id,
+                session_id=STUDY_ID, file_id=file_id,
                 repo_id=REPO_ID, ex_method_id=ex_method_id)
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 file_id=(file_id + 1), repo_id=REPO_ID,
-                study_id=STUDY_ID, ex_method_id=ex_method_id)
+                session_id=STUDY_ID, ex_method_id=ex_method_id)
             self.assertEqual(
                 num_files,
                 len(self._daris.get_files(
                     project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                    study_id=STUDY_ID, ex_method_id=ex_method_id)))
+                    session_id=STUDY_ID, ex_method_id=ex_method_id)))
 
     def test_upload_download(self):
         file_id = self._daris.add_file(
             project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-            study_id=STUDY_ID, name='unittest-upload',
+            session_id=STUDY_ID, name='unittest-upload',
             repo_id=REPO_ID,
             description=(
                 "A file added by a unit-test for testing the "
@@ -183,11 +183,11 @@ class TestDarisLogin(TestCase):
         try:
             self._daris.upload(
                 TEST_IMAGE, project_id=PROJECT_ID,
-                subject_id=SUBJECT_ID, study_id=STUDY_ID,
+                subject_id=SUBJECT_ID, session_id=STUDY_ID,
                 file_id=file_id, repo_id=REPO_ID, ex_method_id=2)
             self._daris.download(
                 TEST_IMAGE + '.dnld', project_id=PROJECT_ID,
-                subject_id=SUBJECT_ID, study_id=STUDY_ID,
+                subject_id=SUBJECT_ID, session_id=STUDY_ID,
                 file_id=file_id, repo_id=REPO_ID, ex_method_id=2)
             self.assertEqual(
                 hashlib.md5(open(TEST_IMAGE, 'rb').read()).hexdigest(),
@@ -197,7 +197,7 @@ class TestDarisLogin(TestCase):
             # Remove file
             self._daris.delete_file(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
-                study_id=STUDY_ID, file_id=file_id,
+                session_id=STUDY_ID, file_id=file_id,
                 repo_id=REPO_ID, ex_method_id=2)
             try:
                 # Clean up downloaded file
@@ -238,14 +238,14 @@ class TestDarisArchive(TestCase):
 
     def setUp(self):
         # Create test data on DaRIS
-        self._study_id = None
+        self._session_id = None
         self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.CACHE_DIR)
         os.makedirs(self.WORKFLOW_DIR)
-        # Upload test study
+        # Upload test session
         with self.daris:  # Opens the daris session
             try:
                 self.daris.delete_subject(project_id=PROJECT_ID,
@@ -257,27 +257,27 @@ class TestDarisArchive(TestCase):
                 name="NiAnalyais Unittest",
                 description=(
                     "Automatically generated subject to run DaRIS unittests"))
-            self.study_id = self.daris.add_study(
+            self.session_id = self.daris.add_session(
                 project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                ex_method_id=1, name='source-sink-unittest-study',
+                ex_method_id=1, name='source-sink-unittest-session',
                 description="Used in DarisSource/Sink unittest")
             for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
                          'source4.nii.gz'):
                 file_id = self.daris.add_file(
                     project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                    study_id=self.study_id, ex_method_id=1,
+                    session_id=self.session_id, ex_method_id=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
                 self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
                                   subject_id=self.SUBJECT_ID,
-                                  study_id=self.study_id,
+                                  session_id=self.session_id,
                                   ex_method_id=1, file_id=file_id)
 
     def tearDown(self):
         # Clean up working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        # Clean up study created for unit-test
-        if self.study_id is not None:
+        # Clean up session created for unit-test
+        if self.session_id is not None:
             try:
                 with self.daris:
                     self.daris.delete_subject(
@@ -306,12 +306,12 @@ class TestDarisArchive(TestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
-        inputnode.inputs.session_id = str(self.study_id)
+        inputnode.inputs.session_id = str(self.session_id)
         source = archive.source(PROJECT_ID, source_files)
         sink = archive.sink(PROJECT_ID, sink_files)
         sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
-            "A test study created by archive roundtrip unittest")
+            "A test session created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
                                base_dir=self.WORKFLOW_DIR)
@@ -330,10 +330,10 @@ class TestDarisArchive(TestCase):
         # Check cache was created properly
         source_cache_dir = os.path.join(
             self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
-            str(self.SUBJECT_ID), '1', str(self.study_id))
+            str(self.SUBJECT_ID), '1', str(self.session_id))
         sink_cache_dir = os.path.join(
             self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
-            str(self.SUBJECT_ID), '2', str(self.study_id))
+            str(self.SUBJECT_ID), '2', str(self.session_id))
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
@@ -342,7 +342,7 @@ class TestDarisArchive(TestCase):
         with self.daris:
             files = self.daris.get_files(
                 project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                study_id=self.study_id, ex_method_id=2, repo_id=REPO_ID)
+                session_id=self.session_id, ex_method_id=2, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in files.itervalues()),
                          ['sink1', 'sink3', 'sink4'])
 
@@ -360,14 +360,14 @@ class TestDarisArchiveSummary(TestCase):
 
     def setUp(self):
         # Create test data on DaRIS
-        self._study_id = None
+        self._session_id = None
         self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.CACHE_DIR)
         os.makedirs(self.WORKFLOW_DIR)
-        # Upload test study
+        # Upload test session
         with self.daris:  # Opens the daris session
             try:
                 self.daris.delete_subject(project_id=PROJECT_ID,
@@ -382,27 +382,27 @@ class TestDarisArchiveSummary(TestCase):
                 name="NiAnalyais Unittest",
                 description=(
                     "Automatically generated subject to run DaRIS unittests"))
-            self.study_id = self.daris.add_study(
+            self.session_id = self.daris.add_session(
                 project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                ex_method_id=1, name='source-sink-unittest-study',
+                ex_method_id=1, name='source-sink-unittest-session',
                 description="Used in DarisSource/Sink unittest")
             for name in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
                          'source4.nii.gz'):
                 file_id = self.daris.add_file(
                     project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                    study_id=self.study_id, ex_method_id=1,
+                    session_id=self.session_id, ex_method_id=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
                 self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
                                   subject_id=self.SUBJECT_ID,
-                                  study_id=self.study_id,
+                                  session_id=self.session_id,
                                   ex_method_id=1, file_id=file_id)
 
     def tearDown(self):
         # Clean up working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        # Clean up study created for unit-test
-        if self.study_id is not None:
+        # Clean up session created for unit-test
+        if self.session_id is not None:
             try:
                 with self.daris:
                     self.daris.delete_subject(
@@ -426,7 +426,7 @@ class TestDarisArchiveSummary(TestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
-        inputnode.inputs.session_id = str(self.study_id)
+        inputnode.inputs.session_id = str(self.session_id)
         source = archive.source(str(PROJECT_ID), source_files)
         subject_sink_files = [Scan('sink1', nifti_gz_format, pipeline=True,
                                    multiplicity='per_subject')]
@@ -473,10 +473,10 @@ class TestDarisArchiveSummary(TestCase):
         with self.daris:
             subject_files = self.daris.get_files(
                 project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                study_id=1, ex_method_id=SUBJECT_SUMMARY_ID,
+                session_id=1, ex_method_id=SUBJECT_SUMMARY_ID,
                 repo_id=REPO_ID)
             project_files = self.daris.get_files(
-                project_id=PROJECT_ID, subject_id=1, study_id=1,
+                project_id=PROJECT_ID, subject_id=1, session_id=1,
                 ex_method_id=PROJECT_SUMMARY_ID, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in subject_files.itervalues()),
                          ['sink1'])
@@ -487,7 +487,7 @@ class TestDarisArchiveSummary(TestCase):
                                                      'session_id']),
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = str(self.SUBJECT_ID)
-        reloadinputnode.inputs.session_id = str(self.study_id)
+        reloadinputnode.inputs.session_id = str(self.session_id)
         reloadsource = archive.source(
             PROJECT_ID,
             source_files + subject_sink_files + project_sink_files,
@@ -521,12 +521,12 @@ class TestDarisArchiveSummary(TestCase):
         reloadworkflow.run()
         session_dir = os.path.join(
             self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
-            str(self.SUBJECT_ID), '2', str(self.study_id))
+            str(self.SUBJECT_ID), '2', str(self.session_id))
         self.assertEqual(sorted(os.listdir(session_dir)),
                          ['resink1.nii.gz', 'resink2.nii.gz'])
         with self.daris:
             session_files = self.daris.get_files(
                 project_id=PROJECT_ID, subject_id=self.SUBJECT_ID,
-                study_id=self.study_id, ex_method_id=2, repo_id=REPO_ID)
+                session_id=self.session_id, ex_method_id=2, repo_id=REPO_ID)
         self.assertEqual(sorted(d.name for d in session_files.itervalues()),
                          ['resink1', 'resink2'])

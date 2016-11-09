@@ -27,7 +27,7 @@ class TestLocalArchive(TestCase):
 
     def setUp(self):
         # Create test data on DaRIS
-        self._study_id = None
+        self._session_id = None
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.WORKFLOW_DIR)
@@ -63,7 +63,7 @@ class TestLocalArchive(TestCase):
         sink = archive.sink(self.PROJECT_ID, sink_files)
         sink.inputs.name = 'archive_sink'
         sink.inputs.description = (
-            "A test study created by archive roundtrip unittest")
+            "A test session created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source_sink_unit_test',
                                base_dir=self.WORKFLOW_DIR)

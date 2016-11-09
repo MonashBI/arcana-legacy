@@ -179,7 +179,7 @@ class TestRunPipeline(TestCase):
 
     def setUp(self):
         # Create test data on DaRIS
-        self._study_id = None
+        self._session_id = None
         # Make cache and working dirs
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         os.makedirs(self.WORKFLOW_DIR)

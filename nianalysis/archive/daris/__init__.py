@@ -68,7 +68,7 @@ class DarisSource(ArchiveSource):
                         project_id=self.inputs.project_id,
                         subject_id=subject_id,
                         ex_method_id=ex_method_id,
-                        study_id=session_id).itervalues())
+                        session_id=session_id).itervalues())
             base_cache_dir = os.path.join(*(str(p) for p in (
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id)))
@@ -93,14 +93,14 @@ class DarisSource(ArchiveSource):
                         project_id=self.inputs.project_id,
                         subject_id=subject_id,
                         ex_method_id=ex_method_id,
-                        study_id=session_id,
+                        session_id=session_id,
                         file_id=file_.id)
                 outputs[name + self.OUTPUT_SUFFIX] = cache_path
         return outputs
 
     def _get_daris_ids(self, multiplicity, processed):
         """
-        Returns the ex-method ID, subject ID and study ID for a given
+        Returns the ex-method ID, subject ID and session ID for a given
         multiplicity (i.e. 'per_session', 'per_subject' or 'per_project')
         whether the input scan is processed or not
 
@@ -119,7 +119,7 @@ class DarisSource(ArchiveSource):
         subject_id : int
             DaRIS subject ID
         session_id : int
-            DaRIS study ID
+            DaRIS session ID
         """
         if multiplicity == 'per_session':
             ex_method_id = int(processed) + 1
@@ -188,9 +188,9 @@ class DarisSink(ArchiveSink):
         outputs = self.output_spec().get()
         out_files = []
         missing_files = []
-        # Get the ex-method, subject and study IDs specific to the sink
+        # Get the ex-method, subject and session IDs specific to the sink
         # multiplicity (overridden in derived classes)
-        ex_method_id, subject_id, study_id = self._get_daris_ids()
+        ex_method_id, subject_id, session_id = self._get_daris_ids()
         # Open DaRIS session
         with DarisLogin(server=self.inputs.server,
                           domain=self.inputs.domain,
@@ -206,25 +206,25 @@ class DarisSink(ArchiveSink):
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id,
                     ex_method_id=ex_method_id)
-            # Add study if not present
+            # Add session if not present
             if not daris.exists(project_id=self.inputs.project_id,
                                 subject_id=subject_id,
-                                study_id=study_id,
+                                session_id=session_id,
                                 ex_method_id=ex_method_id,
                                 repo_id=self.inputs.repo_id):
-                # Add study to hold output
-                daris.add_study(
+                # Add session to hold output
+                daris.add_session(
                     project_id=self.inputs.project_id,
                     subject_id=subject_id,
-                    study_id=study_id,
+                    session_id=session_id,
                     repo_id=self.inputs.repo_id,
                     ex_method_id=ex_method_id, name=self.inputs.name,
                     description=self.inputs.description)
-            # Get cache dir for study
+            # Get cache dir for session
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, subject_id, ex_method_id, study_id))))
-            # Make study cache dir
+                self.inputs.project_id, subject_id, ex_method_id, session_id))))
+            # Make session cache dir
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through files connected to the sink and copy them to the
@@ -254,13 +254,13 @@ class DarisSink(ArchiveSink):
                     project_id=self.inputs.project_id,
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
-                    study_id=study_id, name=name,
+                    session_id=session_id, name=name,
                     description="Uploaded from DarisSink")
                 daris.upload(
                     src_path, project_id=self.inputs.project_id,
                     subject_id=subject_id,
                     repo_id=self.inputs.repo_id, ex_method_id=ex_method_id,
-                    study_id=study_id, file_id=file_id,
+                    session_id=session_id, file_id=file_id,
                     lctype=scan_format.lctype)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
@@ -276,8 +276,8 @@ class DarisSink(ArchiveSink):
     def _get_daris_ids(self):
         ex_method_id = 2
         subject_id = self.inputs.subject_id
-        study_id = self.inputs.session_id
-        return ex_method_id, subject_id, study_id
+        session_id = self.inputs.session_id
+        return ex_method_id, subject_id, session_id
 
 
 class DarisSubjectSink(DarisSink):
@@ -289,8 +289,8 @@ class DarisSubjectSink(DarisSink):
     def _get_daris_ids(self):
         ex_method_id = SUBJECT_SUMMARY_ID
         subject_id = self.inputs.subject_id
-        study_id = 1
-        return ex_method_id, subject_id, study_id
+        session_id = 1
+        return ex_method_id, subject_id, session_id
 
 
 class DarisProjectSink(DarisSink):
@@ -302,8 +302,8 @@ class DarisProjectSink(DarisSink):
     def _get_daris_ids(self):
         ex_method_id = PROJECT_SUMMARY_ID
         subject_id = 1
-        study_id = 1
-        return ex_method_id, subject_id, study_id
+        session_id = 1
+        return ex_method_id, subject_id, session_id
 
 
 class DarisArchive(Archive):
@@ -325,6 +325,8 @@ class DarisArchive(Archive):
         self._password = password
         if cache_dir is None:
             self._cache_dir = os.path.join(os.getcwd(), '.daris')
+        else:
+            self._cache_dir = cache_dir
         self._repo_id = repo_id
 
     def source(self, *args, **kwargs):
@@ -347,7 +349,7 @@ class DarisArchive(Archive):
         sink.inputs.repo_id = self._repo_id
         return sink
 
-    def all_sessions(self, project_id, study_id=None):
+    def all_sessions(self, project_id, session_id=None):
         """
         Parameters
         ----------
@@ -355,35 +357,35 @@ class DarisArchive(Archive):
             The project id to return the sessions for
         repo_id : int
             The id of the repository (2 for monash daris)
-        study_ids: int|List[int]|None
+        session_ids: int|List[int]|None
             Id or ids of sessions of which to return sessions for. If None all
             are returned
         """
         with self._daris() as daris:
             entries = daris.get_sessions(self, project_id,
                                          repo_id=self._repo_id)
-            if study_id is not None:
-                # Attempt to convert study_ids into a single int and then wrap
-                # in a list in case study ids is a single integer (or string
+            if session_id is not None:
+                # Attempt to convert session_ids into a single int and then wrap
+                # in a list in case session ids is a single integer (or string
                 # representation of an integer)
                 try:
-                    study_ids = [int(study_id)]
+                    session_ids = [int(session_id)]
                 except TypeError:
-                    study_ids = study_id
-                entries = [e for e in entries if e.id in study_ids]
-        return Session(subject_id=e.cid.split('.')[-3], study_id=e.id)
+                    session_ids = session_id
+                entries = [e for e in entries if e.id in session_ids]
+        return Session(subject_id=e.cid.split('.')[-3], session_id=e.id)
 
     def project(self, project_id, subject_ids=None, session_ids=None):
         with self._daris() as daris:
             # Get all files in project
             entries = daris.get_files(self, project_id, repo_id=self._repo_id,
-                                      subject_id=None, study_id=None,
+                                      subject_id=None, session_id=None,
                                       ex_method_id=None)
         subject_dict = defaultdict(defaultdict(defaultdict(list)))
         for entry in entries:
             (subject_id, ex_method_id,
-             study_id, file_id) = entry.cid.split('.')[-4:]
-            subject_dict[subject_id][ex_method_id][study_id].append(file_id)
+             session_id, file_id) = entry.cid.split('.')[-4:]
+            subject_dict[subject_id][ex_method_id][session_id].append(file_id)
         subjects = []
         project_summary = []
         for subject_id, method_dict in subject_dict.iteritems():
@@ -397,27 +399,27 @@ class DarisArchive(Archive):
                             subject_id))
             sessions = []
             subject_summary = []
-            for ex_method_id, study_dict in method_dict.iteritems():
+            for ex_method_id, session_dict in method_dict.iteritems():
                 processed = ex_method_id > 1
                 if ex_method_id == 4:
-                    if subject_id != 1 or study_dict.keys() != ['1']:
+                    if subject_id != 1 or session_dict.keys() != ['1']:
                         raise DarisException(
                             "Session(s) {} found in ex-method 4 of subject {}."
-                            "Project summaries are only allowed in study 1 of "
-                            "subject 1".format(', '.join(study_dict),
+                            "Project summaries are only allowed in session 1 of "
+                            "subject 1".format(', '.join(session_dict),
                                                subject_id))
-                    project_summary = study_dict['1']
+                    project_summary = session_dict['1']
                 elif ex_method_id == 3:
-                    if study_dict.keys() != ['1']:
+                    if session_dict.keys() != ['1']:
                         raise DarisException(
                             "Session(s) {} found in ex-method 3 of subject {}."
-                            "Subject summaries are only allowed in study 1"
-                            .format(', '.join(study_dict), subject_id))
-                    subject_summary = study_dict['1']
+                            "Subject summaries are only allowed in session 1"
+                            .format(', '.join(session_dict), subject_id))
+                    subject_summary = session_dict['1']
                 else:
-                    for study_id, files in study_dict.iteritems():
-                        if session_ids is None or study_id in session_ids:
-                            sessions.append(Session(study_id, files,
+                    for session_id, files in session_dict.iteritems():
+                        if session_ids is None or session_id in session_ids:
+                            sessions.append(Session(session_id, files,
                                                     processed=processed))
             subjects.append(Subject(subject_id, sessions, subject_summary))
         project = Project(project_id, subjects, project_summary)
@@ -440,7 +442,7 @@ class DarisArchive(Archive):
         with self._daris() as daris:
             for session in sessions:
                 entries = daris.get_files(
-                    project_id, session.subject_id, session.study_id,
+                    project_id, session.subject_id, session.session_id,
                     repo_id=self._repo_id,
                     ex_method_id=int(scan.processed) + 1)
                 if scan.filename() in (e.name for e in entries):
@@ -608,14 +610,14 @@ class DarisLogin:
             .format(construct_cid(project_id=project_id, subject_id=subject_id,
                                   ex_method_id=ex_method_id, repo_id=repo_id)))
 
-    def get_files(self, project_id, subject_id, study_id=1, repo_id=2,
+    def get_files(self, project_id, subject_id, session_id=1, repo_id=2,
                   ex_method_id=1):
         return self.query(
             "cid starts with '{}' and model='om.pssd.dataset'"
             .format(construct_cid(
                 project_id=project_id, subject_id=subject_id,
                 ex_method_id=ex_method_id, repo_id=repo_id,
-                study_id=study_id)))
+                session_id=session_id)))
 
     def print_entries(self, entries):
         for entry in entries.itervalues():
@@ -671,32 +673,32 @@ class DarisLogin:
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def add_study(self, project_id, subject_id, study_id=None, name=None,
+    def add_session(self, project_id, subject_id, session_id=None, name=None,
                   description='\"\"', ex_method_id=2, repo_id=2,
                   processed=None):
         """
         Adds a new subject with the given subject_id within the given
         project_id
 
-        project_id  -- The id of the project to add the study to
-        subject_id  -- The id of the subject to add the study to
-        study_id    -- The study_id of the study to add. If not provided
-                       the next available study_id is used
+        project_id  -- The id of the project to add the session to
+        subject_id  -- The id of the subject to add the session to
+        session_id    -- The session_id of the session to add. If not provided
+                       the next available session_id is used
         name        -- The name of the subject
         description -- A description of the subject
         """
-        if study_id is None:
-            # Get the next unused study id
+        if session_id is None:
+            # Get the next unused session id
             try:
-                max_study_id = max(
+                max_session_id = max(
                     self.get_sessions(project_id, subject_id,
                                      ex_method_id=ex_method_id,
                                      repo_id=repo_id))
             except ValueError:
-                max_study_id = 0
-            study_id = max_study_id + 1
+                max_session_id = 0
+            session_id = max_session_id + 1
         if name is None:
-            name = str(study_id)
+            name = str(session_id)
         if processed is not None:
             processed_switch = ' :processed {}'.format(str(processed).lower())
         else:
@@ -706,23 +708,23 @@ class DarisLogin:
             ":name \"{}\" :description \"{}\" :step 1 :study-number {}"
             "{processed}".format(
                 repo_id, project_id, subject_id, ex_method_id,
-                name, description, study_id, processed=processed_switch))
-        # Return the id of the newly created study
+                name, description, session_id, processed=processed_switch))
+        # Return the id of the newly created session
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def copy_study(self, old_project_id, old_subject_id, old_study_id,
-                   new_study_id, new_project_id=None, new_subject_id=None,
+    def copy_session(self, old_project_id, old_subject_id, old_session_id,
+                   new_session_id, new_project_id=None, new_subject_id=None,
                    repo_id=2, old_ex_method_id=1, tmp_dir=None, download=True,
-                   create_study=True, new_study_name=None,
+                   create_session=True, new_session_name=None,
                    new_ex_method_id=None):
         """
-        Swaps a study and its meta-data from an incorrect ID to the desired one
+        Swaps a session and its meta-data from an incorrect ID to the desired one
 
         Parameters
         ----------
-        create_study : bool
-            Whether to create a new study or expect that there is an existing
+        create_session : bool
+            Whether to create a new session or expect that there is an existing
             one (should only be used if there is a blank one there typically
         """
         if tmp_dir is None:
@@ -730,16 +732,16 @@ class DarisLogin:
         if new_project_id is None:
             new_project_id = old_project_id
         scans = self.get_files(old_project_id, old_subject_id,
-                               study_id=old_study_id,
+                               session_id=old_session_id,
                                repo_id=repo_id, ex_method_id=old_ex_method_id)
         # Download scans first just to check whether there are any problems
-        # before creating the new study
+        # before creating the new session
         for scan in scans.itervalues():
             self.download(os.path.join(tmp_dir, '{}_{}.zip'.format(scan.id,
                                                                    scan.name)),
                           project_id=old_project_id,
                           subject_id=old_subject_id,
-                          study_id=old_study_id,
+                          session_id=old_session_id,
                           file_id=scan.id,
                           repo_id=repo_id,
                           ex_method_id=old_ex_method_id)
@@ -769,24 +771,24 @@ class DarisLogin:
         new_sessions = self.get_sessions(new_project_id, new_subject_id,
                                        ex_method_id=new_ex_method_id,
                                        repo_id=repo_id)
-        old_study = old_sessions[old_study_id]
-        # Add the new study if required
-        if new_study_id not in new_sessions:
-            if not create_study:
-                raise DarisException("Study {} is not present for subject {} "
-                                     "in project {}".format(new_study_id,
+        old_session = old_sessions[old_session_id]
+        # Add the new session if required
+        if new_session_id not in new_sessions:
+            if not create_session:
+                raise DarisException("Session {} is not present for subject {} "
+                                     "in project {}".format(new_session_id,
                                                             new_subject_id,
                                                             new_project_id))
-            self.add_study(
-                new_project_id, new_subject_id, study_id=new_study_id,
-                name=(new_study_name
-                      if new_study_name is not None else old_study.name),
-                description=old_study.description,
+            self.add_session(
+                new_project_id, new_subject_id, session_id=new_session_id,
+                name=(new_session_name
+                      if new_session_name is not None else old_session.name),
+                description=old_session.description,
                 ex_method_id=new_ex_method_id, repo_id=repo_id)
         if download:
             for scan in scans.itervalues():
                 new_file_id = self.add_file(
-                    new_project_id, new_subject_id, study_id=new_study_id,
+                    new_project_id, new_subject_id, session_id=new_session_id,
                     file_id=scan.id, name=scan.name,
                     description=scan.description,
                     ex_method_id=new_ex_method_id, repo_id=repo_id)
@@ -794,40 +796,40 @@ class DarisLogin:
                                          '{}_{}.zip'.format(scan.id,
                                                             scan.name)),
                             new_project_id, new_subject_id,
-                            study_id=new_study_id, file_id=new_file_id,
+                            session_id=new_session_id, file_id=new_file_id,
                             ex_method_id=new_ex_method_id, repo_id=repo_id,
                             lctype=scan.lctype)
         else:
-            study_cid = construct_cid(
+            session_cid = construct_cid(
                 project_id=new_project_id, subject_id=new_subject_id,
-                study_id=new_study_id, ex_method_id=new_ex_method_id,
+                session_id=new_session_id, ex_method_id=new_ex_method_id,
                 repo_id=repo_id)
             for scan_id in sorted(scans):
                 scan_cid = construct_cid(
                     project_id=new_project_id, subject_id=old_subject_id,
-                    study_id=old_study_id, ex_method_id=new_ex_method_id,
+                    session_id=old_session_id, ex_method_id=new_ex_method_id,
                     file_id=scan_id, repo_id=repo_id)
                 self.run('om.pssd.dataset.move :id {} :pid {}'
-                         .format(scan_cid, study_cid))
-        return new_study_id
+                         .format(scan_cid, session_cid))
+        return new_session_id
 
-    def move_study(self, project_id, old_subject_id, old_study_id,
-                   new_study_id, old_ex_method_id=1, repo_id=2, **kwargs):
-        self.copy_study(project_id, old_subject_id, old_study_id, new_study_id,
+    def move_session(self, project_id, old_subject_id, old_session_id,
+                   new_session_id, old_ex_method_id=1, repo_id=2, **kwargs):
+        self.copy_session(project_id, old_subject_id, old_session_id, new_session_id,
                         old_ex_method_id=old_ex_method_id, repo_id=repo_id,
                         **kwargs)
-        self.delete_study(project_id, old_subject_id, old_study_id,
+        self.delete_session(project_id, old_subject_id, old_session_id,
                           ex_method_id=old_ex_method_id, repo_id=repo_id)
 
-    def add_file(self, project_id, subject_id, study_id, file_id=None,
+    def add_file(self, project_id, subject_id, session_id, file_id=None,
                  name=None, description='\"\"', ex_method_id=2, repo_id=2,
                  processed=None):
         """
-        Adds a new file with the given subject_id within the given study id
+        Adds a new file with the given subject_id within the given session id
 
         project_id  -- The id of the project to add the file to
         subject_id  -- The id of the subject to add the file to
-        study_id    -- The id of the study to add the file to
+        session_id    -- The id of the session to add the file to
         file_id     -- The file_id of the file to add. If not provided
                        the next available file_id is used
         name        -- The name of the subject
@@ -838,7 +840,7 @@ class DarisLogin:
             try:
                 max_file_id = max(
                     self.get_files(project_id, subject_id,
-                                   study_id=study_id,
+                                   session_id=session_id,
                                    ex_method_id=ex_method_id, repo_id=repo_id))
             except ValueError:
                 max_file_id = 0
@@ -855,14 +857,14 @@ class DarisLogin:
             processed = (ex_method_id > 1)
         cmd = ("om.pssd.dataset.derivation.create :pid 1008.{}.{}.{}.{}.{}"
                " :processed {} :name \"{}\" :description \"{}\"{}".format(
-                   repo_id, project_id, subject_id, ex_method_id, study_id,
+                   repo_id, project_id, subject_id, ex_method_id, session_id,
                    str(processed).lower(), name, description, meta))
         # Return the id of the newly created remote file
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
     def download(self, location, project_id, subject_id, file_id,
-                 study_id=1, ex_method_id=1, repo_id=2):
+                 session_id=1, ex_method_id=1, repo_id=2):
         """
         Downloads an asset to a location on the local file system
 
@@ -878,8 +880,8 @@ class DarisLogin:
             Id of the subject
         file_id: int
             Id of the scan/file to download
-        study_id: int
-            Id of the study
+        session_id: int
+            Id of the session
         ex_method_id: int
             Id of the experiment/method
         repo_id: int
@@ -887,11 +889,11 @@ class DarisLogin:
         """
         # Construct CID
         cid = "1008.{}.{}.{}.{}.{}.{}".format(
-            repo_id, project_id, subject_id, ex_method_id, study_id,
+            repo_id, project_id, subject_id, ex_method_id, session_id,
             file_id)
         self.run("asset.get :cid {} :out file:\"{}\"".format(cid, location))
 
-    def download_match(self, location, project_id, sub_id, study_id=1,
+    def download_match(self, location, project_id, sub_id, session_id=1,
                        match_scan=None, scan_type=None):
         """
         Downloads multiple assets to a location on the local file system
@@ -915,7 +917,7 @@ class DarisLogin:
             raise Exception(
                 "You must provide one between match_scan OR scan_type")
 
-        files = self.get_files(project_id, sub_id, study_id=study_id)
+        files = self.get_files(project_id, sub_id, session_id=session_id)
 
         list_scans = {}
         list_scans['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
@@ -958,15 +960,15 @@ class DarisLogin:
                     if re.match(match_scan, files[file_id].name):
                         name = files[file_id].cid
                         self.download(location + name + '.zip', project_id,
-                                      sub_id, file_id, study_id=study_id)
+                                      sub_id, file_id, session_id=session_id)
         else:
             for file_id in files:
                 if re.match(match_scan, files[file_id].name):
                     name = files[file_id].cid
                     self.download(location + name + '.zip', project_id, sub_id,
-                                  file_id, study_id=study_id)
+                                  file_id, session_id=session_id)
 
-    def upload(self, location, project_id, subject_id, study_id, file_id,
+    def upload(self, location, project_id, subject_id, session_id, file_id,
                name=None, repo_id=2, ex_method_id=2, lctype=None):
         # Use the name of the file to be uploaded if the 'name' kwarg is
         # present
@@ -981,7 +983,7 @@ class DarisLogin:
         cmd = (
             "om.pssd.dataset.derivation.update :id 1008.{}.{}.{}.{}.{}.{} "
             " :in file:\"{}\" :filename \"{}\"{}".format(
-                repo_id, project_id, subject_id, ex_method_id, study_id,
+                repo_id, project_id, subject_id, ex_method_id, session_id,
                 file_id, location, name, lctype_str))
         self.run(cmd)
 
@@ -999,24 +1001,24 @@ class DarisLogin:
                                        ex_method_id))
         self.run(cmd)
 
-    def delete_study(self, project_id, subject_id, study_id, ex_method_id=2,
+    def delete_session(self, project_id, subject_id, session_id, ex_method_id=2,
                      repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
-                repo_id, project_id, subject_id, ex_method_id, study_id))
+                repo_id, project_id, subject_id, ex_method_id, session_id))
         self.run(cmd)
 
-    def delete_file(self, project_id, subject_id, study_id, file_id,
+    def delete_file(self, project_id, subject_id, session_id, file_id,
                     ex_method_id=2, repo_id=2):
         cmd = (
             "om.pssd.object.destroy :cid 1008.{}.{}.{}.{}.{}.{} "
             ":destroy-cid true".format(
-                repo_id, project_id, subject_id, ex_method_id, study_id,
+                repo_id, project_id, subject_id, ex_method_id, session_id,
                 file_id))
         self.run(cmd)
 
-    def find_study(self, name, project_id, subject_id, ex_method_id,
+    def find_session(self, name, project_id, subject_id, ex_method_id,
                    repo_id=2):
         sessions = self.get_sessions(
             project_id=project_id, subject_id=subject_id,
@@ -1025,7 +1027,7 @@ class DarisLogin:
             return next(s for s in sessions.itervalues() if s.name == name)
         except StopIteration:
             raise DarisNameNotFoundException(
-                "Did not find study named '{}' in 1008.{}.{}.{}.{}"
+                "Did not find session named '{}' in 1008.{}.{}.{}.{}"
                 .format(repo_id, project_id, subject_id, ex_method_id))
 
     def run(self, cmd, xpath=None, expect_single=False, logon=False):
@@ -1205,14 +1207,14 @@ class DarisEntry(object):
         return self._url
 
 
-def construct_cid(project_id, subject_id=None, study_id=None,
+def construct_cid(project_id, subject_id=None, session_id=None,
                   ex_method_id=None, file_id=None, repo_id=2):
     """
     Returns the CID (unique asset identifier for DaRIS) from the combination of
     sub ids
     """
     cid = '1008.{}.{}'.format(repo_id, project_id)
-    ids = (subject_id, ex_method_id, study_id, file_id)
+    ids = (subject_id, ex_method_id, session_id, file_id)
     for i, id_ in enumerate(ids):
         if id_ is not None:
             cid += '.{}'.format(int(id_))
@@ -1223,10 +1225,10 @@ def construct_cid(project_id, subject_id=None, study_id=None,
                 raise DarisException(
                     "Not None IDs followed None value in constructing CID for "
                     "project_id={project_id}, subject_id={subject_id}, "
-                    "study_id={study_id}, ex_method_id={ex_method_id}, "
+                    "session_id={session_id}, ex_method_id={ex_method_id}, "
                     "file_id={file_id}, repo_id={repo_id}".format(
                         project_id=project_id, subject_id=subject_id,
-                        study_id=study_id, ex_method_id=ex_method_id,
+                        session_id=session_id, ex_method_id=ex_method_id,
                         file_id=file_id, repo_id=repo_id))
             else:
                 break
@@ -1237,5 +1239,5 @@ if __name__ == '__main__':
     daris = DarisLogin(domain='system', user='manager',
                          password='t0gp154sp!')
     with daris:
-        daris.copy_study(135, 3, 2, new_project_id=144, new_subject_id=2,
-                         new_study_id=1)
+        daris.copy_session(135, 3, 2, new_project_id=144, new_subject_id=2,
+                         new_session_id=1)

@@ -97,9 +97,9 @@ class LocalSink(ArchiveSink):
         outputs = self.output_spec().get()
         out_files = []
         missing_files = []
-        # Get cache dir for study
+        # Get cache dir for session
         out_dir = self._get_output_dir()
-        # Make study cache dir
+        # Make session cache dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through files connected to the sink and copy them to the
@@ -274,7 +274,7 @@ class LocalArchive(Archive):
         for session in sessions:
             if os.path.exists(
                 os.path.join(self._base_dir, str(project_id),
-                             session.subject_id, session.study_id,
+                             session.subject_id, session.session_id,
                              scan.filename)):
                 with_dataset.append(session)
         return with_dataset
