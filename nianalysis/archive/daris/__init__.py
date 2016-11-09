@@ -697,13 +697,16 @@ class DarisSession:
             study_id = max_study_id + 1
         if name is None:
             name = str(study_id)
-        if processed is None:
-            processed = (ex_method_id > 1)
+        if processed is not None:
+            processed_switch = ' :processed {}'.format(str(processed).lower())
+        else:
+            processed_switch = ''
         cmd = (
-            "om.pssd.study.create :pid 1008.{}.{}.{}.{} :processed {} "
-            ":name \"{}\" :description \"{}\" :step 1 :study-number {}".format(
+            "om.pssd.study.create :pid 1008.{}.{}.{}.{} "
+            ":name \"{}\" :description \"{}\" :step 1 :study-number {}"
+            "{processed}".format(
                 repo_id, project_id, subject_id, ex_method_id,
-                str(processed).lower(), name, description, study_id))
+                name, description, study_id, processed=processed_switch))
         # Return the id of the newly created study
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])

@@ -1,12 +1,14 @@
 import os
 from itertools import chain
 from nipype.pipeline import engine as pe
+from nipype.interfaces.freesurfer.preprocess import ReconAll
+from nipype.interfaces.freesurfer.utils import MakeAverageSubject
 from nianalysis.dataset.base import _create_component_dict
 from nipype.interfaces.utility import Split
 from nipype.interfaces.spm import Info, NewSegment
 from nianalysis.base import Scan
 from nianalysis.formats import nifti_format
-from nianalysis.requirements import spm12_req
+from nianalysis.requirements import spm12_req, freesurfer_req
 from nianalysis.citations import spm_cite
 from .base import MRDataset
 
@@ -15,7 +17,7 @@ class T1Dataset(MRDataset):
 
     def spm_segmentation_pipeline(self):
         """
-        Segments grey matter, white matter and CSF from T1 and T2 images using
+        Segments grey matter, white matter and CSF from T1 images using
         SPM "NewSegment" function.
 
         NB: Default values come from the W2MHS toolbox
@@ -67,9 +69,71 @@ class T1Dataset(MRDataset):
         pipeline.connect_output('t1_csf', channel_splits[2], 'out2')
         return pipeline
 
+    def freesurfer_pipeline(self):
+        """
+        Segments grey matter, white matter and CSF from T1 images using
+        SPM "NewSegment" function.
+
+        NB: Default values come from the W2MHS toolbox
+        """
+        pipeline = self._create_pipeline(
+            name='segmentation',
+            inputs=['t1'],
+            outputs=[''],
+            description="Segment white/grey matter and csf",
+            options={},
+            requirements=[freesurfer_req],
+            citations=[spm_cite],
+            approx_runtime=5)
+        subject_list = ['s1', 's3']
+        data_dir = os.path.abspath('data')
+        subjects_dir = os.path.abspath('amri_freesurfer_tutorial/subjects_dir')
+        
+        wf = pe.Workflow(name="l1workflow")
+        wf.base_dir = os.path.abspath('amri_freesurfer_tutorial/workdir')
+        
+        """
+        Grab data
+        """
+        
+        datasource = pe.MapNode(interface=nio.DataGrabber(infields=['subject_id'],
+                                                          outfields=['struct']),
+                                name='datasource',
+                                iterfield=['subject_id'])
+        datasource.inputs.base_directory = data_dir
+        datasource.inputs.template = '%s/%s.nii'
+        datasource.inputs.template_args = dict(struct=[['subject_id', 'struct']])
+        datasource.inputs.subject_id = subject_list
+        datasource.inputs.sort_filelist = True
+        """
+        Run recon-all
+        """
+        
+        recon_all = pe.MapNode(interface=ReconAll(), name='recon_all',
+                               iterfield=['subject_id', 'T1_files'])
+        recon_all.inputs.subject_id = subject_list
+        if not os.path.exists(subjects_dir):
+            os.mkdir(subjects_dir)
+        recon_all.inputs.subjects_dir = subjects_dir
+        
+        wf.connect(datasource, 'struct', recon_all, 'T1_files')
+        
+        """
+        Make average subject
+        """
+        
+        average = pe.Node(interface=MakeAverageSubject(), name="average")
+        average.inputs.subjects_dir = subjects_dir
+        
+        wf.connect(recon_all, 'subject_id', average, 'subjects_ids')
+        
+        wf.run("MultiProc", plugin_args={'n_procs': 4})
+
     _components = _create_component_dict(
         Scan('t1', nifti_format),
         Scan('t1_white_matter', nifti_format, spm_segmentation_pipeline),
         Scan('t1_grey_matter', nifti_format, spm_segmentation_pipeline),
         Scan('t1_csf', nifti_format, spm_segmentation_pipeline),
         inherit_from=chain(MRDataset.generated_components()))
+
+
