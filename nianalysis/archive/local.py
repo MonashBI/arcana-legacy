@@ -230,28 +230,30 @@ class LocalArchive(Archive):
             for session_dir in session_dirs:
                 session_path = os.path.join(subject_path, session_dir)
                 datasets = []
-                datasets = [d for d in os.listdir(session_path)
+                files = [d for d in os.listdir(session_path)
                             if not os.path.isdir(d)]
-                for f in datasets:
+                for f in files:
                     basename, ext = split_extension(f)
                     datasets.append(
-                        Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+                        Dataset(name=basename,
+                                format=dataset_formats_by_ext[ext]))
                 sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
-                datasets = [d for d in os.listdir(subject_summary_path)
+                files = [d for d in os.listdir(subject_summary_path)
                             if not os.path.isdir(d)]
-                for f in datasets:
+                for f in files:
                     basename, ext = split_extension(f)
                     datasets.append(
-                        Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+                        Dataset(name=basename,
+                                format=dataset_formats_by_ext[ext]))
             subjects.append(Subject(subject_dir, sessions, datasets))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(subject_summary_path):
-            datasets = [d for d in os.listdir(project_summary_path)
+            files = [d for d in os.listdir(project_summary_path)
                         if not os.path.isdir(d)]
-            for f in datasets:
+            for f in files:
                 basename, ext = split_extension(f)
                 datasets.append(
                     Dataset(name=basename, format=dataset_formats_by_ext[ext]))
