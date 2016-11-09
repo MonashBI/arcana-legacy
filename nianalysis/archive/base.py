@@ -300,7 +300,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
-        desc=("Whether or not to overwrite previously created studies of the "
+        desc=("Whether or not to overwrite previously created sessions of the "
               "same name"))
 
     def __setattr__(self, name, val):

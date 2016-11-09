@@ -356,7 +356,7 @@ class DarisArchive(Archive):
         repo_id : int
             The id of the repository (2 for monash daris)
         study_ids: int|List[int]|None
-            Id or ids of studies of which to return sessions for. If None all
+            Id or ids of sessions of which to return sessions for. If None all
             are returned
         """
         with self._daris() as daris:
@@ -601,7 +601,7 @@ class DarisLogin:
             .format(construct_cid(project_id=project_id, subject_id=subject_id,
                                   repo_id=repo_id)))
 
-    def get_studies(self, project_id, subject_id, ex_method_id=1,
+    def get_sessions(self, project_id, subject_id, ex_method_id=1,
                     repo_id=2):
         return self.query(
             "cid starts with '{}' and model='om.pssd.study'"
@@ -689,7 +689,7 @@ class DarisLogin:
             # Get the next unused study id
             try:
                 max_study_id = max(
-                    self.get_studies(project_id, subject_id,
+                    self.get_sessions(project_id, subject_id,
                                      ex_method_id=ex_method_id,
                                      repo_id=repo_id))
             except ValueError:
@@ -762,16 +762,16 @@ class DarisLogin:
                                    new_ex_method_id, repo_id=repo_id)
         else:
             new_ex_method_id = old_ex_method_id
-        # Get list of studies in old and new locations
-        old_studies = self.get_studies(old_project_id, old_subject_id,
+        # Get list of sessions in old and new locations
+        old_sessions = self.get_sessions(old_project_id, old_subject_id,
                                        ex_method_id=old_ex_method_id,
                                        repo_id=repo_id)
-        new_studies = self.get_studies(new_project_id, new_subject_id,
+        new_sessions = self.get_sessions(new_project_id, new_subject_id,
                                        ex_method_id=new_ex_method_id,
                                        repo_id=repo_id)
-        old_study = old_studies[old_study_id]
+        old_study = old_sessions[old_study_id]
         # Add the new study if required
-        if new_study_id not in new_studies:
+        if new_study_id not in new_sessions:
             if not create_study:
                 raise DarisException("Study {} is not present for subject {} "
                                      "in project {}".format(new_study_id,
@@ -1018,11 +1018,11 @@ class DarisLogin:
 
     def find_study(self, name, project_id, subject_id, ex_method_id,
                    repo_id=2):
-        studies = self.get_studies(
+        sessions = self.get_sessions(
             project_id=project_id, subject_id=subject_id,
             repo_id=self.inputs.repo_id, ex_method_id=2).itervalues()
         try:
-            return next(s for s in studies.itervalues() if s.name == name)
+            return next(s for s in sessions.itervalues() if s.name == name)
         except StopIteration:
             raise DarisNameNotFoundException(
                 "Did not find study named '{}' in 1008.{}.{}.{}.{}"

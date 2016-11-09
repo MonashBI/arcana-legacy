@@ -12,7 +12,7 @@ from nianalysis.formats import nifti_gz_format
 from nianalysis.base import Scan
 
 
-# The projects/subjects/studies to alter on DaRIS
+# The projects/subjects/sessions to alter on DaRIS
 SERVER = 'mf-erc.its.monash.edu.au'
 REPO_ID = 2
 PROJECT_ID = 4
@@ -46,13 +46,13 @@ class TestDarisLogin(TestCase):
         self.assertEqual(subjects[2].name, 'db02')
         self.assertEqual(subjects[3].name, 'db03')
 
-    def test_get_studies(self):
-        studies = self._daris.get_studies(project_id=4, subject_id=1,
+    def test_get_sessions(self):
+        sessions = self._daris.get_sessions(project_id=4, subject_id=1,
                                           repo_id=REPO_ID, ex_method_id=1)
-        self.assertEqual(len(studies), 3)
-        self.assertEqual(studies[1].name, 'Session1')
-        self.assertEqual(studies[2].name, 'Session2')
-        self.assertEqual(studies[3].name, 'Session3')
+        self.assertEqual(len(sessions), 3)
+        self.assertEqual(sessions[1].name, 'Session1')
+        self.assertEqual(sessions[2].name, 'Session2')
+        self.assertEqual(sessions[3].name, 'Session3')
 
     def test_get_files(self):
         files = self._daris.get_files(
@@ -97,7 +97,7 @@ class TestDarisLogin(TestCase):
 
     def test_add_remove_study(self):
         for ex_method_id in (1, 2):
-            num_studies = len(self._daris.get_studies(
+            num_sessions = len(self._daris.get_sessions(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 ex_method_id=ex_method_id))
             study_id = self._daris.add_study(
@@ -114,10 +114,10 @@ class TestDarisLogin(TestCase):
                              "removed by the same test"),
                 ex_method_id=ex_method_id)
             self.assertEqual(
-                len(self._daris.get_studies(project_id=PROJECT_ID,
+                len(self._daris.get_sessions(project_id=PROJECT_ID,
                                             subject_id=SUBJECT_ID,
                                             ex_method_id=ex_method_id)),
-                num_studies + 2)
+                num_sessions + 2)
             self._daris.delete_study(
                 project_id=PROJECT_ID, subject_id=SUBJECT_ID,
                 study_id=study_id, repo_id=REPO_ID,
@@ -127,8 +127,8 @@ class TestDarisLogin(TestCase):
                 study_id=(study_id + 1), repo_id=REPO_ID,
                 ex_method_id=ex_method_id)
             self.assertEqual(
-                num_studies,
-                len(self._daris.get_studies(project_id=PROJECT_ID,
+                num_sessions,
+                len(self._daris.get_sessions(project_id=PROJECT_ID,
                                             subject_id=SUBJECT_ID,
                                             ex_method_id=ex_method_id)))
 
