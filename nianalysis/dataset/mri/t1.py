@@ -1,5 +1,6 @@
 import os
 from itertools import chain
+from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.freesurfer.preprocess import ReconAll
 from nipype.interfaces.freesurfer.utils import MakeAverageSubject
@@ -9,7 +10,7 @@ from nipype.interfaces.spm import Info, NewSegment
 from nianalysis.base import Scan
 from nianalysis.formats import nifti_format
 from nianalysis.requirements import spm12_req, freesurfer_req
-from nianalysis.citations import spm_cite
+from nianalysis.citations import spm_cite, freesurfer_cites
 from .base import MRDataset
 
 
@@ -83,34 +84,10 @@ class T1Dataset(MRDataset):
             description="Segment white/grey matter and csf",
             options={},
             requirements=[freesurfer_req],
-            citations=[spm_cite],
-            approx_runtime=5)
-        subject_list = ['s1', 's3']
-        data_dir = os.path.abspath('data')
-        subjects_dir = os.path.abspath('amri_freesurfer_tutorial/subjects_dir')
-        
-        wf = pe.Workflow(name="l1workflow")
-        wf.base_dir = os.path.abspath('amri_freesurfer_tutorial/workdir')
-        
-        """
-        Grab data
-        """
-        
-        datasource = pe.MapNode(interface=nio.DataGrabber(infields=['subject_id'],
-                                                          outfields=['struct']),
-                                name='datasource',
-                                iterfield=['subject_id'])
-        datasource.inputs.base_directory = data_dir
-        datasource.inputs.template = '%s/%s.nii'
-        datasource.inputs.template_args = dict(struct=[['subject_id', 'struct']])
-        datasource.inputs.subject_id = subject_list
-        datasource.inputs.sort_filelist = True
-        """
-        Run recon-all
-        """
-        
-        recon_all = pe.MapNode(interface=ReconAll(), name='recon_all',
-                               iterfield=['subject_id', 'T1_files'])
+            citations=copy(freesurfer_cites),
+            approx_runtime=500)
+        recon_all = pe.Node(interface=ReconAll(), name='recon_all')
+        pipeline.connect_input('t1', recon_all, 'T1_files')
         recon_all.inputs.subject_id = subject_list
         if not os.path.exists(subjects_dir):
             os.mkdir(subjects_dir)
