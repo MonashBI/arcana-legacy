@@ -4,7 +4,7 @@ from copy import copy
 class DataFormat(object):
 
     def __init__(self, name, extension, lctype=None, converter='mrconvert',
-                 description='', mrinfo=None):
+                 description='', mrinfo='None'):
         self._name = name
         self._extension = extension
         self._lctype = lctype
@@ -60,13 +60,13 @@ freesurfer_format = DataFormat(name='freesurfer', extension='',
 
 
 # A dictionary to access all the formats by name
-dataset_formats = dict(
+data_formats = dict(
     (f.name, f) for f in copy(globals()).itervalues()
     if isinstance(f, DataFormat))
 
-dataset_formats_by_ext = dict(
-    (f.extension, f) for f in dataset_formats.itervalues())
 
-mrinfo_abbrevs = dict(
-    (f.mrinfo, f) for f in dataset_formats.itervalues())
+data_formats_by_ext = dict(
+    (f.extension, f) for f in data_formats.itervalues())
 
+data_formats_by_mrinfo = dict(
+    (f.mrinfo, f) for f in data_formats.itervalues())

@@ -2,7 +2,11 @@ import os.path
 from nianalysis.data_formats import DataFormat
 from copy import copy
 from nipype.interfaces.base import traits
-from nianalysis.data_formats import dataset_formats
+import subprocess as sp
+from nianalysis.data_formats import (
+    data_formats, data_formats_by_ext, data_formats_by_mrinfo)
+from nianalysis.utils import split_extension
+from nianalysis.exceptions import NiAnalysisError
 
 
 class Dataset(object):
@@ -87,9 +91,25 @@ class Dataset(object):
     @classmethod
     def from_tuple(cls, tple):
         name, format_name, multiplicity, processed = tple
-        dataset_format = dataset_formats[format_name]
-        return cls(name, dataset_format, pipeline=processed,
+        data_format = data_formats[format_name]
+        return cls(name, data_format, pipeline=processed,
                    multiplicity=multiplicity)
+
+    @classmethod
+    def from_path(cls, path, multiplicity='per_session'):
+        basename, ext = split_extension(path)
+        try:
+            data_format = data_formats_by_ext[ext]
+        except KeyError:
+            abbrev = sp.check_output(
+                "mrinfo {} 2>/dev/null | grep Format | "
+                "awk '{print $2}'".format(path), shell=True)
+            try:
+                data_format = data_formats_by_mrinfo[abbrev]
+            except KeyError:
+                raise NiAnalysisError(
+                    "Unrecognised data format '{}'")
+        return cls(basename, data_format, multiplicity=multiplicity)
 
     @classmethod
     def traits_spec(self):

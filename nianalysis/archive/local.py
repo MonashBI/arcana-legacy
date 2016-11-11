@@ -11,7 +11,7 @@ from nipype.interfaces.base import (
 from .base import Project, Subject, Session
 from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.data_formats import dataset_formats, dataset_formats_by_ext, mrinfo_abbrevs
+from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 
 
@@ -54,7 +54,7 @@ class LocalSource(ArchiveSource):
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(
                     multiplicity)
-            fname = name + dataset_formats[dataset_format].extension
+            fname = name + data_formats[dataset_format].extension
             outputs[name + self.OUTPUT_SUFFIX] = os.path.join(download_dir,
                                                               fname)
         return outputs
@@ -106,14 +106,14 @@ class LocalSink(ArchiveSink):
         # cache directory and upload to daris.
         for name, dataset_format, multiplicity, _ in self.inputs.datasets:
             filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
-            ext = dataset_formats[dataset_format].extension
+            ext = data_formats[dataset_format].extension
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
             assert (split_extension(filename)[1] == ext), (
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
-                        dataset_formats[dataset_format].name, ext))
+                        data_formats[dataset_format].name, ext))
             assert isdefined(filename), (
                 "Previous node returned undefined input to Local sink for "
                 "'{}' output".format(name))
@@ -233,13 +233,7 @@ class LocalArchive(Archive):
                 files = [d for d in os.listdir(session_path)
                             if not os.path.isdir(d)]
                 for f in files:
-                    basename, ext = split_extension(f)
-                    mrinfo_abbrev = sp.check_output(
-                        "mrinfo {} 2>/dev/null | grep Format | "
-                        "awk '{print $2}'".format(f), shell=True)
-                    datasets.append(
-                        Dataset(name=basename,
-                                format=mrinfo_formats[mrinfo_abbrev]))
+                    datasets.append(Dataset.from_path(f))
                 sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
@@ -247,19 +241,16 @@ class LocalArchive(Archive):
                 files = [d for d in os.listdir(subject_summary_path)
                             if not os.path.isdir(d)]
                 for f in files:
-                    basename, ext = split_extension(f)
                     datasets.append(
-                        Dataset(name=basename,
-                                format=dataset_formats_by_ext[ext]))
+                        Dataset.from_path(f, multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
-        if os.path.exists(subject_summary_path):
+        if os.path.exists(project_summary_path):
             files = [d for d in os.listdir(project_summary_path)
                         if not os.path.isdir(d)]
             for f in files:
-                basename, ext = split_extension(f)
                 datasets.append(
-                    Dataset(name=basename, format=dataset_formats_by_ext[ext]))
+                    Dataset.from_path(f, multiplicity='per_project'))
         project = Project(project_id, subjects, datasets)
         return project
 
