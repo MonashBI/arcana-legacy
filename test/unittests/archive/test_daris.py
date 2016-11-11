@@ -8,7 +8,7 @@ from nianalysis.archive.daris import (
     DarisLogin, DarisArchive, DarisSource, DarisSink, SUBJECT_SUMMARY_ID,
     PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
-from nianalysis.formats import nifti_gz_format
+from nianalysis.data_formats import nifti_gz_format
 from nianalysis.base import Dataset
 
 

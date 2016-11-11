@@ -1,8 +1,8 @@
 import os.path
-from nianalysis.formats import DatasetFormat
+from nianalysis.data_formats import DataFormat
 from copy import copy
 from nipype.interfaces.base import traits
-from nianalysis.formats import dataset_formats
+from nianalysis.data_formats import dataset_formats
 
 
 class Dataset(object):
@@ -35,7 +35,7 @@ class Dataset(object):
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session'):
         assert isinstance(name, basestring)
-        assert isinstance(format, DatasetFormat)
+        assert isinstance(format, DataFormat)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
         self._name = name
         self._format = format

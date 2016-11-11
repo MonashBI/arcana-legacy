@@ -4,7 +4,7 @@ from unittest import TestCase
 import subprocess as sp
 from nipype.pipeline import engine as pe
 from nianalysis.base import Dataset
-from nianalysis.formats import nifti_gz_format, mrtrix_format
+from nianalysis.data_formats import nifti_gz_format, mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.project.base import Project, _create_component_dict
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath

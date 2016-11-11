@@ -13,7 +13,7 @@ from nianalysis.interfaces.utils import MergeTuple
 from nianalysis.citations import (
     mrtrix_cite, fsl_cite, eddy_cite, topup_cite, distort_correct_cite,
     noddi_cite, fast_cite, n4_cite, tbss_cite)
-from nianalysis.formats import (
+from nianalysis.data_formats import (
     mrtrix_format, nifti_gz_format, fsl_bvecs_format, fsl_bvals_format,
     nifti_format)
 from nianalysis.requirements import (

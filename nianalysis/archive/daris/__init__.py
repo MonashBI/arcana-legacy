@@ -15,7 +15,7 @@ from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project)
-from nianalysis.formats import dataset_formats
+from nianalysis.data_formats import dataset_formats
 import re
 import collections
 from nianalysis.utils import split_extension
