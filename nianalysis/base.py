@@ -4,9 +4,12 @@ from copy import copy
 from nipype.interfaces.base import traits
 import subprocess as sp
 from nianalysis.data_formats import (
-    data_formats, data_formats_by_ext, data_formats_by_mrinfo)
+    data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
+from logging import getLogger
+
+logger = getLogger('NiAnalysis')
 
 
 class Dataset(object):
@@ -101,14 +104,14 @@ class Dataset(object):
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
-            abbrev = sp.check_output(
-                "mrinfo {} 2>/dev/null | grep Format | "
-                "awk '{print $2}'".format(path), shell=True)
+            cmd = "mrinfo \"{}\" 2>/dev/null | grep Format | awk '{{print $2}}'".format(path)
+            abbrev = sp.check_output(cmd, shell=True).strip()
             try:
                 data_format = data_formats_by_mrinfo[abbrev]
             except KeyError:
-                raise NiAnalysisError(
-                    "Unrecognised data format '{}'")
+                logger.warning("Unrecognised format '{}' of path '{}'"
+                               "assuming it is a dicom".format(abbrev, path))
+                data_format = dicom_format
         return cls(basename, data_format, multiplicity=multiplicity)
 
     @classmethod

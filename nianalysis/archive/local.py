@@ -233,7 +233,8 @@ class LocalArchive(Archive):
                 files = [d for d in os.listdir(session_path)
                             if not os.path.isdir(d)]
                 for f in files:
-                    datasets.append(Dataset.from_path(f))
+                    datasets.append(
+                        Dataset.from_path(os.path.join(session_path, f)))
                 sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)
@@ -242,7 +243,8 @@ class LocalArchive(Archive):
                             if not os.path.isdir(d)]
                 for f in files:
                     datasets.append(
-                        Dataset.from_path(f, multiplicity='per_subject'))
+                        Dataset.from_path(os.path.join(subject_summary_path, f),
+                                          multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(project_summary_path):
@@ -250,7 +252,8 @@ class LocalArchive(Archive):
                         if not os.path.isdir(d)]
             for f in files:
                 datasets.append(
-                    Dataset.from_path(f, multiplicity='per_project'))
+                    Dataset.from_path(os.path.join(project_summary_path, f),
+                                      multiplicity='per_project'))
         project = Project(project_id, subjects, datasets)
         return project
 

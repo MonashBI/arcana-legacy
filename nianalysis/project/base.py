@@ -426,7 +426,7 @@ class Pipeline(object):
             # If the dataset is not in the required format for the project
             # user MRConvert to convert it
             if dataset.format != comp.format:
-                if dataset.format.convert != 'mrconvert':
+                if dataset.format.converter != 'mrconvert':
                     raise NotImplementedError(
                         "Only data format conversions that are supported by "
                         "mrconvert are currently implemented "
@@ -436,6 +436,7 @@ class Pipeline(object):
                                      name=(comp.name + '_input_conversion'))
                 conversion.inputs.out_ext = comp.format.extension
                 conversion.inputs.quiet = True
+                print dataset.name
                 complete_workflow.connect(source, dataset.filename,
                                           conversion, 'in_file')
                 dataset_source = conversion
