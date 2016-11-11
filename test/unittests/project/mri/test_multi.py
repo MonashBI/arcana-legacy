@@ -7,7 +7,7 @@ config.enable_debug_mode()
 from nianalysis.base import Dataset  # @IgnorePep8
 from nianalysis.project.mri import T1AndT2Project # @IgnorePep8
 from nianalysis.archive import LocalArchive  # @IgnorePep8
-from nianalysis.formats import (  # @IgnorePep8
+from nianalysis.data_formats import (  # @IgnorePep8
     nifti_format)
 if __name__ == '__main__':
     from nianalysis.testing import DummyTestCase as TestCase  # @IgnorePep8 @UnusedImport

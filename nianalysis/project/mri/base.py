@@ -4,7 +4,7 @@ from nianalysis.base import Dataset
 from nianalysis.project.base import Project, _create_component_dict
 from nianalysis.requirements import Requirement
 from nianalysis.citations import fsl_cite, bet_cite, bet2_cite
-from nianalysis.formats import nifti_gz_format
+from nianalysis.data_formats import nifti_gz_format
 
 
 class MRProject(Project):

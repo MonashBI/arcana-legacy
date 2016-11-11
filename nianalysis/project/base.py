@@ -68,14 +68,15 @@ class Project(object):
     def dataset(self, name):
         """
         Returns either the dataset that has been passed to the project __init__
-        matching the component name provided or the processed dataset that is to
-        be generated using the pipeline associated with the generated component
+        matching the component name provided or the processed dataset that is
+        to be generated using the pipeline associated with the generated
+        component
 
         Parameters
         ----------
         dataset : Str
-            Name of the component to the find the corresponding acquired dataset
-            or processed dataset to be generated
+            Name of the component to the find the corresponding acquired
+            dataset or processed dataset to be generated
         """
         try:
             dataset = self._input_datasets[name]
@@ -88,9 +89,9 @@ class Project(object):
                     .format(name, self.__class__.__name__))
             if not dataset.processed:
                 raise NiAnalysisMissingDatasetError(
-                    "Acquired (i.e. non-generated) dataset '{}' is required for "
-                    "requested pipelines but was not supplied when the project"
-                    "was initiated.".format(name))
+                    "Acquired (i.e. non-generated) dataset '{}' is required "
+                    "for requested pipelines but was not supplied when the "
+                    "project was initiated.".format(name))
         return dataset
 
     @property
@@ -150,7 +151,8 @@ class Project(object):
     def generated_components(cls):
         """
         Lists all components defined in the project class that are typically
-        generated from other components (but can be overridden in input datasets)
+        generated from other components (but can be overridden in input
+        datasets)
         """
         return (c for c in cls.components() if c.processed)
 
@@ -184,7 +186,7 @@ class Pipeline(object):
         un/processed datasets, and the options used to generate them for
         unprocessed datasets
     outputs : List[ProcessedFile]
-        The list of outputs (hard-coded names for un/processed datasets/datasets)
+        The list of outputs (hard-coded names for un/processed datasets)
     options : Dict[str, *]
         Options that effect the output of the pipeline
     citations : List[Citation]
@@ -325,7 +327,8 @@ class Pipeline(object):
 
         # Get all requested sessions that are missing at least one of
         # the output datasets
-        if reprocess or not all(o in project.datasets for o in project_outputs):
+        if reprocess or not all(o in project.datasets
+                                for o in project_outputs):
             subjects_to_process = list(project.subjects)
         else:
             sessions_to_process = list(chain(*[
@@ -417,12 +420,18 @@ class Pipeline(object):
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
             dataset = self._project.dataset(inpt)
-            # Get the component (dataset template) corresponding to the pipeline's
-            # input
+            # Get the component (dataset template) corresponding to the
+            # pipeline's input
             comp = self._project.component(inpt)
             # If the dataset is not in the required format for the project
             # user MRConvert to convert it
             if dataset.format != comp.format:
+                if dataset.format.convert != 'mrconvert':
+                    raise NotImplementedError(
+                        "Only data format conversions that are supported by "
+                        "mrconvert are currently implemented "
+                        "({}->{} requested)".format(dataset.format,
+                                                    comp.format))
                 conversion = pe.Node(MRConvert(),
                                      name=(comp.name + '_input_conversion'))
                 conversion.inputs.out_ext = comp.format.extension
@@ -454,7 +463,8 @@ class Pipeline(object):
                                               sink, 'session_id')
             for output in outputs:
                 dataset = self._project.dataset(output)
-                if dataset.processed:  # Skip datasets which are already input datasets
+                # Skip datasets which are already input datasets
+                if dataset.processed:
                     complete_workflow.connect(
                         self._outputnodes[mult], dataset.name,
                         sink, dataset.name + ArchiveSink.INPUT_SUFFIX)
@@ -631,6 +641,21 @@ class Pipeline(object):
         """
         return '__'.join('{}_{}'.format(k, v)
                          for k, v in self.options.iteritems())
+
+    def add_input(self, input_name):
+        """
+        Adds a new input to the pipeline. Useful if extending a pipeline in a
+        derived Project class
+
+        Parameters
+        ----------
+        
+        """
+        if input_name not in self.project.component_names():
+            raise NiAnalysisDatasetNameError(
+                "'{}' is not a name of a component in {} Projects"
+                .format(input_name, self.project.name))
+        self._inputs.append(input_name)
 
     def assert_connected(self):
         """

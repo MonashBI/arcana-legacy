@@ -6,7 +6,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
     LocalArchive, LocalSource, LocalSink, SUBJECT_SUMMARY_NAME,
     PROJECT_SUMMARY_NAME)
-from nianalysis.formats import nifti_gz_format
+from nianalysis.data_formats import nifti_gz_format
 from nianalysis.base import Dataset
 from nianalysis.testing import test_data_dir
 import logging

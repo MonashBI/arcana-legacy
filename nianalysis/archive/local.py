@@ -11,7 +11,7 @@ from nipype.interfaces.base import (
 from .base import Project, Subject, Session
 from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.formats import dataset_formats, dataset_formats_by_ext
+from nianalysis.data_formats import dataset_formats, dataset_formats_by_ext
 from nianalysis.utils import split_extension
 
 
