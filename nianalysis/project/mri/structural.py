@@ -36,6 +36,8 @@ class T1Project(MRProject):
         # Connect inputs/outputs
         pipeline.connect_input('t1', recon_all, 'T1_files')
         pipeline.connect_output('freesurfer', recon_all, 'subject_id')
+        pipeline.assert_connected()
+        return pipeline
 
     _components = _create_component_dict(
         Dataset('t1', nifti_format),
@@ -177,11 +179,11 @@ class CoregisteredT1T2Project(T1Project, T2Project):
         Dataset('t1', nifti_format),
         Dataset('t2', nifti_format),
         Dataset('t2_coreg_t1', nifti_format, coregistration_pipeline),
-        Dataset('t1_white_matter', nifti_format, joint_segmentation_pipeline),
-        Dataset('t1_grey_matter', nifti_format, joint_segmentation_pipeline),
-        Dataset('t1_csf', nifti_format, joint_segmentation_pipeline),
-        Dataset('t2_white_matter', nifti_format, joint_segmentation_pipeline),
-        Dataset('t2_grey_matter', nifti_format, joint_segmentation_pipeline),
-        Dataset('t2_csf', nifti_format, joint_segmentation_pipeline),
+        Dataset('t1_white_matter', nifti_format, segmentation_pipeline),
+        Dataset('t1_grey_matter', nifti_format, segmentation_pipeline),
+        Dataset('t1_csf', nifti_format, segmentation_pipeline),
+        Dataset('t2_white_matter', nifti_format, segmentation_pipeline),
+        Dataset('t2_grey_matter', nifti_format, segmentation_pipeline),
+        Dataset('t2_csf', nifti_format, segmentation_pipeline),
         inherit_from=chain(T1Project.generated_components(),
                            T2Project.generated_components()))

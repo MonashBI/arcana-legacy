@@ -11,7 +11,7 @@ from nipype.interfaces.base import (
 from .base import Project, Subject, Session
 from nianalysis.base import Dataset
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.data_formats import dataset_formats, dataset_formats_by_ext
+from nianalysis.data_formats import dataset_formats, dataset_formats_by_ext, mrinfo_abbrevs
 from nianalysis.utils import split_extension
 
 
@@ -234,9 +234,12 @@ class LocalArchive(Archive):
                             if not os.path.isdir(d)]
                 for f in files:
                     basename, ext = split_extension(f)
+                    mrinfo_abbrev = sp.check_output(
+                        "mrinfo {} 2>/dev/null | grep Format | "
+                        "awk '{print $2}'".format(f), shell=True)
                     datasets.append(
                         Dataset(name=basename,
-                                format=dataset_formats_by_ext[ext]))
+                                format=mrinfo_formats[mrinfo_abbrev]))
                 sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
                                                 SUBJECT_SUMMARY_NAME)

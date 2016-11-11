@@ -4,12 +4,13 @@ from copy import copy
 class DataFormat(object):
 
     def __init__(self, name, extension, lctype=None, converter='mrconvert',
-                 description=''):
+                 description='', mrinfo=None):
         self._name = name
         self._extension = extension
         self._lctype = lctype
         self._converter = converter
         self._description = description
+        self._mrinfo = mrinfo
 
     def __repr__(self):
         return ("DataFormat(name='{}', extension='{}')"
@@ -38,14 +39,18 @@ class DataFormat(object):
     def description(self):
         return self._description
 
+    @property
+    def mrinfo(self):
+        return self._mrinfo
+
 
 nifti_format = DataFormat(name='nifti', extension='.nii',
-                             lctype='nifti/series')
+                          lctype='nifti/series', mrinfo='NIfTI-1.1')
 nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
-                                lctype='nifti/gz')
-mrtrix_format = DataFormat(name='mrtrix', extension='.mif')
+                                lctype='nifti/gz', mrinfo='NIfTI-1.1')
+mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
 analyze_format = DataFormat(name='analyze', extension='.img')
-dicom_format = DataFormat(name='dicom', extension='', lctype='dicom/series')
+dicom_format = DataFormat(name='dicom', extension='', lctype='dicom/series', mrinfo='DICOM')
 fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
@@ -61,3 +66,7 @@ dataset_formats = dict(
 
 dataset_formats_by_ext = dict(
     (f.extension, f) for f in dataset_formats.itervalues())
+
+mrinfo_abbrevs = dict(
+    (f.mrinfo, f) for f in dataset_formats.itervalues())
+

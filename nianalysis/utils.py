@@ -17,6 +17,8 @@ def split_extension(filename):
         The extension part of the string, i.e. 'nii.gz' of 'file.nii.gz'
     """
     parts = filename.split('.')
+    if len(parts) == 1:
+        return filename, ''
     if parts[-1] == 'gz' and parts[-2] in ('nii',):
         num_ext_parts = 2
     else:
