@@ -206,9 +206,9 @@ class LocalArchive(Archive):
                    for subject_id in subject_ids):
                 raise NiAnalysisError(
                     "'{}' sujbect(s) is/are missing from '{}' project in local"
-                    " archive (found '{}')".format("', '".join(subject_ids),
-                                                   project_id,
-                                                   "', '".join(subject_dirs)))
+                    " archive at '{}' (found '{}')".format(
+                        "', '".join(set(subject_ids) - set(subject_dirs)),
+                        project_id, self._base_dir, "', '".join(subject_dirs)))
             subject_dirs = subject_ids
         self._check_only_dirs(subject_dirs, project_dir)
         for subject_dir in subject_dirs:

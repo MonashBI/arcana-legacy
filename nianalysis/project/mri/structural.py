@@ -6,7 +6,7 @@ from nipype.interfaces.freesurfer.preprocess import ReconAll
 from nipype.interfaces.spm import Info, NewSegment
 from nianalysis.requirements import spm12_req, freesurfer_req
 from nianalysis.citations import spm_cite, freesurfer_cites
-from nianalysis.data_formats import nifti_format, freesurfer_format
+from nianalysis.data_formats import nifti_gz_format, nifti_format, freesurfer_format
 from nipype.interfaces.spm.preprocess import Coregister
 from nipype.interfaces.utility import Merge, Split
 from .base import _create_component_dict, Dataset
@@ -33,6 +33,7 @@ class T1Project(MRProject):
             citations=copy(freesurfer_cites),
             approx_runtime=500)
         recon_all = pe.Node(interface=ReconAll(), name='recon_all')
+        recon_all.inputs.openmp = 8
         # Connect inputs/outputs
         pipeline.connect_input('t1', recon_all, 'T1_files')
         pipeline.connect_output('freesurfer', recon_all, 'subject_id')
@@ -40,7 +41,7 @@ class T1Project(MRProject):
         return pipeline
 
     _components = _create_component_dict(
-        Dataset('t1', nifti_format),
+        Dataset('t1', nifti_gz_format),
         Dataset('freesurfer', freesurfer_format, freesurfer_pipeline),
         inherit_from=chain(MRProject.generated_components()))
 

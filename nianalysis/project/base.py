@@ -436,8 +436,8 @@ class Pipeline(object):
                                      name=(comp.name + '_input_conversion'))
                 conversion.inputs.out_ext = comp.format.extension
                 conversion.inputs.quiet = True
-                print dataset.name
-                complete_workflow.connect(source, dataset.filename,
+                complete_workflow.connect(source,
+                                          dataset.name + ArchiveSource.OUTPUT_SUFFIX,
                                           conversion, 'in_file')
                 dataset_source = conversion
                 dataset_name = 'out_file'
