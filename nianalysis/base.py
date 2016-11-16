@@ -104,7 +104,10 @@ class Dataset(object):
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
-            cmd = "mrinfo \"{}\" 2>/dev/null | grep Format | awk '{{print $2}}'".format(path)
+            # FIXME: Should handle DICOMs in different way. Maybe try to load
+            #        with pydicom??
+            cmd = ("mrinfo \"{}\" 2>/dev/null | grep Format | "
+                   "awk '{{print $2}}'".format(path))
             abbrev = sp.check_output(cmd, shell=True).strip()
             try:
                 data_format = data_formats_by_mrinfo[abbrev]

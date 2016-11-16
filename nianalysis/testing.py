@@ -7,7 +7,7 @@ test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
 
 class BaseImageTestCase(TestCase):
 
-    ARCHIVE_PATH = os.path.join(os.environ['HOME'], 'Data', 'MBI', 'noddi')
+    ARCHIVE_PATH = os.path.join(test_data_dir, 'example')
     EXAMPLE_INPUT_PROJECT = 'example_input'
     PILOT_PROJECT = 'pilot'
     EXAMPLE_OUTPUT_PROJECT = 'example_output'

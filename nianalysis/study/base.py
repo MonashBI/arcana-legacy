@@ -15,17 +15,16 @@ logger = Logger('NiAnalysis')
 
 class Study(object):
     """
-    Base study class from which all derive.
+    Abstract base study class from which all study derive.
 
     Parameters
     ----------
     name : str
         The name of the study.
     project_id: str
-        The ID of hte study For DaRIS it is the project
+        The ID of the study. For DaRIS it is the project
         id minus the proceeding 1008.2. For XNAT it will be
-        the project code. For local datasets it is the full path
-        to the directory.
+        the project code. For local archives name of the directory.
     archive : Archive
         An Archive object referring either to a DaRIS, XNAT or local file
         system study
