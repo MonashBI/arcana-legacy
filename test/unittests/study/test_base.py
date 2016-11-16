@@ -6,7 +6,7 @@ from nipype.pipeline import engine as pe
 from nianalysis.base import Dataset
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.project.base import Project, _create_component_dict
+from nianalysis.study.base import Study, _create_component_dict
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
 from nianalysis.archive.local import (
     LocalArchive, SUBJECT_SUMMARY_NAME,
@@ -23,7 +23,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-class DummyProject(Project):
+class DummyStudy(Study):
 
     def pipeline1(self):
         pipeline = self._create_pipeline(
@@ -198,7 +198,7 @@ class TestRunPipeline(TestCase):
                 shutil.copy(self.ONES_SLICE_IMAGE,
                             os.path.join(session_path, 'ones_slice.mif'))
         archive = LocalArchive(self.BASE_DIR)
-        self.project = DummyProject(
+        self.study = DummyStudy(
             'TestDummy', self.PROJECT_ID, archive,
             input_datasets={'start': Dataset('start', nifti_gz_format),
                          'ones_slice': Dataset('ones_slice', mrtrix_format)})
@@ -208,8 +208,8 @@ class TestRunPipeline(TestCase):
         shutil.rmtree(self.TEST_DIR, ignore_errors=True)
 
     def test_pipeline_prerequisites(self):
-        self.project.pipeline4().run()
-        for dataset in DummyProject.components():
+        self.study.pipeline4().run()
+        for dataset in DummyStudy.components():
             if dataset.multiplicity == 'per_session':
                 for session_path in self.session_paths:
                     self.assertTrue(
@@ -217,7 +217,7 @@ class TestRunPipeline(TestCase):
                             session_path, dataset.name + dataset.format.extension)))
 
     def test_subject_summary(self):
-        self.project.subject_summary_pipeline().run()
+        self.study.subject_summary_pipeline().run()
         for subject_path in self.subject_paths:
             summary_path = os.path.join(subject_path, SUBJECT_SUMMARY_NAME,
                                         'subject_summary.mif')
@@ -229,7 +229,7 @@ class TestRunPipeline(TestCase):
             self.assertEqual(mean_val, len(self.SESSION_IDS))
 
     def test_project_summary(self):
-        self.project.project_summary_pipeline().run()
+        self.study.project_summary_pipeline().run()
         summary_path = os.path.join(
             self.BASE_DIR, self.PROJECT_ID, PROJECT_SUMMARY_NAME,
             'project_summary.mif')

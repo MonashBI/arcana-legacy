@@ -13,7 +13,7 @@ from nianalysis.archive.base import ArchiveSource, ArchiveSink
 logger = Logger('NiAnalysis')
 
 
-class Project(object):
+class Study(object):
     """
     Base project class from which all derive.
 
@@ -26,9 +26,9 @@ class Project(object):
         to the directory.
     archive : Archive
         An Archive object referring either to a DaRIS, XNAT or local file
-        system project
+        system study
     input_datasets : Dict[str,base.Dataset]
-        A dict containing the a mapping between names of project components
+        A dict containing the a mapping between names of study components
         and existing datasets (typically acquired from the scanner but can
         also be replacements for generated components)
     """
@@ -40,7 +40,7 @@ class Project(object):
         self._project_id = project_id
         self._input_datasets = {}
         # Add each "input dataset" checking to see whether the given component
-        # name is valid for the project type
+        # name is valid for the study type
         for comp_name, dataset in input_datasets.iteritems():
             if comp_name not in self._components:
                 raise NiAnalysisDatasetNameError(
@@ -62,12 +62,12 @@ class Project(object):
         self._archive = archive
 
     def __repr__(self):
-        """String representation of the project"""
+        """String representation of the study"""
         return "{}(name='{}')".format(self.__class__.__name__, self.name)
 
     def dataset(self, name):
         """
-        Returns either the dataset that has been passed to the project __init__
+        Returns either the dataset that has been passed to the study __init__
         matching the component name provided or the processed dataset that is
         to be generated using the pipeline associated with the generated
         component
@@ -91,7 +91,7 @@ class Project(object):
                 raise NiAnalysisMissingDatasetError(
                     "Acquired (i.e. non-generated) dataset '{}' is required "
                     "for requested pipelines but was not supplied when the "
-                    "project was initiated.".format(name))
+                    "study was initiated.".format(name))
         return dataset
 
     @property
@@ -101,7 +101,7 @@ class Project(object):
 
     @property
     def name(self):
-        """Accessor for the unique project name"""
+        """Accessor for the unique study name"""
         return self._name
 
     @property
@@ -111,7 +111,7 @@ class Project(object):
 
     def _create_pipeline(self, *args, **kwargs):
         """
-        Creates a Pipeline object, passing the project (self) as the first
+        Creates a Pipeline object, passing the study (self) as the first
         argument
         """
         return Pipeline(self, *args, **kwargs)
@@ -131,26 +131,26 @@ class Project(object):
 
     @classmethod
     def component_names(cls):
-        """Lists the names of all components defined in the project"""
+        """Lists the names of all components defined in the study"""
         return cls._components.iterkeys()
 
     @classmethod
     def components(cls):
-        """Lists all components defined in the project class"""
+        """Lists all components defined in the study class"""
         return cls._components.itervalues()
 
     @classmethod
     def acquired_components(cls):
         """
-        Lists all components defined in the project class that are provided as
-        inputs to the project
+        Lists all components defined in the study class that are provided as
+        inputs to the study
         """
         return (c for c in cls.components() if not c.processed)
 
     @classmethod
     def generated_components(cls):
         """
-        Lists all components defined in the project class that are typically
+        Lists all components defined in the study class that are typically
         generated from other components (but can be overridden in input
         datasets)
         """
@@ -158,12 +158,12 @@ class Project(object):
 
     @classmethod
     def generated_component_names(cls):
-        """Lists the names of generated components defined in the project"""
+        """Lists the names of generated components defined in the study"""
         return (c.name for c in cls.generated_components())
 
     @classmethod
     def acquired_component_names(cls):
-        """Lists the names of acquired components defined in the project"""
+        """Lists the names of acquired components defined in the study"""
         return (c.name for c in cls.acquired_components())
 
 
@@ -171,14 +171,14 @@ class Pipeline(object):
     """
     Basically a wrapper around a NiPype workflow to keep track of the inputs
     and outputs a little better and provide some convenience functions related
-    to the Project objects.
+    to the Study objects.
 
     Parameters
     ----------
     name : str
         The name of the pipeline
-    project : Project
-        The project from which the pipeline was created
+    study : Study
+        The study from which the pipeline was created
     workflow : nipype.Workflow
         The NiPype workflow to run
     inputs : List[BaseFile]
@@ -205,29 +205,29 @@ class Pipeline(object):
         Use None if there is no effective limit
     """
 
-    def __init__(self, project, name, inputs, outputs, description,
+    def __init__(self, study, name, inputs, outputs, description,
                  options, citations, requirements, approx_runtime,
                  min_nthreads=1, max_nthreads=1):
         # Check for unrecognised inputs/outputs
         unrecog_inputs = set(n for n in inputs
-                             if n not in project.component_names())
+                             if n not in study.component_names())
         assert not unrecog_inputs, (
-            "'{}' are not valid inputs names for {} project ('{}')"
-            .format("', '".join(unrecog_inputs), project.__class__.__name__,
-                    "', '".join(project.component_names())))
+            "'{}' are not valid inputs names for {} study ('{}')"
+            .format("', '".join(unrecog_inputs), study.__class__.__name__,
+                    "', '".join(study.component_names())))
         self._inputs = inputs
         unrecog_outputs = set(n for n in outputs
-                              if n not in project.generated_component_names())
+                              if n not in study.generated_component_names())
         assert not unrecog_outputs, (
-            "'{}' are not valid output names for {} project ('{}')"
-            .format("', '".join(unrecog_outputs), project.__class__.__name__,
-                    "', '".join(project.generated_component_names())))
+            "'{}' are not valid output names for {} study ('{}')"
+            .format("', '".join(unrecog_outputs), study.__class__.__name__,
+                    "', '".join(study.generated_component_names())))
         self._name = name
-        self._project = project
+        self._study = study
         self._workflow = pe.Workflow(name=name)
         self._outputs = defaultdict(list)
         for output in outputs:
-            mult = self._project.component(output).multiplicity
+            mult = self._study.component(output).multiplicity
             self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
@@ -261,7 +261,7 @@ class Pipeline(object):
         #     may not need to be checked.
         return (
             self._name == other._name and
-            self._project == other._project and
+            self._study == other._study and
             self._workflow == other._workflow and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
@@ -276,7 +276,7 @@ class Pipeline(object):
         return not (self == other)
 
     def run(self, subject_ids=None, session_ids=None, work_dir=None,
-            reprocess=False, project=None):
+            reprocess=False, study=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow and runs
@@ -296,15 +296,15 @@ class Pipeline(object):
             A flag which determines whether to rerun the processing for this
             step. If set to 'all' then pre-requisite pipelines will also be
             reprocessed.
-        project: Project
-            Project info loaded from archive. It is typically only passed to
+        study: Study
+            Study info loaded from archive. It is typically only passed to
             runs of prerequisite pipelines to avoid having to requery the
-            archive. If None, the project info is loaded from the project
+            archive. If None, the study info is loaded from the study
             archive.
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
-        multiplicities = [self._project.component(o).multiplicity
+        multiplicities = [self._study.component(o).multiplicity
                           for o in self.outputs]
         # Check the outputs of the pipeline to see which has the broadest
         # scope (to determine whether the pipeline needs to be rerun and for
@@ -313,13 +313,13 @@ class Pipeline(object):
                            if m == 'per_session']
         subject_outputs = [o for o, m in zip(self.outputs, multiplicities)
                            if m == 'per_subject']
-        project_outputs = [o for o, m in zip(self.outputs, multiplicities)
-                           if m == 'per_project']
+        study_outputs = [o for o, m in zip(self.outputs, multiplicities)
+                           if m == 'per_study']
         # Get list of available subjects and their associated sessions/datasets
         # from the archive
-        if project is None:
-            project = self._project.archive.project(
-                self._project._project_id, subject_ids=subject_ids,
+        if study is None:
+            study = self._study.archive.study(
+                self._study._study_id, subject_ids=subject_ids,
                 session_ids=session_ids)
         # If the pipeline can be run independently for each session check
         # to see the sessions which have already been completed and omit
@@ -327,18 +327,18 @@ class Pipeline(object):
 
         # Get all requested sessions that are missing at least one of
         # the output datasets
-        if reprocess or not all(o in project.datasets
-                                for o in project_outputs):
-            subjects_to_process = list(project.subjects)
+        if reprocess or not all(o in study.datasets
+                                for o in study_outputs):
+            subjects_to_process = list(study.subjects)
         else:
             sessions_to_process = list(chain(*[
                 (sess for sess in subj.sessions
                  if not all(o in sess.datasets for o in session_outputs))
-                for subj in project.subjects]))
+                for subj in study.subjects]))
             subjects_to_process = set(
                 sess.subject for sess in sessions_to_process)
             subjects_to_process |= set(
-                subj for subj in project.subjects
+                subj for subj in study.subjects
                 if not all(o in subj.datasets for o in subject_outputs))
             if not subjects_to_process and not sessions_to_process:
                 logger.info(
@@ -351,7 +351,7 @@ class Pipeline(object):
             #     re-processed, they are only reprocessed if reprocess == 'all'
             prereq.run([s.id for s in subjects_to_process], session_ids,
                        work_dir, (reprocess if reprocess == 'all' else False),
-                       project=project)
+                       study=study)
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
@@ -360,8 +360,8 @@ class Pipeline(object):
         sessions = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                            name='sessions')
         complete_workflow.add_nodes([sessions])
-        if subject_outputs or project_outputs:
-            # If subject or project outputs iterate through subjects and
+        if subject_outputs or study_outputs:
+            # If subject or study outputs iterate through subjects and
             # sessions independently (like nested 'for' loops)
             most_sessions = []
             if session_ids is None:
@@ -409,9 +409,9 @@ class Pipeline(object):
             complete_workflow.connect(splitnode, 'out2',
                                       sessions, 'session_id')
         # Create source and sinks from the archive
-        source = self._project.archive.source(
-            self._project.project_id,
-            (self._project.dataset(i) for i in self.inputs))
+        source = self._study.archive.source(
+            self._study.project_id,
+            (self._study.dataset(i) for i in self.inputs))
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
@@ -419,11 +419,11 @@ class Pipeline(object):
                                   source, 'session_id')
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            dataset = self._project.dataset(inpt)
+            dataset = self._study.dataset(inpt)
             # Get the component (dataset template) corresponding to the
             # pipeline's input
-            comp = self._project.component(inpt)
-            # If the dataset is not in the required format for the project
+            comp = self._study.component(inpt)
+            # If the dataset is not in the required format for the study
             # user MRConvert to convert it
             if dataset.format != comp.format:
                 if dataset.format.converter != 'mrconvert':
@@ -450,20 +450,20 @@ class Pipeline(object):
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
-            # 'per_subject' or 'per_project')
-            sink = self._project.archive.sink(
-                self._project._project_id,
-                (self._project.dataset(i) for i in outputs), mult)
+            # 'per_subject' or 'per_study')
+            sink = self._study.archive.sink(
+                self._study._project_id,
+                (self._study.dataset(i) for i in outputs), mult)
             sink.inputs.description = self.description
-            sink.inputs.name = self._project.name
-            if mult != 'per_project':
+            sink.inputs.name = self._study.name
+            if mult != 'per_study':
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
                 if mult == 'per_session':
                     complete_workflow.connect(sessions, 'session_id',
                                               sink, 'session_id')
             for output in outputs:
-                dataset = self._project.dataset(output)
+                dataset = self._study.dataset(output)
                 # Skip datasets which are already input datasets
                 if dataset.processed:
                     complete_workflow.connect(
@@ -483,11 +483,11 @@ class Pipeline(object):
         # for the pipelines to generate each of the processed inputs
         pipelines = set()
         for input in self.inputs:  # @ReservedAssignment
-            comp = self._project.component(input)
+            comp = self._study.component(input)
             if comp.processed:
                 pipelines.add(comp.pipeline)
-        # Call pipeline instancemethods to project with provided options
-        return (p(self._project, **self.options) for p in pipelines)
+        # Call pipeline instancemethods to study with provided options
+        return (p(self._study, **self.options) for p in pipelines)
 
     def connect(self, *args, **kwargs):
         """
@@ -497,19 +497,19 @@ class Pipeline(object):
 
     def connect_input(self, comp, node, node_input, join=None):
         """
-        Connects a project component as an input to the provided node
+        Connects a study component as an input to the provided node
 
         Parameters
         ----------
         comp : str
-            Name of the project component to join to the node
+            Name of the study component to join to the node
         node : nipype.pipeline.BaseNode
             A NiPype node to connect the input to
         node_input : str
             Name of the input on the node to connect the component to
         join : str  (not implemented)  # TODO
             Whether to join the input over sessions, subjects or the whole
-            project. Can be one of:
+            study. Can be one of:
               'sessions'     - Sessions for each subject are joined into a
                                list
               'subjects'     - Subjects for each session are joined into a
@@ -560,12 +560,12 @@ class Pipeline(object):
 
     def connect_output(self, comp, node, node_output):
         """
-        Connects an output to a project component
+        Connects an output to a study component
 
         Parameters
         ----------
         comp : str
-            Name of the project component to connect to
+            Name of the study component to connect to
         node : nipype.pipeline.BaseNode
             A NiPype to connect the output from
         node_output : str
@@ -578,7 +578,7 @@ class Pipeline(object):
         assert comp in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
-            self._project.component(comp).multiplicity]
+            self._study.component(comp).multiplicity]
         self._workflow.connect(node, node_output, outputnode, comp)
         self._unconnected_outputs.remove(comp)
 
@@ -619,8 +619,8 @@ class Pipeline(object):
         return self._subject_outputnode
 
     @property
-    def project_outputnode(self):
-        return self._project_outputnode
+    def study_outputnode(self):
+        return self._study_outputnode
 
     @property
     def approx_runtime(self):
@@ -646,16 +646,16 @@ class Pipeline(object):
     def add_input(self, input_name):
         """
         Adds a new input to the pipeline. Useful if extending a pipeline in a
-        derived Project class
+        derived Study class
 
         Parameters
         ----------
         
         """
-        if input_name not in self.project.component_names():
+        if input_name not in self.study.component_names():
             raise NiAnalysisDatasetNameError(
-                "'{}' is not a name of a component in {} Projects"
-                .format(input_name, self.project.name))
+                "'{}' is not a name of a component in {} Studys"
+                .format(input_name, self.study.name))
         self._inputs.append(input_name)
 
     def assert_connected(self):
