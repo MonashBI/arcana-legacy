@@ -15,7 +15,7 @@ from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project)
-from nianalysis.data_formats import dataset_formats
+from nianalysis.data_formats import data_formats
 import re
 import collections
 from nianalysis.utils import split_extension
@@ -80,7 +80,7 @@ class DarisSource(ArchiveSource):
                                          str(ex_method_id), str(session_id))
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                fname = name + dataset_formats[dataset_format].extension
+                fname = name + data_formats[dataset_format].extension
                 try:
                     dataset = datasets[(mult, processed)][fname]
                 except KeyError:
@@ -237,12 +237,12 @@ class DarisSink(ArchiveSink):
                 if not isdefined(filename):
                     missing_files.append(name)
                     continue  # skip the upload for this file
-                dataset_format = dataset_formats[format_name]
+                dataset_format = data_formats[format_name]
                 assert (
                     split_extension(filename)[1] == dataset_format.extension), (
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
-                            dataset_formats[format_name].name,
+                            data_formats[format_name].name,
                             dataset_format.extension))
                 src_path = os.path.abspath(filename)
                 # Copy to local cache
