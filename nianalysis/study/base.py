@@ -15,12 +15,14 @@ logger = Logger('NiAnalysis')
 
 class Study(object):
     """
-    Base project class from which all derive.
+    Base study class from which all derive.
 
     Parameters
     ----------
-    project_name : str
-        The name of the project. For DaRIS it is the project
+    name : str
+        The name of the study.
+    project_id: str
+        The ID of hte study For DaRIS it is the project
         id minus the proceeding 1008.2. For XNAT it will be
         the project code. For local datasets it is the full path
         to the directory.
@@ -276,7 +278,7 @@ class Pipeline(object):
         return not (self == other)
 
     def run(self, subject_ids=None, session_ids=None, work_dir=None,
-            reprocess=False, study=None):
+            reprocess=False, project=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow and runs
@@ -296,9 +298,9 @@ class Pipeline(object):
             A flag which determines whether to rerun the processing for this
             step. If set to 'all' then pre-requisite pipelines will also be
             reprocessed.
-        study: Study
-            Study info loaded from archive. It is typically only passed to
-            runs of prerequisite pipelines to avoid having to requery the
+        project: Project
+            Project info loaded from archive. It is typically only passed to
+            runs of prerequisite pipelines to avoid having to re-query the
             archive. If None, the study info is loaded from the study
             archive.
         """
@@ -313,13 +315,13 @@ class Pipeline(object):
                            if m == 'per_session']
         subject_outputs = [o for o, m in zip(self.outputs, multiplicities)
                            if m == 'per_subject']
-        study_outputs = [o for o, m in zip(self.outputs, multiplicities)
-                           if m == 'per_study']
+        project_outputs = [o for o, m in zip(self.outputs, multiplicities)
+                           if m == 'per_project']
         # Get list of available subjects and their associated sessions/datasets
         # from the archive
-        if study is None:
-            study = self._study.archive.study(
-                self._study._study_id, subject_ids=subject_ids,
+        if project is None:
+            project = self._study.archive.project(
+                self._study._project_id, subject_ids=subject_ids,
                 session_ids=session_ids)
         # If the pipeline can be run independently for each session check
         # to see the sessions which have already been completed and omit
@@ -327,18 +329,18 @@ class Pipeline(object):
 
         # Get all requested sessions that are missing at least one of
         # the output datasets
-        if reprocess or not all(o in study.datasets
-                                for o in study_outputs):
-            subjects_to_process = list(study.subjects)
+        if reprocess or not all(o in project.datasets
+                                for o in project_outputs):
+            subjects_to_process = list(project.subjects)
         else:
             sessions_to_process = list(chain(*[
                 (sess for sess in subj.sessions
                  if not all(o in sess.datasets for o in session_outputs))
-                for subj in study.subjects]))
+                for subj in project.subjects]))
             subjects_to_process = set(
                 sess.subject for sess in sessions_to_process)
             subjects_to_process |= set(
-                subj for subj in study.subjects
+                subj for subj in project.subjects
                 if not all(o in subj.datasets for o in subject_outputs))
             if not subjects_to_process and not sessions_to_process:
                 logger.info(
@@ -351,7 +353,7 @@ class Pipeline(object):
             #     re-processed, they are only reprocessed if reprocess == 'all'
             prereq.run([s.id for s in subjects_to_process], session_ids,
                        work_dir, (reprocess if reprocess == 'all' else False),
-                       study=study)
+                       project=project)
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
@@ -360,7 +362,7 @@ class Pipeline(object):
         sessions = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                            name='sessions')
         complete_workflow.add_nodes([sessions])
-        if subject_outputs or study_outputs:
+        if subject_outputs or project_outputs:
             # If subject or study outputs iterate through subjects and
             # sessions independently (like nested 'for' loops)
             most_sessions = []
@@ -436,9 +438,9 @@ class Pipeline(object):
                                      name=(comp.name + '_input_conversion'))
                 conversion.inputs.out_ext = comp.format.extension
                 conversion.inputs.quiet = True
-                complete_workflow.connect(source,
-                                          dataset.name + ArchiveSource.OUTPUT_SUFFIX,
-                                          conversion, 'in_file')
+                complete_workflow.connect(
+                    source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
+                    conversion, 'in_file')
                 dataset_source = conversion
                 dataset_name = 'out_file'
             else:
@@ -450,13 +452,13 @@ class Pipeline(object):
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
-            # 'per_subject' or 'per_study')
+            # 'per_subject' or 'per_project')
             sink = self._study.archive.sink(
                 self._study._project_id,
                 (self._study.dataset(i) for i in outputs), mult)
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
-            if mult != 'per_study':
+            if mult != 'per_project':
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
                 if mult == 'per_session':
@@ -619,8 +621,8 @@ class Pipeline(object):
         return self._subject_outputnode
 
     @property
-    def study_outputnode(self):
-        return self._study_outputnode
+    def project_outputnode(self):
+        return self._project_outputnode
 
     @property
     def approx_runtime(self):
@@ -650,7 +652,7 @@ class Pipeline(object):
 
         Parameters
         ----------
-        
+
         """
         if input_name not in self.study.component_names():
             raise NiAnalysisDatasetNameError(

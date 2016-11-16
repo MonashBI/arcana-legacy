@@ -159,9 +159,9 @@ class DummyStudy(Study):
         Dataset('pipeline3', nifti_gz_format, pipeline3),
         Dataset('pipeline4', nifti_gz_format, pipeline4),
         Dataset('subject_summary', mrtrix_format, subject_summary_pipeline,
-             multiplicity='per_subject'),
+                multiplicity='per_subject'),
         Dataset('project_summary', mrtrix_format, project_summary_pipeline,
-             multiplicity='per_project'))
+                multiplicity='per_project'))
 
 
 class TestRunPipeline(TestCase):
@@ -173,7 +173,7 @@ class TestRunPipeline(TestCase):
                                               'test_image.nii.gz'))
     ONES_SLICE_IMAGE = os.path.abspath(os.path.join(test_data_dir,
                                                     'ones_slice.mif'))
-    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'project'))
+    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'study'))
     BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
@@ -201,7 +201,8 @@ class TestRunPipeline(TestCase):
         self.study = DummyStudy(
             'TestDummy', self.PROJECT_ID, archive,
             input_datasets={'start': Dataset('start', nifti_gz_format),
-                         'ones_slice': Dataset('ones_slice', mrtrix_format)})
+                            'ones_slice': Dataset('ones_slice',
+                                                  mrtrix_format)})
 
     def tearDown(self):
         # Clean up working dirs
@@ -214,7 +215,8 @@ class TestRunPipeline(TestCase):
                 for session_path in self.session_paths:
                     self.assertTrue(
                         os.path.exists(os.path.join(
-                            session_path, dataset.name + dataset.format.extension)))
+                            session_path,
+                            dataset.name + dataset.format.extension)))
 
     def test_subject_summary(self):
         self.study.subject_summary_pipeline().run()
