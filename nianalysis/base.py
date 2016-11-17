@@ -149,7 +149,9 @@ class Dataset(object):
                                       self.format is None)
 
     def apply_prefix(self, prefix):
-        """Duplicate the dataset and provide a prefix to apply to the filename"""
+        """
+        Duplicate the dataset and provide a prefix to apply to the filename
+        """
         duplicate = copy(self)
         duplicate._prefix = prefix
         return duplicate
