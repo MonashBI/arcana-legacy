@@ -235,7 +235,8 @@ class MultiStudy(Study):
                 except KeyError:
                     pass
             # Create sub-component
-            sub_component = cls(comp_name, project_id, archive, mapped_inputs)
+            sub_component = cls(name + '_' + comp_name, project_id, archive,
+                                mapped_inputs)
             # Set component as attribute
             setattr(self, comp_name, sub_component)
             # Append to dictionary of sub_components
@@ -243,18 +244,22 @@ class MultiStudy(Study):
                 "duplicate component names '{}'".format(comp_name))
             self._sub_components[comp_name] = sub_component
 
-    def _from_sub_component(self, subcomp_pipeline):
-        pipeline = copy(subcomp_pipeline)
-        _, dataset_map = self.component_specs[subcomp_pipeline.study.name]
-        for inpt in subcomp_pipeline.inputs:
-            if inpt in dataset_map:
-                
-        # Update the study of the component pipeline to the MultiStudy
-        pipeline._study = self
-
     @property
     def sub_components(self):
-        return iter(self._sub_components)
+        return self._sub_components.itervalues()
+
+    @classmethod
+    def translate_getter(cls, comp_name, pipeline_getter):
+        """
+        A "decorator" (although not intended to be used with @) for translating
+        pipeline getter methods from a sub-component of a MultiStudy. Returns
+        a new method that calls the getter on the specified sub-component then
+        translates the pipeline to the MultiStudy.
+        """
+        def translated(self, **kwargs):
+            return pipeline_getter(self._sub_components[comp_name],
+                                   **kwargs).translate(self)
+        return translated
 
 
 def _create_component_dict(*comps, **kwargs):
