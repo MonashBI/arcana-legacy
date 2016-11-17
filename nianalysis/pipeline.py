@@ -52,24 +52,24 @@ class Pipeline(object):
                  min_nthreads=1, max_nthreads=1):
         # Check for unrecognised inputs/outputs
         unrecog_inputs = set(n for n in inputs
-                             if n not in study.component_names())
+                             if n not in study.dataset_spec_names())
         assert not unrecog_inputs, (
             "'{}' are not valid inputs names for {} study ('{}')"
             .format("', '".join(unrecog_inputs), study.__class__.__name__,
-                    "', '".join(study.component_names())))
+                    "', '".join(study.dataset_spec_names())))
         self._inputs = inputs
         unrecog_outputs = set(n for n in outputs
-                              if n not in study.generated_component_names())
+                              if n not in study.generated_dataset_spec_names())
         assert not unrecog_outputs, (
             "'{}' are not valid output names for {} study ('{}')"
             .format("', '".join(unrecog_outputs), study.__class__.__name__,
-                    "', '".join(study.generated_component_names())))
+                    "', '".join(study.generated_dataset_spec_names())))
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
         self._outputs = defaultdict(list)
         for output in outputs:
-            mult = self._study.component(output).multiplicity
+            mult = self._study.dataset_spec(output).multiplicity
             self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
@@ -149,7 +149,7 @@ class Pipeline(object):
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
-        multiplicities = [self._study.component(o).multiplicity
+        multiplicities = [self._study.dataset_spec(o).multiplicity
                           for o in self.outputs]
         # Check the outputs of the pipeline to see which has the broadest
         # scope (to determine whether the pipeline needs to be rerun and for
@@ -265,21 +265,20 @@ class Pipeline(object):
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
             dataset = self._study.dataset(inpt)
-            # Get the component (dataset template) corresponding to the
-            # pipeline's input
-            comp = self._study.component(inpt)
+            # Get the dataset spec corresponding to the pipeline's input
+            spec = self._study.dataset_spec(inpt)
             # If the dataset is not in the required format for the study
             # user MRConvert to convert it
-            if dataset.format != comp.format:
+            if dataset.format != spec.format:
                 if dataset.format.converter != 'mrconvert':
                     raise NotImplementedError(
                         "Only data format conversions that are supported by "
                         "mrconvert are currently implemented "
                         "({}->{} requested)".format(dataset.format,
-                                                    comp.format))
+                                                    spec.format))
                 conversion = pe.Node(MRConvert(),
-                                     name=(comp.name + '_input_conversion'))
-                conversion.inputs.out_ext = comp.format.extension
+                                     name=(spec.name + '_input_conversion'))
+                conversion.inputs.out_ext = spec.format.extension
                 conversion.inputs.quiet = True
                 complete_workflow.connect(
                     source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
@@ -328,7 +327,7 @@ class Pipeline(object):
         # for the pipelines to generate each of the processed inputs
         pipelines = set()
         for input in self.inputs:  # @ReservedAssignment
-            comp = self._study.component(input)
+            comp = self._study.dataset_spec(input)
             if comp.processed:
                 pipelines.add(comp.pipeline)
         # Call pipeline instancemethods to study with provided options
@@ -340,18 +339,18 @@ class Pipeline(object):
         """
         self._workflow.connect(*args, **kwargs)
 
-    def connect_input(self, comp, node, node_input, join=None):
+    def connect_input(self, spec_name, node, node_input, join=None):
         """
-        Connects a study component as an input to the provided node
+        Connects a study dataset_spec as an input to the provided node
 
         Parameters
         ----------
-        comp : str
-            Name of the study component to join to the node
+        spec_name : str
+            Name of the study dataset spec to join to the node
         node : nipype.pipeline.BaseNode
             A NiPype node to connect the input to
         node_input : str
-            Name of the input on the node to connect the component to
+            Name of the input on the node to connect the dataset spec to
         join : str  (not implemented)  # TODO
             Whether to join the input over sessions, subjects or the whole
             study. Can be one of:
@@ -364,68 +363,73 @@ class Pipeline(object):
               'project_flat' - All sessions across all subjects are joined
                                into a single list
         """
-        assert comp in self._inputs, (
+        assert spec_name in self._inputs, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(input, self.name, "', '".join(self._inputs)))
         if join is not None:
-            join_name = '{}_{}_{}_join_'.format(comp, node.name, node_input)
+            join_name = '{}_{}_{}_join_'.format(spec_name, node.name,
+                                                node_input)
             if join.startswith('project'):
                 # Create node to join the sessions first
                 session_join = pe.JoinNode(
-                    IdentityInterface([comp]), name='session_' + join_name,
-                    joinsource='sessions', joinfield=[comp])
+                    IdentityInterface([spec_name]),
+                    name='session_' + join_name,
+                    joinsource='sessions', joinfield=[spec_name])
                 if join == 'project':
                     inputnode = pe.JoinNode(
-                        IdentityInterface([comp]), name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[comp])
+                        IdentityInterface([spec_name]),
+                        name='subject_' + join_name,
+                        joinsource='subjects', joinfield=[spec_name])
                 elif join == 'project_flat':
                     # TODO: Need to implemente Chain interface for
                     # concatenating the session lists into a single list
                     inputnode = pe.JoinNode(
-                        Chain([comp]), name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[comp])
+                        Chain([spec_name]), name='subject_' + join_name,
+                        joinsource='subjects', joinfield=[spec_name])
                 else:
                     raise NiAnalysisError(
                         "Unrecognised join command '{}' can be one of ("
                         "'sessions', 'subjects', 'project', 'project_flat')"
                         .format(join))
-                self._workflow.connect(self._inputnode, comp, session_join,
-                                       comp)
-                self._workflow.connect(session_join, comp, inputnode, comp)
+                self._workflow.connect(self._inputnode, spec_name,
+                                       session_join, spec_name)
+                self._workflow.connect(session_join, spec_name, inputnode,
+                                       spec_name)
             else:
                 inputnode = pe.JoinNode(
-                    IdentityInterface([comp]), name=join_name,
-                    joinsource=join, joinfield=[comp])
-                self._workflow.connect(self._inputnode, comp, inputnode, comp)
+                    IdentityInterface([spec_name]), name=join_name,
+                    joinsource=join, joinfield=[spec_name])
+                self._workflow.connect(self._inputnode, spec_name, inputnode,
+                                       spec_name)
         else:
             inputnode = self._inputnode
-        self._workflow.connect(inputnode, comp, node, node_input)
-        if comp in self._unconnected_inputs:
-            self._unconnected_inputs.remove(comp)
+        self._workflow.connect(inputnode, spec_name, node, node_input)
+        if spec_name in self._unconnected_inputs:
+            self._unconnected_inputs.remove(spec_name)
 
-    def connect_output(self, comp, node, node_output):
+    def connect_output(self, spec_name, node, node_output):
         """
-        Connects an output to a study component
+        Connects an output to a study dataset spec
 
         Parameters
         ----------
-        comp : str
-            Name of the study component to connect to
+        spec_name : str
+            Name of the study dataset spec to connect to
         node : nipype.pipeline.BaseNode
             A NiPype to connect the output from
         node_output : str
-            Name of the output on the node to connect to the component
+            Name of the output on the node to connect to the dataset
         """
-        assert comp in chain(*self._outputs.values()), (
+        assert spec_name in chain(*self._outputs.values()), (
             "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(comp, self.name,
+            .format(spec_name, self.name,
                     "', '".join(chain(*self._outputs.values()))))
-        assert comp in self._unconnected_outputs, (
+        assert spec_name in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
-            self._study.component(comp).multiplicity]
-        self._workflow.connect(node, node_output, outputnode, comp)
-        self._unconnected_outputs.remove(comp)
+            self._study.dataset_spec(spec_name).multiplicity]
+        self._workflow.connect(node, node_output, outputnode, spec_name)
+        self._unconnected_outputs.remove(spec_name)
 
     @property
     def name(self):
@@ -497,9 +501,9 @@ class Pipeline(object):
         ----------
 
         """
-        if input_name not in self.study.component_names():
+        if input_name not in self.study.dataset_spec_names():
             raise NiAnalysisDatasetNameError(
-                "'{}' is not a name of a component in {} Studys"
+                "'{}' is not a name of a dataset_spec in {} Studys"
                 .format(input_name, self.study.name))
         self._inputs.append(input_name)
 

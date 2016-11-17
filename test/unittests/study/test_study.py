@@ -150,7 +150,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _components = set_dataset_specs(
+    _dataset_specs = set_dataset_specs(
         Dataset('start', nifti_gz_format),
         Dataset('ones_slice', mrtrix_format),
         Dataset('pipeline1_1', nifti_gz_format, pipeline1),
@@ -210,7 +210,7 @@ class TestRunPipeline(TestCase):
 
     def test_pipeline_prerequisites(self):
         self.study.pipeline4().run()
-        for dataset in DummyStudy.components():
+        for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session':
                 for session_path in self.session_paths:
                     self.assertTrue(

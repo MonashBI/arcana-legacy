@@ -3,7 +3,6 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError)
 from nianalysis.pipeline import Pipeline
-from copy import copy
 
 
 logger = getLogger('NiAnalysis')
@@ -25,9 +24,9 @@ class Study(object):
         An Archive object referring either to a DaRIS, XNAT or local file
         system study
     input_datasets : Dict[str,base.Dataset]
-        A dict containing the a mapping between names of study components
+        A dict containing the a mapping between names of study dataset_specs
         and existing datasets (typically acquired from the scanner but can
-        also be replacements for generated components)
+        also be replacements for generated dataset_specs)
     """
 
     __metaclass__ = ABCMeta
@@ -36,24 +35,24 @@ class Study(object):
         self._name = name
         self._project_id = project_id
         self._input_datasets = {}
-        # Add each "input dataset" checking to see whether the given component
-        # name is valid for the study type
+        # Add each "input dataset" checking to see whether the given
+        # dataset_spec name is valid for the study type
         for comp_name, dataset in input_datasets.iteritems():
-            if comp_name not in self._components:
+            if comp_name not in self._dataset_specs:
                 raise NiAnalysisDatasetNameError(
-                    "Input dataset component name '{}' doesn't match any "
-                    "components in {} studies".format(
+                    "Input dataset dataset_spec name '{}' doesn't match any "
+                    "dataset_specs in {} studies".format(
                         comp_name, self.__class__.__name__))
             self._input_datasets[comp_name] = dataset
-        # Emit a warning if an acquired component has not been provided for an
-        # "acquired component"
-        for dataset in self.acquired_components():
-            if dataset.name not in self._input_datasets:
+        # Emit a warning if an acquired dataset_spec has not been provided for
+        # an "acquired dataset_spec"
+        for spec in self.acquired_dataset_specs():
+            if spec.name not in self._input_datasets:
                 logger.warning(
-                    "'{}' acquired component was not specified in {} '{}' "
-                    "(provided '{}'). Pipelines depending on this component "
+                    "'{}' acquired dataset_spec was not specified in {} '{}' "
+                    "(provided '{}'). Pipelines depending on this dataset "
                     "will not run".format(
-                        dataset.name, self.__class__.__name__, self.name,
+                        spec.name, self.__class__.__name__, self.name,
                         "', '".join(self._input_datasets)))
         # TODO: Check that every session has the acquired datasets
         self._archive = archive
@@ -65,24 +64,25 @@ class Study(object):
     def dataset(self, name):
         """
         Returns either the dataset that has been passed to the study __init__
-        matching the component name provided or the processed dataset that is
+        matching the dataset name provided or the processed dataset that is
         to be generated using the pipeline associated with the generated
-        component
+        dataset_spec
 
         Parameters
         ----------
         dataset : Str
-            Name of the component to the find the corresponding acquired
+            Name of the dataset_spec to the find the corresponding acquired
             dataset or processed dataset to be generated
         """
         try:
             dataset = self._input_datasets[name]
         except KeyError:
             try:
-                dataset = self._components[name].apply_prefix(self.name + '_')
+                dataset = self._dataset_specs[name].apply_prefix(self.name +
+                                                                 '_')
             except KeyError:
                 raise NiAnalysisDatasetNameError(
-                    "'{}' is not a recognised component name for {} studies."
+                    "'{}' is not a recognised dataset_spec name for {} studies."
                     .format(name, self.__class__.__name__))
             if not dataset.processed:
                 raise NiAnalysisMissingDatasetError(
@@ -114,104 +114,60 @@ class Study(object):
         return Pipeline(self, *args, **kwargs)
 
     @classmethod
-    def component(cls, name):
+    def dataset_spec(cls, name):
         """
-        Return the component, i.e. the template of the dataset expected to be
-        supplied or generated corresponding to the component name.
+        Return the dataset_spec, i.e. the template of the dataset expected to be
+        supplied or generated corresponding to the dataset_spec name.
 
         Parameters
         ----------
         name : Str
-            Name of the component to return
+            Name of the dataset_spec to return
         """
-        return cls._components[name]
+        return cls._dataset_specs[name]
 
     @classmethod
-    def component_names(cls):
-        """Lists the names of all components defined in the study"""
-        return cls._components.iterkeys()
+    def dataset_spec_names(cls):
+        """Lists the names of all dataset_specs defined in the study"""
+        return cls._dataset_specs.iterkeys()
 
     @classmethod
-    def components(cls):
-        """Lists all components defined in the study class"""
-        return cls._components.itervalues()
+    def dataset_specs(cls):
+        """Lists all dataset_specs defined in the study class"""
+        return cls._dataset_specs.itervalues()
 
     @classmethod
-    def acquired_components(cls):
+    def acquired_dataset_specs(cls):
         """
-        Lists all components defined in the study class that are provided as
+        Lists all dataset_specs defined in the study class that are provided as
         inputs to the study
         """
-        return (c for c in cls.components() if not c.processed)
+        return (c for c in cls.dataset_specs() if not c.processed)
 
     @classmethod
-    def generated_components(cls):
+    def generated_dataset_specs(cls):
         """
-        Lists all components defined in the study class that are typically
-        generated from other components (but can be overridden in input
+        Lists all dataset_specs defined in the study class that are typically
+        generated from other dataset_specs (but can be overridden in input
         datasets)
         """
-        return (c for c in cls.components() if c.processed)
+        return (c for c in cls.dataset_specs() if c.processed)
 
     @classmethod
-    def generated_component_names(cls):
-        """Lists the names of generated components defined in the study"""
-        return (c.name for c in cls.generated_components())
+    def generated_dataset_spec_names(cls):
+        """Lists the names of generated dataset_specs defined in the study"""
+        return (c.name for c in cls.generated_dataset_specs())
 
     @classmethod
-    def acquired_component_names(cls):
-        """Lists the names of acquired components defined in the study"""
-        return (c.name for c in cls.acquired_components())
+    def acquired_dataset_spec_names(cls):
+        """Lists the names of acquired dataset_specs defined in the study"""
+        return (c.name for c in cls.acquired_dataset_specs())
 
 
 class MultiStudy(Study):
-
     """
-        def __init__(self, study, name, inputs, outputs, description,
-                 options, citations, requirements, approx_runtime,
-                 min_nthreads=1, max_nthreads=1):
-        # Check for unrecognised inputs/outputs
-        unrecog_inputs = set(n for n in inputs
-                             if n not in study.component_names())
-        assert not unrecog_inputs, (
-            "'{}' are not valid inputs names for {} study ('{}')"
-            .format("', '".join(unrecog_inputs), study.__class__.__name__,
-                    "', '".join(study.component_names())))
-        self._inputs = inputs
-        unrecog_outputs = set(n for n in outputs
-                              if n not in study.generated_component_names())
-        assert not unrecog_outputs, (
-            "'{}' are not valid output names for {} study ('{}')"
-            .format("', '".join(unrecog_outputs), study.__class__.__name__,
-                    "', '".join(study.generated_component_names())))
-        self._name = name
-        self._study = study
-        self._workflow = pe.Workflow(name=name)
-        self._outputs = defaultdict(list)
-        for output in outputs:
-            mult = self._study.component(output).multiplicity
-            self._outputs[mult].append(output)
-        self._outputnodes = {}
-        for mult in self._outputs:
-            self._outputnodes[mult] = pe.Node(
-                IdentityInterface(fields=self._outputs[mult]),
-                name="{}_{}_outputnode".format(name, mult))
-        # Create sets of unconnected inputs/outputs
-        self._unconnected_inputs = set(inputs)
-        self._unconnected_outputs = set(outputs)
-        assert len(inputs) == len(self._unconnected_inputs), (
-            "Duplicate inputs found in '{}'".format("', '".join(inputs)))
-        assert len(outputs) == len(self._unconnected_outputs), (
-            "Duplicate outputs found in '{}'".format("', '".join(outputs)))
-        self._inputnode = pe.Node(IdentityInterface(fields=inputs),
-                                  name="{}_inputnode".format(name))
-        self._citations = citations
-        self._options = options
-        self._description = description
-        self._requirements = requirements
-        self._approx_runtime = approx_runtime
-        self._min_nthreads = min_nthreads
-        self._max_nthreads = max_nthreads
+    Abstract base class for all studies that combine multiple studies into a
+    a combined study
     """
 
     __metaclass__ = ABCMeta
