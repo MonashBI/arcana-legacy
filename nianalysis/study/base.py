@@ -213,6 +213,9 @@ class MultiStudy(Study):
         self._max_nthreads = max_nthreads
     """
 
+    def _from_component(self, pipeline_method, input_map={}, output_map={}):
+        raise NotImplementedError
+
 
 def _create_component_dict(*comps, **kwargs):
     dct = {}
