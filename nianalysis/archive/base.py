@@ -11,132 +11,6 @@ from nianalysis.exceptions import NiAnalysisError
 INPUT_OUTPUT_SUFFIX = '_dataset'
 
 
-class Project(object):
-
-    def __init__(self, project_id, subjects, datasets):
-        self._id = project_id
-        self._subjects = subjects
-        self._datasets = datasets
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def subjects(self):
-        return iter(self._subjects)
-
-    @property
-    def datasets(self):
-        return self._datasets
-
-    def __eq__(self, other):
-        if not isinstance(other, Project):
-            return False
-        return (self._id == other._id and
-                self._sessions == other._sessions)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
-
-    def __hash__(self):
-        return hash(self._id)
-
-
-class Subject(object):
-    """
-    Holds a subject id and a list of sessions
-    """
-
-    def __init__(self, subject_id, sessions, datasets):
-        self._id = subject_id
-        self._sessions = sessions
-        self._datasets = datasets
-        for session in sessions:
-            session.subject = self
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def sessions(self):
-        return iter(self._sessions)
-
-    @property
-    def datasets(self):
-        return self._datasets
-
-    def __eq__(self, other):
-        if not isinstance(other, Subject):
-            return False
-        return (self._id == other._id and
-                self._sessions == other._sessions)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
-
-    def __hash__(self):
-        return hash(self._id)
-
-
-class Session(object):
-    """
-    Holds the session id and the list of datasets loaded from it
-    """
-
-    def __init__(self, session_id, datasets, processed=None):
-        self._id = session_id
-        self._datasets = datasets
-        self._subject = None
-        self._processed = processed
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def subject(self):
-        return self._subject
-
-    @subject.setter
-    def subject(self, subject):
-        self._subject = subject
-
-    @property
-    def processed(self):
-        return self._processed
-
-    @property
-    def datasets(self):
-        return iter(self._datasets)
-
-    def __eq__(self, other):
-        if not isinstance(other, Session):
-            return False
-        return (self._id == other._id and
-                self._subject_id == other._subject_id and
-                self._datasets == other._datasets)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def __repr__(self):
-        return "Session(id='{}', num_datasets={})".format(self._id,
-                                                       len(self._datasets))
-
-    def __hash__(self):
-        return hash(self._id)
-
-
 class Archive(object):
     """
     Abstract base class for all Archive systems, DaRIS, XNAT and local file
@@ -159,6 +33,8 @@ class Archive(object):
         input_files : List[BaseFile]
             An iterable of nianalysis.BaseFile objects, which specify the
             datasets to extract from the archive system for each session
+        name : str
+            Name of the NiPype node
         """
         if name is None:
             name = "{}_source".format(self.type)
@@ -190,7 +66,8 @@ class Archive(object):
         else:
             raise NiAnalysisError(
                 "Unrecognised multiplicity '{}' can be one of '{}'"
-                .format(multiplicity, "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
+                .format(multiplicity,
+                        "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
         output_datasets = list(output_datasets)  # Ensure iterators aren't exhausted
@@ -203,8 +80,8 @@ class Archive(object):
     def project(self, project_id, subject_ids=None, session_ids=None):
         """
         Returns a nianalysis.archive.Project object for the given project id,
-        which holds information on all available subjects, sessions and datasets
-        in the project.
+        which holds information on all available subjects, sessions and
+        datasets in the project.
 
         Parameters
         ----------
@@ -369,3 +246,129 @@ class ArchiveSink(IOBase):
     @abstractmethod
     def _list_outputs(self):
         pass
+
+
+class Project(object):
+
+    def __init__(self, project_id, subjects, datasets):
+        self._id = project_id
+        self._subjects = subjects
+        self._datasets = datasets
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def subjects(self):
+        return iter(self._subjects)
+
+    @property
+    def datasets(self):
+        return self._datasets
+
+    def __eq__(self, other):
+        if not isinstance(other, Project):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
+
+    def __hash__(self):
+        return hash(self._id)
+
+
+class Subject(object):
+    """
+    Holds a subject id and a list of sessions
+    """
+
+    def __init__(self, subject_id, sessions, datasets):
+        self._id = subject_id
+        self._sessions = sessions
+        self._datasets = datasets
+        for session in sessions:
+            session.subject = self
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def sessions(self):
+        return iter(self._sessions)
+
+    @property
+    def datasets(self):
+        return self._datasets
+
+    def __eq__(self, other):
+        if not isinstance(other, Subject):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
+
+    def __hash__(self):
+        return hash(self._id)
+
+
+class Session(object):
+    """
+    Holds the session id and the list of datasets loaded from it
+    """
+
+    def __init__(self, session_id, datasets, processed=None):
+        self._id = session_id
+        self._datasets = datasets
+        self._subject = None
+        self._processed = processed
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def subject(self):
+        return self._subject
+
+    @subject.setter
+    def subject(self, subject):
+        self._subject = subject
+
+    @property
+    def processed(self):
+        return self._processed
+
+    @property
+    def datasets(self):
+        return iter(self._datasets)
+
+    def __eq__(self, other):
+        if not isinstance(other, Session):
+            return False
+        return (self._id == other._id and
+                self._subject_id == other._subject_id and
+                self._datasets == other._datasets)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Session(id='{}', num_datasets={})".format(self._id,
+                                                          len(self._datasets))
+
+    def __hash__(self):
+        return hash(self._id)

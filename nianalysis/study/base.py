@@ -180,8 +180,6 @@ class Pipeline(object):
         The name of the pipeline
     study : Study
         The study from which the pipeline was created
-    workflow : nipype.Workflow
-        The NiPype workflow to run
     inputs : List[BaseFile]
         The list of input datasets required for the pipeline
         un/processed datasets, and the options used to generate them for
