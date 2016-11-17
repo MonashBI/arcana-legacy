@@ -262,7 +262,7 @@ class MultiStudy(Study):
         return translated
 
 
-def _create_component_dict(*comps, **kwargs):
+def set_dataset_specs(*comps, **kwargs):
     dct = {}
     for comp in comps:
         if comp.name in dct:
@@ -270,7 +270,7 @@ def _create_component_dict(*comps, **kwargs):
                            .format(comp.name))
         dct[comp.name] = comp
     if 'inherit_from' in kwargs:
-        combined = _create_component_dict(*set(kwargs['inherit_from']))
+        combined = set_dataset_specs(*set(kwargs['inherit_from']))
         # Allow the current components to override the inherited ones
         combined.update(dct)
         dct = combined

@@ -6,7 +6,7 @@ from nipype.pipeline import engine as pe
 from nianalysis.base import Dataset
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, _create_component_dict
+from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
 from nianalysis.archive.local import (
     LocalArchive, SUBJECT_SUMMARY_NAME,
@@ -150,7 +150,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _components = _create_component_dict(
+    _components = set_dataset_specs(
         Dataset('start', nifti_gz_format),
         Dataset('ones_slice', mrtrix_format),
         Dataset('pipeline1_1', nifti_gz_format, pipeline1),
