@@ -3,6 +3,7 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError)
 from nianalysis.pipeline import Pipeline
+from copy import copy
 
 
 logger = getLogger('NiAnalysis')
@@ -215,12 +216,45 @@ class MultiStudy(Study):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, input_datasets):
-        super(MultiStudy, self).__init__(name, project_id)
+    # NB: Subclasses are expected to have a class member named
+    #     component_classes that defines the components that make up the multi-
+    #     component study and the mapping of their dataset names
 
-    def _from_component(self, pipeline, input_map={}, output_map={}):
+    def __init__(self, name, project_id, archive, input_datasets):
+        super(MultiStudy, self).__init__(name, project_id, archive,
+                                         input_datasets)
+        self._sub_components = {}
+        for comp_name, (cls, dataset_map) in self.component_specs.iteritems():
+            # Create copies of the input datasets to pass to the __init__
+            # method of the generated components
+            mapped_inputs = []
+            for dataset in input_datasets:
+                try:
+                    mapped_inputs.append(
+                        dataset.renamed_copy(dataset_map[dataset.name]))
+                except KeyError:
+                    pass
+            # Create sub-component
+            sub_component = cls(comp_name, project_id, archive, mapped_inputs)
+            # Set component as attribute
+            setattr(self, comp_name, sub_component)
+            # Append to dictionary of sub_components
+            assert comp_name not in self._sub_components, (
+                "duplicate component names '{}'".format(comp_name))
+            self._sub_components[comp_name] = sub_component
+
+    def _from_sub_component(self, subcomp_pipeline):
+        pipeline = copy(subcomp_pipeline)
+        _, dataset_map = self.component_specs[subcomp_pipeline.study.name]
+        for inpt in subcomp_pipeline.inputs:
+            if inpt in dataset_map:
+                
         # Update the study of the component pipeline to the MultiStudy
-        self._study = self
+        pipeline._study = self
+
+    @property
+    def sub_components(self):
+        return iter(self._sub_components)
 
 
 def _create_component_dict(*comps, **kwargs):

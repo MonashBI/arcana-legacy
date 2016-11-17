@@ -91,6 +91,11 @@ class Dataset(object):
     def to_tuple(self):
         return self.name, self.format.name, self.multiplicity, self.processed
 
+    def renamed_copy(self, name):
+        cpy = copy(self)
+        cpy._name = name
+        return cpy
+
     @classmethod
     def from_tuple(cls, tple):
         name, format_name, multiplicity, processed = tple
