@@ -4,7 +4,7 @@ from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     Undefined, isdefined)
-from nianalysis.base import Dataset
+from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
 
 
@@ -109,7 +109,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
     session_id = traits.Str(mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
                             desc="The session or processed group ID")
     datasets = traits.List(
-        Dataset.traits_spec(),
+        DatasetSpec.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
 
 
@@ -172,7 +172,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
     datasets = traits.List(
-        Dataset.traits_spec(),
+        DatasetSpec.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable

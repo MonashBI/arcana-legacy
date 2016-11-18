@@ -9,7 +9,7 @@ from nianalysis.archive.daris import (
     PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.base import Dataset
+from nianalysis.dataset import Dataset
 
 
 # The projects/subjects/sessions to alter on DaRIS
@@ -429,7 +429,7 @@ class TestDarisArchiveSummary(TestCase):
         inputnode.inputs.session_id = str(self.session_id)
         source = archive.source(str(PROJECT_ID), source_files)
         subject_sink_files = [Dataset('sink1', nifti_gz_format, pipeline=True,
-                                   multiplicity='per_subject')]
+                                      ultiplicity='per_subject')]
         subject_sink = archive.sink(str(PROJECT_ID),
                                     subject_sink_files,
                                     multiplicity='per_subject')
@@ -437,7 +437,7 @@ class TestDarisArchiveSummary(TestCase):
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
         project_sink_files = [Dataset('sink2', nifti_gz_format, pipeline=True,
-                                   multiplicity='per_project')]
+                                      multiplicity='per_project')]
         project_sink = archive.sink(PROJECT_ID,
                                     project_sink_files,
                                     multiplicity='per_project')

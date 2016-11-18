@@ -9,7 +9,7 @@ import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session
-from nianalysis.base import Dataset
+from nianalysis.dataset import Dataset
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
@@ -243,8 +243,9 @@ class LocalArchive(Archive):
                             if not os.path.isdir(d)]
                 for f in files:
                     datasets.append(
-                        Dataset.from_path(os.path.join(subject_summary_path, f),
-                                          multiplicity='per_subject'))
+                        Dataset.from_path(
+                            os.path.join(subject_summary_path, f),
+                            multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
         project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
         if os.path.exists(project_summary_path):

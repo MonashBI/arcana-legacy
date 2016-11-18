@@ -174,8 +174,8 @@ class DarisProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
 
 class DarisSink(ArchiveSink):
     """
-    A NiPype IO interface for putting processed datasets onto DaRIS (analogous to
-    DataSink)
+    A NiPype IO interface for putting processed datasets onto DaRIS (analogous
+    to DataSink)
     """
 
     input_spec = DarisSinkInputSpec
@@ -223,7 +223,8 @@ class DarisSink(ArchiveSink):
             # Get cache dir for session
             out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
                 self.inputs.cache_dir, self.inputs.repo_id,
-                self.inputs.project_id, subject_id, ex_method_id, session_id))))
+                self.inputs.project_id, subject_id, ex_method_id,
+                session_id))))
             # Make session cache dir
             if not os.path.exists(out_dir):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -239,14 +240,16 @@ class DarisSink(ArchiveSink):
                     continue  # skip the upload for this file
                 dataset_format = data_formats[format_name]
                 assert (
-                    split_extension(filename)[1] == dataset_format.extension), (
+                    split_extension(filename)[1] ==
+                    dataset_format.extension), (
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
                             data_formats[format_name].name,
                             dataset_format.extension))
                 src_path = os.path.abspath(filename)
                 # Copy to local cache
-                dst_path = os.path.join(out_dir, name + dataset_format.extension)
+                dst_path = os.path.join(out_dir,
+                                        name + dataset_format.extension)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to DaRIS
@@ -365,9 +368,9 @@ class DarisArchive(Archive):
             entries = daris.get_sessions(self, project_id,
                                          repo_id=self._repo_id)
             if session_id is not None:
-                # Attempt to convert session_ids into a single int and then wrap
-                # in a list in case session ids is a single integer (or string
-                # representation of an integer)
+                # Attempt to convert session_ids into a single int and then
+                # wrap in a list in case session ids is a single integer (or
+                # string representation of an integer)
                 try:
                     session_ids = [int(session_id)]
                 except TypeError:
@@ -378,14 +381,15 @@ class DarisArchive(Archive):
     def project(self, project_id, subject_ids=None, session_ids=None):
         with self._daris() as daris:
             # Get all datasets in project
-            entries = daris.get_datasets(self, project_id, repo_id=self._repo_id,
-                                      subject_id=None, session_id=None,
-                                      ex_method_id=None)
+            entries = daris.get_datasets(
+                self, project_id, repo_id=self._repo_id, subject_id=None,
+                session_id=None, ex_method_id=None)
         subject_dict = defaultdict(defaultdict(defaultdict(list)))
         for entry in entries:
             (subject_id, ex_method_id,
              session_id, dataset_id) = entry.cid.split('.')[-4:]
-            subject_dict[subject_id][ex_method_id][session_id].append(dataset_id)
+            subject_dict[subject_id][ex_method_id][session_id].append(
+                dataset_id)
         subjects = []
         project_summary = []
         for subject_id, method_dict in subject_dict.iteritems():
@@ -739,14 +743,15 @@ class DarisLogin:
         # Download datasets first just to check whether there are any problems
         # before creating the new session
         for dataset in datasets.itervalues():
-            self.download(os.path.join(tmp_dir, '{}_{}.zip'.format(dataset.id,
-                                                                   dataset.name)),
-                          project_id=old_project_id,
-                          subject_id=old_subject_id,
-                          session_id=old_session_id,
-                          dataset_id=dataset.id,
-                          repo_id=repo_id,
-                          ex_method_id=old_ex_method_id)
+            self.download(
+                os.path.join(tmp_dir, '{}_{}.zip'.format(dataset.id,
+                                                         dataset.name)),
+                project_id=old_project_id,
+                subject_id=old_subject_id,
+                session_id=old_session_id,
+                dataset_id=dataset.id,
+                repo_id=repo_id,
+                ex_method_id=old_ex_method_id)
         # Create a new subject if required
         if new_subject_id is not None:
             subjects = self.get_subjects(old_project_id, repo_id=repo_id)
@@ -777,10 +782,10 @@ class DarisLogin:
         # Add the new session if required
         if new_session_id not in new_sessions:
             if not create_session:
-                raise DarisException("Session {} is not present for subject {} "
-                                     "in project {}".format(new_session_id,
-                                                            new_subject_id,
-                                                            new_project_id))
+                raise DarisException(
+                    "Session {} is not present for subject {} "
+                    "in project {}".format(new_session_id, new_subject_id,
+                                           new_project_id))
             self.add_session(
                 new_project_id, new_subject_id, session_id=new_session_id,
                 name=(new_session_name
@@ -798,7 +803,8 @@ class DarisLogin:
                                          '{}_{}.zip'.format(dataset.id,
                                                             dataset.name)),
                             new_project_id, new_subject_id,
-                            session_id=new_session_id, dataset_id=new_dataset_id,
+                            session_id=new_session_id,
+                            dataset_id=new_dataset_id,
                             ex_method_id=new_ex_method_id, repo_id=repo_id,
                             lctype=dataset.lctype)
         else:
@@ -827,7 +833,8 @@ class DarisLogin:
                     name=None, description='\"\"', ex_method_id=2, repo_id=2,
                     processed=None):
         """
-        Adds a new dataset with the given subject_id within the given session id
+        Adds a new dataset with the given subject_id within the given session
+        id
 
         project_id  -- The id of the project to add the dataset to
         subject_id  -- The id of the subject to add the dataset to
@@ -912,9 +919,10 @@ class DarisLogin:
         match_dataset: string
             Recursive expression to match in order to download the asset
         dataset_type: list or string
-            Name(s) of the dataset to download. Available datasets: asl (arterial
-            spin labeling) t1,t2,epi,diffusion,proton_density, mt(Magnetization
-            Transfer), ute umap(UTE umap), dixon,gre(field map),multiband
+            Name(s) of the dataset to download. Available datasets: asl
+            (arterial spin labeling) t1,t2,epi,diffusion,proton_density,
+            mt(Magnetization Transfer), ute umap(UTE umap), dixon,gre(field
+            map),multiband
         """
         if match_dataset is None and dataset_type is None:
             raise Exception(
@@ -923,9 +931,10 @@ class DarisLogin:
         datasets = self.get_datasets(project_id, sub_id, session_id=session_id)
 
         list_datasets = {}
-        list_datasets['diffusion'] = (r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
-                                   r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff_motion$|'
-                                   r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff$')
+        list_datasets['diffusion'] = (
+            r'(R-L|L-R) ep2d([a-zA-Z_ ]+)([0-9]+)$|'
+            r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff_motion$|'
+            r'(R-L|L-R) ep2d([a-zA-Z_ ]+)diff$')
         list_datasets['epi'] = (
             r'(.*)ep2d([_ ])motion([_ ]+)correction$|(.*)'
             r'ep2d_rest([a-zA-Z_ ]+)|(.*)ep2d_task([a-zA-Z_ ]+)|'
@@ -942,7 +951,8 @@ class DarisLogin:
         list_datasets['ute'] = r'([a-zA-Z_ ]+)UTE$'
         list_datasets['dixon'] = r'([a-zA-Z_ ]+)DIXON([a-zA-Z_ ]+)_in'
         list_datasets['gre'] = r'(.*)gre([a-zA-Z_ ]+)field_map'
-        list_datasets['field_map'] = list_datasets['field map'] = list_datasets['gre']
+        list_datasets['field_map'] = list_datasets['gre']
+        list_datasets['field map'] = list_datasets['gre']
         list_datasets['umap'] = r'([a-zA-Z_ ]+)UTE([a-zA-Z_ ]+)UMAP'
 
         if isinstance(dataset_type, basestring):
@@ -950,13 +960,14 @@ class DarisLogin:
         elif (not isinstance(dataset_type, collections.Iterable) and
               dataset_type is not None):
             raise Exception(
-                "Dataset type '{}' is not a list or string".format(dataset_type))
+                "Dataset type '{}' is not a list or string"
+                .format(dataset_type))
 
         if dataset_type is not None:
             if match_dataset is not None:
                 raise Exception(
-                    "You need to provied just ONE input between dataset_type and "
-                    "match_dataset")
+                    "You need to provied just ONE input between dataset_type "
+                    "and match_dataset")
             for dataset in dataset_type:
                 match_dataset = list_datasets[dataset]
                 for dataset_id in datasets:
