@@ -300,9 +300,9 @@ class TestDarisArchive(TestCase):
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
-        sink_files = [Dataset('sink1', nifti_gz_format, pipeline=True),
-                      Dataset('sink3', nifti_gz_format, pipeline=True),
-                      Dataset('sink4', nifti_gz_format, pipeline=True)]
+        sink_files = [Dataset('sink1', nifti_gz_format, processed=True),
+                      Dataset('sink3', nifti_gz_format, processed=True),
+                      Dataset('sink4', nifti_gz_format, processed=True)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
@@ -428,15 +428,15 @@ class TestDarisArchiveSummary(TestCase):
         inputnode.inputs.subject_id = str(self.SUBJECT_ID)
         inputnode.inputs.session_id = str(self.session_id)
         source = archive.source(str(PROJECT_ID), source_files)
-        subject_sink_files = [Dataset('sink1', nifti_gz_format, pipeline=True,
-                                      ultiplicity='per_subject')]
+        subject_sink_files = [Dataset('sink1', nifti_gz_format, processed=True,
+                                      multiplicity='per_subject')]
         subject_sink = archive.sink(str(PROJECT_ID),
                                     subject_sink_files,
                                     multiplicity='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
-        project_sink_files = [Dataset('sink2', nifti_gz_format, pipeline=True,
+        project_sink_files = [Dataset('sink2', nifti_gz_format, processed=True,
                                       multiplicity='per_project')]
         project_sink = archive.sink(PROJECT_ID,
                                     project_sink_files,
@@ -494,9 +494,9 @@ class TestDarisArchiveSummary(TestCase):
             name='reload_source')
         reloadsink = archive.sink(PROJECT_ID,
                                   [Dataset('resink1', nifti_gz_format,
-                                        pipeline=True),
+                                           processed=True),
                                    Dataset('resink2', nifti_gz_format,
-                                        pipeline=True)])
+                                           processed=True)])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary datasets")
