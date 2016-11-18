@@ -82,7 +82,8 @@ class Study(object):
                                                                  '_')
             except KeyError:
                 raise NiAnalysisDatasetNameError(
-                    "'{}' is not a recognised dataset_spec name for {} studies."
+                    "'{}' is not a recognised dataset_spec name for {} "
+                    "studies."
                     .format(name, self.__class__.__name__))
             if not dataset.processed:
                 raise NiAnalysisMissingDatasetError(
@@ -116,8 +117,8 @@ class Study(object):
     @classmethod
     def dataset_spec(cls, name):
         """
-        Return the dataset_spec, i.e. the template of the dataset expected to be
-        supplied or generated corresponding to the dataset_spec name.
+        Return the dataset_spec, i.e. the template of the dataset expected to
+        be supplied or generated corresponding to the dataset_spec name.
 
         Parameters
         ----------
@@ -178,7 +179,7 @@ class CombinedStudy(Study):
 
     def __init__(self, name, project_id, archive, input_datasets):
         super(CombinedStudy, self).__init__(name, project_id, archive,
-                                         input_datasets)
+                                            input_datasets)
         self._sub_components = {}
         for comp_name, (cls, dataset_map) in self.component_specs.iteritems():
             # Create copies of the input datasets to pass to the __init__
@@ -208,9 +209,14 @@ class CombinedStudy(Study):
     def translate_getter(cls, comp_name, pipeline_getter):
         """
         A "decorator" (although not intended to be used with @) for translating
-        pipeline getter methods from a sub-component of a CombinedStudy. Returns
-        a new method that calls the getter on the specified sub-component then
-        translates the pipeline to the CombinedStudy.
+        pipeline getter methods from a sub-component of a CombinedStudy.
+        Returns a new method that calls the getter on the specified sub-
+        component then translates the pipeline to the CombinedStudy.
+
+        Parameters
+        ----------
+        comp_name : str
+            Name of the component 
         """
         def translated(self, **kwargs):
             return pipeline_getter(self._sub_components[comp_name],
