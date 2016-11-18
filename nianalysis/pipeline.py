@@ -93,8 +93,8 @@ class Pipeline(object):
         self._min_nthreads = min_nthreads
         self._max_nthreads = max_nthreads
 
-    def translate(self, multi_study):
-        
+    def translate(self, combined_study):
+        pass
 
     def __repr__(self):
         return "Pipeline(name='{}')".format(self.name)

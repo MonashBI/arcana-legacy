@@ -164,7 +164,7 @@ class Study(object):
         return (c.name for c in cls.acquired_dataset_specs())
 
 
-class MultiStudy(Study):
+class CombinedStudy(Study):
     """
     Abstract base class for all studies that combine multiple studies into a
     a combined study
@@ -177,7 +177,7 @@ class MultiStudy(Study):
     #     component study and the mapping of their dataset names
 
     def __init__(self, name, project_id, archive, input_datasets):
-        super(MultiStudy, self).__init__(name, project_id, archive,
+        super(CombinedStudy, self).__init__(name, project_id, archive,
                                          input_datasets)
         self._sub_components = {}
         for comp_name, (cls, dataset_map) in self.component_specs.iteritems():
@@ -208,9 +208,9 @@ class MultiStudy(Study):
     def translate_getter(cls, comp_name, pipeline_getter):
         """
         A "decorator" (although not intended to be used with @) for translating
-        pipeline getter methods from a sub-component of a MultiStudy. Returns
+        pipeline getter methods from a sub-component of a CombinedStudy. Returns
         a new method that calls the getter on the specified sub-component then
-        translates the pipeline to the MultiStudy.
+        translates the pipeline to the CombinedStudy.
         """
         def translated(self, **kwargs):
             return pipeline_getter(self._sub_components[comp_name],
