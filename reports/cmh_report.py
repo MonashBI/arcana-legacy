@@ -22,6 +22,13 @@ for line in data.split('\r'):
 
 del daris2aspree[401]  # actually 426
 
+mbi_aspree = set(aspree2daris.keys())
+print mbi_aspree - set(targets)
+print set(targets) - mbi_aspree
+
+print len(targets)
+print len(mbi_aspree)
+
 assert len(daris2aspree) == len(aspree2daris), (
     "{} vs {}".format(len(daris2aspree), len(aspree2daris)))
 
@@ -47,26 +54,26 @@ def read_cmh(fname):
         else:
             raise Exception(
                 "Unrecognised id '{}' on line '{}'".format(daris_id, line))
-        aspree_id = cols[1]
-        if aspree_id == '':
-            aspree_id = None
-            print "{} doesn't have an aspree id".format(daris_id)
-        else:
-            try:
-                aspree_id = int(aspree_id)
-                if daris2aspree[daris_id] != aspree_id:
-                    print(
-                        "Mismatching ids for {}: {} and {} using daris".format(
-                            daris_id, aspree_id, daris2aspree[daris_id]))
-                    aspree_id = daris2aspree[daris_id]
-                    continue
-            except ValueError:
-                raise Exception(
-                    "Unrecognised aspree id {}".format())
+#         aspree_id = cols[1]
+#         if aspree_id == '':
+#             aspree_id = None
+#             print "{} doesn't have an aspree id".format(daris_id)
+#         else:
+#             try:
+#                 aspree_id = int(aspree_id)
+#                 if daris2aspree[daris_id] != aspree_id:
+#                     print(
+#                         "Mismatching ids for {}: {} and {} using daris".format(
+#                             daris_id, aspree_id, daris2aspree[daris_id]))
+#                     aspree_id = daris2aspree[daris_id]
+#                     continue
+#             except ValueError:
+#                 raise Exception(
+#                     "Unrecognised aspree id {}".format())
         assert len(column_header) == len(cols[4:]), (
             "{} v {}".format(len(column_header), len(cols[4:])))
         vals = [(int(v) if v != '' else 0) for v in cols[4:]]
-        rows[aspree_id] = dict(zip(column_header, vals))
+        rows[daris_id] = dict(zip(column_header, vals))
     return rows, column_header
 
 definite, def_header = read_cmh(os.path.join(data_dir, 'definite.txt'))
@@ -80,14 +87,14 @@ missing_pos = []
 found_pos = []
 for tgt in targets:
     try:
-        definite_outstr += '\t'.join(str(definite[tgt][h])
+        definite_outstr += '\t'.join(str(definite[aspree2daris[tgt]][h])
                                      for h in def_header) + '\n'
         found_def.append(tgt)
     except KeyError:
         definite_outstr += '\t'.join([''] * len(def_header)) + '\n'
         missing_def.append(tgt)
     try:
-        possible_outstr += '\t'.join(str(definite[tgt][h])
+        possible_outstr += '\t'.join(str(definite[aspree2daris[tgt]][h])
                                          for h in def_header) + '\n'
         found_pos.append(tgt)
     except KeyError:
