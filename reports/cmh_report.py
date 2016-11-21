@@ -74,17 +74,33 @@ possible, pos_header = read_cmh(os.path.join(data_dir, 'possible.txt'))
 
 definite_outstr = ''
 possible_outstr = ''
+missing_def = []
+found_def = []
+missing_pos = []
+found_pos = []
 for tgt in targets:
     try:
         definite_outstr += '\t'.join(str(definite[tgt][h])
                                      for h in def_header) + '\n'
+        found_def.append(tgt)
     except KeyError:
         definite_outstr += '\t'.join([''] * len(def_header)) + '\n'
+        missing_def.append(tgt)
     try:
         possible_outstr += '\t'.join(str(definite[tgt][h])
                                          for h in def_header) + '\n'
+        found_pos.append(tgt)
     except KeyError:
         possible_outstr += '\t'.join([''] * len(def_header)) + '\n'
+        missing_pos.append(tgt)
+
+print len(missing_def)
+print len(missing_pos)
+print "missing def: {}".format(missing_def)
+print "missing pos: {}".format(missing_pos)
+
+print "missing def daris: {}".format([aspree2daris[m] for m in missing_def])
+print "missing pos daris: {}".format([aspree2daris[m] for m in missing_pos])
 
 with open(os.path.join(data_dir, 'definite-out'), 'w') as f:
     f.write(definite_outstr)
