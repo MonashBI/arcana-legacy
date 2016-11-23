@@ -435,6 +435,10 @@ class Pipeline(object):
         return self._name
 
     @property
+    def study(self):
+        return self._study
+
+    @property
     def workflow(self):
         return self._workflow
 

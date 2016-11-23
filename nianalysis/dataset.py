@@ -72,7 +72,7 @@ class Dataset(object):
         return self._processed
 
     def __iter__(self):
-        return iter(self.as_tuple())
+        return iter(self.to_tuple())
 
     def to_tuple(self):
         return self.name, self.format.name, self.multiplicity, self.processed

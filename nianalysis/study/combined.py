@@ -31,7 +31,7 @@ class CombinedStudy(Study):
     __metaclass__ = ABCMeta
 
     # NB: Subclasses are expected to have a class member named
-    #     'sub_study_specs' that defines the components that make up the
+    #     'sub_study_specs' that defines the sub-studies that make up the
     #     combined study and the mapping of their dataset names
 
     class TranslatedPipeline(Pipeline):
@@ -132,25 +132,24 @@ class CombinedStudy(Study):
                                             input_datasets)
         self._sub_studies = {}
         for (sub_study_name,
-             (cls, dataset_map)) in self.component_specs.iteritems():
+             (cls, dataset_map)) in self.sub_study_specs.iteritems():
             # Create copies of the input datasets to pass to the __init__
-            # method of the generated components
-            mapped_inputs = []
-            for dataset in input_datasets:
+            # method of the generated sub-studies
+            mapped_inputs = {}
+            for name, dataset in input_datasets.iteritems():
                 try:
-                    mapped_inputs.append(
-                        dataset.renamed_copy(dataset_map[dataset.name]))
+                    mapped_inputs[dataset_map[name]] = dataset
                 except KeyError:
-                    pass
-            # Create sub-component
-            sub_component = cls(name + '_' + sub_study_name, project_id,
-                                archive, mapped_inputs)
-            # Set component as attribute
-            setattr(self, sub_study_name, sub_component)
+                    pass  # Ignore datasets that are not required for sub-study
+            # Create sub-study
+            sub_study = cls(name + '_' + sub_study_name, project_id,
+                            archive, mapped_inputs)
+            # Set sub-study as attribute
+            setattr(self, sub_study_name, sub_study)
             # Append to dictionary of sub_studies
             assert sub_study_name not in self._sub_studies, (
-                "duplicate component names '{}'".format(sub_study_name))
-            self._sub_studies[sub_study_name] = sub_component
+                "duplicate sub-study names '{}'".format(sub_study_name))
+            self._sub_studies[sub_study_name] = sub_study
 
     @property
     def sub_studies(self):
@@ -160,14 +159,14 @@ class CombinedStudy(Study):
     def translate(cls, sub_study_name, pipeline_getter):
         """
         A "decorator" (although not intended to be used with @) for translating
-        pipeline getter methods from a sub-component of a CombinedStudy.
+        pipeline getter methods from a sub-study of a CombinedStudy.
         Returns a new method that calls the getter on the specified sub-
-        component then translates the pipeline to the CombinedStudy.
+        sub-study then translates the pipeline to the CombinedStudy.
 
         Parameters
         ----------
         sub_study_name : str
-            Name of the component
+            Name of the sub-study
         pipeline_getter : Study.method
             Unbound method used to create the pipeline in the sub-study
         """
