@@ -50,23 +50,16 @@ class Pipeline(object):
     def __init__(self, study, name, inputs, outputs, description,
                  options, citations, requirements, approx_runtime,
                  min_nthreads=1, max_nthreads=1):
-        # Check for unrecognised inputs/outputs
-        unrecog_inputs = set(n for n in inputs
-                             if n not in study.dataset_spec_names())
-        assert not unrecog_inputs, (
-            "'{}' are not valid inputs names for {} study ('{}')"
-            .format("', '".join(unrecog_inputs), study.__class__.__name__,
-                    "', '".join(study.dataset_spec_names())))
-        self._inputs = inputs
-        unrecog_outputs = set(n for n in outputs
-                              if n not in study.generated_dataset_spec_names())
-        assert not unrecog_outputs, (
-            "'{}' are not valid output names for {} study ('{}')"
-            .format("', '".join(unrecog_outputs), study.__class__.__name__,
-                    "', '".join(study.generated_dataset_spec_names())))
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
+        # Set up inputs
+        self._check_spec_names(inputs, 'input')
+        self._inputs = inputs
+        self._inputnode = pe.Node(IdentityInterface(fields=inputs),
+                                  name="{}_inputnode".format(name))
+        # Set up outputs
+        self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
         for output in outputs:
             mult = self._study.dataset_spec(output).multiplicity
@@ -83,8 +76,6 @@ class Pipeline(object):
             "Duplicate inputs found in '{}'".format("', '".join(inputs)))
         assert len(outputs) == len(self._unconnected_outputs), (
             "Duplicate outputs found in '{}'".format("', '".join(outputs)))
-        self._inputnode = pe.Node(IdentityInterface(fields=inputs),
-                                  name="{}_inputnode".format(name))
         self._citations = citations
         self._options = options
         self._description = description
@@ -93,8 +84,16 @@ class Pipeline(object):
         self._min_nthreads = min_nthreads
         self._max_nthreads = max_nthreads
 
-    def translate(self, combined_study):
-        pass
+    def _check_spec_names(self, spec_names, spec_type):
+                # Check for unrecognised inputs/outputs
+        unrecognised = set(n for n in spec_names
+                           if n not in self.study.dataset_spec_names())
+        if unrecognised:
+            raise NiAnalysisError(
+                "'{}' are not valid {} names for {} study ('{}')"
+                .format("', '".join(unrecognised), spec_type,
+                        self.study.__class__.__name__,
+                        "', '".join(self.study.dataset_spec_names())))
 
     def __repr__(self):
         return "Pipeline(name='{}')".format(self.name)
@@ -459,17 +458,37 @@ class Pipeline(object):
     def inputnode(self):
         return self._inputnode
 
-    @property
-    def session_outputnode(self):
-        return self._session_outputnode
+    def outputnode(self, multiplicity):
+        """
+        Returns the output node for the given multiplicity
+
+        Parameters
+        ----------
+        multiplicity : str
+            The multiplicity of the output node. Can be 'per_session',
+            'per_subject' or 'per_project'
+        """
+        return self._outputnode[multiplicity]
 
     @property
-    def subject_outputnode(self):
-        return self._subject_outputnode
+    def mutliplicities(self):
+        "The multiplicities present in the pipeline outputs"
+        return self._outputs.iterkeys()
 
-    @property
-    def project_outputnode(self):
-        return self._project_outputnode
+    def multiplicity_outputs(self, mult):
+        return iter(self._outputs[mult])
+
+    def multiplicity(self, output):
+        mults = [m for m, outputs in self._outputs.itervalues()
+                 if output in outputs]
+        if not mults:
+            raise KeyError(
+                "'{}' is not an output of pipeline '{}'".format(output,
+                                                                self.name))
+        else:
+            assert len(mults) == 1
+            mult = mults[0]
+        return mult
 
     @property
     def approx_runtime(self):
