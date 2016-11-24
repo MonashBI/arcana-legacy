@@ -31,7 +31,8 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, input_datasets):
+    def __init__(self, name, project_id, archive, input_datasets,
+                 check_input_datasets=True):
         self._name = name
         self._project_id = project_id
         self._input_datasets = {}
@@ -46,14 +47,15 @@ class Study(object):
             self._input_datasets[dataset_name] = dataset
         # Emit a warning if an acquired dataset_spec has not been provided for
         # an "acquired dataset_spec"
-        for spec in self.acquired_dataset_specs():
-            if spec.name not in self._input_datasets:
-                logger.warning(
-                    "'{}' acquired dataset_spec was not specified in {} '{}' "
-                    "(provided '{}'). Pipelines depending on this dataset "
-                    "will not run".format(
-                        spec.name, self.__class__.__name__, self.name,
-                        "', '".join(self._input_datasets)))
+        if check_input_datasets:
+            for spec in self.acquired_dataset_specs():
+                if spec.name not in self._input_datasets:
+                    logger.warning(
+                        "'{}' acquired dataset_spec was not specified in {} "
+                        "'{}' (provided '{}'). Pipelines depending on this "
+                        "dataset will not run".format(
+                            spec.name, self.__class__.__name__, self.name,
+                            "', '".join(self._input_datasets)))
         # TODO: Check that every session has the acquired datasets
         self._archive = archive
 

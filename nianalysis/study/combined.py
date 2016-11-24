@@ -143,7 +143,7 @@ class CombinedStudy(Study):
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study
             sub_study = cls(name + '_' + sub_study_name, project_id,
-                            archive, mapped_inputs)
+                            archive, mapped_inputs, check_input_datasets=False)
             # Set sub-study as attribute
             setattr(self, sub_study_name, sub_study)
             # Append to dictionary of sub_studies
