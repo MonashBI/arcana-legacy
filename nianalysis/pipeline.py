@@ -472,7 +472,7 @@ class Pipeline(object):
             The multiplicity of the output node. Can be 'per_session',
             'per_subject' or 'per_project'
         """
-        return self._outputnode[multiplicity]
+        return self._outputnodes[multiplicity]
 
     @property
     def mutliplicities(self):
@@ -497,6 +497,14 @@ class Pipeline(object):
     @property
     def approx_runtime(self):
         return self._approx_runtime
+
+    @property
+    def citations(self):
+        return self._citations
+
+    @property
+    def requirements(self):
+        return self._requirements
 
     @property
     def min_nthreads(self):

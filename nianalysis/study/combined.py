@@ -89,7 +89,7 @@ class CombinedStudy(Study):
                                       pipeline.inputnode, inpt)
             # Translate outputs from sub-study pipeline
             self._outputs = {}
-            for mult in pipeline.multiplicities:
+            for mult in pipeline.mutliplicities:
                 try:
                     self._outputs[mult] = [
                         dataset_map[o]
@@ -109,12 +109,12 @@ class CombinedStudy(Study):
                 self._unconnected_outputs.update(add_outputs)
             # Create output nodes for each multiplicity
             self._outputnodes = {}
-            for mult in self.pipeline.multiplicities:
+            for mult in pipeline.mutliplicities:
                 self._outputnodes[mult] = pe.Node(
                     IdentityInterface(fields=self._outputs[mult]),
                     name="{}_{}_outputnode".format(name, mult))
                 # Connect sub-study outputs
-                for output in pipeline.multiplicity_outputs[mult]:
+                for output in pipeline.multiplicity_outputs(mult):
                     self.workflow.connect(pipeline.outputnode(mult), output,
                                           self._outputnodes[mult],
                                           dataset_map[output])
@@ -136,9 +136,9 @@ class CombinedStudy(Study):
             # Create copies of the input datasets to pass to the __init__
             # method of the generated sub-studies
             mapped_inputs = {}
-            for name, dataset in input_datasets.iteritems():
+            for dataset_name, dataset in input_datasets.iteritems():
                 try:
-                    mapped_inputs[dataset_map[name]] = dataset
+                    mapped_inputs[dataset_map[dataset_name]] = dataset
                 except KeyError:
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study

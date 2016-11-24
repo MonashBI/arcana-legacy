@@ -147,8 +147,8 @@ class TestCombinedStudy(TestCase):
             input_datasets={'a': Dataset('ones', mrtrix_format),
                             'b': Dataset('ones', mrtrix_format),
                             'c': Dataset('ones', mrtrix_format)})
-        study.pipeline_a1().run()
-        study.pipeline_b1().run()
+        study.pipeline_a1().run(work_dir=self.WORKFLOW_DIR)
+        study.pipeline_b1().run(work_dir=self.WORKFLOW_DIR)
         d_mean = float(sp.check_output(
             'mrstats {} -output mean'.format(
                 os.path.join(session_dir, 'd.mif')), shell=True))
