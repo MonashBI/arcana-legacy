@@ -26,13 +26,26 @@ class CombinedStudy(Study):
         A dict containing the a mapping between names of study dataset_specs
         and existing datasets (typically acquired from the scanner but can
         also be replacements for generated dataset_specs)
+
+    Required Sub-Class attributes
+    -----------------------------
+    sub_study_specs : dict[str, (type(Study), dict[str, str])
+        Subclasses of CombinedStudy are expected to have a 'sub_study_specs'
+        class member, which defines the sub-studies that make up the combined
+        study and the mapping of their dataset names. The key of the outer
+        dictionary will be the name of the sub-study, and the value is a tuple
+        consisting of the class of the sub-study and a map of dataset names
+        between the sub-study and the combined study e.g.
+
+            sub_study_specs = {'t1_study': (MRStudy, {'t1': 'mr_scan'}),
+                               't2_study': (MRStudy, {'t2': 'mr_scan'})}
+
+            dataset_specs = set_dataset_specs(
+                DatasetSpec('t1', nifti_gz_format'),
+                DatasetSpec('t2', nifti_gz_format'))
     """
 
     __metaclass__ = ABCMeta
-
-    # NB: Subclasses are expected to have a class member named
-    #     'sub_study_specs' that defines the sub-studies that make up the
-    #     combined study and the mapping of their dataset names
 
     class TranslatedPipeline(Pipeline):
         """
