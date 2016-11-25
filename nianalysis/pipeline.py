@@ -364,7 +364,7 @@ class Pipeline(object):
         """
         assert spec_name in self._inputs, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
-            .format(input, self.name, "', '".join(self._inputs)))
+            .format(spec_name, self.name, "', '".join(self._inputs)))
         if join is not None:
             join_name = '{}_{}_{}_join_'.format(spec_name, node.name,
                                                 node_input)
@@ -513,6 +513,9 @@ class Pipeline(object):
     @property
     def max_nthreads(self):
         return self._max_nthreads
+
+    def node(self, name):
+        return self.workflow.get_node(name)
 
     @property
     def suffix(self):

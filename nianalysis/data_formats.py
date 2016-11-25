@@ -57,6 +57,8 @@ mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_format = DataFormat(name='freesurfer', extension='',
                                converter=None)
+text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
+                                converter=None)
 
 
 # A dictionary to access all the formats by name
