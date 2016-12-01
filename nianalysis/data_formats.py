@@ -50,12 +50,12 @@ nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
                                 lctype='nifti/gz', mrinfo='NIfTI-1.1')
 mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
 analyze_format = DataFormat(name='analyze', extension='.img')
-dicom_format = DataFormat(name='dicom', extension='', lctype='dicom/series', mrinfo='DICOM')
+dicom_format = DataFormat(name='dicom', extension=None, lctype='dicom/series', mrinfo='DICOM')
 fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
-freesurfer_format = DataFormat(name='freesurfer', extension='',
+freesurfer_format = DataFormat(name='freesurfer', extension=None,
                                converter=None)
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)

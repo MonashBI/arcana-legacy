@@ -120,7 +120,8 @@ class LocalSink(ArchiveSink):
             assert multiplicity in self.ACCEPTED_MULTIPLICITIES
             # Copy to local store
             src_path = os.path.abspath(filename)
-            dst_path = os.path.join(out_dir, name + ext)
+            dst_path = os.path.join(out_dir, name + (ext if ext is not None
+                                                     else ''))
             out_files.append(dst_path)
             shutil.copyfile(src_path, dst_path)
         if missing_files:
