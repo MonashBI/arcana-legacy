@@ -1,3 +1,5 @@
+zip_exts = ('gz', 'zip')
+
 
 def split_extension(filename):
     """
@@ -19,7 +21,7 @@ def split_extension(filename):
     parts = filename.split('.')
     if len(parts) == 1:
         return filename, None
-    if parts[-1] == 'gz' and parts[-2] in ('nii',):
+    if parts[-1] in zip_exts:
         num_ext_parts = 2
     else:
         num_ext_parts = 1
