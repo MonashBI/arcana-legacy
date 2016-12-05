@@ -202,6 +202,7 @@ class LocalArchive(Archive):
         subjects = []
         subject_dirs = [d for d in os.listdir(project_dir)
                         if not d.startswith('.') and d != PROJECT_SUMMARY_NAME]
+        subject_ids = [str(i) for i in subject_ids]  # Ensure ids are strings
         if subject_ids is not None:
             if any(subject_id not in subject_dirs
                    for subject_id in subject_ids):
