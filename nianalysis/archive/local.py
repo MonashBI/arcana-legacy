@@ -54,7 +54,8 @@ class LocalSource(ArchiveSource):
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(
                     multiplicity)
-            fname = name + data_formats[dataset_format].extension
+            ext = data_formats[dataset_format].extension
+            fname = name + (ext if ext is not None else '')
             outputs[name + self.OUTPUT_SUFFIX] = os.path.join(download_dir,
                                                               fname)
         return outputs
