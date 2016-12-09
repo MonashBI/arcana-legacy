@@ -199,6 +199,17 @@ spm_cite = Citation(
            "Images"),
     year=2006)
 
+optimal_t1_bet_params_cite = Citation(
+    short_name='optimal_t1_bet_params',
+    authors=[
+        'Popescu V.', 'Battaglini M.', 'Hoogstrate W.S.', 'Verfaillie S.C.',
+        'Sluimer I.C.', 'van Schijndel R.A.', 'van Dijk B.W.', 'Cover K.S.',
+        'Knol D.L.', 'Jenkinson M.', 'Barkhof F.', 'de Stefano N.',
+        'Vrenken H.'],
+    title=("Optimizing parameter choice for FSL-Brain Extraction Tool (BET) "
+           "on 3D T1 images in multiple sclerosis."),
+    journal='Neuroimage', volume=61, year=2012, issue=4)
+
 freesurfer_cites = [
     Citation(
         short_name='',
