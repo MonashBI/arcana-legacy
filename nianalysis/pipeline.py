@@ -153,11 +153,14 @@ class Pipeline(object):
         # Check the outputs of the pipeline to see which has the broadest
         # scope (to determine whether the pipeline needs to be rerun and for
         # which sessions/subjects
-        session_outputs = [o for o, m in zip(self.outputs, multiplicities)
+        session_outputs = [self.study.prefix + o
+                           for o, m in zip(self.outputs, multiplicities)
                            if m == 'per_session']
-        subject_outputs = [o for o, m in zip(self.outputs, multiplicities)
+        subject_outputs = [self.study.prefix + o
+                           for o, m in zip(self.outputs, multiplicities)
                            if m == 'per_subject']
-        project_outputs = [o for o, m in zip(self.outputs, multiplicities)
+        project_outputs = [self.study.prefix + o
+                           for o, m in zip(self.outputs, multiplicities)
                            if m == 'per_project']
         # Get list of available subjects and their associated sessions/datasets
         # from the archive
@@ -296,7 +299,9 @@ class Pipeline(object):
             # 'per_subject' or 'per_project')
             sink = self._study.archive.sink(
                 self._study._project_id,
-                (self._study.dataset(i) for i in outputs), mult)
+                (self._study.dataset(o).apply_prefix(self.study.prefix)
+                 for o in outputs),
+                mult)
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
             if mult != 'per_project':

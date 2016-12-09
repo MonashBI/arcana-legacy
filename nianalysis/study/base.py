@@ -90,8 +90,7 @@ class Study(object):
             dataset = self._input_datasets[name]
         except KeyError:
             try:
-                dataset = self._dataset_specs[name].apply_prefix(self.name +
-                                                                 '_')
+                dataset = self._dataset_specs[name].apply_prefix(self.prefix)
             except KeyError:
                 raise NiAnalysisDatasetNameError(
                     "'{}' is not a recognised dataset_spec name for {} "
@@ -103,6 +102,11 @@ class Study(object):
                     "for requested pipelines but was not supplied when the "
                     "study was initiated.".format(name))
         return dataset
+
+    @property
+    def prefix(self):
+        """The study name as a prefix for dataset names"""
+        return self.name + '_'
 
     @property
     def project_id(self):
