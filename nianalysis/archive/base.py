@@ -70,7 +70,8 @@ class Archive(object):
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
-        output_datasets = list(output_datasets)  # Ensure iterators aren't exhausted
+        # Ensure iterators aren't exhausted
+        output_datasets = list(output_datasets)
         sink = pe.Node(sink_class(output_datasets), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.datasets = [s.to_tuple() for s in output_datasets]

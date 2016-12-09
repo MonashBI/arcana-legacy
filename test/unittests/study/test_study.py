@@ -204,12 +204,8 @@ class TestRunPipeline(TestCase):
                             'ones_slice': Dataset('ones_slice',
                                                   mrtrix_format)})
 
-    def tearDown(self):
-        # Clean up working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-
     def test_pipeline_prerequisites(self):
-        self.study.pipeline4().run()
+        self.study.pipeline4().run(work_dir=self.WORKFLOW_DIR)
         for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session':
                 for session_path in self.session_paths:
@@ -219,7 +215,7 @@ class TestRunPipeline(TestCase):
                             dataset.name + dataset.format.extension)))
 
     def test_subject_summary(self):
-        self.study.subject_summary_pipeline().run()
+        self.study.subject_summary_pipeline().run(work_dir=self.WORKFLOW_DIR)
         for subject_path in self.subject_paths:
             summary_path = os.path.join(subject_path, SUBJECT_SUMMARY_NAME,
                                         'subject_summary.mif')
@@ -231,7 +227,7 @@ class TestRunPipeline(TestCase):
             self.assertEqual(mean_val, len(self.SESSION_IDS))
 
     def test_project_summary(self):
-        self.study.project_summary_pipeline().run()
+        self.study.project_summary_pipeline().run(work_dir=self.WORKFLOW_DIR)
         summary_path = os.path.join(
             self.BASE_DIR, self.PROJECT_ID, PROJECT_SUMMARY_NAME,
             'project_summary.mif')
