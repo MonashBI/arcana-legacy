@@ -14,7 +14,9 @@ class TestUtilsInterface(TestCase):
     def setUp(self):
         self.tmpdir = tempfile.mkdtemp()
         self.test_path = os.path.join(self.tmpdir, 'test_dir')
+        self.work_dir = os.path.join(self.tmpdir, 'work')
         os.mkdir(self.test_path)
+        os.mkdir(self.work_dir)
         with open(os.path.join(self.test_path, 'test_file'), 'w') as f:
             f.write('test')
 
@@ -29,9 +31,11 @@ class TestUtilsInterface(TestCase):
         # Create Unzip node
         unzipnode = pe.Node(UnzipDir(), name='unzip')
         # Create workflow
-        workflow = pe.Workflow('test_zip')
+        workflow = pe.Workflow('test_zip', base_dir=self.work_dir)
         workflow.connect(zipnode, 'zipped', unzipnode, 'zipped')
         workflow.connect(zipnode, 'extension', unzipnode, 'extension')
-        workflow.run()
+        exc_graph = workflow.run()
+        unzip_results = next(n for n in exc_graph.nodes()
+                             if n.name == 'unzip').result
         self.assertEqual(
-            os.listdir(unzipnode.get_output('unzipped')), ['test_file'])
+            os.listdir(unzip_results.outputs.unzipped), ['test_file'])
