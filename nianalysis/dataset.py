@@ -151,7 +151,7 @@ class DatasetSpec(Dataset):
     """
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session'):
+                 multiplicity='per_session', description=None):
         assert isinstance(name, basestring)
         assert isinstance(format, DataFormat)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
@@ -160,6 +160,7 @@ class DatasetSpec(Dataset):
         self._multiplicity = multiplicity
         self._prefix = ''
         self._pipeline = pipeline
+        self._description = description
 
     def __eq__(self, other):
         return (super(DatasetSpec, self).__eq__(other) and
@@ -172,6 +173,10 @@ class DatasetSpec(Dataset):
     @property
     def processed(self):
         return self._pipeline is not None
+
+    @property
+    def description(self):
+        return self._description
 
     def to_tuple(self):
         return self.name, self.format.name, self.multiplicity, self.processed
