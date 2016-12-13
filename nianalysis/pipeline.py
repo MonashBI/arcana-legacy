@@ -318,7 +318,7 @@ class Pipeline(object):
                         self._outputnodes[mult], dataset.name,
                         sink, dataset.name + ArchiveSink.INPUT_SUFFIX)
         # Run the workflow
-        complete_workflow.run()
+        return complete_workflow.run()
 
     @property
     def prerequisities(self):

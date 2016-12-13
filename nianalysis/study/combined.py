@@ -24,7 +24,7 @@ class CombinedStudy(Study):
         system
     input_datasets : Dict[str, base.Dataset]
         A dict containing the a mapping between names of study dataset_specs
-        and existing datasets (typically acquired from the scanner but can
+        and existing datasets (typically primary from the scanner but can
         also be replacements for generated dataset_specs)
 
     Required Sub-Class attributes
