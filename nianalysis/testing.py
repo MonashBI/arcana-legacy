@@ -21,7 +21,7 @@ class BaseImageTestCase(TestCase):
     def _remove_generated_files(self, project):
         # Remove processed datasets
         for fname in os.listdir(self._session_dir(project)):
-            if fname.startswith(self.DATASET_NAME):
+            if fname.startswith(self.STUDY_NAME + '_'):
                 os.remove(os.path.join(self._session_dir(project), fname))
 
     def assertImagesMatch(self, a, b):
