@@ -103,9 +103,9 @@ class DummySubStudyB(Study):
 
 class DummyCombinedStudy(CombinedStudy):
 
-    sub_study_specs = {'A': (DummySubStudyA, {'x': 'a', 'y': 'b', 'z': 'd'}),
-                       'B': (DummySubStudyB, {'w': 'b', 'x': 'c', 'y': 'e',
-                                              'z': 'f'})}
+    sub_study_specs = {'A': (DummySubStudyA, {'a': 'x', 'b': 'y', 'd': 'z'}),
+                       'B': (DummySubStudyB, {'b': 'w', 'c': 'x', 'e': 'y',
+                                              'f': 'z'})}
 
     pipeline_a1 = CombinedStudy.translate('A', DummySubStudyA.pipeline1)
     pipeline_b1 = CombinedStudy.translate('B', DummySubStudyB.pipeline1)
@@ -124,6 +124,7 @@ class TestCombinedStudy(TestCase):
     PROJECT_ID = 'PROJECTID'
     SUBJECT_ID = 'SUBJECTID1'
     SESSION_ID = 'SESSIONID1'
+    STUDY_NAME = 'combined'
     ONES_SLICE_IMAGE = os.path.abspath(os.path.join(test_data_dir,
                                                     'ones_slice.mif'))
     TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'study'))
@@ -143,7 +144,7 @@ class TestCombinedStudy(TestCase):
                     os.path.join(session_dir, 'ones.mif'))
         archive = LocalArchive(self.BASE_DIR)
         study = DummyCombinedStudy(
-            'TestCombined', self.PROJECT_ID, archive,
+            self.STUDY_NAME, self.PROJECT_ID, archive,
             input_datasets={'a': Dataset('ones', mrtrix_format),
                             'b': Dataset('ones', mrtrix_format),
                             'c': Dataset('ones', mrtrix_format)})
@@ -151,15 +152,16 @@ class TestCombinedStudy(TestCase):
         study.pipeline_b1().run(work_dir=self.WORKFLOW_DIR)
         d_mean = float(sp.check_output(
             'mrstats {} -output mean'.format(
-                os.path.join(session_dir, 'd.mif')), shell=True))
+                os.path.join(session_dir, '{}_d.mif'.format(self.STUDY_NAME))),
+            shell=True))
         self.assertEqual(d_mean, 2.0)
         e_mean = float(sp.check_output(
             'mrstats {} -output mean'.format(
-                os.path.join(session_dir, 'e.mif')), shell=True))
+                os.path.join(session_dir, '{}_e.mif'.format(self.STUDY_NAME))),
+            shell=True))
         self.assertEqual(e_mean, 3.0)
         f_mean = float(sp.check_output(
             'mrstats {} -output mean'.format(
-                os.path.join(session_dir, 'f.mif')), shell=True))
+                os.path.join(session_dir, '{}_f.mif'.format(self.STUDY_NAME))),
+            shell=True))
         self.assertEqual(f_mean, 6.0)
-
-
