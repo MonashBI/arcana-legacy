@@ -169,6 +169,7 @@ class TestRunPipeline(TestCase):
     PROJECT_ID = 'PROJECTID'
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
+    STUDY_NAME = 'dummy'
     TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
                                               'test_image.nii.gz'))
     ONES_SLICE_IMAGE = os.path.abspath(os.path.join(test_data_dir,
@@ -199,7 +200,7 @@ class TestRunPipeline(TestCase):
                             os.path.join(session_path, 'ones_slice.mif'))
         archive = LocalArchive(self.BASE_DIR)
         self.study = DummyStudy(
-            'TestDummy', self.PROJECT_ID, archive,
+            self.STUDY_NAME, self.PROJECT_ID, archive,
             input_datasets={'start': Dataset('start', nifti_gz_format),
                             'ones_slice': Dataset('ones_slice',
                                                   mrtrix_format)})
@@ -207,18 +208,21 @@ class TestRunPipeline(TestCase):
     def test_pipeline_prerequisites(self):
         self.study.pipeline4().run(work_dir=self.WORKFLOW_DIR)
         for dataset in DummyStudy.dataset_specs():
-            if dataset.multiplicity == 'per_session':
+            if dataset.multiplicity == 'per_session' and dataset.processed:
                 for session_path in self.session_paths:
-                    self.assertTrue(
-                        os.path.exists(os.path.join(
-                            session_path,
-                            dataset.name + dataset.format.extension)))
+                    dataset_path = os.path.join(
+                        session_path, (self.STUDY_NAME + '_' + dataset.name +
+                                       dataset.format.extension))
+                    self.assertTrue(os.path.exists(dataset_path),
+                                    "'{}' dataset was not created by pipeline"
+                                    .format(dataset_path))
 
     def test_subject_summary(self):
         self.study.subject_summary_pipeline().run(work_dir=self.WORKFLOW_DIR)
         for subject_path in self.subject_paths:
             summary_path = os.path.join(subject_path, SUBJECT_SUMMARY_NAME,
-                                        'subject_summary.mif')
+                                        '{}_subject_summary.mif'.format(
+                                            self.STUDY_NAME))
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
@@ -230,7 +234,7 @@ class TestRunPipeline(TestCase):
         self.study.project_summary_pipeline().run(work_dir=self.WORKFLOW_DIR)
         summary_path = os.path.join(
             self.BASE_DIR, self.PROJECT_ID, PROJECT_SUMMARY_NAME,
-            'project_summary.mif')
+            '{}_project_summary.mif'.format(self.STUDY_NAME))
         # Get mean value from resultant image (should be the same as the
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
