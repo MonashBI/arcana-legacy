@@ -19,6 +19,8 @@ class TestLocalArchive(TestCase):
     PROJECT_ID = 'DUMMYPROJECTID'
     SUBJECT_ID = 'DUMMYSUBJECTID'
     SESSION_ID = 'DUMMYSESSIONID'
+    STUDY_NAME = 'ASTUDY'
+    SUMMARY_STUDY_NAME = 'ASUMMARYSTUDY'
     TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
                                               'test_image.nii.gz'))
     TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'local'))
@@ -52,15 +54,17 @@ class TestLocalArchive(TestCase):
                         Dataset('source2', nifti_gz_format),
                         Dataset('source3', nifti_gz_format),
                         Dataset('source4', nifti_gz_format)]
-        sink_files = [Dataset('sink1', nifti_gz_format),
-                      Dataset('sink3', nifti_gz_format),
-                      Dataset('sink4', nifti_gz_format)]
+        sink_files = [Dataset('sink1', nifti_gz_format, processed=True),
+                      Dataset('sink3', nifti_gz_format, processed=True),
+                      Dataset('sink4', nifti_gz_format, processed=True)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT_ID
         inputnode.inputs.session_id = self.SESSION_ID
-        source = archive.source(self.PROJECT_ID, source_files)
-        sink = archive.sink(self.PROJECT_ID, sink_files)
+        source = archive.source(self.PROJECT_ID, source_files,
+                                study_name=self.STUDY_NAME)
+        sink = archive.sink(self.PROJECT_ID, sink_files,
+                                study_name=self.STUDY_NAME)
         sink.inputs.name = 'archive_sink'
         sink.inputs.description = (
             "A test session created by archive roundtrip unittest")
@@ -102,18 +106,22 @@ class TestLocalArchive(TestCase):
         inputnode.inputs.session_id = self.SESSION_ID
         source = archive.source(self.PROJECT_ID, source_files)
         subject_sink_files = [Dataset('sink1', nifti_gz_format,
-                                   multiplicity='per_subject')]
+                                      multiplicity='per_subject',
+                                      processed=True)]
         subject_sink = archive.sink(self.PROJECT_ID,
                                     subject_sink_files,
-                                    multiplicity='per_subject')
+                                    multiplicity='per_subject',
+                                    study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
         project_sink_files = [Dataset('sink2', nifti_gz_format,
-                                   multiplicity='per_project')]
+                                      multiplicity='per_project',
+                                      processed=True)]
         project_sink = archive.sink(self.PROJECT_ID,
                                     project_sink_files,
-                                    multiplicity='per_project')
+                                    multiplicity='per_project',
+                                    study_name=self.SUMMARY_STUDY_NAME)
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.description = (
@@ -151,10 +159,14 @@ class TestLocalArchive(TestCase):
         reloadsource = archive.source(
             self.PROJECT_ID,
             source_files + subject_sink_files + project_sink_files,
-            name='reload_source')
+            name='reload_source',
+            study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(self.PROJECT_ID,
-                                  [Dataset('resink1', nifti_gz_format),
-                                   Dataset('resink2', nifti_gz_format)])
+                                  [Dataset('resink1', nifti_gz_format,
+                                           processed=True),
+                                   Dataset('resink2', nifti_gz_format,
+                                           processed=True)],
+                                  study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary datasets")

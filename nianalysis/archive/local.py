@@ -145,10 +145,10 @@ class LocalSink(ArchiveSink):
         outputs['out_files'] = out_files
         return outputs
 
-    def _get_output_dir(self):
-        return (
+    def _get_output_path(self):
+        return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, self.inputs.session_id)
+            self.inputs.subject_id, self.inputs.session_id]
 
 
 class LocalSubjectSink(LocalSink):
@@ -157,10 +157,10 @@ class LocalSubjectSink(LocalSink):
 
     ACCEPTED_MULTIPLICITIES = ('per_subject', 'per_subject_subset')
 
-    def _get_output_dir(self):
-        return (
+    def _get_output_path(self):
+        return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, SUBJECT_SUMMARY_NAME)
+            self.inputs.subject_id, SUBJECT_SUMMARY_NAME]
 
 
 class LocalProjectSink(LocalSink):
@@ -169,9 +169,9 @@ class LocalProjectSink(LocalSink):
 
     ACCEPTED_MULTIPLICITIES = ('per_project',)
 
-    def _get_output_dir(self):
-        return (
-            self.inputs.base_dir, self.inputs.project_id, PROJECT_SUMMARY_NAME)
+    def _get_output_path(self):
+        return [
+            self.inputs.base_dir, self.inputs.project_id, PROJECT_SUMMARY_NAME]
 
 
 class LocalArchive(Archive):
