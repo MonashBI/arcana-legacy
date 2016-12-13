@@ -257,8 +257,9 @@ class Pipeline(object):
                                       sessions, 'session_id')
         # Create source and sinks from the archive
         source = self._study.archive.source(
-            self._study.project_id,
-            (self._study.dataset(i) for i in self.inputs))
+            self.study.project_id,
+            (self.study.dataset(i) for i in self.inputs),
+            study_name=self.study.name)
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
@@ -297,11 +298,10 @@ class Pipeline(object):
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
             # 'per_subject' or 'per_project')
-            sink = self._study.archive.sink(
-                self._study._project_id,
-                (self._study.dataset(o).apply_prefix(self.study.prefix)
-                 for o in outputs),
-                mult)
+            sink = self.study.archive.sink(
+                self.study._project_id,
+                (self.study.dataset(o) for o in outputs), mult,
+                study_name=self.study.name)
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
             if mult != 'per_project':
@@ -311,7 +311,7 @@ class Pipeline(object):
                     complete_workflow.connect(sessions, 'session_id',
                                               sink, 'session_id')
             for output in outputs:
-                dataset = self._study.dataset(output)
+                dataset = self.study.dataset(output)
                 # Skip datasets which are already input datasets
                 if dataset.processed:
                     complete_workflow.connect(
