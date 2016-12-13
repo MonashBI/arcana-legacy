@@ -19,8 +19,8 @@ class TestLocalArchive(TestCase):
     PROJECT_ID = 'DUMMYPROJECTID'
     SUBJECT_ID = 'DUMMYSUBJECTID'
     SESSION_ID = 'DUMMYSESSIONID'
-    STUDY_NAME = 'ASTUDY'
-    SUMMARY_STUDY_NAME = 'ASUMMARYSTUDY'
+    STUDY_NAME = 'astudy'
+    SUMMARY_STUDY_NAME = 'asummary'
     TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
                                               'test_image.nii.gz'))
     TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'local'))
@@ -89,7 +89,9 @@ class TestLocalArchive(TestCase):
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
             str(self.SESSION_ID))
         self.assertEqual(sorted(os.listdir(session_dir)),
-                         ['sink1.nii.gz', 'sink3.nii.gz', 'sink4.nii.gz',
+                         [self.STUDY_NAME + '_sink1.nii.gz',
+                          self.STUDY_NAME + '_sink3.nii.gz',
+                          self.STUDY_NAME + '_sink4.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
 
@@ -145,11 +147,11 @@ class TestLocalArchive(TestCase):
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
             SUBJECT_SUMMARY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         ['sink1.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_sink1.nii.gz'])
         project_dir = os.path.join(
             self.BASE_DIR, str(self.PROJECT_ID), PROJECT_SUMMARY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         ['sink2.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_sink2.nii.gz'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'session_id']),
@@ -193,6 +195,7 @@ class TestLocalArchive(TestCase):
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),
             str(self.SESSION_ID))
         self.assertEqual(sorted(os.listdir(session_dir)),
-                         ['resink1.nii.gz', 'resink2.nii.gz',
+                         [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
+                          self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])

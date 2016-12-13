@@ -47,21 +47,20 @@ class LocalSource(ArchiveSource):
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
             if multiplicity == 'per_project':
-                download_dir = project_dir
+                data_dir = project_dir
             elif multiplicity.startswith('per_subject'):
-                download_dir = subject_dir
+                data_dir = subject_dir
             elif multiplicity.startswith('per_session'):
-                download_dir = session_dir
+                data_dir = session_dir
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(
                     multiplicity)
-            if processed and isdefined(self.inputs.study_name):
-                study_dir = os.path.join(download_dir, self.inputs.study_name)
-            else:
-                study_dir = download_dir
             ext = data_formats[dataset_format].extension
             fname = name + (ext if ext is not None else '')
-            outputs[name + self.OUTPUT_SUFFIX] = os.path.join(study_dir, fname)
+            # Prepend study name if defined
+            if processed and isdefined(self.inputs.study_name):
+                fname = self.inputs.study_name + '_' + fname
+            outputs[name + self.OUTPUT_SUFFIX] = os.path.join(data_dir, fname)
         return outputs
 
 
@@ -104,8 +103,6 @@ class LocalSink(ArchiveSink):
         missing_files = []
         # Get session dir
         out_path = self._get_output_path()
-        if isdefined(self.inputs.study_name):
-            out_path.append(self.inputs.study_name)
         out_dir = os.path.abspath(os.path.join(*out_path))
         # Make session dir
         if not os.path.exists(out_dir):
@@ -130,8 +127,10 @@ class LocalSink(ArchiveSink):
             assert multiplicity in self.ACCEPTED_MULTIPLICITIES
             # Copy to local system
             src_path = os.path.abspath(filename)
-            dst_path = os.path.join(out_dir,
-                                    name + (ext if ext is not None else ''))
+            out_fname = name + (ext if ext is not None else '')
+            if isdefined(self.inputs.study_name):
+                out_fname = self.inputs.study_name + '_' + out_fname
+            dst_path = os.path.join(out_dir, out_fname)
             out_files.append(dst_path)
             shutil.copyfile(src_path, dst_path)
         if missing_files:
