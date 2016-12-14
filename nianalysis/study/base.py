@@ -25,7 +25,7 @@ class Study(object):
         system
     input_datasets : Dict[str, base.Dataset]
         A dict containing the a mapping between names of study dataset_specs
-        and existing datasets (typically acquired from the scanner but can
+        and existing datasets (typically primary from the scanner but can
         also be replacements for generated dataset_specs)
 
 
@@ -55,18 +55,18 @@ class Study(object):
                     "dataset_specs in {} studies".format(
                         dataset_name, self.__class__.__name__))
             self._input_datasets[dataset_name] = dataset
-        # Emit a warning if an acquired dataset_spec has not been provided for
-        # an "acquired dataset_spec"
+        # Emit a warning if an primary dataset_spec has not been provided for
+        # an "primary dataset_spec"
         if check_input_datasets:
-            for spec in self.acquired_dataset_specs():
+            for spec in self.primary_dataset_specs():
                 if spec.name not in self._input_datasets:
                     logger.warning(
-                        "'{}' acquired dataset_spec was not specified in {} "
+                        "'{}' primary dataset_spec was not specified in {} "
                         "'{}' (provided '{}'). Pipelines depending on this "
                         "dataset will not run".format(
                             spec.name, self.__class__.__name__, self.name,
                             "', '".join(self._input_datasets)))
-        # TODO: Check that every session has the acquired datasets
+        # TODO: Check that every session has the primary datasets
         self._archive = archive
 
     def __repr__(self):
@@ -83,7 +83,7 @@ class Study(object):
         Parameters
         ----------
         name : Str
-            Name of the dataset_spec to the find the corresponding acquired
+            Name of the dataset_spec to the find the corresponding primary
             dataset or processed dataset to be generated
         """
         try:
@@ -154,7 +154,7 @@ class Study(object):
         return cls._dataset_specs.itervalues()
 
     @classmethod
-    def acquired_dataset_specs(cls):
+    def primary_dataset_specs(cls):
         """
         Lists all dataset_specs defined in the study class that are provided as
         inputs to the study
@@ -176,9 +176,9 @@ class Study(object):
         return (c.name for c in cls.generated_dataset_specs())
 
     @classmethod
-    def acquired_dataset_spec_names(cls):
-        """Lists the names of acquired dataset_specs defined in the study"""
-        return (c.name for c in cls.acquired_dataset_specs())
+    def primary_dataset_spec_names(cls):
+        """Lists the names of primary dataset_specs defined in the study"""
+        return (c.name for c in cls.primary_dataset_specs())
 
 
 def set_dataset_specs(*comps, **kwargs):

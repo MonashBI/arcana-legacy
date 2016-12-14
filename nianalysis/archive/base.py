@@ -116,7 +116,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
     """
     Base class for archive source input specifications. Provides a common
     interface for 'run_pipeline' when using the archive source to extract
-    acquired and preprocessed datasets from the archive system
+    primary and preprocessed datasets from the archive system
     """
     project_id = traits.Str(  # @UndefinedVariable
         mandatory=True,
