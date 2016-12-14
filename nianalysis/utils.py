@@ -1,7 +1,9 @@
+import os.path
+
 zip_exts = ('gz', 'zip')
 
 
-def split_extension(filename):
+def split_extension(path):
     """
     A extension splitter that checks for compound extensions such as
     'file.nii.gz'
@@ -18,18 +20,20 @@ def split_extension(filename):
     ext : str
         The extension part of the string, i.e. 'nii.gz' of 'file.nii.gz'
     """
+    dirname = os.path.dirname(path)
+    filename = os.path.basename(path)
     parts = filename.split('.')
     if len(parts) == 1:
-        return filename, None
-    if parts[-1] in zip_exts:
-        num_ext_parts = 2
+        base = filename
+        ext = None
     else:
-        num_ext_parts = 1
-    ext = '.'.join(parts[-num_ext_parts:])
-    if ext:
-        ext = '.' + ext
-    base = '.'.join(parts[:-num_ext_parts])
-    return base, ext
+        if parts[-1] in zip_exts:
+            num_ext_parts = 2
+        else:
+            num_ext_parts = 1
+        ext = '.' + '.'.join(parts[-num_ext_parts:])
+        base = '.'.join(parts[:-num_ext_parts])
+    return os.path.join(dirname, base), ext
 
 
 class classproperty(property):

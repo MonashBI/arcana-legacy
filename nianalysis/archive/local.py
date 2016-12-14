@@ -121,9 +121,6 @@ class LocalSink(ArchiveSink):
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
                         data_formats[dataset_format].name, ext))
-            assert isdefined(filename), (
-                "Previous node returned undefined input to Local sink for "
-                "'{}' output".format(name))
             assert multiplicity in self.ACCEPTED_MULTIPLICITIES
             # Copy to local system
             src_path = os.path.abspath(filename)
