@@ -1,4 +1,5 @@
 import os.path
+from abc import ABCMeta
 from nianalysis.data_formats import DataFormat
 from copy import copy
 from nipype.interfaces.base import traits
@@ -7,13 +8,15 @@ from nianalysis.data_formats import (
     data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
+from nianalysis.exceptions import NiAnalysisError
 
 logger = getLogger('NiAnalysis')
 
 
-class Dataset(object):
+class BaseDataset(object):
     """
-    A class representing a dataset, which was primary.
+    An abstract base class representing either an acquired dataset or the
+    specification for a processed dataset.
 
     Parameters
     ----------
@@ -30,23 +33,21 @@ class Dataset(object):
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project')
     #                        'per_session_subset', 'per_subject_subset')
 
-    def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session'):
+    __metaclass__ = ABCMeta
+
+    def __init__(self, name, format=None, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
         assert isinstance(name, basestring)
         assert isinstance(format, DataFormat)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
         self._name = name
         self._format = format
         self._multiplicity = multiplicity
-        self._processed = processed
-        self._prefix = ''
 
     def __eq__(self, other):
         try:
             return (self.name == other.name and
                     self.format == other.format and
-                    self.multiplicity == other.multiplicity and
-                    self._prefix == other._prefix)
+                    self.multiplicity == other.multiplicity)
         except AttributeError as e:
             assert not e.message.startswith(
                 "'{}'".format(self.__class__.__name__))
@@ -67,10 +68,6 @@ class Dataset(object):
     def multiplicity(self):
         return self._multiplicity
 
-    @property
-    def processed(self):
-        return self._processed
-
     def __iter__(self):
         return iter(self.to_tuple())
 
@@ -84,9 +81,80 @@ class Dataset(object):
         return cls(name, data_format, pipeline=processed,
                    multiplicity=multiplicity)
 
+    @property
+    def filename(self, format=None):  # @ReservedAssignment
+        if format is None:
+            assert self.format is not None, "Dataset format is undefined"
+            format = self.format  # @ReservedAssignment
+        return self.name + format.extension
+
+    def match(self, filename):
+        base, ext = os.path.splitext(filename)
+        return base == self.name and (ext == self.format.extension or
+                                      self.format is None)
+
+    def __repr__(self):
+        return ("{}(name='{}', format={}, multiplicity={})"
+                .format(self.__class__.__name__, self.name, self.format,
+                        self.multiplicity))
+
+
+class Dataset(BaseDataset):
+    """
+    A class representing a dataset, which was primary.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    format : FileFormat
+        The file format used to store the dataset. Can be one of the
+        recognised formats
+    multiplicity : str
+        One of 'per_subject', 'subject_subset', and 'per_project', specifying
+        whether the dataset is present for each session, subject or project.
+    processed : bool
+        Whether the scan was generated or acquired
+    """
+
+    def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
+                 multiplicity='per_session', location=None):
+        super(Dataset, self).__init__(name, format, multiplicity)
+        self._processed = processed
+        self._location = location
+
+    @property
+    def prefixed_name(self):
+        return self.name
+
+    def __eq__(self, other):
+        return (super(Dataset, self).__eq__(other) and
+                self.processed == other.processed)
+
+    @property
+    def path(self):
+        if self.location is None:
+            raise NiAnalysisError(
+                "Dataset '{}' location has not been set, please use "
+                "'in_directory' method to set it".format(self.name))
+        return os.path.join(self.location, self.name + self.filename)
+
+    @property
+    def processed(self):
+        return self._processed
+
+    def in_directory(self, dir_path):
+        """
+        Returns a copy of the dataset with its location set
+        """
+        cpy = copy(self)
+        cpy._location = dir_path
+
     @classmethod
     def from_path(cls, path, multiplicity='per_session'):
-        basename, ext = split_extension(path)
+        location = os.path.dirname(path)
+        filename = os.path.basename(path)
+        name, ext = split_extension(filename)
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
@@ -101,34 +169,11 @@ class Dataset(object):
                 logger.warning("Unrecognised format '{}' of path '{}'"
                                "assuming it is a dicom".format(abbrev, path))
                 data_format = dicom_format
-        return cls(basename, data_format, multiplicity=multiplicity)
-
-    @property
-    def filename(self, format=None):  # @ReservedAssignment
-        if format is None:
-            assert self.format is not None, "Dataset format is undefined"
-            format = self.format  # @ReservedAssignment
-        return self._prefix + self.name + format.extension
-
-    def match(self, filename):
-        base, ext = os.path.splitext(filename)
-        return base == self.name and (ext == self.format.extension or
-                                      self.format is None)
-
-    def apply_prefix(self, prefix):
-        """
-        Duplicate the dataset and provide a prefix to apply to the filename
-        """
-        duplicate = copy(self)
-        duplicate._prefix = prefix
-        return duplicate
-
-    def __repr__(self):
-        return ("Dataset(name='{}', format={}, multiplicity={})"
-                .format(self.name, self.format, self.multiplicity))
+        return cls(name, data_format, multiplicity=multiplicity,
+                   location=location)
 
 
-class DatasetSpec(Dataset):
+class DatasetSpec(BaseDataset):
     """
     A class representing a "specification" for a dataset within a study, which
     can either be an "primary" dataset (e.g from the scanner)
@@ -152,19 +197,18 @@ class DatasetSpec(Dataset):
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', description=None):
-        assert isinstance(name, basestring)
-        assert isinstance(format, DataFormat)
-        assert multiplicity in self.MULTIPLICITY_OPTIONS
-        self._name = name
-        self._format = format
-        self._multiplicity = multiplicity
-        self._prefix = ''
+        super(DatasetSpec, self).__init__(name, format, multiplicity)
         self._pipeline = pipeline
         self._description = description
+        self._prefix = ''
 
     def __eq__(self, other):
         return (super(DatasetSpec, self).__eq__(other) and
                 self.pipeline == other.pipeline)
+
+    @property
+    def prefixed_name(self):
+        return self._prefix + self.name
 
     @property
     def pipeline(self):
@@ -185,6 +229,18 @@ class DatasetSpec(Dataset):
         cpy = copy(self)
         cpy._name = name
         return cpy
+
+    @property
+    def filename(self):
+        return self._prefix + super(DatasetSpec, self).filename
+
+    def apply_prefix(self, prefix):
+        """
+        Duplicate the dataset and provide a prefix to apply to the filename
+        """
+        duplicate = copy(self)
+        duplicate._prefix = prefix
+        return duplicate
 
     @classmethod
     def traits_spec(self):

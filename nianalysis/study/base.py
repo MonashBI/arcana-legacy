@@ -98,9 +98,9 @@ class Study(object):
                     .format(name, self.__class__.__name__))
             if not dataset.processed:
                 raise NiAnalysisMissingDatasetError(
-                    "Acquired (i.e. non-generated) dataset '{}' is required "
-                    "for requested pipelines but was not supplied when the "
-                    "study was initiated.".format(name))
+                    "Acquired (i.e. non-generated) dataset '{}' "
+                    "was not supplied when the study '{}' was initiated"
+                    .format(name, self.name))
         return dataset
 
     @property

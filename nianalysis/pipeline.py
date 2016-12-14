@@ -5,7 +5,7 @@ from nipype.interfaces.utility import IdentityInterface, Split
 from logging import getLogger
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exceptions import (
-    NiAnalysisDatasetNameError, NiAnalysisError)
+    NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.archive.base import ArchiveSource, ArchiveSink
 
 logger = getLogger('NIAnalysis')
@@ -148,50 +148,21 @@ class Pipeline(object):
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
-        multiplicities = [self._study.dataset_spec(o).multiplicity
-                          for o in self.outputs]
-        # Check the outputs of the pipeline to see which has the broadest
-        # scope (to determine whether the pipeline needs to be rerun and for
-        # which sessions/subjects
-        session_outputs = [self.study.prefix + o
-                           for o, m in zip(self.outputs, multiplicities)
-                           if m == 'per_session']
-        subject_outputs = [self.study.prefix + o
-                           for o, m in zip(self.outputs, multiplicities)
-                           if m == 'per_subject']
-        project_outputs = [self.study.prefix + o
-                           for o, m in zip(self.outputs, multiplicities)
-                           if m == 'per_project']
         # Get list of available subjects and their associated sessions/datasets
         # from the archive
         if project is None:
             project = self._study.archive.project(
                 self._study._project_id, subject_ids=subject_ids,
                 session_ids=session_ids)
-        # If the pipeline can be run independently for each session check
-        # to see the sessions which have already been completed and omit
-        # them from the sessions to be processed
-
-        # Get all requested sessions that are missing at least one of
-        # the output datasets
-        if reprocess or not all(o in project.datasets
-                                for o in project_outputs):
-            subjects_to_process = list(project.subjects)
-        else:
-            sessions_to_process = list(chain(*[
-                (sess for sess in subj.sessions
-                 if not all(o in sess.datasets for o in session_outputs))
-                for subj in project.subjects]))
-            subjects_to_process = set(
-                sess.subject for sess in sessions_to_process)
-            subjects_to_process |= set(
-                subj for subj in project.subjects
-                if not all(o in subj.datasets for o in subject_outputs))
-            if not subjects_to_process and not sessions_to_process:
-                logger.info(
-                    "Pipeline '{}' wasn't run as all requested sessions "
-                    "were present")
-                return  # No sessions need to be rerun
+        # Get list of sessions and subjects that need to be processed (i.e. if
+        # they don't contain the outputs of this pipeline)
+        sessions_to_process, subjects_to_process = self.to_process(project,
+                                                                   reprocess)
+        if not sessions_to_process and not subjects_to_process:
+            logger.info(
+                "All outputs of '{}' are already present in project archive, "
+                "skipping".format(self.name))
+            return None
         # Run prerequisite pipelines and save their results into the archive
         for prereq in self.prerequisities:
             # NB: Even if reprocess==True, the prerequisite pipelines are not
@@ -207,7 +178,10 @@ class Pipeline(object):
         sessions = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                            name='sessions')
         complete_workflow.add_nodes([sessions])
-        if subject_outputs or project_outputs:
+        # Set up session/subject "iterables" to control the iteration of the
+        # pipeline over the project
+        if any(self.study.dataset_spec(o).multiplicity != 'per_session'
+               for o in self.outputs):
             # If subject or study outputs iterate through subjects and
             # sessions independently (like nested 'for' loops)
             most_sessions = []
@@ -255,11 +229,16 @@ class Pipeline(object):
                                       sessions, 'subject_id')
             complete_workflow.connect(splitnode, 'out2',
                                       sessions, 'session_id')
-        # Create source and sinks from the archive
-        source = self._study.archive.source(
-            self.study.project_id,
-            (self.study.dataset(i) for i in self.inputs),
-            study_name=self.study.name)
+        try:
+            # Create source and sinks from the archive
+            source = self._study.archive.source(
+                self.study.project_id,
+                (self.study.dataset(i) for i in self.inputs),
+                study_name=self.study.name)
+        except NiAnalysisMissingDatasetError as e:
+            raise NiAnalysisMissingDatasetError(
+                str(e) + ", which is required for pipeline '{}'".format(
+                    self.name))
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
@@ -336,6 +315,45 @@ class Pipeline(object):
                 pipelines.add(comp.pipeline)
         # Call pipeline instancemethods to study with provided options
         return (p(self._study, **self.options) for p in pipelines)
+
+    def to_process(self, project, reprocess=False):
+        """
+        Check whether the outputs of the pipeline are present in all sessions
+        in the project archive, and make a list of the sessions and subjects
+        that need to be reprocessed if they aren't.
+
+        Parameters
+        ----------
+        project : Project
+            A representation of the project and associated subjects and
+            sessions for the study's archive.
+        """
+        all_subjects = list(project.subjects)
+        all_sessions = list(chain(*[s.sessions for s in project.subjects]))
+        if reprocess:
+            return all_sessions, all_subjects
+        sessions_to_process = set()
+        subjects_to_process = set()
+        for output in self.outputs:
+            dataset = self.study.dataset(output)
+            # If there is a project output then all subjects and sessions need
+            # to be reprocessed
+            if dataset.multiplicity == 'per_project':
+                if dataset.prefixed_name not in project.dataset_names:
+                    return all_sessions, all_subjects
+            elif dataset.multiplicity == 'per_subject':
+                subjects_to_process.update(
+                    s for s in all_subjects
+                    if dataset.prefixed_name not in s.dataset_names)
+            elif dataset.multiplicity == 'per_session':
+                sessions_to_process.update(
+                    s for s in all_sessions
+                    if dataset.prefixed_name not in s.dataset_names)
+            else:
+                assert False, "Unrecognised multiplicity of {}".format(dataset)
+        subjects_to_process.update(
+            s.subject for s in sessions_to_process)
+        return list(sessions_to_process), list(subjects_to_process)
 
     def connect(self, *args, **kwargs):
         """

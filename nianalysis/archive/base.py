@@ -287,6 +287,10 @@ class Project(object):
     def datasets(self):
         return self._datasets
 
+    @property
+    def dataset_names(self):
+        return (d.name for d in self.datasets)
+
     def __eq__(self, other):
         if not isinstance(other, Project):
             return False
@@ -327,6 +331,10 @@ class Subject(object):
     @property
     def datasets(self):
         return self._datasets
+
+    @property
+    def dataset_names(self):
+        return (d.name for d in self.dataset_names)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
@@ -375,6 +383,10 @@ class Session(object):
     @property
     def datasets(self):
         return iter(self._datasets)
+
+    @property
+    def dataset_names(self):
+        return (d.name for d in self.datasets)
 
     def __eq__(self, other):
         if not isinstance(other, Session):
