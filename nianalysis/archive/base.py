@@ -391,9 +391,9 @@ class Session(object):
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
-        return (self._id == other._id and
-                self._subject_id == other._subject_id and
-                self._datasets == other._datasets)
+        return (self.id == other.id and
+                self.subject == other.subject and
+                self.datasets == other.datasets)
 
     def __ne__(self, other):
         return not (self == other)
