@@ -379,7 +379,8 @@ class DarisArchive(Archive):
                 except TypeError:
                     session_ids = session_id
                 entries = [e for e in entries if e.id in session_ids]
-        return Session(subject_id=e.cid.split('.')[-3], session_id=e.id)
+        return [Session(subject_id=e.cid.split('.')[-3], session_id=e.id)
+                for e in entries]
 
     def project(self, project_id, subject_ids=None, session_ids=None):
         with self._daris() as daris:
@@ -461,7 +462,7 @@ class DarisArchive(Archive):
                             user=self._user, password=self._password)
 
     @property
-    def local_dir(self):
+    def base_dir(self):
         return self._cache_dir
 
 

@@ -7,6 +7,7 @@ from nipype.interfaces.base import (
     Directory, traits, isdefined)
 from nianalysis.exceptions import (
     XNATException)
+from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -302,7 +303,7 @@ class XNATArchive(Archive):
 
     SUMMARY_NAME = 'SUMMARY'
 
-    def __init__(self, user, password, cache_dir=None,
+    def __init__(self, user=None, password=None, cache_dir=None,
                  server='https://mbi-xnat.erc.monash.edu.au'):
         self._server = server
         self._user = user
@@ -315,20 +316,32 @@ class XNATArchive(Archive):
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
         source.inputs.server = self._server
-        source.inputs.user = self._user
-        source.inputs.password = self._password
+        if self._user is not None:
+            source.inputs.user = self._user
+        if self._password is not None:
+            source.inputs.password = self._password
         source.inputs.cache_dir = self._cache_dir
         return source
 
     def sink(self, *args, **kwargs):
         sink = super(XNATArchive, self).sink(*args, **kwargs)
         sink.inputs.server = self._server
-        sink.inputs.user = self._user
-        sink.inputs.password = self._password
+        if self._user is not None:
+            sink.inputs.user = self._user
+        if self._password is not None:
+            sink.inputs.password = self._password
         sink.inputs.cache_dir = self._cache_dir
         return sink
 
-    def all_sessions(self, project_id, session_id=None):
+    def _login(self):
+        sess_kwargs = {}
+        if self._user is not None:
+            sess_kwargs['user'] = self._user
+        if self._password is not None:
+            sess_kwargs['password'] = self._password
+        return xnat.connect(server=self.inputs.server, **sess_kwargs)
+
+    def all_session_ids(self, project_id):
         """
         Parameters
         ----------
@@ -340,70 +353,36 @@ class XNATArchive(Archive):
             Id or ids of sessions of which to return sessions for. If None all
             are returned
         """
-        with self._daris() as daris:
-            entries = daris.get_sessions(self, project_id,
-                                         repo_id=self._repo_id)
-            if session_id is not None:
-                # Attempt to convert session_ids into a single int and then
-                # wrap in a list in case session ids is a single integer (or
-                # string representation of an integer)
-                try:
-                    session_ids = [int(session_id)]
-                except TypeError:
-                    session_ids = session_id
-                entries = [e for e in entries if e.id in session_ids]
-        return Session(subject_id=e.cid.split('.')[-3], session_id=e.id)
+        sess_kwargs = {}
+        if self._user is not None:
+            sess_kwargs['user'] = self._user
+        if self._password is not None:
+            sess_kwargs['password'] = self._password
+        with self.login() as xnat_login:
+            return [
+                s.label for s in xnat_login.projects[
+                    project_id].experiments.itervalues()]
 
     def project(self, project_id, subject_ids=None, session_ids=None):
-        with self._daris() as daris:
-            # Get all datasets in project
-            entries = daris.get_datasets(
-                self, project_id, repo_id=self._repo_id, subject_id=None,
-                session_id=None, ex_method_id=None)
-        subject_dict = defaultdict(defaultdict(defaultdict(list)))
-        for entry in entries:
-            (subject_id, ex_method_id,
-             session_id, dataset_id) = entry.cid.split('.')[-4:]
-            subject_dict[subject_id][ex_method_id][session_id].append(
-                dataset_id)
         subjects = []
-        project_summary = []
-        for subject_id, method_dict in subject_dict.iteritems():
-            if subject_ids is not None and subject_id not in subject_ids:
-                continue
-            if any(int(m) > 4 or int(m) < 0 for m in method_dict):
-                raise XNATException(
-                    "Unrecognised ex-method IDs {} found in subject {}"
-                    .format(', '.join(str(m) for m in method_dict
-                                      if int(m) > 4 or int(m) < 0),
-                            subject_id))
-            sessions = []
-            subject_summary = []
-            for ex_method_id, session_dict in method_dict.iteritems():
-                processed = ex_method_id > 1
-                if ex_method_id == 4:
-                    if subject_id != 1 or session_dict.keys() != ['1']:
-                        raise XNATException(
-                            "Session(s) {} found in ex-method 4 of subject {}."
-                            "Project summaries are only allowed in session 1 "
-                            "of subject 1".format(', '.join(session_dict),
-                                                  subject_id))
-                    project_summary = session_dict['1']
-                elif ex_method_id == 3:
-                    if session_dict.keys() != ['1']:
-                        raise XNATException(
-                            "Session(s) {} found in ex-method 3 of subject {}."
-                            "Subject summaries are only allowed in session 1"
-                            .format(', '.join(session_dict), subject_id))
-                    subject_summary = session_dict['1']
-                else:
-                    for session_id, datasets in session_dict.iteritems():
-                        if session_ids is None or session_id in session_ids:
-                            sessions.append(Session(session_id, datasets,
-                                                    processed=processed))
-            subjects.append(Subject(subject_id, sessions, subject_summary))
-        project = Project(project_id, subjects, project_summary)
-        return project
+        with self.login() as xnat_login:
+            project = xnat_login.projects[project_id]
+            for subject in project.subjects.itervalues():
+                if subject_ids is None or subject.label in subject_ids:
+                    sessions = []
+                    for session in subjects.experiments.itervalues():
+                        if session_ids is None or session.label in session_ids:
+                            datasets = []
+                            for dataset in session.scans.itervalues():
+                                datasets.append(Dataset(
+                                    dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
+                                    multiplicity='per_session', location=None))
+                            sessions.append(Session(
+                                session.label, datasets=datasets,
+                                processed=False))
+                    subjects.append(Subject(subject.label, sessions,
+                                            subject_summary))
+        return Project(project_id, subjects, project_summary)
 
     def sessions_with_dataset(self, dataset, project_id, sessions):
         """

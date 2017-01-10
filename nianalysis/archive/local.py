@@ -1,4 +1,5 @@
 import os.path
+from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -278,7 +279,7 @@ class LocalArchive(Archive):
 
     def sessions_with_dataset(self, dataset, project_id, sessions=None):
         if sessions is None:
-            sessions = self.all_sessions(project_id)
+            sessions = self.all_session_ids(project_id)
         with_dataset = []
         for session in sessions:
             if os.path.exists(
@@ -287,6 +288,11 @@ class LocalArchive(Archive):
                              dataset.filename)):
                 with_dataset.append(session)
         return with_dataset
+
+    def all_session_ids(self, project_id):
+        project = self.project(project_id)
+        return chain(*[
+            (s.id for s in subj.sessions) for subj in project.subjects])
 
     @property
     def base_dir(self):
