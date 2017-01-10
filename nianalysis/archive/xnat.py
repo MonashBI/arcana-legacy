@@ -13,12 +13,9 @@ from nianalysis.archive.base import (
     ArchiveProjectSinkInputSpec, Session, Subject, Project)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
-import xnat
+import xnat  # NB: XNATPy not PyXNAT
 
 logger = logging.getLogger('NiAnalysis')
-
-PROJECT_SUMMARY_NAME = 'PROJECT_SUMMARY'
-SUBJECT_SUMMARY_NAME = 'SUBJECT_SUMMARY'
 
 
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
@@ -65,6 +62,12 @@ class XNATSource(ArchiveSource):
             session = subject.experiments[self.inputs.session_id]
             datasets = dict(
                 (s.series_description, s) for s in session.scans.itervalues())
+            subj_summ_session_name = XNATArchive.subject_summary_session_name(
+                project.label, subject.label)
+            proj_summ_subject_name = XNATArchive.project_summary_subject_name(
+                project.label)
+            proj_summ_session_name = XNATArchive.project_summary_session_name(
+                project.label)
             try:
                 proc_session = xnat_login.experiments[
                     self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX]
@@ -74,14 +77,15 @@ class XNATSource(ArchiveSource):
             except KeyError:
                 proc_datasets = {}
             try:
-                subj_summary = subject.experiments[SUBJECT_SUMMARY_NAME]
+                subj_summary = subject.experiments[subj_summ_session_name]
                 subj_datasets = dict(
                     (s.series_description, s)
                     for s in subj_summary.scans.itervalues())
             except KeyError:
                 subj_datasets = {}
             try:
-                proj_summary = subject.experiments[PROJECT_SUMMARY_NAME]
+                proj_summary = project.subjects[
+                    proj_summ_subject_name].experiments[proj_summ_session_name]
                 proj_datasets = dict(
                     (s.series_description, s)
                     for s in proj_summary.scans.itervalues())
@@ -101,12 +105,13 @@ class XNATSource(ArchiveSource):
                     dataset = subj_datasets[name]
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
-                        SUBJECT_SUMMARY_NAME)
+                        subj_summ_session_name)
                 elif mult == 'per_project':
                     assert processed
                     dataset = proj_datasets[name]
                     cache_dir = os.path.join(
-                        base_cache_dir, PROJECT_SUMMARY_NAME)
+                        base_cache_dir, proj_summ_subject_name,
+                        proj_summ_session_name)
                 else:
                     assert False, "Unrecognised multiplicity '{}'".format(mult)
                 if not os.path.exists(cache_dir):
@@ -252,11 +257,13 @@ class XNATSubjectSink(XNATSink):
     ACCEPTED_MULTIPLICITIES = ('per_subject',)
 
     def _get_session(self, project, subject, xnat_login):  # @UnusedVariable
+        session_name = XNATArchive.subject_summary_session_name(
+            project.label, subject.label)
         try:
-            session = subject.experiments[SUBJECT_SUMMARY_NAME]
+            session = subject.experiments[session_name]
         except KeyError:
             session = xnat_login.mbi_xnat.classes.MrSessionData(
-                label=SUBJECT_SUMMARY_NAME, parent=subject)
+                label=session_name, parent=subject)
         return session
 
 
@@ -267,16 +274,18 @@ class XNATProjectSink(XNATSink):
     ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_session(self, project, subject, xnat_login):
+        subject_name = XNATArchive.project_summary_subject_name(project.label)
         try:
-            subject = project.subjects[PROJECT_SUMMARY_NAME]
+            subject = project.subjects[subject_name]
         except KeyError:
             subject = xnat_login.mbi_xnat.classes.MrSessionData(
-                label=PROJECT_SUMMARY_NAME, parent=subject)
+                label=subject_name, parent=subject)
+        session_name = XNATArchive.project_summary_session_name(project.label)
         try:
-            session = subject.experiments[PROJECT_SUMMARY_NAME]
+            session = subject.experiments[session_name]
         except KeyError:
             session = xnat_login.mbi_xnat.classes.MrSessionData(
-                label=PROJECT_SUMMARY_NAME, parent=subject)
+                label=session_name, parent=subject)
         return session
 
 
@@ -290,6 +299,8 @@ class XNATArchive(Archive):
     Source = XNATSource
     SubjectSink = XNATSubjectSink
     ProjectSink = XNATProjectSink
+
+    SUMMARY_NAME = 'SUMMARY'
 
     def __init__(self, user, password, cache_dir=None,
                  server='https://mbi-xnat.erc.monash.edu.au'):
@@ -423,5 +434,15 @@ class XNATArchive(Archive):
         return self._cache_dir
 
     @classmethod
-    def get_session_id(cls, project_id, subject_id, session_id):
-        '_'.join(project_id, subject_id, session_id)
+    def subject_summary_session_name(cls, project_id, subject_id):
+        return '{}_{}_{}'.format(project_id, subject_id, cls.SUMMARY_NAME)
+
+    @classmethod
+    def project_summary_session_name(cls, project_id):
+        return '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
+                                 cls.SUMMARY_NAME)
+
+    @classmethod
+    def project_summary_subject_name(cls, project_id):
+        return '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
+                                 cls.SUMMARY_NAME)
