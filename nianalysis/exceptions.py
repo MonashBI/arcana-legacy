@@ -32,3 +32,7 @@ class DarisExistingCIDException(DarisException):
 
 class DarisNameNotFoundException(DarisException):
     pass
+
+
+class XNATException(Exception):
+    pass

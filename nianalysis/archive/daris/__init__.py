@@ -58,11 +58,13 @@ class DarisSource(ArchiveSource):
                           password=self.inputs.password) as daris:
             outputs = {}
             datasets = {}
-            for mult_proc in (('per_session', False), ('per_session', True),
-                              ('per_subject', True), ('per_project', True)):
+            for mult_proc_tple in (('per_session', False),
+                                   ('per_session', True),
+                                   ('per_subject', True),
+                                   ('per_project', True)):
                 (ex_method_id,
-                 subject_id, session_id) = self._get_daris_ids(*mult_proc)
-                datasets[mult_proc] = dict(
+                 subject_id, session_id) = self._get_daris_ids(*mult_proc_tple)
+                datasets[mult_proc_tple] = dict(
                     (d.name, d) for d in daris.get_datasets(
                         repo_id=self.inputs.repo_id,
                         project_id=self.inputs.project_id,
@@ -72,7 +74,8 @@ class DarisSource(ArchiveSource):
             base_cache_dir = os.path.join(*(str(p) for p in (
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id)))
-            for (name, dataset_format, mult, processed) in self.inputs.datasets:
+            for (name, dataset_format,
+                 mult, processed) in self.inputs.datasets:
                 (ex_method_id,
                  subject_id, session_id) = self._get_daris_ids(mult, processed)
 
@@ -696,8 +699,8 @@ class DarisLogin:
             try:
                 max_session_id = max(
                     self.get_sessions(project_id, subject_id,
-                                     ex_method_id=ex_method_id,
-                                     repo_id=repo_id))
+                                      ex_method_id=ex_method_id,
+                                      repo_id=repo_id))
             except ValueError:
                 max_session_id = 0
             session_id = max_session_id + 1
@@ -737,9 +740,9 @@ class DarisLogin:
         if new_project_id is None:
             new_project_id = old_project_id
         datasets = self.get_datasets(old_project_id, old_subject_id,
-                                  session_id=old_session_id,
-                                  repo_id=repo_id,
-                                  ex_method_id=old_ex_method_id)
+                                     session_id=old_session_id,
+                                     repo_id=repo_id,
+                                     ex_method_id=old_ex_method_id)
         # Download datasets first just to check whether there are any problems
         # before creating the new session
         for dataset in datasets.itervalues():
@@ -1255,4 +1258,4 @@ if __name__ == '__main__':
                          password='t0gp154sp!')
     with daris:
         daris.copy_session(135, 3, 2, new_project_id=144, new_subject_id=2,
-                         new_session_id=1)
+                           new_session_id=1)
