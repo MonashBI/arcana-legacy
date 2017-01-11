@@ -364,28 +364,81 @@ class XNATArchive(Archive):
                     project_id].experiments.itervalues()]
 
     def project(self, project_id, subject_ids=None, session_ids=None):
+        """
+        Return subject and session information for a project in the XNAT
+        archive
+
+        Parameters
+        ----------
+        project_id : str
+            ID of the project to inspect
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If None all
+            are returned
+        session_ids : list(str)
+            List of session IDs with which to filter the tree with. If None all
+            are returned
+
+        Returns
+        -------
+        project : nianalysis.archive.Project
+            A hierarchical tree of subject, session and dataset information for
+            the archive
+        """
         subjects = []
         with self.login() as xnat_login:
-            project = xnat_login.projects[project_id]
-            for subject in project.subjects.itervalues():
-                if subject_ids is None or subject.label in subject_ids:
+            xproject = xnat_login.projects[project_id]
+            for xsubject in xproject.subjects.itervalues():
+                if subject_ids is None or xsubject.label in subject_ids:
                     sessions = []
-                    for session in subjects.experiments.itervalues():
-                        if session_ids is None or session.label in session_ids:
-                            datasets = []
-                            for dataset in session.scans.itervalues():
-                                datasets.append(Dataset(
-                                    dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                                    multiplicity='per_session', location=None))
+                    for xsession in subjects.experiments.itervalues():
+                        if (session_ids is None or
+                                xsession.label in session_ids):
                             sessions.append(Session(
-                                session.label, datasets=datasets,
+                                xsession.label,
+                                datasets=self._get_datasets(xsession,
+                                                            'per_session'),
                                 processed=False))
-                    subjects.append(Subject(subject.label, sessions,
-                                            subject_summary))
-        return Project(project_id, subjects, project_summary)
+                    subj_summary = xsubject.experiments[
+                        self.subject_summary_session_name(project_id,
+                                                          xsubject.label)]
+                    subjects.append(Subject(
+                        xsubject.label, sessions,
+                        self._get_datasets(subj_summary, 'per_subject')))
+                proj_summary = xproject.subjects[
+                    self.project_summary_session_name(project_id)].experiments[
+                        self.project_summary_session_name(project_id)]
+        return Project(project_id, subjects, self._get_datasets(proj_summary,
+                                                                'per_project'))
+
+    def _get_datasets(self, xsession, mult):
+        """
+        Returns a list of datasets within an XNAT session
+
+        Parameters
+        ----------
+        xsession : xnat.classes.MrSessionData
+            The XNAT session to extract the datasets from
+        mult : str
+            The multiplicity of the returned datasets (either 'per_session',
+            'per_subject' or 'per_project')
+
+        Returns
+        -------
+        datasets : list(nianalysis.dataset.Dataset)
+            List of datasets within an XNAT session
+        """
+        datasets = []
+        for dataset in xsession.scans.itervalues():
+            datasets.append(Dataset(
+                dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
+                multiplicity=mult, location=None))
+        return datasets
 
     def sessions_with_dataset(self, dataset, project_id, sessions):
         """
+        Return all sessions containing the given dataset
+
         Parameters
         ----------
         dataset : Dataset

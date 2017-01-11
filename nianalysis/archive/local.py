@@ -204,6 +204,27 @@ class LocalArchive(Archive):
         return sink
 
     def project(self, project_id, subject_ids=None, session_ids=None):
+        """
+        Return subject and session information for a project in the local
+        archive
+
+        Parameters
+        ----------
+        project_id : str
+            ID of the project to inspect
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If None all
+            are returned
+        session_ids : list(str)
+            List of session IDs with which to filter the tree with. If None all
+            are returned
+
+        Returns
+        -------
+        project : nianalysis.archive.Project
+            A hierarchical tree of subject, session and dataset information for
+            the archive
+        """
         project_dir = os.path.join(self.base_dir, str(project_id))
         subjects = []
         subject_dirs = [d for d in os.listdir(project_dir)
@@ -278,6 +299,18 @@ class LocalArchive(Archive):
                     path, "', '".join(dirs)))
 
     def sessions_with_dataset(self, dataset, project_id, sessions=None):
+        """
+        Return all sessions containing the given dataset
+
+        Parameters
+        ----------
+        dataset : Dataset
+            A file (name) for which to return the sessions that contain it
+        project_id : int
+            The id of the project
+        sessions : List[Session]
+            List of sessions of which to test for the dataset
+        """        
         if sessions is None:
             sessions = self.all_session_ids(project_id)
         with_dataset = []
