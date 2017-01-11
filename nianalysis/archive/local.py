@@ -79,13 +79,11 @@ class LocalSinkInputSpec(ArchiveSinkInputSpec, LocalSinkInputSpecMixin):
 
 class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
                                 LocalSinkInputSpecMixin):
-
     pass
 
 
 class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
                                 LocalSinkInputSpecMixin):
-
     pass
 
 
