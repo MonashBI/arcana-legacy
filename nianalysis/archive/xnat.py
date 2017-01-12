@@ -4,11 +4,7 @@ import shutil
 import stat
 import logging
 import tempfile
-from collections import defaultdict
-from nipype.interfaces.base import (
-    Directory, traits, isdefined)
-from nianalysis.exceptions import (
-    XNATException)
+from nipype.interfaces.base import Directory, traits, isdefined
 from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -223,14 +219,18 @@ class XNATSink(ArchiveSink):
                             data_formats[format_name].name,
                             dataset_format.extension))
                 src_path = os.path.abspath(filename)
+                if isdefined(self.inputs.study_name):
+                    prefixed_name = self.inputs.study_name + '_' + name
+                else:
+                    prefixed_name = name
+                out_fname = prefixed_name + dataset_format.extension
                 # Copy to local cache
-                out_fname = name + dataset_format.extension
                 dst_path = os.path.join(out_dir, out_fname)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to XNAT
-                dataset = xnat_login.classes.MrScanData(type=name,
-                                                        parent=session)
+                dataset = xnat_login.classes.MrScanData(
+                    type=prefixed_name, parent=session)
                 resource = dataset.create_resource(format_name)
                 resource.upload(dst_path, out_fname)
         if missing_files:
