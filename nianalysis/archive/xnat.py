@@ -62,7 +62,7 @@ class XNATSource(ArchiveSource):
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
             subj_summ_session_name = XNATArchive.subject_summary_session_name(
-                project.id, subject.label)
+                subject.label)
             proj_summ_subject_name = XNATArchive.project_summary_subject_name(
                 project.id)
             proj_summ_session_name = XNATArchive.project_summary_session_name(
@@ -88,37 +88,46 @@ class XNATSource(ArchiveSource):
             except KeyError:
                 proj_datasets = {}
             for (name, data_format, mult, processed) in self.inputs.datasets:
+                # Prepend study name if defined and processed input
+                if processed and isdefined(self.inputs.study_name):
+                    prefixed_name = self.inputs.study_name + '_' + name
+                else:
+                    prefixed_name = name
                 if mult == 'per_session':
                     if processed:
-                        dataset = proc_datasets[name]
+                        dataset = proc_datasets[prefixed_name]
                     else:
-                        dataset = datasets[name]
+                        dataset = datasets[prefixed_name]
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
                         self.inputs.session_id)
+                    session_label = session.label
                 elif mult == 'per_subject':
                     assert processed
-                    dataset = subj_datasets[name]
+                    dataset = subj_datasets[prefixed_name]
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
                         subj_summ_session_name)
+                    session_label = subj_summ_session_name
                 elif mult == 'per_project':
                     assert processed
-                    dataset = proj_datasets[name]
+                    dataset = proj_datasets[prefixed_name]
                     cache_dir = os.path.join(
                         base_cache_dir, proj_summ_subject_name,
                         proj_summ_session_name)
+                    session_label = proj_summ_session_name
                 else:
                     assert False, "Unrecognised multiplicity '{}'".format(mult)
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                fname = name + data_formats[data_format].extension
+                fname = prefixed_name + data_formats[data_format].extension
                 cache_path = os.path.join(cache_dir, fname)
+                # FIXME: Should do a check to see if versions match
                 if not os.path.exists(cache_path):
                     tmp_dir = tempfile.mkdtemp()
                     dataset.resources[data_format].download_dir(tmp_dir)
                     shutil.move(os.path.join(
-                        tmp_dir, session.label, 'scans',
+                        tmp_dir, session_label, 'scans',
                         dataset.id + '-' + dataset.type, 'resources',
                         data_format, 'files', fname), cache_path)
                 outputs[name + self.OUTPUT_SUFFIX] = cache_path
@@ -187,19 +196,11 @@ class XNATSink(ArchiveSink):
             sess_kwargs['password'] = self.inputs.password
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
-            project = xnat_login.projects[self.inputs.project_id]
-            subject = project.subjects[self.inputs.subject_id]
-            assert self.inputs.session_id in subject.experiments
             # Add session for processed scans if not present
-            session = self._get_session(project, subject, xnat_login)
-            # Get cache dir for session
-            out_dir = os.path.abspath(os.path.join(*(str(d) for d in (
-                self.inputs.cache_dir, self.inputs.project_id,
-                self.inputs.subject_id,
-                self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))))
+            session, cache_dir = self._get_session(xnat_login)
             # Make session cache dir
-            if not os.path.exists(out_dir):
-                os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
+            if not os.path.exists(cache_dir):
+                os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through datasets connected to the sink and copy them to the
             # cache directory and upload to daris.
             for name, format_name, mult, processed in self.inputs.datasets:
@@ -225,7 +226,7 @@ class XNATSink(ArchiveSink):
                     prefixed_name = name
                 out_fname = prefixed_name + dataset_format.extension
                 # Copy to local cache
-                dst_path = os.path.join(out_dir, out_fname)
+                dst_path = os.path.join(cache_dir, out_fname)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Upload to XNAT
@@ -244,7 +245,10 @@ class XNATSink(ArchiveSink):
         outputs['out_files'] = out_files
         return outputs
 
-    def _get_session(self, project, subject, xnat_login):  # @UnusedVariable
+    def _get_session(self, xnat_login):
+        project = xnat_login.projects[self.inputs.project_id]
+        subject = project.subjects[self.inputs.subject_id]
+        assert self.inputs.session_id in subject.experiments
         proc_session_id = (self.inputs.session_id +
                            XNATArchive.PROCESSED_SUFFIX)
         try:
@@ -252,7 +256,12 @@ class XNATSink(ArchiveSink):
         except KeyError:
             session = xnat_login.classes.MrSessionData(
                 label=proc_session_id, parent=subject)
-        return session
+        # Get cache dir for session
+        cache_dir = os.path.abspath(os.path.join(
+            self.inputs.cache_dir, self.inputs.project_id,
+            self.inputs.subject_id,
+            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))
+        return session, cache_dir
 
 
 class XNATSubjectSink(XNATSink):
@@ -261,15 +270,21 @@ class XNATSubjectSink(XNATSink):
 
     ACCEPTED_MULTIPLICITIES = ('per_subject',)
 
-    def _get_session(self, project, subject, xnat_login):  # @UnusedVariable
-        session_name = XNATArchive.subject_summary_session_name(
-            project.id, subject.label)
+    def _get_session(self, xnat_login):
+        project = xnat_login.projects[self.inputs.project_id]
+        subject = project.subjects[self.inputs.subject_id]
+        session_name = XNATArchive.subject_summary_session_name(subject.label)
         try:
             session = subject.experiments[session_name]
         except KeyError:
-            session = xnat_login.mbi_xnat.classes.MrSessionData(
+            session = xnat_login.classes.MrSessionData(
                 label=session_name, parent=subject)
-        return session
+        # Get cache dir for session
+        cache_dir = os.path.abspath(os.path.join(
+            self.inputs.cache_dir, self.inputs.project_id,
+            self.inputs.subject_id,
+            self.inputs.subject_id + '_' + XNATArchive.SUMMARY_NAME))
+        return session, cache_dir
 
 
 class XNATProjectSink(XNATSink):
@@ -278,20 +293,27 @@ class XNATProjectSink(XNATSink):
 
     ACCEPTED_MULTIPLICITIES = ('per_project',)
 
-    def _get_session(self, project, subject, xnat_login):
+    def _get_session(self, xnat_login):
+        project = xnat_login.projects[self.inputs.project_id]
         subject_name = XNATArchive.project_summary_subject_name(project.id)
         try:
             subject = project.subjects[subject_name]
         except KeyError:
-            subject = xnat_login.mbi_xnat.classes.MrSessionData(
-                label=subject_name, parent=subject)
+            subject = xnat_login.classes.SubjectData(
+                label=subject_name, parent=project)
         session_name = XNATArchive.project_summary_session_name(project.id)
         try:
             session = subject.experiments[session_name]
         except KeyError:
-            session = xnat_login.mbi_xnat.classes.MrSessionData(
+            session = xnat_login.classes.MrSessionData(
                 label=session_name, parent=subject)
-        return session
+        # Get cache dir for session
+        cache_dir = os.path.abspath(os.path.join(
+            self.inputs.cache_dir, self.inputs.project_id,
+            self.inputs.project_id + '_' + XNATArchive.SUMMARY_NAME,
+            self.inputs.project_id + '_' + XNATArchive.SUMMARY_NAME + '_' +
+            XNATArchive.SUMMARY_NAME))
+        return session, cache_dir
 
 
 class XNATArchive(Archive):
@@ -305,7 +327,7 @@ class XNATArchive(Archive):
     SubjectSink = XNATSubjectSink
     ProjectSink = XNATProjectSink
 
-    SUMMARY_NAME = 'SUMMARY'
+    SUMMARY_NAME = 'PROC'
     PROCESSED_SUFFIX = '_PROC'
 
     def __init__(self, user=None, password=None, cache_dir=None,
@@ -405,8 +427,7 @@ class XNATArchive(Archive):
                                                             'per_session'),
                                 processed=False))
                     subj_summary = xsubject.experiments[
-                        self.subject_summary_session_name(project_id,
-                                                          xsubject.label)]
+                        self.subject_summary_session_name(xsubject.label)]
                     subjects.append(Subject(
                         xsubject.label, sessions,
                         self._get_datasets(subj_summary, 'per_subject')))
@@ -471,8 +492,8 @@ class XNATArchive(Archive):
         return self._cache_dir
 
     @classmethod
-    def subject_summary_session_name(cls, project_id, subject_id):
-        return '{}_{}_{}'.format(project_id, subject_id, cls.SUMMARY_NAME)
+    def subject_summary_session_name(cls, subject_id):
+        return '{}_{}'.format(subject_id, cls.SUMMARY_NAME)
 
     @classmethod
     def project_summary_session_name(cls, project_id):
@@ -481,5 +502,4 @@ class XNATArchive(Archive):
 
     @classmethod
     def project_summary_subject_name(cls, project_id):
-        return '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
-                                 cls.SUMMARY_NAME)
+        return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
