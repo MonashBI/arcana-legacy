@@ -6,8 +6,10 @@ zip_exts = ('gz', 'zip')
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 
+fsl_reference_path = os.path.join(os.environ['FSLDIR'], 'data', 'standard')
 
-def get_atlas_path(name, dataset='image'):
+
+def get_atlas_path(name, dataset='brain', resolution='1mm'):
     """
     Returns the path to the atlas (or atlas mask) in the nianalysis repository
 
@@ -19,17 +21,14 @@ def get_atlas_path(name, dataset='image'):
         Whether to return the brain mask or the full atlas, can be one of
         'image', 'mask'
     """
-    if name == 'mni_nl6':
+    if name == 'MNI152':
         # MNI ICBM 152 non-linear 6th Generation Symmetric Average Brain
         # Stereotaxic Registration Model (http://nist.mni.mcgill.ca/?p=858)
-        base_path = os.path.join(package_dir, 'reference', 'atlases',
-                                 'mni_nl6')
         if dataset == 'image':
-            path = os.path.join(base_path,
-                                'icbm_avg_152_t1_tal_nlin_symmetric_VI.mnc')
+            path = os.path.join(fsl_reference_path, 'MNI152_T1_1mm.nii.gz')
         elif dataset == 'mask':
-            path = os.path.join(
-                base_path, 'icbm_avg_152_t1_tal_nlin_symmetric_VI_mask.mnc')
+            path = os.path.join(fsl_reference_path,
+                                'MNI152_T1_1mm_brain_mask.nii.gz')
         else:
             raise NiAnalysisError("Unrecognised dataset '{}'"
                                   .format(dataset))
