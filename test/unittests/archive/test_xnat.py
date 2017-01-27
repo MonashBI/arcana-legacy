@@ -279,3 +279,18 @@ class TestXnatArchive(TestCase):
             self.assertEqual(sorted(resinked_dataset_names),
                              [self.SUMMARY_STUDY_NAME + '_resink1',
                               self.SUMMARY_STUDY_NAME + '_resink2'])
+
+    def test_project_info(self):
+        archive = XNATArchive(
+            server=self.XNAT_URL, cache_dir=self.CACHE_DIR,
+            user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
+        project_info = archive.project(self.PROJECT_ID)
+        self.assertEqual(sorted(s.id for s in project_info.subjects),
+                         [self.SUBJECT_ID])
+        subject = list(project_info.subjects)[0]
+        self.assertEqual([s.id for s in subject.sessions],
+                         [self.SESSION_ID])
+        session = list(subject.sessions)[0]
+        self.assertEqual(
+            sorted(d.name for d in sorted(session.datasets)),
+            ['source1', 'source2', 'source3', 'source4'])

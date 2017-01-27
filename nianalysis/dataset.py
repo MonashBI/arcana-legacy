@@ -37,7 +37,7 @@ class BaseDataset(object):
 
     def __init__(self, name, format=None, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
         assert isinstance(name, basestring)
-        assert isinstance(format, DataFormat)
+        assert format is None or isinstance(format, DataFormat)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
         self._name = name
         self._format = format
