@@ -36,7 +36,7 @@ def get_atlas_path(name, dataset='image'):
     else:
         raise NiAnalysisError("Unrecognised atlas name '{}'"
                               .format(name))
-    return path
+    return os.path.abspath(path)
 
 
 def split_extension(path):
