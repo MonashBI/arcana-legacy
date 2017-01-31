@@ -38,6 +38,10 @@ def get_atlas_path(name, dataset='brain', resolution='1mm'):
                                 'MNI152_T1_{}_brain_mask.nii.gz'
                                 .format(resolution))
         elif dataset == 'mask_dilated':
+            if resolution != '2mm':
+                raise NiAnalysisError(
+                    "Dilated MNI masks are not available for {} resolution "
+                    .format(resolution))
             path = os.path.join(get_fsl_reference_path(),
                                 'MNI152_T1_{}_brain_mask_dil.nii.gz'
                                 .format(resolution))
