@@ -35,7 +35,11 @@ def get_atlas_path(name, dataset='brain', resolution='1mm'):
                                 'MNI152_T1_{}.nii.gz'.format(resolution))
         elif dataset == 'mask':
             path = os.path.join(get_fsl_reference_path(),
-                                'MNI152_T1_{}_brain_mask.nii.gz'
+                                'MNI152_T1_{}_brain_mask_dil.nii.gz'
+                                .format(resolution))
+        elif dataset == 'masked':
+            path = os.path.join(get_fsl_reference_path(),
+                                'MNI152_T1_{}_brain.nii.gz'
                                 .format(resolution))
         else:
             raise NiAnalysisError("Unrecognised dataset '{}'"
