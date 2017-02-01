@@ -24,24 +24,17 @@ class XNATMixin(object):
     @property
     def full_subject_id(self):
         if '_' not in self.inputs.subject_id:
-            subject_id = '_'.join((self._id_prefix(),
+            subject_id = '_'.join((self.inputs.project_id,
                                    str(self.inputs.subject_id)))
         return subject_id
 
     @property
     def full_session_id(self):
         if '_' not in self.inputs.session_id:
-            session_id = '_'.join((self._id_prefix(),
+            session_id = '_'.join((self.inputs.project_id,
                                    str(self.inputs.subject_id),
                                    str(self.inputs.session_id)))
         return session_id
-
-    def _id_prefix(self):
-        # NB: Cannot use 'isdefined' method to determine whether sharing_project
-        #     has been provided because Sink subclasses from DynamicTraitedSpec
-        return str(self.inputs.sharing_project
-                   if isinstance(self.inputs.sharing_project, str)
-                   else self.inputs.project_id)
 
 
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
@@ -62,12 +55,6 @@ class XNATSourceInputSpec(ArchiveSourceInputSpec):
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
-    sharing_project = traits.Str(
-        mandatory=False,
-        desc=("If a subject is shared into a project from another project "
-              "the source project must be provided to match the subject and "
-              "session ids. If subjects are shared from multiple projects, "
-              "the complete ID string must be used"))
 
 
 class XNATSource(ArchiveSource, XNATMixin):
@@ -185,12 +172,6 @@ class XNATSinkInputSpecMixin(object):
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
-    sharing_project = traits.Str(
-        mandatory=False,
-        desc=("If a subject is shared into a project from another project "
-              "the source project must be provided to match the subject and "
-              "session ids. If subjects are shared from multiple projects, "
-              "the complete ID string must be used"))
 
 
 class XNATSinkInputSpec(ArchiveSinkInputSpec, XNATSinkInputSpecMixin):
@@ -388,8 +369,6 @@ class XNATArchive(Archive):
         if self._password is not None:
             source.inputs.password = self._password
         source.inputs.cache_dir = self._cache_dir
-        if self._sharing_project is not None:
-            source.inputs.sharing_project = self._sharing_project
         return source
 
     def sink(self, *args, **kwargs):
@@ -400,8 +379,6 @@ class XNATArchive(Archive):
         if self._password is not None:
             sink.inputs.password = self._password
         sink.inputs.cache_dir = self._cache_dir
-        if self._sharing_project is not None:
-            sink.inputs.sharing_project = self._sharing_project
         return sink
 
     def _login(self):
