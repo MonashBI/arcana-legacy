@@ -23,8 +23,8 @@ class TestXnatArchive(TestCase):
     XNAT_PASSWORD = 'Test123!'
 
     PROJECT_ID = 'TEST000'
-    SUBJECT_ID = 'TEST000_001'
-    SESSION_ID = 'TEST000_001_MR01'
+    SUBJECT_ID = '001'
+    SESSION_ID = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
     TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
@@ -33,6 +33,16 @@ class TestXnatArchive(TestCase):
     CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
+    @property
+    def full_subject_id(self):
+        return XNATArchive.full_subject_id(self.PROJECT_ID,
+                                           self.SUBJECT_ID)
+
+    @property
+    def full_session_id(self):
+        return XNATArchive.full_session_id(self.PROJECT_ID,
+                                           self.SUBJECT_ID,
+                                           self.SESSION_ID)
     def setUp(self):
         # Create test data on DaRIS
         self._session_id = None
@@ -45,9 +55,11 @@ class TestXnatArchive(TestCase):
         with self._connect() as mbi_xnat:
             project = mbi_xnat.projects[self.PROJECT_ID]
             subject = mbi_xnat.classes.SubjectData(
-                label=self.SUBJECT_ID, parent=project)
+                label=self.full_subject_id,
+                parent=project)
             session = mbi_xnat.classes.MrSessionData(
-                label=self.SESSION_ID, parent=subject)
+                label=self.full_session_id,
+                parent=subject)
             for fname in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
                           'source4.nii.gz'):
                 name, ext = split_extension(fname)
@@ -67,8 +79,8 @@ class TestXnatArchive(TestCase):
     def _delete_test_subjects(self):
         with self._connect() as mbi_xnat:
             project = mbi_xnat.projects[self.PROJECT_ID]
-            if self.SUBJECT_ID in project.subjects:
-                project.subjects[self.SUBJECT_ID].delete()
+            if self.full_subject_id in project.subjects:
+                project.subjects[self.full_subject_id].delete()
             project_summary_name = (self.PROJECT_ID + '_' +
                                     XNATArchive.SUMMARY_NAME)
             if project_summary_name in project.subjects:
@@ -140,7 +152,8 @@ class TestXnatArchive(TestCase):
                           for d in expected_sink_datasets])
         with self._connect() as mbi_xnat:
             dataset_names = mbi_xnat.experiments[
-                self.SESSION_ID + XNATArchive.PROCESSED_SUFFIX].scans.keys()
+                self.full_session_id +
+                XNATArchive.PROCESSED_SUFFIX].scans.keys()
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
     def test_summary(self):
@@ -204,7 +217,7 @@ class TestXnatArchive(TestCase):
             # and on XNAT
             subject_dataset_names = mbi_xnat.projects[
                 self.PROJECT_ID].experiments[
-                    '{}_{}'.format(self.SUBJECT_ID,
+                    '{}_{}'.format(self.full_subject_id,
                                    XNATArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check project summary directories were created properly in cache
@@ -274,7 +287,7 @@ class TestXnatArchive(TestCase):
         with self._connect() as mbi_xnat:
             resinked_dataset_names = mbi_xnat.projects[
                 self.PROJECT_ID].experiments[
-                    self.SESSION_ID +
+                    self.full_session_id +
                     XNATArchive.PROCESSED_SUFFIX].scans.keys()
             self.assertEqual(sorted(resinked_dataset_names),
                              [self.SUMMARY_STUDY_NAME + '_resink1',

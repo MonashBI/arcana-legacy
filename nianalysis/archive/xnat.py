@@ -3,7 +3,9 @@ import os.path
 import shutil
 import stat
 import logging
+import errno
 import tempfile
+import re
 from nipype.interfaces.base import Directory, traits, isdefined
 from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
@@ -57,8 +59,11 @@ class XNATSource(ArchiveSource):
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
             project = xnat_login.projects[self.inputs.project_id]
-            subject = project.subjects[self.inputs.subject_id]
-            session = subject.experiments[self.inputs.session_id]
+            subject = project.subjects[XNATArchive.full_subject_id(
+                self.inputs.project_id, self.inputs.subject_id)]
+            session = subject.experiments[XNATArchive.full_session_id(
+                self.inputs.project_id, self.inputs.subject_id,
+                self.inputs.session_id)]
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
             subj_summ_session_name = XNATArchive.subject_summary_session_name(
@@ -247,10 +252,14 @@ class XNATSink(ArchiveSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.inputs.subject_id]
-        assert self.inputs.session_id in subject.experiments
-        proc_session_id = (self.inputs.session_id +
-                           XNATArchive.PROCESSED_SUFFIX)
+        subject = project.subjects[XNATArchive.full_subject_id(
+            self.inputs.project_id, self.inputs.subject_id)]
+        assert XNATArchive.full_session_id(
+            self.inputs.project_id, self.inputs.subject_id,
+            self.inputs.session_id) in subject.experiments
+        proc_session_id = XNATArchive.full_session_id(
+            self.inputs.project_id, self.inputs.subject_id,
+            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX)
         try:
             session = subject.experiments[proc_session_id]
         except KeyError:
@@ -272,7 +281,8 @@ class XNATSubjectSink(XNATSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.inputs.subject_id]
+        subject = project.subjects[XNATArchive.full_subject_id(
+            self.inputs.project_id, self.inputs.subject_id)]
         session_name = XNATArchive.subject_summary_session_name(subject.label)
         try:
             session = subject.experiments[session_name]
@@ -336,9 +346,15 @@ class XNATArchive(Archive):
         self._user = user
         self._password = password
         if cache_dir is None:
-            self._cache_dir = os.path.join(os.getcwd(), '.xnat')
+            self._cache_dir = os.path.join(os.environ['HOME'], '.xnat')
         else:
             self._cache_dir = cache_dir
+        try:
+            # Attempt to make cache if it doesn't already exist
+            os.makedirs(self._cache_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
 
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
@@ -412,40 +428,46 @@ class XNATArchive(Archive):
             A hierarchical tree of subject, session and dataset information for
             the archive
         """
+        # Convert subject ids to strings if they are integers
+        if subject_ids is not None:
+            subject_ids = [('{0:03d}'.format(s) if isinstance(s, int) else s)
+                           for s in subject_ids]
         subjects = []
         with self._login() as xnat_login:
             xproject = xnat_login.projects[project_id]
             for xsubject in xproject.subjects.itervalues():
-                if subject_ids is None or xsubject.label in subject_ids:
-                    sessions = []
-                    for xsession in xsubject.experiments.itervalues():
-                        if (session_ids is None or
-                                xsession.label in session_ids):
-                            sessions.append(Session(
-                                xsession.label,
-                                datasets=self._get_datasets(xsession,
-                                                            'per_session'),
-                                processed=False))
-                    subj_summary_name = self.subject_summary_session_name(
-                        xsubject.label)
-                    if subj_summary_name in xsubject.experiments:
-                        subj_summary = self._get_datasets(
-                            xsubject.experiments[subj_summary_name],
-                            'per_subject')
-                    else:
-                        subj_summary = []
-                    subjects.append(Subject(
-                        xsubject.label, sessions, subj_summary))
-                proj_summary_name = self.project_summary_session_name(
-                    project_id)
-                if proj_summary_name in xproject.subjects:
-                    proj_summary = self._get_datasets(
-                        xproject.subjects[
-                            proj_summary_name].experiments[
-                                self.project_summary_session_name(project_id)],
-                        'per_project')
+                subject_id = xsubject.label.split('_')[1]
+                if subject_ids is not None and subject_id not in subject_ids:
+                    continue  # Skip subject
+                sessions = []
+                for xsession in xsubject.experiments.itervalues():
+                    session_id = xsession.label.split('_')[2]
+                    if (session_ids is not None and
+                            session_id not in session_ids):
+                        continue
+                    sessions.append(Session(
+                        session_id,
+                        datasets=self._get_datasets(xsession, 'per_session'),
+                        processed=False))
+                subj_summary_name = self.subject_summary_session_name(
+                    xsubject.label)
+                if subj_summary_name in xsubject.experiments:
+                    subj_summary = self._get_datasets(
+                        xsubject.experiments[subj_summary_name],
+                        'per_subject')
                 else:
-                    proj_summary = []
+                    subj_summary = []
+                subjects.append(Subject(subject_id, sessions, subj_summary))
+            proj_summary_name = self.project_summary_session_name(
+                project_id)
+            if proj_summary_name in xproject.subjects:
+                proj_summary = self._get_datasets(
+                    xproject.subjects[
+                        proj_summary_name].experiments[
+                            self.project_summary_session_name(project_id)],
+                    'per_project')
+            else:
+                proj_summary = []
         return Project(project_id, subjects, proj_summary)
 
     def _get_datasets(self, xsession, mult):
@@ -514,3 +536,11 @@ class XNATArchive(Archive):
     @classmethod
     def project_summary_subject_name(cls, project_id):
         return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
+
+    @classmethod
+    def full_subject_id(cls, project_id, subject_id):
+        return '_'.join((project_id, subject_id))
+
+    @classmethod
+    def full_session_id(cls, project_id, subject_id, session_id):
+        return '_'.join((project_id, subject_id, session_id))

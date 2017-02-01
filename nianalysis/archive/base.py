@@ -301,8 +301,8 @@ class Project(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
+        return "Subject(id={}, num_subjects={})".format(self._id,
+                                                        len(self.subjects))
 
     def __hash__(self):
         return hash(self._id)
