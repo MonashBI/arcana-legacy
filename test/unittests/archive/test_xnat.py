@@ -35,14 +35,12 @@ class TestXnatArchive(TestCase):
 
     @property
     def full_subject_id(self):
-        return XNATArchive.full_subject_id(self.PROJECT_ID,
-                                           self.SUBJECT_ID)
+        return '_'.join((self.PROJECT_ID, self.SUBJECT_ID))
 
     @property
     def full_session_id(self):
-        return XNATArchive.full_session_id(self.PROJECT_ID,
-                                           self.SUBJECT_ID,
-                                           self.SESSION_ID)
+        return '_'.join((self.PROJECT_ID, self.SUBJECT_ID, self.SESSION_ID))
+
     def setUp(self):
         # Create test data on DaRIS
         self._session_id = None

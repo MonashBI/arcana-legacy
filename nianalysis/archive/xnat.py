@@ -19,6 +19,31 @@ import xnat  # NB: XNATPy not PyXNAT
 logger = logging.getLogger('NiAnalysis')
 
 
+class XNATMixin(object):
+
+    @property
+    def full_subject_id(self):
+        if '_' not in self.inputs.subject_id:
+            subject_id = '_'.join((self._id_prefix(),
+                                   str(self.inputs.subject_id)))
+        return subject_id
+
+    @property
+    def full_session_id(self):
+        if '_' not in self.inputs.session_id:
+            session_id = '_'.join((self._id_prefix(),
+                                   str(self.inputs.subject_id),
+                                   str(self.inputs.session_id)))
+        return session_id
+
+    def _id_prefix(self):
+        # NB: Cannot use 'isdefined' method to determine whether source_project
+        #     has been provided because Sink subclasses from DynamicTraitedSpec
+        return str(self.inputs.source_project
+                   if isinstance(self.inputs.source_project, str)
+                   else self.inputs.project_id)
+
+
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
     server = traits.Str('https://mf-erc.its.monash.edu.au', mandatory=True,
                         usedefault=True, desc="The address of the MF server")
@@ -37,9 +62,15 @@ class XNATSourceInputSpec(ArchiveSourceInputSpec):
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
+    source_project = traits.Str(
+        mandatory=False,
+        desc=("If a subject is shared into a project from another project "
+              "the source project must be provided to match the subject and "
+              "session ids. If subjects are shared from multiple projects, "
+              "the complete ID string must be used"))
 
 
-class XNATSource(ArchiveSource):
+class XNATSource(ArchiveSource, XNATMixin):
     """
     A NiPype IO interface for grabbing datasets off DaRIS (analogous to
     DataGrabber)
@@ -59,11 +90,8 @@ class XNATSource(ArchiveSource):
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
             project = xnat_login.projects[self.inputs.project_id]
-            subject = project.subjects[XNATArchive.full_subject_id(
-                self.inputs.project_id, self.inputs.subject_id)]
-            session = subject.experiments[XNATArchive.full_session_id(
-                self.inputs.project_id, self.inputs.subject_id,
-                self.inputs.session_id)]
+            subject = project.subjects[self.full_subject_id]
+            session = subject.experiments[self.full_session_id]
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
             subj_summ_session_name = XNATArchive.subject_summary_session_name(
@@ -140,10 +168,6 @@ class XNATSource(ArchiveSource):
 
 
 class XNATSinkInputSpecMixin(object):
-
-    cache_dir = Directory(
-        exists=True, desc=("Path to the base directory where the datasets will"
-                           " be cached before uploading"))
     server = traits.Str('https://mf-erc.its.monash.edu.au', mandatory=True,
                         usedefault=True, desc="The address of the MF server")
     user = traits.Str(
@@ -158,26 +182,32 @@ class XNATSinkInputSpecMixin(object):
               "not supplied it can be read from ~/.netrc (see "
               "https://xnat.readthedocs.io/en/latest/static/tutorial.html"
               "#connecting-to-a-server)"))
+    cache_dir = Directory(
+        exists=True, desc=("Path to the base directory where the downloaded"
+                           "datasets will be cached"))
+    source_project = traits.Str(
+        mandatory=False,
+        desc=("If a subject is shared into a project from another project "
+              "the source project must be provided to match the subject and "
+              "session ids. If subjects are shared from multiple projects, "
+              "the complete ID string must be used"))
 
 
 class XNATSinkInputSpec(ArchiveSinkInputSpec, XNATSinkInputSpecMixin):
-
     pass
 
 
 class XNATSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
                                XNATSinkInputSpecMixin):
-
     pass
 
 
 class XNATProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
                                XNATSinkInputSpecMixin):
-
     pass
 
 
-class XNATSink(ArchiveSink):
+class XNATSink(ArchiveSink, XNATMixin):
     """
     A NiPype IO interface for putting processed datasets onto DaRIS (analogous
     to DataSink)
@@ -252,14 +282,9 @@ class XNATSink(ArchiveSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[XNATArchive.full_subject_id(
-            self.inputs.project_id, self.inputs.subject_id)]
-        assert XNATArchive.full_session_id(
-            self.inputs.project_id, self.inputs.subject_id,
-            self.inputs.session_id) in subject.experiments
-        proc_session_id = XNATArchive.full_session_id(
-            self.inputs.project_id, self.inputs.subject_id,
-            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX)
+        subject = project.subjects[self.full_subject_id]
+        assert self.full_session_id in subject.experiments
+        proc_session_id = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
         try:
             session = subject.experiments[proc_session_id]
         except KeyError:
@@ -281,8 +306,7 @@ class XNATSubjectSink(XNATSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[XNATArchive.full_subject_id(
-            self.inputs.project_id, self.inputs.subject_id)]
+        subject = project.subjects[self.full_subject_id]
         session_name = XNATArchive.subject_summary_session_name(subject.label)
         try:
             session = subject.experiments[session_name]
@@ -536,11 +560,3 @@ class XNATArchive(Archive):
     @classmethod
     def project_summary_subject_name(cls, project_id):
         return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
-
-    @classmethod
-    def full_subject_id(cls, project_id, subject_id):
-        return '_'.join((project_id, subject_id))
-
-    @classmethod
-    def full_session_id(cls, project_id, subject_id, session_id):
-        return '_'.join((project_id, subject_id, session_id))
