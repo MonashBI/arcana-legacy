@@ -24,16 +24,15 @@ class XNATMixin(object):
     @property
     def full_subject_id(self):
         if '_' not in self.inputs.subject_id:
-            subject_id = '_'.join((self.inputs.project_id,
-                                   str(self.inputs.subject_id)))
+            subject_id = (self.inputs.project_id + '_' +
+                          self.inputs.subject_id)
         return subject_id
 
     @property
     def full_session_id(self):
         if '_' not in self.inputs.session_id:
-            session_id = '_'.join((self.inputs.project_id,
-                                   str(self.inputs.subject_id),
-                                   str(self.inputs.session_id)))
+            session_id = (self.full_subject_id + '_' +
+                          self.inputs.session_id)
         return session_id
 
 
