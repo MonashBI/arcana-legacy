@@ -4,8 +4,7 @@ import shutil
 import stat
 import logging
 import errno
-import tempfile
-import re
+from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
 from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
@@ -14,6 +13,8 @@ from nianalysis.archive.base import (
     ArchiveProjectSinkInputSpec, Session, Subject, Project)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
+from nianalysis.exceptions import NiAnalysisError
+import re
 import xnat  # NB: XNATPy not PyXNAT
 
 logger = logging.getLogger('NiAnalysis')
@@ -22,16 +23,9 @@ logger = logging.getLogger('NiAnalysis')
 class XNATMixin(object):
 
     @property
-    def full_subject_id(self):
-        if '_' not in self.inputs.subject_id:
-            subject_id = (self.inputs.project_id + '_' +
-                          self.inputs.subject_id)
-        return subject_id
-
-    @property
     def full_session_id(self):
         if '_' not in self.inputs.session_id:
-            session_id = (self.full_subject_id + '_' +
+            session_id = (self.inputs.subject_id + '_' +
                           self.inputs.session_id)
         return session_id
 
@@ -76,7 +70,7 @@ class XNATSource(ArchiveSource, XNATMixin):
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
             project = xnat_login.projects[self.inputs.project_id]
-            subject = project.subjects[self.full_subject_id]
+            subject = project.subjects[self.inputs.subject_id]
             session = subject.experiments[self.full_session_id]
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
@@ -88,7 +82,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                 project.id)
             try:
                 proc_session = xnat_login.experiments[
-                    self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX]
+                    self.full_session_id + XNATArchive.PROCESSED_SUFFIX]
                 proc_datasets = dict(
                     (s.type, s) for s in proc_session.scans.itervalues())
             except KeyError:
@@ -113,13 +107,21 @@ class XNATSource(ArchiveSource, XNATMixin):
                 else:
                     prefixed_name = name
                 if mult == 'per_session':
-                    if processed:
-                        dataset = proc_datasets[prefixed_name]
-                    else:
-                        dataset = datasets[prefixed_name]
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
                         self.inputs.session_id)
+                    try:
+                        if processed:
+                            dataset = proc_datasets[prefixed_name]
+                            cache_dir += XNATArchive.PROCESSED_SUFFIX
+                        else:
+                            dataset = datasets[prefixed_name]
+                    except KeyError:
+                        raise NiAnalysisError(
+                            "Could not find '{}' dataset in acquired and "
+                            "processed sessions ('{}' and '{}' respectively)"
+                            .format(prefixed_name, "', '".join(datasets),
+                                    "', '".join(proc_datasets)))
                     session_label = session.label
                 elif mult == 'per_subject':
                     assert processed
@@ -139,16 +141,33 @@ class XNATSource(ArchiveSource, XNATMixin):
                     assert False, "Unrecognised multiplicity '{}'".format(mult)
                 if not os.path.exists(cache_dir):
                     os.makedirs(cache_dir)
-                fname = prefixed_name + data_formats[data_format].extension
+                fname = prefixed_name
+                if data_formats[data_format].extension is not None:
+                    fname += data_formats[data_format].extension
                 cache_path = os.path.join(cache_dir, fname)
                 # FIXME: Should do a check to see if versions match
                 if not os.path.exists(cache_path):
-                    tmp_dir = tempfile.mkdtemp()
-                    dataset.resources[data_format].download_dir(tmp_dir)
-                    shutil.move(os.path.join(
+                    tmp_dir = cache_path + '.download'
+                    try:
+                        dataset.resources[data_format.upper()].download_dir(
+                            tmp_dir)
+                    except KeyError:
+                        raise NiAnalysisError(
+                            "'{}' dataset is not available in '{}' format, "
+                            "available resources are '{}'"
+                            .format(
+                                name, data_format.upper(), "', '".join(
+                                    r.label.upper()
+                                    for r in dataset.resources.itervalues())))
+                    data_path = os.path.join(
                         tmp_dir, session_label, 'scans',
-                        dataset.id + '-' + dataset.type, 'resources',
-                        data_format, 'files', fname), cache_path)
+                        (dataset.id + '-' +
+                         re.sub(r'[\.\-]', '_', dataset.type)), 'resources',
+                        data_format.upper(), 'files')
+                    if data_formats[data_format].extension is not None:
+                        data_path = os.path.join(data_path, fname)
+                    shutil.move(data_path, cache_path)
+                    shutil.rmtree(tmp_dir)
                 outputs[name + self.OUTPUT_SUFFIX] = cache_path
         return outputs
 
@@ -247,7 +266,15 @@ class XNATSink(ArchiveSink, XNATMixin):
                 # Upload to XNAT
                 dataset = xnat_login.classes.MrScanData(
                     type=prefixed_name, parent=session)
-                resource = dataset.create_resource(format_name)
+                # Delete existing resource
+                # TODO: probably should have check to see if we want to
+                #       override it
+                try:
+                    resource = dataset.resources[format_name.upper()]
+                    resource.delete()
+                except KeyError:
+                    pass
+                resource = dataset.create_resource(format_name.upper())
                 resource.upload(dst_path, out_fname)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
@@ -262,20 +289,44 @@ class XNATSink(ArchiveSink, XNATMixin):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.full_subject_id]
+        subject = project.subjects[self.inputs.subject_id]
         assert self.full_session_id in subject.experiments
-        proc_session_id = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
+        session_name = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
         try:
-            session = subject.experiments[proc_session_id]
+            session = subject.experiments[session_name]
         except KeyError:
-            session = xnat_login.classes.MrSessionData(
-                label=proc_session_id, parent=subject)
+            session = self._create_session(xnat_login, subject.id,
+                                           session_name)
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
             self.inputs.subject_id,
             self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))
         return session, cache_dir
+
+    def _create_session(self, xnat_login, subject_id, session_id):
+        """
+        This creates a processed session in a way that respects whether
+        the acquired session has been shared into another project or not.
+
+        If we weren't worried about this we could just use
+
+            session = xnat_login.classes.MrSessionData(label=proc_session_id,
+                                                       parent=subject)
+        """
+        uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
+               .format(self.inputs.project_id, subject_id, session_id))
+        query = {'xsiType': 'xnat:mrSessionData', 'label': session_id,
+                 'req_format': 'qa'}
+        response = xnat_login.put(uri, query=query)
+        if response.status_code not in (200, 201):
+            raise NiAnalysisError(
+                "Could not create session '{}' in subject '{}' in project '{}'"
+                " response code {}"
+                .format(session_id, subject_id, self.inputs.project_id,
+                        response))
+        return xnat_login.classes.MrSessionData(uri=uri,
+                                                xnat_session=xnat_login)
 
 
 class XNATSubjectSink(XNATSink):
@@ -286,13 +337,13 @@ class XNATSubjectSink(XNATSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.full_subject_id]
+        subject = project.subjects[self.inputs.subject_id]
         session_name = XNATArchive.subject_summary_session_name(subject.label)
         try:
             session = subject.experiments[session_name]
         except KeyError:
-            session = xnat_login.classes.MrSessionData(
-                label=session_name, parent=subject)
+            session = self._create_session(xnat_login, subject.id,
+                                           session_name)
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
@@ -434,34 +485,36 @@ class XNATArchive(Archive):
         """
         # Convert subject ids to strings if they are integers
         if subject_ids is not None:
-            subject_ids = [('{0:03d}'.format(s) if isinstance(s, int) else s)
-                           for s in subject_ids]
+            subject_ids = [('{}_{0:03d}'.format(project_id, s)
+                            if isinstance(s, int) else s) for s in subject_ids]
         subjects = []
+        sessions = defaultdict(list)
         with self._login() as xnat_login:
             xproject = xnat_login.projects[project_id]
+            for xsession in xproject.experiments.itervalues():
+                xsubject = xsession.subject
+                subj_id = xsubject.label
+                sess_id = xsession.label.split('_')[2]
+                if ((subject_ids is not None and subj_id not in subject_ids) or
+                        (session_ids is not None and
+                         sess_id not in session_ids)):
+                    continue  # Skip session
+                sessions[subj_id].append(Session(
+                    sess_id,
+                    datasets=self._get_datasets(xsession, 'per_session'),
+                    processed=False))
             for xsubject in xproject.subjects.itervalues():
-                subject_id = xsubject.label.split('_')[1]
-                if subject_ids is not None and subject_id not in subject_ids:
-                    continue  # Skip subject
-                sessions = []
-                for xsession in xsubject.experiments.itervalues():
-                    session_id = xsession.label.split('_')[2]
-                    if (session_ids is not None and
-                            session_id not in session_ids):
-                        continue
-                    sessions.append(Session(
-                        session_id,
-                        datasets=self._get_datasets(xsession, 'per_session'),
-                        processed=False))
-                subj_summary_name = self.subject_summary_session_name(
-                    xsubject.label)
+                subj_id = xsubject.label
+                if subject_ids is not None and subj_id not in subject_ids:
+                    continue
+                subj_summary_name = self.subject_summary_session_name(subj_id)
                 if subj_summary_name in xsubject.experiments:
                     subj_summary = self._get_datasets(
-                        xsubject.experiments[subj_summary_name],
-                        'per_subject')
+                        xsubject.experiments[subj_summary_name], 'per_subject')
                 else:
                     subj_summary = []
-                subjects.append(Subject(subject_id, sessions, subj_summary))
+                subjects.append(Subject(subj_id, sessions[subj_id],
+                                        subj_summary))
             proj_summary_name = self.project_summary_session_name(
                 project_id)
             if proj_summary_name in xproject.subjects:
@@ -472,6 +525,19 @@ class XNATArchive(Archive):
                     'per_project')
             else:
                 proj_summary = []
+            if not subjects:
+                raise NiAnalysisError(
+                    "Did not find any subjects matching the IDs '{}' in "
+                    "project '{}' (found '{}')"
+                    .format("', '".join(subject_ids), project_id,
+                            "', '".join(s.label for s in xproject.subj)))
+            if not sessions:
+                raise NiAnalysisError(
+                    "Did not find any sessions subjects matching the IDs '{}'"
+                    "(in subjects '{}') for project '{}'"
+                    .format("', '".join(session_ids),
+                            "', '".join(s.label for s in xproject.subj),
+                             project_id))
         return Project(project_id, subjects, proj_summary)
 
     def _get_datasets(self, xsession, mult):
