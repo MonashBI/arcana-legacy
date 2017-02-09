@@ -585,7 +585,8 @@ class Pipeline(object):
 
         Parameters
         ----------
-
+        input_name : str
+            Name of the input to add to the pipeline
         """
         if input_name not in self.study.dataset_spec_names():
             raise NiAnalysisDatasetNameError(
