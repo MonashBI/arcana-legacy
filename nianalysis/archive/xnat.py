@@ -156,8 +156,9 @@ class XNATSource(ArchiveSource, XNATMixin):
                             "'{}' dataset is not available in '{}' format, "
                             "available resources are '{}'"
                             .format(
-                                name, data_format.upper(), "', '".join(
-                                    r.label.upper()
+                                name, data_format.upper(),
+                                "', '".join(
+                                    r.label
                                     for r in dataset.resources.itervalues())))
                     data_path = os.path.join(
                         tmp_dir, session_label, 'scans',
