@@ -1,5 +1,6 @@
 from itertools import chain
 from collections import defaultdict
+from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Split
 from logging import getLogger
@@ -48,11 +49,12 @@ class Pipeline(object):
     """
 
     def __init__(self, study, name, inputs, outputs, description,
-                 options, citations, requirements, approx_runtime,
-                 min_nthreads=1, max_nthreads=1):
+                 default_options, citations, requirements, approx_runtime,
+                 version, min_nthreads=1, max_nthreads=1, options):
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
+        self._version = int(version)
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
@@ -77,7 +79,13 @@ class Pipeline(object):
         assert len(outputs) == len(self._unconnected_outputs), (
             "Duplicate outputs found in '{}'".format("', '".join(outputs)))
         self._citations = citations
-        self._options = options
+        self._default_options = default_options
+        # Copy default options to options and then update it with specific
+        # options passed to this pipeline
+        self._options = copy(default_options)
+        for k, v in options.iteritems():
+            if k in self.options:
+                self.options[k] = v
         self._description = description
         self._requirements = requirements
         self._approx_runtime = approx_runtime
@@ -470,12 +478,25 @@ class Pipeline(object):
         return iter(self._inputs)
 
     @property
+    def version(self):
+        return self._version
+
+    @property
     def outputs(self):
         return chain(*self._outputs.values())
 
     @property
+    def default_options(self):
+        return self._default_options
+
+    @property
     def options(self):
         return self._options
+
+    @property
+    def non_default_options(self):
+        return ((k, v) for k, v in self.options.iteritems()
+                if v != self.default_options[k])
 
     @property
     def description(self):
