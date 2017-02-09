@@ -31,7 +31,7 @@ class DummyStudy(Study):
             inputs=['start'],
             outputs=['pipeline1_1', 'pipeline1_2'],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -53,7 +53,7 @@ class DummyStudy(Study):
             inputs=['start', 'pipeline1_1'],
             outputs=['pipeline2'],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -74,7 +74,7 @@ class DummyStudy(Study):
             inputs=['pipeline2'],
             outputs=['pipeline3'],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -93,7 +93,7 @@ class DummyStudy(Study):
             inputs=['pipeline3'],
             outputs=['pipeline4'],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -112,7 +112,7 @@ class DummyStudy(Study):
             inputs=['ones_slice'],
             outputs=["subject_summary"],
             description=("Test of project summary variables"),
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -132,7 +132,7 @@ class DummyStudy(Study):
             inputs=['ones_slice'],
             outputs=["project_summary"],
             description=("Test of project summary variables"),
-            options={},
+            default_options={},
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)

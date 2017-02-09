@@ -501,6 +501,9 @@ class Pipeline(object):
     def options(self):
         return self._options
 
+    def option(self, name):
+        return self._options[name]
+
     @property
     def non_default_options(self):
         return ((k, v) for k, v in self.options.iteritems()
