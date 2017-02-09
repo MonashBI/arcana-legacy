@@ -30,14 +30,18 @@ class Pipeline(object):
         unprocessed datasets
     outputs : List[ProcessedFile]
         The list of outputs (hard-coded names for un/processed datasets)
-    options : Dict[str, *]
-        Options that effect the output of the pipeline
+    default_options : Dict[str, *]
+        Default options that are used to construct the pipeline. They can
+        be overriden by values provided to they 'options' keyword arg
     citations : List[Citation]
         List of citations that describe the workflow and should be cited in
         publications
     requirements : List[Requirement]
         List of external package requirements (e.g. FSL, MRtrix) required
         by the pipeline
+    version : int
+        A version number for the pipeline to be incremented whenever the output
+        of the pipeline
     approx_runtime : float
         Approximate run time in minutes. Should be conservative so that
         it can be used to set time limits on HPC schedulers
@@ -46,11 +50,15 @@ class Pipeline(object):
     max_nthreads : int
         The maximum number of threads the pipeline can use effectively.
         Use None if there is no effective limit
+    options : Dict[str, *]
+        Options that effect the output of the pipeline that override the
+        default options. Extra options that are not in the default_options
+        dictionary are ignored
     """
 
     def __init__(self, study, name, inputs, outputs, description,
                  default_options, citations, requirements, approx_runtime,
-                 version, min_nthreads=1, max_nthreads=1, options):
+                 version, min_nthreads=1, max_nthreads=1, options={}):
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
