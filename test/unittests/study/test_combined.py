@@ -32,6 +32,7 @@ class DummySubStudyA(Study):
             outputs=['z'],
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -64,6 +65,7 @@ class DummySubStudyB(Study):
             outputs=['y', 'z'],
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)

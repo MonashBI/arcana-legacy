@@ -32,6 +32,7 @@ class DummyStudy(Study):
             outputs=['pipeline1_1', 'pipeline1_2'],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -54,6 +55,7 @@ class DummyStudy(Study):
             outputs=['pipeline2'],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -75,6 +77,7 @@ class DummyStudy(Study):
             outputs=['pipeline3'],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -94,6 +97,7 @@ class DummyStudy(Study):
             outputs=['pipeline4'],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -113,6 +117,7 @@ class DummyStudy(Study):
             outputs=["subject_summary"],
             description=("Test of project summary variables"),
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -133,6 +138,7 @@ class DummyStudy(Study):
             outputs=["project_summary"],
             description=("Test of project summary variables"),
             default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
