@@ -4,6 +4,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Split
 from logging import getLogger
 from nianalysis.interfaces.mrtrix import MRConvert
+from nianalysis.interfaces.utils import UnzipDir
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.archive.base import ArchiveSource, ArchiveSink
@@ -252,21 +253,29 @@ class Pipeline(object):
             # If the dataset is not in the required format for the study
             # user MRConvert to convert it
             if dataset.format != spec.format:
-                if dataset.format.converter != 'mrconvert':
+                conversion_name = spec.name + '_input_conversion'
+                if dataset.format.converter == 'mrconvert':
+                    conversion = pe.Node(MRConvert(), name=conversion_name)
+                    conversion.inputs.out_ext = spec.format.extension
+                    conversion.inputs.quiet = True
+                    complete_workflow.connect(
+                        source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
+                        conversion, 'in_file')
+                    dataset_name = 'out_file'
+                elif dataset.format.converter == 'unzip':
+                    conversion = pe.Node(UnzipDir(), name=conversion_name)
+                    complete_workflow.connect(
+                        source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
+                        conversion, 'zipped')
+                    dataset_name = 'unzipped'
+                else:
                     raise NotImplementedError(
                         "Only data format conversions that are supported by "
-                        "mrconvert are currently implemented "
+                        "mrconvert or unzip are currently implemented "
                         "({}->{} requested)".format(dataset.format,
                                                     spec.format))
-                conversion = pe.Node(MRConvert(),
-                                     name=(spec.name + '_input_conversion'))
-                conversion.inputs.out_ext = spec.format.extension
-                conversion.inputs.quiet = True
-                complete_workflow.connect(
-                    source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
-                    conversion, 'in_file')
                 dataset_source = conversion
-                dataset_name = 'out_file'
+
             else:
                 dataset_source = source
                 dataset_name = dataset.name + ArchiveSource.OUTPUT_SUFFIX

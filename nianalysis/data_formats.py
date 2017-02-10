@@ -44,6 +44,42 @@ class DataFormat(object):
         return self._mrinfo
 
 
+class Converter(object):
+
+    def __init__(self, name, input_formats, output_formats, interface,
+                 in_field, out_field):
+        self._name = name
+        self._input_formats = input_formats
+        self._output_formats = output_formats
+        self._interface = interface
+        self._in_field = in_field
+        self._out_field = out_field
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def input_formats(self):
+        return self._input_formats
+
+    @property
+    def output_formats(self):
+        return self._output_formats
+
+    @property
+    def interface(self):
+        return self._interface
+
+    @property
+    def in_field(self):
+        return self._in_field
+
+    @property
+    def out_field(self):
+        return self._out_field
+
+
 nifti_format = DataFormat(name='nifti', extension='.nii',
                           lctype='nifti/series', mrinfo='NIfTI-1.1')
 nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
@@ -58,8 +94,9 @@ mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
                                          extension='.fs.zip', converter=None)
-coils_zip_format = DataFormat(name='coils_zip_format',
-                                         extension='.zip', converter=None)
+zip_format = DataFormat(name='zip_format', extension='.zip', converter='unzip')
+directory_format = DataFormat(name='directory_format', extension=None,
+                              converter='unzip')
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
 
@@ -75,3 +112,8 @@ data_formats_by_ext = dict(
 
 data_formats_by_mrinfo = dict(
     (f.mrinfo, f) for f in data_formats.itervalues())
+
+
+mrconvert = Converter('mrconvert',
+                      [nifti_format, nifti_gz_format, mrtrix_format])
+
