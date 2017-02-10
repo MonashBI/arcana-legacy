@@ -96,6 +96,22 @@ mrtrix_cite = Citation(
     url="https://github.com/MRtrix3/mrtrix3",
     year=2012)
 
+matlab_cite = Citation(
+    short_name="matlab",
+    authors=["A"],
+    title="MATLAB",
+    institute="Mathworks",
+    url="https://placeholder.com",
+    year=2014)
+
+sti_cites  = Citation(
+    short_name="sti",
+    authors=["A"],
+    title="Placeholder",
+    institute="Placeholder",
+    url="https://placeholder.com",
+    year=2014)
+
 eddy_cite = Citation(
     short_name='Eddy',
     authors=["Andersson, J. L.", "Sotiropoulos, S. N."],
