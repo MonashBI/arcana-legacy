@@ -58,6 +58,8 @@ mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
                                          extension='.fs.zip', converter=None)
+coils_zip_format = DataFormat(name='coils_zip_format',
+                                         extension='.zip', converter=None)
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
 
