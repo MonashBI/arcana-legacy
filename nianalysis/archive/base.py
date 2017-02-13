@@ -6,9 +6,7 @@ from nipype.interfaces.base import (
     Undefined, isdefined)
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
-
-
-INPUT_OUTPUT_SUFFIX = '_dataset'
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
 class Archive(object):
@@ -138,8 +136,6 @@ class ArchiveSource(IOBase):
     output_spec = DynamicTraitedSpec
     _always_run = True
 
-    OUTPUT_SUFFIX = '_fname'
-
     def __init__(self, infields=None, outfields=None, **kwargs):
         """
         Parameters
@@ -170,7 +166,7 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [dataset[0] + self.OUTPUT_SUFFIX
+        return add_traits(base, [dataset[0] + OUTPUT_SUFFIX
                                  for dataset in self.inputs.datasets])
 
 
@@ -202,7 +198,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
     def __setattr__(self, name, val):
         if isdefined(self.datasets) and not hasattr(self, name):
-            accepted = [s[0] + ArchiveSink.INPUT_SUFFIX for s in self.datasets]
+            accepted = [s[0] + INPUT_SUFFIX for s in self.datasets]
             try:
                 assert name in accepted, (
                     "'{}' is not a valid input filename for '{}' archive sink "
@@ -241,8 +237,6 @@ class ArchiveSink(IOBase):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    INPUT_SUFFIX = '_fname'
-
     def __init__(self, output_datasets, **kwargs):
         """
         Parameters
@@ -260,7 +254,7 @@ class ArchiveSink(IOBase):
         # used for mandatory inputs check
         self._infields = None
         self._outfields = None
-        add_traits(self.inputs, [s.name + self.INPUT_SUFFIX
+        add_traits(self.inputs, [s.name + INPUT_SUFFIX
                                  for s in output_datasets])
 
     @abstractmethod

@@ -3,11 +3,11 @@ from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Split
 from logging import getLogger
-from nianalysis.interfaces.mrtrix import MRConvert
-from nianalysis.interfaces.utils import UnzipDir
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
-from nianalysis.archive.base import ArchiveSource, ArchiveSink
+from nianalysis.data_formats import get_converter_node
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+
 
 logger = getLogger('NIAnalysis')
 
@@ -250,35 +250,17 @@ class Pipeline(object):
             dataset = self._study.dataset(inpt)
             # Get the dataset spec corresponding to the pipeline's input
             spec = self._study.dataset_spec(inpt)
-            # If the dataset is not in the required format for the study
-            # user MRConvert to convert it
             if dataset.format != spec.format:
-                conversion_name = spec.name + '_input_conversion'
-                if dataset.format.converter == 'mrconvert':
-                    conversion = pe.Node(MRConvert(), name=conversion_name)
-                    conversion.inputs.out_ext = spec.format.extension
-                    conversion.inputs.quiet = True
-                    complete_workflow.connect(
-                        source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
-                        conversion, 'in_file')
-                    dataset_name = 'out_file'
-                elif dataset.format.converter == 'unzip':
-                    conversion = pe.Node(UnzipDir(), name=conversion_name)
-                    complete_workflow.connect(
-                        source, dataset.name + ArchiveSource.OUTPUT_SUFFIX,
-                        conversion, 'zipped')
-                    dataset_name = 'unzipped'
-                else:
-                    raise NotImplementedError(
-                        "Only data format conversions that are supported by "
-                        "mrconvert or unzip are currently implemented "
-                        "({}->{} requested)".format(dataset.format,
-                                                    spec.format))
-                dataset_source = conversion
-
+                # Insert a format converter node into the workflow if the
+                # format of the dataset if it is not in the required format for
+                # the study
+                conversion_node_name = spec.name + '_input_conversion'
+                dataset_source, dataset_name = get_converter_node(
+                    dataset, spec.format, source, complete_workflow,
+                    conversion_node_name)
             else:
                 dataset_source = source
-                dataset_name = dataset.name + ArchiveSource.OUTPUT_SUFFIX
+                dataset_name = dataset.name + OUTPUT_SUFFIX
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt)
@@ -304,7 +286,7 @@ class Pipeline(object):
                 if dataset.processed:
                     complete_workflow.connect(
                         self._outputnodes[mult], dataset.name,
-                        sink, dataset.name + ArchiveSink.INPUT_SUFFIX)
+                        sink, dataset.name + INPUT_SUFFIX)
         # Run the workflow
         return complete_workflow.run()
 

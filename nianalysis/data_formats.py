@@ -1,4 +1,10 @@
 from copy import copy
+from abc import ABCMeta, abstractmethod
+from nipype.pipeline import engine as pe
+from nianalysis.interfaces.mrtrix import MRConvert
+from nianalysis.interfaces.utils import ZipDir, UnzipDir
+from nianalysis.exceptions import NiAnalysisError
+from nianalysis.utils import OUTPUT_SUFFIX
 
 
 class DataFormat(object):
@@ -44,42 +50,6 @@ class DataFormat(object):
         return self._mrinfo
 
 
-class Converter(object):
-
-    def __init__(self, name, input_formats, output_formats, interface,
-                 in_field, out_field):
-        self._name = name
-        self._input_formats = input_formats
-        self._output_formats = output_formats
-        self._interface = interface
-        self._in_field = in_field
-        self._out_field = out_field
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def input_formats(self):
-        return self._input_formats
-
-    @property
-    def output_formats(self):
-        return self._output_formats
-
-    @property
-    def interface(self):
-        return self._interface
-
-    @property
-    def in_field(self):
-        return self._in_field
-
-    @property
-    def out_field(self):
-        return self._out_field
-
-
 nifti_format = DataFormat(name='nifti', extension='.nii',
                           lctype='nifti/series', mrinfo='NIfTI-1.1')
 nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
@@ -101,6 +71,78 @@ text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
 
 
+class Converter(object):
+    """
+    Base class for all NiAnalysis data format converters
+    """
+
+    __metaclass__ = ABCMeta
+
+    def convert(self, workflow, source, dataset, node_name, output_format):
+        convert_node, in_field, out_field = self._get_convert_node(
+            node_name, dataset.format, output_format)
+        workflow.connect(
+            source, dataset.name + OUTPUT_SUFFIX, convert_node, in_field)
+        return convert_node, out_field
+
+    @abstractmethod
+    def _get_convert_node(self):
+        pass
+
+    @abstractmethod
+    def input_formats(self):
+        pass
+
+    @abstractmethod
+    def output_formats(self):
+        pass
+
+
+class MrtrixConverter(Converter):
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = pe.Node(MRConvert(), name=node_name)
+        convert_node.inputs.out_ext = output_format.extension
+        convert_node.inputs.quiet = True
+        return convert_node, 'in_file', 'out_file'
+
+    def input_formats(self):
+        return [nifti_format, nifti_gz_format, mrtrix_format,
+                analyze_format, dicom_format]
+
+    def output_formats(self):
+        return [nifti_format, nifti_gz_format, analyze_format,
+                mrtrix_format]
+
+
+class UnzipConverter(Converter):
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = pe.Node(UnzipDir(), name=node_name)
+        return convert_node, 'zipped', 'unzipped'
+
+    def input_formats(self):
+        return [zip_format]
+
+    def output_formats(self):
+        return [directory_format]
+
+
+class ZipConverter(Converter):
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = pe.Node(ZipDir(), name=node_name)
+        return convert_node, 'unzipped', 'zipped'
+
+    def input_formats(self):
+        return [directory_format]
+
+    def output_formats(self):
+        return [zip_format]
+
+
+converters = [MrtrixConverter(), UnzipConverter(), ZipConverter()]
+
 # A dictionary to access all the formats by name
 data_formats = dict(
     (f.name, f) for f in copy(globals()).itervalues()
@@ -114,6 +156,11 @@ data_formats_by_mrinfo = dict(
     (f.mrinfo, f) for f in data_formats.itervalues())
 
 
-mrconvert = Converter('mrconvert',
-                      [nifti_format, nifti_gz_format, mrtrix_format])
-
+def get_converter_node(dataset, output_format, source, workflow, node_name):
+    for converter in converters:
+        if (dataset.format in converter.input_formats() and
+                output_format in converter.output_formats()):
+            return converter.convert(workflow, source, dataset, node_name)
+    raise NiAnalysisError(
+        "No available converters to convert between '{}' and '{}' formats."
+        .format(dataset.format.name, output_format.name))

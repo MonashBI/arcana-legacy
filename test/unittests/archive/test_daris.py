@@ -5,11 +5,11 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
-    DarisLogin, DarisArchive, DarisSource, DarisSink, SUBJECT_SUMMARY_ID,
-    PROJECT_SUMMARY_ID)
+    DarisLogin, DarisArchive, SUBJECT_SUMMARY_ID, PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
 # The projects/subjects/sessions to alter on DaRIS
@@ -324,8 +324,8 @@ class TestDarisArchive(TestCase):
             if source_file.name != 'source2':
                 sink_name = source_file.name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_file.name + DarisSource.OUTPUT_SUFFIX,
-                    sink, sink_name + DarisSink.INPUT_SUFFIX)
+                    source, source_file.name + OUTPUT_SUFFIX,
+                    sink, sink_name + INPUT_SUFFIX)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
@@ -453,11 +453,11 @@ class TestDarisArchiveSummary(TestCase):
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(
-            source, 'source1' + DarisSource.OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + DarisSink.INPUT_SUFFIX)
+            source, 'source1' + OUTPUT_SUFFIX,
+            subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
-            source, 'source2' + DarisSource.OUTPUT_SUFFIX,
-            project_sink, 'sink2' + DarisSink.INPUT_SUFFIX)
+            source, 'source2' + OUTPUT_SUFFIX,
+            project_sink, 'sink2' + INPUT_SUFFIX)
         workflow.run()
         # Check cached summary directories were created properly
         subject_dir = os.path.join(
@@ -511,13 +511,13 @@ class TestDarisArchiveSummary(TestCase):
         reloadworkflow.connect(reloadinputnode, 'session_id',
                                reloadsink, 'session_id')
         reloadworkflow.connect(reloadsource,
-                               'sink1' + DarisSource.OUTPUT_SUFFIX,
+                               'sink1' + OUTPUT_SUFFIX,
                                reloadsink,
-                               'resink1' + DarisSink.INPUT_SUFFIX)
+                               'resink1' + INPUT_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink2' + DarisSource.OUTPUT_SUFFIX,
+                               'sink2' + OUTPUT_SUFFIX,
                                reloadsink,
-                               'resink2' + DarisSink.INPUT_SUFFIX)
+                               'resink2' + INPUT_SUFFIX)
         reloadworkflow.run()
         session_dir = os.path.join(
             self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),

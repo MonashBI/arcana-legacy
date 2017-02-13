@@ -14,6 +14,7 @@ from nianalysis.dataset import Dataset
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
 logger = logging.getLogger('NiAnalysis')
@@ -61,7 +62,7 @@ class LocalSource(ArchiveSource):
             # Prepend study name if defined
             if processed and isdefined(self.inputs.study_name):
                 fname = self.inputs.study_name + '_' + fname
-            outputs[name + self.OUTPUT_SUFFIX] = os.path.join(data_dir, fname)
+            outputs[name + OUTPUT_SUFFIX] = os.path.join(data_dir, fname)
         return outputs
 
 
@@ -111,7 +112,7 @@ class LocalSink(ArchiveSink):
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
             assert processed, "Should only be sinking processed datasets"
-            filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
+            filename = getattr(self.inputs, name + INPUT_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):
                 missing_files.append(name)

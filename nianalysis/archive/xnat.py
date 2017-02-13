@@ -16,6 +16,7 @@ from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
 import re
 import xnat  # NB: XNATPy not PyXNAT
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -168,7 +169,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                         data_path = os.path.join(data_path, fname)
                     shutil.move(data_path, cache_path)
                     shutil.rmtree(tmp_dir)
-                outputs[name + self.OUTPUT_SUFFIX] = cache_path
+                outputs[name + OUTPUT_SUFFIX] = cache_path
         return outputs
 
 
@@ -241,7 +242,7 @@ class XNATSink(ArchiveSink, XNATMixin):
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
-                filename = getattr(self.inputs, name + self.INPUT_SUFFIX)
+                filename = getattr(self.inputs, name + INPUT_SUFFIX)
                 if not isdefined(filename):
                     missing_files.append(name)
                     continue  # skip the upload for this file
