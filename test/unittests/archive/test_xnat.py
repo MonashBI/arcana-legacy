@@ -265,14 +265,10 @@ class TestXnatArchive(TestCase):
                                reloadsink, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'session_id',
                                reloadsink, 'session_id')
-        reloadworkflow.connect(reloadsource,
-                               'sink1' + OUTPUT_SUFFIX,
-                               reloadsink,
-                               'resink1' + INPUT_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'sink2' + OUTPUT_SUFFIX,
-                               reloadsink,
-                               'resink2' + INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink1' + OUTPUT_SUFFIX,
+                               reloadsink, 'resink1' + INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink2' + OUTPUT_SUFFIX,
+                               reloadsink, 'resink2' + INPUT_SUFFIX)
         reloadworkflow.run()
         # Check that the datasets
         session_dir = os.path.join(
