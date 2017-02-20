@@ -19,6 +19,8 @@ import xnat  # NB: XNATPy not PyXNAT
 
 logger = logging.getLogger('NiAnalysis')
 
+sanitize_re = re.compile(r'[^a-zA-Z_0-9]')
+
 
 class XNATMixin(object):
 
@@ -607,3 +609,40 @@ class XNATArchive(Archive):
     @classmethod
     def project_summary_subject_name(cls, project_id):
         return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
+
+
+def download_dataset(download_path, server, user, password, session_id,
+                     dataset_name, data_format):
+    """
+    Downloads a single dataset from an XNAT server
+    """
+    ext = data_formats[data_format.lower()].extension
+    with xnat.connect(server, user=user, password=password) as mbi_xnat:
+        try:
+            session = mbi_xnat.experiments[session_id]
+        except KeyError:
+            raise NiAnalysisError(
+                "Didn't find session matching '{}' on {}".format(session_id,
+                                                                 server))
+        try:
+            dataset = session.scans[dataset_name]
+        except KeyError:
+            raise NiAnalysisError(
+                "Didn't find dataset matching '{}' in {}".format(dataset_name,
+                                                                 session_id))
+        try:
+            resource = dataset.resources[data_format.upper()]
+        except KeyError:
+            raise NiAnalysisError(
+                "Didn't find {} resource in {} dataset matching '{}' in {}"
+                .format(data_format.upper(), dataset_name))
+        tmp_dir = download_path + '.download'
+        resource.download_dir(tmp_dir)
+        dataset_label = dataset.id + '-' + sanitize_re.sub('_', dataset.type)
+        src_path = os.path.join(tmp_dir, session.label, 'scans',
+                                dataset_label, 'resources',
+                                data_format.upper(), 'files')
+        if data_format.lower() != 'dicom':
+            src_path = os.path.join(src_path, dataset_name + ext)
+        shutil.move(src_path, download_path)
+        shutil.rmtree(tmp_dir)
