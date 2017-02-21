@@ -80,6 +80,14 @@ class Converter(object):
     __metaclass__ = ABCMeta
 
     def convert(self, workflow, source, dataset, node_name, output_format):
+        """
+        Adds a converter node into a complete workflow 
+        
+        Parameters
+        ----------
+        workflow : nipype.Workflow
+            The workflow to add the converter node to
+        """
         convert_node, in_field, out_field = self._get_convert_node(
             node_name, dataset.format, output_format)
         workflow.connect(
@@ -92,10 +100,12 @@ class Converter(object):
 
     @abstractmethod
     def input_formats(self):
+        "Lists all data formats that the converter tool can read"
         pass
 
     @abstractmethod
     def output_formats(self):
+        "Lists all data formats that the converter tool can write"
         pass
 
 
@@ -141,7 +151,7 @@ class ZipConverter(Converter):
     def output_formats(self):
         return [zip_format]
 
-
+# List all possible converters in order of preference
 converters = [MrtrixConverter(), UnzipConverter(), ZipConverter()]
 
 # A dictionary to access all the formats by name
