@@ -4,14 +4,14 @@ import xnat
 from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import (
-    XNATArchive, XNATSource, XNATSink)
+from nianalysis.archive.xnat import XNATArchive
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 from nianalysis.testing import test_data_dir
 import logging
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -124,8 +124,8 @@ class TestXnatArchive(TestCase):
             if source_file.name != 'source2':
                 sink_name = source_file.name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_file.name + XNATSource.OUTPUT_SUFFIX,
-                    sink, sink_name + XNATSink.INPUT_SUFFIX)
+                    source, source_file.name + OUTPUT_SUFFIX,
+                    sink, sink_name + INPUT_SUFFIX)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
@@ -193,11 +193,11 @@ class TestXnatArchive(TestCase):
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(
-            source, 'source1' + XNATSource.OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + XNATSink.INPUT_SUFFIX)
+            source, 'source1' + OUTPUT_SUFFIX,
+            subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
-            source, 'source2' + XNATSource.OUTPUT_SUFFIX,
-            project_sink, 'sink2' + XNATSink.INPUT_SUFFIX)
+            source, 'source2' + OUTPUT_SUFFIX,
+            project_sink, 'sink2' + INPUT_SUFFIX)
         workflow.run()
         with self._connect() as mbi_xnat:
             # Check subject summary directories were created properly in cache
@@ -261,14 +261,10 @@ class TestXnatArchive(TestCase):
                                reloadsink, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'session_id',
                                reloadsink, 'session_id')
-        reloadworkflow.connect(reloadsource,
-                               'sink1' + XNATSource.OUTPUT_SUFFIX,
-                               reloadsink,
-                               'resink1' + XNATSink.INPUT_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'sink2' + XNATSource.OUTPUT_SUFFIX,
-                               reloadsink,
-                               'resink2' + XNATSink.INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink1' + OUTPUT_SUFFIX,
+                               reloadsink, 'resink1' + INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink2' + OUTPUT_SUFFIX,
+                               reloadsink, 'resink2' + INPUT_SUFFIX)
         reloadworkflow.run()
         # Check that the datasets
         session_dir = os.path.join(

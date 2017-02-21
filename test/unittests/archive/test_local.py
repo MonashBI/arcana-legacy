@@ -4,12 +4,12 @@ from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
-    LocalArchive, LocalSource, LocalSink, SUBJECT_SUMMARY_NAME,
-    PROJECT_SUMMARY_NAME)
+    LocalArchive, SUBJECT_SUMMARY_NAME, PROJECT_SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 from nianalysis.testing import test_data_dir
 import logging
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -81,8 +81,8 @@ class TestLocalArchive(TestCase):
                 source_name = source_file.name
                 sink_name = source_name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_name + LocalSource.OUTPUT_SUFFIX,
-                    sink, sink_name + LocalSink.INPUT_SUFFIX)
+                    source, source_name + OUTPUT_SUFFIX,
+                    sink, sink_name + INPUT_SUFFIX)
         workflow.run()
         # Check local directory was created properly
         session_dir = os.path.join(
@@ -136,11 +136,11 @@ class TestLocalArchive(TestCase):
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(
-            source, 'source1' + LocalSource.OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + LocalSink.INPUT_SUFFIX)
+            source, 'source1' + OUTPUT_SUFFIX,
+            subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
-            source, 'source2' + LocalSource.OUTPUT_SUFFIX,
-            project_sink, 'sink2' + LocalSink.INPUT_SUFFIX)
+            source, 'source2' + OUTPUT_SUFFIX,
+            project_sink, 'sink2' + INPUT_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = os.path.join(
@@ -183,13 +183,13 @@ class TestLocalArchive(TestCase):
         reloadworkflow.connect(reloadinputnode, 'session_id',
                                reloadsink, 'session_id')
         reloadworkflow.connect(reloadsource,
-                               'sink1' + LocalSource.OUTPUT_SUFFIX,
+                               'sink1' + OUTPUT_SUFFIX,
                                reloadsink,
-                               'resink1' + LocalSink.INPUT_SUFFIX)
+                               'resink1' + INPUT_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink2' + LocalSource.OUTPUT_SUFFIX,
+                               'sink2' + OUTPUT_SUFFIX,
                                reloadsink,
-                               'resink2' + LocalSink.INPUT_SUFFIX)
+                               'resink2' + INPUT_SUFFIX)
         reloadworkflow.run()
         session_dir = os.path.join(
             self.BASE_DIR, str(self.PROJECT_ID), str(self.SUBJECT_ID),

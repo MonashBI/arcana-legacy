@@ -2,7 +2,10 @@ import os.path
 from nianalysis.exceptions import NiAnalysisError
 
 
-zip_exts = ('gz', 'zip')
+OUTPUT_SUFFIX = '_fname'
+INPUT_SUFFIX = '_fname'
+
+zip_exts = ('gz',)
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 
