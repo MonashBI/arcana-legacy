@@ -2,18 +2,21 @@ import os.path
 import subprocess as sp
 import shutil
 from unittest import TestCase
+import nianalysis
 from nianalysis.archive.local import LocalArchive
-from nianalysis.archive.xnat import download_dataset
-from nianalysis.data_formats import data_formats_by_ext
-from nianalysis.utils import split_extension
+from nianalysis.archive.xnat import download_all_datasets
+import sys
 
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
+
+unittest_base_dir = os.path.abspath(os.path.join(
+    os.path.dirname(nianalysis.__file__), '..', 'test', 'unittests'))
 
 
 class PipelineTeseCase(TestCase):
 
-    ARCHIVE_PATH = os.path.join(test_data_dir, 'unittest_archive')
-    WORK_PATH = os.path.join(test_data_dir, 'unittest_work')
+    ARCHIVE_PATH = os.path.join(test_data_dir, 'archive')
+    WORK_PATH = os.path.join(test_data_dir, 'work')
     CACHE_BASE_PATH = os.path.join(test_data_dir, 'cache')
     SUBJECT = 'SUBJECT'
     SESSION = 'SESSION'
@@ -23,31 +26,32 @@ class PipelineTeseCase(TestCase):
     XNAT_TEST_PROJECT = 'TEST001'
 
     def setUp(self):
-        self._create_project(self.project_dir, self.SUBJECT, self.SESSION,
-                             self.REQUIRED_DATASETS)
+        self._create_project(self.project_dir, self.SUBJECT, self.SESSION)
 
-    def _create_project(self, project_dir, subject, session, datasets):
+    def _create_project(self, project_dir, subject, session,
+                        required_datasets=None):
         self._delete_project(project_dir)
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
-        for dataset in datasets:
-            cache_path = self._get_dataset(dataset)
-            shutil.copy(cache_path, os.path.join(session_dir, dataset))
+        cache_dir = os.path.join(self.CACHE_BASE_PATH, session)
+        # Get the name of the session on XNAT that contains the test datasets
+        rel_module_path = sys.modules[self.__module__].__file__[
+            len(unittest_base_dir) + 1:].split(os.path.sep)
+        module_id = (''.join(rel_module_path[:-1]) +
+                     os.path.splitext(rel_module_path[-1])[0][5:])
+        xnat_session_name = '{}_{}_{}'.format(
+            self.XNAT_TEST_PROJECT, module_id, type(self).__name__[4:]).upper()
+        print xnat_session_name
+        download_all_datasets(cache_dir, self.SERVER, self.USER, self.PASSWORD,
+                              xnat_session_name, overwrite=False)
+        for f in os.listdir(cache_dir):
+            if required_datasets is None or f in required_datasets:
+                shutil.copy(os.path.join(cache_dir, f),
+                            os.path.join(session_dir, f))
 
     def _delete_project(self, project_dir):
         # Clean out any existing archive files
         shutil.rmtree(project_dir, ignore_errors=True)
-
-    def _get_dataset(self, dataset, force=False, **kwargs):  # @UnusedVariable @IgnorePep8
-        base_path = os.path.join(self.CACHE_BASE_PATH, self.name)
-        base, ext = split_extension(dataset)
-        download_path = os.path.join(base_path, dataset)
-        if force or not os.path.exists(download_path):
-            download_dataset(
-                download_path, self.SERVER, self.USER, self.PASSWORD,
-                self.XNAT_TEST_PROJECT + '_' + self.name, base,
-                data_formats_by_ext[ext].name)
-        return download_path
 
     @property
     def session_dir(self):
@@ -78,7 +82,7 @@ class PipelineTeseCase(TestCase):
 
     def assertDatasetCreated(self, dataset_name):
         self.assertTrue(os.path.exists(os.path.join(
-            self._session_dir, '{}_{}'.format(self.TEST_NAME, dataset_name))),
+            self.session_dir, '{}_{}'.format(self.TEST_NAME, dataset_name))),
             "Dataset '{}' was not created in pipeline test".format(
                 dataset_name))
 

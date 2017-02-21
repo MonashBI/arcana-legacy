@@ -611,15 +611,33 @@ class XNATArchive(Archive):
         return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
 
 
+def download_all_datasets(download_dir, server, user, password, session_id,
+                          overwrite=True):
+    with xnat.connect(server, user, password) as xnat_login:
+        try:
+            session = xnat_login.experiments[session_id]
+        except KeyError:
+            raise NiAnalysisError(
+                "Didn't find session matching '{}' on {}".format(session_id,
+                                                                 server))
+        for dataset in session.scans.itervalues():
+            data_format = _guess_data_format(dataset)
+            download_path = os.path.join(
+                download_dir,
+                dataset.type + data_formats[data_format.lower()].extension)
+            if overwrite or not os.path.exists(download_path):
+                download_resource(download_path, dataset, data_format,
+                                  session.label)
+
+
 def download_dataset(download_path, server, user, password, session_id,
-                     dataset_name, data_format):
+                     dataset_name, data_format=None):
     """
     Downloads a single dataset from an XNAT server
     """
-    ext = data_formats[data_format.lower()].extension
-    with xnat.connect(server, user=user, password=password) as mbi_xnat:
+    with xnat.connect(server, user=user, password=password) as xnat_login:
         try:
-            session = mbi_xnat.experiments[session_id]
+            session = xnat_login.experiments[session_id]
         except KeyError:
             raise NiAnalysisError(
                 "Didn't find session matching '{}' on {}".format(session_id,
@@ -630,19 +648,44 @@ def download_dataset(download_path, server, user, password, session_id,
             raise NiAnalysisError(
                 "Didn't find dataset matching '{}' in {}".format(dataset_name,
                                                                  session_id))
-        try:
-            resource = dataset.resources[data_format.upper()]
-        except KeyError:
-            raise NiAnalysisError(
-                "Didn't find {} resource in {} dataset matching '{}' in {}"
-                .format(data_format.upper(), dataset_name))
-        tmp_dir = download_path + '.download'
-        resource.download_dir(tmp_dir)
-        dataset_label = dataset.id + '-' + sanitize_re.sub('_', dataset.type)
-        src_path = os.path.join(tmp_dir, session.label, 'scans',
-                                dataset_label, 'resources',
-                                data_format.upper(), 'files')
-        if data_format.lower() != 'dicom':
-            src_path = os.path.join(src_path, dataset_name + ext)
-        shutil.move(src_path, download_path)
-        shutil.rmtree(tmp_dir)
+        if data_format is None:
+            data_format = _guess_data_format(dataset)
+        download_resource(download_path, dataset, data_format, session.label)
+
+
+def _guess_data_format(dataset):
+    dataset_formats = [r for r in dataset.resources.itervalues()
+                       if r.label.lower() in data_formats]
+    if len(dataset_formats) > 1:
+        raise NiAnalysisError(
+            "Multiple valid resources for '{}' dataset, please pass "
+            "'data_format' to 'download_dataset' method to speficy resource to"
+            "download".format(dataset.type, "', '".join(dataset_formats)))
+    return dataset_formats[0].label
+
+
+def download_resource(download_path, dataset, data_format, session_label):
+
+    ext = data_formats[data_format.lower()].extension
+    try:
+        resource = dataset.resources[data_format.upper()]
+    except KeyError:
+        raise NiAnalysisError(
+            "Didn't find {} resource in {} dataset matching '{}' in {}"
+            .format(data_format.upper(), dataset.type))
+    tmp_dir = download_path + '.download'
+    resource.download_dir(tmp_dir)
+    dataset_label = dataset.id + '-' + sanitize_re.sub('_', dataset.type)
+    src_path = os.path.join(tmp_dir, session_label, 'scans',
+                            dataset_label, 'resources',
+                            data_format.upper(), 'files')
+    if data_format.lower() != 'dicom':
+        src_path = os.path.join(src_path, dataset.type + ext)
+    shutil.move(src_path, download_path)
+    shutil.rmtree(tmp_dir)
+
+
+def list_datasets(server, user, password, session_id):
+    with xnat.connect(server, user=user, password=password) as xnat_login:
+        session = xnat_login.experiments[session_id]
+        return [s.type for s in session.scans.itervalues()]
