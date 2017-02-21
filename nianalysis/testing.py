@@ -26,30 +26,23 @@ class PipelineTeseCase(TestCase):
     XNAT_TEST_PROJECT = 'TEST001'
 
     def setUp(self):
-        self._create_project(self.project_dir, self.SUBJECT, self.SESSION)
+        self.delete_project(self.project_dir)
+        self.add_session(self.project_dir, self.SUBJECT, self.SESSION)
 
-    def _create_project(self, project_dir, subject, session,
-                        required_datasets=None):
-        self._delete_project(project_dir)
+    def add_session(self, project_dir, subject, session,
+                    required_datasets=None):
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
         cache_dir = os.path.join(self.CACHE_BASE_PATH, session)
-        # Get the name of the session on XNAT that contains the test datasets
-        rel_module_path = sys.modules[self.__module__].__file__[
-            len(unittest_base_dir) + 1:].split(os.path.sep)
-        module_id = (''.join(rel_module_path[:-1]) +
-                     os.path.splitext(rel_module_path[-1])[0][5:])
-        xnat_session_name = '{}_{}_{}'.format(
-            self.XNAT_TEST_PROJECT, module_id, type(self).__name__[4:]).upper()
-        print xnat_session_name
-        download_all_datasets(cache_dir, self.SERVER, self.USER, self.PASSWORD,
-                              xnat_session_name, overwrite=False)
+        download_all_datasets(
+            cache_dir, self.SERVER, self.USER, self.PASSWORD,
+            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), overwrite=False)
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 shutil.copy(os.path.join(cache_dir, f),
                             os.path.join(session_dir, f))
 
-    def _delete_project(self, project_dir):
+    def delete_project(self, project_dir):
         # Clean out any existing archive files
         shutil.rmtree(project_dir, ignore_errors=True)
 
@@ -71,7 +64,18 @@ class PipelineTeseCase(TestCase):
 
     @property
     def name(self):
-        return self.TEST_MODULE + '_' + self.TEST_NAME
+        """
+        Get unique name for test class from module path and its class name to
+        be used for storing test data on XNAT and creating unique work/project
+        dirs
+        """
+        module_path = os.path.abspath(sys.modules[self.__module__].__file__)
+        rel_module_path = module_path[len(unittest_base_dir) + 1:]
+        path_parts = rel_module_path.split(os.path.sep)
+        module_name = (''.join(path_parts[:-1]) +
+                       os.path.splitext(path_parts[-1])[0][5:]).upper()
+        test_class_name = type(self).__name__[4:].upper()
+        return module_name + '_' + test_class_name
 
     def create_study(self, study_cls, name, input_datasets):
         return study_cls(
@@ -80,28 +84,36 @@ class PipelineTeseCase(TestCase):
             archive=self.archive,
             input_datasets=input_datasets)
 
-    def assertDatasetCreated(self, dataset_name):
-        self.assertTrue(os.path.exists(os.path.join(
-            self.session_dir, '{}_{}'.format(self.TEST_NAME, dataset_name))),
-            "Dataset '{}' was not created in pipeline test".format(
-                dataset_name))
+    def assertDatasetCreated(self, dataset_name, study_name):
+        self.assertTrue(os.path.exists(self.output_file_path(dataset_name,
+                                                             study_name)),
+                        "Dataset '{}' was not created in pipeline test".format(
+                            dataset_name))
 
-    def assertImagesMatch(self, a, b):
+    def assertImagesMatch(self, output, ref, study_name):
+        out_path = self.output_file_path(output, study_name)
+        ref_path = self.ref_file_path(ref)
         try:
-            sp.check_output('diff {}.nii {}.nii'.format(a, b), shell=True)
+            sp.check_output('diff {}.nii {}.nii'
+                            .format(out_path, ref_path), shell=True)
         except sp.CalledProcessError as e:
-            if e.output == "Binary files {} and {} differ\n".format(a, b):
+            if e.output == "Binary files {} and {} differ\n".format(
+                    out_path, ref_path):
                 self.assert_(
                     False,
-                    "Images {} and {} do not match exactly".format(a, b))
+                    "Images {} and {} do not match exactly".format(out_path,
+                                                                   ref_path))
             else:
                 raise
 
-    def assertImagesAlmostMatch(self, a, b, mean_threshold, stdev_threshold):
+    def assertImagesAlmostMatch(self, out, ref, mean_threshold,
+                                stdev_threshold, study_name):
+        out_path = self.output_file_path(out, study_name)
+        ref_path = self.ref_file_path(ref)
         # Should probably look into ITK fuzzy matching methods
         cmd = ("mrcalc -quiet {a} {b} -subtract - | mrstats - | "
                "grep -v channel | awk '{{print $4 \" \" $6}}'"
-               .format(a=a, b=b))
+               .format(a=out_path, b=ref_path))
         out = sp.check_output(cmd, shell=True)
         mean, stdev = (float(x) for x in out.split())
         self.assert_(
@@ -110,7 +122,7 @@ class PipelineTeseCase(TestCase):
              "between images {a} and {b} differ more than threshold(s) "
              "({thresh_mean} and {thresh_stdev} respectively)"
              .format(mean=mean, stdev=stdev, thresh_mean=mean_threshold,
-                     thresh_stdev=stdev_threshold, a=a, b=b)))
+                     thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
     @classmethod
     def get_session_dir(cls, project):
@@ -123,6 +135,13 @@ class PipelineTeseCase(TestCase):
         for fname in os.listdir(cls.get_session_dir(project)):
             if study is None or fname.startswith(study + '_'):
                 os.remove(os.path.join(cls.get_session_dir(project), fname))
+
+    def output_file_path(self, fname, study_name):
+        return os.path.join(
+            self.session_dir, '{}_{}'.format(study_name, fname))
+
+    def ref_file_path(self, fname):
+        return os.path.join(self.session_dir, fname)
 
 
 class DummyTestCase(PipelineTeseCase):
