@@ -659,9 +659,15 @@ def _guess_data_format(dataset):
                        if r.label.lower() in data_formats]
     if len(dataset_formats) > 1:
         raise NiAnalysisError(
-            "Multiple valid resources for '{}' dataset, please pass "
+            "Multiple valid resources '{}' for '{}' dataset, please pass "
             "'data_format' to 'download_dataset' method to speficy resource to"
-            "download".format(dataset.type, "', '".join(dataset_formats)))
+            "download".format("', '".join(dataset_formats), dataset.type))
+    elif not dataset_formats:
+        raise NiAnalysisError(
+            "No recognised data formats for '{}' dataset (available resources "
+            "are '{}')".format(
+                dataset.type, "', '".join(
+                    r.label for r in dataset.resources.itervalues())))
     return dataset_formats[0].label
 
 

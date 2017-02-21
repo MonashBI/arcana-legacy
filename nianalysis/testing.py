@@ -33,7 +33,7 @@ class PipelineTeseCase(TestCase):
                     required_datasets=None):
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
-        cache_dir = os.path.join(self.CACHE_BASE_PATH, session)
+        cache_dir = os.path.join(self.CACHE_BASE_PATH, self.name)
         download_all_datasets(
             cache_dir, self.SERVER, self.USER, self.PASSWORD,
             '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), overwrite=False)

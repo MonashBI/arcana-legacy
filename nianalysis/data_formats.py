@@ -64,8 +64,8 @@ mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
                                          extension='.fs.zip', converter=None)
-zip_format = DataFormat(name='zip_format', extension='.zip', converter='unzip')
-directory_format = DataFormat(name='directory_format', extension=None,
+zip_format = DataFormat(name='zip', extension='.zip', converter='unzip')
+directory_format = DataFormat(name='directory', extension=None,
                               converter='unzip')
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
@@ -160,7 +160,8 @@ def get_converter_node(dataset, output_format, source, workflow, node_name):
     for converter in converters:
         if (dataset.format in converter.input_formats() and
                 output_format in converter.output_formats()):
-            return converter.convert(workflow, source, dataset, node_name)
+            return converter.convert(workflow, source, dataset, node_name,
+                                     output_format)
     raise NiAnalysisError(
         "No available converters to convert between '{}' and '{}' formats."
         .format(dataset.format.name, output_format.name))
