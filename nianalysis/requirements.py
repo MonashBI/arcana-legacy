@@ -149,3 +149,5 @@ niftimatlab_req = Requirement('niftimatlib', (1, 2))
 
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)
+
+fix_req = Requirement('fix', min_version=(1, 0))

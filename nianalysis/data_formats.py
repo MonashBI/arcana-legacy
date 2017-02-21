@@ -70,7 +70,7 @@ directory_format = DataFormat(name='directory', extension=None,
                               converter='unzip')
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
-rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
+rdata_format = DataFormat(name='rdata', extension='.rdata', converter=None)
 
 
 class Converter(object):
