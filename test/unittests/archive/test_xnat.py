@@ -34,12 +34,8 @@ class TestXnatArchive(TestCase):
     WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
     @property
-    def full_subject_id(self):
-        return '_'.join((self.PROJECT_ID, self.SUBJECT_ID))
-
-    @property
     def full_session_id(self):
-        return '_'.join((self.PROJECT_ID, self.SUBJECT_ID, self.SESSION_ID))
+        return '_'.join((self.SUBJECT_ID, self.SESSION_ID))
 
     def setUp(self):
         # Create test data on DaRIS
@@ -53,7 +49,7 @@ class TestXnatArchive(TestCase):
         with self._connect() as mbi_xnat:
             project = mbi_xnat.projects[self.PROJECT_ID]
             subject = mbi_xnat.classes.SubjectData(
-                label=self.full_subject_id,
+                label=self.SUBJECT_ID,
                 parent=project)
             session = mbi_xnat.classes.MrSessionData(
                 label=self.full_session_id,
@@ -64,7 +60,7 @@ class TestXnatArchive(TestCase):
                 dataset = mbi_xnat.classes.MrScanData(type=name,
                                                       parent=session)
                 resource = dataset.create_resource(
-                    data_formats_by_ext[ext].name)
+                    data_formats_by_ext[ext].name.upper())
                 resource.upload(self.TEST_IMAGE, fname)
 
     def tearDown(self):
@@ -77,8 +73,8 @@ class TestXnatArchive(TestCase):
     def _delete_test_subjects(self):
         with self._connect() as mbi_xnat:
             project = mbi_xnat.projects[self.PROJECT_ID]
-            if self.full_subject_id in project.subjects:
-                project.subjects[self.full_subject_id].delete()
+            if self.SUBJECT_ID in project.subjects:
+                project.subjects[self.SUBJECT_ID].delete()
             project_summary_name = (self.PROJECT_ID + '_' +
                                     XNATArchive.SUMMARY_NAME)
             if project_summary_name in project.subjects:
@@ -215,7 +211,7 @@ class TestXnatArchive(TestCase):
             # and on XNAT
             subject_dataset_names = mbi_xnat.projects[
                 self.PROJECT_ID].experiments[
-                    '{}_{}'.format(self.full_subject_id,
+                    '{}_{}'.format(self.SUBJECT_ID,
                                    XNATArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check project summary directories were created properly in cache

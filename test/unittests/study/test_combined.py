@@ -1,6 +1,4 @@
-import os.path
-import shutil
-from unittest import TestCase
+from nianalysis.testing import PipelineTeseCase as TestCase
 import subprocess as sp
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import Merge
@@ -10,8 +8,6 @@ from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.study.combined import CombinedStudy
 from nianalysis.interfaces.mrtrix import MRMath
-from nianalysis.archive.local import LocalArchive
-from nianalysis.testing import test_data_dir
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -31,7 +27,8 @@ class DummySubStudyA(Study):
             inputs=['x', 'y'],
             outputs=['z'],
             description="A dummy pipeline used to test CombinedStudy class",
-            options={},
+            default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -63,7 +60,8 @@ class DummySubStudyB(Study):
             inputs=['w', 'x'],
             outputs=['y', 'z'],
             description="A dummy pipeline used to test CombinedStudy class",
-            options={},
+            default_options={},
+            version=1,
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
@@ -119,49 +117,28 @@ class DummyCombinedStudy(CombinedStudy):
         DatasetSpec('f', mrtrix_format, pipeline_b1))
 
 
-class TestCombinedStudy(TestCase):
-
-    PROJECT_ID = 'PROJECTID'
-    SUBJECT_ID = 'SUBJECTID1'
-    SESSION_ID = 'SESSIONID1'
-    STUDY_NAME = 'combined'
-    ONES_SLICE_IMAGE = os.path.abspath(os.path.join(test_data_dir,
-                                                    'ones_slice.mif'))
-    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'study'))
-    BASE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
-    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
+class TestCombined(TestCase):
 
     def test_combined_study(self):
-        # Create test data on DaRIS
-        self._session_id = None
-        # Make cache and working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        os.makedirs(self.WORKFLOW_DIR)
-        session_dir = os.path.join(
-            self.BASE_DIR, self.PROJECT_ID, self.SUBJECT_ID, self.SESSION_ID)
-        os.makedirs(session_dir)
-        shutil.copy(self.ONES_SLICE_IMAGE,
-                    os.path.join(session_dir, 'ones.mif'))
-        archive = LocalArchive(self.BASE_DIR)
-        study = DummyCombinedStudy(
-            self.STUDY_NAME, self.PROJECT_ID, archive,
-            input_datasets={'a': Dataset('ones', mrtrix_format),
-                            'b': Dataset('ones', mrtrix_format),
-                            'c': Dataset('ones', mrtrix_format)})
-        study.pipeline_a1().run(work_dir=self.WORKFLOW_DIR)
-        study.pipeline_b1().run(work_dir=self.WORKFLOW_DIR)
+        study = self.create_study(
+            DummyCombinedStudy, 'combined', {
+                'a': Dataset('ones', mrtrix_format),
+                'b': Dataset('ones', mrtrix_format),
+                'c': Dataset('ones', mrtrix_format)})
+        study.pipeline_a1().run(work_dir=self.work_dir)
+        study.pipeline_b1().run(work_dir=self.work_dir)
         d_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(
-                os.path.join(session_dir, '{}_d.mif'.format(self.STUDY_NAME))),
+            'mrstats {} -output mean'.format(self.output_file_path(
+                'd.mif', study.name)),
             shell=True))
         self.assertEqual(d_mean, 2.0)
         e_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(
-                os.path.join(session_dir, '{}_e.mif'.format(self.STUDY_NAME))),
+            'mrstats {} -output mean'.format(self.output_file_path(
+                'e.mif', study.name)),
             shell=True))
         self.assertEqual(e_mean, 3.0)
         f_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(
-                os.path.join(session_dir, '{}_f.mif'.format(self.STUDY_NAME))),
+            'mrstats {} -output mean'.format(self.output_file_path(
+                'f.mif', study.name)),
             shell=True))
         self.assertEqual(f_mean, 6.0)

@@ -1,5 +1,6 @@
 from itertools import chain
 from collections import defaultdict
+from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Split
 from logging import getLogger
@@ -29,14 +30,18 @@ class Pipeline(object):
         unprocessed datasets
     outputs : List[ProcessedFile]
         The list of outputs (hard-coded names for un/processed datasets)
-    options : Dict[str, *]
-        Options that effect the output of the pipeline
+    default_options : Dict[str, *]
+        Default options that are used to construct the pipeline. They can
+        be overriden by values provided to they 'options' keyword arg
     citations : List[Citation]
         List of citations that describe the workflow and should be cited in
         publications
     requirements : List[Requirement]
         List of external package requirements (e.g. FSL, MRtrix) required
         by the pipeline
+    version : int
+        A version number for the pipeline to be incremented whenever the output
+        of the pipeline
     approx_runtime : float
         Approximate run time in minutes. Should be conservative so that
         it can be used to set time limits on HPC schedulers
@@ -45,14 +50,19 @@ class Pipeline(object):
     max_nthreads : int
         The maximum number of threads the pipeline can use effectively.
         Use None if there is no effective limit
+    options : Dict[str, *]
+        Options that effect the output of the pipeline that override the
+        default options. Extra options that are not in the default_options
+        dictionary are ignored
     """
 
     def __init__(self, study, name, inputs, outputs, description,
-                 options, citations, requirements, approx_runtime,
-                 min_nthreads=1, max_nthreads=1):
+                 default_options, citations, requirements, approx_runtime,
+                 version, min_nthreads=1, max_nthreads=1, options={}):
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
+        self._version = int(version)
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
@@ -77,7 +87,13 @@ class Pipeline(object):
         assert len(outputs) == len(self._unconnected_outputs), (
             "Duplicate outputs found in '{}'".format("', '".join(outputs)))
         self._citations = citations
-        self._options = options
+        self._default_options = default_options
+        # Copy default options to options and then update it with specific
+        # options passed to this pipeline
+        self._options = copy(default_options)
+        for k, v in options.iteritems():
+            if k in self.options:
+                self.options[k] = v
         self._description = description
         self._requirements = requirements
         self._approx_runtime = approx_runtime
@@ -470,12 +486,28 @@ class Pipeline(object):
         return iter(self._inputs)
 
     @property
+    def version(self):
+        return self._version
+
+    @property
     def outputs(self):
         return chain(*self._outputs.values())
 
     @property
+    def default_options(self):
+        return self._default_options
+
+    @property
     def options(self):
         return self._options
+
+    def option(self, name):
+        return self._options[name]
+
+    @property
+    def non_default_options(self):
+        return ((k, v) for k, v in self.options.iteritems()
+                if v != self.default_options[k])
 
     @property
     def description(self):
@@ -556,7 +588,8 @@ class Pipeline(object):
 
         Parameters
         ----------
-
+        input_name : str
+            Name of the input to add to the pipeline
         """
         if input_name not in self.study.dataset_spec_names():
             raise NiAnalysisDatasetNameError(

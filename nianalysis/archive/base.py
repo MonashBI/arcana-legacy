@@ -334,7 +334,7 @@ class Subject(object):
 
     @property
     def dataset_names(self):
-        return (d.name for d in self.dataset_names)
+        return (d.name for d in self.datasets)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):

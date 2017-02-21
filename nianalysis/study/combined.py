@@ -37,8 +37,8 @@ class CombinedStudy(Study):
         consisting of the class of the sub-study and a map of dataset names
         from the combined study to the sub-study e.g.
 
-            sub_study_specs = {'t1_study': (MRStudy, {'t1': 'mr_scan'}),
-                               't2_study': (MRStudy, {'t2': 'mr_scan'})}
+            sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
+                               't2_study': (MRIStudy, {'t2': 'mr_scan'})}
 
             dataset_specs = set_dataset_specs(
                 DatasetSpec('t1', nifti_gz_format'),
