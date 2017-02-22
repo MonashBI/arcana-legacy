@@ -1,81 +1,77 @@
 import os.path
 import shutil
 import xnat
-from unittest import TestCase
+from nianalysis.testing import PipelineTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import XNATArchive
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
-from nianalysis.testing import test_data_dir
 import logging
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.archive.xnat import download_all_datasets
 
 logger = logging.getLogger('NiAnalysis')
 
 
-class TestXnatArchive(TestCase):
+class TestXnatArchive(PipelineTestCase):
 
     XNAT_URL = 'https://mbi-xnat.erc.monash.edu.au'
     XNAT_LOGIN = 'unittest'
     XNAT_PASSWORD = 'Test123!'
 
-    PROJECT_ID = 'TEST002'
-    SUBJECT_ID = 'TEST002_001'
-    SESSION_ID = 'MR01'
+    PROJECT = 'TEST002'
+    SUBJECT = 'TEST002_001'
+    SESSION = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
-    TEST_IMAGE = os.path.abspath(os.path.join(test_data_dir,
-                                              'test_image.nii.gz'))
-    TEST_DIR = os.path.abspath(os.path.join(test_data_dir, 'xnat'))
-    CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'base_dir'))
-    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
 
     @property
     def full_session_id(self):
-        return '_'.join((self.SUBJECT_ID, self.SESSION_ID))
+        return '_'.join((self.SUBJECT, self.SESSION))
 
     def setUp(self):
-        # Create test data on DaRIS
-        self._session_id = None
-        # Make cache and working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        shutil.rmtree(self.CACHE_DIR, ignore_errors=True)
+        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
+        os.makedirs(self.archive_cache_dir)
         self._delete_test_subjects()
-        os.makedirs(self.WORKFLOW_DIR)
-        os.makedirs(self.CACHE_DIR)
+        download_all_datasets(
+            self.cache_dir, self.SERVER, self.USER, self.PASSWORD,
+            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+            overwrite=False)
         with self._connect() as mbi_xnat:
-            project = mbi_xnat.projects[self.PROJECT_ID]
+            project = mbi_xnat.projects[self.PROJECT]
             subject = mbi_xnat.classes.SubjectData(
-                label=self.SUBJECT_ID,
+                label=self.SUBJECT,
                 parent=project)
             session = mbi_xnat.classes.MrSessionData(
                 label=self.full_session_id,
                 parent=subject)
-            for fname in ('source1.nii.gz', 'source2.nii.gz', 'source3.nii.gz',
-                          'source4.nii.gz'):
+            for fname in os.listdir(self.cache_dir):
                 name, ext = split_extension(fname)
                 dataset = mbi_xnat.classes.MrScanData(type=name,
                                                       parent=session)
                 resource = dataset.create_resource(
                     data_formats_by_ext[ext].name.upper())
-                resource.upload(self.TEST_IMAGE, fname)
+                resource.upload(fname, fname)
 
     def tearDown(self):
         # Clean up working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        shutil.rmtree(self.CACHE_DIR, ignore_errors=True)
+        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
         # Clean up session created for unit-test
         self._delete_test_subjects()
 
+    @property
+    def archive_cache_dir(self):
+        return self.cache_dir + '.archive'
+
     def _delete_test_subjects(self):
         with self._connect() as mbi_xnat:
-            project = mbi_xnat.projects[self.PROJECT_ID]
-            if self.SUBJECT_ID in project.subjects:
-                project.subjects[self.SUBJECT_ID].delete()
-            project_summary_name = (self.PROJECT_ID + '_' +
+            project = mbi_xnat.projects[self.PROJECT]
+            if self.SUBJECT in project.subjects:
+                project.subjects[self.SUBJECT].delete()
+            project_summary_name = (self.PROJECT + '_' +
                                     XNATArchive.SUMMARY_NAME)
             if project_summary_name in project.subjects:
                 project.subjects[project_summary_name].delete()
@@ -89,7 +85,7 @@ class TestXnatArchive(TestCase):
         # Create working dirs
         # Create DarisSource node
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.CACHE_DIR,
+            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
             user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),
@@ -103,18 +99,18 @@ class TestXnatArchive(TestCase):
                       Dataset('sink4', nifti_gz_format, processed=True)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
-        inputnode.inputs.subject_id = str(self.SUBJECT_ID)
-        inputnode.inputs.session_id = str(self.SESSION_ID)
-        source = archive.source(self.PROJECT_ID, source_files,
+        inputnode.inputs.subject_id = str(self.SUBJECT)
+        inputnode.inputs.session_id = str(self.SESSION)
+        source = archive.source(self.PROJECT, source_files,
                                 study_name=self.STUDY_NAME)
-        sink = archive.sink(self.PROJECT_ID, sink_files,
+        sink = archive.sink(self.PROJECT, sink_files,
                                 study_name=self.STUDY_NAME)
         sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
             "A test session created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
-                               base_dir=self.WORKFLOW_DIR)
+                               base_dir=self.work_dir)
         workflow.add_nodes((source, sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
@@ -129,12 +125,12 @@ class TestXnatArchive(TestCase):
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
-            self.CACHE_DIR, str(self.PROJECT_ID),
-            str(self.SUBJECT_ID), str(self.SESSION_ID))
+            self.archive_cache_dir, str(self.PROJECT),
+            str(self.SUBJECT), str(self.SESSION))
         sink_cache_dir = os.path.join(
-            self.CACHE_DIR, str(self.PROJECT_ID),
-            str(self.SUBJECT_ID),
-            str(self.SESSION_ID) + XNATArchive.PROCESSED_SUFFIX)
+            self.archive_cache_dir, str(self.PROJECT),
+            str(self.SUBJECT),
+            str(self.SESSION) + XNATArchive.PROCESSED_SUFFIX)
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
@@ -154,20 +150,20 @@ class TestXnatArchive(TestCase):
         # Create working dirs
         # Create XNATSource node
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.CACHE_DIR,
+            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
             user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
-        inputnode.inputs.subject_id = self.SUBJECT_ID
-        inputnode.inputs.session_id = self.SESSION_ID
-        source = archive.source(self.PROJECT_ID, source_files)
+        inputnode.inputs.subject_id = self.SUBJECT
+        inputnode.inputs.session_id = self.SESSION
+        source = archive.source(self.PROJECT, source_files)
         subject_sink_files = [Dataset('sink1', nifti_gz_format,
                                       multiplicity='per_subject',
                                       processed=True)]
-        subject_sink = archive.sink(self.PROJECT_ID,
+        subject_sink = archive.sink(self.PROJECT,
                                     subject_sink_files,
                                     multiplicity='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -177,7 +173,7 @@ class TestXnatArchive(TestCase):
         project_sink_files = [Dataset('sink2', nifti_gz_format,
                                       multiplicity='per_project',
                                       processed=True)]
-        project_sink = archive.sink(self.PROJECT_ID,
+        project_sink = archive.sink(self.PROJECT,
                                     project_sink_files,
                                     multiplicity='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -187,7 +183,7 @@ class TestXnatArchive(TestCase):
             "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
-                               base_dir=self.WORKFLOW_DIR)
+                               base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
@@ -203,46 +199,46 @@ class TestXnatArchive(TestCase):
             # Check subject summary directories were created properly in cache
             expected_subj_datasets = [self.SUMMARY_STUDY_NAME + '_sink1']
             subject_dir = os.path.join(
-                self.CACHE_DIR, self.PROJECT_ID, self.SUBJECT_ID,
-                self.SUBJECT_ID + '_' + XNATArchive.SUMMARY_NAME)
+                self.archive_cache_dir, self.PROJECT, self.SUBJECT,
+                self.SUBJECT + '_' + XNATArchive.SUMMARY_NAME)
             self.assertEqual(sorted(os.listdir(subject_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_subj_datasets])
             # and on XNAT
             subject_dataset_names = mbi_xnat.projects[
-                self.PROJECT_ID].experiments[
-                    '{}_{}'.format(self.SUBJECT_ID,
+                self.PROJECT].experiments[
+                    '{}_{}'.format(self.SUBJECT,
                                    XNATArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check project summary directories were created properly in cache
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME + '_sink2']
             project_dir = os.path.join(
-                self.CACHE_DIR, self.PROJECT_ID,
-                self.PROJECT_ID + '_' + XNATArchive.SUMMARY_NAME,
-                self.PROJECT_ID + '_' + XNATArchive.SUMMARY_NAME + '_' +
+                self.archive_cache_dir, self.PROJECT,
+                self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
+                self.PROJECT + '_' + XNATArchive.SUMMARY_NAME + '_' +
                 XNATArchive.SUMMARY_NAME)
             self.assertEqual(sorted(os.listdir(project_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_proj_datasets])
             # and on XNAT
             project_dataset_names = mbi_xnat.projects[
-                self.PROJECT_ID].experiments[
+                self.PROJECT].experiments[
                     '{}_{sum}_{sum}'.format(
-                        self.PROJECT_ID,
+                        self.PROJECT,
                         sum=XNATArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_proj_datasets, project_dataset_names)
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'session_id']),
                                   'reload_inputnode')
-        reloadinputnode.inputs.subject_id = self.SUBJECT_ID
-        reloadinputnode.inputs.session_id = self.SESSION_ID
+        reloadinputnode.inputs.subject_id = self.SUBJECT
+        reloadinputnode.inputs.session_id = self.SESSION
         reloadsource = archive.source(
-            self.PROJECT_ID,
+            self.PROJECT,
             source_files + subject_sink_files + project_sink_files,
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
-        reloadsink = archive.sink(self.PROJECT_ID,
+        reloadsink = archive.sink(self.PROJECT,
                                   [Dataset('resink1', nifti_gz_format,
                                            processed=True),
                                    Dataset('resink2', nifti_gz_format,
@@ -252,7 +248,7 @@ class TestXnatArchive(TestCase):
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary datasets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
-                                     base_dir=self.WORKFLOW_DIR)
+                                     base_dir=self.work_dir)
         reloadworkflow.connect(reloadinputnode, 'subject_id',
                                reloadsource, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'session_id',
@@ -268,15 +264,15 @@ class TestXnatArchive(TestCase):
         reloadworkflow.run()
         # Check that the datasets
         session_dir = os.path.join(
-            self.CACHE_DIR, self.PROJECT_ID, self.SUBJECT_ID,
-            self.SESSION_ID + XNATArchive.PROCESSED_SUFFIX)
+            self.archive_cache_dir, self.PROJECT, self.SUBJECT,
+            self.SESSION + XNATArchive.PROCESSED_SUFFIX)
         self.assertEqual(sorted(os.listdir(session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink2.nii.gz'])
         # and on XNAT
         with self._connect() as mbi_xnat:
             resinked_dataset_names = mbi_xnat.projects[
-                self.PROJECT_ID].experiments[
+                self.PROJECT].experiments[
                     self.full_session_id +
                     XNATArchive.PROCESSED_SUFFIX].scans.keys()
             self.assertEqual(sorted(resinked_dataset_names),
@@ -285,14 +281,14 @@ class TestXnatArchive(TestCase):
 
     def test_project_info(self):
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.CACHE_DIR,
+            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
             user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
-        project_info = archive.project(self.PROJECT_ID)
+        project_info = archive.project(self.PROJECT)
         self.assertEqual(sorted(s.id for s in project_info.subjects),
-                         [self.SUBJECT_ID])
+                         [self.SUBJECT])
         subject = list(project_info.subjects)[0]
         self.assertEqual([s.id for s in subject.sessions],
-                         [self.SESSION_ID])
+                         [self.SESSION])
         session = list(subject.sessions)[0]
         self.assertEqual(
             sorted(d.name for d in sorted(session.datasets)),
