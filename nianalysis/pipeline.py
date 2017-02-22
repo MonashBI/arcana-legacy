@@ -317,7 +317,7 @@ class Pipeline(object):
         # for the pipelines to generate each of the processed inputs
         pipelines = set()
         for input in self.inputs:  # @ReservedAssignment
-            comp = self._study.dataset_spec(input)
+            comp = self._study.dataset(input)
             if comp.processed:
                 pipelines.add(comp.pipeline)
         # Call pipeline instancemethods to study with provided options
