@@ -9,7 +9,7 @@ from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
-from nianalysis.testing import PipelineTestCase
+from nianalysis.testing import BaseTestCase
 from nianalysis.archive.xnat import download_all_datasets
 
 
@@ -21,7 +21,7 @@ SUBJECT_ID = 12
 STUDY_ID = 1
 
 
-class TestDarisLogin(PipelineTestCase):
+class TestDarisLogin(BaseTestCase):
 
     def setUp(self):
         download_all_datasets(
@@ -213,7 +213,7 @@ class TestDarisLogin(PipelineTestCase):
                 pass  # Ignore if download wasn't created
 
 
-class TestDarisArchive(PipelineTestCase):
+class TestDarisArchive(BaseTestCase):
 
     SUBJECT_ID = 99
     DOMAIN = 'mon-daris'
@@ -342,7 +342,7 @@ class TestDarisArchive(PipelineTestCase):
                          ['sink1', 'sink3', 'sink4'])
 
 
-class TestDarisArchiveSummary(PipelineTestCase):
+class TestDarisArchiveSummary(BaseTestCase):
 
     SUBJECT_ID = 98
     DOMAIN = 'mon-daris'

@@ -15,7 +15,7 @@ unittest_base_dir = os.path.abspath(os.path.join(
     os.path.dirname(nianalysis.__file__), '..', 'test', 'unittests'))
 
 
-class PipelineTestCase(TestCase):
+class BaseTestCase(TestCase):
 
     ARCHIVE_PATH = os.path.join(test_data_dir, 'archive')
     WORK_PATH = os.path.join(test_data_dir, 'work')
@@ -183,7 +183,7 @@ class PipelineTestCase(TestCase):
                             subject=subject, session=session)
 
 
-class DummyTestCase(PipelineTestCase):
+class DummyTestCase(BaseTestCase):
 
     def __init__(self):
         self.setUp()

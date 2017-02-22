@@ -5,7 +5,7 @@ from nianalysis.data_formats import nifti_gz_format, mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
-from nianalysis.testing import PipelineTestCase
+from nianalysis.testing import BaseTestCase
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -164,7 +164,7 @@ class DummyStudy(Study):
                     multiplicity='per_project'))
 
 
-class TestRunPipeline(PipelineTestCase):
+class TestRunPipeline(BaseTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']

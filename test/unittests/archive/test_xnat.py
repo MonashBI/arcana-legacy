@@ -1,7 +1,7 @@
 import os.path
 import shutil
 import xnat
-from nianalysis.testing import PipelineTestCase
+from nianalysis.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import XNATArchive
@@ -16,7 +16,7 @@ from nianalysis.archive.xnat import download_all_datasets
 logger = logging.getLogger('NiAnalysis')
 
 
-class TestXnatArchive(PipelineTestCase):
+class TestXnatArchive(BaseTestCase):
 
     PROJECT = 'TEST002'
     SUBJECT = 'TEST002_001'
