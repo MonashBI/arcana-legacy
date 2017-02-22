@@ -45,7 +45,7 @@ class PipelineTeseCase(TestCase):
             warnings.warn(
                 "Could not download datasets from '{}' session on MBI-XNAT, "
                 "attempting with what has already been downloaded:\n\n{}"
-                .format('{}_{}'.format(self.XNAT_TEST_PROJECT, self.name, e)))
+                .format('{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), e))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 shutil.copy(os.path.join(cache_dir, f),
@@ -161,7 +161,7 @@ class PipelineTeseCase(TestCase):
                                 PROJECT_SUMMARY_NAME)
         else:
             assert False
-        return path
+        return os.path.abspath(path)
 
     @classmethod
     def remove_generated_files(cls, project, study=None):
