@@ -7,12 +7,12 @@ from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 import logging
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
-from nianalysis.testing import PipelineTeseCase
+from nianalysis.testing import PipelineTestCase
 
 logger = logging.getLogger('NiAnalysis')
 
 
-class TestLocalArchive(PipelineTeseCase):
+class TestLocalArchive(PipelineTestCase):
 
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'

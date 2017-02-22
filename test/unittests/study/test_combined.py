@@ -1,4 +1,4 @@
-from nianalysis.testing import PipelineTeseCase as TestCase
+from nianalysis.testing import PipelineTestCase as TestCase
 import subprocess as sp
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import Merge

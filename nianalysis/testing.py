@@ -15,7 +15,7 @@ unittest_base_dir = os.path.abspath(os.path.join(
     os.path.dirname(nianalysis.__file__), '..', 'test', 'unittests'))
 
 
-class PipelineTeseCase(TestCase):
+class PipelineTestCase(TestCase):
 
     ARCHIVE_PATH = os.path.join(test_data_dir, 'archive')
     WORK_PATH = os.path.join(test_data_dir, 'work')
@@ -35,10 +35,9 @@ class PipelineTeseCase(TestCase):
                     required_datasets=None):
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
-        cache_dir = os.path.join(self.CACHE_BASE_PATH, self.name)
         try:
             download_all_datasets(
-                cache_dir, self.SERVER, self.USER, self.PASSWORD,
+                self.cache_dir, self.SERVER, self.USER, self.PASSWORD,
                 '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
                 overwrite=False)
         except Exception as e:
@@ -46,9 +45,9 @@ class PipelineTeseCase(TestCase):
                 "Could not download datasets from '{}' session on MBI-XNAT, "
                 "attempting with what has already been downloaded:\n\n{}"
                 .format('{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), e))
-        for f in os.listdir(cache_dir):
+        for f in os.listdir(self.cache_dir):
             if required_datasets is None or f in required_datasets:
-                shutil.copy(os.path.join(cache_dir, f),
+                shutil.copy(os.path.join(self.cache_dir, f),
                             os.path.join(session_dir, f))
 
     def delete_project(self, project_dir):
@@ -58,6 +57,10 @@ class PipelineTeseCase(TestCase):
     @property
     def session_dir(self):
         return self.get_session_dir(self.name, self.SUBJECT, self.SESSION)
+
+    @property
+    def cache_dir(self):
+        return os.path.join(self.CACHE_BASE_PATH, self.name)
 
     @property
     def archive(self):
@@ -182,7 +185,7 @@ class PipelineTeseCase(TestCase):
                             subject=subject, session=session)
 
 
-class DummyTestCase(PipelineTeseCase):
+class DummyTestCase(PipelineTestCase):
 
     def __init__(self):
         self.setUp()
