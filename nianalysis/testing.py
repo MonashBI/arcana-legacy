@@ -23,8 +23,6 @@ class PipelineTestCase(TestCase):
     SUBJECT = 'SUBJECT'
     SESSION = 'SESSION'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
-    USER = 'unittest'
-    PASSWORD = 'Test123!'
     XNAT_TEST_PROJECT = 'TEST001'
 
     def setUp(self):
@@ -37,7 +35,7 @@ class PipelineTestCase(TestCase):
         os.makedirs(session_dir)
         try:
             download_all_datasets(
-                self.cache_dir, self.SERVER, self.USER, self.PASSWORD,
+                self.cache_dir, self.SERVER,
                 '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
                 overwrite=False)
         except Exception as e:

@@ -612,9 +612,9 @@ class XNATArchive(Archive):
         return '{}_{}'.format(project_id, cls.SUMMARY_NAME)
 
 
-def download_all_datasets(download_dir, server, user, password, session_id,
-                          overwrite=True):
-    with xnat.connect(server, user, password) as xnat_login:
+def download_all_datasets(download_dir, server, session_id, overwrite=True,
+                          **kwargs):
+    with xnat.connect(server, **kwargs) as xnat_login:
         try:
             session = xnat_login.experiments[session_id]
         except KeyError:

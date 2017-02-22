@@ -18,10 +18,6 @@ logger = logging.getLogger('NiAnalysis')
 
 class TestXnatArchive(PipelineTestCase):
 
-    XNAT_URL = 'https://mbi-xnat.erc.monash.edu.au'
-    XNAT_LOGIN = 'unittest'
-    XNAT_PASSWORD = 'Test123!'
-
     PROJECT = 'TEST002'
     SUBJECT = 'TEST002_001'
     SESSION = 'MR01'
@@ -37,7 +33,7 @@ class TestXnatArchive(PipelineTestCase):
         os.makedirs(self.archive_cache_dir)
         self._delete_test_subjects()
         download_all_datasets(
-            self.cache_dir, self.SERVER, self.USER, self.PASSWORD,
+            self.cache_dir, self.SERVER,
             '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
             overwrite=False)
         with self._connect() as mbi_xnat:
@@ -85,8 +81,7 @@ class TestXnatArchive(PipelineTestCase):
         # Create working dirs
         # Create DarisSource node
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
-            user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
+            server=self.SERVER, cache_dir=self.archive_cache_dir)
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),
                         Dataset('source3', nifti_gz_format),

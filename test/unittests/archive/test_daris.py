@@ -1,7 +1,6 @@
 import os.path
 import shutil
 import hashlib
-from unittest import TestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.daris import (
@@ -10,6 +9,8 @@ from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.testing import PipelineTestCase
+from nianalysis.archive.xnat import download_all_datasets
 
 
 # The projects/subjects/sessions to alter on DaRIS
@@ -18,19 +19,25 @@ REPO_ID = 2
 PROJECT_ID = 4
 SUBJECT_ID = 12
 STUDY_ID = 1
-TEST_IMAGE = os.path.abspath(os.path.join(
-    os.path.dirname(__file__), '..', '..', '_data', 'test_image.nii.gz'))
 
 
-class TestDarisLogin(TestCase):
+class TestDarisLogin(PipelineTestCase):
 
     def setUp(self):
+        download_all_datasets(
+            self.cache_dir, self.SERVER,
+            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+            overwrite=False)
         self._daris = DarisLogin(user='test123', password='GaryEgan1',
                                    domain='mon-daris', server=SERVER)
         self._daris.open()
 
     def tearDown(self):
         self._daris.close()
+
+    @property
+    def test_image(self):
+        return os.path.join(self.cache_dir, 'test_image.nii.gz')
 
     def test_get_projects(self):
         projects = self._daris.get_projects(repo_id=REPO_ID)
@@ -182,17 +189,17 @@ class TestDarisLogin(TestCase):
                 "removed by the same test"), ex_method_id=2)
         try:
             self._daris.upload(
-                TEST_IMAGE, project_id=PROJECT_ID,
+                self.test_image, project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, session_id=STUDY_ID,
                 dataset_id=dataset_id, repo_id=REPO_ID, ex_method_id=2)
             self._daris.download(
-                TEST_IMAGE + '.dnld', project_id=PROJECT_ID,
+                self.test_image + '.dnld', project_id=PROJECT_ID,
                 subject_id=SUBJECT_ID, session_id=STUDY_ID,
                 dataset_id=dataset_id, repo_id=REPO_ID, ex_method_id=2)
             self.assertEqual(
-                hashlib.md5(open(TEST_IMAGE, 'rb').read()).hexdigest(),
+                hashlib.md5(open(self.test_image, 'rb').read()).hexdigest(),
                 hashlib.md5(
-                    open(TEST_IMAGE + '.dnld', 'rb').read()).hexdigest())
+                    open(self.test_image + '.dnld', 'rb').read()).hexdigest())
         finally:
             # Remove file
             self._daris.delete_dataset(
@@ -201,50 +208,32 @@ class TestDarisLogin(TestCase):
                 repo_id=REPO_ID, ex_method_id=2)
             try:
                 # Clean up downloaded file
-                os.remove(TEST_IMAGE + '.dnld')
+                os.remove(self.test_image + '.dnld')
             except OSError:
                 pass  # Ignore if download wasn't created
 
 
-class TestDarisToken(TestCase):
+class TestDarisArchive(PipelineTestCase):
 
-    token_path = os.path.join(os.path.dirname(__file__), 'test_daris_token')
-
-    def tearDown(self):
-        # Remove token_path if present
-        shutil.rmtree(self.token_path, ignore_errors=True)
-
-    # FIXME: Token authentication is not working. Need to double check how
-    # Parnesh did it
-#     def test_create_token_and_login(self):
-#         DarisLogin(user='test123', password='GaryEgan1', domain='mon-daris', @IgnorePep8
-#                      server=SERVER, token_path=self.token_path,
-#                      app_name='unittest').open()
-#         with DarisLogin(token_path=self.token_path,
-#                           app_name='unittest') as daris:
-#             self.assertTrue(len(daris.list_projects))
-
-
-class TestDarisArchive(TestCase):
-
-    TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'daris-archive'))
-    CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
     SUBJECT_ID = 99
-    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
     DOMAIN = 'mon-daris'
     USER = 'test123'
     PASSWORD = 'GaryEgan1'
 
     def setUp(self):
         # Create test data on DaRIS
+        download_all_datasets(
+            self.cache_dir, self.SERVER,
+            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+            overwrite=False)
         self._session_id = None
         self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        os.makedirs(self.CACHE_DIR)
-        os.makedirs(self.WORKFLOW_DIR)
+        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
+        shutil.rmtree(self.work_dir, ignore_errors=True)
+        os.makedirs(self.archive_cache_dir)
+        os.makedirs(self.work_dir)
         # Upload test session
         with self.daris:  # Opens the daris session
             try:
@@ -268,14 +257,12 @@ class TestDarisArchive(TestCase):
                     session_id=self.session_id, ex_method_id=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
-                self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
+                self.daris.upload(self.test_image, project_id=PROJECT_ID,
                                   subject_id=self.SUBJECT_ID,
                                   session_id=self.session_id,
                                   ex_method_id=1, dataset_id=dataset_id)
 
     def tearDown(self):
-        # Clean up working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         # Clean up session created for unit-test
         if self.session_id is not None:
             try:
@@ -285,13 +272,21 @@ class TestDarisArchive(TestCase):
             except DarisException:
                 pass
 
+    @property
+    def test_image(self):
+        return os.path.join(self.cache_dir, 'test_image.nii.gz')
+
+    @property
+    def archive_cache_dir(self):
+        return self.cache_dir + '.archive'
+
     def test_archive_roundtrip(self):
 
         # Create working dirs
         # Create DarisSource node
         archive = DarisArchive(
             server=SERVER, repo_id=REPO_ID,
-            cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
+            cache_dir=self.archive_cache_dir, domain=self.DOMAIN,
             user=self.USER, password=self.PASSWORD)
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),
@@ -314,7 +309,7 @@ class TestDarisArchive(TestCase):
             "A test session created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source-sink-unit-test',
-                               base_dir=self.WORKFLOW_DIR)
+                               base_dir=self.work_dir)
         workflow.add_nodes((source, sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
@@ -329,10 +324,10 @@ class TestDarisArchive(TestCase):
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID),
             str(self.SUBJECT_ID), '1', str(self.session_id))
         sink_cache_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID),
             str(self.SUBJECT_ID), '2', str(self.session_id))
         self.assertEqual(sorted(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
@@ -347,26 +342,28 @@ class TestDarisArchive(TestCase):
                          ['sink1', 'sink3', 'sink4'])
 
 
-class TestDarisArchiveSummary(TestCase):
+class TestDarisArchiveSummary(PipelineTestCase):
 
-    TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(__file__), '..', '..', '_data', 'daris-summary'))
-    CACHE_DIR = os.path.abspath(os.path.join(TEST_DIR, 'cache_dir'))
     SUBJECT_ID = 98
-    WORKFLOW_DIR = os.path.abspath(os.path.join(TEST_DIR, 'workflow_dir'))
     DOMAIN = 'mon-daris'
     USER = 'test123'
     PASSWORD = 'GaryEgan1'
 
     def setUp(self):
         # Create test data on DaRIS
+        download_all_datasets(
+            self.cache_dir, self.SERVER,
+            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+            overwrite=False)
+        # Create test data on DaRIS
         self._session_id = None
         self.daris = DarisLogin(user='test123', password='GaryEgan1',
                                   domain='mon-daris', server=SERVER)
         # Make cache and working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
-        os.makedirs(self.CACHE_DIR)
-        os.makedirs(self.WORKFLOW_DIR)
+        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
+        shutil.rmtree(self.work_dir, ignore_errors=True)
+        os.makedirs(self.archive_cache_dir)
+        os.makedirs(self.work_dir)
         # Upload test session
         with self.daris:  # Opens the daris session
             try:
@@ -393,14 +390,12 @@ class TestDarisArchiveSummary(TestCase):
                     session_id=self.session_id, ex_method_id=1,
                     name=name, description=(
                         "A file added for DarisSink/Source unittest"))
-                self.daris.upload(TEST_IMAGE, project_id=PROJECT_ID,
+                self.daris.upload(self.test_image, project_id=PROJECT_ID,
                                   subject_id=self.SUBJECT_ID,
                                   session_id=self.session_id,
                                   ex_method_id=1, dataset_id=dataset_id)
 
     def tearDown(self):
-        # Clean up working dirs
-        shutil.rmtree(self.TEST_DIR, ignore_errors=True)
         # Clean up session created for unit-test
         if self.session_id is not None:
             try:
@@ -413,12 +408,20 @@ class TestDarisArchiveSummary(TestCase):
             except DarisException:
                 pass
 
+    @property
+    def archive_cache_dir(self):
+        return self.cache_dir + '.archive'
+
+    @property
+    def test_image(self):
+        return os.path.join(self.cache_dir, 'test_image.nii.gz')
+
     def test_summary(self):
         # Create working dirs
         # Create LocalSource node
         archive = DarisArchive(
             server=SERVER, repo_id=REPO_ID,
-            cache_dir=self.CACHE_DIR, domain=self.DOMAIN,
+            cache_dir=self.archive_cache_dir, domain=self.DOMAIN,
             user=self.USER, password=self.PASSWORD)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
@@ -447,7 +450,7 @@ class TestDarisArchiveSummary(TestCase):
             "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
-                               base_dir=self.WORKFLOW_DIR)
+                               base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
@@ -461,12 +464,12 @@ class TestDarisArchiveSummary(TestCase):
         workflow.run()
         # Check cached summary directories were created properly
         subject_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID),
             str(self.SUBJECT_ID), str(SUBJECT_SUMMARY_ID), '1')
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          ['sink1.nii.gz'])
         project_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID), '1',
+            self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID), '1',
             str(PROJECT_SUMMARY_ID), '1')
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['sink2.nii.gz'])
@@ -501,7 +504,7 @@ class TestDarisArchiveSummary(TestCase):
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary datasets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
-                                     base_dir=self.WORKFLOW_DIR)
+                                     base_dir=self.work_dir)
         reloadworkflow.connect(reloadinputnode, 'subject_id',
                                reloadsource, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'session_id',
@@ -520,7 +523,7 @@ class TestDarisArchiveSummary(TestCase):
                                'resink2' + INPUT_SUFFIX)
         reloadworkflow.run()
         session_dir = os.path.join(
-            self.CACHE_DIR, str(REPO_ID), str(PROJECT_ID),
+            self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID),
             str(self.SUBJECT_ID), '2', str(self.session_id))
         self.assertEqual(sorted(os.listdir(session_dir)),
                          ['resink1.nii.gz', 'resink2.nii.gz'])
