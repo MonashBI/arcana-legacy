@@ -81,12 +81,20 @@ class Converter(object):
 
     def convert(self, workflow, source, dataset, node_name, output_format):
         """
-        Adds a converter node into a complete workflow 
-        
+        Inserts a format converter node into a complete workflow.
+
         Parameters
         ----------
         workflow : nipype.Workflow
             The workflow to add the converter node to
+        source : nipype.Node
+            The source node to draw the data from
+        dataset : Dataset
+            The dataset to convert
+        node_name : str
+            (Unique) name for the conversion node
+        output_format : DataFormat
+            The format to convert the node to
         """
         convert_node, in_field, out_field = self._get_convert_node(
             node_name, dataset.format, output_format)

@@ -3,9 +3,11 @@ import subprocess as sp
 import shutil
 from unittest import TestCase
 import nianalysis
-from nianalysis.archive.local import LocalArchive
+from nianalysis.archive.local import (
+    LocalArchive, SUBJECT_SUMMARY_NAME, PROJECT_SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
 import sys
+import warnings
 
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
 
@@ -34,9 +36,16 @@ class PipelineTeseCase(TestCase):
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
         cache_dir = os.path.join(self.CACHE_BASE_PATH, self.name)
-        download_all_datasets(
-            cache_dir, self.SERVER, self.USER, self.PASSWORD,
-            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), overwrite=False)
+        try:
+            download_all_datasets(
+                cache_dir, self.SERVER, self.USER, self.PASSWORD,
+                '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+                overwrite=False)
+        except Exception as e:
+            warnings.warn(
+                "Could not download datasets from '{}' session on MBI-XNAT, "
+                "attempting with what has already been downloaded:\n\n{}"
+                .format('{}_{}'.format(self.XNAT_TEST_PROJECT, self.name, e)))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 shutil.copy(os.path.join(cache_dir, f),
@@ -48,7 +57,7 @@ class PipelineTeseCase(TestCase):
 
     @property
     def session_dir(self):
-        return self.get_session_dir(self.name)
+        return self.get_session_dir(self.name, self.SUBJECT, self.SESSION)
 
     @property
     def archive(self):
@@ -84,11 +93,13 @@ class PipelineTeseCase(TestCase):
             archive=self.archive,
             input_datasets=input_datasets)
 
-    def assertDatasetCreated(self, dataset_name, study_name):
-        self.assertTrue(os.path.exists(self.output_file_path(dataset_name,
-                                                             study_name)),
-                        "Dataset '{}' was not created in pipeline test".format(
-                            dataset_name))
+    def assertDatasetCreated(self, dataset_name, study_name, subject=None,
+                             session=None, multiplicity='per_session'):
+        self.assertTrue(
+            os.path.exists(self.output_file_path(
+                dataset_name, study_name, subject, session, multiplicity)),
+            "Dataset '{}' was not created in pipeline test"
+            .format(dataset_name))
 
     def assertImagesMatch(self, output, ref, study_name):
         out_path = self.output_file_path(output, study_name)
@@ -124,10 +135,32 @@ class PipelineTeseCase(TestCase):
              .format(mean=mean, stdev=stdev, thresh_mean=mean_threshold,
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
-    @classmethod
-    def get_session_dir(cls, project):
-        return os.path.join(cls.ARCHIVE_PATH, project, cls.SUBJECT,
-                            cls.SESSION)
+    def get_session_dir(self, project=None, subject=None, session=None,
+                        multiplicity='per_session'):
+        if project is None:
+            project = self.name
+        if subject is None and multiplicity in ('per_session', 'per_subject'):
+            subject = self.SUBJECT
+        if session is None and multiplicity == 'per_session':
+            session = self.SESSION
+        if multiplicity == 'per_session':
+            assert subject is not None
+            assert session is not None
+            path = os.path.join(self.ARCHIVE_PATH, project, subject,
+                                session)
+        elif multiplicity == 'per_subject':
+            assert subject is not None
+            assert session is None
+            path = os.path.join(self.ARCHIVE_PATH, project, subject,
+                                SUBJECT_SUMMARY_NAME)
+        elif multiplicity == 'per_project':
+            assert subject is None
+            assert session is None
+            path = os.path.join(self.ARCHIVE_PATH, project,
+                                PROJECT_SUMMARY_NAME)
+        else:
+            assert False
+        return path
 
     @classmethod
     def remove_generated_files(cls, project, study=None):
@@ -136,12 +169,16 @@ class PipelineTeseCase(TestCase):
             if study is None or fname.startswith(study + '_'):
                 os.remove(os.path.join(cls.get_session_dir(project), fname))
 
-    def output_file_path(self, fname, study_name):
+    def output_file_path(self, fname, study_name, subject=None, session=None,
+                         multiplicity='per_session'):
         return os.path.join(
-            self.session_dir, '{}_{}'.format(study_name, fname))
+            self.get_session_dir(subject=subject, session=session,
+                                 multiplicity=multiplicity),
+            '{}_{}'.format(study_name, fname))
 
-    def ref_file_path(self, fname):
-        return os.path.join(self.session_dir, fname)
+    def ref_file_path(self, fname, subject=None, session=None):
+        return os.path.join(self.session_dir, fname,
+                            subject=subject, session=session)
 
 
 class DummyTestCase(PipelineTeseCase):

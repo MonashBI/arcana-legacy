@@ -22,8 +22,8 @@ class TestXnatArchive(TestCase):
     XNAT_LOGIN = 'unittest'
     XNAT_PASSWORD = 'Test123!'
 
-    PROJECT_ID = 'TEST000'
-    SUBJECT_ID = 'TEST000_001'
+    PROJECT_ID = 'TEST002'
+    SUBJECT_ID = 'TEST002_001'
     SESSION_ID = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
