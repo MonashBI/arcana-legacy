@@ -98,8 +98,9 @@ class PipelineTeseCase(TestCase):
         self.assertTrue(
             os.path.exists(self.output_file_path(
                 dataset_name, study_name, subject, session, multiplicity)),
-            "Dataset '{}' was not created in pipeline test"
-            .format(dataset_name))
+            "Dataset '{}' was not created in pipeline test (in {})"
+            .format(dataset_name, self.get_session_dir(
+                self.project_dir, subject, session, multiplicity)))
 
     def assertImagesMatch(self, output, ref, study_name):
         out_path = self.output_file_path(output, study_name)
