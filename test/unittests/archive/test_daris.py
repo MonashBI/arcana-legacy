@@ -221,6 +221,7 @@ class TestDarisArchive(BaseTestCase):
     PASSWORD = 'GaryEgan1'
 
     def setUp(self):
+        self.reset_dirs()
         # Create test data on DaRIS
         download_all_datasets(
             self.cache_dir, self.SERVER,
@@ -350,6 +351,7 @@ class TestDarisArchiveSummary(BaseTestCase):
     PASSWORD = 'GaryEgan1'
 
     def setUp(self):
+        self.reset_dirs()
         # Create test data on DaRIS
         download_all_datasets(
             self.cache_dir, self.SERVER,

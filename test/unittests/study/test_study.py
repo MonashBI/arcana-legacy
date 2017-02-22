@@ -170,7 +170,7 @@ class TestRunPipeline(BaseTestCase):
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
 
     def setUp(self):
-        self.delete_project(self.project_dir)
+        self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
             for session_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, session_id)

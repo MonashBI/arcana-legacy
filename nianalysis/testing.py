@@ -26,7 +26,7 @@ class BaseTestCase(TestCase):
     XNAT_TEST_PROJECT = 'TEST001'
 
     def setUp(self):
-        self.delete_project(self.project_dir)
+        self.reset_dirs()
         self.add_session(self.project_dir, self.SUBJECT, self.SESSION)
 
     def add_session(self, project_dir, subject, session,
@@ -51,6 +51,16 @@ class BaseTestCase(TestCase):
     def delete_project(self, project_dir):
         # Clean out any existing archive files
         shutil.rmtree(project_dir, ignore_errors=True)
+
+    def reset_dirs(self):
+        shutil.rmtree(self.project_dir, ignore_errors=True)
+        shutil.rmtree(self.work_dir, ignore_errors=True)
+        self.create_dirs()
+
+    def create_dirs(self):
+        for d in (self.project_dir, self.work_dir, self.cache_dir):
+            if not os.path.exists(d):
+                os.makedirs(d)
 
     @property
     def session_dir(self):

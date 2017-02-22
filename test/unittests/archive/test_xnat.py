@@ -29,6 +29,7 @@ class TestXnatArchive(BaseTestCase):
         return '_'.join((self.SUBJECT, self.SESSION))
 
     def setUp(self):
+        self.reset_dirs()
         shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
         os.makedirs(self.archive_cache_dir)
         self._delete_test_subjects()
