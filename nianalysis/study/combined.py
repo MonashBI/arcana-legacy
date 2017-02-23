@@ -147,7 +147,7 @@ class CombinedStudy(Study):
             if add_inputs is not None:
                 self._check_spec_names(add_inputs, 'additional inputs')
                 self._inputs.extend(add_inputs)
-                self._unconnected_inputs.update(add_inputs)
+                self._unconnected_inputs.update(i.name for i in add_inputs)
             # Create new input node
             self._inputnode = pe.Node(
                 IdentityInterface(fields=list(self.input_names)),
