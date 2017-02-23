@@ -67,8 +67,9 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
-        self._inputnode = pe.Node(IdentityInterface(fields=self.input_names),
-                                  name="{}_inputnode".format(name))
+        self._inputnode = pe.Node(IdentityInterface(
+            fields=list(self.input_names)),
+            name="{}_inputnode".format(name))
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -267,7 +268,7 @@ class Pipeline(object):
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
             dataset = self.study.dataset(inpt.name)
-            if dataset.format != input.format:
+            if dataset.format != inpt.format:
                 # Insert a format converter node into the workflow if the
                 # format of the dataset if it is not in the required format for
                 # the study
@@ -280,7 +281,7 @@ class Pipeline(object):
                 dataset_name = dataset.name + OUTPUT_SUFFIX
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
-                                      self.inputnode, inpt)
+                                      self.inputnode, inpt.name)
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',

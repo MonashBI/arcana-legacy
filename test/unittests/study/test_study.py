@@ -110,7 +110,7 @@ class DummyStudy(Study):
         pipeline = self._create_pipeline(
             name="subject_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=["subject_summary"],
+            outputs=[DatasetSpec('subject_summary', mrtrix_format)],
             description=("Test of project summary variables"),
             default_options={},
             version=1,
@@ -131,7 +131,7 @@ class DummyStudy(Study):
         pipeline = self._create_pipeline(
             name="project_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('project_summary', nifti_gz_format)],
+            outputs=[DatasetSpec('project_summary', mrtrix_format)],
             description=("Test of project summary variables"),
             default_options={},
             version=1,
