@@ -67,7 +67,7 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
-        self._inputnode = pe.Node(IdentityInterface(fields=inputs),
+        self._inputnode = pe.Node(IdentityInterface(fields=self.input_names),
                                   name="{}_inputnode".format(name))
         # Set up outputs
         self._check_spec_names(outputs, 'output')
@@ -78,15 +78,18 @@ class Pipeline(object):
         self._outputnodes = {}
         for mult in self._outputs:
             self._outputnodes[mult] = pe.Node(
-                IdentityInterface(fields=self._outputs[mult]),
+                IdentityInterface(
+                    fields=[o.name for o in self._outputs[mult]]),
                 name="{}_{}_outputnode".format(name, mult))
         # Create sets of unconnected inputs/outputs
-        self._unconnected_inputs = set(inputs)
-        self._unconnected_outputs = set(outputs)
+        self._unconnected_inputs = set(self.input_names)
+        self._unconnected_outputs = set(self.output_names)
         assert len(inputs) == len(self._unconnected_inputs), (
-            "Duplicate inputs found in '{}'".format("', '".join(inputs)))
+            "Duplicate inputs found in '{}'"
+            .format("', '".join(self.input_names)))
         assert len(outputs) == len(self._unconnected_outputs), (
-            "Duplicate outputs found in '{}'".format("', '".join(outputs)))
+            "Duplicate outputs found in '{}'"
+            .format("', '".join(self.output_names)))
         self._citations = citations
         self._default_options = default_options
         # Copy default options to options and then update it with specific
@@ -101,14 +104,14 @@ class Pipeline(object):
         self._min_nthreads = min_nthreads
         self._max_nthreads = max_nthreads
 
-    def _check_spec_names(self, spec_names, spec_type):
-                # Check for unrecognised inputs/outputs
-        unrecognised = set(n for n in spec_names
-                           if n not in self.study.dataset_spec_names())
+    def _check_spec_names(self, specs, spec_type):
+        # Check for unrecognised inputs/outputs
+        unrecognised = set(s for s in specs
+                           if s.name not in self.study.dataset_spec_names())
         if unrecognised:
             raise NiAnalysisError(
                 "'{}' are not valid {} names for {} study ('{}')"
-                .format("', '".join(unrecognised), spec_type,
+                .format("', '".join(u.name for u in unrecognised), spec_type,
                         self.study.__class__.__name__,
                         "', '".join(self.study.dataset_spec_names())))
 
@@ -263,17 +266,15 @@ class Pipeline(object):
                                   source, 'session_id')
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            dataset = self._study.dataset(inpt)
-            # Get the dataset spec corresponding to the pipeline's input
-            spec = self._study.dataset_spec(inpt)
-            if dataset.format != spec.format:
+            dataset = self.study.dataset(inpt.name)
+            if dataset.format != input.format:
                 # Insert a format converter node into the workflow if the
                 # format of the dataset if it is not in the required format for
                 # the study
-                conversion_node_name = spec.name + '_input_conversion'
+                conv_node_name = input.name + '_input_conversion'
                 dataset_source, dataset_name = get_converter_node(
-                    dataset, spec.format, source, complete_workflow,
-                    conversion_node_name)
+                    dataset, input.format, source, complete_workflow,
+                    conv_node_name)
             else:
                 dataset_source = source
                 dataset_name = dataset.name + OUTPUT_SUFFIX
@@ -297,11 +298,21 @@ class Pipeline(object):
                     complete_workflow.connect(sessions, 'session_id',
                                               sink, 'session_id')
             for output in outputs:
-                dataset = self.study.dataset(output)
+                # Get the dataset spec corresponding to the pipeline's output
+                dataset = self.study.dataset(output.name)
                 # Skip datasets which are already input datasets
                 if dataset.processed:
+                    # Convert the format of the node if it doesn't match
+                    if dataset.format != output.format:
+                        conv_node_name = output.name + '_output_conversion'
+                        output_node, node_dataset_name = get_converter_node(
+                            output, dataset.format, self._outputnodes[mult],
+                            complete_workflow, conv_node_name)
+                    else:
+                        output_node = self._outputnodes[mult]
+                        node_dataset_name = dataset.name
                     complete_workflow.connect(
-                        self._outputnodes[mult], dataset.name,
+                        output_node, node_dataset_name,
                         sink, dataset.name + INPUT_SUFFIX)
         # Run the workflow
         return complete_workflow.run()
@@ -392,7 +403,7 @@ class Pipeline(object):
               'project_flat' - All sessions across all subjects are joined
                                into a single list
         """
-        assert spec_name in self._inputs, (
+        assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(spec_name, self.name, "', '".join(self._inputs)))
         if join is not None:
@@ -449,10 +460,9 @@ class Pipeline(object):
         node_output : str
             Name of the output on the node to connect to the dataset
         """
-        assert spec_name in chain(*self._outputs.values()), (
+        assert spec_name in self.output_names, (
             "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(spec_name, self.name,
-                    "', '".join(chain(*self._outputs.values()))))
+            .format(spec_name, self.name, "', '".join(self.output_names)))
         assert spec_name in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
@@ -473,16 +483,24 @@ class Pipeline(object):
         return self._workflow
 
     @property
-    def inputs(self):
-        return iter(self._inputs)
-
-    @property
     def version(self):
         return self._version
 
     @property
+    def inputs(self):
+        return iter(self._inputs)
+
+    @property
     def outputs(self):
         return chain(*self._outputs.values())
+
+    @property
+    def input_names(self):
+        return (i.name for i in self.inputs)
+
+    @property
+    def output_names(self):
+        return (o.name for o in self.outputs)
 
     @property
     def default_options(self):

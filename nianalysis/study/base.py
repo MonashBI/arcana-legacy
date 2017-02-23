@@ -3,6 +3,7 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError)
 from nianalysis.pipeline import Pipeline
+from nianalysis.dataset import BaseDataset
 
 
 logger = getLogger('NiAnalysis')
@@ -86,6 +87,8 @@ class Study(object):
             Name of the dataset_spec to the find the corresponding primary
             dataset or processed dataset to be generated
         """
+        if isinstance(name, BaseDataset):
+            name = name.name
         try:
             dataset = self._input_datasets[name]
         except KeyError:
@@ -141,6 +144,8 @@ class Study(object):
         name : Str
             Name of the dataset_spec to return
         """
+        if isinstance(name, BaseDataset):
+            name = name.name
         return cls._dataset_specs[name]
 
     @classmethod
