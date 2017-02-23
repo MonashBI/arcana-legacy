@@ -40,13 +40,19 @@ class BaseTestCase(TestCase):
                 overwrite=False)
         except Exception as e:
             warnings.warn(
-                "Could not download datasets from '{}' session on MBI-XNAT, "
-                "attempting with what has already been downloaded:\n\n{}"
-                .format('{}_{}'.format(self.XNAT_TEST_PROJECT, self.name), e))
+                "Could not download datasets from '{}_{}' session on MBI-XNAT,"
+                " attempting with what has already been downloaded:\n\n{}"
+                .format(self.XNAT_TEST_PROJECT, self.name, e))
         for f in os.listdir(self.cache_dir):
             if required_datasets is None or f in required_datasets:
-                shutil.copy(os.path.join(self.cache_dir, f),
-                            os.path.join(session_dir, f))
+                src_path = os.path.join(self.cache_dir, f)
+                dst_path = os.path.join(session_dir, f)
+                if os.path.isdir(src_path):
+                    shutil.copytree(src_path, dst_path)
+                elif os.path.isfile(src_path):
+                    shutil.copy(src_path, dst_path)
+                else:
+                    assert False
 
     def delete_project(self, project_dir):
         # Clean out any existing archive files

@@ -272,10 +272,10 @@ class Pipeline(object):
                 # Insert a format converter node into the workflow if the
                 # format of the dataset if it is not in the required format for
                 # the study
-                conv_node_name = input.name + '_input_conversion'
+                conv_node_name = inpt.name + '_input_conversion'
                 dataset_source, dataset_name = get_converter_node(
-                    dataset, input.format, source, complete_workflow,
-                    conv_node_name)
+                    dataset, dataset.name + OUTPUT_SUFFIX, inpt.format,
+                    source, complete_workflow, conv_node_name)
             else:
                 dataset_source = source
                 dataset_name = dataset.name + OUTPUT_SUFFIX
@@ -307,8 +307,9 @@ class Pipeline(object):
                     if dataset.format != output.format:
                         conv_node_name = output.name + '_output_conversion'
                         output_node, node_dataset_name = get_converter_node(
-                            output, dataset.format, self._outputnodes[mult],
-                            complete_workflow, conv_node_name)
+                            output, output.name, dataset.format,
+                            self._outputnodes[mult], complete_workflow,
+                            conv_node_name)
                     else:
                         output_node = self._outputnodes[mult]
                         node_dataset_name = dataset.name

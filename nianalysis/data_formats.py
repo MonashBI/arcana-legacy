@@ -79,7 +79,8 @@ class Converter(object):
 
     __metaclass__ = ABCMeta
 
-    def convert(self, workflow, source, dataset, node_name, output_format):
+    def convert(self, workflow, source, dataset, dataset_name, node_name,
+                 output_format):
         """
         Inserts a format converter node into a complete workflow.
 
@@ -98,8 +99,11 @@ class Converter(object):
         """
         convert_node, in_field, out_field = self._get_convert_node(
             node_name, dataset.format, output_format)
-        workflow.connect(
-            source, dataset.name + OUTPUT_SUFFIX, convert_node, in_field)
+        try:
+            workflow.connect(
+                source, dataset_name, convert_node, in_field)
+        except:
+            raise
         return convert_node, out_field
 
     @abstractmethod
@@ -151,7 +155,7 @@ class ZipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = pe.Node(ZipDir(), name=node_name)
-        return convert_node, 'unzipped', 'zipped'
+        return convert_node, 'dirname', 'zipped'
 
     def input_formats(self):
         return [directory_format]
@@ -175,12 +179,13 @@ data_formats_by_mrinfo = dict(
     (f.mrinfo, f) for f in data_formats.itervalues())
 
 
-def get_converter_node(dataset, output_format, source, workflow, node_name):
+def get_converter_node(dataset, dataset_name, output_format, source, workflow,
+                       node_name):
     for converter in converters:
         if (dataset.format in converter.input_formats() and
                 output_format in converter.output_formats()):
-            return converter.convert(workflow, source, dataset, node_name,
-                                     output_format)
+            return converter.convert(workflow, source, dataset, dataset_name,
+                                     node_name, output_format)
     raise NiAnalysisError(
         "No available converters to convert between '{}' and '{}' formats."
         .format(dataset.format.name, output_format.name))
