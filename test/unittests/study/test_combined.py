@@ -24,8 +24,11 @@ class DummySubStudyA(Study):
     def pipeline1(self):
         pipeline = self._create_pipeline(
             name='pipeline1',
-            inputs=['x', 'y'],
-            outputs=['z'],
+            inputs=[DatasetSpec('x', mrtrix_format),
+                    DatasetSpec('y', mrtrix_format),
+                    ],
+            outputs=[DatasetSpec('z', mrtrix_format),
+                    ],
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
             version=1,
@@ -57,8 +60,10 @@ class DummySubStudyB(Study):
     def pipeline1(self):
         pipeline = self._create_pipeline(
             name='pipeline1',
-            inputs=['w', 'x'],
-            outputs=['y', 'z'],
+            inputs=[DatasetSpec('w', mrtrix_format),
+                    DatasetSpec('x', mrtrix_format)],
+            outputs=[DatasetSpec('y', mrtrix_format),
+                     DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
             version=1,
