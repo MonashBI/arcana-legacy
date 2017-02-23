@@ -25,10 +25,8 @@ class DummySubStudyA(Study):
         pipeline = self._create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('x', mrtrix_format),
-                    DatasetSpec('y', mrtrix_format),
-                    ],
-            outputs=[DatasetSpec('z', mrtrix_format),
-                    ],
+                    DatasetSpec('y', mrtrix_format)],
+            outputs=[DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
             version=1,

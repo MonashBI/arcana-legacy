@@ -547,6 +547,9 @@ class Pipeline(object):
     def multiplicity_outputs(self, mult):
         return iter(self._outputs[mult])
 
+    def multiplicity_output_names(self, mult):
+        return (o.name for o in self.multiplicity_outputs(mult))
+
     def multiplicity(self, output):
         mults = [m for m, outputs in self._outputs.itervalues()
                  if output in outputs]
