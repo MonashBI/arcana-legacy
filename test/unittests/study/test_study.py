@@ -22,8 +22,9 @@ class DummyStudy(Study):
     def pipeline1(self):
         pipeline = self._create_pipeline(
             name='pipeline1',
-            inputs=['start'],
-            outputs=['pipeline1_1', 'pipeline1_2'],
+            inputs=[DatasetSpec('start', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
+                     DatasetSpec('pipeline1_2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
@@ -45,8 +46,9 @@ class DummyStudy(Study):
     def pipeline2(self):
         pipeline = self._create_pipeline(
             name='pipeline2',
-            inputs=['start', 'pipeline1_1'],
-            outputs=['pipeline2'],
+            inputs=[DatasetSpec('start', nifti_gz_format),
+                    DatasetSpec('pipeline1_1', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
@@ -67,8 +69,8 @@ class DummyStudy(Study):
     def pipeline3(self):
         pipeline = self._create_pipeline(
             name='pipeline3',
-            inputs=['pipeline2'],
-            outputs=['pipeline3'],
+            inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline3', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
@@ -87,8 +89,8 @@ class DummyStudy(Study):
     def pipeline4(self):
         pipeline = self._create_pipeline(
             name='pipeline4',
-            inputs=['pipeline3'],
-            outputs=['pipeline4'],
+            inputs=[DatasetSpec('pipeline3', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
@@ -107,8 +109,8 @@ class DummyStudy(Study):
     def subject_summary_pipeline(self):
         pipeline = self._create_pipeline(
             name="subject_summary",
-            inputs=['ones_slice'],
-            outputs=["subject_summary"],
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('subject_summary', mrtrix_format)],
             description=("Test of project summary variables"),
             default_options={},
             version=1,
@@ -128,8 +130,8 @@ class DummyStudy(Study):
     def project_summary_pipeline(self):
         pipeline = self._create_pipeline(
             name="project_summary",
-            inputs=['ones_slice'],
-            outputs=["project_summary"],
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('project_summary', mrtrix_format)],
             description=("Test of project summary variables"),
             default_options={},
             version=1,

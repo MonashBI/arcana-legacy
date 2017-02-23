@@ -130,13 +130,13 @@ class CombinedStudy(Study):
             self._workflow = pipeline.workflow
             ss_name = pipeline.study.name[(len(combined_study.name) + 1):]
             ss_cls, dataset_map = combined_study.sub_study_specs[ss_name]
-            inv_dataset_map = dict(
-                (v, k) for k, v in dataset_map.iteritems())
+            inv_dataset_map = dict((v, combined_study.dataset_spec(k))
+                                    for k, v in dataset_map.iteritems())
             assert isinstance(pipeline.study, ss_cls)
             # Translate inputs from sub-study pipeline
             try:
                 self._inputs = [inv_dataset_map[i]
-                                for i in pipeline.inputs]
+                                for i in pipeline.input_names]
             except KeyError as e:
                 raise NiAnalysisMissingDatasetError(
                     "{} input required for pipeline '{}' in '{}' is not "
@@ -147,21 +147,23 @@ class CombinedStudy(Study):
             if add_inputs is not None:
                 self._check_spec_names(add_inputs, 'additional inputs')
                 self._inputs.extend(add_inputs)
-                self._unconnected_inputs.update(add_inputs)
+                self._unconnected_inputs.update(i.name for i in add_inputs)
             # Create new input node
-            self._inputnode = pe.Node(IdentityInterface(fields=self._inputs),
-                                      name="{}_inputnode".format(name))
+            self._inputnode = pe.Node(
+                IdentityInterface(fields=list(self.input_names)),
+                name="{}_inputnode".format(name))
             # Connect to sub-study input node
-            for inpt in pipeline.inputs:
-                self.workflow.connect(self._inputnode, inv_dataset_map[inpt],
-                                      pipeline.inputnode, inpt)
+            for input_name in pipeline.input_names:
+                self.workflow.connect(
+                    self._inputnode, inv_dataset_map[input_name].name,
+                    pipeline.inputnode, input_name)
             # Translate outputs from sub-study pipeline
             self._outputs = {}
             for mult in pipeline.mutliplicities:
                 try:
                     self._outputs[mult] = [
-                        inv_dataset_map[o]
-                        for o in pipeline.multiplicity_outputs(mult)]
+                        inv_dataset_map[o_name]
+                        for o_name in pipeline.multiplicity_output_names(mult)]
                 except KeyError as e:
                     raise NiAnalysisMissingDatasetError(
                         "'{}' output required for pipeline '{}' in '{}' is not"
@@ -174,18 +176,20 @@ class CombinedStudy(Study):
                 for output in add_outputs:
                     combined_study.dataset_spec(output).multiplicity
                     self._outputs[mult].append(output)
-                self._unconnected_outputs.update(add_outputs)
+                self._unconnected_outputs.update(o.name for o in add_outputs)
             # Create output nodes for each multiplicity
             self._outputnodes = {}
             for mult in pipeline.mutliplicities:
                 self._outputnodes[mult] = pe.Node(
-                    IdentityInterface(fields=self._outputs[mult]),
+                    IdentityInterface(
+                        fields=list(self.multiplicity_output_names(mult))),
                     name="{}_{}_outputnode".format(name, mult))
                 # Connect sub-study outputs
-                for output in pipeline.multiplicity_outputs(mult):
-                    self.workflow.connect(pipeline.outputnode(mult), output,
+                for output_name in pipeline.multiplicity_output_names(mult):
+                    self.workflow.connect(pipeline.outputnode(mult),
+                                          output_name,
                                           self._outputnodes[mult],
-                                          inv_dataset_map[output])
+                                          inv_dataset_map[output_name].name)
             # Copy additional info fields
             self._citations = pipeline.citations
             self._options = pipeline.options

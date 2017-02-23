@@ -623,9 +623,10 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
                                                                  server))
         for dataset in session.scans.itervalues():
             data_format = _guess_data_format(dataset)
-            download_path = os.path.join(
-                download_dir,
-                dataset.type + data_formats[data_format.lower()].extension)
+            ext = data_formats[data_format.lower()].extension
+            if ext is None:
+                ext = ''
+            download_path = os.path.join(download_dir, dataset.type + ext)
             if overwrite or not os.path.exists(download_path):
                 download_resource(download_path, dataset, data_format,
                                   session.label)
