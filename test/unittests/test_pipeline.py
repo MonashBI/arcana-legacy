@@ -108,4 +108,3 @@ class TestFormatConversions(BaseTestCase):
         self.assertDatasetCreated('nifti_from_mrtrix.nii', study.name)
         self.assertDatasetCreated('directory_from_zip', study.name)
         self.assertDatasetCreated('zip_from_directory.zip', study.name)
-        
