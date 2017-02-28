@@ -6,6 +6,10 @@ class NiAnalysisError(NiAnalysisException):
     pass
 
 
+class NiAnalysisUsageError(NiAnalysisError):
+    pass
+
+
 class NiAnalysisDatasetNameError(NiAnalysisError):
     pass
 
