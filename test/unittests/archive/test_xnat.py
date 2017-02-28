@@ -74,8 +74,7 @@ class TestXnatArchive(BaseTestCase):
                 project.subjects[project_summary_name].delete()
 
     def _connect(self):
-        return xnat.connect(self.XNAT_URL, user=self.XNAT_LOGIN,
-                            password=self.XNAT_PASSWORD)
+        return xnat.connect(self.SERVER)
 
     def test_archive_roundtrip(self):
 
@@ -146,8 +145,7 @@ class TestXnatArchive(BaseTestCase):
         # Create working dirs
         # Create XNATSource node
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
-            user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
+            server=self.SERVER, cache_dir=self.archive_cache_dir)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format)]
@@ -277,8 +275,7 @@ class TestXnatArchive(BaseTestCase):
 
     def test_project_info(self):
         archive = XNATArchive(
-            server=self.XNAT_URL, cache_dir=self.archive_cache_dir,
-            user=self.XNAT_LOGIN, password=self.XNAT_PASSWORD)
+            server=self.SERVER, cache_dir=self.archive_cache_dir)
         project_info = archive.project(self.PROJECT)
         self.assertEqual(sorted(s.id for s in project_info.subjects),
                          [self.SUBJECT])

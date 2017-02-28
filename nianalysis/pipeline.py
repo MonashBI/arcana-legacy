@@ -305,7 +305,7 @@ class Pipeline(object):
                     IdentityInterface(fields=['sessions']),
                     joinsource=sessions, joinfield='sessions',
                     name=self.name + '_session_output_summary')
-                complete_workflow.connect(sink, 'sessions',
+                complete_workflow.connect(sink, 'session_id',
                                           session_output_summary, 'sessions')
                 complete_workflow.connect(session_output_summary, 'sessions',
                                           output_summary, 'sessions')
@@ -315,12 +315,12 @@ class Pipeline(object):
                     IdentityInterface(fields=['subjects']),
                     joinsource=subjects, joinfield='subjects',
                     name=self.name + '_session_output_summary')
-                complete_workflow.connect(sink, 'subjects',
+                complete_workflow.connect(sink, 'subject_id',
                                           subject_output_summary, 'subjects')
                 complete_workflow.connect(subject_output_summary, 'subjects',
                                           output_summary, 'subjects')
             elif mult == 'per_project':
-                complete_workflow.connect(sink, 'project',
+                complete_workflow.connect(sink, 'project_id',
                                           output_summary, 'project')
         return output_summary
 
@@ -330,7 +330,7 @@ class Pipeline(object):
         Generate an input node that iterates over the sessions and subjects
         that need to be processed.
         """
-        sessions = pe.Node(InputSessions(), name='sessions')
+        sessions = pe.Node(InputSessions(), name=self.name + '_sessions')
         complete_workflow.add_nodes([sessions])
         # Set up session/subject "iterables" to control the iteration of the
         # pipeline over the project
@@ -357,7 +357,7 @@ class Pipeline(object):
                     "Subject with most sessions: '{}'".format(
                         "', '".join(session_ids), "', '".join(most_sessions)))
             subjects = pe.Node(IdentityInterface(['subject_id']),
-                               name='subjects')
+                               name=self.name + '_subjects')
             complete_workflow.add_nodes([subjects])
             subjects.iterables = ('subject_id',
                                   tuple(s.id for s in subjects_to_process))
@@ -369,11 +369,11 @@ class Pipeline(object):
             # so that complete sessions can be skipped for subjects they are
             # required for.
             preinputnode = pe.Node(IdentityInterface(['id_pair']),
-                                   name='preinputnode')
+                                   name=self._name + '_preinputnode')
             preinputnode.iterables = (
                 'id_pair',
                 [[s.subject.id, s.id] for s in sessions_to_process])
-            splitnode = pe.Node(Split(), name='splitnode')
+            splitnode = pe.Node(Split(), name=self.name + '_splitnode')
             splitnode.inputs.splits = [1, 1]
             splitnode.inputs.squeeze = True
             complete_workflow.add_nodes((preinputnode, splitnode))
