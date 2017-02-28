@@ -7,6 +7,7 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
+from nianalysis.interfaces.utils import InputSessions
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
@@ -184,20 +185,12 @@ class Pipeline(object):
                 "All outputs of '{}' are already present in project archive, "
                 "skipping".format(self.name))
             return None
-        # Run prerequisite pipelines and save their results into the archive
-        for prereq in self.prerequisities:
-            # NB: Even if reprocess==True, the prerequisite pipelines are not
-            #     re-processed, they are only reprocessed if reprocess == 'all'
-            prereq.run([s.id for s in subjects_to_process], session_ids,
-                       work_dir, (reprocess if reprocess == 'all' else False),
-                       project=project)
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         complete_workflow.add_nodes([self._workflow])
         # Generate an input node for the sessions iterable
-        sessions = pe.Node(IdentityInterface(['subject_id', 'session_id']),
-                           name='sessions')
+        sessions = pe.Node(InputSessions(), name='sessions')
         complete_workflow.add_nodes([sessions])
         # Set up session/subject "iterables" to control the iteration of the
         # pipeline over the project
@@ -250,6 +243,13 @@ class Pipeline(object):
                                       sessions, 'subject_id')
             complete_workflow.connect(splitnode, 'out2',
                                       sessions, 'session_id')
+        # Prepend prerequisite pipelines to complete workflow
+        for prereq in self.prerequisities:
+            # NB: Even if reprocess==True, the prerequisite pipelines are not
+            #     re-processed, they are only reprocessed if reprocess == 'all'
+            prereq.run([s.id for s in subjects_to_process], session_ids,
+                       work_dir, (reprocess if reprocess == 'all' else False),
+                       project=project)
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
