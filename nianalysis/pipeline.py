@@ -234,7 +234,8 @@ class Pipeline(object):
             source = self._study.archive.source(
                 self.study.project_id,
                 (self.study.dataset(i) for i in self.inputs),
-                study_name=self.study.name)
+                study_name=self.study.name,
+                name='{}_source'.format(self.name))
         except NiAnalysisMissingDatasetError as e:
             raise NiAnalysisMissingDatasetError(
                 str(e) + ", which is required for pipeline '{}'".format(
@@ -251,7 +252,8 @@ class Pipeline(object):
                 # Insert a format converter node into the workflow if the
                 # format of the dataset if it is not in the required format for
                 # the study
-                conv_node_name = inpt.name + '_input_conversion'
+                conv_node_name = '{}_{}_input_conversion'.format(self.name,
+                                                                  inpt.name)
                 dataset_source, dataset_name = get_converter_node(
                     dataset, dataset.name + OUTPUT_SUFFIX, inpt.format,
                     source, complete_workflow, conv_node_name)
@@ -273,7 +275,8 @@ class Pipeline(object):
             sink = self.study.archive.sink(
                 self.study._project_id,
                 (self.study.dataset(o) for o in outputs), mult,
-                study_name=self.study.name)
+                study_name=self.study.name,
+                name='{}_{}_sink'.format(self.name, mult))
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
             if mult != 'per_project':
