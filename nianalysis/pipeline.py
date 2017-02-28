@@ -7,7 +7,7 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
-from nianalysis.interfaces.utils import InputSessions
+from nianalysis.interfaces.utils import InputSessions, OutputSummary
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
@@ -142,11 +142,36 @@ class Pipeline(object):
         return not (self == other)
 
     def run(self, subject_ids=None, session_ids=None, work_dir=None,
-            reprocess=False, project=None):
+            reprocess=False):
+        """
+        Connects pipeline to archive and runs it
+
+        Parameters
+        ----------
+        subject_ids : List[str]
+            The subset of subject IDs to process. If None all available will be
+            reprocessed
+        session_ids: List[str]
+            The subset of session IDs to process. If None all available will be
+            reprocessed
+        work_dir : str
+            A directory in which to run the nipype workflows
+        reprocess: True|False|'all'
+            A flag which determines whether to rerun the processing for this
+            step. If set to 'all' then pre-requisite pipelines will also be
+            reprocessed.
+        """
+        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
+        self._connect_to_archive(complete_workflow, subject_ids, session_ids,
+                                 reprocess)
+        # Run the workflow
+        return complete_workflow.run()
+
+    def _connect_to_archive(self, complete_workflow, subject_ids,
+                            session_ids, reprocess, project=None):
         """
         Gets a data source and data sink from the archive for the requested
-        sessions, connects them to the pipeline's NiPyPE workflow and runs
-        the pipeline
+        sessions, connects them to the pipeline's NiPyPE workflow
 
         Parameters
         ----------
@@ -187,9 +212,124 @@ class Pipeline(object):
             return None
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
-        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         complete_workflow.add_nodes([self._workflow])
-        # Generate an input node for the sessions iterable
+        sessions, subjects = self._get_sessions_node(
+            session_ids, sessions_to_process, subjects_to_process,
+            complete_workflow)
+        # Prepend prerequisite pipelines to complete workflow
+        for prereq in self.prerequisities:
+            # NB: Even if reprocess==True, the prerequisite pipelines are not
+            #     re-processed, they are only reprocessed if reprocess == 'all'
+            prereq_summary = prereq._connect_to_archive(
+                complete_workflow, [s.id for s in subjects_to_process],
+                session_ids, (reprocess if reprocess == 'all' else False),
+                project)
+            # Connect the output summary of the prerequisite to the pipeline
+            # to ensure that the prerequisite is run first.
+            complete_workflow.connect(
+                prereq_summary, 'sessions', sessions,
+                prereq.name + '_sessions')
+        try:
+            # Create source and sinks from the archive
+            source = self._study.archive.source(
+                self.study.project_id,
+                (self.study.dataset(i) for i in self.inputs),
+                study_name=self.study.name)
+        except NiAnalysisMissingDatasetError as e:
+            raise NiAnalysisMissingDatasetError(
+                str(e) + ", which is required for pipeline '{}'".format(
+                    self.name))
+        # Connect the nodes of the wrapper workflow
+        complete_workflow.connect(sessions, 'subject_id',
+                                  source, 'subject_id')
+        complete_workflow.connect(sessions, 'session_id',
+                                  source, 'session_id')
+        for inpt in self.inputs:
+            # Get the dataset corresponding to the pipeline's input
+            dataset = self.study.dataset(inpt.name)
+            if dataset.format != inpt.format:
+                # Insert a format converter node into the workflow if the
+                # format of the dataset if it is not in the required format for
+                # the study
+                conv_node_name = inpt.name + '_input_conversion'
+                dataset_source, dataset_name = get_converter_node(
+                    dataset, dataset.name + OUTPUT_SUFFIX, inpt.format,
+                    source, complete_workflow, conv_node_name)
+            else:
+                dataset_source = source
+                dataset_name = dataset.name + OUTPUT_SUFFIX
+            # Connect the dataset to the pipeline input
+            complete_workflow.connect(dataset_source, dataset_name,
+                                      self.inputnode, inpt.name)
+        # Create a summary node for holding a summary of all the sessions/
+        # subjects that were sunk. This is used to connect with dependent
+        # pipelines into one large connected pipeline.
+        output_summary = pe.Node(OutputSummary(),
+                                 name=self.name + '_output_summary')
+        # Connect all outputs to the archive sink
+        for mult, outputs in self._outputs.iteritems():
+            # Create a new sink for each multiplicity level (i.e 'per_session',
+            # 'per_subject' or 'per_project')
+            sink = self.study.archive.sink(
+                self.study._project_id,
+                (self.study.dataset(o) for o in outputs), mult,
+                study_name=self.study.name)
+            sink.inputs.description = self.description
+            sink.inputs.name = self._study.name
+            if mult != 'per_project':
+                complete_workflow.connect(sessions, 'subject_id',
+                                          sink, 'subject_id')
+                if mult == 'per_session':
+                    complete_workflow.connect(sessions, 'session_id',
+                                              sink, 'session_id')
+            for output in outputs:
+                # Get the dataset spec corresponding to the pipeline's output
+                dataset = self.study.dataset(output.name)
+                # Skip datasets which are already input datasets
+                if dataset.processed:
+                    # Convert the format of the node if it doesn't match
+                    if dataset.format != output.format:
+                        conv_node_name = output.name + '_output_conversion'
+                        output_node, node_dataset_name = get_converter_node(
+                            output, output.name, dataset.format,
+                            self._outputnodes[mult], complete_workflow,
+                            conv_node_name)
+                    else:
+                        output_node = self._outputnodes[mult]
+                        node_dataset_name = dataset.name
+                    complete_workflow.connect(
+                        output_node, node_dataset_name,
+                        sink, dataset.name + INPUT_SUFFIX)
+            if mult == 'per_session':
+                session_output_summary = pe.JoinNode(
+                    IdentityInterface(fields=['sessions']),
+                    joinsource=sessions, joinfield='sessions',
+                    name=self.name + '_session_output_summary')
+                complete_workflow.connect(sink, 'sessions',
+                                          session_output_summary, 'sessions')
+                complete_workflow.connect(session_output_summary, 'sessions',
+                                          output_summary, 'sessions')
+            elif mult == 'per_subject':
+                assert subjects is not None
+                subject_output_summary = pe.JoinNode(
+                    IdentityInterface(fields=['subjects']),
+                    joinsource=subjects, joinfield='subjects',
+                    name=self.name + '_session_output_summary')
+                complete_workflow.connect(sink, 'subjects',
+                                          subject_output_summary, 'subjects')
+                complete_workflow.connect(subject_output_summary, 'subjects',
+                                          output_summary, 'subjects')
+            elif mult == 'per_project':
+                complete_workflow.connect(sink, 'project',
+                                          output_summary, 'project')
+        return output_summary
+
+    def _get_sessions_node(self, session_ids, sessions_to_process,
+                           subjects_to_process, complete_workflow):
+        """
+        Generate an input node that iterates over the sessions and subjects
+        that need to be processed.
+        """
         sessions = pe.Node(InputSessions(), name='sessions')
         complete_workflow.add_nodes([sessions])
         # Set up session/subject "iterables" to control the iteration of the
@@ -243,81 +383,8 @@ class Pipeline(object):
                                       sessions, 'subject_id')
             complete_workflow.connect(splitnode, 'out2',
                                       sessions, 'session_id')
-        # Prepend prerequisite pipelines to complete workflow
-        for prereq in self.prerequisities:
-            # NB: Even if reprocess==True, the prerequisite pipelines are not
-            #     re-processed, they are only reprocessed if reprocess == 'all'
-            prereq.run([s.id for s in subjects_to_process], session_ids,
-                       work_dir, (reprocess if reprocess == 'all' else False),
-                       project=project)
-        try:
-            # Create source and sinks from the archive
-            source = self._study.archive.source(
-                self.study.project_id,
-                (self.study.dataset(i) for i in self.inputs),
-                study_name=self.study.name)
-        except NiAnalysisMissingDatasetError as e:
-            raise NiAnalysisMissingDatasetError(
-                str(e) + ", which is required for pipeline '{}'".format(
-                    self.name))
-        # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(sessions, 'subject_id',
-                                  source, 'subject_id')
-        complete_workflow.connect(sessions, 'session_id',
-                                  source, 'session_id')
-        for inpt in self.inputs:
-            # Get the dataset corresponding to the pipeline's input
-            dataset = self.study.dataset(inpt.name)
-            if dataset.format != inpt.format:
-                # Insert a format converter node into the workflow if the
-                # format of the dataset if it is not in the required format for
-                # the study
-                conv_node_name = inpt.name + '_input_conversion'
-                dataset_source, dataset_name = get_converter_node(
-                    dataset, dataset.name + OUTPUT_SUFFIX, inpt.format,
-                    source, complete_workflow, conv_node_name)
-            else:
-                dataset_source = source
-                dataset_name = dataset.name + OUTPUT_SUFFIX
-            # Connect the dataset to the pipeline input
-            complete_workflow.connect(dataset_source, dataset_name,
-                                      self.inputnode, inpt.name)
-        # Connect all outputs to the archive sink
-        for mult, outputs in self._outputs.iteritems():
-            # Create a new sink for each multiplicity level (i.e 'per_session',
-            # 'per_subject' or 'per_project')
-            sink = self.study.archive.sink(
-                self.study._project_id,
-                (self.study.dataset(o) for o in outputs), mult,
-                study_name=self.study.name)
-            sink.inputs.description = self.description
-            sink.inputs.name = self._study.name
-            if mult != 'per_project':
-                complete_workflow.connect(sessions, 'subject_id',
-                                          sink, 'subject_id')
-                if mult == 'per_session':
-                    complete_workflow.connect(sessions, 'session_id',
-                                              sink, 'session_id')
-            for output in outputs:
-                # Get the dataset spec corresponding to the pipeline's output
-                dataset = self.study.dataset(output.name)
-                # Skip datasets which are already input datasets
-                if dataset.processed:
-                    # Convert the format of the node if it doesn't match
-                    if dataset.format != output.format:
-                        conv_node_name = output.name + '_output_conversion'
-                        output_node, node_dataset_name = get_converter_node(
-                            output, output.name, dataset.format,
-                            self._outputnodes[mult], complete_workflow,
-                            conv_node_name)
-                    else:
-                        output_node = self._outputnodes[mult]
-                        node_dataset_name = dataset.name
-                    complete_workflow.connect(
-                        output_node, node_dataset_name,
-                        sink, dataset.name + INPUT_SUFFIX)
-        # Run the workflow
-        return complete_workflow.run()
+            subjects = None
+        return sessions, subjects
 
     @property
     def prerequisities(self):
