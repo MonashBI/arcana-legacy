@@ -10,9 +10,9 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
-from nianalysis.interfaces.utils import (
-    InputSessions, OutputSummary, InputSubjects, MergeTuple, SubjectSummary,
-    SubjectSessionSummary)
+from nianalysis.interfaces.iterators import (
+    InputSessions, PipelineReport, InputSubjects, SubjectReport,
+    SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 
@@ -262,7 +262,7 @@ class Pipeline(object):
         # Prepend prerequisite pipelines to complete workflow if required
         prereqs = list(self.prerequisities)
         if prereqs:
-            prereq_summaries = pe.Node(Merge(len(prereqs)),
+            prereq_reports = pe.Node(Merge(len(prereqs)),
                                        '{}_prereq_summaries'.format(self.name))
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
@@ -270,7 +270,7 @@ class Pipeline(object):
                 # NB: Even if reprocess==True, the prerequisite pipelines are
                 # not re-processed, they are only reprocessed if reprocess ==
                 # 'all'
-                prereq_summary = prereq._connect_to_archive(
+                prereq_report = prereq._connect_to_archive(
                     complete_workflow=complete_workflow,
                     subject_ids=prereq_subject_ids,
                     filter_session_ids=filter_session_ids,
@@ -279,10 +279,10 @@ class Pipeline(object):
                 # Connect the output summary of the prerequisite to the
                 # pipeline to ensure that the prerequisite is run first.
                 complete_workflow.connect(
-                    prereq_summary, 'subject_session_pairs',
-                    prereq_summaries, 'in{}'.format(i))
-            complete_workflow.connect(prereq_summaries, 'out', subjects,
-                                      'prereq_summaries')
+                    prereq_report, 'subject_session_pairs',
+                    prereq_reports, 'in{}'.format(i))
+            complete_workflow.connect(prereq_reports, 'out', subjects,
+                                      'prereq_reports')
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
@@ -320,7 +320,7 @@ class Pipeline(object):
         # Create a summary node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        output_summary = pe.Node(OutputSummary(),
+        output_summary = pe.Node(PipelineReport(),
                                  name=self.name + '_output_summary')
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
@@ -357,7 +357,7 @@ class Pipeline(object):
                     complete_workflow.connect(
                         output_node, node_dataset_name,
                         sink, dataset.name + INPUT_SUFFIX)
-            self._connect_to_output_summary(
+            self._connect_to_reports(
                 sink, output_summary, mult, subjects, sessions,
                 complete_workflow)
         return output_summary
@@ -384,7 +384,7 @@ class Pipeline(object):
         session_subjects = defaultdict(set)
         for session in sessions_to_process:
             session_subjects[session.id].add(session.subject.id)
-        if False and all(ss == set(s.id for s in subjects_to_process)
+        if all(ss == set(s.id for s in subjects_to_process)
                for ss in session_subjects.itervalues()):
             # All sessions are to be processed in every node, a simple second
             # layer of iterations on top of the subject iterations will
@@ -402,8 +402,8 @@ class Pipeline(object):
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         return subjects, sessions
 
-    def _connect_to_output_summary(self, sink, output_summary, mult, subjects,
-                                   sessions, workflow):
+    def _connect_to_reports(self, sink, output_summary, mult, subjects,
+                            sessions, workflow):
         """
         Connects the sink of the pipeline to an "Output Summary", which lists
         the subjects and sessions that were processed for the pipeline. There
@@ -413,23 +413,23 @@ class Pipeline(object):
         """
         if mult == 'per_session':
             session_outputs = pe.JoinNode(
-                MergeTuple(2), joinsource=sessions,
-                joinfield=['in1', 'in2'],
+                SessionReport(), joinsource=sessions,
+                joinfield=['subjects', 'sessions'],
                 name=self.name + '_session_outputs')
             subject_session_outputs = pe.JoinNode(
-                SubjectSessionSummary(), joinfield='subject_session_pairs',
+                SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
                 name=self.name + '_subject_session_outputs')
-            workflow.connect(sink, 'subject_id', session_outputs, 'in1')
-            workflow.connect(sink, 'session_id', session_outputs, 'in2')
-            workflow.connect(session_outputs, 'out',
+            workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
+            workflow.connect(sink, 'session_id', session_outputs, 'sessions')
+            workflow.connect(session_outputs, 'subject_session_pairs',
                              subject_session_outputs, 'subject_session_pairs')
             workflow.connect(
                 subject_session_outputs, 'subject_session_pairs',
                 output_summary, 'subject_session_pairs')
         elif mult == 'per_subject':
             subject_output_summary = pe.JoinNode(
-                SubjectSummary(), joinsource=subjects, joinfield='subjects',
+                SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=self.name + '_subject_summary_outputs')
             workflow.connect(sink, 'subject_id',
                                       subject_output_summary, 'subjects')

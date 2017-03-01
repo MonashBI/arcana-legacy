@@ -185,12 +185,6 @@ class TestRunPipeline(BaseTestCase):
 
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4()
-        pipeline.write_graph('~/pipeline-graph-flat.png', complete=True,
-                             style='flat')
-        pipeline.write_graph('~/pipeline-graph-exec.png', complete=True,
-                             style='exec')
-        pipeline.write_graph('~/pipeline-graph-hier.png', complete=True,
-                             style='hierarchical')
         pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
