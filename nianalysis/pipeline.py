@@ -596,6 +596,46 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
+    def join_sessions_node(self, interface, joinfield, name):
+        """
+        Creates a JoinNode that joins an input over all sessions (see
+        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        joinfield : str | list(str)
+            The name of the field(s) to join into a list
+        name : str
+            Name for the node
+        """
+        node = pe.JoinNode(interface,
+                           joinsource='{}_sessions'.format(self.name),
+                           joinfield=joinfield, name=name)
+        self._workflow.add_nodes([node])
+        return node
+
+    def join_subjects_node(self, interface, joinfield, name):
+        """
+        Creates a JoinNode that joins an input over all sessions (see
+        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        joinfield : str | list(str)
+            The name of the field(s) to join into a list
+        name : str
+            Name for the node
+        """
+        node = pe.JoinNode(interface,
+                           joinsource='{}_subjects'.format(self.name),
+                           joinfield=joinfield, name=name)
+        self._workflow.add_nodes([node])
+        return node
+
     @property
     def name(self):
         return self._name

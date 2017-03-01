@@ -119,8 +119,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.JoinNode(MRMath(), joinsource='sessions',
-                             joinfield=['in_files'], name='mrmath')
+        mrmath = pipeline.join_sessions_node(MRMath(), 'in_files', 'mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -140,10 +139,8 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath1 = pe.JoinNode(MRMath(), joinsource='sessions',
-                              joinfield=['in_files'], name='mrmath1')
-        mrmath2 = pe.JoinNode(MRMath(), joinsource='subjects',
-                              joinfield=['in_files'], name='mrmath2')
+        mrmath1 = pipeline.join_sessions_node(MRMath(), 'in_files', 'mrmath1')
+        mrmath2 = pipeline.join_subjects_node(MRMath(), 'in_files', 'mrmath2')
         mrmath1.inputs.operation = 'sum'
         mrmath2.inputs.operation = 'sum'
         # Connect inputs
