@@ -590,9 +590,9 @@ class XNATArchive(Archive):
         if sessions is None:
             sessions = self.all_sessions(project_id=project_id)
         sess_with_dataset = []
-        with self._daris() as daris:
+        with self._login() as xnat_login:
             for session in sessions:
-                entries = daris.get_datasets(
+                entries = xnat_login.get_datasets(
                     project_id, session.subject_id, session.session_id,
                     repo_id=self._repo_id,
                     ex_method_id=int(dataset.processed) + 1)
