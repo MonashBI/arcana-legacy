@@ -1,8 +1,11 @@
+import os
+import tempfile
+import shutil
 from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import IdentityInterface, Split
+from nipype.interfaces.utility import IdentityInterface, Split, Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
@@ -141,8 +144,7 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, subject_ids=None, session_ids=None, work_dir=None,
-            reprocess=False):
+    def run(self, work_dir=None, **kwargs):
         """
         Connects pipeline to archive and runs it
 
@@ -162,13 +164,57 @@ class Pipeline(object):
             reprocessed.
         """
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
-        self._connect_to_archive(complete_workflow, subject_ids, session_ids,
-                                 reprocess)
+        self._connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
         return complete_workflow.run()
 
-    def _connect_to_archive(self, complete_workflow, subject_ids,
-                            session_ids, reprocess, project=None):
+    def write_graph(self, fname, detailed=False, style='flat', complete=False,
+                    plot=False):
+        """
+        Writes a graph of the pipeline to file
+
+        Parameters
+        ----------
+        fname : str
+            The filename for the saved graph
+        detailed : bool
+            Whether to save a detailed version of the graph or not
+        style : str
+            The style of the graph, can be one of can be one of
+            'orig', 'flat', 'exec', 'hierarchical'
+        complete : bool
+            Whether to plot the complete graph including sources, sinks and
+            prerequisite pipelines or just the current pipeline
+        plot : bool
+            Whether to load and plot the graph after it has been written
+        """
+        fname = os.path.expanduser(fname)
+        orig_dir = os.getcwd()
+        tmpdir = tempfile.mkdtemp()
+        os.chdir(tmpdir)
+        if complete:
+            workflow = pe.Workflow(name=self.name, base_dir=tmpdir)
+            self._connect_to_archive(workflow)
+            out_dir = os.path.join(tmpdir, self.name)
+        else:
+            workflow = self._workflow
+            out_dir = tmpdir
+        workflow.write_graph(graph2use=style)
+        if detailed:
+            graph_file = 'graph_detailed.dot.png'
+        else:
+            graph_file = 'graph.dot.png'
+        os.chdir(orig_dir)
+        shutil.move(os.path.join(out_dir, graph_file), fname)
+        shutil.rmtree(tmpdir)
+        if plot:
+            import matplotlib.image as img
+            import matplotlib.pyplot as plt
+            graph = img.imread(fname)
+            plt.imshow(graph)
+
+    def _connect_to_archive(self, complete_workflow, subject_ids=None,
+                            session_ids=None, reprocess=False, project=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow
@@ -213,22 +259,28 @@ class Pipeline(object):
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow.add_nodes([self._workflow])
-        sessions, subjects = self._get_sessions_node(
+        sessions, subjects, start_node = self._get_sessions_node(
             session_ids, sessions_to_process, subjects_to_process,
             complete_workflow)
         # Prepend prerequisite pipelines to complete workflow
-        for prereq in self.prerequisities:
-            # NB: Even if reprocess==True, the prerequisite pipelines are not
-            #     re-processed, they are only reprocessed if reprocess == 'all'
-            prereq_summary = prereq._connect_to_archive(
-                complete_workflow, [s.id for s in subjects_to_process],
-                session_ids, (reprocess if reprocess == 'all' else False),
-                project)
-            # Connect the output summary of the prerequisite to the pipeline
-            # to ensure that the prerequisite is run first.
-            complete_workflow.connect(
-                prereq_summary, 'sessions', sessions,
-                prereq.name + '_sessions')
+        prereqs = list(self.prerequisities)
+        if prereqs:
+            prereq_summaries = pe.Node(Merge(len(prereqs)),
+                                       '{}_prereq_summaries'.format(self.name))
+            for i, prereq in enumerate(prereqs, 1):
+                # NB: Even if reprocess==True, the prerequisite pipelines are
+                # not re-processed, they are only reprocessed if reprocess ==
+                # 'all'
+                prereq_summary = prereq._connect_to_archive(
+                    complete_workflow, [s.id for s in subjects_to_process],
+                    session_ids, (reprocess if reprocess == 'all' else False),
+                    project)
+                # Connect the output summary of the prerequisite to the
+                # pipeline to ensure that the prerequisite is run first.
+                complete_workflow.connect(prereq_summary, 'sessions',
+                                          prereq_summaries, 'in{}'.format(i))
+            complete_workflow.connect(prereq_summaries, 'out', start_node,
+                                      'prereqs')
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
@@ -359,7 +411,7 @@ class Pipeline(object):
                     "Intersection of sessions: '{}'\n"
                     "Subject with most sessions: '{}'".format(
                         "', '".join(session_ids), "', '".join(most_sessions)))
-            subjects = pe.Node(IdentityInterface(['subject_id']),
+            subjects = pe.Node(IdentityInterface(['subject_id', 'prereqs']),
                                name=self.name + '_subjects')
             complete_workflow.add_nodes([subjects])
             subjects.iterables = ('subject_id',
@@ -367,11 +419,12 @@ class Pipeline(object):
             sessions.iterables = ('session_id', tuple(session_ids))
             complete_workflow.connect(subjects, 'subject_id',
                                       sessions, 'subject_id')
+            start_node = subjects
         else:
             # If only session outputs loop through all subject/session pairs
             # so that complete sessions can be skipped for subjects they are
             # required for.
-            preinputnode = pe.Node(IdentityInterface(['id_pair']),
+            preinputnode = pe.Node(IdentityInterface(['id_pair', 'prereqs']),
                                    name=self._name + '_preinputnode')
             preinputnode.iterables = (
                 'id_pair',
@@ -387,7 +440,8 @@ class Pipeline(object):
             complete_workflow.connect(splitnode, 'out2',
                                       sessions, 'session_id')
             subjects = None
-        return sessions, subjects
+            start_node = preinputnode
+        return sessions, subjects, start_node
 
     @property
     def prerequisities(self):

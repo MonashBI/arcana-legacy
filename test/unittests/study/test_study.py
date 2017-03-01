@@ -1,12 +1,14 @@
-import subprocess as sp
-from nipype.pipeline import engine as pe
-from nianalysis.dataset import Dataset, DatasetSpec
-from nianalysis.data_formats import nifti_gz_format, mrtrix_format
-from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, set_dataset_specs
-from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath
-from nianalysis.testing import BaseTestCase
-import logging
+from nipype import config
+config.enable_debug_mode()
+import subprocess as sp  # @IgnorePep8
+from nipype.pipeline import engine as pe  # @IgnorePep8
+from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
+from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
+from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
+from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
+from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
+from nianalysis.testing import BaseTestCase  # @IgnorePep8
+import logging  # @IgnorePep8
 
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.DEBUG)
@@ -182,7 +184,14 @@ class TestRunPipeline(BaseTestCase):
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
     def test_pipeline_prerequisites(self):
-        self.study.pipeline4().run(work_dir=self.work_dir)
+        pipeline = self.study.pipeline4()
+        pipeline.write_graph('~/pipeline-graph-flat.png', complete=True,
+                             style='flat')
+        pipeline.write_graph('~/pipeline-graph-exec.png', complete=True,
+                             style='exec')
+        pipeline.write_graph('~/pipeline-graph-hier.png', complete=True,
+                             style='hierarchical')
+        pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
                 for subject_id in self.SUBJECT_IDS:
