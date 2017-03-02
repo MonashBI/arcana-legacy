@@ -166,7 +166,7 @@ class Pipeline(object):
             reprocessed.
         """
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
-        self._connect_to_archive(complete_workflow, **kwargs)
+        self.connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
         return complete_workflow.run()
 
@@ -195,7 +195,7 @@ class Pipeline(object):
         os.chdir(tmpdir)
         if complete:
             workflow = pe.Workflow(name=self.name, base_dir=tmpdir)
-            self._connect_to_archive(workflow)
+            self.connect_to_archive(workflow)
             out_dir = os.path.join(tmpdir, self.name)
         else:
             workflow = self._workflow
@@ -209,7 +209,7 @@ class Pipeline(object):
         shutil.move(os.path.join(out_dir, graph_file), fname)
         shutil.rmtree(tmpdir)
 
-    def _connect_to_archive(self, complete_workflow, subject_ids=None,
+    def connect_to_archive(self, complete_workflow, subject_ids=None,
                             filter_session_ids=None, reprocess=False,
                             project=None):
         """
@@ -262,27 +262,32 @@ class Pipeline(object):
         # Prepend prerequisite pipelines to complete workflow if required
         prereqs = list(self.prerequisities)
         if prereqs:
-            prereq_reports = self.create_node(Merge(len(prereqs)),
-                                              'prereq_reports')
+            reports = []
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
             for i, prereq in enumerate(prereqs, 1):
                 # NB: Even if reprocess==True, the prerequisite pipelines are
                 # not re-processed, they are only reprocessed if reprocess ==
                 # 'all'
-                prereq_report = prereq._connect_to_archive(
+                prereq_report = prereq.connect_to_archive(
                     complete_workflow=complete_workflow,
                     subject_ids=prereq_subject_ids,
                     filter_session_ids=filter_session_ids,
                     reprocess=(reprocess if reprocess == 'all' else False),
                     project=project)
-                # Connect the output summary of the prerequisite to the
-                # pipeline to ensure that the prerequisite is run first.
-                complete_workflow.connect(
-                    prereq_report, 'subject_session_pairs',
-                    prereq_reports, 'in{}'.format(i))
-            complete_workflow.connect(prereq_reports, 'out', subjects,
-                                      'prereq_reports')
+                if prereq_report is not None:
+                    reports.append(prereq_report)
+            if reports:
+                prereq_reports = self.create_node(Merge(len(reports)),
+                                                  'prereq_reports')
+                for report in reports:
+                    # Connect the output summary of the prerequisite to the
+                    # pipeline to ensure that the prerequisite is run first.
+                    complete_workflow.connect(
+                        report, 'subject_session_pairs',
+                        prereq_reports, 'in{}'.format(i))
+                    complete_workflow.connect(prereq_reports, 'out', subjects,
+                                              'prereq_reports')
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(

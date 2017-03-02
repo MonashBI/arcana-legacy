@@ -6,7 +6,7 @@ class InputSubjectsInputSpec(TraitedSpec):
 
     subject_id = traits.Str(mandatory=True, desc=("The subject ID"))
     prereq_reports = traits.List(
-        traits.Tuple(traits.Str, traits.Str),
+        traits.Tuple(traits.Str, traits.Str), value=[],
         desc=("A list of session reports from all prerequisite pipelines"))
 
 
