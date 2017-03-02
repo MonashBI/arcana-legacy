@@ -759,7 +759,7 @@ class Pipeline(object):
         return self._max_nthreads
 
     def node(self, name):
-        return self.workflow.get_node(name)
+        return self.workflow.get_node('{}_{}'.format(self.name, name))
 
     @property
     def suffix(self):
