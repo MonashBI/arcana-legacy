@@ -41,8 +41,8 @@ class ConversionStudy(Study):
             citations=[],
             approx_runtime=1)
         # Convert from DICOM to NIfTI.gz format on input
-        nifti_gz_from_dicom = pipeline.create_node(IdentityInterface(fields=['file']),
-                                            name="nifti_gz_from_dicom")
+        nifti_gz_from_dicom = pipeline.create_node(
+            IdentityInterface(fields=['file']), "nifti_gz_from_dicom")
         pipeline.connect_input('dicom', nifti_gz_from_dicom,
                                'file')
         pipeline.connect_output('nifti_gz_from_dicom', nifti_gz_from_dicom,
@@ -55,22 +55,22 @@ class ConversionStudy(Study):
         pipeline.connect_output('mrtrix_from_nifti_gz', mrtrix_from_nifti_gz,
                                 'file')
         # Convert from MRtrix to NIfTI format on output
-        nifti_from_mrtrix = pipeline.create_node(IdentityInterface(fields=['file']),
-                                          name='nifti_from_mrtrix')
+        nifti_from_mrtrix = pipeline.create_node(
+            IdentityInterface(fields=['file']), 'nifti_from_mrtrix')
         pipeline.connect_input('mrtrix', nifti_from_mrtrix,
                                'file')
         pipeline.connect_output('nifti_from_mrtrix', nifti_from_mrtrix,
                                 'file')
         # Convert from zip file to directory format on input
-        directory_from_zip = pipeline.create_node(IdentityInterface(fields=['file']),
-                                           name='directory_from_zip')
+        directory_from_zip = pipeline.create_node(
+            IdentityInterface(fields=['file']), 'directory_from_zip')
         pipeline.connect_input('zip', directory_from_zip,
                                'file')
         pipeline.connect_output('directory_from_zip', directory_from_zip,
                                 'file')
         # Convert from NIfTI.gz to MRtrix format on output
-        zip_from_directory = pipeline.create_node(IdentityInterface(fields=['file']),
-                                           name='zip_from_directory')
+        zip_from_directory = pipeline.create_node(
+            IdentityInterface(fields=['file']), 'zip_from_directory')
         pipeline.connect_input('directory', zip_from_directory,
                                'file')
         pipeline.connect_output('zip_from_directory', zip_from_directory,

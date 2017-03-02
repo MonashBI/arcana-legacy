@@ -317,10 +317,10 @@ class Pipeline(object):
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt.name)
-        # Create a summary node for holding a summary of all the sessions/
+        # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        output_summary = self.create_node(PipelineReport(), 'output_summary')
+        report = self.create_node(PipelineReport(), 'report')
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
@@ -357,9 +357,8 @@ class Pipeline(object):
                         output_node, node_dataset_name,
                         sink, dataset.name + INPUT_SUFFIX)
             self._connect_to_reports(
-                sink, output_summary, mult, subjects, sessions,
-                complete_workflow)
-        return output_summary
+                sink, report, mult, subjects, sessions, complete_workflow)
+        return report
 
     def _subject_and_session_iterators(self, sessions_to_process, workflow):
         """
