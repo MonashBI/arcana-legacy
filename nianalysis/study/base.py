@@ -126,7 +126,7 @@ class Study(object):
         """Accessor for the archive member (e.g. Daris, XNAT, MyTardis)"""
         return self._archive
 
-    def _create_pipeline(self, *args, **options):
+    def create_pipeline(self, *args, **options):
         """
         Creates a Pipeline object, passing the study (self) as the first
         argument

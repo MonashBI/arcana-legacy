@@ -22,7 +22,7 @@ logger.addHandler(handler)
 class DummySubStudyA(Study):
 
     def pipeline1(self):
-        pipeline = self._create_pipeline(
+        pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
@@ -33,8 +33,8 @@ class DummySubStudyA(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        merge = pe.Node(Merge(2), name="merge")
-        mrmath = pe.Node(MRMath(), name="mrmath")
+        merge = pipeline.create_node(Merge(2), name="merge")
+        mrmath = pipeline.create_node(MRMath(), name="mrmath")
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('x', merge, 'in1')
@@ -56,7 +56,7 @@ class DummySubStudyA(Study):
 class DummySubStudyB(Study):
 
     def pipeline1(self):
-        pipeline = self._create_pipeline(
+        pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('w', mrtrix_format),
                     DatasetSpec('x', mrtrix_format)],
@@ -68,14 +68,14 @@ class DummySubStudyB(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        merge1 = pe.Node(Merge(2), name='merge1')
-        merge2 = pe.Node(Merge(2), name='merge2')
-        merge3 = pe.Node(Merge(2), name='merge3')
-        mrsum1 = pe.Node(MRMath(), name="mrsum1")
+        merge1 = pipeline.create_node(Merge(2), name='merge1')
+        merge2 = pipeline.create_node(Merge(2), name='merge2')
+        merge3 = pipeline.create_node(Merge(2), name='merge3')
+        mrsum1 = pipeline.create_node(MRMath(), name="mrsum1")
         mrsum1.inputs.operation = 'sum'
-        mrsum2 = pe.Node(MRMath(), name="mrsum2")
+        mrsum2 = pipeline.create_node(MRMath(), name="mrsum2")
         mrsum2.inputs.operation = 'sum'
-        mrproduct = pe.Node(MRMath(), name="mrproduct")
+        mrproduct = pipeline.create_node(MRMath(), name="mrproduct")
         mrproduct.inputs.operation = 'product'
         # Connect inputs
         pipeline.connect_input('w', merge1, 'in1')

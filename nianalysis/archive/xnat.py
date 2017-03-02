@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from abc import ABCMeta, abstractmethod
 import os.path
 import shutil
 import stat
@@ -10,7 +11,8 @@ from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec, Session, Subject, Project)
+    ArchiveProjectSinkInputSpec, Session, Subject, Project, ArchiveSubjectSink,
+    ArchiveProjectSink)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
@@ -210,27 +212,26 @@ class XNATProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
     pass
 
 
-class XNATSink(ArchiveSink, XNATMixin):
+class XNATSinkMixin(XNATMixin):
     """
     A NiPype IO interface for putting processed datasets onto DaRIS (analogous
     to DataSink)
     """
 
-    input_spec = XNATSinkInputSpec
-    ACCEPTED_MULTIPLICITIES = ('per_session',)
+    __metaclass__ = ABCMeta
 
     def _list_outputs(self):
         """Execute this module.
         """
         # Initiate output
-        outputs = self.output_spec().get()
+        outputs = self._base_outputs()
         out_files = []
         missing_files = []
         # Open XNAT session
         sess_kwargs = {}
-        if isdefined(self.inputs.user):
+        if 'user' in self.inputs.trait_names():  # Because InputSpec is dynamic
             sess_kwargs['user'] = self.inputs.user
-        if isdefined(self.inputs.password):
+        if 'password' in self.inputs.trait_names():
             sess_kwargs['password'] = self.inputs.password
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
@@ -291,23 +292,6 @@ class XNATSink(ArchiveSink, XNATMixin):
         outputs['out_files'] = out_files
         return outputs
 
-    def _get_session(self, xnat_login):
-        project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.inputs.subject_id]
-        assert self.full_session_id in subject.experiments
-        session_name = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
-        try:
-            session = subject.experiments[session_name]
-        except KeyError:
-            session = self._create_session(xnat_login, subject.id,
-                                           session_name)
-        # Get cache dir for session
-        cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            self.inputs.subject_id,
-            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))
-        return session, cache_dir
-
     def _create_session(self, xnat_login, subject_id, session_id):
         """
         This creates a processed session in a way that respects whether
@@ -332,12 +316,36 @@ class XNATSink(ArchiveSink, XNATMixin):
         return xnat_login.classes.MrSessionData(uri=uri,
                                                 xnat_session=xnat_login)
 
+    @abstractmethod
+    def _get_session(self, xnat_login):
+        "Returns the session matching the sink specification"
 
-class XNATSubjectSink(XNATSink):
+
+class XNATSink(XNATSinkMixin, ArchiveSink):
+
+    input_spec = XNATSinkInputSpec
+
+    def _get_session(self, xnat_login):
+        project = xnat_login.projects[self.inputs.project_id]
+        subject = project.subjects[self.inputs.subject_id]
+        assert self.full_session_id in subject.experiments
+        session_name = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
+        try:
+            session = subject.experiments[session_name]
+        except KeyError:
+            session = self._create_session(xnat_login, subject.id,
+                                           session_name)
+        # Get cache dir for session
+        cache_dir = os.path.abspath(os.path.join(
+            self.inputs.cache_dir, self.inputs.project_id,
+            self.inputs.subject_id,
+            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))
+        return session, cache_dir
+
+
+class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
 
     input_spec = XNATSubjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_subject',)
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
@@ -356,11 +364,9 @@ class XNATSubjectSink(XNATSink):
         return session, cache_dir
 
 
-class XNATProjectSink(XNATSink):
+class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
 
     input_spec = XNATProjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
@@ -584,9 +590,9 @@ class XNATArchive(Archive):
         if sessions is None:
             sessions = self.all_sessions(project_id=project_id)
         sess_with_dataset = []
-        with self._daris() as daris:
+        with self._login() as xnat_login:
             for session in sessions:
-                entries = daris.get_datasets(
+                entries = xnat_login.get_datasets(
                     project_id, session.subject_id, session.session_id,
                     repo_id=self._repo_id,
                     ex_method_id=int(dataset.processed) + 1)

@@ -1,5 +1,6 @@
 import os.path
 import shutil
+from abc import ABCMeta, abstractmethod
 import subprocess
 from copy import copy
 import stat
@@ -14,7 +15,8 @@ from nianalysis.exceptions import (
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec, Session, Subject, Project)
+    ArchiveProjectSinkInputSpec, Session, Subject, Project, ArchiveSubjectSink,
+    ArchiveProjectSink)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.data_formats import data_formats
 import re
@@ -176,20 +178,19 @@ class DarisProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
     pass
 
 
-class DarisSink(ArchiveSink):
+class DarisSinkMixin(object):
     """
     A NiPype IO interface for putting processed datasets onto DaRIS (analogous
     to DataSink)
     """
 
-    input_spec = DarisSinkInputSpec
-    ACCEPTED_MULTIPLICITIES = ('per_session',)
+    __metaclass__ = ABCMeta
 
     def _list_outputs(self):
         """Execute this module.
         """
         # Initiate outpu
-        outputs = self.output_spec().get()
+        outputs = self._base_outputs()
         out_files = []
         missing_files = []
         # Get the ex-method, subject and session IDs specific to the sink
@@ -280,6 +281,15 @@ class DarisSink(ArchiveSink):
         outputs['out_files'] = out_files
         return outputs
 
+    @abstractmethod
+    def _get_daris_ids(self):
+        "Return the daris IDS for the session corresponding to this sink"
+
+
+class DarisSink(DarisSinkMixin, ArchiveSink):
+
+    input_spec = DarisSinkInputSpec
+
     def _get_daris_ids(self):
         ex_method_id = 2
         subject_id = self.inputs.subject_id
@@ -287,11 +297,9 @@ class DarisSink(ArchiveSink):
         return ex_method_id, subject_id, session_id
 
 
-class DarisSubjectSink(DarisSink):
+class DarisSubjectSink(DarisSinkMixin, ArchiveSubjectSink):
 
     input_spec = DarisSubjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_subject',)
 
     def _get_daris_ids(self):
         ex_method_id = SUBJECT_SUMMARY_ID
@@ -300,11 +308,9 @@ class DarisSubjectSink(DarisSink):
         return ex_method_id, subject_id, session_id
 
 
-class DarisProjectSink(DarisSink):
+class DarisProjectSink(DarisSinkMixin, ArchiveProjectSink):
 
     input_spec = DarisProjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_daris_ids(self):
         ex_method_id = PROJECT_SUMMARY_ID

@@ -1,9 +1,10 @@
+from abc import ABCMeta, abstractmethod
 import os.path
 from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec)
+    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveProjectSink)
 import stat
 import shutil
 import logging
@@ -88,17 +89,16 @@ class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
     pass
 
 
-class LocalSink(ArchiveSink):
+class LocalSinkMixin(object):
 
+    __metaclass = ABCMeta
     input_spec = LocalSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_session', 'per_session_subset')
 
     def _list_outputs(self):
         """Execute this module.
         """
         # Initiate outputs
-        outputs = self.output_spec().get()
+        outputs = self._base_outputs()
         out_files = []
         missing_files = []
         # Get session dir
@@ -146,17 +146,24 @@ class LocalSink(ArchiveSink):
         outputs['out_files'] = out_files
         return outputs
 
+    @abstractmethod
+    def _get_output_path(self):
+        "Get the output path to save the generated datasets into"
+
+
+class LocalSink(LocalSinkMixin, ArchiveSink):
+
+    input_spec = LocalSinkInputSpec
+
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
             self.inputs.subject_id, self.inputs.session_id]
 
 
-class LocalSubjectSink(LocalSink):
+class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
 
     input_spec = LocalSubjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_subject', 'per_subject_subset')
 
     def _get_output_path(self):
         return [
@@ -164,11 +171,9 @@ class LocalSubjectSink(LocalSink):
             self.inputs.subject_id, SUBJECT_SUMMARY_NAME]
 
 
-class LocalProjectSink(LocalSink):
+class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
     input_spec = LocalProjectSinkInputSpec
-
-    ACCEPTED_MULTIPLICITIES = ('per_project',)
 
     def _get_output_path(self):
         return [

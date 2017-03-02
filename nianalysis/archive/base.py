@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined, isdefined)
+    Undefined, isdefined, File, Directory)
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
@@ -120,7 +120,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
         mandatory=True,
         desc='The project ID')
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
-    session_id = traits.Str(mandatory=True, usedefult=True,  # @UndefinedVariable @IgnorePep8
+    session_id = traits.Str(mandatory=True, usedefult=True,
                             desc="The session or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
@@ -158,7 +158,7 @@ class ArchiveSource(IOBase):
         self._outfields = outfields
         if infields:
             for key in infields:
-                self.inputs.add_trait(key, traits.Any)  # @UndefinedVariable
+                self.inputs.add_trait(key, traits.Any)
                 undefined_traits[key] = Undefined
 
     @abstractmethod
@@ -211,31 +211,48 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 
 class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    subject_id = traits.Str(mandatory=True, desc="The subject ID"),  # @UndefinedVariable @IgnorePep8
-    session_id = traits.Str(mandatory=False,  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Str(mandatory=True, desc="The subject ID"),
+    session_id = traits.Str(mandatory=False,
                             desc="The session or processed group ID")
 
 
 class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    subject_id = traits.Str(mandatory=True, desc="The subject ID")  # @UndefinedVariable @IgnorePep8
+    subject_id = traits.Str(mandatory=True, desc="The subject ID")
 
 
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
     pass
 
 
-class ArchiveSinkOutputSpec(TraitedSpec):
+class BaseArchiveSinkOutputSpec(TraitedSpec):
 
-    out_files = traits.Any(desc='datasink output')  # @UndefinedVariable
+    out_files = traits.List(
+        traits.Either(File(exists=True), Directory(exists=True)),
+        desc='datasink outputs')
 
 
-class ArchiveSink(IOBase):
+class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
+
+    project_id = traits.Str(desc="The project ID")
+    subject_id = traits.Str(desc="The subject ID")
+    session_id = traits.Str(desc="The session or processed group ID")
+
+
+class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
+
+    project_id = traits.Str(desc="The project ID")
+    subject_id = traits.Str(desc="The subject ID")
+
+
+class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
+
+    project_id = traits.Str(desc="The project ID")
+
+
+class BaseArchiveSink(IOBase):
 
     __metaclass__ = ABCMeta
-
-    input_spec = ArchiveSinkInputSpec
-    output_spec = ArchiveSinkOutputSpec
 
     def __init__(self, output_datasets, **kwargs):
         """
@@ -250,7 +267,7 @@ class ArchiveSink(IOBase):
         See class examples for usage
 
         """
-        super(ArchiveSink, self).__init__(**kwargs)
+        super(BaseArchiveSink, self).__init__(**kwargs)
         # used for mandatory inputs check
         self._infields = None
         self._outfields = None
@@ -258,8 +275,51 @@ class ArchiveSink(IOBase):
                                  for s in output_datasets])
 
     @abstractmethod
-    def _list_outputs(self):
-        pass
+    def _base_outputs(self):
+        "List the base outputs of the sink interface, which relate to the "
+        "subject/session/project that is being sunk"
+
+
+class ArchiveSink(BaseArchiveSink):
+
+    input_spec = ArchiveSinkInputSpec
+    output_spec = ArchiveSinkOutputSpec
+
+    ACCEPTED_MULTIPLICITIES = ('per_session',)
+
+    def _base_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['project_id'] = self.inputs.project_id
+        outputs['subject_id'] = self.inputs.subject_id
+        outputs['session_id'] = self.inputs.session_id
+        return outputs
+
+
+class ArchiveSubjectSink(BaseArchiveSink):
+
+    input_spec = ArchiveSubjectSinkInputSpec
+    output_spec = ArchiveSubjectSinkOutputSpec
+
+    ACCEPTED_MULTIPLICITIES = ('per_subject',)
+
+    def _base_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['project_id'] = self.inputs.project_id
+        outputs['subject_id'] = self.inputs.subject_id
+        return outputs
+
+
+class ArchiveProjectSink(BaseArchiveSink):
+
+    input_spec = ArchiveProjectSinkInputSpec
+    output_spec = ArchiveProjectSinkOutputSpec
+
+    ACCEPTED_MULTIPLICITIES = ('per_project',)
+
+    def _base_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['project_id'] = self.inputs.project_id
+        return outputs
 
 
 class Project(object):
