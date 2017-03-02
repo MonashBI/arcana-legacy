@@ -33,8 +33,8 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pe.Node(MRConvert(), name="convert1")
-        mrconvert2 = pe.Node(MRConvert(), name="convert2")
+        mrconvert = pipeline.node(MRConvert(), name="convert1")
+        mrconvert2 = pipeline.node(MRConvert(), name="convert2")
         # Connect inputs
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
@@ -57,7 +57,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pe.Node(MRCat(), name="mrcat")
+        mrmath = pipeline.node(MRCat(), name="mrcat")
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
@@ -79,7 +79,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pe.Node(MRConvert(), name="convert")
+        mrconvert = pipeline.node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
@@ -99,7 +99,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pe.Node(MRConvert(), name="convert")
+        mrconvert = pipeline.node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline3', mrconvert, 'in_file')
         # Connect outputs

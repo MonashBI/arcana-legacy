@@ -33,8 +33,8 @@ class DummySubStudyA(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        merge = pe.Node(Merge(2), name="merge")
-        mrmath = pe.Node(MRMath(), name="mrmath")
+        merge = pipeline.node(Merge(2), name="merge")
+        mrmath = pipeline.node(MRMath(), name="mrmath")
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('x', merge, 'in1')
@@ -68,14 +68,14 @@ class DummySubStudyB(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        merge1 = pe.Node(Merge(2), name='merge1')
-        merge2 = pe.Node(Merge(2), name='merge2')
-        merge3 = pe.Node(Merge(2), name='merge3')
-        mrsum1 = pe.Node(MRMath(), name="mrsum1")
+        merge1 = pipeline.node(Merge(2), name='merge1')
+        merge2 = pipeline.node(Merge(2), name='merge2')
+        merge3 = pipeline.node(Merge(2), name='merge3')
+        mrsum1 = pipeline.node(MRMath(), name="mrsum1")
         mrsum1.inputs.operation = 'sum'
-        mrsum2 = pe.Node(MRMath(), name="mrsum2")
+        mrsum2 = pipeline.node(MRMath(), name="mrsum2")
         mrsum2.inputs.operation = 'sum'
-        mrproduct = pe.Node(MRMath(), name="mrproduct")
+        mrproduct = pipeline.node(MRMath(), name="mrproduct")
         mrproduct.inputs.operation = 'product'
         # Connect inputs
         pipeline.connect_input('w', merge1, 'in1')

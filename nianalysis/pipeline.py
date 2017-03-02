@@ -10,6 +10,7 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
+from nianalysis.interfaces.utils import Chain
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     SubjectSessionReport, SessionReport)
@@ -73,9 +74,8 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
-        self._inputnode = pe.Node(IdentityInterface(
-            fields=list(self.input_names)),
-            name="{}_inputnode".format(name))
+        self._inputnode = self.node(IdentityInterface(
+            fields=list(self.input_names)), name="inputnode")
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -84,10 +84,10 @@ class Pipeline(object):
             self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
-            self._outputnodes[mult] = pe.Node(
+            self._outputnodes[mult] = self.node(
                 IdentityInterface(
                     fields=[o.name for o in self._outputs[mult]]),
-                name="{}_{}_outputnode".format(name, mult))
+                name="{}_outputnode".format(mult))
         # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(self.input_names)
         self._unconnected_outputs = set(self.output_names)
@@ -262,8 +262,8 @@ class Pipeline(object):
         # Prepend prerequisite pipelines to complete workflow if required
         prereqs = list(self.prerequisities)
         if prereqs:
-            prereq_reports = pe.Node(Merge(len(prereqs)),
-                                       '{}_prereq_summaries'.format(self.name))
+            prereq_reports = self.node(Merge(len(prereqs)),
+                                       'prereq_reports')
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
             for i, prereq in enumerate(prereqs, 1):
@@ -320,8 +320,7 @@ class Pipeline(object):
         # Create a summary node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        output_summary = pe.Node(PipelineReport(),
-                                 name=self.name + '_output_summary')
+        output_summary = self.node(PipelineReport(), 'output_summary')
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
@@ -371,8 +370,8 @@ class Pipeline(object):
         # the project
         subject_node_name = self.name + '_subjects'
         session_node_name = self.name + '_sessions'
-        subjects = pe.Node(InputSubjects(), name=subject_node_name)
-        sessions = pe.Node(InputSessions(), name=session_node_name)
+        subjects = self.node(InputSubjects(), subject_node_name)
+        sessions = self.node(InputSessions(), session_node_name)
         workflow.add_nodes([subjects, sessions])
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
@@ -547,7 +546,7 @@ class Pipeline(object):
                         name='subject_' + join_name,
                         joinsource='subjects', joinfield=[spec_name])
                 elif join == 'project_flat':
-                    # TODO: Need to implemente Chain interface for
+                    # TODO: Need to implement Chain interface for
                     # concatenating the session lists into a single list
                     inputnode = pe.JoinNode(
                         Chain([spec_name]), name='subject_' + join_name,
@@ -595,6 +594,21 @@ class Pipeline(object):
             self._study.dataset_spec(spec_name).multiplicity]
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
+
+    def node(self, interface, name):
+        """
+        Creates a Node in the pipeline (prepending the pipeline namespace)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        name : str
+            Name for the node
+        """
+        node = pe.Node(interface, name="{}_{}".format(self._name, name))
+        self._workflow.add_nodes([node])
+        return node
 
     def join_sessions_node(self, interface, joinfield, name):
         """
