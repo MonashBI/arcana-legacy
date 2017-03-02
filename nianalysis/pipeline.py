@@ -367,11 +367,8 @@ class Pipeline(object):
         """
         # Create nodes to control the iteration over subjects and sessions in
         # the project
-        subject_node_name = self.name + '_subjects'
-        session_node_name = self.name + '_sessions'
-        subjects = self.create_node(InputSubjects(), subject_node_name)
-        sessions = self.create_node(InputSessions(), session_node_name)
-        workflow.add_nodes([subjects, sessions])
+        subjects = self.create_node(InputSubjects(), 'subjects')
+        sessions = self.create_node(InputSessions(), 'sessions')
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subjects.iterables = ('subject_id',
@@ -394,7 +391,8 @@ class Pipeline(object):
             subject_sessions = defaultdict(list)
             for session in sessions_to_process:
                 subject_sessions[session.subject.id].append(session.id)
-            sessions.itersource = (subject_node_name, 'subject_id')
+            sessions.itersource = ('{}_subjects'.format(self.name),
+                                   'subject_id')
             sessions.iterables = ('session_id', subject_sessions)
         # Connect subject and session nodes together
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
