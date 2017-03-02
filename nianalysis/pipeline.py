@@ -74,8 +74,8 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
-        self._inputnode = self.node(IdentityInterface(
-            fields=list(self.input_names)), name="inputnode")
+        self._inputnode = self.node(
+            IdentityInterface(fields=list(self.input_names)), "inputnode")
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -262,7 +262,7 @@ class Pipeline(object):
         # Prepend prerequisite pipelines to complete workflow if required
         prereqs = list(self.prerequisities)
         if prereqs:
-            prereq_reports = self.node(Merge(len(prereqs)),
+            prereq_reports = self.create_node(Merge(len(prereqs)),
                                        'prereq_reports')
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
@@ -320,7 +320,7 @@ class Pipeline(object):
         # Create a summary node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        output_summary = self.node(PipelineReport(), 'output_summary')
+        output_summary = self.create_node(PipelineReport(), 'output_summary')
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
@@ -370,8 +370,8 @@ class Pipeline(object):
         # the project
         subject_node_name = self.name + '_subjects'
         session_node_name = self.name + '_sessions'
-        subjects = self.node(InputSubjects(), subject_node_name)
-        sessions = self.node(InputSessions(), session_node_name)
+        subjects = self.create_node(InputSubjects(), subject_node_name)
+        sessions = self.create_node(InputSessions(), session_node_name)
         workflow.add_nodes([subjects, sessions])
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
@@ -595,7 +595,7 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def node(self, interface, name):
+    def create_node(self, interface, name):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -610,7 +610,7 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def join_sessions_node(self, interface, joinfield, name):
+    def create_create_join_sessions_node(self, interface, joinfield, name):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -630,7 +630,7 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def join_subjects_node(self, interface, joinfield, name):
+    def create_create_join_subjects_node(self, interface, joinfield, name):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)

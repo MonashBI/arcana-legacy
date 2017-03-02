@@ -33,8 +33,8 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pipeline.node(MRConvert(), name="convert1")
-        mrconvert2 = pipeline.node(MRConvert(), name="convert2")
+        mrconvert = pipeline.create_node(MRConvert(), name="convert1")
+        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2")
         # Connect inputs
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
@@ -57,7 +57,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pipeline.node(MRCat(), name="mrcat")
+        mrmath = pipeline.create_node(MRCat(), name="mrcat")
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
@@ -79,7 +79,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pipeline.node(MRConvert(), name="convert")
+        mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
@@ -99,7 +99,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrconvert = pipeline.node(MRConvert(), name="convert")
+        mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline3', mrconvert, 'in_file')
         # Connect outputs
@@ -119,7 +119,7 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath = pipeline.join_sessions_node(MRMath(), 'in_files', 'mrmath')
+        mrmath = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -139,8 +139,8 @@ class DummyStudy(Study):
             requirements=[mrtrix3_req],
             citations=[],
             approx_runtime=1)
-        mrmath1 = pipeline.join_sessions_node(MRMath(), 'in_files', 'mrmath1')
-        mrmath2 = pipeline.join_subjects_node(MRMath(), 'in_files', 'mrmath2')
+        mrmath1 = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath1')
+        mrmath2 = pipeline.create_join_subjects_node(MRMath(), 'in_files', 'mrmath2')
         mrmath1.inputs.operation = 'sum'
         mrmath2.inputs.operation = 'sum'
         # Connect inputs
