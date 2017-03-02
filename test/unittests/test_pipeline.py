@@ -48,7 +48,7 @@ class ConversionStudy(Study):
         pipeline.connect_output('nifti_gz_from_dicom', nifti_gz_from_dicom,
                                 'file')
         # Convert from NIfTI.gz to MRtrix format on output
-        mrtrix_from_nifti_gz = pipeline.node(
+        mrtrix_from_nifti_gz = pipeline.create_node(
             IdentityInterface(fields=['file']), name='mrtrix_from_nifti_gz')
         pipeline.connect_input('nifti_gz', mrtrix_from_nifti_gz,
                                'file')

@@ -74,7 +74,7 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
-        self._inputnode = self.node(
+        self._inputnode = self.create_node(
             IdentityInterface(fields=list(self.input_names)), "inputnode")
         # Set up outputs
         self._check_spec_names(outputs, 'output')
@@ -84,7 +84,7 @@ class Pipeline(object):
             self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
-            self._outputnodes[mult] = self.node(
+            self._outputnodes[mult] = self.create_node(
                 IdentityInterface(
                     fields=[o.name for o in self._outputs[mult]]),
                 name="{}_outputnode".format(mult))

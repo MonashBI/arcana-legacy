@@ -149,7 +149,7 @@ class CombinedStudy(Study):
                 self._inputs.extend(add_inputs)
                 self._unconnected_inputs.update(i.name for i in add_inputs)
             # Create new input node
-            self._inputnode = self.node(
+            self._inputnode = self.create_node(
                 IdentityInterface(fields=list(self.input_names)),
                 name="inputnode")
             # Connect to sub-study input node
@@ -180,7 +180,7 @@ class CombinedStudy(Study):
             # Create output nodes for each multiplicity
             self._outputnodes = {}
             for mult in pipeline.mutliplicities:
-                self._outputnodes[mult] = self.node(
+                self._outputnodes[mult] = self.create_node(
                     IdentityInterface(
                         fields=list(self.multiplicity_output_names(mult))),
                     name="{}_outputnode".format(mult))
