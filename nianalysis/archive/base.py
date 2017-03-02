@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined, isdefined, File)
+    Undefined, isdefined, File, Directory)
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
@@ -227,7 +227,9 @@ class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class BaseArchiveSinkOutputSpec(TraitedSpec):
 
-    out_files = traits.List(File(exists=True), desc='datasink outputs')
+    out_files = traits.List(
+        traits.Either(File(exists=True), Directory(exists=True)),
+        desc='datasink outputs')
 
 
 class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
