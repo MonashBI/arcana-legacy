@@ -22,7 +22,7 @@ logger.addHandler(handler)
 class DummySubStudyA(Study):
 
     def pipeline1(self):
-        pipeline = self._create_pipeline(
+        pipeline = selfcreate_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
@@ -56,7 +56,7 @@ class DummySubStudyA(Study):
 class DummySubStudyB(Study):
 
     def pipeline1(self):
-        pipeline = self._create_pipeline(
+        pipeline = selfcreate_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('w', mrtrix_format),
                     DatasetSpec('x', mrtrix_format)],
