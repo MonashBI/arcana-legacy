@@ -21,7 +21,7 @@ logger.addHandler(handler)
 class ConversionStudy(Study):
 
     def pipeline(self):
-        pipeline = selfcreate_pipeline(
+        pipeline = self.create_pipeline(
             name='pipeline',
             inputs=[DatasetSpec('mrtrix', mrtrix_format),
                     DatasetSpec('nifti_gz', nifti_gz_format),

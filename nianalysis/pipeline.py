@@ -263,7 +263,7 @@ class Pipeline(object):
         prereqs = list(self.prerequisities)
         if prereqs:
             prereq_reports = self.create_node(Merge(len(prereqs)),
-                                       'prereq_reports')
+                                              'prereq_reports')
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
             for i, prereq in enumerate(prereqs, 1):
@@ -607,7 +607,7 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def create_create_join_sessions_node(self, interface, joinfield, name):
+    def create_join_sessions_node(self, interface, joinfield, name):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -627,7 +627,7 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def create_create_join_subjects_node(self, interface, joinfield, name):
+    def create_join_subjects_node(self, interface, joinfield, name):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
