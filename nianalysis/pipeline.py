@@ -15,6 +15,7 @@ from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.exceptions import NiAnalysisUsageError
 
 
 logger = getLogger('NIAnalysis')
@@ -148,7 +149,7 @@ class Pipeline(object):
 
     def run(self, work_dir=None, **kwargs):
         """
-        Connects pipeline to archive and runs it
+        Connects pipeline to archive and runs it on the local workstation
 
         Parameters
         ----------
@@ -169,6 +170,26 @@ class Pipeline(object):
         self.connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
         return complete_workflow.run()
+
+    def submit(self, scheduler='slurm', work_dir='/scratch/Monash016',
+               **kwargs):
+        """
+        Submits a pipeline to a scheduler que for processing
+
+        Parameters
+        ----------
+        scheduler : str
+            Name of the scheduler to submit the pipeline to
+        """
+        if scheduler == 'slurm':
+            plugin = 'SLURM'
+            plugin_args = {}
+        else:
+            raise NiAnalysisUsageError(
+                "Unsupported scheduler '{}'".format(scheduler))
+        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
+        self.connect_to_archive(complete_workflow, **kwargs)
+        return complete_workflow.run(plugin=plugin, plugin_args=plugin_args)
 
     def write_graph(self, fname, detailed=False, style='flat', complete=False):
         """
@@ -210,8 +231,8 @@ class Pipeline(object):
         shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
-                            filter_session_ids=None, reprocess=False,
-                            project=None):
+                           filter_session_ids=None, reprocess=False,
+                           project=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow
