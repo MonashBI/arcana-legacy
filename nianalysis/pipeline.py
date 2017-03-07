@@ -3,6 +3,7 @@ import tempfile
 import shutil
 from itertools import chain
 from collections import defaultdict
+import subprocess as sp
 from copy import copy
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
@@ -171,8 +172,8 @@ class Pipeline(object):
         # Run the workflow
         return complete_workflow.run()
 
-    def submit(self, scheduler='slurm', work_dir='/scratch/Monash016',
-               **kwargs):
+    def submit_hpc(self, scheduler='slurm', work_dir='/scratch/Monash016',
+                   cores=1, **kwargs):
         """
         Submits a pipeline to a scheduler que for processing
 
@@ -182,8 +183,16 @@ class Pipeline(object):
             Name of the scheduler to submit the pipeline to
         """
         if scheduler == 'slurm':
-            plugin = 'SLURM'
-            plugin_args = {}
+            plugin = 'SLURMGraph'
+            sbatch_args = ''
+            try:
+                email = sp.check_output('git config --get user.email',
+                                        shell=True)
+                sbatch_args += ' --mail-user={}'.format(email)
+            except sp.CalledProcessError:
+                pass
+            plugin_args = {
+                'sbatch_args': sbatch_args}
         else:
             raise NiAnalysisUsageError(
                 "Unsupported scheduler '{}'".format(scheduler))
@@ -824,3 +833,65 @@ class Pipeline(object):
             "'{}' output{} not connected".format(
                 "', '".join(self._unconnected_outputs),
                 ('s are' if len(self._unconnected_outputs) > 1 else ' is')))
+
+    _slurm_jobscript_tmpl = """
+    #!/bin/bash
+# Usage: sbatch slurm-parallel-job-script
+# Prepared By: Kai Xi,  Apr 2015
+#              help@massive.org.au
+
+# NOTE: To activate a SLURM option, remove the whitespace between the '#' and 'SBATCH'
+
+# To give your job a name, replace "MyJob" with an appropriate name
+# SBATCH --job-name=MyJob
+
+
+# To set a project account for credit charging,
+# SBATCH --account=pmosp
+
+
+# Request CPU resource for a parallel job, for example:
+#   4 Nodes each with 12 Cores/MPI processes
+# SBATCH --ntasks=48
+# SBATCH --ntasks-per-node=12
+# SBATCH --cpus-per-task=1
+
+# Memory usage (MB)
+# SBATCH --mem-per-cpu=4000
+
+# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
+# SBATCH --time=0-06:00:00
+
+
+# To receive an email when job completes or fails
+# SBATCH --mail-user=<You Email Address>
+# SBATCH --mail-type=END
+# SBATCH --mail-type=FAIL
+
+
+# Set the file for output (stdout)
+# SBATCH --output=MyJob-%j.out
+
+# Set the file for error log (stderr)
+# SBATCH --error=MyJob-%j.err
+
+
+# Use reserved node to run job when a node reservation is made for you already
+# SBATCH --reservation=reservation_name
+
+
+# Command to run a MPI job,
+#
+# Option 1: 'srun' is a wrapper of 'mpirun' and it can automatically detect how many MPI processes to be launched
+srun ./you_program
+
+# Option 2: mpiexec
+# For some cases, 'srun' does not perform the running behavior you want, you can still use raw MPI commands such as mpiexec, mpirun
+mpiexec ./you_program
+
+
+# If you want to enable bind-to-core option.
+srun --cpu_bind=cores,v ./you_program
+# Or
+mpiexec --bind-to core --report-bindings ./you_program
+"""
