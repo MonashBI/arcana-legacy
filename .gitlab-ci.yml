@@ -1,0 +1,11 @@
+test:
+  script:
+  - bash <(wget http://neuro.debian.net/_files/neurodebian-travis.sh)
+  - sudo apt-get -y update
+  - sudo apt-get install -y -qq fsl afni elastix fsl-atlases mrtrix3
+  - source /etc/fsl/fsl.sh
+  - source /etc/afni/afni.sh
+  - export FSLOUTPUTTYPE=NIFTI_GZ
+  - pip install nose
+  - pip install -r requirements.txt
+  - nosetests test 
