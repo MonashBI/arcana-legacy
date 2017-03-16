@@ -669,7 +669,8 @@ class DarisLogin:
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
 
-    def add_ex_method(self, project_id, subject_id, ex_method_id, repo_id=2):
+    def add_ex_method(self, project_id, subject_id, ex_method_id, repo_id=2,
+                      method_type=3):
         """
         Adds a new subject with the given subject_id within the given
         project_id.
@@ -681,9 +682,9 @@ class DarisLogin:
         description -- A description of the subject
         """
         cmd = (
-            "om.pssd.ex-method.create :mid \"1008.1.3\" "
+            "om.pssd.ex-method.create :mid \"1008.1.{}\" "
             ":sid 1008.{}.{}.{} :exmethod-number {}".format(
-                repo_id, project_id, subject_id, ex_method_id))
+                method_type, repo_id, project_id, subject_id, ex_method_id))
         # Return the id of the newly created subject
         return int(
             self.run(cmd, '/result/id', expect_single=True).split('.')[-1])
