@@ -127,6 +127,18 @@ class Pipeline(object):
     def __repr__(self):
         return "Pipeline(name='{}')".format(self.name)
 
+    @property
+    def requires_gpu(self):
+        return False  # FIXME: Need to implement this
+
+    @property
+    def max_memory(self):
+        return 4000
+
+    @property
+    def wall_time(self):
+        return '7-00:00:00'  # Max amount
+
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
@@ -172,8 +184,9 @@ class Pipeline(object):
         # Run the workflow
         return complete_workflow.run()
 
-    def submit_hpc(self, scheduler='slurm', work_dir='/scratch/Monash016',
-                   cores=1, **kwargs):
+    def submit(self, scheduler='slurm', work_dir='/scratch/Monash016',
+               cores=1, email=None, mail_on=('END', 'FAIL'),
+               wall_time=None, **kwargs):
         """
         Submits a pipeline to a scheduler que for processing
 
@@ -182,17 +195,26 @@ class Pipeline(object):
         scheduler : str
             Name of the scheduler to submit the pipeline to
         """
+        if email is None:
+            try:
+                email = os.environ['EMAIL']
+            except KeyError:
+                raise NiAnalysisError(
+                    "'email' needs to be provided if 'EMAIL' environment "
+                    "variable not set")
         if scheduler == 'slurm':
             plugin = 'SLURMGraph'
-            sbatch_args = ''
-            try:
-                email = sp.check_output('git config --get user.email',
-                                        shell=True)
-                sbatch_args += ' --mail-user={}'.format(email)
-            except sp.CalledProcessError:
-                pass
+            args = [('mail-user', email),
+                    ('partition', 'm3c' if self.requires_gpu else 'm3d'),
+                    ('ntasks', cores),
+                    ('mem-per-cpu', self.max_memory),
+                    ('cpus-per-task', 1),
+                    ('time', (wall_time
+                              if wall_time is not None else self.wall_time))]
+            for mo in mail_on:
+                args.append(('mail-type', mo))
             plugin_args = {
-                'sbatch_args': sbatch_args}
+                'sbatch_args': ' '.join('--{}={}'.format(*a) for a in args)}
         else:
             raise NiAnalysisUsageError(
                 "Unsupported scheduler '{}'".format(scheduler))
@@ -265,6 +287,11 @@ class Pipeline(object):
             runs of prerequisite pipelines to avoid having to re-query the
             archive. If None, the study info is loaded from the study
             archive.
+
+        Returns
+        -------
+        report : ReportNode
+            The final report node to of the 
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
