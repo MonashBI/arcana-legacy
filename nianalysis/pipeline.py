@@ -184,9 +184,8 @@ class Pipeline(object):
         # Run the workflow
         return complete_workflow.run()
 
-    def submit(self, scheduler='slurm', work_dir='/scratch/Monash016',
-               cores=1, email=None, mail_on=('END', 'FAIL'),
-               wall_time=None, **kwargs):
+    def submit(self, work_dir, cores=1, scheduler='slurm',
+               email=None, mail_on=('END', 'FAIL'), wall_time=None, **kwargs):
         """
         Submits a pipeline to a scheduler que for processing
 
