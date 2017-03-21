@@ -55,9 +55,10 @@ class EnvModuleNodeMixin(object):
     @classmethod
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
-            return sp.Popen(
-                ['{}/bin/modulecmd'.format(os.environ['MODULESHOME'])] + args,
+            output, _ = sp.Popen(
+                ['{}/bin/modulecmd'.format(os.environ['MODULESHOME']), 'python'] + list(args),
                 stdout=sp.PIPE, stderr=sp.PIPE).communicate()
+            exec output
 
 
 class Node(EnvModuleNodeMixin, NipypeNode):
@@ -87,7 +88,7 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
         NipypeNode.__init__(self, *args, **kwargs)
 
 
-if __name__ == '__init__':
+if __name__ == '__main__':
     print EnvModuleNodeMixin._preloaded_modules()
     EnvModuleNodeMixin._load_module('fsl')
     EnvModuleNodeMixin._load_module('matlab')
