@@ -14,7 +14,7 @@ class EnvModuleNodeMixin(object):
     """
 
     def __init__(self, **kwargs):
-        self._required_modules = kwargs.pop('required_modules', [])
+        self._required_modules = kwargs.pop('requirements', [])
         self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
@@ -43,6 +43,10 @@ class EnvModuleNodeMixin(object):
             return os.environ['LOADEDMODULES'].split(':')
         except KeyError:
             return []
+
+    @classmethod
+    def _avail_modules(cls):
+        cls._run_module_cmd('avail')
 
     @classmethod
     def _load_module(cls, module):

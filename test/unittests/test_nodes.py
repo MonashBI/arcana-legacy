@@ -1,3 +1,4 @@
+from nipype.pipeline import engine as pe
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
@@ -17,23 +18,14 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
-class ConversionStudy(Study):
+class RequirementsStudy(Study):
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('mrtrix', mrtrix_format),
-                    DatasetSpec('nifti_gz', nifti_gz_format),
-                    DatasetSpec('dicom', nifti_gz_format),
-                    DatasetSpec('directory', directory_format),
-                    DatasetSpec('zip', directory_format)],
-            outputs=[DatasetSpec('nifti_gz_from_dicom', nifti_gz_format),
-                     DatasetSpec('mrtrix_from_nifti_gz', nifti_gz_format),
-                     DatasetSpec('nifti_from_mrtrix', mrtrix_format),
-                     DatasetSpec('directory_from_zip', directory_format),
-                     DatasetSpec('zip_from_directory', directory_format)],
-            description=("A pipeline that tests out various data format "
-                         "conversions"),
+            inputs=[DatasetSpec('ones', nifti_gz_format)],
+            outputs=[DatasetSpec('threes', nifti_gz_format)],
+            description=("A pipeline that tests loading of requirements"),
             default_options={},
             version=1,
             requirements=[mrtrix3_req],
@@ -90,7 +82,7 @@ class ConversionStudy(Study):
         DatasetSpec('zip_from_directory', zip_format, pipeline))
 
 
-class TestFormatConversions(BaseTestCase):
+class TestModuleLoad(BaseTestCase):
 
     def test_pipeline_prerequisites(self):
         study = self.create_study(
