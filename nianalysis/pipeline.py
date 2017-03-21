@@ -3,9 +3,9 @@ import tempfile
 import shutil
 from itertools import chain
 from collections import defaultdict
-import subprocess as sp
 from copy import copy
 from nipype.pipeline import engine as pe
+from .nodes import Node, JoinNode
 from nipype.interfaces.utility import IdentityInterface, Merge
 from logging import getLogger
 from nianalysis.exceptions import (
@@ -290,7 +290,8 @@ class Pipeline(object):
         Returns
         -------
         report : ReportNode
-            The final report node to of the 
+            The final report node, which can be connected to subsequent
+            pipelines
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
@@ -469,11 +470,11 @@ class Pipeline(object):
         they are executed afterwards.
         """
         if mult == 'per_session':
-            session_outputs = pe.JoinNode(
+            session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
                 name=self.name + '_session_outputs')
-            subject_session_outputs = pe.JoinNode(
+            subject_session_outputs = JoinNode(
                 SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
                 name=self.name + '_subject_session_outputs')
@@ -485,7 +486,7 @@ class Pipeline(object):
                 subject_session_outputs, 'subject_session_pairs',
                 output_summary, 'subject_session_pairs')
         elif mult == 'per_subject':
-            subject_output_summary = pe.JoinNode(
+            subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=self.name + '_subject_summary_outputs')
             workflow.connect(sink, 'subject_id',
@@ -594,19 +595,19 @@ class Pipeline(object):
                                                 node_input)
             if join.startswith('project'):
                 # Create node to join the sessions first
-                session_join = pe.JoinNode(
+                session_join = JoinNode(
                     IdentityInterface([spec_name]),
                     name='session_' + join_name,
                     joinsource='sessions', joinfield=[spec_name])
                 if join == 'project':
-                    inputnode = pe.JoinNode(
+                    inputnode = JoinNode(
                         IdentityInterface([spec_name]),
                         name='subject_' + join_name,
                         joinsource='subjects', joinfield=[spec_name])
                 elif join == 'project_flat':
                     # TODO: Need to implement Chain interface for
                     # concatenating the session lists into a single list
-                    inputnode = pe.JoinNode(
+                    inputnode = JoinNode(
                         Chain([spec_name]), name='subject_' + join_name,
                         joinsource='subjects', joinfield=[spec_name])
                 else:
@@ -619,7 +620,7 @@ class Pipeline(object):
                 self._workflow.connect(session_join, spec_name, inputnode,
                                        spec_name)
             else:
-                inputnode = pe.JoinNode(
+                inputnode = JoinNode(
                     IdentityInterface([spec_name]), name=join_name,
                     joinsource=join, joinfield=[spec_name])
                 self._workflow.connect(self._inputnode, spec_name, inputnode,
@@ -664,7 +665,7 @@ class Pipeline(object):
         name : str
             Name for the node
         """
-        node = pe.Node(interface, name="{}_{}".format(self._name, name))
+        node = Node(interface, name="{}_{}".format(self._name, name))
         self._workflow.add_nodes([node])
         return node
 
@@ -682,7 +683,7 @@ class Pipeline(object):
         name : str
             Name for the node
         """
-        node = pe.JoinNode(interface,
+        node = JoinNode(interface,
                            joinsource='{}_sessions'.format(self.name),
                            joinfield=joinfield, name=name)
         self._workflow.add_nodes([node])
@@ -702,7 +703,7 @@ class Pipeline(object):
         name : str
             Name for the node
         """
-        node = pe.JoinNode(interface,
+        node = JoinNode(interface,
                            joinsource='{}_subjects'.format(self.name),
                            joinfield=joinfield, name=name)
         self._workflow.add_nodes([node])
@@ -859,65 +860,3 @@ class Pipeline(object):
             "'{}' output{} not connected".format(
                 "', '".join(self._unconnected_outputs),
                 ('s are' if len(self._unconnected_outputs) > 1 else ' is')))
-
-    _slurm_jobscript_tmpl = """
-    #!/bin/bash
-# Usage: sbatch slurm-parallel-job-script
-# Prepared By: Kai Xi,  Apr 2015
-#              help@massive.org.au
-
-# NOTE: To activate a SLURM option, remove the whitespace between the '#' and 'SBATCH'
-
-# To give your job a name, replace "MyJob" with an appropriate name
-# SBATCH --job-name=MyJob
-
-
-# To set a project account for credit charging,
-# SBATCH --account=pmosp
-
-
-# Request CPU resource for a parallel job, for example:
-#   4 Nodes each with 12 Cores/MPI processes
-# SBATCH --ntasks=48
-# SBATCH --ntasks-per-node=12
-# SBATCH --cpus-per-task=1
-
-# Memory usage (MB)
-# SBATCH --mem-per-cpu=4000
-
-# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
-# SBATCH --time=0-06:00:00
-
-
-# To receive an email when job completes or fails
-# SBATCH --mail-user=<You Email Address>
-# SBATCH --mail-type=END
-# SBATCH --mail-type=FAIL
-
-
-# Set the file for output (stdout)
-# SBATCH --output=MyJob-%j.out
-
-# Set the file for error log (stderr)
-# SBATCH --error=MyJob-%j.err
-
-
-# Use reserved node to run job when a node reservation is made for you already
-# SBATCH --reservation=reservation_name
-
-
-# Command to run a MPI job,
-#
-# Option 1: 'srun' is a wrapper of 'mpirun' and it can automatically detect how many MPI processes to be launched
-srun ./you_program
-
-# Option 2: mpiexec
-# For some cases, 'srun' does not perform the running behavior you want, you can still use raw MPI commands such as mpiexec, mpirun
-mpiexec ./you_program
-
-
-# If you want to enable bind-to-core option.
-srun --cpu_bind=cores,v ./you_program
-# Or
-mpiexec --bind-to core --report-bindings ./you_program
-"""
