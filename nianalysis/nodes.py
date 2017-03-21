@@ -1,6 +1,7 @@
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 import os
+import re
 import subprocess as sp
 import logging
 
@@ -46,7 +47,12 @@ class EnvModuleNodeMixin(object):
 
     @classmethod
     def _avail_modules(cls):
-        return cls._run_module_cmd('avail')
+        out_text = cls._run_module_cmd('avail')
+        sanitized = []
+        for l in out_text.split('\n'):
+            if not l.startswith('-'):
+                sanitized.append(l)
+        return re.findall(r'(\w+)/([^\s]+)', ' '.join(sanitized))
 
     @classmethod
     def _load_module(cls, module):
@@ -60,7 +66,8 @@ class EnvModuleNodeMixin(object):
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
             output, error = sp.Popen(
-                ['{}/bin/modulecmd'.format(os.environ['MODULESHOME']), 'python'] + list(args),
+                ['{}/bin/modulecmd'.format(os.environ['MODULESHOME']),
+                 'python'] + list(args),
                 stdout=sp.PIPE, stderr=sp.PIPE).communicate()
             exec output
             return error
@@ -93,8 +100,22 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
         self.nipype_cls.__init__(self, *args, **kwargs)
 
 if __name__ == '__main__':
-#    print EnvModuleNodeMixin._preloaded_modules()
-#    EnvModuleNodeMixin._load_module('mrtrix')
-#    print EnvModuleNodeMixin._preloaded_modules()
-#    print sp.check_output('mrinfo', shell=True)
-    print EnvModuleNodeMixin._avail_modules()
+    test_output = """
+---------------------------- /environment/modules/ -----------------------------
+ants/2.1.0                      neuron/7.4p
+dcm2niix/7-2-2017               neurosim/1.0
+fix1.06/1.06                    nianalysis_scripts/1.0(default)
+freesurfer/5.3                  niftimatlib/1.2
+fsl/5.0.8p(default)             noddi/0.9
+fsl/5.0.9                       qt/4
+fsl/parnesh                     R/3.3.2
+group_icat/4.0a                 rest/1.8
+itk/4.10.0(default)             rwmhseg/master
+matlab/R2015b(default)          spm/12(default)
+mcr/8.3                         spm/8
+mrtrix/3(default)               w2mhs/2.1
+mulan/master                    w2mhs-itk/1.0(default)
+nest/2.10.0                     xnat-utils/0.1
+neuron/7.4"""
+    print re.findall(r'(\w+)/([^\s]+)', test_output)
+#     print EnvModuleNodeMixin._avail_modules()
