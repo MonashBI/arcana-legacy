@@ -14,21 +14,21 @@ class EnvModuleNodeMixin(object):
     """
 
     def __init__(self, **kwargs):
-        self._required_modules = kwargs.pop('required', [])
+        self._required_modules = kwargs.pop('required_modules', [])
         self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
         self._load_modules()
-        self.nipype_cls._load_results(*args, **kwargs)
+        self.nipype_cls._load_results(self, *args, **kwargs)
         self._unload_modules()
 
     def _run_command(self, *args, **kwargs):
         self._load_modules()
-        self.nipype_cls._run_command(*args, **kwargs)
+        self.nipype_cls._run_command(self, *args, **kwargs)
         self._unload_modules()
 
     def _load_modules(self):
-        for req in self._required:
+        for req in self._required_modules:
             if req.module_name not in self._preloaded_modules():
                 self._load_module(req.module_name)
                 self._loaded_modules.append(req)
@@ -66,7 +66,7 @@ class Node(EnvModuleNodeMixin, NipypeNode):
 
     def __init__(self, *args, **kwargs):
         EnvModuleNodeMixin.__init__(self, **kwargs)
-        NipypeNode.__init__(self, *args, **kwargs)
+        self.nipype_cls.__init__(self, *args, **kwargs)
 
 
 class JoinNode(EnvModuleNodeMixin, NipypeJoinNode):
@@ -75,7 +75,7 @@ class JoinNode(EnvModuleNodeMixin, NipypeJoinNode):
 
     def __init__(self, *args, **kwargs):
         EnvModuleNodeMixin.__init__(self, **kwargs)
-        NipypeNode.__init__(self, *args, **kwargs)
+        self.nipype_cls.__init__(self, *args, **kwargs)
 
 
 class MapNode(EnvModuleNodeMixin, NipypeMapNode):
@@ -84,4 +84,4 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
 
     def __init__(self, *args, **kwargs):
         EnvModuleNodeMixin.__init__(self, **kwargs)
-        NipypeNode.__init__(self, *args, **kwargs)
+        self.nipype_cls.__init__(self, *args, **kwargs)
