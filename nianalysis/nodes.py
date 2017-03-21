@@ -85,10 +85,3 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
     def __init__(self, *args, **kwargs):
         EnvModuleNodeMixin.__init__(self, **kwargs)
         NipypeNode.__init__(self, *args, **kwargs)
-
-
-if __name__ == '__init__':
-    print EnvModuleNodeMixin._preloaded_modules()
-    EnvModuleNodeMixin._load_module('mrtrix')
-    print EnvModuleNodeMixin._preloaded_modules()
-    print sp.check_output('mrinfo', shell=True)
