@@ -89,8 +89,6 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
 
 if __name__ == '__init__':
     print EnvModuleNodeMixin._preloaded_modules()
-    EnvModuleNodeMixin._load_module('fsl')
-    EnvModuleNodeMixin._load_module('matlab')
+    EnvModuleNodeMixin._load_module('mrtrix')
     print EnvModuleNodeMixin._preloaded_modules()
-    EnvModuleNodeMixin._unload_module('matlab')
-    print EnvModuleNodeMixin._preloaded_modules()
+    print sp.check_output('mrinfo', shell=True)
