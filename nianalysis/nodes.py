@@ -52,7 +52,7 @@ class EnvModuleNodeMixin(object):
         for l in out_text.split('\n'):
             if not l.startswith('-'):
                 sanitized.append(l)
-        return re.findall(r'(\w+)/([^\s]+)', ' '.join(sanitized))
+        return re.findall(r'(\w+)/([\w\d\.\-\_]+)', ' '.join(sanitized))
 
     @classmethod
     def _load_module(cls, module):
@@ -117,5 +117,5 @@ mrtrix/3(default)               w2mhs/2.1
 mulan/master                    w2mhs-itk/1.0(default)
 nest/2.10.0                     xnat-utils/0.1
 neuron/7.4"""
-    print re.findall(r'(\w+)/([^\s]+)', test_output)
-#     print EnvModuleNodeMixin._avail_modules()
+#    print re.findall(r'(\w+)/([^\s]+)', test_output)
+    print EnvModuleNodeMixin._avail_modules()
