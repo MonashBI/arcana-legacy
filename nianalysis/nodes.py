@@ -46,7 +46,7 @@ class EnvModuleNodeMixin(object):
 
     @classmethod
     def _avail_modules(cls):
-        cls._run_module_cmd('avail')
+        return cls._run_module_cmd('avail')
 
     @classmethod
     def _load_module(cls, module):
@@ -59,10 +59,11 @@ class EnvModuleNodeMixin(object):
     @classmethod
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
-            output, _ = sp.Popen(
+            output, error = sp.Popen(
                 ['{}/bin/modulecmd'.format(os.environ['MODULESHOME']), 'python'] + list(args),
                 stdout=sp.PIPE, stderr=sp.PIPE).communicate()
             exec output
+            return error
 
 
 class Node(EnvModuleNodeMixin, NipypeNode):
@@ -92,7 +93,8 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
         self.nipype_cls.__init__(self, *args, **kwargs)
 
 if __name__ == '__main__':
-    print EnvModuleNodeMixin._preloaded_modules()
-    EnvModuleNodeMixin._load_module('mrtrix')
-    print EnvModuleNodeMixin._preloaded_modules()
-    print sp.check_output('mrinfo', shell=True)
+#    print EnvModuleNodeMixin._preloaded_modules()
+#    EnvModuleNodeMixin._load_module('mrtrix')
+#    print EnvModuleNodeMixin._preloaded_modules()
+#    print sp.check_output('mrinfo', shell=True)
+    print EnvModuleNodeMixin._avail_modules()
