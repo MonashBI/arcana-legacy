@@ -3,6 +3,7 @@ from nipype.pipeline.engine import (
 import os
 import re
 import subprocess as sp
+from collections import defaultdict
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -52,7 +53,11 @@ class EnvModuleNodeMixin(object):
         for l in out_text.split('\n'):
             if not l.startswith('-'):
                 sanitized.append(l)
-        return re.findall(r'(\w+)/([\w\d\.\-\_]+)', ' '.join(sanitized))
+        avail = defaultdict(list)
+        for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
+                                      ' '.join(sanitized)):
+            avail[module].append(ver)
+        return avail
 
     @classmethod
     def _load_module(cls, module):
