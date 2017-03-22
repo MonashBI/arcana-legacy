@@ -2,6 +2,10 @@ class NiAnalysisException(Exception):
     pass
 
 
+class NiAnalysisRequirementVersionException(NiAnalysisException):
+    pass
+
+
 class NiAnalysisError(NiAnalysisException):
     pass
 

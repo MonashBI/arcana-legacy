@@ -16,7 +16,7 @@ class EnvModuleNodeMixin(object):
     """
 
     def __init__(self, **kwargs):
-        self._required_modules = kwargs.pop('requirements', [])
+        self._required_modules = kwargs.pop('required_modules', [])
         self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
@@ -103,24 +103,3 @@ class MapNode(EnvModuleNodeMixin, NipypeMapNode):
     def __init__(self, *args, **kwargs):
         EnvModuleNodeMixin.__init__(self, **kwargs)
         self.nipype_cls.__init__(self, *args, **kwargs)
-
-if __name__ == '__main__':
-    test_output = """
----------------------------- /environment/modules/ -----------------------------
-ants/2.1.0                      neuron/7.4p
-dcm2niix/7-2-2017               neurosim/1.0
-fix1.06/1.06                    nianalysis_scripts/1.0(default)
-freesurfer/5.3                  niftimatlib/1.2
-fsl/5.0.8p(default)             noddi/0.9
-fsl/5.0.9                       qt/4
-fsl/parnesh                     R/3.3.2
-group_icat/4.0a                 rest/1.8
-itk/4.10.0(default)             rwmhseg/master
-matlab/R2015b(default)          spm/12(default)
-mcr/8.3                         spm/8
-mrtrix/3(default)               w2mhs/2.1
-mulan/master                    w2mhs-itk/1.0(default)
-nest/2.10.0                     xnat-utils/0.1
-neuron/7.4"""
-#    print re.findall(r'(\w+)/([^\s]+)', test_output)
-    print EnvModuleNodeMixin._avail_modules()
