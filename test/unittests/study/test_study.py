@@ -30,11 +30,11 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1")
-        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2")
+            citations=[],)
+        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
+                                         requirements=[mrtrix3_req])
+        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
+                                          requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
@@ -54,10 +54,9 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat")
+            citations=[],)
+        mrmath = pipeline.create_node(MRCat(), name="mrcat",
+                                      requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
@@ -76,9 +75,7 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[])
         mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
@@ -96,10 +93,9 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert")
+            citations=[],)
+        mrconvert = pipeline.create_node(MRConvert(), name="convert",
+                                         requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('pipeline3', mrconvert, 'in_file')
         # Connect outputs
@@ -116,10 +112,9 @@ class DummyStudy(Study):
             description=("Test of project summary variables"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath')
+            citations=[],)
+        mrmath = pipeline.create_join_sessions_node(
+            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -136,11 +131,11 @@ class DummyStudy(Study):
             description=("Test of project summary variables"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath1 = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath1')
-        mrmath2 = pipeline.create_join_subjects_node(MRMath(), 'in_files', 'mrmath2')
+            citations=[],)
+        mrmath1 = pipeline.create_join_sessions_node(
+            MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
+        mrmath2 = pipeline.create_join_subjects_node(
+            MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
         mrmath1.inputs.operation = 'sum'
         mrmath2.inputs.operation = 'sum'
         # Connect inputs

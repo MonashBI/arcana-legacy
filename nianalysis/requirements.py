@@ -119,8 +119,15 @@ spm12_req = Requirement('spm', min_version=(12, 0))
 
 freesurfer_req = Requirement('freesurfer', min_version=(5, 3))
 
-matlab_req = Requirement('matlab', min_version=(2014, 'a'),
-                         version_split=matlab_version_split)
+matlab2014_req = Requirement('matlab', min_version=(2014, 'a'),
+                             version_split=matlab_version_split)
+
+matlab2016_req = Requirement('matlab', min_version=(2016, 'a'),
+                             version_split=matlab_version_split)
+
+noddi_req = Requirement('noddi', min_version=(0, 9)),
+
+niftimatlab_req = Requirement('niftimatlib', (1, 2))
 
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)

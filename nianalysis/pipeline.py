@@ -649,7 +649,8 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name, **kwargs):
+    def create_node(self, interface, name, requirements=[], wall_time=None,
+                    min_nthreads=1, max_nthreads=1, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -669,11 +670,15 @@ class Pipeline(object):
             Maximum number of threads that can be used by the node (default: 1)
         """
         node = Node(interface, name="{}_{}".format(self._name, name),
-                    **kwargs)
+                        requirements=requirements, wall_time=wall_time,
+                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(self, interface, joinfield, name, **kwargs):
+    def create_join_sessions_node(
+            self, interface, joinfield, name, requirements=[], wall_time=None,
+            min_nthreads=1, max_nthreads=1, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -696,12 +701,17 @@ class Pipeline(object):
             Maximum number of threads that can be used by the node (default: 1)
         """
         node = JoinNode(interface,
-                           joinsource='{}_sessions'.format(self.name),
-                           joinfield=joinfield, name=name, **kwargs)
+                        joinsource='{}_sessions'.format(self.name),
+                        joinfield=joinfield, name=name,
+                        requirements=requirements, wall_time=wall_time,
+                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_subjects_node(self, interface, joinfield, name, **kwargs):
+    def create_join_subjects_node(
+            self, interface, joinfield, name, requirements=[], wall_time=None,
+            min_nthreads=1, max_nthreads=1, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -724,8 +734,11 @@ class Pipeline(object):
             Maximum number of threads that can be used by the node (default: 1)
         """
         node = JoinNode(interface,
-                           joinsource='{}_subjects'.format(self.name),
-                           joinfield=joinfield, name=name, **kwargs)
+                        joinsource='{}_subjects'.format(self.name),
+                        joinfield=joinfield, name=name,
+                        requirements=requirements, wall_time=wall_time,
+                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 

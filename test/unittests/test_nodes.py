@@ -26,8 +26,7 @@ class RequirementsStudy(Study):
             description=("A pipeline that tests loading of requirements"),
             default_options={},
             version=1,
-            citations=[],
-            approx_runtime=1)
+            citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
         merge = pipeline.create_node(Merge(2), 'merge')
         maths = pipeline.create_node(

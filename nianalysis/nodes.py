@@ -15,12 +15,13 @@ class NiAnalysisNodeMixin(object):
     (http://modules.sourceforge.net) before running the interface.
     """
 
-    def __init__(self, **kwargs):
+    def __init__(self, *args, **kwargs):
         self._required_modules = kwargs.pop('required_modules', [])
         self._min_threads = kwargs.pop('min_threads', 1)
         self._max_nthreads = kwargs.pop('max_nthreads', 1)
         self._wall_time = kwargs.pop('wall_time', None)
         self._loaded_modules = []
+        self.nipype_cls.__init__(self, *args, **kwargs)
 
     def _load_results(self, *args, **kwargs):
         self._load_modules()
@@ -85,24 +86,12 @@ class Node(NiAnalysisNodeMixin, NipypeNode):
 
     nipype_cls = NipypeNode
 
-    def __init__(self, *args, **kwargs):
-        NiAnalysisNodeMixin.__init__(self, **kwargs)
-        self.nipype_cls.__init__(self, *args, **kwargs)
-
 
 class JoinNode(NiAnalysisNodeMixin, NipypeJoinNode):
 
     nipype_cls = NipypeJoinNode
 
-    def __init__(self, *args, **kwargs):
-        NiAnalysisNodeMixin.__init__(self, **kwargs)
-        self.nipype_cls.__init__(self, *args, **kwargs)
-
 
 class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
 
     nipype_cls = NipypeMapNode
-
-    def __init__(self, *args, **kwargs):
-        NiAnalysisNodeMixin.__init__(self, **kwargs)
-        self.nipype_cls.__init__(self, *args, **kwargs)

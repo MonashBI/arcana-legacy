@@ -36,9 +36,7 @@ class ConversionStudy(Study):
                          "conversions"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
         nifti_gz_from_dicom = pipeline.create_node(
             IdentityInterface(fields=['file']), "nifti_gz_from_dicom")

@@ -1,6 +1,5 @@
 from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
-from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import Merge
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
@@ -30,11 +29,10 @@ class DummySubStudyA(Study):
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[])
         merge = pipeline.create_node(Merge(2), name="merge")
-        mrmath = pipeline.create_node(MRMath(), name="mrmath")
+        mrmath = pipeline.create_node(MRMath(), name="mrmath",
+                                      requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('x', merge, 'in1')
@@ -65,17 +63,18 @@ class DummySubStudyB(Study):
             description="A dummy pipeline used to test CombinedStudy class",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[])
         merge1 = pipeline.create_node(Merge(2), name='merge1')
         merge2 = pipeline.create_node(Merge(2), name='merge2')
         merge3 = pipeline.create_node(Merge(2), name='merge3')
-        mrsum1 = pipeline.create_node(MRMath(), name="mrsum1")
+        mrsum1 = pipeline.create_node(MRMath(), name="mrsum1",
+                                      requirements=[mrtrix3_req])
         mrsum1.inputs.operation = 'sum'
-        mrsum2 = pipeline.create_node(MRMath(), name="mrsum2")
+        mrsum2 = pipeline.create_node(MRMath(), name="mrsum2",
+                                      requirements=[mrtrix3_req])
         mrsum2.inputs.operation = 'sum'
-        mrproduct = pipeline.create_node(MRMath(), name="mrproduct")
+        mrproduct = pipeline.create_node(MRMath(), name="mrproduct",
+                                         requirements=[mrtrix3_req])
         mrproduct.inputs.operation = 'product'
         # Connect inputs
         pipeline.connect_input('w', merge1, 'in1')
