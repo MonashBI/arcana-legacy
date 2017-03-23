@@ -67,8 +67,7 @@ class Pipeline(object):
     """
 
     def __init__(self, study, name, inputs, outputs, description,
-                 default_options, citations, requirements, approx_runtime,
-                 version, min_nthreads=1, max_nthreads=1, options={}):
+                 default_options, citations, version, options={}):
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
@@ -108,10 +107,6 @@ class Pipeline(object):
             if k in self.options:
                 self.options[k] = v
         self._description = description
-        self._requirements = requirements
-        self._approx_runtime = approx_runtime
-        self._min_nthreads = min_nthreads
-        self._max_nthreads = max_nthreads
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -654,7 +649,7 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name):
+    def create_node(self, interface, name, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -664,12 +659,21 @@ class Pipeline(object):
             The interface to use for the node
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: None)
+        min_nthreads : int
+            Minimum number of threads required for the node to run (default: 1)
+        max_nthreads : int
+            Maximum number of threads that can be used by the node (default: 1)
         """
-        node = Node(interface, name="{}_{}".format(self._name, name))
+        node = Node(interface, name="{}_{}".format(self._name, name),
+                    **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(self, interface, joinfield, name):
+    def create_join_sessions_node(self, interface, joinfield, name, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -682,14 +686,22 @@ class Pipeline(object):
             The name of the field(s) to join into a list
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: None)
+        min_nthreads : int
+            Minimum number of threads required for the node to run (default: 1)
+        max_nthreads : int
+            Maximum number of threads that can be used by the node (default: 1)
         """
         node = JoinNode(interface,
                            joinsource='{}_sessions'.format(self.name),
-                           joinfield=joinfield, name=name)
+                           joinfield=joinfield, name=name, **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_subjects_node(self, interface, joinfield, name):
+    def create_join_subjects_node(self, interface, joinfield, name, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -702,10 +714,18 @@ class Pipeline(object):
             The name of the field(s) to join into a list
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: None)
+        min_nthreads : int
+            Minimum number of threads required for the node to run (default: 1)
+        max_nthreads : int
+            Maximum number of threads that can be used by the node (default: 1)
         """
         node = JoinNode(interface,
                            joinsource='{}_subjects'.format(self.name),
-                           joinfield=joinfield, name=name)
+                           joinfield=joinfield, name=name, **kwargs)
         self._workflow.add_nodes([node])
         return node
 

@@ -9,7 +9,7 @@ import logging
 logger = logging.getLogger('NiAnalysis')
 
 
-class EnvModuleNodeMixin(object):
+class NiAnalysisNodeMixin(object):
     """
     A Mixin class that loads required environment modules
     (http://modules.sourceforge.net) before running the interface.
@@ -17,6 +17,9 @@ class EnvModuleNodeMixin(object):
 
     def __init__(self, **kwargs):
         self._required_modules = kwargs.pop('required_modules', [])
+        self._min_threads = kwargs.pop('min_threads', 1)
+        self._max_nthreads = kwargs.pop('max_nthreads', 1)
+        self._wall_time = kwargs.pop('wall_time', None)
         self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
@@ -78,28 +81,28 @@ class EnvModuleNodeMixin(object):
             return error
 
 
-class Node(EnvModuleNodeMixin, NipypeNode):
+class Node(NiAnalysisNodeMixin, NipypeNode):
 
     nipype_cls = NipypeNode
 
     def __init__(self, *args, **kwargs):
-        EnvModuleNodeMixin.__init__(self, **kwargs)
+        NiAnalysisNodeMixin.__init__(self, **kwargs)
         self.nipype_cls.__init__(self, *args, **kwargs)
 
 
-class JoinNode(EnvModuleNodeMixin, NipypeJoinNode):
+class JoinNode(NiAnalysisNodeMixin, NipypeJoinNode):
 
     nipype_cls = NipypeJoinNode
 
     def __init__(self, *args, **kwargs):
-        EnvModuleNodeMixin.__init__(self, **kwargs)
+        NiAnalysisNodeMixin.__init__(self, **kwargs)
         self.nipype_cls.__init__(self, *args, **kwargs)
 
 
-class MapNode(EnvModuleNodeMixin, NipypeMapNode):
+class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
 
     nipype_cls = NipypeMapNode
 
     def __init__(self, *args, **kwargs):
-        EnvModuleNodeMixin.__init__(self, **kwargs)
+        NiAnalysisNodeMixin.__init__(self, **kwargs)
         self.nipype_cls.__init__(self, *args, **kwargs)
