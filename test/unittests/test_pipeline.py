@@ -2,7 +2,6 @@ from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
-from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
