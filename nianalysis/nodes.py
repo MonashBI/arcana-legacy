@@ -5,6 +5,7 @@ import re
 import subprocess as sp
 from collections import defaultdict
 import logging
+from nianalysis.exceptions import NiAnalysisError
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -34,21 +35,32 @@ class NiAnalysisNodeMixin(object):
         self._unload_modules()
 
     def _load_modules(self):
+        preloaded = self._preloaded_modules()
         for req in self._required_modules:
-            if req.module_name not in self._preloaded_modules():
-                self._load_module(req.module_name)
-                self._loaded_modules.append(req)
+            try:
+                version = preloaded[req.name]
+                if not req.valid_version(version):
+                    raise NiAnalysisError(
+                        "Incompatible module version already loaded {}/{}, "
+                        "please unload before running pipeline"
+                        .format(req.name, version))
+            except KeyError:
+                mod_name = '{}/{}'.format(
+                    req.name,
+                    req.best_version(self._avail_modules()[req.name]))
+                self._load_module(mod_name)
+                self._loaded_modules.append(mod_name)
 
     def _unload_modules(self):
-        for req in self._loaded_modules:
-            self._unload_module(req.module_name)
+        for mod_name in self._loaded_modules:
+            self._unload_module(mod_name)
 
     @classmethod
     def _preloaded_modules(cls):
         try:
-            return os.environ['LOADEDMODULES'].split(':')
+            dict(m.split('/') for m in os.environ['LOADEDMODULES'].split(':'))
         except KeyError:
-            return []
+            return {}
 
     @classmethod
     def _avail_modules(cls):

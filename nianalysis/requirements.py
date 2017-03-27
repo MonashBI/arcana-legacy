@@ -99,6 +99,11 @@ class Requirement(object):
             raise NiAnalysisRequirementVersionException(msg)
         return best[0]
 
+    def valid_version(self, version):
+        return (self.later_or_equal_version(version, self.min_version) and
+                (self.max_version is None or
+                 self.later_or_equal_version(self.max_version, version)))
+
     @classmethod
     def later_or_equal_version(cls, version, reference):
         for v_part, r_part in izip_longest(version, reference, fillvalue=0):
