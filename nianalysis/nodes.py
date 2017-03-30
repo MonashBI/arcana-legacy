@@ -42,8 +42,10 @@ class NiAnalysisNodeMixin(object):
                 if not req.valid_version(version):
                     raise NiAnalysisError(
                         "Incompatible module version already loaded {}/{}, "
-                        "please unload before running pipeline"
-                        .format(req.name, version))
+                        "(valid {}->{}) please unload before running pipeline"
+                        .format(req.name, version, req.min_version,
+                                (req.max_version if req.max_version is not None
+                                 else '')))
             except KeyError:
                 mod_name = '{}/{}'.format(
                     req.name,
