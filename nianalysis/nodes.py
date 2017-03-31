@@ -63,16 +63,17 @@ class NiAnalysisNodeMixin(object):
                     mod_name = '{}/{}'.format(req.name, best_version)
                     self._load_module(mod_name)
                     self._loaded_modules.append(mod_name)
-        except NiAnalysisModulesNotInstalledException:
-            logger.debug("Skipping loading modules as MODULESHOME is not set")
+        except NiAnalysisModulesNotInstalledException as e:
+            logger.debug("Skipping loading modules as '{}' is not set"
+                         .format(e))
 
     def _unload_modules(self):
         try:
             for mod_name in self._loaded_modules:
                 self._unload_module(mod_name)
-        except NiAnalysisModulesNotInstalledException:
-            logger.debug("Skipping unloading modules as MODULESHOME is not "
-                         "set")
+        except NiAnalysisModulesNotInstalledException as e:
+            logger.debug("Skipping unloading modules as '{}' is not set"
+                         .format(e))
 
     @classmethod
     def _preloaded_modules(cls):
@@ -81,7 +82,7 @@ class NiAnalysisNodeMixin(object):
             if loaded:
                 dict(m.split('/') for m in loaded.split(':'))
         except KeyError:
-            raise NiAnalysisModulesNotInstalledException()
+            raise NiAnalysisModulesNotInstalledException('LOADEDMODULES')
 
     @classmethod
     def _avail_modules(cls):
@@ -115,7 +116,7 @@ class NiAnalysisNodeMixin(object):
             exec output
             return error
         else:
-            raise NiAnalysisModulesNotInstalledException()
+            raise NiAnalysisModulesNotInstalledException('MODULESHOME')
 
 
 class Node(NiAnalysisNodeMixin, NipypeNode):
