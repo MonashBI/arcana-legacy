@@ -22,6 +22,9 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 
+import nipype
+print nipype.__version__
+
 class DummyStudy(Study):
 
     def pipeline1(self):
