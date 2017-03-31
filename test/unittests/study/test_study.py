@@ -9,6 +9,8 @@ from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
 from nianalysis.testing import BaseTestCase  # @IgnorePep8
 import logging  # @IgnorePep8
 
+logging.getLogger("requests").setLevel(logging.WARNING)
+
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
