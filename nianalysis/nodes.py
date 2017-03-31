@@ -42,7 +42,7 @@ class NiAnalysisNodeMixin(object):
                          .format(self._required_modules, self.name))
             for req in self._required_modules:
                 try:
-                    version = preloaded[req.name]
+                    version = req.split_version(preloaded[req.name])
                     logger.debug("Found preloaded version {} of module '{}'"
                                  .format(version, req.name))
                     if not req.valid_version(version):
@@ -60,32 +60,28 @@ class NiAnalysisNodeMixin(object):
                     logger.debug("Loading best version '{}' of module '{}' for"
                                  " requirement {}".format(best_version,
                                                           req.name, req))
-                    mod_name = '{}/{}'.format(req.name, best_version)
-                    self._load_module(mod_name)
-                    self._loaded_modules.append(mod_name)
+                    self.load_module(req.name, best_version)
+                    self._loaded_modules.append((req.name, best_version))
         except NiAnalysisModulesNotInstalledException as e:
             logger.debug("Skipping loading modules as '{}' is not set"
                          .format(e))
 
     def _unload_modules(self):
         try:
-            for mod_name in self._loaded_modules:
-                self._unload_module(mod_name)
+            for name, ver in self._loaded_modules:
+                self._unload_module(name, ver)
         except NiAnalysisModulesNotInstalledException as e:
             logger.debug("Skipping unloading modules as '{}' is not set"
                          .format(e))
 
     @classmethod
     def _preloaded_modules(cls):
-        try:
-            loaded = os.environ['LOADEDMODULES']
-            if loaded:
-                modules = dict(m.split('/') for m in loaded.split(':'))
-            else:
-                modules = {}
-            return modules
-        except KeyError:
-            raise NiAnalysisModulesNotInstalledException('LOADEDMODULES')
+        loaded = os.environ.get('LOADEDMODULES', '')
+        modules = {}
+        for modstr in loaded.split(':'):
+            name, versionstr = modstr.split('/')
+            modules[name] = versionstr
+        return modules
 
     @classmethod
     def _avail_modules(cls):
@@ -101,12 +97,16 @@ class NiAnalysisNodeMixin(object):
         return avail
 
     @classmethod
-    def _load_module(cls, module):
-        cls._run_module_cmd('load', module)
+    def load_module(cls, name, version=None):
+        cls._run_module_cmd('load', cls._version_str(name, version))
 
     @classmethod
-    def _unload_module(cls, module):
-        cls._run_module_cmd('unload', module)
+    def unload_module(cls, name, version=None):
+        cls._run_module_cmd('unload', cls._version_str(name, version))
+
+    @classmethod
+    def _version_str(cls, name, version=None):
+        return name + ('/' + version if version is not None else '')
 
     @classmethod
     def _run_module_cmd(cls, *args):

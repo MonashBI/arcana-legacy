@@ -16,7 +16,7 @@ def matlab_version_split(version_str):
     if match is None:
         raise NiAnalysisRequirementVersionException(
             "Do not understand Matlab version '{}'".format(version_str))
-    return match.group(1), match.group(2)
+    return int(match.group(1)), match.group(2)
 
 
 def date_split(version_str):
@@ -71,6 +71,9 @@ class Requirement(object):
     def max_version(self):
         return self._max_ver
 
+    def split_version(self, version_str):
+        return tuple(self._version_split(version_str))
+
     def best_version(self, available_versions):
         """
         Picks the latest acceptible version from the versions available
@@ -83,7 +86,7 @@ class Requirement(object):
         best = None
         for ver in available_versions:
             try:
-                v_parts = list(self._version_split(ver))
+                v_parts = self.split_version(ver)
             except NiAnalysisRequirementVersionException:
                 continue  # Incompatible version
             if (self.later_or_equal_version(v_parts, self._min_ver) and
@@ -113,7 +116,11 @@ class Requirement(object):
     @classmethod
     def later_or_equal_version(cls, version, reference):
         for v_part, r_part in izip_longest(version, reference, fillvalue=0):
-            assert isinstance(v_part, type(r_part))
+            if type(v_part) != type(r_part):
+                raise NiAnalysisError(
+                    "Type of version part {} (of '{}'), {}, does not match "
+                    "type of reference part {}, {}".format(
+                        v_part, version, type(v_part), r_part, type(r_part)))
             if v_part > r_part:
                 return True
             elif v_part < r_part:

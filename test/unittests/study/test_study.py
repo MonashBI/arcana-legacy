@@ -7,9 +7,11 @@ from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
 from nianalysis.testing import BaseTestCase  # @IgnorePep8
+from nianalysis.nodes import NiAnalysisNodeMixin
 import logging  # @IgnorePep8
 
 logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("workflow").setLevel(logging.WARNING)
 
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.DEBUG)
@@ -166,6 +168,7 @@ class TestRunPipeline(BaseTestCase):
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
 
     def setUp(self):
+        NiAnalysisNodeMixin.load_module('mrtrix')
         self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
             for session_id in self.SESSION_IDS:
@@ -174,6 +177,9 @@ class TestRunPipeline(BaseTestCase):
             DummyStudy, 'dummy', input_datasets={
                 'start': Dataset('start', nifti_gz_format),
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
+
+    def tearDown(self):
+        NiAnalysisNodeMixin.unload_module('mrtrix')
 
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4()
