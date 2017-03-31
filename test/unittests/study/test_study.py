@@ -1,7 +1,6 @@
 from nipype import config
 config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
-from nipype.pipeline import engine as pe  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
@@ -13,7 +12,6 @@ import logging  # @IgnorePep8
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)

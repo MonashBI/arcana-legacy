@@ -39,6 +39,8 @@ class NiAnalysisNodeMixin(object):
         for req in self._required_modules:
             try:
                 version = preloaded[req.name]
+                logger.debug("Found preloaded version {} of module '{}'"
+                             .format(version, req.name))
                 if not req.valid_version(version):
                     raise NiAnalysisError(
                         "Incompatible module version already loaded {}/{}, "
@@ -47,9 +49,12 @@ class NiAnalysisNodeMixin(object):
                                 (req.max_version if req.max_version is not None
                                  else '')))
             except KeyError:
-                mod_name = '{}/{}'.format(
-                    req.name,
-                    req.best_version(self._avail_modules()[req.name]))
+                best_version = req.best_version(
+                    self._avail_modules()[req.name])
+                logger.debug("Loading best version '{}' of module '{}' for "
+                             "requirement {}".format(best_version, req.name,
+                                                     req))
+                mod_name = '{}/{}'.format(req.name, best_version)
                 self._load_module(mod_name)
                 self._loaded_modules.append(mod_name)
 
