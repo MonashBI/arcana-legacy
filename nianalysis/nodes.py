@@ -76,11 +76,14 @@ class NiAnalysisNodeMixin(object):
 
     @classmethod
     def _preloaded_modules(cls):
-        loaded = os.environ.get('LOADEDMODULES', '')
-        modules = {}
-        for modstr in loaded.split(':'):
-            name, versionstr = modstr.split('/')
-            modules[name] = versionstr
+        loaded = os.environ.get('LOADEDMODULES', [])
+        if not loaded:
+            modules = {}
+        else:
+            modules = {}
+            for modstr in loaded.split(':'):
+                name, versionstr = modstr.split('/')
+                modules[name] = versionstr
         return modules
 
     @classmethod

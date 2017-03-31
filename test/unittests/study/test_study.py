@@ -1,5 +1,5 @@
 from nipype import config
-config.enable_debug_mode()
+# config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
@@ -7,7 +7,8 @@ from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
 from nianalysis.testing import BaseTestCase  # @IgnorePep8
-from nianalysis.nodes import NiAnalysisNodeMixin
+from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 import logging  # @IgnorePep8
 
 logging.getLogger("requests").setLevel(logging.WARNING)
@@ -168,7 +169,10 @@ class TestRunPipeline(BaseTestCase):
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
 
     def setUp(self):
-        NiAnalysisNodeMixin.load_module('mrtrix')
+        try:
+            NiAnalysisNodeMixin.load_module('mrtrix')
+        except NiAnalysisModulesNotInstalledException:
+            pass
         self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
             for session_id in self.SESSION_IDS:
@@ -179,7 +183,10 @@ class TestRunPipeline(BaseTestCase):
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
     def tearDown(self):
-        NiAnalysisNodeMixin.unload_module('mrtrix')
+        try:
+            NiAnalysisNodeMixin.unload_module('mrtrix')
+        except NiAnalysisModulesNotInstalledException:
+            pass
 
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4()
