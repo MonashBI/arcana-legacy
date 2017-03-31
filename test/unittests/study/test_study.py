@@ -12,18 +12,15 @@ from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @Ign
 import logging  # @IgnorePep8
 
 logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("workflow").setLevel(logging.WARNING)
+logging.getLogger("workflow").setLevel(logging.INFO)
 
 logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
-
-import nipype
-print nipype.__version__
 
 class DummyStudy(Study):
 
