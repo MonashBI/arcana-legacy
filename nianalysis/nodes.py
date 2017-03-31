@@ -81,6 +81,7 @@ class NiAnalysisNodeMixin(object):
             loaded = os.environ['LOADEDMODULES']
             if loaded:
                 dict(m.split('/') for m in loaded.split(':'))
+            return loaded
         except KeyError:
             raise NiAnalysisModulesNotInstalledException('LOADEDMODULES')
 
