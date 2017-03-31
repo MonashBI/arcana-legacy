@@ -36,6 +36,8 @@ class NiAnalysisNodeMixin(object):
 
     def _load_modules(self):
         preloaded = self._preloaded_modules()
+        logger.debug("Attempting to load required modules {} for '{}'"
+                     .format(self._required_modules, self.name))
         for req in self._required_modules:
             try:
                 version = preloaded[req.name]
