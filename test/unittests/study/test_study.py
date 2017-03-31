@@ -1,5 +1,5 @@
 from nipype import config
-# config.enable_debug_mode()
+config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
