@@ -18,6 +18,7 @@ from nianalysis.interfaces.iterators import (
     SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
+from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 
 
 logger = getLogger('NIAnalysis')
@@ -198,7 +199,7 @@ class Pipeline(object):
                     "'email' needs to be provided if 'EMAIL' environment "
                     "variable not set")
         if scheduler == 'slurm':
-            plugin = 'SLURMGraph'
+            plugin = SLURMGraphPlugin
             args = [('mail-user', email),
                     ('partition', 'm3c' if self.requires_gpu else 'm3d'),
                     ('ntasks', cores),

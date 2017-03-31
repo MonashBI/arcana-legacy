@@ -124,6 +124,10 @@ class NiAnalysisNodeMixin(object):
         else:
             raise NiAnalysisModulesNotInstalledException('MODULESHOME')
 
+    @property
+    def slurm_template(self):
+        raise NotImplementedError
+
 
 class Node(NiAnalysisNodeMixin, NipypeNode):
 
