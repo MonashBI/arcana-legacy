@@ -835,24 +835,8 @@ class Pipeline(object):
         return mult
 
     @property
-    def approx_runtime(self):
-        return self._approx_runtime
-
-    @property
     def citations(self):
         return self._citations
-
-    @property
-    def requirements(self):
-        return self._requirements
-
-    @property
-    def min_nthreads(self):
-        return self._min_nthreads
-
-    @property
-    def max_nthreads(self):
-        return self._max_nthreads
 
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))

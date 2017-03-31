@@ -140,7 +140,7 @@ freesurfer_req = Requirement('freesurfer', min_version=(5, 3))
 matlab2014_req = Requirement('matlab', min_version=(2014, 'a'),
                              version_split=matlab_version_split)
 
-matlab2016_req = Requirement('matlab', min_version=(2016, 'a'),
+matlab2015_req = Requirement('matlab', min_version=(2015, 'a'),
                              version_split=matlab_version_split)
 
 noddi_req = Requirement('noddi', min_version=(0, 9)),

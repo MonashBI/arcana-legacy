@@ -194,7 +194,3 @@ class CombinedStudy(Study):
             self._citations = pipeline.citations
             self._options = pipeline.options
             self._description = pipeline.description
-            self._requirements = pipeline.requirements
-            self._approx_runtime = pipeline.approx_runtime
-            self._min_nthreads = pipeline.min_nthreads
-            self._max_nthreads = pipeline.max_nthreads

@@ -28,12 +28,11 @@ class RequirementsStudy(Study):
             version=1,
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
-        merge = pipeline.create_node(Merge(2), 'merge')
         maths = pipeline.create_node(
             BinaryMaths(), "maths", required=[fsl5_req])
-        pipeline.connect_input('ones', merge, 'in1')
-        pipeline.connect_input('ones', merge, 'in2')
-        pipeline.connect(merge, 'out', maths, 'in_file')
+        pipeline.connect_input('ones', maths, 'in_file')
+        pipeline.connect_input('ones', maths, 'operand_file')
+        maths.inputs.operation = 'add'
         pipeline.connect_output('twos', maths, 'out_file')
         pipeline.assert_connected()
         return pipeline

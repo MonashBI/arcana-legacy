@@ -13,7 +13,7 @@ class TestRequirements(TestCase):
 
     def test_version_split(self):
         self.assertEqual(split_version('12.2.9'), (12, 2, 9))
-        self.assertEqual(matlab_version_split('2015b'), ('2015', 'b'))
+        self.assertEqual(matlab_version_split('2015b'), (2015, 'b'))
         self.assertEqual(date_split('2017-02-08'), (2017, 2, 8))
 
     def test_later_or_equal(self):
