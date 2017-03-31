@@ -44,3 +44,7 @@ class DarisNameNotFoundException(DarisException):
 
 class XNATException(Exception):
     pass
+
+
+class NiAnalysisModulesNotInstalledException(NiAnalysisException):
+    pass

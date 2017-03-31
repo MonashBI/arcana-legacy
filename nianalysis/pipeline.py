@@ -670,9 +670,9 @@ class Pipeline(object):
             Maximum number of threads that can be used by the node (default: 1)
         """
         node = Node(interface, name="{}_{}".format(self._name, name),
-                        requirements=requirements, wall_time=wall_time,
-                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
-                        **kwargs)
+                    required_modules=requirements, wall_time=wall_time,
+                    min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                    **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -703,7 +703,7 @@ class Pipeline(object):
         node = JoinNode(interface,
                         joinsource='{}_sessions'.format(self.name),
                         joinfield=joinfield, name=name,
-                        requirements=requirements, wall_time=wall_time,
+                        required_modules=requirements, wall_time=wall_time,
                         min_nthreads=min_nthreads, max_nthreads=max_nthreads,
                         **kwargs)
         self._workflow.add_nodes([node])
@@ -736,7 +736,7 @@ class Pipeline(object):
         node = JoinNode(interface,
                         joinsource='{}_subjects'.format(self.name),
                         joinfield=joinfield, name=name,
-                        requirements=requirements, wall_time=wall_time,
+                        required_modules=requirements, wall_time=wall_time,
                         min_nthreads=min_nthreads, max_nthreads=max_nthreads,
                         **kwargs)
         self._workflow.add_nodes([node])

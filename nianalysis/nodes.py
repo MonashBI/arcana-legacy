@@ -5,7 +5,8 @@ import re
 import subprocess as sp
 from collections import defaultdict
 import logging
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisModulesNotInstalledException)
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -35,34 +36,43 @@ class NiAnalysisNodeMixin(object):
         self._unload_modules()
 
     def _load_modules(self):
-        preloaded = self._preloaded_modules()
-        logger.debug("Attempting to load required modules {} for '{}'"
-                     .format(self._required_modules, self.name))
-        for req in self._required_modules:
-            try:
-                version = preloaded[req.name]
-                logger.debug("Found preloaded version {} of module '{}'"
-                             .format(version, req.name))
-                if not req.valid_version(version):
-                    raise NiAnalysisError(
-                        "Incompatible module version already loaded {}/{}, "
-                        "(valid {}->{}) please unload before running pipeline"
-                        .format(req.name, version, req.min_version,
+        try:
+            preloaded = self._preloaded_modules()
+            logger.debug("Loading required modules {} for '{}'"
+                         .format(self._required_modules, self.name))
+            for req in self._required_modules:
+                try:
+                    version = preloaded[req.name]
+                    logger.debug("Found preloaded version {} of module '{}'"
+                                 .format(version, req.name))
+                    if not req.valid_version(version):
+                        raise NiAnalysisError(
+                            "Incompatible module version already loaded {}/{},"
+                            " (valid {}->{}) please unload before running "
+                            "pipeline"
+                            .format(
+                                req.name, version, req.min_version,
                                 (req.max_version if req.max_version is not None
                                  else '')))
-            except KeyError:
-                best_version = req.best_version(
-                    self._avail_modules()[req.name])
-                logger.debug("Loading best version '{}' of module '{}' for "
-                             "requirement {}".format(best_version, req.name,
-                                                     req))
-                mod_name = '{}/{}'.format(req.name, best_version)
-                self._load_module(mod_name)
-                self._loaded_modules.append(mod_name)
+                except KeyError:
+                    best_version = req.best_version(
+                        self._avail_modules()[req.name])
+                    logger.debug("Loading best version '{}' of module '{}' for"
+                                 " requirement {}".format(best_version,
+                                                          req.name, req))
+                    mod_name = '{}/{}'.format(req.name, best_version)
+                    self._load_module(mod_name)
+                    self._loaded_modules.append(mod_name)
+        except NiAnalysisModulesNotInstalledException:
+            logger.debug("Skipping loading modules as MODULESHOME is not set")
 
     def _unload_modules(self):
-        for mod_name in self._loaded_modules:
-            self._unload_module(mod_name)
+        try:
+            for mod_name in self._loaded_modules:
+                self._unload_module(mod_name)
+        except NiAnalysisModulesNotInstalledException:
+            logger.debug("Skipping unloading modules as MODULESHOME is not "
+                         "set")
 
     @classmethod
     def _preloaded_modules(cls):
@@ -71,7 +81,7 @@ class NiAnalysisNodeMixin(object):
             if loaded:
                 dict(m.split('/') for m in loaded.split(':'))
         except KeyError:
-            return {}
+            raise NiAnalysisModulesNotInstalledException()
 
     @classmethod
     def _avail_modules(cls):
@@ -97,12 +107,15 @@ class NiAnalysisNodeMixin(object):
     @classmethod
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
+            logger.debug("Running modules command '{}'".format(' '.join(args)))
             output, error = sp.Popen(
                 ['{}/bin/modulecmd'.format(os.environ['MODULESHOME']),
                  'python'] + list(args),
                 stdout=sp.PIPE, stderr=sp.PIPE).communicate()
             exec output
             return error
+        else:
+            raise NiAnalysisModulesNotInstalledException()
 
 
 class Node(NiAnalysisNodeMixin, NipypeNode):

@@ -57,13 +57,19 @@ class Requirement(object):
     def name(self):
         return self._name
 
+    def __repr__(self):
+        return "{} (v >= {}{})".format(
+            self.name, self.min_version,
+            (", v <= {}".format(self.max_version)
+             if self.max_version is not None else ''))
+
     @property
     def min_version(self):
-        return self._min_version
+        return self._min_ver
 
     @property
     def max_version(self):
-        return self._max_version
+        return self._max_ver
 
     def best_version(self, available_versions):
         """
