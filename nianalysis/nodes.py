@@ -60,7 +60,9 @@ class NiAnalysisNodeMixin(object):
     @classmethod
     def _preloaded_modules(cls):
         try:
-            dict(m.split('/') for m in os.environ['LOADEDMODULES'].split(':'))
+            loaded = os.environ['LOADEDMODULES']
+            if loaded:
+                dict(m.split('/') for m in loaded.split(':'))
         except KeyError:
             return {}
 
