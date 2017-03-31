@@ -125,7 +125,7 @@ class MrtrixConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(MRConvert(), name=node_name,
-                            requirements=[mrtrix3_req])
+                            required_modules=[mrtrix3_req])
         convert_node.inputs.out_ext = output_format.extension
         convert_node.inputs.quiet = True
         return convert_node, 'in_file', 'out_file'
