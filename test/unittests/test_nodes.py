@@ -1,5 +1,5 @@
 from nipype.interfaces.fsl.maths import BinaryMaths
-from nipype.interfaces.utility import Merge
+from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_dataset_specs

@@ -6,7 +6,8 @@ from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
 from .nodes import Node, JoinNode
-from nipype.interfaces.utility import IdentityInterface, Merge
+from nipype.interfaces.utility import IdentityInterface
+from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)

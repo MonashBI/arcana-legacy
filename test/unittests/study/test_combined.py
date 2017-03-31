@@ -1,6 +1,6 @@
 from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
-from nipype.interfaces.utility import Merge
+from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
