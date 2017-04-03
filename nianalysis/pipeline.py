@@ -181,8 +181,8 @@ class Pipeline(object):
         # Run the workflow
         return complete_workflow.run()
 
-    def submit(self, work_dir, cores=1, scheduler='slurm',
-               email=None, mail_on=('END', 'FAIL'), wall_time=None, **kwargs):
+    def submit(self, work_dir, scheduler='slurm', email=None,
+               mail_on=('END', 'FAIL'), **kwargs):
         """
         Submits a pipeline to a scheduler que for processing
 
@@ -200,13 +200,7 @@ class Pipeline(object):
                     "variable not set")
         if scheduler == 'slurm':
             plugin = SLURMGraphPlugin
-            args = [('mail-user', email),
-                    ('partition', 'm3c' if self.requires_gpu else 'm3d'),
-                    ('ntasks', cores),
-                    ('mem-per-cpu', self.max_memory),
-                    ('cpus-per-task', 1),
-                    ('time', (wall_time
-                              if wall_time is not None else self.wall_time))]
+            args = [('mail-user', email)]
             for mo in mail_on:
                 args.append(('mail-type', mo))
             plugin_args = {
@@ -651,8 +645,8 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name, requirements=[], wall_time=None,
-                    min_nthreads=1, max_nthreads=1, **kwargs):
+    def create_node(self, interface, name, requirements=[], wall_time=1,
+                    memory=1000, nthreads=1, gpu=False, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -665,22 +659,25 @@ class Pipeline(object):
         requirements : list(Requirement)
             List of required packages need for the node to run (default: [])
         wall_time : float
-            Time required to execute the node in minutes (default: None)
-        min_nthreads : int
-            Minimum number of threads required for the node to run (default: 1)
-        max_nthreads : int
-            Maximum number of threads that can be used by the node (default: 1)
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
         node = Node(interface, name="{}_{}".format(self._name, name),
-                    required_modules=requirements, wall_time=wall_time,
-                    min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                    requirements=requirements, wall_time=wall_time,
+                    nthreads=nthreads, memory=memory, gpu=gpu,
                     **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(
-            self, interface, joinfield, name, requirements=[], wall_time=None,
-            min_nthreads=1, max_nthreads=1, **kwargs):
+    def create_join_sessions_node(self, interface, joinfield, name,
+                                  requirements=[], wall_time=1, memory=1000,
+                                  nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -696,24 +693,27 @@ class Pipeline(object):
         requirements : list(Requirement)
             List of required packages need for the node to run (default: [])
         wall_time : float
-            Time required to execute the node in minutes (default: None)
-        min_nthreads : int
-            Minimum number of threads required for the node to run (default: 1)
-        max_nthreads : int
-            Maximum number of threads that can be used by the node (default: 1)
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
         node = JoinNode(interface,
                         joinsource='{}_sessions'.format(self.name),
                         joinfield=joinfield, name=name,
-                        required_modules=requirements, wall_time=wall_time,
-                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
+                        requirements=requirements, wall_time=wall_time,
+                        nthreads=nthreads, memory=memory, gpu=gpu,
                         **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_subjects_node(
-            self, interface, joinfield, name, requirements=[], wall_time=None,
-            min_nthreads=1, max_nthreads=1, **kwargs):
+    def create_join_subjects_node(self, interface, joinfield, name,
+                                  requirements=[], wall_time=1, memory=1000,
+                                  nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -729,18 +729,20 @@ class Pipeline(object):
         requirements : list(Requirement)
             List of required packages need for the node to run (default: [])
         wall_time : float
-            Time required to execute the node in minutes (default: None)
-        min_nthreads : int
-            Minimum number of threads required for the node to run (default: 1)
-        max_nthreads : int
-            Maximum number of threads that can be used by the node (default: 1)
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
         node = JoinNode(interface,
                         joinsource='{}_subjects'.format(self.name),
                         joinfield=joinfield, name=name,
-                        required_modules=requirements, wall_time=wall_time,
-                        min_nthreads=min_nthreads, max_nthreads=max_nthreads,
-                        **kwargs)
+                        requirements=requirements, wall_time=wall_time,
+                        nthreads=nthreads, memory=memory, gpu=gpu, **kwargs)
         self._workflow.add_nodes([node])
         return node
 

@@ -1,10 +1,11 @@
 from nipype.interfaces.fsl.maths import BinaryMaths
-from nianalysis.interfaces.utils import Merge
+from nipype.interfaces.utility import IdentityInterface
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.testing import BaseTestCase
 from nianalysis.requirements import fsl5_req
+from nianalysis.nodes import Node
 import logging
 
 logger = logging.getLogger('NiAnalysis')
@@ -50,3 +51,14 @@ class TestModuleLoad(BaseTestCase):
             {'ones': Dataset('ones', nifti_gz_format)})
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('twos.nii.gz', study.name)
+
+
+class TestWallTime(BaseTestCase):
+
+    def test_wall_time(self):
+        x = Node(IdentityInterface('x'), name='x', wall_time=1550.5)
+        self.assertEqual(x.wall_time_str, '1-01:50:30')
+        y = Node(IdentityInterface('y'), name='y', wall_time=1.75)
+        self.assertEqual(y.wall_time_str, '0-00:01:45')
+        z = Node(IdentityInterface('z'), name='z', wall_time=725)
+        self.assertEqual(z.wall_time_str, '0-07:05:00')
