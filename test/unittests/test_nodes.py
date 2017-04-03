@@ -4,6 +4,7 @@ from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.testing import BaseTestCase
+from unittest import TestCase
 from nianalysis.requirements import fsl5_req
 from nianalysis.nodes import Node
 import logging
@@ -53,7 +54,7 @@ class TestModuleLoad(BaseTestCase):
         self.assertDatasetCreated('twos.nii.gz', study.name)
 
 
-class TestWallTime(BaseTestCase):
+class TestWallTime(TestCase):
 
     def test_wall_time(self):
         x = Node(IdentityInterface('x'), name='x', wall_time=1550.5)
