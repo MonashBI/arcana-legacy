@@ -156,8 +156,8 @@ class NiAnalysisNodeMixin(object):
         return sbatch_template.format(
             wall_time=self.wall_time_str, ntasks=self._nthreads,
             memory=self._memory,
-            partition=('m3c' if self.requires_gpu else 'm3d'),
-            additional=('SBATCH --gres=gpu:1\n' if self.requires_gpu else ''))
+            partition=('m3c' if self._gpu else 'm3d'),
+            additional=('SBATCH --gres=gpu:1\n' if self._gpu else ''))
 
     @property
     def wall_time_str(self):
@@ -188,9 +188,6 @@ class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
 
 sbatch_template = """
 #!/bin/bash
-
-# To give your job a name, replace "MyJob" with an appropriate name
-SBATCH --job-name={job_name}
 
 # Set the partition to run the job on
 SBATCH --partition={partition}

@@ -54,7 +54,18 @@ class TestModuleLoad(BaseTestCase):
         self.assertDatasetCreated('twos.nii.gz', study.name)
 
 
-class TestWallTime(TestCase):
+class TestSlurmTemplate(TestCase):
+
+    def test_template(self):
+        x = Node(IdentityInterface('x'), name='x', wall_time=150,
+                 nthreads=10, memory=2000, gpu=True)
+        try:
+            self.assertEqual(x.slurm_template.strip(), ref_template.strip())
+        except:
+            print x.slurm_template
+            print '----'
+            print ref_template
+            raise
 
     def test_wall_time(self):
         x = Node(IdentityInterface('x'), name='x', wall_time=1550.5)
@@ -63,3 +74,30 @@ class TestWallTime(TestCase):
         self.assertEqual(y.wall_time_str, '0-00:01:45')
         z = Node(IdentityInterface('z'), name='z', wall_time=725)
         self.assertEqual(z.wall_time_str, '0-12:05:00')
+
+ref_template = """
+#!/bin/bash
+
+# Set the partition to run the job on
+SBATCH --partition=m3c
+
+# To set a project account for credit charging,
+# SBATCH --account=pmosp
+
+# Request CPU resource for a parallel job, for example:
+#   4 Nodes each with 12 Cores/MPI processes
+SBATCH --ntasks=10
+# SBATCH --ntasks-per-node=12
+# SBATCH --cpus-per-task=1
+
+# Memory usage (MB)
+SBATCH --mem-per-cpu=2000
+
+# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
+SBATCH --time=0-02:30:00
+
+
+# Use reserved node to run job when a node reservation is made for you already
+# SBATCH --reservation=reservation_name
+SBATCH --gres=gpu:1
+"""
