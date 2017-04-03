@@ -61,4 +61,4 @@ class TestWallTime(BaseTestCase):
         y = Node(IdentityInterface('y'), name='y', wall_time=1.75)
         self.assertEqual(y.wall_time_str, '0-00:01:45')
         z = Node(IdentityInterface('z'), name='z', wall_time=725)
-        self.assertEqual(z.wall_time_str, '0-07:05:00')
+        self.assertEqual(z.wall_time_str, '0-12:05:00')

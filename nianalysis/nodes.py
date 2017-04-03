@@ -161,10 +161,13 @@ class NiAnalysisNodeMixin(object):
 
     @property
     def wall_time_str(self):
-        days = self._wall_time // 1440
-        hours = (self._wall_time - days * 1440) // 60
+        """
+        Returns the wall time in the format required for the sbatch script
+        """
+        days = int(self._wall_time // 1440)
+        hours = int((self._wall_time - days * 1440) // 60)
         minutes = int(math.floor(self._wall_time - days * 1440 - hours * 60))
-        seconds = int(round((self._wall_time - minutes) * 60))
+        seconds = int((self._wall_time - math.floor(self._wall_time)) * 60)
         return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
 
 
