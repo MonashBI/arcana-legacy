@@ -69,7 +69,7 @@ class NiAnalysisNodeMixin(object):
     def _unload_modules(self):
         try:
             for name, ver in self._loaded_modules:
-                self._unload_module(name, ver)
+                self.unload_module(name, ver)
         except NiAnalysisModulesNotInstalledException as e:
             logger.debug("Skipping unloading modules as '{}' is not set"
                          .format(e))
