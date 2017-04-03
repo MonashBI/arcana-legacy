@@ -186,8 +186,7 @@ class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
     nipype_cls = NipypeMapNode
 
 
-sbatch_template = """
-#!/bin/bash
+sbatch_template = """#!/bin/bash
 
 # Set the partition to run the job on
 SBATCH --partition={partition}
