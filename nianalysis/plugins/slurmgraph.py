@@ -10,9 +10,7 @@ class SLURMGraphPlugin(BaseSLURMGraphPlugin):
         template
         """
         args = super(SLURMGraphPlugin, self)._get_args(node, keywords)
-        try:
-            template_index = keywords.index('template')
-        except ValueError:
-            return args
-        args[template_index] = node.slurm_template
+        # Substitute the template arg with the node-specific one
+        args = tuple((node.slurm_template if k == 'template' else a)
+                     for k, a in zip(keywords, args))
         return args

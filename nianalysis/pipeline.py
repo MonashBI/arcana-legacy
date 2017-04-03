@@ -199,18 +199,18 @@ class Pipeline(object):
                     "'email' needs to be provided if 'EMAIL' environment "
                     "variable not set")
         if scheduler == 'slurm':
-            plugin = SLURMGraphPlugin
             args = [('mail-user', email)]
             for mo in mail_on:
                 args.append(('mail-type', mo))
             plugin_args = {
                 'sbatch_args': ' '.join('--{}={}'.format(*a) for a in args)}
+            plugin = SLURMGraphPlugin(plugin_args=plugin_args)
         else:
             raise NiAnalysisUsageError(
                 "Unsupported scheduler '{}'".format(scheduler))
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         self.connect_to_archive(complete_workflow, **kwargs)
-        return complete_workflow.run(plugin=plugin, plugin_args=plugin_args)
+        return complete_workflow.run(plugin=plugin)
 
     def write_graph(self, fname, detailed=False, style='flat', complete=False):
         """
