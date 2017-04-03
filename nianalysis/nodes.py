@@ -1,10 +1,12 @@
-from nipype.pipeline.engine import (
-    Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 import os
 import re
+import time
+import math
 import subprocess as sp
 from collections import defaultdict
 import logging
+from nipype.pipeline.engine import (
+    Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisModulesNotInstalledException)
 
@@ -15,13 +17,28 @@ class NiAnalysisNodeMixin(object):
     """
     A Mixin class that loads required environment modules
     (http://modules.sourceforge.net) before running the interface.
+
+    Parameters
+    ----------
+    requirements : list(Requirements)
+        List of required modules to be loaded (if environment modules is
+        installed)
+    wall_time : int
+        Expected wall time of the node in minutes.
+    memory : int
+        Required memory for the node (in MB).
+    nthreads : int
+        Preferred number of threads (ignored if processed in single node)
+    gpu : bool
+        Flags whether a GPU compute node is preferred
     """
 
     def __init__(self, *args, **kwargs):
-        self._required_modules = kwargs.pop('required_modules', [])
-        self._min_threads = kwargs.pop('min_threads', 1)
-        self._max_nthreads = kwargs.pop('max_nthreads', 1)
-        self._wall_time = kwargs.pop('wall_time', None)
+        self._requirements = kwargs.pop('requirements', [])
+        self._nthreads = kwargs.pop('nthreads', 1)
+        self._wall_time = kwargs.pop('wall_time', 1)
+        self._memory = kwargs.pop('memory', 1000)
+        self._gpu = kwargs.pop('gpu', False)
         self._loaded_modules = []
         self.nipype_cls.__init__(self, *args, **kwargs)
 
@@ -31,16 +48,26 @@ class NiAnalysisNodeMixin(object):
         self._unload_modules()
 
     def _run_command(self, *args, **kwargs):
+        start_time = time.time()
         self._load_modules()
         self.nipype_cls._run_command(self, *args, **kwargs)
         self._unload_modules()
+        end_time = time.time()
+        run_time = (end_time - start_time) / 60
+        if run_time > self._wall_time:
+            logger.warning("Executed '{}' node in {} minutes, which is longer "
+                           "than specified wall time ({} minutes)"
+                           .format(self.name, run_time, self._wall_time))
+        else:
+            logger.info("Executed '{}' node in {} minutes"
+                        .format(self.name, run_time))
 
     def _load_modules(self):
         try:
             preloaded = self._preloaded_modules()
             logger.debug("Loading required modules {} for '{}'"
-                         .format(self._required_modules, self.name))
-            for req in self._required_modules:
+                         .format(self._requirements, self.name))
+            for req in self._requirements:
                 try:
                     version = req.split_version(preloaded[req.name])
                     logger.debug("Found preloaded version {} of module '{}'"
@@ -124,6 +151,25 @@ class NiAnalysisNodeMixin(object):
         else:
             raise NiAnalysisModulesNotInstalledException('MODULESHOME')
 
+    @property
+    def slurm_template(self):
+        return sbatch_template.format(
+            wall_time=self.wall_time_str, ntasks=self._nthreads,
+            memory=self._memory,
+            partition=('m3c' if self._gpu else 'm3d'),
+            additional=('SBATCH --gres=gpu:1\n' if self._gpu else ''))
+
+    @property
+    def wall_time_str(self):
+        """
+        Returns the wall time in the format required for the sbatch script
+        """
+        days = int(self._wall_time // 1440)
+        hours = int((self._wall_time - days * 1440) // 60)
+        minutes = int(math.floor(self._wall_time - days * 1440 - hours * 60))
+        seconds = int((self._wall_time - math.floor(self._wall_time)) * 60)
+        return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
+
 
 class Node(NiAnalysisNodeMixin, NipypeNode):
 
@@ -138,3 +184,31 @@ class JoinNode(NiAnalysisNodeMixin, NipypeJoinNode):
 class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
 
     nipype_cls = NipypeMapNode
+
+
+sbatch_template = """
+#!/bin/bash
+
+# Set the partition to run the job on
+SBATCH --partition={partition}
+
+# To set a project account for credit charging,
+# SBATCH --account=pmosp
+
+# Request CPU resource for a parallel job, for example:
+#   4 Nodes each with 12 Cores/MPI processes
+SBATCH --ntasks={ntasks}
+# SBATCH --ntasks-per-node=12
+# SBATCH --cpus-per-task=1
+
+# Memory usage (MB)
+SBATCH --mem-per-cpu={memory}
+
+# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
+SBATCH --time={wall_time}
+
+
+# Use reserved node to run job when a node reservation is made for you already
+# SBATCH --reservation=reservation_name
+{additional}
+"""
