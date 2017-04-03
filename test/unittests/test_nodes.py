@@ -32,6 +32,7 @@ class RequirementsStudy(Study):
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
             BinaryMaths(), "maths", required=[fsl5_req])
+        maths.inputs.output_type = 'NIFTI_GZ'
         pipeline.connect_input('ones', maths, 'in_file')
         pipeline.connect_input('ones', maths, 'operand_file')
         maths.inputs.operation = 'add'
