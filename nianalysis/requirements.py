@@ -12,11 +12,11 @@ def split_version(version_str):
 
 
 def matlab_version_split(version_str):
-    match = re.match(r'(\d+)(\w)', version_str)
+    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
     if match is None:
         raise NiAnalysisRequirementVersionException(
             "Do not understand Matlab version '{}'".format(version_str))
-    return int(match.group(1)), match.group(2)
+    return int(match.group(1)), match.group(2).lower()
 
 
 def date_split(version_str):
