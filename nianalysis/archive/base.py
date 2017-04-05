@@ -197,15 +197,15 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                                   "by"))
 
     def __setattr__(self, name, val):
-        if isdefined(self.datasets) and not hasattr(self, name):
+        # Need to check whether datasets is not empty, as it can be when
+        # unpickling
+        if (isdefined(self.datasets) and self.datasets and
+                not hasattr(self, name)):
             accepted = [s[0] + INPUT_SUFFIX for s in self.datasets]
-            try:
-                assert name in accepted, (
-                    "'{}' is not a valid input filename for '{}' archive sink "
-                    "(accepts '{}')".format(name, self.name,
-                                            "', '".join(accepted)))
-            except:
-                raise
+            assert name in accepted, (
+                "'{}' is not a valid input filename for '{}' archive sink "
+                "(accepts '{}')".format(name, self.name,
+                                        "', '".join(accepted)))
         super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
 
 
