@@ -5,7 +5,9 @@ from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import IdentityInterface, Merge
+from .nodes import Node, JoinNode
+from nipype.interfaces.utility import IdentityInterface
+from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
@@ -15,6 +17,8 @@ from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.exceptions import NiAnalysisUsageError
+from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 
 
 logger = getLogger('NIAnalysis')
@@ -65,8 +69,7 @@ class Pipeline(object):
     """
 
     def __init__(self, study, name, inputs, outputs, description,
-                 default_options, citations, requirements, approx_runtime,
-                 version, min_nthreads=1, max_nthreads=1, options={}):
+                 default_options, citations, version, options={}):
         self._name = name
         self._study = study
         self._workflow = pe.Workflow(name=name)
@@ -106,10 +109,6 @@ class Pipeline(object):
             if k in self.options:
                 self.options[k] = v
         self._description = description
-        self._requirements = requirements
-        self._approx_runtime = approx_runtime
-        self._min_nthreads = min_nthreads
-        self._max_nthreads = max_nthreads
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -124,6 +123,18 @@ class Pipeline(object):
 
     def __repr__(self):
         return "Pipeline(name='{}')".format(self.name)
+
+    @property
+    def requires_gpu(self):
+        return False  # FIXME: Need to implement this
+
+    @property
+    def max_memory(self):
+        return 4000
+
+    @property
+    def wall_time(self):
+        return '7-00:00:00'  # Max amount
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -148,7 +159,7 @@ class Pipeline(object):
 
     def run(self, work_dir=None, **kwargs):
         """
-        Connects pipeline to archive and runs it
+        Connects pipeline to archive and runs it on the local workstation
 
         Parameters
         ----------
@@ -169,6 +180,37 @@ class Pipeline(object):
         self.connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
         return complete_workflow.run()
+
+    def submit(self, work_dir, scheduler='slurm', email=None,
+               mail_on=('END', 'FAIL'), **kwargs):
+        """
+        Submits a pipeline to a scheduler que for processing
+
+        Parameters
+        ----------
+        scheduler : str
+            Name of the scheduler to submit the pipeline to
+        """
+        if email is None:
+            try:
+                email = os.environ['EMAIL']
+            except KeyError:
+                raise NiAnalysisError(
+                    "'email' needs to be provided if 'EMAIL' environment "
+                    "variable not set")
+        if scheduler == 'slurm':
+            args = [('mail-user', email)]
+            for mo in mail_on:
+                args.append(('mail-type', mo))
+            plugin_args = {
+                'sbatch_args': ' '.join('--{}={}'.format(*a) for a in args)}
+            plugin = SLURMGraphPlugin(plugin_args=plugin_args)
+        else:
+            raise NiAnalysisUsageError(
+                "Unsupported scheduler '{}'".format(scheduler))
+        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
+        self.connect_to_archive(complete_workflow, **kwargs)
+        return complete_workflow.run(plugin=plugin)
 
     def write_graph(self, fname, detailed=False, style='flat', complete=False):
         """
@@ -210,8 +252,8 @@ class Pipeline(object):
         shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
-                            filter_session_ids=None, reprocess=False,
-                            project=None):
+                           filter_session_ids=None, reprocess=False,
+                           project=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow
@@ -235,6 +277,12 @@ class Pipeline(object):
             runs of prerequisite pipelines to avoid having to re-query the
             archive. If None, the study info is loaded from the study
             archive.
+
+        Returns
+        -------
+        report : ReportNode
+            The final report node, which can be connected to subsequent
+            pipelines
         """
         # Check all inputs and outputs are connected
         self.assert_connected()
@@ -413,11 +461,11 @@ class Pipeline(object):
         they are executed afterwards.
         """
         if mult == 'per_session':
-            session_outputs = pe.JoinNode(
+            session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
                 name=self.name + '_session_outputs')
-            subject_session_outputs = pe.JoinNode(
+            subject_session_outputs = JoinNode(
                 SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
                 name=self.name + '_subject_session_outputs')
@@ -429,7 +477,7 @@ class Pipeline(object):
                 subject_session_outputs, 'subject_session_pairs',
                 output_summary, 'subject_session_pairs')
         elif mult == 'per_subject':
-            subject_output_summary = pe.JoinNode(
+            subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=self.name + '_subject_summary_outputs')
             workflow.connect(sink, 'subject_id',
@@ -538,19 +586,19 @@ class Pipeline(object):
                                                 node_input)
             if join.startswith('project'):
                 # Create node to join the sessions first
-                session_join = pe.JoinNode(
+                session_join = JoinNode(
                     IdentityInterface([spec_name]),
                     name='session_' + join_name,
                     joinsource='sessions', joinfield=[spec_name])
                 if join == 'project':
-                    inputnode = pe.JoinNode(
+                    inputnode = JoinNode(
                         IdentityInterface([spec_name]),
                         name='subject_' + join_name,
                         joinsource='subjects', joinfield=[spec_name])
                 elif join == 'project_flat':
                     # TODO: Need to implement Chain interface for
                     # concatenating the session lists into a single list
-                    inputnode = pe.JoinNode(
+                    inputnode = JoinNode(
                         Chain([spec_name]), name='subject_' + join_name,
                         joinsource='subjects', joinfield=[spec_name])
                 else:
@@ -563,7 +611,7 @@ class Pipeline(object):
                 self._workflow.connect(session_join, spec_name, inputnode,
                                        spec_name)
             else:
-                inputnode = pe.JoinNode(
+                inputnode = JoinNode(
                     IdentityInterface([spec_name]), name=join_name,
                     joinsource=join, joinfield=[spec_name])
                 self._workflow.connect(self._inputnode, spec_name, inputnode,
@@ -597,7 +645,8 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name):
+    def create_node(self, interface, name, requirements=[], wall_time=1,
+                    memory=1000, nthreads=1, gpu=False, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -607,12 +656,28 @@ class Pipeline(object):
             The interface to use for the node
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
-        node = pe.Node(interface, name="{}_{}".format(self._name, name))
+        node = Node(interface, name="{}_{}".format(self._name, name),
+                    requirements=requirements, wall_time=wall_time,
+                    nthreads=nthreads, memory=memory, gpu=gpu,
+                    **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(self, interface, joinfield, name):
+    def create_join_sessions_node(self, interface, joinfield, name,
+                                  requirements=[], wall_time=1, memory=1000,
+                                  nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -625,14 +690,30 @@ class Pipeline(object):
             The name of the field(s) to join into a list
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
-        node = pe.JoinNode(interface,
-                           joinsource='{}_sessions'.format(self.name),
-                           joinfield=joinfield, name=name)
+        node = JoinNode(interface,
+                        joinsource='{}_sessions'.format(self.name),
+                        joinfield=joinfield, name=name,
+                        requirements=requirements, wall_time=wall_time,
+                        nthreads=nthreads, memory=memory, gpu=gpu,
+                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_subjects_node(self, interface, joinfield, name):
+    def create_join_subjects_node(self, interface, joinfield, name,
+                                  requirements=[], wall_time=1, memory=1000,
+                                  nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -645,10 +726,23 @@ class Pipeline(object):
             The name of the field(s) to join into a list
         name : str
             Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
         """
-        node = pe.JoinNode(interface,
-                           joinsource='{}_subjects'.format(self.name),
-                           joinfield=joinfield, name=name)
+        node = JoinNode(interface,
+                        joinsource='{}_subjects'.format(self.name),
+                        joinfield=joinfield, name=name,
+                        requirements=requirements, wall_time=wall_time,
+                        nthreads=nthreads, memory=memory, gpu=gpu, **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -744,24 +838,8 @@ class Pipeline(object):
         return mult
 
     @property
-    def approx_runtime(self):
-        return self._approx_runtime
-
-    @property
     def citations(self):
         return self._citations
-
-    @property
-    def requirements(self):
-        return self._requirements
-
-    @property
-    def min_nthreads(self):
-        return self._min_nthreads
-
-    @property
-    def max_nthreads(self):
-        return self._max_nthreads
 
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))

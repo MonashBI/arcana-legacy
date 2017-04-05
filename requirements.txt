@@ -1,2 +1,2 @@
-nipype>=0.13
-xnat>=0.2.1
+nipype>=0.13.0rc1
+xnat>=0.2.2

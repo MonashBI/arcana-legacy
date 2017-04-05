@@ -1,10 +1,10 @@
 from copy import copy
 from abc import ABCMeta, abstractmethod
-from nipype.pipeline import engine as pe
+from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.interfaces.utils import ZipDir, UnzipDir
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.utils import OUTPUT_SUFFIX
+from nianalysis.requirements import mrtrix3_req
 
 
 class DataFormat(object):
@@ -124,7 +124,8 @@ class Converter(object):
 class MrtrixConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = pe.Node(MRConvert(), name=node_name)
+        convert_node = Node(MRConvert(), name=node_name,
+                            requirements=[mrtrix3_req])
         convert_node.inputs.out_ext = output_format.extension
         convert_node.inputs.quiet = True
         return convert_node, 'in_file', 'out_file'
@@ -141,7 +142,7 @@ class MrtrixConverter(Converter):
 class UnzipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = pe.Node(UnzipDir(), name=node_name)
+        convert_node = Node(UnzipDir(), name=node_name)
         return convert_node, 'zipped', 'unzipped'
 
     def input_formats(self):
@@ -154,7 +155,7 @@ class UnzipConverter(Converter):
 class ZipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = pe.Node(ZipDir(), name=node_name)
+        convert_node = Node(ZipDir(), name=node_name)
         return convert_node, 'dirname', 'zipped'
 
     def input_formats(self):

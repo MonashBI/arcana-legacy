@@ -1,9 +1,9 @@
 from abc import ABCMeta, abstractmethod
-from nipype.pipeline import engine as pe
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     Undefined, isdefined, File, Directory)
+from nianalysis.nodes import Node
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
@@ -39,7 +39,7 @@ class Archive(object):
         """
         if name is None:
             name = "{}_source".format(self.type)
-        source = pe.Node(self.Source(), name=name)
+        source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
         source.inputs.datasets = [s.to_tuple() for s in input_datasets]
         if study_name is not None:
@@ -83,7 +83,7 @@ class Archive(object):
             name = "{}_{}_sink".format(self.type, multiplicity)
         # Ensure iterators aren't exhausted
         output_datasets = list(output_datasets)
-        sink = pe.Node(sink_class(output_datasets), name=name)
+        sink = Node(sink_class(output_datasets), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
         if study_name is not None:
@@ -197,15 +197,15 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                                   "by"))
 
     def __setattr__(self, name, val):
-        if isdefined(self.datasets) and not hasattr(self, name):
+        # Need to check whether datasets is not empty, as it can be when
+        # unpickling
+        if (isdefined(self.datasets) and self.datasets and
+                not hasattr(self, name)):
             accepted = [s[0] + INPUT_SUFFIX for s in self.datasets]
-            try:
-                assert name in accepted, (
-                    "'{}' is not a valid input filename for '{}' archive sink "
-                    "(accepts '{}')".format(name, self.name,
-                                            "', '".join(accepted)))
-            except:
-                raise
+            assert name in accepted, (
+                "'{}' is not a valid input filename for '{}' archive sink "
+                "(accepts '{}')".format(name, self.name,
+                                        "', '".join(accepted)))
         super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
 
 

@@ -1,19 +1,22 @@
 from nipype import config
 config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
-from nipype.pipeline import engine as pe  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
 from nianalysis.testing import BaseTestCase  # @IgnorePep8
+from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 import logging  # @IgnorePep8
 
+logging.getLogger("requests").setLevel(logging.WARNING)
+logging.getLogger("workflow").setLevel(logging.INFO)
+
 logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
@@ -30,11 +33,11 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1")
-        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2")
+            citations=[],)
+        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
+                                         requirements=[mrtrix3_req])
+        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
+                                          requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
@@ -54,10 +57,9 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat")
+            citations=[],)
+        mrmath = pipeline.create_node(MRCat(), name="mrcat",
+                                      requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
@@ -76,9 +78,7 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[])
         mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
@@ -96,10 +96,9 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert")
+            citations=[],)
+        mrconvert = pipeline.create_node(MRConvert(), name="convert",
+                                         requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('pipeline3', mrconvert, 'in_file')
         # Connect outputs
@@ -116,10 +115,9 @@ class DummyStudy(Study):
             description=("Test of project summary variables"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath')
+            citations=[],)
+        mrmath = pipeline.create_join_sessions_node(
+            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -136,11 +134,11 @@ class DummyStudy(Study):
             description=("Test of project summary variables"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
-        mrmath1 = pipeline.create_join_sessions_node(MRMath(), 'in_files', 'mrmath1')
-        mrmath2 = pipeline.create_join_subjects_node(MRMath(), 'in_files', 'mrmath2')
+            citations=[],)
+        mrmath1 = pipeline.create_join_sessions_node(
+            MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
+        mrmath2 = pipeline.create_join_subjects_node(
+            MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
         mrmath1.inputs.operation = 'sum'
         mrmath2.inputs.operation = 'sum'
         # Connect inputs
@@ -171,6 +169,10 @@ class TestRunPipeline(BaseTestCase):
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
 
     def setUp(self):
+        try:
+            NiAnalysisNodeMixin.load_module('mrtrix')
+        except NiAnalysisModulesNotInstalledException:
+            pass
         self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
             for session_id in self.SESSION_IDS:
@@ -179,6 +181,12 @@ class TestRunPipeline(BaseTestCase):
             DummyStudy, 'dummy', input_datasets={
                 'start': Dataset('start', nifti_gz_format),
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
+
+    def tearDown(self):
+        try:
+            NiAnalysisNodeMixin.unload_module('mrtrix')
+        except NiAnalysisModulesNotInstalledException:
+            pass
 
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4()

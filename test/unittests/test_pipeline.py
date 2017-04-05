@@ -1,9 +1,7 @@
-from nipype.pipeline import engine as pe
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
-from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
@@ -37,9 +35,7 @@ class ConversionStudy(Study):
                          "conversions"),
             default_options={},
             version=1,
-            requirements=[mrtrix3_req],
-            citations=[],
-            approx_runtime=1)
+            citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
         nifti_gz_from_dicom = pipeline.create_node(
             IdentityInterface(fields=['file']), "nifti_gz_from_dicom")

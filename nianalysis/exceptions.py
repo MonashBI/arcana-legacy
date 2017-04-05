@@ -2,6 +2,10 @@ class NiAnalysisException(Exception):
     pass
 
 
+class NiAnalysisRequirementVersionException(NiAnalysisException):
+    pass
+
+
 class NiAnalysisError(NiAnalysisException):
     pass
 
@@ -39,4 +43,8 @@ class DarisNameNotFoundException(DarisException):
 
 
 class XNATException(Exception):
+    pass
+
+
+class NiAnalysisModulesNotInstalledException(NiAnalysisException):
     pass
