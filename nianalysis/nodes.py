@@ -200,22 +200,22 @@ class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
 sbatch_template = """#!/bin/bash
 
 # Set the partition to run the job on
-SBATCH --partition={partition}
+#SBATCH --partition={partition}
 
 # To set a project account for credit charging,
 # SBATCH --account=pmosp
 
 # Request CPU resource for a parallel job, for example:
 #   4 Nodes each with 12 Cores/MPI processes
-SBATCH --ntasks={ntasks}
+#SBATCH --ntasks={ntasks}
 # SBATCH --ntasks-per-node=12
 # SBATCH --cpus-per-task=1
 
 # Memory usage (MB)
-SBATCH --mem-per-cpu={memory}
+#SBATCH --mem-per-cpu={memory}
 
 # Set your minimum acceptable walltime, format: day-hours:minutes:seconds
-SBATCH --time={wall_time}
+#SBATCH --time={wall_time}
 
 
 # Use reserved node to run job when a node reservation is made for you already
