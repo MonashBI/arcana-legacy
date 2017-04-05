@@ -78,7 +78,8 @@ class Pipeline(object):
         self._check_spec_names(inputs, 'input')
         self._inputs = inputs
         self._inputnode = self.create_node(
-            IdentityInterface(fields=list(self.input_names)), "inputnode")
+            IdentityInterface(fields=list(self.input_names)), "inputnode",
+            wall_time=1)
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -90,7 +91,7 @@ class Pipeline(object):
             self._outputnodes[mult] = self.create_node(
                 IdentityInterface(
                     fields=[o.name for o in self._outputs[mult]]),
-                name="{}_outputnode".format(mult))
+                name="{}_outputnode".format(mult), wall_time=1)
         # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(self.input_names)
         self._unconnected_outputs = set(self.output_names)
@@ -420,8 +421,8 @@ class Pipeline(object):
         """
         # Create nodes to control the iteration over subjects and sessions in
         # the project
-        subjects = self.create_node(InputSubjects(), 'subjects')
-        sessions = self.create_node(InputSessions(), 'sessions')
+        subjects = self.create_node(InputSubjects(), 'subjects', wall_time=1)
+        sessions = self.create_node(InputSessions(), 'sessions', wall_time=1)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subjects.iterables = ('subject_id',
@@ -464,11 +465,11 @@ class Pipeline(object):
             session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
-                name=self.name + '_session_outputs')
+                name=self.name + '_session_outputs', wall_time=1)
             subject_session_outputs = JoinNode(
                 SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
-                name=self.name + '_subject_session_outputs')
+                name=self.name + '_subject_session_outputs', wall_time=1)
             workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
             workflow.connect(sink, 'session_id', session_outputs, 'sessions')
             workflow.connect(session_outputs, 'subject_session_pairs',
@@ -479,7 +480,7 @@ class Pipeline(object):
         elif mult == 'per_subject':
             subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
-                name=self.name + '_subject_summary_outputs')
+                name=self.name + '_subject_summary_outputs', wall_time=1)
             workflow.connect(sink, 'subject_id',
                                       subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
@@ -645,7 +646,7 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name, requirements=[], wall_time=1,
+    def create_node(self, interface, name, requirements=[], wall_time=5,
                     memory=1000, nthreads=1, gpu=False, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
@@ -676,7 +677,7 @@ class Pipeline(object):
         return node
 
     def create_join_sessions_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=1, memory=1000,
+                                  requirements=[], wall_time=5, memory=1000,
                                   nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
@@ -712,7 +713,7 @@ class Pipeline(object):
         return node
 
     def create_join_subjects_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=1, memory=1000,
+                                  requirements=[], wall_time=5, memory=1000,
                                   nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
