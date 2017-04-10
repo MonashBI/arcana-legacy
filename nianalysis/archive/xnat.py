@@ -540,13 +540,13 @@ class XNATArchive(Archive):
                     "Did not find any subjects matching the IDs '{}' in "
                     "project '{}' (found '{}')"
                     .format("', '".join(subject_ids), project_id,
-                            "', '".join(s.label for s in xproject.subj)))
+                            "', '".join(s.label for s in xproject.subjects)))
             if not sessions:
                 raise NiAnalysisError(
                     "Did not find any sessions subjects matching the IDs '{}'"
                     "(in subjects '{}') for project '{}'"
                     .format("', '".join(session_ids),
-                            "', '".join(s.label for s in xproject.subj),
+                            "', '".join(s.label for s in xproject.subjects),
                              project_id))
         return Project(project_id, subjects, proj_summary)
 

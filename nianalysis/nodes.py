@@ -167,7 +167,7 @@ class NiAnalysisNodeMixin(object):
         return sbatch_template.format(
             wall_time=self.wall_time_str, ntasks=self._nthreads,
             memory=self._memory,
-            partition=('m3c' if self._gpu else 'm3d'),
+            partition=('m3c' if self._gpu else 'm3a'),
             additional=('SBATCH --gres=gpu:1\n' if self._gpu else ''))
 
     @property
