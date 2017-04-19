@@ -125,7 +125,7 @@ class MrtrixConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(MRConvert(), name=node_name,
-                            requirements=[mrtrix3_req])
+                            requirements=[mrtrix3_req], wall_time=10)
         convert_node.inputs.out_ext = output_format.extension
         convert_node.inputs.quiet = True
         return convert_node, 'in_file', 'out_file'
@@ -142,7 +142,7 @@ class MrtrixConverter(Converter):
 class UnzipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = Node(UnzipDir(), name=node_name)
+        convert_node = Node(UnzipDir(), name=node_name, wall_time=10)
         return convert_node, 'zipped', 'unzipped'
 
     def input_formats(self):
@@ -155,7 +155,7 @@ class UnzipConverter(Converter):
 class ZipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = Node(ZipDir(), name=node_name)
+        convert_node = Node(ZipDir(), name=node_name, wall_time=10)
         return convert_node, 'dirname', 'zipped'
 
     def input_formats(self):
