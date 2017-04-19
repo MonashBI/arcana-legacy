@@ -495,7 +495,7 @@ class XNATArchive(Archive):
         """
         # Convert subject ids to strings if they are integers
         if subject_ids is not None:
-            subject_ids = [('{}_{0:03d}'.format(project_id, s)
+            subject_ids = [('{}_{:03d}'.format(project_id, s)
                             if isinstance(s, int) else s) for s in subject_ids]
         subjects = []
         sessions = defaultdict(list)
