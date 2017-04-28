@@ -5,10 +5,10 @@ import math
 import subprocess as sp
 from collections import defaultdict
 import logging
-from nipype.pipeline.engine import (
-    Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisModulesNotInstalledException)
+from nipype.pipeline.engine import (
+    Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 
 logger = logging.getLogger('NiAnalysis')
 
