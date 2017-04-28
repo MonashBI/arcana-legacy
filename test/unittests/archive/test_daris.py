@@ -3,7 +3,7 @@ import shutil
 import hashlib
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.daris import (
+from nianalysis.archive.daris.base import (
     DarisLogin, DarisArchive, SUBJECT_SUMMARY_ID, PROJECT_SUMMARY_ID)
 from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
