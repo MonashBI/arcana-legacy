@@ -1,8 +1,11 @@
 from abc import ABCMeta, abstractmethod
-from nipype.interfaces.io import IOBase, add_traits
-from nipype.interfaces.base import (
-    DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined, isdefined, File, Directory)
+try:
+    from nipype.interfaces.io import IOBase, add_traits
+    from nipype.interfaces.base import (
+        DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
+        Undefined, isdefined, File, Directory)
+except ImportError:
+    pass
 from nianalysis.nodes import Node
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.exceptions import NiAnalysisError
