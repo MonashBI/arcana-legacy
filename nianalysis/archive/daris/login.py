@@ -6,10 +6,7 @@ import logging
 try:
     from lxml import etree
 except ImportError:
-    try:
-        import cElementTree as etree
-    except ImportError:
-        import elementtree.ElementTree as etree
+    import xml as etree
 from nianalysis.exceptions import (
     DarisException, DarisNameNotFoundException)
 import re
