@@ -3,7 +3,13 @@ import subprocess
 import stat
 import tempfile
 import logging
-from lxml import etree
+try:
+    from lxml import etree
+except ImportError:
+    try:
+        import cElementTree as etree
+    except ImportError:
+        import elementtree.ElementTree as etree
 from nianalysis.exceptions import (
     DarisException, DarisNameNotFoundException)
 import re
