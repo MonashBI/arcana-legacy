@@ -3,10 +3,7 @@ import subprocess
 import stat
 import tempfile
 import logging
-try:
-    from lxml.etree import XML
-except ImportError:
-    from xml.etree import ElementTree
+from lxml.etree import XML
 from nianalysis.exceptions import (
     DarisException, DarisNameNotFoundException)
 import re
@@ -690,10 +687,7 @@ class DarisLogin:
 
     @classmethod
     def _extract_from_xml(cls, xml_string, xpath):
-        try:
-            doc = ElementTree.parse(xml_string.strip())
-        except AttributeError:
-            doc = XML(xml_string)  # If using lxml
+        doc = XML(xml_string)
         return doc.xpath(xpath, namespaces=cls._namespaces)
 
     @classmethod
