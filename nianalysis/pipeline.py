@@ -19,6 +19,8 @@ from nianalysis.interfaces.iterators import (
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
+from rdflib.plugin import plugins
+from rdflib import plugin
 
 
 logger = getLogger('NIAnalysis')
@@ -160,7 +162,7 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, work_dir=None, **kwargs):
+    def run(self, work_dir=None, plugin='Linear', **kwargs):
         """
         Connects pipeline to archive and runs it on the local workstation
 
