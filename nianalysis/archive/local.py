@@ -111,7 +111,8 @@ class LocalSinkMixin(object):
         # cache directory and upload to daris.
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
-            assert processed, "Should only be sinking processed datasets"
+            assert processed, ("Should only be sinking processed datasets, not "
+                               "'{}'".format(name))
             filename = getattr(self.inputs, name + INPUT_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):

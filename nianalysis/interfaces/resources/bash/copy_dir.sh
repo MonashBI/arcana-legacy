@@ -7,7 +7,7 @@ name_file=$3
 method=$4
 case $method in
 1)
-rsync -av $1/* $2/ --exclude='filtered_func_data.ica'
+rsync -av $1/* $2/$3 --exclude='filtered_func_data.ica'
 ;;
 2)
 cp -a $1 $2/$3
