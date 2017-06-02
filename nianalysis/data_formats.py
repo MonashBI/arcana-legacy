@@ -4,7 +4,8 @@ from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.interfaces.utils import ZipDir, UnzipDir
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.requirements import mrtrix3_req
+from nianalysis.requirements import mrtrix3_req, dcm2niix_req
+from nianalysis.interfaces.converters import Dcm2niix
 
 
 class DataFormat(object):
@@ -121,6 +122,21 @@ class Converter(object):
         pass
 
 
+class Dcm2niixConverter(Converter):
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = Node(Dcm2niix(), name=node_name,
+                            requirements=[dcm2niix_req], wall_time=20)
+        convert_node.inputs.compression = 'y'
+        return convert_node, 'input_dir', 'converted'
+
+    def input_formats(self):
+        return [dicom_format]
+
+    def output_formats(self):
+        return [nifti_format, nifti_gz_format]
+
+
 class MrtrixConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
@@ -164,8 +180,10 @@ class ZipConverter(Converter):
     def output_formats(self):
         return [zip_format]
 
+
 # List all possible converters in order of preference
-converters = [MrtrixConverter(), UnzipConverter(), ZipConverter()]
+converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),
+              ZipConverter()]
 
 # A dictionary to access all the formats by name
 data_formats = dict(
