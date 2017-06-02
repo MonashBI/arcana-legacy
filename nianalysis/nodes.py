@@ -44,13 +44,14 @@ class NiAnalysisNodeMixin(object):
 
     def _load_results(self, *args, **kwargs):
         self._load_modules()
-        self.nipype_cls._load_results(self, *args, **kwargs)
+        result = self.nipype_cls._load_results(self, *args, **kwargs)
         self._unload_modules()
+        return result
 
     def _run_command(self, *args, **kwargs):
         start_time = time.time()
         self._load_modules()
-        self.nipype_cls._run_command(self, *args, **kwargs)
+        result = self.nipype_cls._run_command(self, *args, **kwargs)
         self._unload_modules()
         end_time = time.time()
         run_time = (end_time - start_time) / 60
@@ -61,6 +62,7 @@ class NiAnalysisNodeMixin(object):
         else:
             logger.info("Executed '{}' node in {} minutes"
                         .format(self.name, run_time))
+        return result
 
     def _load_modules(self):
         try:
