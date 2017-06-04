@@ -5,7 +5,7 @@ from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
-from .nodes import Node, JoinNode
+from .nodes import Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
@@ -79,7 +79,8 @@ class Pipeline(object):
         self._inputs = inputs
         self._inputnode = self.create_node(
             IdentityInterface(fields=list(self.input_names)), "inputnode",
-            wall_time=1)
+            wall_time=1,
+            memory=1000)
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -91,7 +92,8 @@ class Pipeline(object):
             self._outputnodes[mult] = self.create_node(
                 IdentityInterface(
                     fields=[o.name for o in self._outputs[mult]]),
-                name="{}_outputnode".format(mult), wall_time=1)
+                name="{}_outputnode".format(mult), wall_time=1,
+                memory=1000)
         # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(self.input_names)
         self._unconnected_outputs = set(self.output_names)
@@ -421,8 +423,10 @@ class Pipeline(object):
         """
         # Create nodes to control the iteration over subjects and sessions in
         # the project
-        subjects = self.create_node(InputSubjects(), 'subjects', wall_time=1)
-        sessions = self.create_node(InputSessions(), 'sessions', wall_time=1)
+        subjects = self.create_node(InputSubjects(), 'subjects', wall_time=1,
+                                    memory=1000)
+        sessions = self.create_node(InputSessions(), 'sessions', wall_time=1,
+                                    memory=1000)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subjects.iterables = ('subject_id',
@@ -465,11 +469,13 @@ class Pipeline(object):
             session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
-                name=self.name + '_session_outputs', wall_time=1)
+                name=self.name + '_session_outputs', wall_time=1,
+                memory=1000)
             subject_session_outputs = JoinNode(
                 SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
-                name=self.name + '_subject_session_outputs', wall_time=1)
+                name=self.name + '_subject_session_outputs', wall_time=1,
+                memory=1000)
             workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
             workflow.connect(sink, 'session_id', session_outputs, 'sessions')
             workflow.connect(session_outputs, 'subject_session_pairs',
@@ -480,7 +486,8 @@ class Pipeline(object):
         elif mult == 'per_subject':
             subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
-                name=self.name + '_subject_summary_outputs', wall_time=1)
+                name=self.name + '_subject_summary_outputs', wall_time=1,
+                memory=1000)
             workflow.connect(sink, 'subject_id',
                                       subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
@@ -646,8 +653,9 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name, requirements=[], wall_time=5,
-                    memory=1000, nthreads=1, gpu=False, **kwargs):
+    def create_node(self, interface, name, requirements=[],
+                    wall_time=DEFAULT_WALL_TIME,
+                    memory=DEFAULT_MEMORY, nthreads=1, gpu=False, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -676,8 +684,41 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
+    def create_map_node(self, interface, name, requirements=[],
+                        wall_time=DEFAULT_WALL_TIME,
+                        memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
+                        **kwargs):
+        """
+        Creates a MapNode in the pipeline (prepending the pipeline namespace)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        name : str
+            Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
+        """
+        node = MapNode(interface, name="{}_{}".format(self._name, name),
+                       requirements=requirements, wall_time=wall_time,
+                       nthreads=nthreads, memory=memory, gpu=gpu,
+                       **kwargs)
+        self._workflow.add_nodes([node])
+        return node
+
     def create_join_sessions_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=5, memory=1000,
+                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                  memory=DEFAULT_MEMORY,
                                   nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
@@ -713,8 +754,9 @@ class Pipeline(object):
         return node
 
     def create_join_subjects_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=5, memory=1000,
-                                  nthreads=1, gpu=False, **kwargs):
+                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                  memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
+                                  **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
