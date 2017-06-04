@@ -37,7 +37,7 @@ class NiAnalysisNodeMixin(object):
         self._requirements = kwargs.pop('requirements', [])
         self._nthreads = kwargs.pop('nthreads', 1)
         self._wall_time = kwargs.pop('wall_time', 5)
-        self._memory = kwargs.pop('memory', 8000)
+        self._memory = kwargs.pop('memory', 4096)
         self._gpu = kwargs.pop('gpu', False)
         self._loaded_modules = []
         self.nipype_cls.__init__(self, *args, **kwargs)

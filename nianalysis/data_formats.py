@@ -171,7 +171,8 @@ class UnzipConverter(Converter):
 class ZipConverter(Converter):
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
-        convert_node = Node(ZipDir(), name=node_name, wall_time=20)
+        convert_node = Node(ZipDir(), name=node_name, wall_time=20,
+                            memory=4096)
         return convert_node, 'dirname', 'zipped'
 
     def input_formats(self):
