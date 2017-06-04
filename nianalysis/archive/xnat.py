@@ -124,9 +124,12 @@ class XNATSource(ArchiveSource, XNATMixin):
                     except KeyError:
                         raise NiAnalysisError(
                             "Could not find '{}' dataset in acquired and "
-                            "processed sessions ('{}' and '{}' respectively)"
+                            "processed sessions ('{}' and '{}' respectively) "
+                            "of {}_{} session"
                             .format(prefixed_name, "', '".join(datasets),
-                                    "', '".join(proc_datasets)))
+                                    "', '".join(proc_datasets),
+                                    self.inputs.subject_id,
+                                    self.inputs.session_id))
                     session_label = session.label
                 elif mult == 'per_subject':
                     assert processed
