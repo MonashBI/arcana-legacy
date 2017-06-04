@@ -5,7 +5,7 @@ from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
-from .nodes import Node, JoinNode
+from .nodes import Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
@@ -646,8 +646,9 @@ class Pipeline(object):
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
-    def create_node(self, interface, name, requirements=[], wall_time=5,
-                    memory=1000, nthreads=1, gpu=False, **kwargs):
+    def create_node(self, interface, name, requirements=[],
+                    wall_time=DEFAULT_WALL_TIME,
+                    memory=DEFAULT_MEMORY, nthreads=1, gpu=False, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -676,8 +677,41 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
+    def create_map_node(self, interface, name, requirements=[],
+                        wall_time=DEFAULT_WALL_TIME,
+                        memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
+                        **kwargs):
+        """
+        Creates a MapNode in the pipeline (prepending the pipeline namespace)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        name : str
+            Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
+        """
+        node = MapNode(interface, name="{}_{}".format(self._name, name),
+                       requirements=requirements, wall_time=wall_time,
+                       nthreads=nthreads, memory=memory, gpu=gpu,
+                       **kwargs)
+        self._workflow.add_nodes([node])
+        return node
+
     def create_join_sessions_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=5, memory=1000,
+                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                  memory=DEFAULT_MEMORY,
                                   nthreads=1, gpu=False, **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
@@ -713,8 +747,9 @@ class Pipeline(object):
         return node
 
     def create_join_subjects_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=5, memory=1000,
-                                  nthreads=1, gpu=False, **kwargs):
+                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                  memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
+                                  **kwargs):
         """
         Creates a JoinNode that joins an input over all sessions (see
         nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)

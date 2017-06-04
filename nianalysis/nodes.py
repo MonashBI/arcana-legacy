@@ -12,6 +12,9 @@ from nipype.pipeline.engine import (
 
 logger = logging.getLogger('NiAnalysis')
 
+DEFAULT_MEMORY = 4096
+DEFAULT_WALL_TIME = 20
+
 
 class NiAnalysisNodeMixin(object):
     """
@@ -36,8 +39,8 @@ class NiAnalysisNodeMixin(object):
     def __init__(self, *args, **kwargs):
         self._requirements = kwargs.pop('requirements', [])
         self._nthreads = kwargs.pop('nthreads', 1)
-        self._wall_time = kwargs.pop('wall_time', 5)
-        self._memory = kwargs.pop('memory', 4096)
+        self._wall_time = kwargs.pop('wall_time', DEFAULT_WALL_TIME)
+        self._memory = kwargs.pop('memory', DEFAULT_MEMORY)
         self._gpu = kwargs.pop('gpu', False)
         self._loaded_modules = []
         self.nipype_cls.__init__(self, *args, **kwargs)
