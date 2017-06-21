@@ -162,7 +162,7 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, work_dir=None, plugin='Linear', **kwargs):
+    def run(self, work_dir=None, plugin='Linear', mode='parallel', **kwargs):
         """
         Connects pipeline to archive and runs it on the local workstation
 
