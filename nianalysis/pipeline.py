@@ -333,14 +333,14 @@ class Pipeline(object):
             if reports:
                 prereq_reports = self.create_node(Merge(len(reports)),
                                                   'prereq_reports')
-                for report in reports:
+                for i, report in enumerate(reports):
                     # Connect the output summary of the prerequisite to the
                     # pipeline to ensure that the prerequisite is run first.
                     complete_workflow.connect(
                         report, 'subject_session_pairs',
                         prereq_reports, 'in{}'.format(i))
-                    complete_workflow.connect(prereq_reports, 'out', subjects,
-                                              'prereq_reports')
+                complete_workflow.connect(prereq_reports, 'out', subjects,
+                                          'prereq_reports')
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
