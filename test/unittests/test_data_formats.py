@@ -8,7 +8,12 @@ from nianalysis.data_formats import (
     get_converter_node)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
+import logging
 
+logger = logging.getLogger('NiAnalysis')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+logger.addHandler(handler)
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',
                         min_version=(0, 3, 12))

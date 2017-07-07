@@ -146,13 +146,13 @@ class NiAnalysisNodeMixin(object):
     @classmethod
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
-            modulecmd = sp.check_output('which modulecmd', shell=True).strip()
-            if not modulecmd:
-                modulecmd = '{}/bin/modulecmd'.format(
-                    os.environ['MODULESHOME'])
-                if not os.path.exists(modulecmd):
-                    raise NiAnalysisError(
-                        "Cannot find 'modulecmd' on path or in MODULESHOME.")
+#             modulecmd = sp.check_output('which modulecmd', shell=True).strip()
+#             if not modulecmd:
+            modulecmd = '{}/bin/modulecmd'.format(
+                os.environ['MODULESHOME'])
+            if not os.path.exists(modulecmd):
+                raise NiAnalysisError(
+                    "Cannot find 'modulecmd' on path or in MODULESHOME.")
             logger.debug("Running modules command '{}'".format(' '.join(args)))
             try:
                 output, error = sp.Popen(
