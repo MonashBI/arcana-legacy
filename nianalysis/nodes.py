@@ -88,7 +88,7 @@ class NiAnalysisNodeMixin(object):
                                  else '')))
                 except KeyError:
                     best_version = req.best_version(
-                        self._avail_modules()[req.name])
+                        self.available_modules()[req.name])
                     logger.debug("Loading best version '{}' of module '{}' for"
                                  " requirement {}".format(best_version,
                                                           req.name, req))
@@ -119,7 +119,7 @@ class NiAnalysisNodeMixin(object):
         return modules
 
     @classmethod
-    def _avail_modules(cls):
+    def available_modules(cls):
         out_text = cls._run_module_cmd('avail')
         sanitized = []
         for l in out_text.split('\n'):

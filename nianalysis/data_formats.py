@@ -3,9 +3,12 @@ from abc import ABCMeta, abstractmethod
 from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.interfaces.utils import ZipDir, UnzipDir
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisRequirementVersionException,
+    NiAnalysisModulesNotInstalledException)
 from nianalysis.requirements import mrtrix3_req, dcm2niix_req
 from nianalysis.interfaces.converters import Dcm2niix
+from nianalysis.nodes import NiAnalysisNodeMixin
 
 
 class DataFormat(object):
@@ -122,12 +125,32 @@ class Converter(object):
         "Lists all data formats that the converter tool can write"
         pass
 
+    @property
+    def is_available(self):
+        """
+        Check to see if the required modules to run the conversion are
+        available. Defaults to True if modules are not used on the system.
+        """
+        try:
+            available_modules = NiAnalysisNodeMixin.available_modules()
+        except NiAnalysisModulesNotInstalledException:
+            # Assume that it is installed but not as a module
+            return True
+        try:
+            for req in self.requirements:
+                req.best_version(available_modules)
+            return True
+        except NiAnalysisRequirementVersionException:
+            return False
+
 
 class Dcm2niixConverter(Converter):
 
+    requirements = [dcm2niix_req]
+
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(Dcm2niix(), name=node_name,
-                            requirements=[dcm2niix_req], wall_time=20)
+                            requirements=self.requirements, wall_time=20)
         convert_node.inputs.compression = 'y'
         return convert_node, 'input_dir', 'converted'
 
@@ -140,9 +163,11 @@ class Dcm2niixConverter(Converter):
 
 class MrtrixConverter(Converter):
 
+    requirements = [mrtrix3_req]
+
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(MRConvert(), name=node_name,
-                            requirements=[mrtrix3_req])
+                            requirements=self.requirements)
         convert_node.inputs.out_ext = output_format.extension
         convert_node.inputs.quiet = True
         return convert_node, 'in_file', 'out_file'
@@ -158,6 +183,8 @@ class MrtrixConverter(Converter):
 
 class UnzipConverter(Converter):
 
+    requirements = []
+
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(UnzipDir(), name=node_name,
                             memory=12000)
@@ -171,6 +198,8 @@ class UnzipConverter(Converter):
 
 
 class ZipConverter(Converter):
+
+    requirements = []
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(ZipDir(), name=node_name,
@@ -205,7 +234,8 @@ def get_converter_node(dataset, dataset_name, output_format, source, workflow,
                        node_name):
     for converter in converters:
         if (dataset.format in converter.input_formats() and
-                output_format in converter.output_formats()):
+            output_format in converter.output_formats() and
+                converter.is_available):
             return converter.convert(workflow, source, dataset, dataset_name,
                                      node_name, output_format)
     raise NiAnalysisError(
