@@ -9,6 +9,10 @@ from nianalysis.exceptions import (
 from nianalysis.requirements import mrtrix3_req, dcm2niix_req
 from nianalysis.interfaces.converters import Dcm2niix
 from nianalysis.nodes import NiAnalysisNodeMixin
+import logging
+
+
+logger = logging.getLogger('NiAnalysis')
 
 
 class DataFormat(object):
@@ -138,7 +142,7 @@ class Converter(object):
             return True
         try:
             for req in self.requirements:
-                req.best_version(available_modules)
+                req.best_version(available_modules[req.name])
             return True
         except NiAnalysisRequirementVersionException:
             return False

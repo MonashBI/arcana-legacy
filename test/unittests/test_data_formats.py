@@ -1,5 +1,6 @@
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
+from nianalysis.interfaces.mrtrix import MRConvert
 from nipype.pipeline import engine as pe
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException
 from nianalysis.dataset import Dataset
@@ -10,10 +11,10 @@ from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
 import logging
 
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-logger.addHandler(handler)
+# logger = logging.getLogger('NiAnalysis')
+# logger.setLevel(logging.DEBUG)
+# handler = logging.StreamHandler()
+# logger.addHandler(handler)
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',
                         min_version=(0, 3, 12))
@@ -46,11 +47,11 @@ class TestConverterAvailability(TestCase):
 
     def test_find_mrtrix(self):
         dummy_dataset = Dataset('dummy', dicom_format)
-        dummy_source = IdentityInterface(['input'])
+        dummy_source = pe.Node(IdentityInterface(['input']), 'dummy_source')
         dummy_workflow = pe.Workflow('dummy_workflow')
         if self.modules_installed:
-            converter_node = get_converter_node(
+            converter_node, _ = get_converter_node(
                 dummy_dataset, 'dummy', mrtrix_format,
                 dummy_source, dummy_workflow, 'dummy_convert',
                 converters=[DummyConverter(), MrtrixConverter()])
-        self.assertIsInstance(converter_node, MrtrixConverter)
+        self.assertIsInstance(converter_node.interface, MRConvert)
