@@ -9,8 +9,8 @@ from nianalysis.data_formats import (
     get_converter_node)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
-import logging
 
+# import logging
 # logger = logging.getLogger('NiAnalysis')
 # logger.setLevel(logging.DEBUG)
 # handler = logging.StreamHandler()
