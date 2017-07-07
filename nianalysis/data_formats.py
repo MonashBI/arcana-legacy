@@ -132,7 +132,7 @@ class Converter(object):
         available. Defaults to True if modules are not used on the system.
         """
         try:
-            available_modules = NiAnalysisNodeMixin.available_modules()
+            available_modules = Node.available_modules()
         except NiAnalysisModulesNotInstalledException:
             # Assume that it is installed but not as a module
             return True
@@ -214,8 +214,8 @@ class ZipConverter(Converter):
 
 
 # List all possible converters in order of preference
-converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),
-              ZipConverter()]
+all_converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),
+                  ZipConverter()]
 
 # A dictionary to access all the formats by name
 data_formats = dict(
@@ -231,7 +231,9 @@ data_formats_by_mrinfo = dict(
 
 
 def get_converter_node(dataset, dataset_name, output_format, source, workflow,
-                       node_name):
+                       node_name, converters=None):
+    if converters is None:
+        converters = all_converters
     for converter in converters:
         if (dataset.format in converter.input_formats() and
             output_format in converter.output_formats() and
