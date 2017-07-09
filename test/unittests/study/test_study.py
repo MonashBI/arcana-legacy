@@ -91,18 +91,21 @@ class DummyStudy(Study):
     def pipeline4(self):
         pipeline = self.create_pipeline(
             name='pipeline4',
-            inputs=[DatasetSpec('pipeline3', nifti_gz_format)],
+            inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
+                    DatasetSpec('pipeline3', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
             citations=[],)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert",
-                                         requirements=[mrtrix3_req])
+        mrmath = pipeline.create_node(MRCat(), name="mrcat",
+                                      requirements=[mrtrix3_req])
+        mrmath.inputs.axis = 0
         # Connect inputs
-        pipeline.connect_input('pipeline3', mrconvert, 'in_file')
+        pipeline.connect_input('pipeline1_2', mrmath, 'first_scan')
+        pipeline.connect_input('pipeline3', mrmath, 'second_scan')
         # Connect outputs
-        pipeline.connect_output('pipeline4', mrconvert, 'out_file')
+        pipeline.connect_output('pipeline4', mrmath, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline

@@ -144,20 +144,13 @@ class Pipeline(object):
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
             return False
-        # NB: Workflows should be the same for pipelines of the same name so
-        #     may not need to be checked.
         return (
             self._name == other._name and
             self._study == other._study and
-            self._workflow == other._workflow and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
             self._options == other._options and
-            self._citations == other._citations and
-            self._requirements == other._requirements and
-            self._approx_runtime == other._approx_runtime and
-            self._min_nthreads == other._min_nthreads and
-            self._max_nthreads == other._max_nthreads)
+            self._citations == other._citations)
 
     def __ne__(self, other):
         return not (self == other)
@@ -258,7 +251,7 @@ class Pipeline(object):
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
                            filter_session_ids=None, reprocess=False,
-                           project=None):
+                           project=None, connected_prereqs=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow
@@ -282,6 +275,9 @@ class Pipeline(object):
             runs of prerequisite pipelines to avoid having to re-query the
             archive. If None, the study info is loaded from the study
             archive.
+        connected_prereqs: list(Requirement)
+            Prerequisite pipelines that have already been connected to the
+            workflow (prequisites of prerequisites)
 
         Returns
         -------
@@ -289,6 +285,8 @@ class Pipeline(object):
             The final report node, which can be connected to subsequent
             pipelines
         """
+        if connected_prereqs is None:
+            connected_prereqs = []
         # Check all inputs and outputs are connected
         self.assert_connected()
         # Get list of available subjects and their associated sessions/datasets
@@ -313,12 +311,14 @@ class Pipeline(object):
         subjects, sessions = self._subject_and_session_iterators(
             sessions_to_process, complete_workflow)
         # Prepend prerequisite pipelines to complete workflow if required
-        prereqs = list(self.prerequisities)
-        if prereqs:
+        prereqs_to_connect = list(self.prerequisities)
+        if prereqs_to_connect:
             reports = []
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
-            for i, prereq in enumerate(prereqs, 1):
+            for i, prereq in enumerate(prereqs_to_connect, 1):
+                if prereq in connected_prereqs:
+                    continue  # Skip prerequisite pipeline
                 # NB: Even if reprocess==True, the prerequisite pipelines are
                 # not re-processed, they are only reprocessed if reprocess ==
                 # 'all'
@@ -327,20 +327,22 @@ class Pipeline(object):
                     subject_ids=prereq_subject_ids,
                     filter_session_ids=filter_session_ids,
                     reprocess=(reprocess if reprocess == 'all' else False),
-                    project=project)
+                    project=project,
+                    connected_prereqs=connected_prereqs)
                 if prereq_report is not None:
                     reports.append(prereq_report)
+                connected_prereqs.append(prereq)
             if reports:
                 prereq_reports = self.create_node(Merge(len(reports)),
                                                   'prereq_reports')
-                for report in reports:
+                for i, report in enumerate(reports):
                     # Connect the output summary of the prerequisite to the
                     # pipeline to ensure that the prerequisite is run first.
                     complete_workflow.connect(
                         report, 'subject_session_pairs',
                         prereq_reports, 'in{}'.format(i))
-                    complete_workflow.connect(prereq_reports, 'out', subjects,
-                                              'prereq_reports')
+                complete_workflow.connect(prereq_reports, 'out', subjects,
+                                          'prereq_reports')
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(

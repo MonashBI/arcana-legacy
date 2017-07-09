@@ -5,8 +5,11 @@ from nianalysis.exceptions import (
 
 
 def split_version(version_str):
+    sanitized_ver_str = re.match(r'[^\d]*([\d\.]+)[^\d]*',
+                                 version_str).group(1)
     try:
-        return tuple(int(p) for p in version_str.split('.'))
+        return tuple(
+            int(p) for p in sanitized_ver_str.split('.'))
     except ValueError as e:
         raise NiAnalysisRequirementVersionException(str(e))
 
