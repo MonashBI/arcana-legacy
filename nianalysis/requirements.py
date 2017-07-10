@@ -2,15 +2,20 @@ import re
 from itertools import izip_longest
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
+import logging
+
+logger = logging.getLogger('NiAnalysis')
 
 
 def split_version(version_str):
-    sanitized_ver_str = re.match(r'[^\d]*([\d\.]+)[^\d]*',
-                                 version_str).group(1)
+    logger.debug("splitting version string '{}'"
+                 .format(version_str))
     try:
+        sanitized_ver_str = re.match(r'[^\d]*([\d\.]+)[^\d]*',
+                                     version_str).group(1)
         return tuple(
             int(p) for p in sanitized_ver_str.split('.'))
-    except ValueError as e:
+    except (ValueError, AttributeError) as e:
         raise NiAnalysisRequirementVersionException(str(e))
 
 

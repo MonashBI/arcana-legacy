@@ -81,6 +81,8 @@ class NiAnalysisNodeMixin(object):
                     possible_reqs = [possible_reqs]
                 # Loop through all options for a given requirement and see
                 # if at least one can be satisfied.
+                logger.debug("Searching for one of {}"
+                             .format(', '.join(str(r) for r in possible_reqs)))
                 ver_exceptions = []  # Will hold all version error messages
                 for req in possible_reqs:
                     try:
