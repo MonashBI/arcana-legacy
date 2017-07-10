@@ -135,29 +135,63 @@ class Requirement(object):
                 return False
         return True
 
+    @classmethod
+    def best_requirement(cls, possible_requirements, available_modules,
+                         preloaded=None):
+        if preloaded is None:
+            preloaded = {}
+        # If possible reqs is a singleton, wrap it in a list for
+        # iterating
+        if isinstance(possible_requirements, Requirement):
+            possible_reqs = [possible_requirements]
+        # Loop through all options for a given requirement and see
+        # if at least one can be satisfied.
+        logger.debug("Searching for one of {}"
+                     .format(', '.join(str(r) for r in possible_reqs)))
+        ver_exceptions = []  # Will hold all version error messages
+        for req in possible_reqs:
+            try:
+                version = req.split_version(preloaded[req.name])
+                logger.debug("Found preloaded version {} of module '{}'"
+                             .format(version, req.name))
+                if not req.valid_version(version):
+                    raise NiAnalysisError(
+                        "Incompatible module version already loaded {}/{},"
+                        " (valid {}->{}) please unload before running "
+                        "pipeline"
+                        .format(
+                            req.name, version, req.min_version,
+                            (req.max_version if req.max_version is not None
+                             else '')))
+            except KeyError:
+                try:
+                    best_version = req.best_version(
+                        available_modules[req.name])
+                    logger.debug("Found best version '{}' of module '{}' for"
+                                 " requirement {}".format(best_version,
+                                                          req.name, req))
+                    return req.name, best_version
+                except NiAnalysisRequirementVersionException as e:
+                    ver_exceptions.append(e)
+        # If no options can be satisfied, otherwise raise exception with
+        # combined messages from all options.
+        raise NiAnalysisRequirementVersionException(
+            ' and '.join(e.msg for e in ver_exceptions))
+
+
 mrtrix3_req = Requirement('mrtrix', min_version=(0, 3, 12))
-
 fsl5_req = Requirement('fsl', min_version=(5, 0, 8))
-
 ants2_req = Requirement('ants', min_version=(2, 0))
-
 spm12_req = Requirement('spm', min_version=(12, 0))
-
 freesurfer_req = Requirement('freesurfer', min_version=(5, 3))
-
 matlab2014_req = Requirement('matlab', min_version=(2014, 'a'),
                              version_split=matlab_version_split)
-
 matlab2015_req = Requirement('matlab', min_version=(2015, 'a'),
                              version_split=matlab_version_split)
-
 noddi_req = Requirement('noddi', min_version=(0, 9)),
-
 niftimatlab_req = Requirement('niftimatlib', (1, 2))
-
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)
-
 fix_req = Requirement('fix', min_version=(1, 0))
-
 afni_req = Requirement('AFNI', min_version=(16, 2, 10))
+mricrogl_req = Requirement('mricrogl', min_version=(1, 0, 20170207))
