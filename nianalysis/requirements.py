@@ -137,24 +137,27 @@ class Requirement(object):
 
     @classmethod
     def best_requirement(cls, possible_requirements, available_modules,
-                         preloaded=None):
-        if preloaded is None:
-            preloaded = {}
+                         preloaded_modules=None):
+        if preloaded_modules is None:
+            preloaded_modules = {}
         # If possible reqs is a singleton, wrap it in a list for
         # iterating
         if isinstance(possible_requirements, Requirement):
-            possible_reqs = [possible_requirements]
+            possible_requirements= [possible_requirements]
         # Loop through all options for a given requirement and see
         # if at least one can be satisfied.
-        logger.debug("Searching for one of {}"
-                     .format(', '.join(str(r) for r in possible_reqs)))
+        logger.debug(
+            "Searching for one of {}".format(
+                ', '.join(str(r) for r in possible_requirements)))
         ver_exceptions = []  # Will hold all version error messages
-        for req in possible_reqs:
+        for req in possible_requirements:
             try:
-                version = req.split_version(preloaded[req.name])
+                version = preloaded_modules[req.name]
                 logger.debug("Found preloaded version {} of module '{}'"
                              .format(version, req.name))
-                if not req.valid_version(version):
+                if req.valid_version(req.split_version(version)):
+                    return req.name, version
+                else:
                     raise NiAnalysisError(
                         "Incompatible module version already loaded {}/{},"
                         " (valid {}->{}) please unload before running "
@@ -176,7 +179,7 @@ class Requirement(object):
         # If no options can be satisfied, otherwise raise exception with
         # combined messages from all options.
         raise NiAnalysisRequirementVersionException(
-            ' and '.join(e.msg for e in ver_exceptions))
+            ' and '.join(str(e) for e in ver_exceptions))
 
 
 mrtrix3_req = Requirement('mrtrix', min_version=(0, 3, 12))
