@@ -1,14 +1,17 @@
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
+from nianalysis.testing import BaseTestCase
 from nianalysis.interfaces.mrtrix import MRConvert
 from nipype.pipeline import engine as pe
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException
 from nianalysis.dataset import Dataset
 from nianalysis.data_formats import (
     Converter, MrtrixConverter, dicom_format, mrtrix_format,
-    get_converter_node)
+    get_converter_node, nifti_gz_format)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
+from nianalysis.study.base import Study, set_dataset_specs
+from nianalysis.dataset import DatasetSpec
 
 # import logging
 # logger = logging.getLogger('NiAnalysis')
@@ -36,6 +39,33 @@ class DummyConverter(Converter):
         return [mrtrix_format]
 
 
+class DummyStudy(Study):
+
+    def pipeline(self):
+        pipeline = self.create_pipeline(
+            name='pipeline',
+            inputs=[DatasetSpec('input', nifti_gz_format)],
+            outputs=[DatasetSpec('output', nifti_gz_format)],
+            description=("A dummy pipeline used to test dicom-to-nifti "
+                         "conversion method"),
+            default_options={},
+            version=1,
+            citations=[])
+        identity = pipeline.create_node(IdentityInterface(['field']),
+                                        name='identity')
+        # Connect inputs
+        pipeline.connect_input('input', identity, 'field')
+        # Connect outputs
+        pipeline.connect_output('output', identity, 'field')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    _dataset_specs = set_dataset_specs(
+        DatasetSpec('input', dicom_format),
+        DatasetSpec('output', nifti_gz_format, pipeline))
+
+
 class TestConverterAvailability(TestCase):
 
     def setUp(self):
@@ -54,4 +84,14 @@ class TestConverterAvailability(TestCase):
                 dummy_dataset, 'dummy', mrtrix_format,
                 dummy_source, dummy_workflow, 'dummy_convert',
                 converters=[DummyConverter(), MrtrixConverter()])
-        self.assertIsInstance(converter_node.interface, MRConvert)
+            self.assertIsInstance(converter_node.interface, MRConvert)
+
+
+class TestDicom2Niix(BaseTestCase):
+
+    def test_dcm2niix(self):
+        study = self.create_study(
+            DummyStudy, 'concatenate', input_datasets={
+                'input': Dataset('t2_tse_tra_p2_448', dicom_format)})
+        study.pipeline().run(work_dir=self.work_dir)
+        self.assertDatasetCreated('output.nii.gz', study.name)
