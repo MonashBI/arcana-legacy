@@ -5,17 +5,21 @@ from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_dataset_specs
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
-from nianalysis.requirements import fsl5_req
+from nianalysis.requirements import fsl5_req, mrtrix3_req
 from nianalysis.nodes import Node
+from nianalysis.requirements import Requirement
 import logging
 
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.DEBUG)
 handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
+
+
+dummy1_req = Requirement(name='dummy1', min_version=(1, 0))
+dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
 
 
 class RequirementsStudy(Study):
@@ -31,7 +35,8 @@ class RequirementsStudy(Study):
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
-            BinaryMaths(), "maths", required=[fsl5_req])
+            BinaryMaths(), "maths", requirements=[
+                (dummy1_req, dummy2_req, fsl5_req), mrtrix3_req])
         maths.inputs.output_type = 'NIFTI_GZ'
         pipeline.connect_input('ones', maths, 'in_file')
         pipeline.connect_input('ones', maths, 'operand_file')

@@ -5,8 +5,10 @@ import math
 import subprocess as sp
 from collections import defaultdict
 import logging
+from nianalysis.requirements import Requirement
 from nianalysis.exceptions import (
-    NiAnalysisError, NiAnalysisModulesNotInstalledException)
+    NiAnalysisError, NiAnalysisModulesNotInstalledException,
+    NiAnalysisRequirementVersionException)
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 
@@ -69,31 +71,18 @@ class NiAnalysisNodeMixin(object):
 
     def _load_modules(self):
         try:
-            preloaded = self._preloaded_modules()
+            preloaded = self.preloaded_modules()
+            available = self.available_modules()
             logger.debug("Loading required modules {} for '{}'"
                          .format(self._requirements, self.name))
-            for req in self._requirements:
-                try:
-                    version = req.split_version(preloaded[req.name])
-                    logger.debug("Found preloaded version {} of module '{}'"
-                                 .format(version, req.name))
-                    if not req.valid_version(version):
-                        raise NiAnalysisError(
-                            "Incompatible module version already loaded {}/{},"
-                            " (valid {}->{}) please unload before running "
-                            "pipeline"
-                            .format(
-                                req.name, version, req.min_version,
-                                (req.max_version if req.max_version is not None
-                                 else '')))
-                except KeyError:
-                    best_version = req.best_version(
-                        self.available_modules()[req.name])
-                    logger.debug("Loading best version '{}' of module '{}' for"
-                                 " requirement {}".format(best_version,
-                                                          req.name, req))
-                    self.load_module(req.name, best_version)
-                    self._loaded_modules.append((req.name, best_version))
+            for possible_reqs in self._requirements:
+                # Get best requirement from list of possible options
+                req_name, req_ver = Requirement.best_requirement(
+                    possible_reqs, available, preloaded)
+                # Load best requirement
+                self.load_module(name=req_name, version=req_ver)
+                # Register best requirement
+                self._loaded_modules.append((req_name, req_ver))
         except NiAnalysisModulesNotInstalledException as e:
             logger.debug("Skipping loading modules as '{}' is not set"
                          .format(e))
@@ -107,7 +96,7 @@ class NiAnalysisNodeMixin(object):
                          .format(e))
 
     @classmethod
-    def _preloaded_modules(cls):
+    def preloaded_modules(cls):
         loaded = os.environ.get('LOADEDMODULES', [])
         if not loaded:
             modules = {}

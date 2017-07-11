@@ -2,15 +2,20 @@ import re
 from itertools import izip_longest
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
+import logging
+
+logger = logging.getLogger('NiAnalysis')
 
 
 def split_version(version_str):
-    sanitized_ver_str = re.match(r'[^\d]*([\d\.]+)[^\d]*',
-                                 version_str).group(1)
+    logger.debug("splitting version string '{}'"
+                 .format(version_str))
     try:
+        sanitized_ver_str = re.match(r'[^\d]*(\d+(?:\.\d+)+)[^\d]*',
+                                     version_str).group(1)
         return tuple(
             int(p) for p in sanitized_ver_str.split('.'))
-    except ValueError as e:
+    except (ValueError, AttributeError) as e:
         raise NiAnalysisRequirementVersionException(str(e))
 
 
@@ -130,29 +135,66 @@ class Requirement(object):
                 return False
         return True
 
+    @classmethod
+    def best_requirement(cls, possible_requirements, available_modules,
+                         preloaded_modules=None):
+        if preloaded_modules is None:
+            preloaded_modules = {}
+        # If possible reqs is a singleton, wrap it in a list for
+        # iterating
+        if isinstance(possible_requirements, Requirement):
+            possible_requirements= [possible_requirements]
+        # Loop through all options for a given requirement and see
+        # if at least one can be satisfied.
+        logger.debug(
+            "Searching for one of {}".format(
+                ', '.join(str(r) for r in possible_requirements)))
+        ver_exceptions = []  # Will hold all version error messages
+        for req in possible_requirements:
+            try:
+                version = preloaded_modules[req.name]
+                logger.debug("Found preloaded version {} of module '{}'"
+                             .format(version, req.name))
+                if req.valid_version(req.split_version(version)):
+                    return req.name, version
+                else:
+                    raise NiAnalysisError(
+                        "Incompatible module version already loaded {}/{},"
+                        " (valid {}->{}) please unload before running "
+                        "pipeline"
+                        .format(
+                            req.name, version, req.min_version,
+                            (req.max_version if req.max_version is not None
+                             else '')))
+            except KeyError:
+                try:
+                    best_version = req.best_version(
+                        available_modules[req.name])
+                    logger.debug("Found best version '{}' of module '{}' for"
+                                 " requirement {}".format(best_version,
+                                                          req.name, req))
+                    return req.name, best_version
+                except NiAnalysisRequirementVersionException as e:
+                    ver_exceptions.append(e)
+        # If no options can be satisfied, otherwise raise exception with
+        # combined messages from all options.
+        raise NiAnalysisRequirementVersionException(
+            ' and '.join(str(e) for e in ver_exceptions))
+
+
 mrtrix3_req = Requirement('mrtrix', min_version=(0, 3, 12))
-
 fsl5_req = Requirement('fsl', min_version=(5, 0, 8))
-
 ants2_req = Requirement('ants', min_version=(2, 0))
-
 spm12_req = Requirement('spm', min_version=(12, 0))
-
 freesurfer_req = Requirement('freesurfer', min_version=(5, 3))
-
 matlab2014_req = Requirement('matlab', min_version=(2014, 'a'),
                              version_split=matlab_version_split)
-
 matlab2015_req = Requirement('matlab', min_version=(2015, 'a'),
                              version_split=matlab_version_split)
-
 noddi_req = Requirement('noddi', min_version=(0, 9)),
-
 niftimatlab_req = Requirement('niftimatlib', (1, 2))
-
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)
-
 fix_req = Requirement('fix', min_version=(1, 0))
-
 afni_req = Requirement('AFNI', min_version=(16, 2, 10))
+mricrogl_req = Requirement('mricrogl', min_version=(1, 0, 20170207))

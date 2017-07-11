@@ -6,9 +6,9 @@ from nianalysis.interfaces.utils import ZipDir, UnzipDir
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException)
-from nianalysis.requirements import mrtrix3_req, dcm2niix_req
+from nianalysis.requirements import (
+    mrtrix3_req, dcm2niix_req, mricrogl_req, Requirement)
 from nianalysis.interfaces.converters import Dcm2niix
-from nianalysis.nodes import NiAnalysisNodeMixin
 import logging
 
 
@@ -81,6 +81,7 @@ rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
 ica_format = DataFormat(name='ica', extension='.ica', converter=None)
 par_format = DataFormat(name='parameters', extension='.par', converter=None)
 
+
 class Converter(object):
     """
     Base class for all NiAnalysis data format converters
@@ -141,8 +142,8 @@ class Converter(object):
             # Assume that it is installed but not as a module
             return True
         try:
-            for req in self.requirements:
-                req.best_version(available_modules[req.name])
+            for possible_reqs in self.requirements:
+                Requirement.best_requirement(possible_reqs, available_modules)
             return True
         except NiAnalysisRequirementVersionException:
             return False
@@ -150,7 +151,7 @@ class Converter(object):
 
 class Dcm2niixConverter(Converter):
 
-    requirements = [dcm2niix_req]
+    requirements = [(dcm2niix_req, mricrogl_req)]
 
     def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
         convert_node = Node(Dcm2niix(), name=node_name,
