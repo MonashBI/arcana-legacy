@@ -7,6 +7,7 @@ from nianalysis.requirements import (
 
 a_req = Requirement('a', min_version=(2, 0, 1))
 b_req = Requirement('b', min_version=(0, 0, 9), max_version=(1, 0, 1))
+c_req = Requirement('c', min_version=(1, 8, 13), max_version=(2, 22, 0))
 
 
 class TestRequirements(TestCase):
@@ -42,6 +43,8 @@ class TestRequirements(TestCase):
             a_req.best_version(['2.0.0', '3.0.9', 'waa']), '3.0.9')
         self.assertEqual(
             b_req.best_version(['0.0.8', '0.0.9']), '0.0.9')
+        self.assertEqual(
+            c_req.best_version(['1.9.v4', '1.2.9', '3.0.1']), '1.9.v4')
 
     def test_exceptions(self):
         self.assertRaises(

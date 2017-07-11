@@ -11,7 +11,7 @@ def split_version(version_str):
     logger.debug("splitting version string '{}'"
                  .format(version_str))
     try:
-        sanitized_ver_str = re.match(r'[^\d]*([\d\.]+)[^\d]*',
+        sanitized_ver_str = re.match(r'[^\d]*(\d+(?:\.\d+)+)[^\d]*',
                                      version_str).group(1)
         return tuple(
             int(p) for p in sanitized_ver_str.split('.'))
