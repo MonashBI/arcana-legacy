@@ -2,7 +2,8 @@ class Citation(object):
 
     def __init__(self, short_name, authors, title, year, journal=None,
                  pages=None, volume=None, issue=None, institute=None,
-                 month=None, proceedings=None, url=None, pdf=None):
+                 month=None, proceedings=None, url=None, pdf=None,
+                 doi=None):
         self._short_name = short_name
         self._authors = authors
         self._title = title
@@ -16,6 +17,7 @@ class Citation(object):
         self._proceedings = proceedings
         self._url = url
         self._pdf = pdf
+        self._doi = doi
 
     def __eq__(self, other):
         return (
@@ -30,7 +32,8 @@ class Citation(object):
             self._month == other._month and
             self._proceedings == other._proceedings and
             self._url == other._url and
-            self._pdf == other._pdf)
+            self._pdf == other._pdf and
+            self._doi == other._doi)
 
     def __ne__(self, other):
         return not (self == other)
@@ -87,6 +90,10 @@ class Citation(object):
     def pdf(self):
         return self._pdf
 
+    @property
+    def doi(self):
+        return self._doi
+
 
 mrtrix_cite = Citation(
     short_name="mrtrix",
@@ -104,7 +111,7 @@ matlab_cite = Citation(
     url="https://placeholder.com",
     year=2014)
 
-sti_cites  = Citation(
+sti_cites = Citation(
     short_name="sti",
     authors=["A"],
     title="Placeholder",
@@ -226,16 +233,31 @@ optimal_t1_bet_params_cite = Citation(
            "on 3D T1 images in multiple sclerosis."),
     journal='Neuroimage', volume=61, year=2012, issue=4)
 
+dwidenoise_cites = [
+    Citation(
+        short_name='dewidenoise1',
+        authors=['Veraart, J.', 'Fieremans. E.', 'Novikov, D.S.'],
+        title='Diffusion MRI noise mapping using random matrix theory',
+        journal='Magn. Res. Med.', volume=76, issue=5, pages='1582-1593',
+        year=2016, doi='10.1002/mrm.26059'),
+    Citation(
+        short_name='dewidenoise2',
+        authors=['Veraart, J.', 'Novikov, D.S.', 'Christiaens, D.',
+                 'Adesaron, B.', 'Sijbers, J.', 'Fieremans. E.'],
+        title='Denoising of diffusion MRI using random matrix theory',
+        journal='NeuroImage', volume=142, pages='394-406',
+        year=2016, doi='10.1016/j.neuroimage.2016.08.016')]
+
 freesurfer_cites = [
     Citation(
-        short_name='',
+        short_name='freesurfer1',
         authors=['Dale, A.M.', 'Fischl, B.', 'Sereno, M.I.'],
         title=("Cortical surface-based analysis. I. Segmentation and surface "
                "reconstruction"),
         journal='Neuroimage', volume=9,
         pages='179-194', year=1999),
     Citation(
-        short_name='',
+        short_name='freesurfer2',
         authors=['Dale, A.M.', 'Sereno, M.I.'],
         title=("Improved localization of cortical activity by combining EEG "
                "and MEG with MRI cortical surface reconstruction: a linear "
@@ -243,7 +265,7 @@ freesurfer_cites = [
         journal='J Cogn Neurosci', volume=5,
         pages='162-176', year=1993),
     Citation(
-        short_name='',
+        short_name='freesurfer3',
         authors=['Desikan, R.S.', 'Segonne, F.', 'Fischl, B.', 'Quinn, B.T.',
                  'Dickerson, B.C.', 'Blacker, D.', 'Buckner, R.L.',
                  'Dale, A.M.', 'Maguire, R.P.', 'Hyman, B.T.', 'Albert, M.S.',
@@ -254,14 +276,14 @@ freesurfer_cites = [
         journal='Neuroimage', volume=31,
         pages='968-980', year=2006),
     Citation(
-        short_name='',
+        short_name='freesurfer4',
         authors=['Fischl, B.', 'Dale, A.M.'],
         title=("Measuring the thickness of the human cerebral cortex from "
                "magnetic resonance images"),
         journal='Proc Natl Acad Sci USA', volume=97,
         pages='11050-11055', year=2000),
     Citation(
-        short_name='',
+        short_name='freesurfer5',
         authors=['Fischl, B.', 'Liu, A.', 'Dale, A.M.'],
         title=("Automated manifold surgery: constructing geometrically "
                "accurate and topologically correct models of the human "
@@ -269,7 +291,7 @@ freesurfer_cites = [
         journal='IEEE Trans Med Imaging', volume=20,
         pages='70-80', year=2001),
     Citation(
-        short_name='',
+        short_name='freesurfer6',
         authors=['Fischl, B.', 'Salat, D.H.', 'Busa, E.', 'Albert, M.',
                  'Dieterich, M.', 'Haselgrove, C.', 'van der Kouwe, A.',
                  'Killiany, R.', 'Kennedy, D.', 'Klaveness, S.',
@@ -279,7 +301,7 @@ freesurfer_cites = [
         journal='Neuron', volume=33,
         pages='341-355', year=2002),
     Citation(
-        short_name='',
+        short_name='freesurfer7',
         authors=['Fischl, B.', 'Salat, D.H.', 'van der Kouwe, A.J.',
                  'Makris, N.', 'Segonne, F.', 'Quinn, B.T.', 'Dale, A.M.'],
         title=("Sequence-independent segmentation of magnetic resonance "
@@ -287,21 +309,21 @@ freesurfer_cites = [
         journal='Neuroimage 23 Suppl', volume=1,
         pages='S69-84', year=2004),
     Citation(
-        short_name='',
+        short_name='freesurfer8',
         authors=['Fischl, B.', 'Sereno, M.I.', 'Dale, A.M.'],
         title=("Cortical surface-based analysis. II: Inflation, flattening, "
                "and a surface-based coordinate system"),
         journal='Neuroimage', volume=9,
         pages='195-207', year=1999),
     Citation(
-        short_name='',
+        short_name='freesurfer9',
         authors=['Fischl, B.', 'Sereno, M.I.', 'Tootell, R.B.', 'Dale, A.M.'],
         title=("High-resolution intersubject averaging and a coordinate "
                "system for the cortical surface"),
         journal='Hum Brain Mapp', volume=8,
         pages='272-284', year=1999),
     Citation(
-        short_name='',
+        short_name='freesurfer10',
         authors=['Fischl, B.', 'van der Kouwe, A.', 'Destrieux, C.',
                  'Halgren, E.', 'Segonne, F.', 'Salat, D.H.', 'Busa, E.',
                  'Seidman, L.J.', 'Goldstein, J.', 'Kennedy, D.',
@@ -310,7 +332,7 @@ freesurfer_cites = [
         journal='Cereb Cortex', volume=14,
         pages='11-22', year=2004),
     Citation(
-        short_name='',
+        short_name='freesurfer11',
         authors=['Han, X.', 'Jovicich, J.', 'Salat, D.', 'van der Kouwe, A.',
                  'Quinn, B.', 'Czanner, S.', 'Busa, E.', 'Pacheco, J.',
                  'Albert, M.', 'Killiany, R.', 'Maguire, P.', 'Rosas, D.',
@@ -321,7 +343,7 @@ freesurfer_cites = [
         journal='Neuroimage', volume=32,
         pages='180-194', year=2006),
     Citation(
-        short_name='',
+        short_name='freesurfer12',
         authors=['Jovicich, J.', 'Czanner, S.', 'Greve, D.', 'Haley, E.',
                  'van der Kouwe, A.', 'Gollub, R.', 'Kennedy, D.',
                  'Schmitt, F.', 'Brown, G.', 'Macfall, J.', 'Fischl, B.',
@@ -331,7 +353,7 @@ freesurfer_cites = [
         journal='Neuroimage', volume=30,
         pages='436-443', year=2006),
     Citation(
-        short_name='',
+        short_name='freesurfer13',
         authors=['Kuperberg, G.R.', 'Broome, M.R.', 'McGuire, P.K.',
                  'David, A.S.', 'Eddy, M.', 'Ozawa, F.', 'Goff, D.',
                  'West, W.C.', 'Williams, S.C.', 'van der Kouwe, A.J.',
@@ -341,7 +363,7 @@ freesurfer_cites = [
         journal='Arch Gen Psychiatry', volume=60,
         pages='878-888', year=2003),
     Citation(
-        short_name='',
+        short_name='freesurfer14',
         authors=['Reuter, M.', 'Schmansky, N.J.', 'Rosas, H.D.', 'Fischl, B.'],
         title=("Within-Subject Template Estimation for Unbiased Longitudinal "
                "Image Analysis"),
@@ -349,7 +371,7 @@ freesurfer_cites = [
         pages='1402-1418', year=2012,
         pdf='http://reuter.mit.edu/papers/reuter-long12.pdf'),
     Citation(
-        short_name='',
+        short_name='freesurfer15',
         authors=['Reuter, M.', 'Fischl, B.'],
         title=("Avoiding asymmetry-induced bias in longitudinal image "
                "processing"),
@@ -357,7 +379,7 @@ freesurfer_cites = [
         pages='19-21', year=2011,
         pdf='http://reuter.mit.edu/papers/reuter-bias11.pdf'),
     Citation(
-        short_name='',
+        short_name='freesurfer16',
         authors=['Reuter, M.', 'Rosas, H.D.', 'Fischl, B.'],
         title=("Highly Accurate Inverse Consistent Registration: A Robust "
                "Approach"),
@@ -365,7 +387,7 @@ freesurfer_cites = [
         pages='1181-1196', year=2010,
         pdf='http://reuter.mit.edu/papers/reuter-robreg10.pdf'),
     Citation(
-        short_name='',
+        short_name='freesurfer17',
         authors=['Rosas, H.D.', 'Liu, A.K.', 'Hersch, S.', 'Glessner, M.',
                  ' Ferrante, R.J.', 'Salat, D.H.', 'van der Kouwe, A.',
                  ' Jenkins, B.G.', 'Dale, A.M.', 'Fischl, B.'],
@@ -374,7 +396,7 @@ freesurfer_cites = [
         journal='Neurology', volume=58,
         pages='695-701', year=2002),
     Citation(
-        short_name='',
+        short_name='freesurfer18',
         authors=['Salat, D.H.', 'Buckner, R.L.', 'Snyder, A.Z.',
                  ' Greve, D.N.', 'Desikan, R.S.', 'Busa, E.', 'Morris, J.C.',
                  'Dale, A.M.', 'Fischl, B.'],
@@ -382,21 +404,21 @@ freesurfer_cites = [
         journal='Cereb Cortex', volume=14,
         pages='721-730', year=2004),
     Citation(
-        short_name='',
+        short_name='freesurfer19',
         authors=['Segonne, F.', 'Dale, A.M.', 'Busa, E.', 'Glessner, M.',
                  'Salat, D.', 'Hahn, H.K.', 'Fischl, B.'],
         title=("A hybrid approach to the skull stripping problem in MRI"),
         journal='Neuroimage', volume=22,
         pages='1060-1075', year=2004),
     Citation(
-        short_name='',
+        short_name='freesurfer20',
         authors=['Segonne, F.', 'Pacheco, J.', 'Fischl, B.'],
         title=("Geometrically accurate topology-correction of cortical "
                "surfaces using nonseparating loops"),
         journal='IEEE Trans Med Imaging', volume=26,
         pages='518-529', year=2007),
     Citation(
-        short_name='',
+        short_name='freesurfer21',
         authors=['Sled, J.G.', 'Zijdenbos, A.P.', 'Evans, A.C.'],
         title=("A nonparametric method for automatic correction of intensity "
                "nonuniformity in MRI data"),

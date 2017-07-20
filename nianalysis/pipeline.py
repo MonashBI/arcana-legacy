@@ -162,7 +162,8 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, work_dir=None, plugin='Linear', mode='parallel', **kwargs):
+    def run(self, work_dir=None, plugin='Linear', plugin_args=None,
+            updatehash=False, **kwargs):
         """
         Connects pipeline to archive and runs it on the local workstation
 
@@ -184,7 +185,8 @@ class Pipeline(object):
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         self.connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
-        return complete_workflow.run()
+        return complete_workflow.run(plugin=plugin, plugin_args=plugin_args,
+                                     updatehash=updatehash)
 
     def submit(self, work_dir, scheduler='slurm', email=None,
                mail_on=('END', 'FAIL'), **kwargs):
@@ -544,13 +546,28 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         pipeline_getters = set()
+        required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             comp = self._study.dataset(input)
             if comp.processed:
                 pipeline_getters.add(comp.pipeline)
-        # Call pipeline instancemethods to study with provided options
-        return (pg(self._study, **self._prereq_options)
-                for pg in pipeline_getters)
+                required_outputs[comp.pipeline].add(input.name)
+        # Call pipeline-getter instance method on study with provided options
+        # to generate pipeline to run
+        for getter in pipeline_getters:
+            pipeline = getter(self._study, **self._prereq_options)
+            # Check that the required outputs are created with the given
+            # options
+            missing_outputs = required_outputs[getter] - set(
+                d.name for d in pipeline.outputs)
+            if missing_outputs:
+                raise NiAnalysisError(
+                    "Output(s) '{}' will not be created by '{}' pipeline with "
+                    "options: {}".format(
+                        "', '".join(missing_outputs), pipeline.name,
+                        ','.join('{}={}'.format(k, v)
+                                 for k, v in self.options)))
+            yield pipeline
 
     def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
         """
