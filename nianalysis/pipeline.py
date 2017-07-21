@@ -19,7 +19,6 @@ from nianalysis.interfaces.iterators import (
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
-from rdflib.plugin import plugins
 from rdflib import plugin
 
 
@@ -70,6 +69,8 @@ class Pipeline(object):
         dictionary are ignored
     """
 
+    iterfields = ('subject_id', 'session_id')
+
     def __init__(self, study, name, inputs, outputs, description,
                  default_options, citations, version, options={}):
         self._name = name
@@ -78,11 +79,15 @@ class Pipeline(object):
         self._version = int(version)
         # Set up inputs
         self._check_spec_names(inputs, 'input')
+        if any(i.name in self.iterfields for i in inputs):
+            raise NiAnalysisError(
+                "Cannot have a dataset spec named '{}' as it clashes with "
+                "iterable field of that name".format(i.name))
         self._inputs = inputs
         self._inputnode = self.create_node(
-            IdentityInterface(fields=list(self.input_names)), "inputnode",
-            wall_time=1,
-            memory=1000)
+            IdentityInterface(fields=(
+                tuple(self.input_names) + self.iterfields)),
+            name="inputnode", wall_time=1, memory=1000)
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -385,6 +390,10 @@ class Pipeline(object):
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt.name)
+        complete_workflow.connect(dataset_source, 'subject_id',
+                                  self.inputnode, 'subject_id')
+        complete_workflow.connect(dataset_source, 'session_id',
+                                  self.inputnode, 'session_id')
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
@@ -590,17 +599,19 @@ class Pipeline(object):
             A NiPype node to connect the input to
         node_input : str
             Name of the input on the node to connect the dataset spec to
-        join : str  (not implemented)  # TODO
+        join : str
             Whether to join the input over sessions, subjects or the whole
             study. Can be one of:
-              'sessions'     - Sessions for each subject are joined into a
-                               list
-              'subjects'     - Subjects for each session are joined into a
-                               list
-              'project'      - Sessions for each are joined into a list
-                               and then nested in a list over all subjects
-              'project_flat' - All sessions across all subjects are joined
-                               into a single list
+
+            sessions:
+                Sessions for each subject are joined into a list
+            subjects:
+                Subjects for each session are joined into a list
+            project:
+                Sessions for each are joined into a list and then nested in a
+                list over all subjects
+            project_flat:
+                All sessions across all subjects are joined into a single list
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
@@ -613,18 +624,21 @@ class Pipeline(object):
                 session_join = JoinNode(
                     IdentityInterface([spec_name]),
                     name='session_' + join_name,
-                    joinsource='sessions', joinfield=[spec_name])
+                    joinsource='{}_sessions'.format(self.name),
+                    joinfield=[spec_name])
                 if join == 'project':
                     inputnode = JoinNode(
                         IdentityInterface([spec_name]),
                         name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[spec_name])
+                        joinsource='{}_subjects'.format(self.name),
+                        joinfield=[spec_name])
                 elif join == 'project_flat':
                     # TODO: Need to implement Chain interface for
                     # concatenating the session lists into a single list
                     inputnode = JoinNode(
                         Chain([spec_name]), name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[spec_name])
+                        joinsource='{}_subjects'.format(self.name),
+                        joinfield=[spec_name])
                 else:
                     raise NiAnalysisError(
                         "Unrecognised join command '{}' can be one of ("
@@ -637,7 +651,8 @@ class Pipeline(object):
             else:
                 inputnode = JoinNode(
                     IdentityInterface([spec_name]), name=join_name,
-                    joinsource=join, joinfield=[spec_name])
+                    joinsource='{}_{}'.format(self.name, join),
+                    joinfield=[spec_name])
                 self._workflow.connect(self._inputnode, spec_name, inputnode,
                                        spec_name)
         else:
@@ -668,6 +683,20 @@ class Pipeline(object):
             self._study.dataset_spec(spec_name).multiplicity]
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
+
+    def connect_subject_id(self, node, node_input):
+        """
+        Connects the subject ID from the input node of the pipeline to an
+        internal node
+
+        Parameters
+        ----------
+        node : BaseNode
+            The node to connect the subject ID to
+        node_input : str
+            The name of the field of the node to connect the subject ID to
+        """
+        self.
 
     def create_node(self, interface, name, requirements=[],
                     wall_time=DEFAULT_WALL_TIME,
