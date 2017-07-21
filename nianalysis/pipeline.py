@@ -587,7 +587,7 @@ class Pipeline(object):
         """
         self._workflow.connect(*args, **kwargs)
 
-    def connect_input(self, spec_name, node, node_input, join=None):
+    def connect_input(self, spec_name, node, node_input):
         """
         Connects a study dataset_spec as an input to the provided node
 
@@ -599,65 +599,11 @@ class Pipeline(object):
             A NiPype node to connect the input to
         node_input : str
             Name of the input on the node to connect the dataset spec to
-        join : str
-            Whether to join the input over sessions, subjects or the whole
-            study. Can be one of:
-
-            sessions:
-                Sessions for each subject are joined into a list
-            subjects:
-                Subjects for each session are joined into a list
-            project:
-                Sessions for each are joined into a list and then nested in a
-                list over all subjects
-            project_flat:
-                All sessions across all subjects are joined into a single list
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(spec_name, self.name, "', '".join(self._inputs)))
-        if join is not None:
-            join_name = '{}_{}_{}_join_'.format(spec_name, node.name,
-                                                node_input)
-            if join.startswith('project'):
-                # Create node to join the sessions first
-                session_join = JoinNode(
-                    IdentityInterface([spec_name]),
-                    name='session_' + join_name,
-                    joinsource='{}_sessions'.format(self.name),
-                    joinfield=[spec_name])
-                if join == 'project':
-                    inputnode = JoinNode(
-                        IdentityInterface([spec_name]),
-                        name='subject_' + join_name,
-                        joinsource='{}_subjects'.format(self.name),
-                        joinfield=[spec_name])
-                elif join == 'project_flat':
-                    # TODO: Need to implement Chain interface for
-                    # concatenating the session lists into a single list
-                    inputnode = JoinNode(
-                        Chain([spec_name]), name='subject_' + join_name,
-                        joinsource='{}_subjects'.format(self.name),
-                        joinfield=[spec_name])
-                else:
-                    raise NiAnalysisError(
-                        "Unrecognised join command '{}' can be one of ("
-                        "'sessions', 'subjects', 'project', 'project_flat')"
-                        .format(join))
-                self._workflow.connect(self._inputnode, spec_name,
-                                       session_join, spec_name)
-                self._workflow.connect(session_join, spec_name, inputnode,
-                                       spec_name)
-            else:
-                inputnode = JoinNode(
-                    IdentityInterface([spec_name]), name=join_name,
-                    joinsource='{}_{}'.format(self.name, join),
-                    joinfield=[spec_name])
-                self._workflow.connect(self._inputnode, spec_name, inputnode,
-                                       spec_name)
-        else:
-            inputnode = self._inputnode
-        self._workflow.connect(inputnode, spec_name, node, node_input)
+        self._workflow.connect(self._inputnode, spec_name, node, node_input)
         if spec_name in self._unconnected_inputs:
             self._unconnected_inputs.remove(spec_name)
 
