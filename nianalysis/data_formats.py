@@ -81,6 +81,8 @@ rdata_format = DataFormat(name='rdata', extension='.RData')
 ica_format = DataFormat(name='ica', extension='.ica')
 par_format = DataFormat(name='parameters', extension='.par')
 gif_format = DataFormat(name='gif', extension='.gif')
+csv_format = DataFormat(name='comma-separated_file', extension='.csv',
+                                converter=None)
 
 
 class Converter(object):
