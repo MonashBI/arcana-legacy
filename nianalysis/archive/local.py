@@ -4,7 +4,9 @@ from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveProjectSink)
+    ArchiveTimepointSinkInputSpec,
+    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveTimepointSink,
+    ArchiveProjectSink)
 import stat
 import shutil
 import logging
@@ -20,8 +22,7 @@ from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
-PROJECT_SUMMARY_NAME = '__SUMMARY__'
-SUBJECT_SUMMARY_NAME = '__SUMMARY__'
+SUMMARY_NAME = 'ALL'
 
 
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
@@ -37,15 +38,18 @@ class LocalSource(ArchiveSource):
 
     def _list_outputs(self):
         # Directory that holds session-specific
-        base_subject_dir = os.path.join(*(str(p) for p in (
-            self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id)))
+        base_project_dir = os.path.join(self.inputs.base_dir,
+                                        str(self.inputs.project_id))
+        base_subject_dir = os.path.join(base_project_dir,
+                                        str(self.inputs.subject_id))
         session_dir = os.path.join(base_subject_dir,
-                                   self.inputs.session_id)
-        subject_dir = os.path.join(base_subject_dir, SUBJECT_SUMMARY_NAME)
-        project_dir = os.path.join(
-            self.inputs.base_dir, self.inputs.project_id,
-            PROJECT_SUMMARY_NAME)
+                                   str(self.inputs.session_id))
+        subject_dir = os.path.join(base_subject_dir, SUMMARY_NAME)
+        timepoint_dir = os.path.join(base_project_dir,
+                                     SUMMARY_NAME,
+                                     str(self.inputs.session_id))
+        project_dir = os.path.join(base_project_dir, SUMMARY_NAME,
+                                   SUMMARY_NAME)
         outputs = {}
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
@@ -53,6 +57,8 @@ class LocalSource(ArchiveSource):
                 data_dir = project_dir
             elif multiplicity.startswith('per_subject'):
                 data_dir = subject_dir
+            elif multiplicity.startswith('per_timepoint'):
+                data_dir = timepoint_dir
             elif multiplicity.startswith('per_session'):
                 data_dir = session_dir
             else:
@@ -84,6 +90,11 @@ class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
     pass
 
 
+class LocalTimepointSinkInputSpec(ArchiveTimepointSinkInputSpec,
+                                  LocalSinkInputSpecMixin):
+    pass
+
+
 class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
                                 LocalSinkInputSpecMixin):
     pass
@@ -101,7 +112,8 @@ class LocalSinkMixin(object):
         outputs = self._base_outputs()
         out_files = []
         missing_files = []
-        # Get session dir
+        # Get output dir from base ArchiveSink class (will change depending on
+        # whether it is per session/subject/timepoint/project)
         out_path = self._get_output_path()
         out_dir = os.path.abspath(os.path.join(*out_path))
         # Make session dir
@@ -111,8 +123,9 @@ class LocalSinkMixin(object):
         # cache directory and upload to daris.
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
-            assert processed, ("Should only be sinking processed datasets, not "
-                               "'{}'".format(name))
+            assert processed, (
+                "Should only be sinking processed datasets, not '{}'"
+                .format(name))
             filename = getattr(self.inputs, name + INPUT_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):
@@ -169,7 +182,17 @@ class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, SUBJECT_SUMMARY_NAME]
+            self.inputs.subject_id, SUMMARY_NAME]
+
+
+class LocalTimepointSink(LocalSinkMixin, ArchiveTimepointSink):
+
+    input_spec = LocalTimepointSinkInputSpec
+
+    def _get_output_path(self):
+        return [
+            self.inputs.base_dir, self.inputs.project_id,
+            SUMMARY_NAME, self.inputs.session_id]
 
 
 class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
@@ -178,7 +201,8 @@ class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id, PROJECT_SUMMARY_NAME]
+            self.inputs.base_dir, self.inputs.project_id, SUMMARY_NAME,
+            SUMMARY_NAME]
 
 
 class LocalArchive(Archive):
@@ -238,7 +262,7 @@ class LocalArchive(Archive):
         project_dir = os.path.join(self.base_dir, str(project_id))
         subjects = []
         subject_dirs = [d for d in os.listdir(project_dir)
-                        if not d.startswith('.') and d != PROJECT_SUMMARY_NAME]
+                        if not d.startswith('.') and d != SUMMARY_NAME]
         if subject_ids is not None:
             # Ensure ids are strings
             subject_ids = [str(i) for i in subject_ids]
@@ -256,8 +280,7 @@ class LocalArchive(Archive):
             subject_path = os.path.join(project_dir, subject_dir)
             sessions = []
             session_dirs = [d for d in os.listdir(subject_path)
-                            if (not d.startswith('.') and
-                                d != SUBJECT_SUMMARY_NAME)]
+                            if (not d.startswith('.') and d != SUMMARY_NAME)]
             if session_ids is not None:
                 if any(session_id not in session_dirs
                        for session_id in session_ids):
@@ -278,7 +301,7 @@ class LocalArchive(Archive):
                         Dataset.from_path(os.path.join(session_path, f)))
                 sessions.append(Session(session_dir, datasets))
             subject_summary_path = os.path.join(subject_path,
-                                                SUBJECT_SUMMARY_NAME)
+                                                SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
                             if not os.path.isdir(d)]
@@ -288,10 +311,10 @@ class LocalArchive(Archive):
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
-        project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
+        project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
         if os.path.exists(project_summary_path):
             files = [d for d in os.listdir(project_summary_path)
-                        if not os.path.isdir(d)]
+                     if not os.path.isdir(d)]
             for f in files:
                 datasets.append(
                     Dataset.from_path(os.path.join(project_summary_path, f),
@@ -320,7 +343,7 @@ class LocalArchive(Archive):
             The id of the project
         sessions : List[Session]
             List of sessions of which to test for the dataset
-        """        
+        """
         if sessions is None:
             sessions = self.all_session_ids(project_id)
         with_dataset = []

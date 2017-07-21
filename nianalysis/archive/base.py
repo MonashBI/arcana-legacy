@@ -72,6 +72,8 @@ class Archive(object):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
             sink_class = self.SubjectSink
+        elif multiplicity.startswith('per_timepoint'):
+            sink_class = self.TimepointSink
         elif multiplicity.startswith('per_project'):
             sink_class = self.ProjectSink
         else:
@@ -221,6 +223,11 @@ class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
 
 
+class ArchiveTimepointSinkInputSpec(BaseArchiveSinkInputSpec):
+
+    session_id = traits.Str(mandatory=True, desc="The session ID")
+
+
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
     pass
 
@@ -243,6 +250,12 @@ class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
+
+
+class ArchiveTimepointSinkOutputSpec(BaseArchiveSinkOutputSpec):
+
+    project_id = traits.Str(desc="The project ID")
+    session_id = traits.Str(desc="The session ID")
 
 
 class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -306,6 +319,20 @@ class ArchiveSubjectSink(BaseArchiveSink):
         outputs = self.output_spec().get()
         outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
+        return outputs
+
+
+class ArchiveTimepointSink(BaseArchiveSink):
+
+    input_spec = ArchiveTimepointSinkInputSpec
+    output_spec = ArchiveTimepointSinkOutputSpec
+
+    ACCEPTED_MULTIPLICITIES = ('per_subject',)
+
+    def _base_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['project_id'] = self.inputs.project_id
+        outputs['session_id'] = self.inputs.session_id
         return outputs
 
 

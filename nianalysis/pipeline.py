@@ -12,10 +12,9 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
-from nianalysis.interfaces.utils import Chain
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
-    SubjectSessionReport, SessionReport)
+    TimepointReport, SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
@@ -403,7 +402,7 @@ class Pipeline(object):
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
-            # 'per_subject' or 'per_project')
+            # 'per_subject', 'per_timepoint', or 'per_project')
             sink = self.study.archive.sink(
                 self.study._project_id,
                 (self.study.dataset(o) for o in outputs), mult,
@@ -508,13 +507,22 @@ class Pipeline(object):
                 output_summary, 'subject_session_pairs')
         elif mult == 'per_subject':
             subject_output_summary = JoinNode(
-                SubjectReport(), joinsource=subjects, joinfield='subjects',
+                SubjectReport(), joinsource=subjects, joinfield='sessions',
                 name=self.name + '_subject_summary_outputs', wall_time=1,
                 memory=1000)
             workflow.connect(sink, 'subject_id',
-                                      subject_output_summary, 'subjects')
+                             subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
-                                      output_summary, 'subjects')
+                             output_summary, 'subjects')
+        elif mult == 'per_timepoint':
+            timepoint_output_summary = JoinNode(
+                TimepointReport(), joinsource=subjects, joinfield='subjects',
+                name=self.name + '_timepoint_summary_outputs', wall_time=1,
+                memory=1000)
+            workflow.connect(sink, 'subject_id',
+                             timepoint_output_summary, 'subjects')
+            workflow.connect(timepoint_output_summary, 'subjects',
+                             output_summary, 'subjects')
         elif mult == 'per_project':
             workflow.connect(sink, 'project_id', output_summary, 'project')
 
@@ -571,7 +579,7 @@ class Pipeline(object):
             if dataset.multiplicity == 'per_project':
                 if dataset.prefixed_name not in project.dataset_names:
                     return all_sessions
-            elif dataset.multiplicity == 'per_subject':
+            elif dataset.multiplicity in ('per_subject', 'per_timepoint'):
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
                     if dataset.prefixed_name not in sub.dataset_names)))
@@ -859,8 +867,9 @@ class Pipeline(object):
         Parameters
         ----------
         multiplicity : str
-            The multiplicity of the output node. Can be 'per_session',
-            'per_subject' or 'per_project'
+            One of 'per_session', 'per_subject', 'per_timepoint' and
+            'per_project', specifying whether the dataset is present for each
+            session, subject, timepoint or project.
         """
         return self._outputnodes[multiplicity]
 

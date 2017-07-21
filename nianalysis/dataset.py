@@ -26,12 +26,13 @@ class BaseDataset(object):
         The file format used to store the dataset. Can be one of the
         recognised formats
     multiplicity : str
-        One of 'per_subject', 'subject_subset', and 'per_project', specifying
-        whether the dataset is present for each session, subject or project.
+        One of 'per_session', 'per_subject', 'per_timepoint' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        timepoint or project.
     """
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_project')
-    #                        'per_session_subset', 'per_subject_subset')
+    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_timepoint',
+                            'per_project')
 
     __metaclass__ = ABCMeta
 
@@ -111,8 +112,9 @@ class Dataset(BaseDataset):
         The file format used to store the dataset. Can be one of the
         recognised formats
     multiplicity : str
-        One of 'per_subject', 'subject_subset', and 'per_project', specifying
-        whether the dataset is present for each session, subject or project.
+        One of 'per_session', 'per_subject', 'per_timepoint' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        timepoint or project.
     processed : bool
         Whether the scan was generated or acquired
     """
@@ -191,8 +193,9 @@ class DatasetSpec(BaseDataset):
         The method of the study that is used to generate the dataset. If None
         the dataset is assumed to be primary external
     multiplicity : str
-        One of 'per_subject', 'subject_subset', and 'per_project', specifying
-        whether the dataset is present for each session, subject or project.
+        One of 'per_session', 'per_subject', 'per_timepoint' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        timepoint or project.
     """
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8

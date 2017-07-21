@@ -109,6 +109,28 @@ class SubjectReport(BaseInterface):
         return outputs
 
 
+class TimepointReportSpec(TraitedSpec):
+
+    sessions = traits.List(traits.Str)
+
+
+class TimepointReport(BaseInterface):
+    """
+    Basically an IndentityInterface for joining over sessions
+    """
+
+    input_spec = TimepointReportSpec
+    output_spec = TimepointReportSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        outputs = {}
+        outputs['sessions'] = self.inputs.sessions
+        return outputs
+
+
 class SubjectSessionReportInputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(
