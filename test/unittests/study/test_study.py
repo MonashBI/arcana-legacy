@@ -1,8 +1,9 @@
+import os.path
 from nipype import config
 config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
-from nianalysis.data_formats import nifti_gz_format, mrtrix_format  # @IgnorePep8
+from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
@@ -10,6 +11,8 @@ from nianalysis.testing import BaseTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 import logging  # @IgnorePep8
+from nipype.interfaces.base import (  # @IgnorePep8
+    BaseInterface, File, TraitedSpec, traits, isdefined)
 
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("workflow").setLevel(logging.INFO)
@@ -97,7 +100,7 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            citations=[],)
+            citations=[])
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -106,6 +109,42 @@ class DummyStudy(Study):
         pipeline.connect_input('pipeline3', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline4', mrmath, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def session_ids_access_pipeline(self):
+        pipeline = self.create_pipeline(
+            name='session_ids_access',
+            inputs=[],
+            outputs=[DatasetSpec('session_ids', text_format)],
+            description=(
+                "A dummy pipeline used to test access to 'session' IDs"),
+            default_options={},
+            version=1,
+            citations=[])
+        sessions_to_file = pipeline.create_join_sessions_node(
+            IteratorToFile(), name='sessions_to_file', joinfield='ids')
+        pipeline.connect_session_id(sessions_to_file, 'ids')
+        pipeline.connect_output('session_ids', sessions_to_file, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def subject_ids_access_pipeline(self):
+        pipeline = self.create_pipeline(
+            name='subject_ids_access',
+            inputs=[],
+            outputs=[DatasetSpec('subject_ids', text_format)],
+            description=(
+                "A dummy pipeline used to test access to 'subject' IDs"),
+            default_options={},
+            version=1,
+            citations=[])
+        subjects_to_file = pipeline.create_join_subjects_node(
+            IteratorToFile(), name='subjects_to_file', joinfield='ids')
+        pipeline.connect_subject_id(subjects_to_file, 'ids')
+        pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -163,7 +202,45 @@ class DummyStudy(Study):
         DatasetSpec('subject_summary', mrtrix_format, subject_summary_pipeline,
                     multiplicity='per_subject'),
         DatasetSpec('project_summary', mrtrix_format, project_summary_pipeline,
-                    multiplicity='per_project'))
+                    multiplicity='per_project'),
+        DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline),
+        DatasetSpec('session_ids', text_format, session_ids_access_pipeline,
+                    multiplicity='per_subject'))
+
+
+class IteratorToFileInputSpec(TraitedSpec):
+    ids = traits.List(traits.Str(), desc="ID of the iterable")
+    out_file = File(genfile=True, desc="The name of the generated file")
+
+
+class IteratorToFileOutputSpec(TraitedSpec):
+    out_file = File(exists=True, desc="Output file containing iterables")
+
+
+class IteratorToFile(BaseInterface):
+
+    input_spec = IteratorToFileInputSpec
+    output_spec = IteratorToFileOutputSpec
+
+    def _run_interface(self, runtime):
+        with open(self._gen_filename('out_file'), 'w') as f:
+            f.write('\n'.join(str(i) for i in self.inputs.ids))
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_file'] = self._gen_filename('out_file')
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_file':
+            if isdefined(self.inputs.out_file):
+                fname = self.inputs.out_file
+            else:
+                fname = os.path.join(os.getcwd(), 'out.txt')
+        else:
+            assert False
+        return fname
 
 
 class TestRunPipeline(BaseTestCase):
@@ -229,3 +306,23 @@ class TestRunPipeline(BaseTestCase):
             shell=True))
         self.assertEqual(mean_val,
                          len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
+
+    def test_subject_ids_access(self):
+        self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
+        for session_id in self.SESSION_IDS:
+            subject_ids_path = self.output_file_path(
+                'subject_ids.txt', self.study.name,
+                subject=session_id, multiplicity='per_timepoint')
+            with open(subject_ids_path) as f:
+                ids = f.read().split('\n')
+            self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
+
+    def test_session_ids_access(self):
+        self.study.session_ids_access_pipeline().run(work_dir=self.work_dir)
+        for subject_id in self.SUBJECT_IDS:
+            session_ids_path = self.output_file_path(
+                'session_ids.txt', self.study.name,
+                subject=subject_id, multiplicity='per_subject')
+            with open(session_ids_path) as f:
+                ids = f.read().split('\n')
+            self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))

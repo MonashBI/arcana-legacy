@@ -367,6 +367,12 @@ class Pipeline(object):
             raise NiAnalysisMissingDatasetError(
                 str(e) + ", which is required for pipeline '{}'".format(
                     self.name))
+        # Map the subject and session IDs to the input node of the pipeline
+        # for use in connect_subject_id and connect_session_id
+        complete_workflow.connect(sessions, 'subject_id',
+                                  self.inputnode, 'subject_id')
+        complete_workflow.connect(sessions, 'session_id',
+                                  self.inputnode, 'session_id')
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
@@ -390,10 +396,6 @@ class Pipeline(object):
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt.name)
-        complete_workflow.connect(dataset_source, 'subject_id',
-                                  self.inputnode, 'subject_id')
-        complete_workflow.connect(dataset_source, 'session_id',
-                                  self.inputnode, 'session_id')
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
@@ -642,7 +644,21 @@ class Pipeline(object):
         node_input : str
             The name of the field of the node to connect the subject ID to
         """
-        self.
+        self._workflow.connect(self._inputnode, 'subject_id', node, node_input)
+
+    def connect_session_id(self, node, node_input):
+        """
+        Connects the session ID from the input node of the pipeline to an
+        internal node
+
+        Parameters
+        ----------
+        node : BaseNode
+            The node to connect the subject ID to
+        node_input : str
+            The name of the field of the node to connect the subject ID to
+        """
+        self._workflow.connect(self._inputnode, 'session_id', node, node_input)
 
     def create_node(self, interface, name, requirements=[],
                     wall_time=DEFAULT_WALL_TIME,
