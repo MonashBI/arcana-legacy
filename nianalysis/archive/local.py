@@ -316,13 +316,8 @@ class LocalArchive(Archive):
         # Get project and timepoint summary datasets
         base_project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
         if os.path.exists(base_project_summary_path):
-            summary_dirs = [d for d in os.listdir(subject_path)
-                            if not d.startswith('.')]
-            self._check_only_dirs(summary_dirs, base_project_summary_path)
             project_summary_path = os.path.join(base_project_summary_path,
                                                 SUMMARY_NAME)
-            for summary_dir in summary_dirs:
-                
             if os.path.exists(project_summary_path):
                 files = [d for d in os.listdir(project_summary_path)
                          if not os.path.isdir(d)]
@@ -331,7 +326,22 @@ class LocalArchive(Archive):
                         Dataset.from_path(
                             os.path.join(project_summary_path, f),
                             multiplicity='per_project'))
-            project = Project(project_id, subjects, datasets)
+            tpoint_summary_dirs = [d for d in os.listdir(subject_path)
+                                   if not (d.startswith('.') and
+                                           d == project_summary_path)]
+            self._check_only_dirs(tpoint_summary_dirs,
+                                  base_project_summary_path)
+            for tpoint_summary_dir in tpoint_summary_dirs:
+                tpoint_summary_path = os.path.join(
+                    base_project_summary_path, tpoint_summary_dir)
+                files = [d for d in os.listdir(tpoint_summary_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    datasets.append(
+                        Dataset.from_path(
+                            os.path.join(tpoint_summary_path, f),
+                            multiplicity='per_timepoint'))
+        project = Project(project_id, subjects, datasets)
         return project
 
     @classmethod
