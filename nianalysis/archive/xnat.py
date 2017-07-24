@@ -254,9 +254,8 @@ class XNATSinkMixin(XNATMixin):
                     missing_files.append(name)
                     continue  # skip the upload for this file
                 dataset_format = data_formats[format_name]
-                assert (
-                    split_extension(filename)[1] ==
-                    dataset_format.extension), (
+                ext = dataset_format.extension
+                assert split_extension(filename)[1] == ext, (
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
                             data_formats[format_name].name,
@@ -266,7 +265,7 @@ class XNATSinkMixin(XNATMixin):
                     prefixed_name = self.inputs.study_name + '_' + name
                 else:
                     prefixed_name = name
-                out_fname = prefixed_name + dataset_format.extension
+                out_fname = prefixed_name + (ext if ext is not None else '')
                 # Copy to local cache
                 dst_path = os.path.join(cache_dir, out_fname)
                 out_files.append(dst_path)
