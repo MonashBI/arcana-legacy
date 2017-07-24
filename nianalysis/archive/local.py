@@ -291,6 +291,7 @@ class LocalArchive(Archive):
                                 project_id, "', '".join(session_dirs)))
                 session_dirs = session_ids
             self._check_only_dirs(session_dirs, subject_path)
+            # Get datasets in all sessions
             for session_dir in session_dirs:
                 session_path = os.path.join(subject_path, session_dir)
                 datasets = []
@@ -300,6 +301,7 @@ class LocalArchive(Archive):
                     datasets.append(
                         Dataset.from_path(os.path.join(session_path, f)))
                 sessions.append(Session(session_dir, datasets))
+            # Get subject summary datasets
             subject_summary_path = os.path.join(subject_path,
                                                 SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
@@ -311,15 +313,25 @@ class LocalArchive(Archive):
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
-        project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
-        if os.path.exists(project_summary_path):
-            files = [d for d in os.listdir(project_summary_path)
-                     if not os.path.isdir(d)]
-            for f in files:
-                datasets.append(
-                    Dataset.from_path(os.path.join(project_summary_path, f),
-                                      multiplicity='per_project'))
-        project = Project(project_id, subjects, datasets)
+        # Get project and timepoint summary datasets
+        base_project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
+        if os.path.exists(base_project_summary_path):
+            summary_dirs = [d for d in os.listdir(subject_path)
+                            if not d.startswith('.')]
+            self._check_only_dirs(summary_dirs, base_project_summary_path)
+            project_summary_path = os.path.join(base_project_summary_path,
+                                                SUMMARY_NAME)
+            for summary_dir in summary_dirs:
+                
+            if os.path.exists(project_summary_path):
+                files = [d for d in os.listdir(project_summary_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    datasets.append(
+                        Dataset.from_path(
+                            os.path.join(project_summary_path, f),
+                            multiplicity='per_project'))
+            project = Project(project_id, subjects, datasets)
         return project
 
     @classmethod

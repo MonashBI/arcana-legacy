@@ -4,7 +4,7 @@ import shutil
 from unittest import TestCase
 import nianalysis
 from nianalysis.archive.local import (
-    LocalArchive, SUBJECT_SUMMARY_NAME, PROJECT_SUMMARY_NAME)
+    LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
 import sys
 import warnings
@@ -170,12 +170,16 @@ class BaseTestCase(TestCase):
             assert subject is not None
             assert session is None
             path = os.path.join(self.ARCHIVE_PATH, project, subject,
-                                SUBJECT_SUMMARY_NAME)
+                                SUMMARY_NAME)
+        elif multiplicity == 'per_timepoint':
+            assert session is not None
+            assert subject is None
+            path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,
+                                session)
         elif multiplicity == 'per_project':
             assert subject is None
             assert session is None
-            path = os.path.join(self.ARCHIVE_PATH, project,
-                                PROJECT_SUMMARY_NAME)
+            path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME)
         else:
             assert False
         return os.path.abspath(path)

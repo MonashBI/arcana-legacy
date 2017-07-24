@@ -327,7 +327,7 @@ class ArchiveTimepointSink(BaseArchiveSink):
     input_spec = ArchiveTimepointSinkInputSpec
     output_spec = ArchiveTimepointSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_subject',)
+    ACCEPTED_MULTIPLICITIES = ('per_timepoint',)
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
