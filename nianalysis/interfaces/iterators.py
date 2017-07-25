@@ -36,7 +36,7 @@ class InputSubjects(BaseInterface):
 
 class InputSessionsSpec(TraitedSpec):
 
-    session_id = traits.Str(mandatory=True, desc=("The session ID"))
+    visit_id = traits.Str(mandatory=True, desc=("The session ID"))
     subject_id = traits.Str(mandatory=True, desc=("The subject ID"))
 
 
@@ -53,7 +53,7 @@ class InputSessions(BaseInterface):
 
     def _list_outputs(self):
         outputs = {}
-        outputs['session_id'] = self.inputs.session_id
+        outputs['visit_id'] = self.inputs.visit_id
         outputs['subject_id'] = self.inputs.subject_id
         return outputs
 

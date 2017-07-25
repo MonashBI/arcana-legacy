@@ -47,7 +47,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets, multiplicity='per_session',
+    def sink(self, project_id, output_datasets, multiplicity='per_se_ssion',
              name=None, study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -68,7 +68,7 @@ class Archive(object):
             study. Used for processed datasets only
 
         """
-        if multiplicity.startswith('per_session'):
+        if multiplicity.startswith('per_se_ssion'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
             sink_class = self.SubjectSink
@@ -93,7 +93,7 @@ class Archive(object):
         return sink
 
     @abstractmethod
-    def project(self, project_id, subject_ids=None, session_ids=None):
+    def project(self, project_id, subject_ids=None, visit_ids=None):
         """
         Returns a nianalysis.archive.Project object for the given project id,
         which holds information on all available subjects, sessions and
@@ -106,7 +106,7 @@ class Archive(object):
         subject_ids : list(str)
             List of subject ids to filter the returned subjects. If None all
             subjects will be returned.
-        session_ids : list(str)
+        visit_ids : list(str)
             List of session ids to filter the returned sessions. If None all
             sessions will be returned
         """
@@ -122,7 +122,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
         mandatory=True,
         desc='The project ID')
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
-    session_id = traits.Str(mandatory=True, usedefult=True,
+    visit_id = traits.Str(mandatory=True, usedefult=True,
                             desc="The session or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
@@ -214,7 +214,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
-    session_id = traits.Str(mandatory=False,
+    visit_id = traits.Str(mandatory=False,
                             desc="The session or processed group ID")
 
 
@@ -225,7 +225,7 @@ class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class ArchiveVisitSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    session_id = traits.Str(mandatory=True, desc="The session ID")
+    visit_id = traits.Str(mandatory=True, desc="The session ID")
 
 
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
@@ -243,7 +243,7 @@ class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
-    session_id = traits.Str(desc="The session or processed group ID")
+    visit_id = traits.Str(desc="The session or processed group ID")
 
 
 class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -255,7 +255,7 @@ class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 class ArchiveVisitSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
-    session_id = traits.Str(desc="The session ID")
+    visit_id = traits.Str(desc="The session ID")
 
 
 class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -298,13 +298,13 @@ class ArchiveSink(BaseArchiveSink):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_session',)
+    ACCEPTED_MULTIPLICITIES = ('per_se_ssion',)
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
         outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
-        outputs['session_id'] = self.inputs.session_id
+        outputs['visit_id'] = self.inputs.visit_id
         return outputs
 
 
@@ -332,7 +332,7 @@ class ArchiveVisitSink(BaseArchiveSink):
     def _base_outputs(self):
         outputs = self.output_spec().get()
         outputs['project_id'] = self.inputs.project_id
-        outputs['session_id'] = self.inputs.session_id
+        outputs['visit_id'] = self.inputs.visit_id
         return outputs
 
 

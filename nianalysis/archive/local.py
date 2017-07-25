@@ -43,11 +43,11 @@ class LocalSource(ArchiveSource):
         base_subject_dir = os.path.join(base_project_dir,
                                         str(self.inputs.subject_id))
         session_dir = os.path.join(base_subject_dir,
-                                   str(self.inputs.session_id))
+                                   str(self.inputs.visit_id))
         subject_dir = os.path.join(base_subject_dir, SUMMARY_NAME)
         visit_dir = os.path.join(base_project_dir,
                                      SUMMARY_NAME,
-                                     str(self.inputs.session_id))
+                                     str(self.inputs.visit_id))
         project_dir = os.path.join(base_project_dir, SUMMARY_NAME,
                                    SUMMARY_NAME)
         outputs = {}
@@ -59,7 +59,7 @@ class LocalSource(ArchiveSource):
                 data_dir = subject_dir
             elif multiplicity.startswith('per_visit'):
                 data_dir = visit_dir
-            elif multiplicity.startswith('per_session'):
+            elif multiplicity.startswith('per_se_ssion'):
                 data_dir = session_dir
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(
@@ -172,7 +172,7 @@ class LocalSink(LocalSinkMixin, ArchiveSink):
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, self.inputs.session_id]
+            self.inputs.subject_id, self.inputs.visit_id]
 
 
 class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
@@ -192,7 +192,7 @@ class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
-            SUMMARY_NAME, self.inputs.session_id]
+            SUMMARY_NAME, self.inputs.visit_id]
 
 
 class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
@@ -238,7 +238,7 @@ class LocalArchive(Archive):
         sink.inputs.base_dir = self.base_dir
         return sink
 
-    def project(self, project_id, subject_ids=None, session_ids=None):
+    def project(self, project_id, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         archive
@@ -250,7 +250,7 @@ class LocalArchive(Archive):
         subject_ids : list(str)
             List of subject IDs with which to filter the tree with. If None all
             are returned
-        session_ids : list(str)
+        visit_ids : list(str)
             List of session IDs with which to filter the tree with. If None all
             are returned
 
@@ -282,15 +282,15 @@ class LocalArchive(Archive):
             sessions = []
             session_dirs = [d for d in os.listdir(subject_path)
                             if (not d.startswith('.') and d != SUMMARY_NAME)]
-            if session_ids is not None:
-                if any(session_id not in session_dirs
-                       for session_id in session_ids):
+            if visit_ids is not None:
+                if any(visit_id not in session_dirs
+                       for visit_id in visit_ids):
                     raise NiAnalysisError(
                         "'{}' sessions(s) is/are missing from '{}' subject of "
                         "'{}' project in local archive (found '{}')"
-                        .format("', '".join(session_ids), subject_dir,
+                        .format("', '".join(visit_ids), subject_dir,
                                 project_id, "', '".join(session_dirs)))
-                session_dirs = session_ids
+                session_dirs = visit_ids
             self._check_only_dirs(session_dirs, subject_path)
             # Get datasets in all sessions
             for session_dir in session_dirs:
@@ -373,7 +373,7 @@ class LocalArchive(Archive):
         for session in sessions:
             if os.path.exists(
                 os.path.join(self._base_dir, str(project_id),
-                             session.subject_id, session.session_id,
+                             session.subject_id, session.visit_id,
                              dataset.filename)):
                 with_dataset.append(session)
         return with_dataset

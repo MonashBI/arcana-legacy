@@ -28,10 +28,10 @@ class TestLocalArchive(BaseTestCase):
         sink_files = [Dataset('sink1', nifti_gz_format, processed=True),
                       Dataset('sink3', nifti_gz_format, processed=True),
                       Dataset('sink4', nifti_gz_format, processed=True)]
-        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.session_id = self.SESSION
+        inputnode.inputs.visit_id = self.SESSION
         source = archive.source(self.name, source_files,
                                 study_name=self.STUDY_NAME)
         sink = archive.sink(self.name, sink_files, study_name=self.STUDY_NAME)
@@ -42,9 +42,9 @@ class TestLocalArchive(BaseTestCase):
         workflow = pe.Workflow('source_sink_unit_test', base_dir=self.work_dir)
         workflow.add_nodes((source, sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
-        workflow.connect(inputnode, 'session_id', source, 'session_id')
+        workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', sink, 'subject_id')
-        workflow.connect(inputnode, 'session_id', sink, 'session_id')
+        workflow.connect(inputnode, 'visit_id', sink, 'visit_id')
         for source_file in source_files:
             if not source_file.name.endswith('2'):
                 source_name = source_file.name
@@ -69,10 +69,10 @@ class TestLocalArchive(BaseTestCase):
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),
                         Dataset('source3', nifti_gz_format)]
-        inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.session_id = self.SESSION
+        inputnode.inputs.visit_id = self.SESSION
         source = archive.source(self.name, source_files)
         # Test subject sink
         subject_sink_files = [Dataset('sink1', nifti_gz_format,
@@ -113,9 +113,9 @@ class TestLocalArchive(BaseTestCase):
         workflow.add_nodes((source, subject_sink, visit_sink,
                             project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
-        workflow.connect(inputnode, 'session_id', source, 'session_id')
+        workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
-        workflow.connect(inputnode, 'session_id', visit_sink, 'session_id')
+        workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
         workflow.connect(
             source, 'source1' + OUTPUT_SUFFIX,
             subject_sink, 'sink1' + INPUT_SUFFIX)
@@ -138,10 +138,10 @@ class TestLocalArchive(BaseTestCase):
                          [self.SUMMARY_STUDY_NAME + '_sink3.nii.gz'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
-                                                     'session_id']),
+                                                     'visit_id']),
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
-        reloadinputnode.inputs.session_id = self.SESSION
+        reloadinputnode.inputs.visit_id = self.SESSION
         reloadsource = archive.source(
             self.name,
             (source_files + subject_sink_files + visit_sink_files +
@@ -163,12 +163,12 @@ class TestLocalArchive(BaseTestCase):
                                      base_dir=self.work_dir)
         reloadworkflow.connect(reloadinputnode, 'subject_id',
                                reloadsource, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'session_id',
-                               reloadsource, 'session_id')
+        reloadworkflow.connect(reloadinputnode, 'visit_id',
+                               reloadsource, 'visit_id')
         reloadworkflow.connect(reloadinputnode, 'subject_id',
                                reloadsink, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'session_id',
-                               reloadsink, 'session_id')
+        reloadworkflow.connect(reloadinputnode, 'visit_id',
+                               reloadsink, 'visit_id')
         reloadworkflow.connect(reloadsource,
                                'sink1' + OUTPUT_SUFFIX,
                                reloadsink,

@@ -26,17 +26,17 @@ class BaseDataset(object):
         The file format used to store the dataset. Can be one of the
         recognised formats
     multiplicity : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_se_ssion', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     """
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
+    MULTIPLICITY_OPTIONS = ('per_se_ssion', 'per_subject', 'per_visit',
                             'per_project')
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, format=None, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, multiplicity='per_se_ssion'):  # @ReservedAssignment @IgnorePep8
         assert isinstance(name, basestring)
         assert format is None or isinstance(format, DataFormat)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
@@ -112,7 +112,7 @@ class Dataset(BaseDataset):
         The file format used to store the dataset. Can be one of the
         recognised formats
     multiplicity : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_se_ssion', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     processed : bool
@@ -120,7 +120,7 @@ class Dataset(BaseDataset):
     """
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', location=None):
+                 multiplicity='per_se_ssion', location=None):
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._location = location
@@ -153,7 +153,7 @@ class Dataset(BaseDataset):
         cpy._location = dir_path
 
     @classmethod
-    def from_path(cls, path, multiplicity='per_session'):
+    def from_path(cls, path, multiplicity='per_se_ssion'):
         location = os.path.dirname(path)
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
@@ -193,13 +193,13 @@ class DatasetSpec(BaseDataset):
         The method of the study that is used to generate the dataset. If None
         the dataset is assumed to be primary external
     multiplicity : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_se_ssion', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     """
 
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', description=None):
+                 multiplicity='per_se_ssion', description=None):
         super(DatasetSpec, self).__init__(name, format, multiplicity)
         self._pipeline = pipeline
         self._description = description

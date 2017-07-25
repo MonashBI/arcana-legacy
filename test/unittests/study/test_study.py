@@ -113,11 +113,11 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def session_ids_access_pipeline(self):
+    def visit_ids_access_pipeline(self):
         pipeline = self.create_pipeline(
-            name='session_ids_access',
+            name='visit_ids_access',
             inputs=[],
-            outputs=[DatasetSpec('session_ids', text_format)],
+            outputs=[DatasetSpec('visit_ids', text_format)],
             description=(
                 "A dummy pipeline used to test access to 'session' IDs"),
             default_options={},
@@ -125,8 +125,8 @@ class DummyStudy(Study):
             citations=[])
         sessions_to_file = pipeline.create_join_sessions_node(
             IteratorToFile(), name='sessions_to_file', joinfield='ids')
-        pipeline.connect_session_id(sessions_to_file, 'ids')
-        pipeline.connect_output('session_ids', sessions_to_file, 'out_file')
+        pipeline.connect_visit_id(sessions_to_file, 'ids')
+        pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
@@ -227,7 +227,7 @@ class DummyStudy(Study):
                     multiplicity='per_project'),
         DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline,
                     multiplicity='per_visit'),
-        DatasetSpec('session_ids', text_format, session_ids_access_pipeline,
+        DatasetSpec('visit_ids', text_format, visit_ids_access_pipeline,
                     multiplicity='per_subject'))
 
 
@@ -278,8 +278,8 @@ class TestRunPipeline(BaseTestCase):
             pass
         self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
-            for session_id in self.SESSION_IDS:
-                self.add_session(self.project_dir, subject_id, session_id)
+            for visit_id in self.SESSION_IDS:
+                self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
             DummyStudy, 'dummy', input_datasets={
                 'start': Dataset('start', nifti_gz_format),
@@ -295,13 +295,13 @@ class TestRunPipeline(BaseTestCase):
         pipeline = self.study.pipeline4()
         pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
-            if dataset.multiplicity == 'per_session' and dataset.processed:
+            if dataset.multiplicity == 'per_se_ssion' and dataset.processed:
                 for subject_id in self.SUBJECT_IDS:
-                    for session_id in self.SESSION_IDS:
+                    for visit_id in self.SESSION_IDS:
                         self.assertDatasetCreated(
                             dataset.name + dataset.format.extension,
                             self.study.name, subject=subject_id,
-                            session=session_id)
+                            session=visit_id)
 
     def test_subject_summary(self):
         self.study.subject_summary_pipeline().run(work_dir=self.work_dir)
@@ -346,20 +346,20 @@ class TestRunPipeline(BaseTestCase):
 
     def test_subject_ids_access(self):
         self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
-        for session_id in self.SESSION_IDS:
+        for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
-                session=session_id, multiplicity='per_visit')
+                session=visit_id, multiplicity='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
-    def test_session_ids_access(self):
-        self.study.session_ids_access_pipeline().run(work_dir=self.work_dir)
+    def test_visit_ids_access(self):
+        self.study.visit_ids_access_pipeline().run(work_dir=self.work_dir)
         for subject_id in self.SUBJECT_IDS:
-            session_ids_path = self.output_file_path(
-                'session_ids.txt', self.study.name,
+            visit_ids_path = self.output_file_path(
+                'visit_ids.txt', self.study.name,
                 subject=subject_id, multiplicity='per_subject')
-            with open(session_ids_path) as f:
+            with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))

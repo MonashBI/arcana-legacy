@@ -29,10 +29,9 @@ sanitize_re = re.compile(r'[^a-zA-Z_0-9]')
 class XNATMixin(object):
 
     @property
-    def full_session_id(self):
-        if '_' not in self.inputs.session_id:
-            session_id = (self.inputs.subject_id + '_' +
-                          self.inputs.session_id)
+    def session_id(self):
+        if '_' not in self.inputs.visit_id:
+            session_id = (self.inputs.subject_id + '_' + self.inputs.visit_id)
         return session_id
 
 
@@ -77,20 +76,20 @@ class XNATSource(ArchiveSource, XNATMixin):
                           **sess_kwargs) as xnat_login:
             project = xnat_login.projects[self.inputs.project_id]
             subject = project.subjects[self.inputs.subject_id]
-            session = subject.experiments[self.full_session_id]
+            session = subject.experiments[self.session_id]
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
             _, subj_summary_sess_name = XNATArchive.subject_summary_name(
                 project.id, self.inputs.subject_id.split('_')[-1])
             (visit_summary_subj_name,
              visit_summary_sess_name) = XNATArchive.visit_summary_name(
-                project.id, self.inputs.session_id)
+                project.id, self.inputs.visit_id)
             (proj_summ_subj_name,
              proj_summ_sess_name) = XNATArchive.project_summary_name(
                 project.id)
             try:
                 proc_session = xnat_login.experiments[
-                    self.full_session_id + XNATArchive.PROCESSED_SUFFIX]
+                    self.session_id + XNATArchive.PROCESSED_SUFFIX]
                 proc_datasets = dict(
                     (s.type, s) for s in proc_session.scans.itervalues())
             except KeyError:
@@ -119,10 +118,10 @@ class XNATSource(ArchiveSource, XNATMixin):
                     prefixed_name = self.inputs.study_name + '_' + name
                 else:
                     prefixed_name = name
-                if mult == 'per_session':
+                if mult == 'per_se_ssion':
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
-                        self.inputs.session_id)
+                        self.inputs.visit_id)
                     try:
                         if processed:
                             dataset = proc_datasets[prefixed_name]
@@ -137,7 +136,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                             .format(prefixed_name, "', '".join(datasets),
                                     "', '".join(proc_datasets),
                                     self.inputs.subject_id,
-                                    self.inputs.session_id))
+                                    self.inputs.visit_id))
                     session_label = session.label
                 elif mult == 'per_subject':
                     assert processed
@@ -314,7 +313,7 @@ class XNATSinkMixin(XNATMixin):
         outputs['out_files'] = out_files
         return outputs
 
-    def _create_session(self, xnat_login, subject_id, session_id):
+    def _create_session(self, xnat_login, subject_id, visit_id):
         """
         This creates a processed session in a way that respects whether
         the acquired session has been shared into another project or not.
@@ -325,15 +324,15 @@ class XNATSinkMixin(XNATMixin):
                                                        parent=subject)
         """
         uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
-               .format(self.inputs.project_id, subject_id, session_id))
-        query = {'xsiType': 'xnat:mrSessionData', 'label': session_id,
+               .format(self.inputs.project_id, subject_id, visit_id))
+        query = {'xsiType': 'xnat:mrSessionData', 'label': visit_id,
                  'req_format': 'qa'}
         response = xnat_login.put(uri, query=query)
         if response.status_code not in (200, 201):
             raise NiAnalysisError(
                 "Could not create session '{}' in subject '{}' in project '{}'"
                 " response code {}"
-                .format(session_id, subject_id, self.inputs.project_id,
+                .format(visit_id, subject_id, self.inputs.project_id,
                         response))
         return xnat_login.classes.MrSessionData(uri=uri,
                                                 xnat_session=xnat_login)
@@ -350,8 +349,8 @@ class XNATSink(XNATSinkMixin, ArchiveSink):
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
         subject = project.subjects[self.inputs.subject_id]
-        assert self.full_session_id in subject.experiments
-        session_name = self.full_session_id + XNATArchive.PROCESSED_SUFFIX
+        assert self.session_id in subject.experiments
+        session_name = self.session_id + XNATArchive.PROCESSED_SUFFIX
         try:
             session = subject.experiments[session_name]
         except KeyError:
@@ -361,7 +360,7 @@ class XNATSink(XNATSinkMixin, ArchiveSink):
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
             self.inputs.subject_id,
-            self.inputs.session_id + XNATArchive.PROCESSED_SUFFIX))
+            self.inputs.visit_id + XNATArchive.PROCESSED_SUFFIX))
         return session, cache_dir
 
 
@@ -393,7 +392,7 @@ class XNATVisitSink(XNATSinkMixin, ArchiveVisitSink):
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
         subject_name, session_name = XNATArchive.visit_summary_name(
-            self.inputs.project_id, self.inputs.session_id)
+            self.inputs.project_id, self.inputs.visit_id)
         try:
             subject = project.subjects[subject_name]
         except KeyError:
@@ -503,7 +502,7 @@ class XNATArchive(Archive):
             The project id to return the sessions for
         repo_id : int
             The id of the repository (2 for monash daris)
-        session_ids: int|List[int]|None
+        visit_ids: int|List[int]|None
             Id or ids of sessions of which to return sessions for. If None all
             are returned
         """
@@ -517,7 +516,7 @@ class XNATArchive(Archive):
                 s.label for s in xnat_login.projects[
                     project_id].experiments.itervalues()]
 
-    def project(self, project_id, subject_ids=None, session_ids=None):
+    def project(self, project_id, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the XNAT
         archive
@@ -529,7 +528,7 @@ class XNATArchive(Archive):
         subject_ids : list(str)
             List of subject IDs with which to filter the tree with. If None all
             are returned
-        session_ids : list(str)
+        visit_ids : list(str)
             List of session IDs with which to filter the tree with. If None all
             are returned
 
@@ -552,12 +551,12 @@ class XNATArchive(Archive):
                 subj_id = xsubject.label
                 sess_id = xsession.label.split('_')[2]
                 if ((subject_ids is not None and subj_id not in subject_ids) or
-                        (session_ids is not None and
-                         sess_id not in session_ids)):
+                        (visit_ids is not None and
+                         sess_id not in visit_ids)):
                     continue  # Skip session
                 sessions[subj_id].append(Session(
                     sess_id,
-                    datasets=self._get_datasets(xsession, 'per_session'),
+                    datasets=self._get_datasets(xsession, 'per_se_ssion'),
                     processed=False))
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
@@ -590,7 +589,7 @@ class XNATArchive(Archive):
                 raise NiAnalysisError(
                     "Did not find any sessions subjects matching the IDs '{}'"
                     "(in subjects '{}') for project '{}'"
-                    .format("', '".join(session_ids),
+                    .format("', '".join(visit_ids),
                             "', '".join(s.label for s in xproject.subjects),
                              project_id))
         return Project(project_id, subjects, proj_summary)
@@ -604,7 +603,7 @@ class XNATArchive(Archive):
         xsession : xnat.classes.MrSessionData
             The XNAT session to extract the datasets from
         mult : str
-            The multiplicity of the returned datasets (either 'per_session',
+            The multiplicity of the returned datasets (either 'per_se_ssion',
             'per_subject', 'per_visit', or 'per_project')
 
         Returns
@@ -638,7 +637,7 @@ class XNATArchive(Archive):
         with self._login() as xnat_login:
             for session in sessions:
                 entries = xnat_login.get_datasets(
-                    project_id, session.subject_id, session.session_id,
+                    project_id, session.subject_id, session.visit_id,
                     repo_id=self._repo_id,
                     ex_method_id=int(dataset.processed) + 1)
                 if dataset.filename() in (e.name for e in entries):
@@ -656,9 +655,9 @@ class XNATArchive(Archive):
                                   cls.SUMMARY_NAME))
 
     @classmethod
-    def visit_summary_name(cls, project_id, session_id):
+    def visit_summary_name(cls, project_id, visit_id):
         return ('{}_{}'.format(project_id, cls.SUMMARY_NAME),
-                '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME, session_id))
+                '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME, visit_id))
 
     @classmethod
     def project_summary_name(cls, project_id):
