@@ -225,7 +225,8 @@ class DummyStudy(Study):
                     multiplicity='per_timepoint'),
         DatasetSpec('project_summary', mrtrix_format, project_summary_pipeline,
                     multiplicity='per_project'),
-        DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline),
+        DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline,
+                    multiplicity='per_timepoint'),
         DatasetSpec('session_ids', text_format, session_ids_access_pipeline,
                     multiplicity='per_subject'))
 
@@ -348,7 +349,7 @@ class TestRunPipeline(BaseTestCase):
         for session_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
-                subject=session_id, multiplicity='per_timepoint')
+                session=session_id, multiplicity='per_timepoint')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
