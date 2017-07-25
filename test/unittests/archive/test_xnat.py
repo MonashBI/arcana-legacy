@@ -165,17 +165,17 @@ class TestXnatArchive(BaseTestCase):
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
-        # Test timepoint sink
-        timepoint_sink_files = [Dataset('sink2', nifti_gz_format,
-                                        multiplicity='per_timepoint',
+        # Test visit sink
+        visit_sink_files = [Dataset('sink2', nifti_gz_format,
+                                        multiplicity='per_visit',
                                         processed=True)]
-        timepoint_sink = archive.sink(self.PROJECT,
-                                      timepoint_sink_files,
-                                      multiplicity='per_timepoint',
+        visit_sink = archive.sink(self.PROJECT,
+                                      visit_sink_files,
+                                      multiplicity='per_visit',
                                       study_name=self.SUMMARY_STUDY_NAME)
-        timepoint_sink.inputs.name = 'timepoint_summary'
-        timepoint_sink.inputs.description = (
-            "Tests the sinking of timepoint-wide datasets")
+        visit_sink.inputs.name = 'visit_summary'
+        visit_sink.inputs.description = (
+            "Tests the sinking of visit-wide datasets")
         # Test project sink
         project_sink_files = [Dataset('sink3', nifti_gz_format,
                                       multiplicity='per_project',
@@ -191,18 +191,18 @@ class TestXnatArchive(BaseTestCase):
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
                                base_dir=self.work_dir)
-        workflow.add_nodes((source, subject_sink, timepoint_sink,
+        workflow.add_nodes((source, subject_sink, visit_sink,
                             project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
-        workflow.connect(inputnode, 'session_id', timepoint_sink, 'session_id')
+        workflow.connect(inputnode, 'session_id', visit_sink, 'session_id')
         workflow.connect(
             source, 'source1' + OUTPUT_SUFFIX,
             subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
             source, 'source2' + OUTPUT_SUFFIX,
-            timepoint_sink, 'sink2' + INPUT_SUFFIX)
+            visit_sink, 'sink2' + INPUT_SUFFIX)
         workflow.connect(
             source, 'source3' + OUTPUT_SUFFIX,
             project_sink, 'sink3' + INPUT_SUFFIX)
@@ -222,24 +222,24 @@ class TestXnatArchive(BaseTestCase):
                     '{}_{}'.format(self.SUBJECT,
                                    XNATArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
-            # Check timepoint summary directories were created properly in
+            # Check visit summary directories were created properly in
             # cache
-            expected_tpoint_datasets = [self.SUMMARY_STUDY_NAME + '_sink2']
-            timepoint_dir = os.path.join(
+            expected_visit_datasets = [self.SUMMARY_STUDY_NAME + '_sink2']
+            visit_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
                 (self.PROJECT + '_' + XNATArchive.SUMMARY_NAME +
                  '_' + self.SESSION))
-            self.assertEqual(sorted(os.listdir(timepoint_dir)),
+            self.assertEqual(sorted(os.listdir(visit_dir)),
                              [d + nifti_gz_format.extension
-                              for d in expected_tpoint_datasets])
+                              for d in expected_visit_datasets])
             # and on XNAT
-            timepoint_dataset_names = mbi_xnat.projects[
+            visit_dataset_names = mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '{}_{}_{}'.format(
                         self.PROJECT, XNATArchive.SUMMARY_NAME,
                         self.SESSION)].scans.keys()
-            self.assertEqual(expected_tpoint_datasets, timepoint_dataset_names)
+            self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME + '_sink3']
             project_dir = os.path.join(
@@ -265,7 +265,7 @@ class TestXnatArchive(BaseTestCase):
         reloadinputnode.inputs.session_id = self.SESSION
         reloadsource = archive.source(
             self.PROJECT,
-            (source_files + subject_sink_files + timepoint_sink_files +
+            (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)

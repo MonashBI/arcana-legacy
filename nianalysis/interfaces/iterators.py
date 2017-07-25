@@ -109,18 +109,18 @@ class SubjectReport(BaseInterface):
         return outputs
 
 
-class TimepointReportSpec(TraitedSpec):
+class VisitReportSpec(TraitedSpec):
 
     sessions = traits.List(traits.Str)
 
 
-class TimepointReport(BaseInterface):
+class VisitReport(BaseInterface):
     """
     Basically an IndentityInterface for joining over sessions
     """
 
-    input_spec = TimepointReportSpec
-    output_spec = TimepointReportSpec
+    input_spec = VisitReportSpec
+    output_spec = VisitReportSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -166,8 +166,8 @@ class PipelineReportInputSpec(TraitedSpec):
         desc="Subject & session pairs from per-session sink")
     subjects = traits.List(traits.Str,
                            desc="Subjects from per-subject sink")
-    timepoints = traits.List(traits.Str,
-                             desc="Timepoints from per_timepoint sink")
+    visits = traits.List(traits.Str,
+                             desc="Visits from per_visit sink")
     project = traits.Str(desc="Project ID from per-project sink")
 
 

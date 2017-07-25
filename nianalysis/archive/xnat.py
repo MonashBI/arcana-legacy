@@ -11,9 +11,9 @@ from nianalysis.dataset import Dataset
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveTimepointSinkInputSpec,
+    ArchiveVisitSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project, ArchiveSubjectSink,
-    ArchiveTimepointSink, ArchiveProjectSink)
+    ArchiveVisitSink, ArchiveProjectSink)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
@@ -82,8 +82,8 @@ class XNATSource(ArchiveSource, XNATMixin):
                 (s.type, s) for s in session.scans.itervalues())
             _, subj_summary_sess_name = XNATArchive.subject_summary_name(
                 project.id, self.inputs.subject_id.split('_')[-1])
-            (tpoint_summary_subj_name,
-             tpoint_summary_sess_name) = XNATArchive.timepoint_summary_name(
+            (visit_summary_subj_name,
+             visit_summary_sess_name) = XNATArchive.visit_summary_name(
                 project.id, self.inputs.session_id)
             (proj_summ_subj_name,
              proj_summ_sess_name) = XNATArchive.project_summary_name(
@@ -102,11 +102,11 @@ class XNATSource(ArchiveSource, XNATMixin):
             except KeyError:
                 subj_datasets = {}
             try:
-                tpoint_summary = project.experiments[tpoint_summary_sess_name]
-                tpoint_datasets = dict(
-                    (s.type, s) for s in tpoint_summary.scans.itervalues())
+                visit_summary = project.experiments[visit_summary_sess_name]
+                visit_datasets = dict(
+                    (s.type, s) for s in visit_summary.scans.itervalues())
             except KeyError:
-                tpoint_datasets = {}
+                visit_datasets = {}
             try:
                 proj_summary = project.experiments[proj_summ_sess_name]
                 proj_datasets = dict(
@@ -146,13 +146,13 @@ class XNATSource(ArchiveSource, XNATMixin):
                         base_cache_dir, self.inputs.subject_id,
                         subj_summary_sess_name)
                     session_label = subj_summary_sess_name
-                elif mult == 'per_timepoint':
+                elif mult == 'per_visit':
                     assert processed
-                    dataset = tpoint_datasets[prefixed_name]
+                    dataset = visit_datasets[prefixed_name]
                     cache_dir = os.path.join(
-                        base_cache_dir, tpoint_summary_subj_name,
-                        tpoint_summary_sess_name)
-                    session_label = tpoint_summary_sess_name
+                        base_cache_dir, visit_summary_subj_name,
+                        visit_summary_sess_name)
+                    session_label = visit_summary_sess_name
                 elif mult == 'per_project':
                     assert processed
                     dataset = proj_datasets[prefixed_name]
@@ -225,7 +225,7 @@ class XNATSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
     pass
 
 
-class XNATTimepointSinkInputSpec(ArchiveTimepointSinkInputSpec,
+class XNATVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
                                  XNATSinkInputSpecMixin):
     pass
 
@@ -386,13 +386,13 @@ class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
         return session, cache_dir
 
 
-class XNATTimepointSink(XNATSinkMixin, ArchiveTimepointSink):
+class XNATVisitSink(XNATSinkMixin, ArchiveVisitSink):
 
-    input_spec = XNATTimepointSinkInputSpec
+    input_spec = XNATVisitSinkInputSpec
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject_name, session_name = XNATArchive.timepoint_summary_name(
+        subject_name, session_name = XNATArchive.visit_summary_name(
             self.inputs.project_id, self.inputs.session_id)
         try:
             subject = project.subjects[subject_name]
@@ -445,7 +445,7 @@ class XNATArchive(Archive):
     Sink = XNATSink
     Source = XNATSource
     SubjectSink = XNATSubjectSink
-    TimepointSink = XNATTimepointSink
+    VisitSink = XNATVisitSink
     ProjectSink = XNATProjectSink
 
     SUMMARY_NAME = 'ALL'
@@ -563,7 +563,8 @@ class XNATArchive(Archive):
                 subj_id = xsubject.label
                 if subject_ids is not None and subj_id not in subject_ids:
                     continue
-                subj_summary_name = self.subject_summary_session_name(subj_id)
+                _, subj_summary_name = self.subject_summary_name(
+                    *subj_id.split('_'))
                 if subj_summary_name in xsubject.experiments:
                     subj_summary = self._get_datasets(
                         xsubject.experiments[subj_summary_name], 'per_subject')
@@ -571,14 +572,12 @@ class XNATArchive(Archive):
                     subj_summary = []
                 subjects.append(Subject(subj_id, sessions[subj_id],
                                         subj_summary))
-            proj_summary_name = self.project_summary_session_name(
-                project_id)
-            if proj_summary_name in xproject.subjects:
+            (proj_summary_subj_name,
+             proj_summary_sess_name) = self.project_summary_name(project_id)
+            if proj_summary_subj_name in xproject.subjects:
                 proj_summary = self._get_datasets(
-                    xproject.subjects[
-                        proj_summary_name].experiments[
-                            self.project_summary_session_name(project_id)],
-                    'per_project')
+                    xproject.subjects[proj_summary_subj_name].experiments[
+                        proj_summary_sess_name], 'per_project')
             else:
                 proj_summary = []
             if not subjects:
@@ -606,7 +605,7 @@ class XNATArchive(Archive):
             The XNAT session to extract the datasets from
         mult : str
             The multiplicity of the returned datasets (either 'per_session',
-            'per_subject', 'per_timepoint', or 'per_project')
+            'per_subject', 'per_visit', or 'per_project')
 
         Returns
         -------
@@ -657,7 +656,7 @@ class XNATArchive(Archive):
                                   cls.SUMMARY_NAME))
 
     @classmethod
-    def timepoint_summary_name(cls, project_id, session_id):
+    def visit_summary_name(cls, project_id, session_id):
         return ('{}_{}'.format(project_id, cls.SUMMARY_NAME),
                 '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME, session_id))
 

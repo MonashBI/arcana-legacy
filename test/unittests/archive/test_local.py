@@ -85,17 +85,17 @@ class TestLocalArchive(BaseTestCase):
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
-        # Test timepoint sink
-        timepoint_sink_files = [Dataset('sink2', nifti_gz_format,
-                                        multiplicity='per_timepoint',
+        # Test visit sink
+        visit_sink_files = [Dataset('sink2', nifti_gz_format,
+                                        multiplicity='per_visit',
                                         processed=True)]
-        timepoint_sink = archive.sink(self.name,
-                                      timepoint_sink_files,
-                                      multiplicity='per_timepoint',
+        visit_sink = archive.sink(self.name,
+                                      visit_sink_files,
+                                      multiplicity='per_visit',
                                       study_name=self.SUMMARY_STUDY_NAME)
-        timepoint_sink.inputs.name = 'timepoint_summary'
-        timepoint_sink.inputs.description = (
-            "Tests the sinking of timepoint-wide datasets")
+        visit_sink.inputs.name = 'visit_summary'
+        visit_sink.inputs.description = (
+            "Tests the sinking of visit-wide datasets")
         # Test project sink
         project_sink_files = [Dataset('sink3', nifti_gz_format,
                                       multiplicity='per_project',
@@ -110,18 +110,18 @@ class TestLocalArchive(BaseTestCase):
             "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
-        workflow.add_nodes((source, subject_sink, timepoint_sink,
+        workflow.add_nodes((source, subject_sink, visit_sink,
                             project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
-        workflow.connect(inputnode, 'session_id', timepoint_sink, 'session_id')
+        workflow.connect(inputnode, 'session_id', visit_sink, 'session_id')
         workflow.connect(
             source, 'source1' + OUTPUT_SUFFIX,
             subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
             source, 'source2' + OUTPUT_SUFFIX,
-            timepoint_sink, 'sink2' + INPUT_SUFFIX)
+            visit_sink, 'sink2' + INPUT_SUFFIX)
         workflow.connect(
             source, 'source3' + OUTPUT_SUFFIX,
             project_sink, 'sink3' + INPUT_SUFFIX)
@@ -130,8 +130,8 @@ class TestLocalArchive(BaseTestCase):
         subject_dir = self.get_session_dir(multiplicity='per_subject')
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          [self.SUMMARY_STUDY_NAME + '_sink1.nii.gz'])
-        timepoint_dir = self.get_session_dir(multiplicity='per_timepoint')
-        self.assertEqual(sorted(os.listdir(timepoint_dir)),
+        visit_dir = self.get_session_dir(multiplicity='per_visit')
+        self.assertEqual(sorted(os.listdir(visit_dir)),
                          [self.SUMMARY_STUDY_NAME + '_sink2.nii.gz'])
         project_dir = self.get_session_dir(multiplicity='per_project')
         self.assertEqual(sorted(os.listdir(project_dir)),
@@ -144,7 +144,7 @@ class TestLocalArchive(BaseTestCase):
         reloadinputnode.inputs.session_id = self.SESSION
         reloadsource = archive.source(
             self.name,
-            (source_files + subject_sink_files + timepoint_sink_files +
+            (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)

@@ -159,7 +159,7 @@ class BaseTestCase(TestCase):
             project = self.name
         if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if session is None and multiplicity in ('per_session', 'per_timepoint'):
+        if session is None and multiplicity in ('per_session', 'per_visit'):
             session = self.SESSION
         if multiplicity == 'per_session':
             assert subject is not None
@@ -171,7 +171,7 @@ class BaseTestCase(TestCase):
             assert session is None
             path = os.path.join(self.ARCHIVE_PATH, project, subject,
                                 SUMMARY_NAME)
-        elif multiplicity == 'per_timepoint':
+        elif multiplicity == 'per_visit':
             assert session is not None
             assert subject is None
             path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,

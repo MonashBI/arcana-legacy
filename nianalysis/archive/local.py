@@ -4,8 +4,8 @@ from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveTimepointSinkInputSpec,
-    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveTimepointSink,
+    ArchiveVisitSinkInputSpec,
+    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveVisitSink,
     ArchiveProjectSink)
 import stat
 import shutil
@@ -45,7 +45,7 @@ class LocalSource(ArchiveSource):
         session_dir = os.path.join(base_subject_dir,
                                    str(self.inputs.session_id))
         subject_dir = os.path.join(base_subject_dir, SUMMARY_NAME)
-        timepoint_dir = os.path.join(base_project_dir,
+        visit_dir = os.path.join(base_project_dir,
                                      SUMMARY_NAME,
                                      str(self.inputs.session_id))
         project_dir = os.path.join(base_project_dir, SUMMARY_NAME,
@@ -57,8 +57,8 @@ class LocalSource(ArchiveSource):
                 data_dir = project_dir
             elif multiplicity.startswith('per_subject'):
                 data_dir = subject_dir
-            elif multiplicity.startswith('per_timepoint'):
-                data_dir = timepoint_dir
+            elif multiplicity.startswith('per_visit'):
+                data_dir = visit_dir
             elif multiplicity.startswith('per_session'):
                 data_dir = session_dir
             else:
@@ -90,7 +90,7 @@ class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
     pass
 
 
-class LocalTimepointSinkInputSpec(ArchiveTimepointSinkInputSpec,
+class LocalVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
                                   LocalSinkInputSpecMixin):
     pass
 
@@ -113,7 +113,7 @@ class LocalSinkMixin(object):
         out_files = []
         missing_files = []
         # Get output dir from base ArchiveSink class (will change depending on
-        # whether it is per session/subject/timepoint/project)
+        # whether it is per session/subject/visit/project)
         out_path = self._get_output_path()
         out_dir = os.path.abspath(os.path.join(*out_path))
         # Make session dir
@@ -185,9 +185,9 @@ class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
             self.inputs.subject_id, SUMMARY_NAME]
 
 
-class LocalTimepointSink(LocalSinkMixin, ArchiveTimepointSink):
+class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
 
-    input_spec = LocalTimepointSinkInputSpec
+    input_spec = LocalVisitSinkInputSpec
 
     def _get_output_path(self):
         return [
@@ -215,7 +215,7 @@ class LocalArchive(Archive):
     Source = LocalSource
     Sink = LocalSink
     SubjectSink = LocalSubjectSink
-    TimepointSink = LocalTimepointSink
+    VisitSink = LocalVisitSink
     ProjectSink = LocalProjectSink
 
     def __init__(self, base_dir):
@@ -314,7 +314,7 @@ class LocalArchive(Archive):
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
-        # Get project and timepoint summary datasets
+        # Get project and visit summary datasets
         base_project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
         if os.path.exists(base_project_summary_path):
             project_summary_path = os.path.join(base_project_summary_path,
@@ -327,21 +327,21 @@ class LocalArchive(Archive):
                         Dataset.from_path(
                             os.path.join(project_summary_path, f),
                             multiplicity='per_project'))
-            tpoint_summary_dirs = [d for d in os.listdir(subject_path)
+            visit_summary_dirs = [d for d in os.listdir(subject_path)
                                    if not (d.startswith('.') and
                                            d == project_summary_path)]
-            self._check_only_dirs(tpoint_summary_dirs,
+            self._check_only_dirs(visit_summary_dirs,
                                   base_project_summary_path)
-            for tpoint_summary_dir in tpoint_summary_dirs:
-                tpoint_summary_path = os.path.join(
-                    base_project_summary_path, tpoint_summary_dir)
-                files = [d for d in os.listdir(tpoint_summary_path)
+            for visit_summary_dir in visit_summary_dirs:
+                visit_summary_path = os.path.join(
+                    base_project_summary_path, visit_summary_dir)
+                files = [d for d in os.listdir(visit_summary_path)
                          if not os.path.isdir(d)]
                 for f in files:
                     datasets.append(
                         Dataset.from_path(
-                            os.path.join(tpoint_summary_path, f),
-                            multiplicity='per_timepoint'))
+                            os.path.join(visit_summary_path, f),
+                            multiplicity='per_visit'))
         project = Project(project_id, subjects, datasets)
         return project
 
