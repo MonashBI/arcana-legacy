@@ -507,7 +507,7 @@ class Pipeline(object):
                 output_summary, 'subject_session_pairs')
         elif mult == 'per_subject':
             subject_output_summary = JoinNode(
-                SubjectReport(), joinsource=subjects, joinfield='sessions',
+                SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=self.name + '_subject_summary_outputs', wall_time=1,
                 memory=1000)
             workflow.connect(sink, 'subject_id',
@@ -516,13 +516,13 @@ class Pipeline(object):
                              output_summary, 'subjects')
         elif mult == 'per_timepoint':
             timepoint_output_summary = JoinNode(
-                TimepointReport(), joinsource=subjects, joinfield='subjects',
+                TimepointReport(), joinsource=sessions, joinfield='sessions',
                 name=self.name + '_timepoint_summary_outputs', wall_time=1,
                 memory=1000)
-            workflow.connect(sink, 'subject_id',
-                             timepoint_output_summary, 'subjects')
-            workflow.connect(timepoint_output_summary, 'subjects',
-                             output_summary, 'subjects')
+            workflow.connect(sink, 'session_id',
+                             timepoint_output_summary, 'sessions')
+            workflow.connect(timepoint_output_summary, 'sessions',
+                             output_summary, 'timepoints')
         elif mult == 'per_project':
             workflow.connect(sink, 'project_id', output_summary, 'project')
 

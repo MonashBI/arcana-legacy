@@ -164,7 +164,10 @@ class PipelineReportInputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Subject & session pairs from per-session sink")
-    subjects = traits.List(traits.Str, desc="Subjects from per-subject sink")
+    subjects = traits.List(traits.Str,
+                           desc="Subjects from per-subject sink")
+    timepoints = traits.List(traits.Str,
+                             desc="Timepoints from per_timepoint sink")
     project = traits.Str(desc="Project ID from per-project sink")
 
 

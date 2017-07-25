@@ -318,7 +318,7 @@ class TestRunPipeline(BaseTestCase):
 
     def test_timepoint_summary(self):
         self.study.timepoint_summary_pipeline().run(work_dir=self.work_dir)
-        for timepoint_id in self.SUBJECT_IDS:
+        for timepoint_id in self.SESSION_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
@@ -326,7 +326,7 @@ class TestRunPipeline(BaseTestCase):
                 'mrstats {} -output mean'.format(
                     self.output_file_path(
                         'timepoint_summary.mif', self.study.name,
-                        timepoint=timepoint_id, multiplicity='per_timepoint')),
+                        session=timepoint_id, multiplicity='per_timepoint')),
                 shell=True))
             self.assertEqual(mean_val, len(self.SESSION_IDS))
 
