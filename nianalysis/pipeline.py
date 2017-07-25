@@ -412,7 +412,8 @@ class Pipeline(object):
                 self.study._project_id,
                 (self.study.dataset(o) for o in outputs), mult,
                 study_name=self.study.name,
-                name='{}_{}_sink'.format(self.name, mult))
+                name='{}_{}_sink'.format(self.name, mult),
+                memory=16000)
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
             if mult in ('per_session', 'per_subject'):
