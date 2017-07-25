@@ -410,12 +410,12 @@ class Pipeline(object):
                 name='{}_{}_sink'.format(self.name, mult))
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
-            if mult != 'per_project':
+            if mult in ('per_session', 'per_project'):
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
-                if mult == 'per_session':
-                    complete_workflow.connect(sessions, 'session_id',
-                                              sink, 'session_id')
+            if mult in ('per_session', 'per_timepoint'):
+                complete_workflow.connect(sessions, 'session_id',
+                                          sink, 'session_id')
             for output in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
                 dataset = self.study.dataset(output.name)

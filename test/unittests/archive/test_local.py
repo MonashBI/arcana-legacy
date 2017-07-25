@@ -1,8 +1,7 @@
 import os.path
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.local import (
-    LocalArchive, SUBJECT_SUMMARY_NAME, PROJECT_SUMMARY_NAME)
+from nianalysis.archive.local import (LocalArchive, SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
 import logging
@@ -68,12 +67,14 @@ class TestLocalArchive(BaseTestCase):
         archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
-                        Dataset('source2', nifti_gz_format)]
+                        Dataset('source2', nifti_gz_format),
+                        Dataset('source3', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'session_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.session_id = self.SESSION
         source = archive.source(self.name, source_files)
+        # Test subject sink
         subject_sink_files = [Dataset('sink1', nifti_gz_format,
                                       multiplicity='per_subject',
                                       processed=True)]
@@ -84,7 +85,19 @@ class TestLocalArchive(BaseTestCase):
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
-        project_sink_files = [Dataset('sink2', nifti_gz_format,
+        # Test timepoint sink
+        timepoint_sink_files = [Dataset('sink2', nifti_gz_format,
+                                        multiplicity='per_timepoint',
+                                        processed=True)]
+        timepoint_sink = archive.sink(self.name,
+                                      timepoint_sink_files,
+                                      multiplicity='per_timepoint',
+                                      study_name=self.SUMMARY_STUDY_NAME)
+        timepoint_sink.inputs.name = 'timepoint_summary'
+        timepoint_sink.inputs.description = (
+            "Tests the sinking of timepoint-wide datasets")
+        # Test project sink
+        project_sink_files = [Dataset('sink3', nifti_gz_format,
                                       multiplicity='per_project',
                                       processed=True)]
         project_sink = archive.sink(self.name,
@@ -97,24 +110,32 @@ class TestLocalArchive(BaseTestCase):
             "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
-        workflow.add_nodes((source, subject_sink, project_sink))
+        workflow.add_nodes((source, subject_sink, timepoint_sink,
+                            project_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
+        workflow.connect(inputnode, 'session_id', timepoint_sink, 'session_id')
         workflow.connect(
             source, 'source1' + OUTPUT_SUFFIX,
             subject_sink, 'sink1' + INPUT_SUFFIX)
         workflow.connect(
             source, 'source2' + OUTPUT_SUFFIX,
-            project_sink, 'sink2' + INPUT_SUFFIX)
+            timepoint_sink, 'sink2' + INPUT_SUFFIX)
+        workflow.connect(
+            source, 'source3' + OUTPUT_SUFFIX,
+            project_sink, 'sink3' + INPUT_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(multiplicity='per_subject')
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          [self.SUMMARY_STUDY_NAME + '_sink1.nii.gz'])
+        timepoint_dir = self.get_session_dir(multiplicity='per_timepoint')
+        self.assertEqual(sorted(os.listdir(timepoint_dir)),
+                         [self.SUMMARY_STUDY_NAME + '_sink2.nii.gz'])
         project_dir = self.get_session_dir(multiplicity='per_project')
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_sink2.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_sink3.nii.gz'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'session_id']),
@@ -123,13 +144,16 @@ class TestLocalArchive(BaseTestCase):
         reloadinputnode.inputs.session_id = self.SESSION
         reloadsource = archive.source(
             self.name,
-            source_files + subject_sink_files + project_sink_files,
+            (source_files + subject_sink_files + timepoint_sink_files +
+             project_sink_files),
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(self.name,
                                   [Dataset('resink1', nifti_gz_format,
                                            processed=True),
                                    Dataset('resink2', nifti_gz_format,
+                                           processed=True),
+                                   Dataset('resink3', nifti_gz_format,
                                            processed=True)],
                                   study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
@@ -153,9 +177,14 @@ class TestLocalArchive(BaseTestCase):
                                'sink2' + OUTPUT_SUFFIX,
                                reloadsink,
                                'resink2' + INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'sink3' + OUTPUT_SUFFIX,
+                               reloadsink,
+                               'resink3' + INPUT_SUFFIX)
         reloadworkflow.run()
         self.assertEqual(sorted(os.listdir(self.session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
+                          self.SUMMARY_STUDY_NAME + '_resink3.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])

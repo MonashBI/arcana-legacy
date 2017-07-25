@@ -215,6 +215,7 @@ class LocalArchive(Archive):
     Source = LocalSource
     Sink = LocalSink
     SubjectSink = LocalSubjectSink
+    TimepointSink = LocalTimepointSink
     ProjectSink = LocalProjectSink
 
     def __init__(self, base_dir):

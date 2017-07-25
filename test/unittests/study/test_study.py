@@ -168,6 +168,25 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
+    def timepoint_summary_pipeline(self):
+        pipeline = self.create_pipeline(
+            name="timepoint_summary",
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('timepoint_summary', mrtrix_format)],
+            description=("Test of project summary variables"),
+            default_options={},
+            version=1,
+            citations=[],)
+        mrmath = pipeline.create_join_sessions_node(
+            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
+        mrmath.inputs.operation = 'sum'
+        # Connect inputs
+        pipeline.connect_input('ones_slice', mrmath, 'in_files')
+        # Connect outputs
+        pipeline.connect_output('timepoint_summary', mrmath, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
+
     def project_summary_pipeline(self):
         pipeline = self.create_pipeline(
             name="project_summary",
@@ -201,6 +220,9 @@ class DummyStudy(Study):
         DatasetSpec('pipeline4', nifti_gz_format, pipeline4),
         DatasetSpec('subject_summary', mrtrix_format, subject_summary_pipeline,
                     multiplicity='per_subject'),
+        DatasetSpec('timepoint_summary', mrtrix_format,
+                    timepoint_summary_pipeline,
+                    multiplicity='per_timepoint'),
         DatasetSpec('project_summary', mrtrix_format, project_summary_pipeline,
                     multiplicity='per_project'),
         DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline),
@@ -291,6 +313,20 @@ class TestRunPipeline(BaseTestCase):
                     self.output_file_path(
                         'subject_summary.mif', self.study.name,
                         subject=subject_id, multiplicity='per_subject')),
+                shell=True))
+            self.assertEqual(mean_val, len(self.SESSION_IDS))
+
+    def test_timepoint_summary(self):
+        self.study.timepoint_summary_pipeline().run(work_dir=self.work_dir)
+        for timepoint_id in self.SUBJECT_IDS:
+            # Get mean value from resultant image (should be the same as the
+            # number of sessions as the original image is full of ones and
+            # all sessions have been summed together
+            mean_val = float(sp.check_output(
+                'mrstats {} -output mean'.format(
+                    self.output_file_path(
+                        'timepoint_summary.mif', self.study.name,
+                        timepoint=timepoint_id, multiplicity='per_timepoint')),
                 shell=True))
             self.assertEqual(mean_val, len(self.SESSION_IDS))
 

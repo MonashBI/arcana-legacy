@@ -80,11 +80,11 @@ class XNATSource(ArchiveSource, XNATMixin):
             session = subject.experiments[self.full_session_id]
             datasets = dict(
                 (s.type, s) for s in session.scans.itervalues())
-            subj_summary_name = XNATArchive.subject_summary_session_name(
-                self.inputs.project, self.inputs.session_id)
+            _, subj_summary_sess_name = XNATArchive.subject_summary_name(
+                project.id, self.inputs.subject_id.split('_')[-1])
             (tpoint_summary_subj_name,
              tpoint_summary_sess_name) = XNATArchive.timepoint_summary_name(
-                self.inputs.project, self.inputs.session_id)
+                project.id, self.inputs.session_id)
             (proj_summ_subj_name,
              proj_summ_sess_name) = XNATArchive.project_summary_name(
                 project.id)
@@ -96,23 +96,23 @@ class XNATSource(ArchiveSource, XNATMixin):
             except KeyError:
                 proc_datasets = {}
             try:
-                subj_summary = subject.experiments[subj_summary_name]
+                subj_summary = subject.experiments[subj_summary_sess_name]
                 subj_datasets = dict(
                     (s.type, s) for s in subj_summary.scans.itervalues())
             except KeyError:
                 subj_datasets = {}
-            try:
-                proj_summary = project.experiments[proj_summ_sess_name]
-                proj_datasets = dict(
-                    (s.type, s) for s in proj_summary.scans.itervalues())
-            except KeyError:
-                proj_datasets = {}
             try:
                 tpoint_summary = project.experiments[tpoint_summary_sess_name]
                 tpoint_datasets = dict(
                     (s.type, s) for s in tpoint_summary.scans.itervalues())
             except KeyError:
                 tpoint_datasets = {}
+            try:
+                proj_summary = project.experiments[proj_summ_sess_name]
+                proj_datasets = dict(
+                    (s.type, s) for s in proj_summary.scans.itervalues())
+            except KeyError:
+                proj_datasets = {}
             for (name, data_format, mult, processed) in self.inputs.datasets:
                 # Prepend study name if defined and processed input
                 if processed and isdefined(self.inputs.study_name):
@@ -144,8 +144,8 @@ class XNATSource(ArchiveSource, XNATMixin):
                     dataset = subj_datasets[prefixed_name]
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
-                        subj_summary_name)
-                    session_label = subj_summary_name
+                        subj_summary_sess_name)
+                    session_label = subj_summary_sess_name
                 elif mult == 'per_timepoint':
                     assert processed
                     dataset = tpoint_datasets[prefixed_name]
@@ -372,8 +372,8 @@ class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
         subject = project.subjects[self.inputs.subject_id]
-        session_name = XNATArchive.subject_summary_session_name(
-            self.inputs.project_id, self.inputs.subject_id)
+        subject_name, session_name = XNATArchive.subject_summary_name(
+            *self.inputs.subject_id.split('_'))
         try:
             session = subject.experiments[session_name]
         except KeyError:
@@ -382,8 +382,7 @@ class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
-            self.inputs.subject_id,
-            self.inputs.subject_id + '_' + XNATArchive.SUMMARY_NAME))
+            subject_name, session_name))
         return session, cache_dir
 
 
@@ -394,8 +393,12 @@ class XNATTimepointSink(XNATSinkMixin, ArchiveTimepointSink):
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
         subject_name, session_name = XNATArchive.timepoint_summary_name(
-            self.inputs.session_id)
-        subject = project.subjects[subject_name]
+            self.inputs.project_id, self.inputs.session_id)
+        try:
+            subject = project.subjects[subject_name]
+        except KeyError:
+            subject = xnat_login.classes.SubjectData(
+                label=subject_name, parent=project)
         try:
             session = subject.experiments[session_name]
         except KeyError:
@@ -404,8 +407,7 @@ class XNATTimepointSink(XNATSinkMixin, ArchiveTimepointSink):
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
-            self.inputs.project_id + '_' + XNATArchive.SUMMARY_NAME,
-            self.inputs.session_id))
+            subject_name, session_name))
         return session, cache_dir
 
 
@@ -415,23 +417,22 @@ class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
 
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
-        subject_name, sess_name = XNATArchive.project_summary_name(project.id)
+        subject_name, session_name = XNATArchive.project_summary_name(
+            self.inputs.project_id)
         try:
             subject = project.subjects[subject_name]
         except KeyError:
             subject = xnat_login.classes.SubjectData(
                 label=subject_name, parent=project)
         try:
-            session = subject.experiments[sess_name]
+            session = subject.experiments[session_name]
         except KeyError:
             session = xnat_login.classes.MrSessionData(
-                label=sess_name, parent=subject)
+                label=session_name, parent=subject)
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
             self.inputs.cache_dir, self.inputs.project_id,
-            self.inputs.project_id + '_' + XNATArchive.SUMMARY_NAME,
-            self.inputs.project_id + '_' + XNATArchive.SUMMARY_NAME + '_' +
-            XNATArchive.SUMMARY_NAME))
+            subject_name, session_name))
         return session, cache_dir
 
 
@@ -444,6 +445,7 @@ class XNATArchive(Archive):
     Sink = XNATSink
     Source = XNATSource
     SubjectSink = XNATSubjectSink
+    TimepointSink = XNATTimepointSink
     ProjectSink = XNATProjectSink
 
     SUMMARY_NAME = 'ALL'
@@ -604,7 +606,7 @@ class XNATArchive(Archive):
             The XNAT session to extract the datasets from
         mult : str
             The multiplicity of the returned datasets (either 'per_session',
-            'per_subject' or 'per_project')
+            'per_subject', 'per_timepoint', or 'per_project')
 
         Returns
         -------
@@ -650,8 +652,9 @@ class XNATArchive(Archive):
 
     @classmethod
     def subject_summary_name(cls, project_id, subject_id):
-        return subject_id, '{}_{}'.format(project_id, subject_id,
-                                          cls.SUMMARY_NAME)
+        return ('{}_{}'.format(project_id, subject_id),
+                '{}_{}_{}'.format(project_id, subject_id,
+                                  cls.SUMMARY_NAME))
 
     @classmethod
     def timepoint_summary_name(cls, project_id, session_id):
