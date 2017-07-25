@@ -529,7 +529,7 @@ class XNATArchive(Archive):
             List of subject IDs with which to filter the tree with. If None all
             are returned
         visit_ids : list(str)
-            List of session IDs with which to filter the tree with. If None all
+            List of visit IDs with which to filter the tree with. If None all
             are returned
 
         Returns

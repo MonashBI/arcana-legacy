@@ -107,7 +107,7 @@ class Archive(object):
             List of subject ids to filter the returned subjects. If None all
             subjects will be returned.
         visit_ids : list(str)
-            List of session ids to filter the returned sessions. If None all
+            List of visit ids to filter the returned sessions. If None all
             sessions will be returned
         """
 
@@ -225,7 +225,7 @@ class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class ArchiveVisitSinkInputSpec(BaseArchiveSinkInputSpec):
 
-    visit_id = traits.Str(mandatory=True, desc="The session ID")
+    visit_id = traits.Str(mandatory=True, desc="The visit ID")
 
 
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
@@ -255,7 +255,7 @@ class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 class ArchiveVisitSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
-    visit_id = traits.Str(desc="The session ID")
+    visit_id = traits.Str(desc="The visit ID")
 
 
 class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):

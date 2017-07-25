@@ -169,7 +169,7 @@ class Pipeline(object):
             The subset of subject IDs to process. If None all available will be
             reprocessed
         visit_ids: List[str]
-            The subset of session IDs to process. If None all available will be
+            The subset of visit IDs to process. If None all available will be
             reprocessed
         work_dir : str
             A directory in which to run the nipype workflows
@@ -266,7 +266,7 @@ class Pipeline(object):
             The subset of subject IDs to process. If None all available will be
             reprocessed
         session_ids: List[str]
-            The subset of session IDs for each subject to process. If None all
+            The subset of visit IDs for each subject to process. If None all
             available will be reprocessed
         work_dir : str
             A directory in which to run the nipype workflows
@@ -366,7 +366,7 @@ class Pipeline(object):
             raise NiAnalysisMissingDatasetError(
                 str(e) + ", which is required for pipeline '{}'".format(
                     self.name))
-        # Map the subject and session IDs to the input node of the pipeline
+        # Map the subject and visit IDs to the input node of the pipeline
         # for use in connect_subject_id and connect_visit_id
         complete_workflow.connect(sessions, 'subject_id',
                                   self.inputnode, 'subject_id')
@@ -453,7 +453,7 @@ class Pipeline(object):
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subjects.iterables = ('subject_id',
                               tuple(s.id for s in subjects_to_process))
-        # Determine whether the session ids are the same for every subject,
+        # Determine whether the visit ids are the same for every subject,
         # in which case they can be set as a constant, otherwise they will
         # need to be specified for each subject separately
         session_subjects = defaultdict(set)
@@ -466,7 +466,7 @@ class Pipeline(object):
             # suffice. This allows re-combining on visit_id across subjects
             sessions.iterables = ('visit_id', session_subjects.keys())
         else:
-            # Session IDs to be processed vary between subjects and so need
+            # visit IDs to be processed vary between subjects and so need
             # to be specified explicitly
             subject_sessions = defaultdict(list)
             for session in sessions_to_process:
@@ -559,7 +559,7 @@ class Pipeline(object):
             A representation of the project and associated subjects and
             sessions for the study's archive.
         filter_ids : list(str)
-            Filter the session IDs to process
+            Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
         all_sessions = list(chain(*[s.sessions for s in all_subjects]))
@@ -656,7 +656,7 @@ class Pipeline(object):
 
     def connect_visit_id(self, node, node_input):
         """
-        Connects the session ID from the input node of the pipeline to an
+        Connects the visit ID from the input node of the pipeline to an
         internal node
 
         Parameters

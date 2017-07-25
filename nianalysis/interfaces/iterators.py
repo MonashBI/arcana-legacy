@@ -36,7 +36,7 @@ class InputSubjects(BaseInterface):
 
 class InputSessionsSpec(TraitedSpec):
 
-    visit_id = traits.Str(mandatory=True, desc=("The session ID"))
+    visit_id = traits.Str(mandatory=True, desc=("The visit ID"))
     subject_id = traits.Str(mandatory=True, desc=("The subject ID"))
 
 
