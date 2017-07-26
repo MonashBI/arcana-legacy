@@ -118,7 +118,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                     prefixed_name = self.inputs.study_name + '_' + name
                 else:
                     prefixed_name = name
-                if mult == 'per_se_ssion':
+                if mult == 'per_session':
                     cache_dir = os.path.join(
                         base_cache_dir, self.inputs.subject_id,
                         self.inputs.visit_id)
@@ -556,7 +556,7 @@ class XNATArchive(Archive):
                     continue  # Skip session
                 sessions[subj_id].append(Session(
                     sess_id,
-                    datasets=self._get_datasets(xsession, 'per_se_ssion'),
+                    datasets=self._get_datasets(xsession, 'per_session'),
                     processed=False))
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
@@ -603,7 +603,7 @@ class XNATArchive(Archive):
         xsession : xnat.classes.MrSessionData
             The XNAT session to extract the datasets from
         mult : str
-            The multiplicity of the returned datasets (either 'per_se_ssion',
+            The multiplicity of the returned datasets (either 'per_session',
             'per_subject', 'per_visit', or 'per_project')
 
         Returns

@@ -63,8 +63,8 @@ class DarisSource(ArchiveSource):
                           password=self.inputs.password) as daris:
             outputs = {}
             datasets = {}
-            for mult_proc_tple in (('per_se_ssion', False),
-                                   ('per_se_ssion', True),
+            for mult_proc_tple in (('per_session', False),
+                                   ('per_session', True),
                                    ('per_subject', True),
                                    ('per_project', True)):
                 (ex_method_id,
@@ -109,13 +109,13 @@ class DarisSource(ArchiveSource):
     def _get_daris_ids(self, multiplicity, processed):
         """
         Returns the ex-method ID, subject ID and session ID for a given
-        multiplicity (i.e. 'per_se_ssion', 'per_subject' or 'per_project')
+        multiplicity (i.e. 'per_session', 'per_subject' or 'per_project')
         whether the input dataset is processed or not
 
         Parameters
         ----------
         multiplicity : str
-            The "multiplicity" of the input dataset, one of 'per_se_ssion',
+            The "multiplicity" of the input dataset, one of 'per_session',
             'per_subject' or 'per_project'
         processed: bool
             Whether the dataset is processed (by this package) or not
@@ -129,7 +129,7 @@ class DarisSource(ArchiveSource):
         session_id : int
             DaRIS session ID
         """
-        if multiplicity == 'per_se_ssion':
+        if multiplicity == 'per_session':
             ex_method_id = int(processed) + 1
             session_id = self.inputs.session_id
             subject_id = self.inputs.subject_id

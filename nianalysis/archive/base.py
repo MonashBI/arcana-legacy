@@ -47,7 +47,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets, multiplicity='per_se_ssion',
+    def sink(self, project_id, output_datasets, multiplicity='per_session',
              name=None, study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -68,7 +68,7 @@ class Archive(object):
             study. Used for processed datasets only
 
         """
-        if multiplicity.startswith('per_se_ssion'):
+        if multiplicity.startswith('per_session'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
             sink_class = self.SubjectSink
@@ -298,7 +298,7 @@ class ArchiveSink(BaseArchiveSink):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_se_ssion',)
+    ACCEPTED_MULTIPLICITIES = ('per_session',)
 
     def _base_outputs(self):
         outputs = self.output_spec().get()

@@ -401,7 +401,7 @@ class Pipeline(object):
         report = self.create_node(PipelineReport(), 'report')
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
-            # Create a new sink for each multiplicity level (i.e 'per_se_ssion',
+            # Create a new sink for each multiplicity level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
                 self.study._project_id,
@@ -410,10 +410,10 @@ class Pipeline(object):
                 name='{}_{}_sink'.format(self.name, mult))
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
-            if mult in ('per_se_ssion', 'per_subject'):
+            if mult in ('per_session', 'per_subject'):
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
-            if mult in ('per_se_ssion', 'per_visit'):
+            if mult in ('per_session', 'per_visit'):
                 complete_workflow.connect(sessions, 'visit_id',
                                           sink, 'visit_id')
             for output in outputs:
@@ -487,7 +487,7 @@ class Pipeline(object):
         used to feed into the input of subsequent pipelines to ensure that
         they are executed afterwards.
         """
-        if mult == 'per_se_ssion':
+        if mult == 'per_session':
             session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
@@ -583,7 +583,7 @@ class Pipeline(object):
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
                     if dataset.prefixed_name not in sub.dataset_names)))
-            elif dataset.multiplicity == 'per_se_ssion':
+            elif dataset.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
                     if dataset.prefixed_name not in s.dataset_names))
@@ -867,7 +867,7 @@ class Pipeline(object):
         Parameters
         ----------
         multiplicity : str
-            One of 'per_se_ssion', 'per_subject', 'per_visit' and
+            One of 'per_session', 'per_subject', 'per_visit' and
             'per_project', specifying whether the dataset is present for each
             session, subject, visit or project.
         """

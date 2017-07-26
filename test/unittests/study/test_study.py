@@ -295,7 +295,7 @@ class TestRunPipeline(BaseTestCase):
         pipeline = self.study.pipeline4()
         pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
-            if dataset.multiplicity == 'per_se_ssion' and dataset.processed:
+            if dataset.multiplicity == 'per_session' and dataset.processed:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:
                         self.assertDatasetCreated(

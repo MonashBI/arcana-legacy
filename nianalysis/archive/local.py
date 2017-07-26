@@ -59,7 +59,7 @@ class LocalSource(ArchiveSource):
                 data_dir = subject_dir
             elif multiplicity.startswith('per_visit'):
                 data_dir = visit_dir
-            elif multiplicity.startswith('per_se_ssion'):
+            elif multiplicity.startswith('per_session'):
                 data_dir = session_dir
             else:
                 assert False, "Unrecognised multiplicity '{}'".format(

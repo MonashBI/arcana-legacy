@@ -111,7 +111,7 @@ class BaseTestCase(TestCase):
             input_datasets=input_datasets)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
-                             session=None, multiplicity='per_se_ssion'):
+                             session=None, multiplicity='per_session'):
         self.assertTrue(
             os.path.exists(self.output_file_path(
                 dataset_name, study_name, subject, session, multiplicity)),
@@ -154,14 +154,14 @@ class BaseTestCase(TestCase):
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
     def get_session_dir(self, project=None, subject=None, session=None,
-                        multiplicity='per_se_ssion'):
+                        multiplicity='per_session'):
         if project is None:
             project = self.name
-        if subject is None and multiplicity in ('per_se_ssion', 'per_subject'):
+        if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if session is None and multiplicity in ('per_se_ssion', 'per_visit'):
+        if session is None and multiplicity in ('per_session', 'per_visit'):
             session = self.SESSION
-        if multiplicity == 'per_se_ssion':
+        if multiplicity == 'per_session':
             assert subject is not None
             assert session is not None
             path = os.path.join(self.ARCHIVE_PATH, project, subject,
@@ -193,7 +193,7 @@ class BaseTestCase(TestCase):
                 os.remove(os.path.join(cls.get_session_dir(project), fname))
 
     def output_file_path(self, fname, study_name, subject=None, session=None,
-                         multiplicity='per_se_ssion'):
+                         multiplicity='per_session'):
         return os.path.join(
             self.get_session_dir(subject=subject, session=session,
                                  multiplicity=multiplicity),
