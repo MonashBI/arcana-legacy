@@ -732,13 +732,13 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
-                                  memory=DEFAULT_MEMORY,
-                                  nthreads=1, gpu=False, **kwargs):
+    def create_join_visits_node(self, interface, joinfield, name,
+                                requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                memory=DEFAULT_MEMORY,
+                                nthreads=1, gpu=False, **kwargs):
         """
-        Creates a JoinNode that joins an input over all sessions (see
-        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+        Creates a JoinNode that joins an input over all visits for each subject
+        (nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
 
         Parameters
         ----------
@@ -774,8 +774,8 @@ class Pipeline(object):
                                   memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
                                   **kwargs):
         """
-        Creates a JoinNode that joins an input over all sessions (see
-        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+        Creates a JoinNode that joins an input over all subjects for each visit
+        (nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
 
         Parameters
         ----------

@@ -123,7 +123,7 @@ class DummyStudy(Study):
             default_options={},
             version=1,
             citations=[])
-        sessions_to_file = pipeline.create_join_sessions_node(
+        sessions_to_file = pipeline.create_join_visits_node(
             IteratorToFile(), name='sessions_to_file', joinfield='ids')
         pipeline.connect_visit_id(sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
@@ -158,7 +158,7 @@ class DummyStudy(Study):
             default_options={},
             version=1,
             citations=[],)
-        mrmath = pipeline.create_join_sessions_node(
+        mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
         # Connect inputs
@@ -177,7 +177,7 @@ class DummyStudy(Study):
             default_options={},
             version=1,
             citations=[],)
-        mrmath = pipeline.create_join_sessions_node(
+        mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
         # Connect inputs
@@ -196,7 +196,7 @@ class DummyStudy(Study):
             default_options={},
             version=1,
             citations=[],)
-        mrmath1 = pipeline.create_join_sessions_node(
+        mrmath1 = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
         mrmath2 = pipeline.create_join_subjects_node(
             MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
