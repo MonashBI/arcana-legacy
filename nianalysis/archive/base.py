@@ -72,6 +72,8 @@ class Archive(object):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
             sink_class = self.SubjectSink
+        elif multiplicity.startswith('per_visit'):
+            sink_class = self.VisitSink
         elif multiplicity.startswith('per_project'):
             sink_class = self.ProjectSink
         else:
@@ -91,7 +93,7 @@ class Archive(object):
         return sink
 
     @abstractmethod
-    def project(self, project_id, subject_ids=None, session_ids=None):
+    def project(self, project_id, subject_ids=None, visit_ids=None):
         """
         Returns a nianalysis.archive.Project object for the given project id,
         which holds information on all available subjects, sessions and
@@ -104,8 +106,8 @@ class Archive(object):
         subject_ids : list(str)
             List of subject ids to filter the returned subjects. If None all
             subjects will be returned.
-        session_ids : list(str)
-            List of session ids to filter the returned sessions. If None all
+        visit_ids : list(str)
+            List of visit ids to filter the returned sessions. If None all
             sessions will be returned
         """
 
@@ -120,8 +122,8 @@ class ArchiveSourceInputSpec(TraitedSpec):
         mandatory=True,
         desc='The project ID')
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
-    session_id = traits.Str(mandatory=True, usedefult=True,
-                            desc="The session or processed group ID")
+    visit_id = traits.Str(mandatory=True, usedefult=True,
+                            desc="The visit or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
@@ -212,13 +214,18 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
 class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
-    session_id = traits.Str(mandatory=False,
+    visit_id = traits.Str(mandatory=False,
                             desc="The session or processed group ID")
 
 
 class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
+
+
+class ArchiveVisitSinkInputSpec(BaseArchiveSinkInputSpec):
+
+    visit_id = traits.Str(mandatory=True, desc="The visit ID")
 
 
 class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
@@ -236,13 +243,19 @@ class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
-    session_id = traits.Str(desc="The session or processed group ID")
+    visit_id = traits.Str(desc="The visit ID")
 
 
 class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
+
+
+class ArchiveVisitSinkOutputSpec(BaseArchiveSinkOutputSpec):
+
+    project_id = traits.Str(desc="The project ID")
+    visit_id = traits.Str(desc="The visit ID")
 
 
 class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -277,7 +290,7 @@ class BaseArchiveSink(IOBase):
     @abstractmethod
     def _base_outputs(self):
         "List the base outputs of the sink interface, which relate to the "
-        "subject/session/project that is being sunk"
+        "session/subject/project that is being sunk"
 
 
 class ArchiveSink(BaseArchiveSink):
@@ -291,7 +304,7 @@ class ArchiveSink(BaseArchiveSink):
         outputs = self.output_spec().get()
         outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
-        outputs['session_id'] = self.inputs.session_id
+        outputs['visit_id'] = self.inputs.visit_id
         return outputs
 
 
@@ -306,6 +319,20 @@ class ArchiveSubjectSink(BaseArchiveSink):
         outputs = self.output_spec().get()
         outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
+        return outputs
+
+
+class ArchiveVisitSink(BaseArchiveSink):
+
+    input_spec = ArchiveVisitSinkInputSpec
+    output_spec = ArchiveVisitSinkOutputSpec
+
+    ACCEPTED_MULTIPLICITIES = ('per_visit',)
+
+    def _base_outputs(self):
+        outputs = self.output_spec().get()
+        outputs['project_id'] = self.inputs.project_id
+        outputs['visit_id'] = self.inputs.visit_id
         return outputs
 
 
@@ -412,8 +439,8 @@ class Session(object):
     Holds the session id and the list of datasets loaded from it
     """
 
-    def __init__(self, session_id, datasets, processed=None):
-        self._id = session_id
+    def __init__(self, visit_id, datasets, processed=None):
+        self._id = visit_id
         self._datasets = datasets
         self._subject = None
         self._processed = processed

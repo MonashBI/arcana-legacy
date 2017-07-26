@@ -36,7 +36,7 @@ class InputSubjects(BaseInterface):
 
 class InputSessionsSpec(TraitedSpec):
 
-    session_id = traits.Str(mandatory=True, desc=("The session ID"))
+    visit_id = traits.Str(mandatory=True, desc=("The visit ID"))
     subject_id = traits.Str(mandatory=True, desc=("The subject ID"))
 
 
@@ -53,7 +53,7 @@ class InputSessions(BaseInterface):
 
     def _list_outputs(self):
         outputs = {}
-        outputs['session_id'] = self.inputs.session_id
+        outputs['visit_id'] = self.inputs.visit_id
         outputs['subject_id'] = self.inputs.subject_id
         return outputs
 
@@ -109,6 +109,28 @@ class SubjectReport(BaseInterface):
         return outputs
 
 
+class VisitReportSpec(TraitedSpec):
+
+    sessions = traits.List(traits.Str)
+
+
+class VisitReport(BaseInterface):
+    """
+    Basically an IndentityInterface for joining over sessions
+    """
+
+    input_spec = VisitReportSpec
+    output_spec = VisitReportSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        outputs = {}
+        outputs['sessions'] = self.inputs.sessions
+        return outputs
+
+
 class SubjectSessionReportInputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(
@@ -142,7 +164,10 @@ class PipelineReportInputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Subject & session pairs from per-session sink")
-    subjects = traits.List(traits.Str, desc="Subjects from per-subject sink")
+    subjects = traits.List(traits.Str,
+                           desc="Subjects from per-subject sink")
+    visits = traits.List(traits.Str,
+                             desc="Visits from per_visit sink")
     project = traits.Str(desc="Project ID from per-project sink")
 
 

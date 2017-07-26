@@ -12,14 +12,12 @@ from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.data_formats import get_converter_node
-from nianalysis.interfaces.utils import Chain
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
-    SubjectSessionReport, SessionReport)
+    VisitReport, SubjectSessionReport, SessionReport)
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
-from rdflib.plugin import plugins
 from rdflib import plugin
 
 
@@ -70,6 +68,8 @@ class Pipeline(object):
         dictionary are ignored
     """
 
+    iterfields = ('subject_id', 'visit_id')
+
     def __init__(self, study, name, inputs, outputs, description,
                  default_options, citations, version, options={}):
         self._name = name
@@ -78,11 +78,15 @@ class Pipeline(object):
         self._version = int(version)
         # Set up inputs
         self._check_spec_names(inputs, 'input')
+        if any(i.name in self.iterfields for i in inputs):
+            raise NiAnalysisError(
+                "Cannot have a dataset spec named '{}' as it clashes with "
+                "iterable field of that name".format(i.name))
         self._inputs = inputs
         self._inputnode = self.create_node(
-            IdentityInterface(fields=list(self.input_names)), "inputnode",
-            wall_time=1,
-            memory=1000)
+            IdentityInterface(fields=(
+                tuple(self.input_names) + self.iterfields)),
+            name="inputnode", wall_time=1, memory=1000)
         # Set up outputs
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
@@ -164,8 +168,8 @@ class Pipeline(object):
         subject_ids : List[str]
             The subset of subject IDs to process. If None all available will be
             reprocessed
-        session_ids: List[str]
-            The subset of session IDs to process. If None all available will be
+        visit_ids: List[str]
+            The subset of visit IDs to process. If None all available will be
             reprocessed
         work_dir : str
             A directory in which to run the nipype workflows
@@ -250,7 +254,7 @@ class Pipeline(object):
         shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
-                           filter_session_ids=None, reprocess=False,
+                           visit_ids=None, reprocess=False,
                            project=None, connected_prereqs=None):
         """
         Gets a data source and data sink from the archive for the requested
@@ -261,8 +265,8 @@ class Pipeline(object):
         subject_ids : List[str]
             The subset of subject IDs to process. If None all available will be
             reprocessed
-        filter_session_ids: List[str]
-            The subset of session IDs for each subject to process. If None all
+        visit_ids: List[str]
+            The subset of visit IDs for each subject to process. If None all
             available will be reprocessed
         work_dir : str
             A directory in which to run the nipype workflows
@@ -295,11 +299,11 @@ class Pipeline(object):
         if project is None:
             project = self._study.archive.project(
                 self._study._project_id, subject_ids=subject_ids,
-                session_ids=filter_session_ids)
-        # Get list of sessions and subjects that need to be processed (i.e. if
+                visit_ids=visit_ids)
+        # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         sessions_to_process = self._sessions_to_process(
-            project, filter_ids=filter_session_ids, reprocess=reprocess)
+            project, visit_ids=visit_ids, reprocess=reprocess)
         if not sessions_to_process:
             logger.info(
                 "All outputs of '{}' are already present in project archive, "
@@ -333,7 +337,7 @@ class Pipeline(object):
                     prereq_report = prereq.connect_to_archive(
                         complete_workflow=complete_workflow,
                         subject_ids=prereq_subject_ids,
-                        filter_session_ids=filter_session_ids,
+                        visit_ids=visit_ids,
                         reprocess=(reprocess if reprocess == 'all' else False),
                         project=project,
                         connected_prereqs=connected_prereqs)
@@ -362,11 +366,17 @@ class Pipeline(object):
             raise NiAnalysisMissingDatasetError(
                 str(e) + ", which is required for pipeline '{}'".format(
                     self.name))
+        # Map the subject and visit IDs to the input node of the pipeline
+        # for use in connect_subject_id and connect_visit_id
+        complete_workflow.connect(sessions, 'subject_id',
+                                  self.inputnode, 'subject_id')
+        complete_workflow.connect(sessions, 'visit_id',
+                                  self.inputnode, 'visit_id')
         # Connect the nodes of the wrapper workflow
         complete_workflow.connect(sessions, 'subject_id',
                                   source, 'subject_id')
-        complete_workflow.connect(sessions, 'session_id',
-                                  source, 'session_id')
+        complete_workflow.connect(sessions, 'visit_id',
+                                  source, 'visit_id')
         for inpt in self.inputs:
             # Get the dataset corresponding to the pipeline's input
             dataset = self.study.dataset(inpt.name)
@@ -392,7 +402,7 @@ class Pipeline(object):
         # Connect all outputs to the archive sink
         for mult, outputs in self._outputs.iteritems():
             # Create a new sink for each multiplicity level (i.e 'per_session',
-            # 'per_subject' or 'per_project')
+            # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
                 self.study._project_id,
                 (self.study.dataset(o) for o in outputs), mult,
@@ -400,12 +410,12 @@ class Pipeline(object):
                 name='{}_{}_sink'.format(self.name, mult))
             sink.inputs.description = self.description
             sink.inputs.name = self._study.name
-            if mult != 'per_project':
+            if mult in ('per_session', 'per_subject'):
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
-                if mult == 'per_session':
-                    complete_workflow.connect(sessions, 'session_id',
-                                              sink, 'session_id')
+            if mult in ('per_session', 'per_visit'):
+                complete_workflow.connect(sessions, 'visit_id',
+                                          sink, 'visit_id')
             for output in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
                 dataset = self.study.dataset(output.name)
@@ -441,29 +451,30 @@ class Pipeline(object):
                                     memory=1000)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
+        subject_ids_to_process = set(s.id for s in subjects_to_process)
         subjects.iterables = ('subject_id',
                               tuple(s.id for s in subjects_to_process))
-        # Determine whether the session ids are the same for every subject,
+        # Determine whether the visit ids are the same for every subject,
         # in which case they can be set as a constant, otherwise they will
         # need to be specified for each subject separately
         session_subjects = defaultdict(set)
         for session in sessions_to_process:
             session_subjects[session.id].add(session.subject.id)
-        if all(ss == set(s.id for s in subjects_to_process)
+        if all(ss == subject_ids_to_process
                for ss in session_subjects.itervalues()):
             # All sessions are to be processed in every node, a simple second
             # layer of iterations on top of the subject iterations will
-            # suffice. This allows re-combining on session_id across subjects
-            sessions.iterables = ('session_id', session_subjects.keys())
+            # suffice. This allows re-combining on visit_id across subjects
+            sessions.iterables = ('visit_id', session_subjects.keys())
         else:
-            # Session IDs to be processed vary between subjects and so need
+            # visit IDs to be processed vary between subjects and so need
             # to be specified explicitly
             subject_sessions = defaultdict(list)
             for session in sessions_to_process:
                 subject_sessions[session.subject.id].append(session.id)
             sessions.itersource = ('{}_subjects'.format(self.name),
                                    'subject_id')
-            sessions.iterables = ('session_id', subject_sessions)
+            sessions.iterables = ('visit_id', subject_sessions)
         # Connect subject and session nodes together
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         return subjects, sessions
@@ -489,7 +500,7 @@ class Pipeline(object):
                 name=self.name + '_subject_session_outputs', wall_time=1,
                 memory=1000)
             workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
-            workflow.connect(sink, 'session_id', session_outputs, 'sessions')
+            workflow.connect(sink, 'visit_id', session_outputs, 'sessions')
             workflow.connect(session_outputs, 'subject_session_pairs',
                              subject_session_outputs, 'subject_session_pairs')
             workflow.connect(
@@ -501,9 +512,18 @@ class Pipeline(object):
                 name=self.name + '_subject_summary_outputs', wall_time=1,
                 memory=1000)
             workflow.connect(sink, 'subject_id',
-                                      subject_output_summary, 'subjects')
+                             subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
-                                      output_summary, 'subjects')
+                             output_summary, 'subjects')
+        elif mult == 'per_visit':
+            visit_output_summary = JoinNode(
+                VisitReport(), joinsource=sessions, joinfield='sessions',
+                name=self.name + '_visit_summary_outputs', wall_time=1,
+                memory=1000)
+            workflow.connect(sink, 'visit_id',
+                             visit_output_summary, 'sessions')
+            workflow.connect(visit_output_summary, 'sessions',
+                             output_summary, 'visits')
         elif mult == 'per_project':
             workflow.connect(sink, 'project_id', output_summary, 'project')
 
@@ -528,7 +548,7 @@ class Pipeline(object):
         # Call pipeline instancemethods to study with provided options
         return (pg(self._study, **self.options) for pg in pipeline_getters)
 
-    def _sessions_to_process(self, project, filter_ids=None, reprocess=False):
+    def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project archive, and make a list of the sessions and subjects
@@ -539,8 +559,8 @@ class Pipeline(object):
         project : Project
             A representation of the project and associated subjects and
             sessions for the study's archive.
-        filter_ids : list(str)
-            Filter the session IDs to process
+        visit_ids : list(str)
+            Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
         all_sessions = list(chain(*[s.sessions for s in all_subjects]))
@@ -549,10 +569,10 @@ class Pipeline(object):
         sessions_to_process = set()
         # Define filter function
         def filter_sessions(sessions):  # @IgnorePep8
-            if filter_ids is None:
+            if visit_ids is None:
                 return sessions
             else:
-                return (s for s in sessions if s.id in filter_ids)
+                return (s for s in sessions if s.id in visit_ids)
         for output in self.outputs:
             dataset = self.study.dataset(output)
             # If there is a project output then all subjects and sessions need
@@ -560,7 +580,7 @@ class Pipeline(object):
             if dataset.multiplicity == 'per_project':
                 if dataset.prefixed_name not in project.dataset_names:
                     return all_sessions
-            elif dataset.multiplicity == 'per_subject':
+            elif dataset.multiplicity in ('per_subject', 'per_visit'):
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
                     if dataset.prefixed_name not in sub.dataset_names)))
@@ -578,7 +598,7 @@ class Pipeline(object):
         """
         self._workflow.connect(*args, **kwargs)
 
-    def connect_input(self, spec_name, node, node_input, join=None):
+    def connect_input(self, spec_name, node, node_input):
         """
         Connects a study dataset_spec as an input to the provided node
 
@@ -590,59 +610,11 @@ class Pipeline(object):
             A NiPype node to connect the input to
         node_input : str
             Name of the input on the node to connect the dataset spec to
-        join : str  (not implemented)  # TODO
-            Whether to join the input over sessions, subjects or the whole
-            study. Can be one of:
-              'sessions'     - Sessions for each subject are joined into a
-                               list
-              'subjects'     - Subjects for each session are joined into a
-                               list
-              'project'      - Sessions for each are joined into a list
-                               and then nested in a list over all subjects
-              'project_flat' - All sessions across all subjects are joined
-                               into a single list
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
             .format(spec_name, self.name, "', '".join(self._inputs)))
-        if join is not None:
-            join_name = '{}_{}_{}_join_'.format(spec_name, node.name,
-                                                node_input)
-            if join.startswith('project'):
-                # Create node to join the sessions first
-                session_join = JoinNode(
-                    IdentityInterface([spec_name]),
-                    name='session_' + join_name,
-                    joinsource='sessions', joinfield=[spec_name])
-                if join == 'project':
-                    inputnode = JoinNode(
-                        IdentityInterface([spec_name]),
-                        name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[spec_name])
-                elif join == 'project_flat':
-                    # TODO: Need to implement Chain interface for
-                    # concatenating the session lists into a single list
-                    inputnode = JoinNode(
-                        Chain([spec_name]), name='subject_' + join_name,
-                        joinsource='subjects', joinfield=[spec_name])
-                else:
-                    raise NiAnalysisError(
-                        "Unrecognised join command '{}' can be one of ("
-                        "'sessions', 'subjects', 'project', 'project_flat')"
-                        .format(join))
-                self._workflow.connect(self._inputnode, spec_name,
-                                       session_join, spec_name)
-                self._workflow.connect(session_join, spec_name, inputnode,
-                                       spec_name)
-            else:
-                inputnode = JoinNode(
-                    IdentityInterface([spec_name]), name=join_name,
-                    joinsource=join, joinfield=[spec_name])
-                self._workflow.connect(self._inputnode, spec_name, inputnode,
-                                       spec_name)
-        else:
-            inputnode = self._inputnode
-        self._workflow.connect(inputnode, spec_name, node, node_input)
+        self._workflow.connect(self._inputnode, spec_name, node, node_input)
         if spec_name in self._unconnected_inputs:
             self._unconnected_inputs.remove(spec_name)
 
@@ -668,6 +640,34 @@ class Pipeline(object):
             self._study.dataset_spec(spec_name).multiplicity]
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
+
+    def connect_subject_id(self, node, node_input):
+        """
+        Connects the subject ID from the input node of the pipeline to an
+        internal node
+
+        Parameters
+        ----------
+        node : BaseNode
+            The node to connect the subject ID to
+        node_input : str
+            The name of the field of the node to connect the subject ID to
+        """
+        self._workflow.connect(self._inputnode, 'subject_id', node, node_input)
+
+    def connect_visit_id(self, node, node_input):
+        """
+        Connects the visit ID from the input node of the pipeline to an
+        internal node
+
+        Parameters
+        ----------
+        node : BaseNode
+            The node to connect the subject ID to
+        node_input : str
+            The name of the field of the node to connect the subject ID to
+        """
+        self._workflow.connect(self._inputnode, 'visit_id', node, node_input)
 
     def create_node(self, interface, name, requirements=[],
                     wall_time=DEFAULT_WALL_TIME,
@@ -732,13 +732,13 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_sessions_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
-                                  memory=DEFAULT_MEMORY,
-                                  nthreads=1, gpu=False, **kwargs):
+    def create_join_visits_node(self, interface, joinfield, name,
+                                requirements=[], wall_time=DEFAULT_WALL_TIME,
+                                memory=DEFAULT_MEMORY,
+                                nthreads=1, gpu=False, **kwargs):
         """
-        Creates a JoinNode that joins an input over all sessions (see
-        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+        Creates a JoinNode that joins an input over all visits for each subject
+        (nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
 
         Parameters
         ----------
@@ -774,8 +774,8 @@ class Pipeline(object):
                                   memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
                                   **kwargs):
         """
-        Creates a JoinNode that joins an input over all sessions (see
-        nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
+        Creates a JoinNode that joins an input over all subjects for each visit
+        (nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
 
         Parameters
         ----------
@@ -868,8 +868,9 @@ class Pipeline(object):
         Parameters
         ----------
         multiplicity : str
-            The multiplicity of the output node. Can be 'per_session',
-            'per_subject' or 'per_project'
+            One of 'per_session', 'per_subject', 'per_visit' and
+            'per_project', specifying whether the dataset is present for each
+            session, subject, visit or project.
         """
         return self._outputnodes[multiplicity]
 

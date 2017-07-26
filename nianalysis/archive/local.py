@@ -4,7 +4,9 @@ from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveProjectSink)
+    ArchiveVisitSinkInputSpec,
+    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveVisitSink,
+    ArchiveProjectSink)
 import stat
 import shutil
 import logging
@@ -20,8 +22,7 @@ from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
-PROJECT_SUMMARY_NAME = '__SUMMARY__'
-SUBJECT_SUMMARY_NAME = '__SUMMARY__'
+SUMMARY_NAME = 'ALL'
 
 
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
@@ -37,15 +38,18 @@ class LocalSource(ArchiveSource):
 
     def _list_outputs(self):
         # Directory that holds session-specific
-        base_subject_dir = os.path.join(*(str(p) for p in (
-            self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id)))
+        base_project_dir = os.path.join(self.inputs.base_dir,
+                                        str(self.inputs.project_id))
+        base_subject_dir = os.path.join(base_project_dir,
+                                        str(self.inputs.subject_id))
         session_dir = os.path.join(base_subject_dir,
-                                   self.inputs.session_id)
-        subject_dir = os.path.join(base_subject_dir, SUBJECT_SUMMARY_NAME)
-        project_dir = os.path.join(
-            self.inputs.base_dir, self.inputs.project_id,
-            PROJECT_SUMMARY_NAME)
+                                   str(self.inputs.visit_id))
+        subject_dir = os.path.join(base_subject_dir, SUMMARY_NAME)
+        visit_dir = os.path.join(base_project_dir,
+                                     SUMMARY_NAME,
+                                     str(self.inputs.visit_id))
+        project_dir = os.path.join(base_project_dir, SUMMARY_NAME,
+                                   SUMMARY_NAME)
         outputs = {}
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
@@ -53,6 +57,8 @@ class LocalSource(ArchiveSource):
                 data_dir = project_dir
             elif multiplicity.startswith('per_subject'):
                 data_dir = subject_dir
+            elif multiplicity.startswith('per_visit'):
+                data_dir = visit_dir
             elif multiplicity.startswith('per_session'):
                 data_dir = session_dir
             else:
@@ -84,6 +90,11 @@ class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
     pass
 
 
+class LocalVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
+                                  LocalSinkInputSpecMixin):
+    pass
+
+
 class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
                                 LocalSinkInputSpecMixin):
     pass
@@ -101,7 +112,8 @@ class LocalSinkMixin(object):
         outputs = self._base_outputs()
         out_files = []
         missing_files = []
-        # Get session dir
+        # Get output dir from base ArchiveSink class (will change depending on
+        # whether it is per session/subject/visit/project)
         out_path = self._get_output_path()
         out_dir = os.path.abspath(os.path.join(*out_path))
         # Make session dir
@@ -111,8 +123,9 @@ class LocalSinkMixin(object):
         # cache directory and upload to daris.
         for (name, dataset_format,
              multiplicity, processed) in self.inputs.datasets:
-            assert processed, ("Should only be sinking processed datasets, not "
-                               "'{}'".format(name))
+            assert processed, (
+                "Should only be sinking processed datasets, not '{}'"
+                .format(name))
             filename = getattr(self.inputs, name + INPUT_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):
@@ -159,7 +172,7 @@ class LocalSink(LocalSinkMixin, ArchiveSink):
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, self.inputs.session_id]
+            self.inputs.subject_id, self.inputs.visit_id]
 
 
 class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
@@ -169,7 +182,17 @@ class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
     def _get_output_path(self):
         return [
             self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, SUBJECT_SUMMARY_NAME]
+            self.inputs.subject_id, SUMMARY_NAME]
+
+
+class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
+
+    input_spec = LocalVisitSinkInputSpec
+
+    def _get_output_path(self):
+        return [
+            self.inputs.base_dir, self.inputs.project_id,
+            SUMMARY_NAME, self.inputs.visit_id]
 
 
 class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
@@ -178,7 +201,8 @@ class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id, PROJECT_SUMMARY_NAME]
+            self.inputs.base_dir, self.inputs.project_id, SUMMARY_NAME,
+            SUMMARY_NAME]
 
 
 class LocalArchive(Archive):
@@ -191,6 +215,7 @@ class LocalArchive(Archive):
     Source = LocalSource
     Sink = LocalSink
     SubjectSink = LocalSubjectSink
+    VisitSink = LocalVisitSink
     ProjectSink = LocalProjectSink
 
     def __init__(self, base_dir):
@@ -213,7 +238,7 @@ class LocalArchive(Archive):
         sink.inputs.base_dir = self.base_dir
         return sink
 
-    def project(self, project_id, subject_ids=None, session_ids=None):
+    def project(self, project_id, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         archive
@@ -225,8 +250,8 @@ class LocalArchive(Archive):
         subject_ids : list(str)
             List of subject IDs with which to filter the tree with. If None all
             are returned
-        session_ids : list(str)
-            List of session IDs with which to filter the tree with. If None all
+        visit_ids : list(str)
+            List of visit IDs with which to filter the tree with. If None all
             are returned
 
         Returns
@@ -238,7 +263,7 @@ class LocalArchive(Archive):
         project_dir = os.path.join(self.base_dir, str(project_id))
         subjects = []
         subject_dirs = [d for d in os.listdir(project_dir)
-                        if not d.startswith('.') and d != PROJECT_SUMMARY_NAME]
+                        if not d.startswith('.') and d != SUMMARY_NAME]
         if subject_ids is not None:
             # Ensure ids are strings
             subject_ids = [str(i) for i in subject_ids]
@@ -256,18 +281,18 @@ class LocalArchive(Archive):
             subject_path = os.path.join(project_dir, subject_dir)
             sessions = []
             session_dirs = [d for d in os.listdir(subject_path)
-                            if (not d.startswith('.') and
-                                d != SUBJECT_SUMMARY_NAME)]
-            if session_ids is not None:
-                if any(session_id not in session_dirs
-                       for session_id in session_ids):
+                            if (not d.startswith('.') and d != SUMMARY_NAME)]
+            if visit_ids is not None:
+                if any(visit_id not in session_dirs
+                       for visit_id in visit_ids):
                     raise NiAnalysisError(
                         "'{}' sessions(s) is/are missing from '{}' subject of "
                         "'{}' project in local archive (found '{}')"
-                        .format("', '".join(session_ids), subject_dir,
+                        .format("', '".join(visit_ids), subject_dir,
                                 project_id, "', '".join(session_dirs)))
-                session_dirs = session_ids
+                session_dirs = visit_ids
             self._check_only_dirs(session_dirs, subject_path)
+            # Get datasets in all sessions
             for session_dir in session_dirs:
                 session_path = os.path.join(subject_path, session_dir)
                 datasets = []
@@ -277,8 +302,9 @@ class LocalArchive(Archive):
                     datasets.append(
                         Dataset.from_path(os.path.join(session_path, f)))
                 sessions.append(Session(session_dir, datasets))
+            # Get subject summary datasets
             subject_summary_path = os.path.join(subject_path,
-                                                SUBJECT_SUMMARY_NAME)
+                                                SUMMARY_NAME)
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
                             if not os.path.isdir(d)]
@@ -288,14 +314,34 @@ class LocalArchive(Archive):
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
             subjects.append(Subject(subject_dir, sessions, datasets))
-        project_summary_path = os.path.join(project_dir, PROJECT_SUMMARY_NAME)
-        if os.path.exists(project_summary_path):
-            files = [d for d in os.listdir(project_summary_path)
-                        if not os.path.isdir(d)]
-            for f in files:
-                datasets.append(
-                    Dataset.from_path(os.path.join(project_summary_path, f),
-                                      multiplicity='per_project'))
+        # Get project and visit summary datasets
+        base_project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
+        if os.path.exists(base_project_summary_path):
+            project_summary_path = os.path.join(base_project_summary_path,
+                                                SUMMARY_NAME)
+            if os.path.exists(project_summary_path):
+                files = [d for d in os.listdir(project_summary_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    datasets.append(
+                        Dataset.from_path(
+                            os.path.join(project_summary_path, f),
+                            multiplicity='per_project'))
+            visit_summary_dirs = [d for d in os.listdir(subject_path)
+                                   if not (d.startswith('.') and
+                                           d == project_summary_path)]
+            self._check_only_dirs(visit_summary_dirs,
+                                  base_project_summary_path)
+            for visit_summary_dir in visit_summary_dirs:
+                visit_summary_path = os.path.join(
+                    base_project_summary_path, visit_summary_dir)
+                files = [d for d in os.listdir(visit_summary_path)
+                         if not os.path.isdir(d)]
+                for f in files:
+                    datasets.append(
+                        Dataset.from_path(
+                            os.path.join(visit_summary_path, f),
+                            multiplicity='per_visit'))
         project = Project(project_id, subjects, datasets)
         return project
 
@@ -320,14 +366,14 @@ class LocalArchive(Archive):
             The id of the project
         sessions : List[Session]
             List of sessions of which to test for the dataset
-        """        
+        """
         if sessions is None:
             sessions = self.all_session_ids(project_id)
         with_dataset = []
         for session in sessions:
             if os.path.exists(
                 os.path.join(self._base_dir, str(project_id),
-                             session.subject_id, session.session_id,
+                             session.subject_id, session.visit_id,
                              dataset.filename)):
                 with_dataset.append(session)
         return with_dataset
