@@ -123,7 +123,7 @@ class ArchiveSourceInputSpec(TraitedSpec):
         desc='The project ID')
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
-                            desc="The session or processed group ID")
+                            desc="The visit or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
         desc="Names of all datasets that comprise the (sub)project")
@@ -243,7 +243,7 @@ class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
-    visit_id = traits.Str(desc="The session or processed group ID")
+    visit_id = traits.Str(desc="The visit ID")
 
 
 class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -290,7 +290,7 @@ class BaseArchiveSink(IOBase):
     @abstractmethod
     def _base_outputs(self):
         "List the base outputs of the sink interface, which relate to the "
-        "subject/session/project that is being sunk"
+        "session/subject/project that is being sunk"
 
 
 class ArchiveSink(BaseArchiveSink):
@@ -439,8 +439,8 @@ class Session(object):
     Holds the session id and the list of datasets loaded from it
     """
 
-    def __init__(self, session_id, datasets, processed=None):
-        self._id = session_id
+    def __init__(self, visit_id, datasets, processed=None):
+        self._id = visit_id
         self._datasets = datasets
         self._subject = None
         self._processed = processed

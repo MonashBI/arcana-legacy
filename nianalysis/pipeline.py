@@ -254,7 +254,7 @@ class Pipeline(object):
         shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
-                           session_ids=None, reprocess=False,
+                           visit_ids=None, reprocess=False,
                            project=None, connected_prereqs=None):
         """
         Gets a data source and data sink from the archive for the requested
@@ -265,7 +265,7 @@ class Pipeline(object):
         subject_ids : List[str]
             The subset of subject IDs to process. If None all available will be
             reprocessed
-        session_ids: List[str]
+        visit_ids: List[str]
             The subset of visit IDs for each subject to process. If None all
             available will be reprocessed
         work_dir : str
@@ -299,11 +299,11 @@ class Pipeline(object):
         if project is None:
             project = self._study.archive.project(
                 self._study._project_id, subject_ids=subject_ids,
-                visit_ids=session_ids)
-        # Get list of sessions and subjects that need to be processed (i.e. if
+                visit_ids=visit_ids)
+        # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         sessions_to_process = self._sessions_to_process(
-            project, filter_ids=session_ids, reprocess=reprocess)
+            project, visit_ids=visit_ids, reprocess=reprocess)
         if not sessions_to_process:
             logger.info(
                 "All outputs of '{}' are already present in project archive, "
@@ -337,7 +337,7 @@ class Pipeline(object):
                     prereq_report = prereq.connect_to_archive(
                         complete_workflow=complete_workflow,
                         subject_ids=prereq_subject_ids,
-                        session_ids=session_ids,
+                        visit_ids=visit_ids,
                         reprocess=(reprocess if reprocess == 'all' else False),
                         project=project,
                         connected_prereqs=connected_prereqs)
@@ -451,6 +451,7 @@ class Pipeline(object):
                                     memory=1000)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
+        subject_ids_to_process = set(s.id for s in subjects_to_process)
         subjects.iterables = ('subject_id',
                               tuple(s.id for s in subjects_to_process))
         # Determine whether the visit ids are the same for every subject,
@@ -459,7 +460,7 @@ class Pipeline(object):
         session_subjects = defaultdict(set)
         for session in sessions_to_process:
             session_subjects[session.id].add(session.subject.id)
-        if all(ss == set(s.id for s in subjects_to_process)
+        if all(ss == subject_ids_to_process
                for ss in session_subjects.itervalues()):
             # All sessions are to be processed in every node, a simple second
             # layer of iterations on top of the subject iterations will
@@ -547,7 +548,7 @@ class Pipeline(object):
         # Call pipeline instancemethods to study with provided options
         return (pg(self._study, **self.options) for pg in pipeline_getters)
 
-    def _sessions_to_process(self, project, filter_ids=None, reprocess=False):
+    def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project archive, and make a list of the sessions and subjects
@@ -558,7 +559,7 @@ class Pipeline(object):
         project : Project
             A representation of the project and associated subjects and
             sessions for the study's archive.
-        filter_ids : list(str)
+        visit_ids : list(str)
             Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
@@ -568,10 +569,10 @@ class Pipeline(object):
         sessions_to_process = set()
         # Define filter function
         def filter_sessions(sessions):  # @IgnorePep8
-            if filter_ids is None:
+            if visit_ids is None:
                 return sessions
             else:
-                return (s for s in sessions if s.id in filter_ids)
+                return (s for s in sessions if s.id in visit_ids)
         for output in self.outputs:
             dataset = self.study.dataset(output)
             # If there is a project output then all subjects and sessions need
