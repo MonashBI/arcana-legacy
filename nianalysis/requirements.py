@@ -28,7 +28,10 @@ def matlab_version_split(version_str):
 
 
 def date_split(version_str):
-    return tuple(int(p) for p in version_str.split('-'))
+    try:
+        return tuple(int(p) for p in version_str.split('-'))
+    except ValueError as e:
+        raise NiAnalysisRequirementVersionException(str(e))
 
 
 class Requirement(object):
