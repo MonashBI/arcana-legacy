@@ -27,16 +27,19 @@ logger.addHandler(handler)
 
 class DummyStudy(Study):
 
-    def pipeline1(self):
+    def pipeline1(self, **options):
         pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('start', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
                      DatasetSpec('pipeline1_2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
+            default_options={'pipeline1_option': False},
             version=1,
-            citations=[],)
+            citations=[],
+            options=options)
+        if not pipeline.option('pipeline1_option'):
+            raise Exception("Pipeline 1 option was not cascaded down")
         mrconvert = pipeline.create_node(MRConvert(), name="convert1",
                                          requirements=[mrtrix3_req])
         mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
@@ -51,7 +54,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def pipeline2(self):
+    def pipeline2(self, **options):
         pipeline = self.create_pipeline(
             name='pipeline2',
             inputs=[DatasetSpec('start', nifti_gz_format),
@@ -60,7 +63,8 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            citations=[],)
+            citations=[],
+            options=options)
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -73,7 +77,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def pipeline3(self):
+    def pipeline3(self, **options):
         pipeline = self.create_pipeline(
             name='pipeline3',
             inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
@@ -81,7 +85,8 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            citations=[])
+            citations=[],
+            options=options)
         mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
@@ -91,7 +96,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def pipeline4(self):
+    def pipeline4(self, **options):
         pipeline = self.create_pipeline(
             name='pipeline4',
             inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
@@ -100,7 +105,8 @@ class DummyStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             default_options={},
             version=1,
-            citations=[])
+            citations=[],
+            options=options)
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -292,7 +298,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        pipeline = self.study.pipeline4()
+        pipeline = self.study.pipeline4(pipeline1_option=True)
         pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
