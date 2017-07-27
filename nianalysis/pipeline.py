@@ -114,9 +114,12 @@ class Pipeline(object):
         # Copy default options to options and then update it with specific
         # options passed to this pipeline
         self._options = copy(default_options)
+        self._prereq_options = {}
         for k, v in options.iteritems():
             if k in self.options:
-                self.options[k] = v
+                self.local_options[k] = v
+            else:
+                self._prereq_options[k] = v  # Pass on to prereqs
         self._description = description
 
     def _check_spec_names(self, specs, spec_type):
@@ -546,7 +549,8 @@ class Pipeline(object):
             if comp.processed:
                 pipeline_getters.add(comp.pipeline)
         # Call pipeline instancemethods to study with provided options
-        return (pg(self._study, **self.options) for pg in pipeline_getters)
+        return (pg(self._study, **self._preq_options)
+                for pg in pipeline_getters)
 
     def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
         """
@@ -843,10 +847,15 @@ class Pipeline(object):
 
     @property
     def options(self):
-        return self._options
+        return self._options.iteritems()
 
     def option(self, name):
         return self._options[name]
+
+    @property
+    def all_options(self):
+        """Return all options, including options of prerequisities"""
+        return chain(self.options, self._prereq_options.itervalues())
 
     @property
     def non_default_options(self):
