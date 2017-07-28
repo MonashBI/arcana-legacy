@@ -1,11 +1,13 @@
 import os.path
 import shutil
+from unittest import TestCase
+import tempfile
 import xnat
-from nianalysis.testing import BaseTestCase
+from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import XNATArchive
-from nianalysis.data_formats import nifti_gz_format
+from nianalysis.data_formats import nifti_gz_format, dicom_format
 from nianalysis.dataset import Dataset
 import logging
 from nianalysis.utils import split_extension
@@ -329,3 +331,35 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(
             sorted(d.name for d in sorted(session.datasets)),
             ['source1', 'source2', 'source3', 'source4'])
+
+
+class TestXnatArchiveSpecialCharInScanName(TestCase):
+
+    PROJECT = 'MRH060'
+    SUBJECT = 'MRH060_001'
+    VISIT = 'MR01'
+    SERVER = 'https://mbi-xnat.erc.monash.edu.au'
+    TEST_NAME = 'special_char_in_scan_name'
+    DATASETS = ['R-L MRtrix 60 directions interleaved B0 ep2d_diff_p2',
+                'mIP_Images(SW)']
+    WORK_PATH = os.path.join(test_data_dir, 'work', TEST_NAME)
+
+    def test_special_char_in_scan_name(self):
+        """
+        Tests whether XNAT source can download files with spaces in their names
+        """
+        cache_dir = tempfile.mkdtemp()
+        archive = XNATArchive(
+            server=self.SERVER, cache_dir=cache_dir)
+        source = archive.source(
+            self.PROJECT, [Dataset(d, dicom_format) for d in self.DATASETS])
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.visit_id = self.VISIT
+        workflow = pe.Workflow(self.TEST_NAME, base_dir=self.WORK_PATH)
+        workflow.add_nodes([source])
+        graph = workflow.run()
+        result = next(n.result for n in graph.nodes() if n.name == source.name)
+        for dname in self.DATASETS:
+            path = getattr(result.outputs, dname + OUTPUT_SUFFIX)
+            self.assertEqual(os.path.basename(path), dname)
+            self.assertTrue(os.path.exists(path))
