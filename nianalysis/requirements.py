@@ -185,9 +185,9 @@ class Requirement(object):
             ' and '.join(str(e) for e in ver_exceptions))
 
 
-mrtrix3_req = Requirement('mrtrix', min_version=(0, 3, 12),
-                          max_version=(0, 3, 15))
-mrtrix3rc_req = Requirement('mrtrix', min_version=(3, 0, 0))
+mrtrix0_3_req = Requirement('mrtrix', min_version=(0, 3, 12),
+                            max_version=(0, 3, 15))
+mrtrix3_req = Requirement('mrtrix', min_version=(3, 0, 0))
 fsl5_req = Requirement('fsl', min_version=(5, 0, 8))
 ants2_req = Requirement('ants', min_version=(2, 0))
 spm12_req = Requirement('spm', min_version=(12, 0))
