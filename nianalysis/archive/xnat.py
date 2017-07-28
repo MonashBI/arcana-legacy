@@ -23,7 +23,7 @@ from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
-sanitize_re = re.compile(r'[^a-zA-Z_0-9]')
+special_char_re = re.compile(r'[^a-zA-Z_0-9]')
 
 
 class XNATMixin(object):
@@ -185,7 +185,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                     data_path = os.path.join(
                         tmp_dir, session_label, 'scans',
                         (dataset.id + '-' +
-                         re.sub(r'[\.\-]', '_', dataset.type)), 'resources',
+                         special_char_re.sub('_', dataset.type)), 'resources',
                         data_format.upper(), 'files')
                     if data_formats[data_format].extension is not None:
                         data_path = os.path.join(data_path, fname)
@@ -737,7 +737,7 @@ def download_resource(download_path, dataset, data_format, session_label):
             .format(data_format.upper(), dataset.type))
     tmp_dir = download_path + '.download'
     resource.download_dir(tmp_dir)
-    dataset_label = dataset.id + '-' + sanitize_re.sub('_', dataset.type)
+    dataset_label = dataset.id + '-' + special_char_re.sub('_', dataset.type)
     src_path = os.path.join(tmp_dir, session_label, 'scans',
                             dataset_label, 'resources',
                             data_format.upper(), 'files')
