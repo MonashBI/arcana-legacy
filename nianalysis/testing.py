@@ -223,7 +223,9 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 " attempting with what has already been downloaded:\n\n{}"
                 .format(self.XNAT_TEST_PROJECT, self.name, e))
         for fname in os.listdir(self.cache_dir):
-            subject, session, dataset = fname.split('_')
+            parts = fname.split('_')
+            subject, session = parts[:2]
+            dataset = '_'.join(parts[2:])
             if required_datasets is None or dataset in required_datasets:
                 session_dir = os.path.join(project_dir, subject, session)
                 try:
