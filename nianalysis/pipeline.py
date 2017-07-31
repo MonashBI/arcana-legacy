@@ -465,7 +465,7 @@ class Pipeline(object):
         # need to be specified for each subject separately
         session_subjects = defaultdict(set)
         for session in sessions_to_process:
-            session_subjects[session.id].add(session.subject.id)
+            session_subjects[session.visit_id].add(session.subject_id)
         if all(ss == subject_ids_to_process
                for ss in session_subjects.itervalues()):
             # All sessions are to be processed in every node, a simple second
@@ -586,8 +586,7 @@ class Pipeline(object):
         """
         all_subjects = list(project.subjects)
         all_visits = list(project.visits)
-        all_sessions = list(chain(*[s.processed_sessions
-                                    for s in all_subjects]))
+        all_sessions = list(chain(*[s.sessions for s in all_subjects]))
         if reprocess:
             return all_sessions
         sessions_to_process = set()
@@ -610,7 +609,7 @@ class Pipeline(object):
                     if dataset.prefixed_name not in sub.dataset_names)))
             elif dataset.multiplicity == 'per_visit':
                 sessions_to_process.update(chain(*(
-                    visit for visit in all_visits
+                    visit.sessions for visit in all_visits
                     if ((visit_ids is None or visit.id in visit_ids) and
                         dataset.prefixed_name not in visit.dataset_names))))
             elif dataset.multiplicity == 'per_session':

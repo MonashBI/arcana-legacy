@@ -279,8 +279,8 @@ class LocalArchive(Archive):
             subject_dirs = subject_ids
         self._check_only_dirs(subject_dirs, project_dir)
         visit_sessions = defaultdict(list)
-        for subject_dir in subject_dirs:
-            subject_path = os.path.join(project_dir, subject_dir)
+        for subject_id in subject_dirs:
+            subject_path = os.path.join(project_dir, subject_id)
             sessions = []
             session_dirs = [d for d in os.listdir(subject_path)
                             if (not d.startswith('.') and d != SUMMARY_NAME)]
@@ -290,26 +290,26 @@ class LocalArchive(Archive):
                     raise NiAnalysisError(
                         "'{}' sessions(s) is/are missing from '{}' subject of "
                         "'{}' project in local archive (found '{}')"
-                        .format("', '".join(visit_ids), subject_dir,
+                        .format("', '".join(visit_ids), subject_id,
                                 project_id, "', '".join(session_dirs)))
                 session_dirs = visit_ids
             self._check_only_dirs(session_dirs, subject_path)
             # Get datasets in all sessions
-            for session_dir in session_dirs:
-                session_path = os.path.join(subject_path, session_dir)
+            for visit_id in session_dirs:
+                session_path = os.path.join(subject_path, visit_id)
                 datasets = []
                 files = [d for d in os.listdir(session_path)
                          if not os.path.isdir(d)]
                 for f in files:
                     datasets.append(
                         Dataset.from_path(os.path.join(session_path, f)))
-                session = Session(subject_id=subject_dir,
-                                  visit_id=session_dir, datasets=datasets)
+                session = Session(subject_id=subject_id,
+                                  visit_id=visit_id, datasets=datasets)
                 sessions.append(session)
                 visit_sessions[visit_id].append(session)
             # Get subject summary datasets
-            subject_summary_path = os.path.join(subject_path,
-                                                SUMMARY_NAME)
+            subject_summary_path = self.subject_summary_path(project_id,
+                                                             subject_id)
             subj_datasets = []
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
@@ -319,30 +319,26 @@ class LocalArchive(Archive):
                         Dataset.from_path(
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
-            subjects.append(Subject(subject_id=subject_dir, sessions=sessions,
+            subjects.append(Subject(subject_id=subject_id, sessions=sessions,
                                     datasets=subj_datasets))
         # Get visits
         visits = []
         for visit_id, sessions in visit_sessions.iteritems():
-            (visit_summary_subj_name,
-             visit_summary_sess_name) = self.visit_summary_name(
-                 project_id, visit_id)
-            visit_summary_path = os.path.join(
-                project_dir, visit_summary_subj_name, visit_summary_sess_name)
-            files = [d for d in os.listdir(visit_summary_path)
-                     if not os.path.isdir(d)]
-            visit_datasets = []
-            for f in files:
-                visit_datasets.append(
-                    Dataset.from_path(
-                        os.path.join(visit_summary_path, f),
-                        multiplicity='per_visit'))
+            visit_summary_path = self.visit_summary_path(project_id, visit_id)
+            if os.path.exists(visit_summary_path):
+                files = [d for d in os.listdir(visit_summary_path)
+                         if not os.path.isdir(d)]
+                visit_datasets = []
+                for f in files:
+                    visit_datasets.append(
+                        Dataset.from_path(
+                            os.path.join(visit_summary_path, f),
+                            multiplicity='per_visit'))
+            else:
+                visit_datasets = []
             visits.append(Visit(visit_id, sessions, visit_datasets))
         # Get project summary datasets
-        (proj_summary_subj_name,
-         proj_summary_sess_name) = self.project_summary_name(project_id)
-        proj_summary_path = os.path.join(project_dir, proj_summary_subj_name,
-                                         proj_summary_sess_name)
+        proj_summary_path = self.project_summary_path(project_id)
         if os.path.exists(proj_summary_path):
             files = [d for d in os.listdir(proj_summary_path)
                      if not os.path.isdir(d)]
@@ -374,3 +370,15 @@ class LocalArchive(Archive):
     @property
     def base_dir(self):
         return self._base_dir
+
+    def subject_summary_path(self, project_id, subject_id):
+        return os.path.join(self.base_dir, project_id, subject_id,
+                            SUMMARY_NAME)
+
+    def visit_summary_path(self, project_id, visit_id):
+        return os.path.join(self.base_dir, project_id,
+                            SUMMARY_NAME, visit_id)
+
+    def project_summary_path(self, project_id):
+        return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
+                            SUMMARY_NAME)

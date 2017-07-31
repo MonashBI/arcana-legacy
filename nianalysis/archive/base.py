@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from itertools import chain
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
@@ -449,7 +450,7 @@ class Visit(object):
         self._sessions = sessions
         self._datasets = datasets
         for session in sessions:
-            session.subject = self
+            session.visit = self
 
     @property
     def id(self):
@@ -506,11 +507,16 @@ class Session(object):
         self._visit_id = visit_id
         self._datasets = datasets
         self._subject = None
+        self._visit = None
         self._processed = processed
 
     @property
     def visit_id(self):
         return self._visit_id
+
+    @property
+    def subject_id(self):
+        return self._subject_id
 
     @property
     def subject(self):
@@ -519,6 +525,14 @@ class Session(object):
     @subject.setter
     def subject(self, subject):
         self._subject = subject
+
+    @property
+    def visit(self):
+        return self._visit
+
+    @visit.setter
+    def visit(self, visit):
+        self._visit = visit
 
     @property
     def processed(self):
@@ -547,20 +561,25 @@ class Session(object):
                     if self.processed is None else self.processed.datasets)
         return (d.name for d in datasets)
 
+    @property
+    def all_dataset_names(self):
+        return chain(self.dataset_names, self.processed_dataset_names)
+
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
-        return (self.id == other.id and
-                self.subject == other.subject and
-                self.datasets == other.datasets)
+        return (self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id and
+                self.datasets == other.datasets and
+                self.processed == other.processed)
 
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return ("Session(id='{}', subject='{}', num_datasets={}, processed={})"
-                .format(self._id, self.subject.id, len(self._datasets),
-                        self.processed))
+        return ("subject_id='{}', visit_id='{}', num_datasets={}, processed={})"
+                .format(self.subject_id, self.visit_id, self.subject.id,
+                        len(self._datasets)))
 
     def __hash__(self):
-        return hash(self._id)
+        return hash((self.subject_id, self.visit_id))
