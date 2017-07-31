@@ -584,6 +584,7 @@ class Pipeline(object):
             Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
+        all_visits = list(project.visits)
         all_sessions = list(chain(*[s.processed_sessions
                                     for s in all_subjects]))
         if reprocess:
@@ -594,7 +595,7 @@ class Pipeline(object):
             if visit_ids is None:
                 return sessions
             else:
-                return (s for s in sessions if s.id in visit_ids)
+                return (s for s in sessions if s.visit_id in visit_ids)
         for output in self.outputs:
             dataset = self.study.dataset(output)
             # If there is a project output then all subjects and sessions need
@@ -602,14 +603,19 @@ class Pipeline(object):
             if dataset.multiplicity == 'per_project':
                 if dataset.prefixed_name not in project.dataset_names:
                     return all_sessions
-            elif dataset.multiplicity in ('per_subject', 'per_visit'):
+            elif dataset.multiplicity == 'per_subject':
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
                     if dataset.prefixed_name not in sub.dataset_names)))
+            elif dataset.multiplicity == 'per_visit':
+                sessions_to_process.update(chain(*(
+                    visit for visit in all_visits
+                    if ((visit_ids is None or visit.id in visit_ids) and
+                        dataset.prefixed_name not in visit.dataset_names))))
             elif dataset.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if dataset.prefixed_name not in s.dataset_names))
+                    if dataset.prefixed_name not in s.processed_dataset_names))
             else:
                 assert False, "Unrecognised multiplicity of {}".format(dataset)
         return list(sessions_to_process)
