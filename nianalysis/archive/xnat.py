@@ -184,10 +184,11 @@ class XNATSource(ArchiveSource, XNATMixin):
                                     r.label
                                     for r in dataset.resources.itervalues())))
                     data_path = os.path.join(
-                        tmp_dir, session_label, 'scans',
-                        (dataset.id + '-' +
-                         special_char_re.sub('_', dataset.type)), 'resources',
-                        data_format.upper(), 'files')
+                        tmp_dir, (session_label + (XNATArchive.PROCESSED_SUFFIX
+                                                   if processed else '')),
+                        'scans', (dataset.id + '-' +
+                                  special_char_re.sub('_', dataset.type)),
+                        'resources', data_format.upper(), 'files')
                     if data_formats[data_format].extension is not None:
                         data_path = os.path.join(data_path, fname)
                     shutil.move(data_path, cache_path)
