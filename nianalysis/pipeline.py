@@ -585,7 +585,8 @@ class Pipeline(object):
             Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
-        all_sessions = list(chain(*[s.sessions for s in all_subjects]))
+        all_sessions = list(chain(*[s.processed_sessions
+                                    for s in all_subjects]))
         if reprocess:
             return all_sessions
         sessions_to_process = set()
