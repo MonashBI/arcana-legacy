@@ -559,20 +559,26 @@ class XNATArchive(Archive):
                     visit_id = xsession.label.split('_')[2]
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
-                    if xsession.label.endswith(self.PROCESSED_SUFFIX):
-                        processed = True
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
                                           xsession, 'per_session'),
-                                      processed=processed)
-                    if processed:
+                                      processed=None)
+                    if xsession.label.endswith(self.PROCESSED_SUFFIX):
                         proc_sessions.append(session)
                     else:
                         sessions[visit_id] = session
                         visit_sessions[visit_id].append(session)
                 for proc_session in proc_sessions:
                     visit_id = proc_session.id[:-len(self.PROCESSED_SUFFIX)]
-                    sessions[visit_id].processed = proc_session
+                    try:
+                        sessions[visit_id].processed = proc_session
+                    except KeyError:
+                        raise NiAnalysisError(
+                            "No matching acquired session for processed "
+                            "session '{}_{}_{}'".format(
+                                project_id,
+                                proc_session.subject_id,
+                                proc_session.visit_id))
                 # Get per_subject datasets
                 _, subj_summary_name = self.subject_summary_name(
                     *subj_id.split('_'))
