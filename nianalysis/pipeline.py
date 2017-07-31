@@ -162,7 +162,8 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def run(self, work_dir=None, plugin='Linear', mode='parallel', **kwargs):
+    def run(self, work_dir=None, plugin='Linear', plugin_args=None,
+            updatehash=False, **kwargs):
         """
         Connects pipeline to archive and runs it on the local workstation
 
@@ -184,7 +185,8 @@ class Pipeline(object):
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         self.connect_to_archive(complete_workflow, **kwargs)
         # Run the workflow
-        return complete_workflow.run()
+        return complete_workflow.run(plugin=plugin, plugin_args=plugin_args,
+                                     updatehash=updatehash)
 
     def submit(self, work_dir, scheduler='slurm', email=None,
                mail_on=('END', 'FAIL'), **kwargs):
@@ -462,7 +464,7 @@ class Pipeline(object):
         # need to be specified for each subject separately
         session_subjects = defaultdict(set)
         for session in sessions_to_process:
-            session_subjects[session.id].add(session.subject.id)
+            session_subjects[session.visit_id].add(session.subject_id)
         if all(ss == subject_ids_to_process
                for ss in session_subjects.itervalues()):
             # All sessions are to be processed in every node, a simple second
@@ -544,13 +546,28 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         pipeline_getters = set()
+        required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             comp = self._study.dataset(input)
             if comp.processed:
                 pipeline_getters.add(comp.pipeline)
-        # Call pipeline instancemethods to study with provided options
-        return (pg(self._study, **self._prereq_options)
-                for pg in pipeline_getters)
+                required_outputs[comp.pipeline].add(input.name)
+        # Call pipeline-getter instance method on study with provided options
+        # to generate pipeline to run
+        for getter in pipeline_getters:
+            pipeline = getter(self._study, **self._prereq_options)
+            # Check that the required outputs are created with the given
+            # options
+            missing_outputs = required_outputs[getter] - set(
+                d.name for d in pipeline.outputs)
+            if missing_outputs:
+                raise NiAnalysisError(
+                    "Output(s) '{}' will not be created by '{}' pipeline with "
+                    "options: {}".format(
+                        "', '".join(missing_outputs), pipeline.name,
+                        ','.join('{}={}'.format(k, v)
+                                 for k, v in self.options)))
+            yield pipeline
 
     def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
         """
@@ -567,6 +584,7 @@ class Pipeline(object):
             Filter the visit IDs to process
         """
         all_subjects = list(project.subjects)
+        all_visits = list(project.visits)
         all_sessions = list(chain(*[s.sessions for s in all_subjects]))
         if reprocess:
             return all_sessions
@@ -576,7 +594,7 @@ class Pipeline(object):
             if visit_ids is None:
                 return sessions
             else:
-                return (s for s in sessions if s.id in visit_ids)
+                return (s for s in sessions if s.visit_id in visit_ids)
         for output in self.outputs:
             dataset = self.study.dataset(output)
             # If there is a project output then all subjects and sessions need
@@ -584,14 +602,19 @@ class Pipeline(object):
             if dataset.multiplicity == 'per_project':
                 if dataset.prefixed_name not in project.dataset_names:
                     return all_sessions
-            elif dataset.multiplicity in ('per_subject', 'per_visit'):
+            elif dataset.multiplicity == 'per_subject':
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
                     if dataset.prefixed_name not in sub.dataset_names)))
+            elif dataset.multiplicity == 'per_visit':
+                sessions_to_process.update(chain(*(
+                    visit.sessions for visit in all_visits
+                    if ((visit_ids is None or visit.id in visit_ids) and
+                        dataset.prefixed_name not in visit.dataset_names))))
             elif dataset.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if dataset.prefixed_name not in s.dataset_names))
+                    if dataset.prefixed_name not in s.processed_dataset_names))
             else:
                 assert False, "Unrecognised multiplicity of {}".format(dataset)
         return list(sessions_to_process)

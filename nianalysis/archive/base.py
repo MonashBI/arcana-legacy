@@ -1,4 +1,5 @@
 from abc import ABCMeta, abstractmethod
+from itertools import chain
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
@@ -351,9 +352,10 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, datasets):
+    def __init__(self, project_id, subjects, visits, datasets):
         self._id = project_id
         self._subjects = subjects
+        self._visits = visits
         self._datasets = datasets
 
     @property
@@ -363,6 +365,10 @@ class Project(object):
     @property
     def subjects(self):
         return iter(self._subjects)
+
+    @property
+    def visits(self):
+        return iter(self._visits)
 
     @property
     def datasets(self):
@@ -382,8 +388,8 @@ class Project(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_subjects={})".format(self._id,
-                                                        len(self.subjects))
+        return "Subject(id={}, num_subjects={})".format(
+            self._id, len(list(self.subjects)))
 
     def __hash__(self):
         return hash(self._id)
@@ -434,20 +440,83 @@ class Subject(object):
         return hash(self._id)
 
 
-class Session(object):
+class Visit(object):
     """
-    Holds the session id and the list of datasets loaded from it
+    Holds a subject id and a list of sessions
     """
 
-    def __init__(self, visit_id, datasets, processed=None):
+    def __init__(self, visit_id, sessions, datasets):
         self._id = visit_id
+        self._sessions = sessions
         self._datasets = datasets
-        self._subject = None
-        self._processed = processed
+        for session in sessions:
+            session.visit = self
 
     @property
     def id(self):
         return self._id
+
+    @property
+    def sessions(self):
+        return iter(self._sessions)
+
+    @property
+    def datasets(self):
+        return self._datasets
+
+    @property
+    def dataset_names(self):
+        return (d.name for d in self.datasets)
+
+    def __eq__(self, other):
+        if not isinstance(other, Subject):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
+
+    def __hash__(self):
+        return hash(self._id)
+
+
+class Session(object):
+    """
+    Holds the session id and the list of datasets loaded from it
+
+    Parameters
+    ----------
+    subject_id : str
+        The subject ID of the session
+    visit_id : str
+        The visit ID of the session
+    datasets : list(Dataset)
+        The datasets found in the session
+    processed : Session
+        If processed scans are stored in a separate session, it is provided
+        here
+    """
+
+    def __init__(self, subject_id, visit_id, datasets, processed=None):
+        self._subject_id = subject_id
+        self._visit_id = visit_id
+        self._datasets = datasets
+        self._subject = None
+        self._visit = None
+        self._processed = processed
+
+    @property
+    def visit_id(self):
+        return self._visit_id
+
+    @property
+    def subject_id(self):
+        return self._subject_id
 
     @property
     def subject(self):
@@ -458,8 +527,25 @@ class Session(object):
         self._subject = subject
 
     @property
+    def visit(self):
+        return self._visit
+
+    @visit.setter
+    def visit(self, visit):
+        self._visit = visit
+
+    @property
     def processed(self):
         return self._processed
+
+    @processed.setter
+    def processed(self, processed):
+        self._processed = processed
+
+    @property
+    def acquired(self):
+        """True if the session contains acquired scans"""
+        return not self._processed or self._processed is None
 
     @property
     def datasets(self):
@@ -469,19 +555,31 @@ class Session(object):
     def dataset_names(self):
         return (d.name for d in self.datasets)
 
+    @property
+    def processed_dataset_names(self):
+        datasets = (self.datasets
+                    if self.processed is None else self.processed.datasets)
+        return (d.name for d in datasets)
+
+    @property
+    def all_dataset_names(self):
+        return chain(self.dataset_names, self.processed_dataset_names)
+
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
-        return (self.id == other.id and
-                self.subject == other.subject and
-                self.datasets == other.datasets)
+        return (self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id and
+                self.datasets == other.datasets and
+                self.processed == other.processed)
 
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return "Session(id='{}', num_datasets={})".format(self._id,
-                                                          len(self._datasets))
+        return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
+                "processed={})".format(self.subject_id, self.visit_id,
+                                       len(self._datasets), self.processed))
 
     def __hash__(self):
-        return hash(self._id)
+        return hash((self.subject_id, self.visit_id))
