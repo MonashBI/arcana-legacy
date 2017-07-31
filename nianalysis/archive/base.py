@@ -577,9 +577,9 @@ class Session(object):
         return not (self == other)
 
     def __repr__(self):
-        return ("subject_id='{}', visit_id='{}', num_datasets={}, processed={})"
-                .format(self.subject_id, self.visit_id, self.subject.id,
-                        len(self._datasets)))
+        return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
+                "processed={})".format(self.subject_id, self.visit_id,
+                                       len(self._datasets), self.processed))
 
     def __hash__(self):
         return hash((self.subject_id, self.visit_id))

@@ -558,7 +558,7 @@ class XNATArchive(Archive):
                 proc_sessions = []
                 # Get per_session datasets
                 for xsession in xsubject.experiments.itervalues():
-                    visit_id = xsession.label.split('_')[2]
+                    visit_id = '_'.join(xsession.label.split('_')[2:])
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
                     session = Session(subj_id, visit_id,
@@ -571,7 +571,8 @@ class XNATArchive(Archive):
                         sessions[visit_id] = session
                         visit_sessions[visit_id].append(session)
                 for proc_session in proc_sessions:
-                    visit_id = proc_session.id[:-len(self.PROCESSED_SUFFIX)]
+                    visit_id = proc_session.visit_id[:-len(
+                        self.PROCESSED_SUFFIX)]
                     try:
                         sessions[visit_id].processed = proc_session
                     except KeyError:
