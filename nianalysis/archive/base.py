@@ -351,9 +351,10 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, datasets):
+    def __init__(self, project_id, subjects, visits, datasets):
         self._id = project_id
         self._subjects = subjects
+        self._visits = visits
         self._datasets = datasets
 
     @property
@@ -363,6 +364,10 @@ class Project(object):
     @property
     def subjects(self):
         return iter(self._subjects)
+
+    @property
+    def visits(self):
+        return iter(self._visits)
 
     @property
     def datasets(self):
@@ -410,12 +415,49 @@ class Subject(object):
         return iter(self._sessions)
 
     @property
-    def acquired_sessions(self):
-        return (s for s in self._sessions if s.acquired)
+    def datasets(self):
+        return self._datasets
 
     @property
-    def processed_sessions(self):
-        return (s for s in self._sessions if s.processed)
+    def dataset_names(self):
+        return (d.name for d in self.datasets)
+
+    def __eq__(self, other):
+        if not isinstance(other, Subject):
+            return False
+        return (self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __repr__(self):
+        return "Subject(id={}, num_sessions={})".format(self._id,
+                                                        len(self._sessions))
+
+    def __hash__(self):
+        return hash(self._id)
+
+
+class Visit(object):
+    """
+    Holds a subject id and a list of sessions
+    """
+
+    def __init__(self, visit_id, sessions, datasets):
+        self._id = visit_id
+        self._sessions = sessions
+        self._datasets = datasets
+        for session in sessions:
+            session.subject = self
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def sessions(self):
+        return iter(self._sessions)
 
     @property
     def datasets(self):
@@ -448,24 +490,27 @@ class Session(object):
 
     Parameters
     ----------
+    subject_id : str
+        The subject ID of the session
     visit_id : str
         The visit ID of the session
     datasets : list(Dataset)
         The datasets found in the session
-    processed : bool | None
-        Whether or not the session contains processed or acquired datasets.
-        If None, then the session contains both acquired and processed.
+    processed : Session
+        If processed scans are stored in a separate session, it is provided
+        here
     """
 
-    def __init__(self, visit_id, datasets, processed=None):
-        self._id = visit_id
+    def __init__(self, subject_id, visit_id, datasets, processed=None):
+        self._subject_id = subject_id
+        self._visit_id = visit_id
         self._datasets = datasets
         self._subject = None
         self._processed = processed
 
     @property
-    def id(self):
-        return self._id
+    def visit_id(self):
+        return self._visit_id
 
     @property
     def subject(self):
@@ -477,8 +522,11 @@ class Session(object):
 
     @property
     def processed(self):
-        """True if the session contains processed scans"""
-        return self._processed or self._processed is None
+        return self._processed
+
+    @processed.setter
+    def processed(self, processed):
+        self._processed = processed
 
     @property
     def acquired(self):
