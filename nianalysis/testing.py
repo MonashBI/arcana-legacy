@@ -97,7 +97,7 @@ class BaseTestCase(TestCase):
         dirs
         """
         module_path = os.path.abspath(sys.modules[self.__module__].__file__)
-        rel_module_path = module_path[len(unittest_base_dir) + 1:]
+        rel_module_path = module_path[(len(unittest_base_dir) + 1):]
         path_parts = rel_module_path.split(os.path.sep)
         module_name = (''.join(path_parts[:-1]) +
                        os.path.splitext(path_parts[-1])[0][5:]).upper()

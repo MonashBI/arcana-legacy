@@ -426,7 +426,7 @@ class DummyMultiSubjectStudy(Study):
         DatasetSpec('pipeline2', nifti_gz_format, pipeline1))
 
 
-class MultiSubjectTest(BaseMultiSubjectTestCase):
+class TestMultiSubject(BaseMultiSubjectTestCase):
 
     def test_partial_complete(self):
         pass

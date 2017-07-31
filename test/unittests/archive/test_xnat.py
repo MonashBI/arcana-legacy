@@ -335,13 +335,13 @@ class TestXnatArchive(BaseTestCase):
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
 
-    PROJECT = 'MRH060'
-    SUBJECT = 'MRH060_001'
+    PROJECT = 'MRH033'
+    SUBJECT = 'MRH033_001'
     VISIT = 'MR01'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     TEST_NAME = 'special_char_in_scan_name'
-    DATASETS = ['R-L MRtrix 60 directions interleaved B0 ep2d_diff_p2',
-                'mIP_Images(SW)']
+    DATASETS = ['localizer 3 PLANES (Left)',
+                'PosDisp: [3] cv_t1rho_3D_2_TR450 (Left)']
     WORK_PATH = os.path.join(test_data_dir, 'work', TEST_NAME)
 
     def test_special_char_in_scan_name(self):
