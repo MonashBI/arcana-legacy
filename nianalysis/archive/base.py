@@ -382,8 +382,8 @@ class Project(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_subjects={})".format(self._id,
-                                                        len(self.subjects))
+        return "Subject(id={}, num_subjects={})".format(
+            self._id, len(list(self.subjects)))
 
     def __hash__(self):
         return hash(self._id)
@@ -408,6 +408,14 @@ class Subject(object):
     @property
     def sessions(self):
         return iter(self._sessions)
+
+    @property
+    def acquired_sessions(self):
+        return (s for s in self._sessions if s.acquired)
+
+    @property
+    def processed_sessions(self):
+        return (s for s in self._sessions if s.processed)
 
     @property
     def datasets(self):
@@ -437,6 +445,16 @@ class Subject(object):
 class Session(object):
     """
     Holds the session id and the list of datasets loaded from it
+
+    Parameters
+    ----------
+    visit_id : str
+        The visit ID of the session
+    datasets : list(Dataset)
+        The datasets found in the session
+    processed : bool | None
+        Whether or not the session contains processed or acquired datasets.
+        If None, then the session contains both acquired and processed.
     """
 
     def __init__(self, visit_id, datasets, processed=None):
@@ -459,7 +477,13 @@ class Session(object):
 
     @property
     def processed(self):
-        return self._processed
+        """True if the session contains processed scans"""
+        return self._processed or self._processed is None
+
+    @property
+    def acquired(self):
+        """True if the session contains acquired scans"""
+        return not self._processed or self._processed is None
 
     @property
     def datasets(self):
@@ -480,8 +504,9 @@ class Session(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Session(id='{}', num_datasets={})".format(self._id,
-                                                          len(self._datasets))
+        return ("Session(id='{}', subject='{}', num_datasets={}, processed={})"
+                .format(self._id, self.subject.id, len(self._datasets),
+                        self.processed))
 
     def __hash__(self):
         return hash(self._id)

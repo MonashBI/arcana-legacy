@@ -550,6 +550,12 @@ class XNATArchive(Archive):
                 xsubject = xsession.subject
                 subj_id = xsubject.label
                 sess_id = xsession.label.split('_')[2]
+                processed = False
+                try:
+                    if xsession.label.split('_')[3] == 'PROC':
+                        processed = True
+                except IndexError:
+                    pass
                 if ((subject_ids is not None and subj_id not in subject_ids) or
                         (visit_ids is not None and
                          sess_id not in visit_ids)):
@@ -557,7 +563,7 @@ class XNATArchive(Archive):
                 sessions[subj_id].append(Session(
                     sess_id,
                     datasets=self._get_datasets(xsession, 'per_session'),
-                    processed=False))
+                    processed=processed))
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
                 if subject_ids is not None and subj_id not in subject_ids:
