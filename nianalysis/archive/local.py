@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import os.path
+from collections import defaultdict
 from itertools import chain
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -12,7 +13,7 @@ import shutil
 import logging
 from nipype.interfaces.base import (
     Directory, isdefined)
-from .base import Project, Subject, Session
+from .base import Project, Subject, Session, Visit
 from nianalysis.dataset import Dataset
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
@@ -277,6 +278,7 @@ class LocalArchive(Archive):
                         project_id, self._base_dir, "', '".join(subject_dirs)))
             subject_dirs = subject_ids
         self._check_only_dirs(subject_dirs, project_dir)
+        visit_sessions = defaultdict(list)
         for subject_dir in subject_dirs:
             subject_path = os.path.join(project_dir, subject_dir)
             sessions = []
@@ -297,52 +299,62 @@ class LocalArchive(Archive):
                 session_path = os.path.join(subject_path, session_dir)
                 datasets = []
                 files = [d for d in os.listdir(session_path)
-                            if not os.path.isdir(d)]
+                         if not os.path.isdir(d)]
                 for f in files:
                     datasets.append(
                         Dataset.from_path(os.path.join(session_path, f)))
-                sessions.append(Session(session_dir, datasets))
+                session = Session(subject_id=subject_dir,
+                                  visit_id=session_dir, datasets=datasets)
+                sessions.append(session)
+                visit_sessions[visit_id].append(session)
             # Get subject summary datasets
             subject_summary_path = os.path.join(subject_path,
                                                 SUMMARY_NAME)
+            subj_datasets = []
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
                             if not os.path.isdir(d)]
                 for f in files:
-                    datasets.append(
+                    subj_datasets.append(
                         Dataset.from_path(
                             os.path.join(subject_summary_path, f),
                             multiplicity='per_subject'))
-            subjects.append(Subject(subject_dir, sessions, datasets))
-        # Get project and visit summary datasets
-        base_project_summary_path = os.path.join(project_dir, SUMMARY_NAME)
-        if os.path.exists(base_project_summary_path):
-            project_summary_path = os.path.join(base_project_summary_path,
-                                                SUMMARY_NAME)
-            if os.path.exists(project_summary_path):
-                files = [d for d in os.listdir(project_summary_path)
-                         if not os.path.isdir(d)]
-                for f in files:
-                    datasets.append(
-                        Dataset.from_path(
-                            os.path.join(project_summary_path, f),
-                            multiplicity='per_project'))
-            visit_summary_dirs = [d for d in os.listdir(subject_path)
-                                   if not (d.startswith('.') and
-                                           d == project_summary_path)]
-            self._check_only_dirs(visit_summary_dirs,
-                                  base_project_summary_path)
-            for visit_summary_dir in visit_summary_dirs:
-                visit_summary_path = os.path.join(
-                    base_project_summary_path, visit_summary_dir)
-                files = [d for d in os.listdir(visit_summary_path)
-                         if not os.path.isdir(d)]
-                for f in files:
-                    datasets.append(
-                        Dataset.from_path(
-                            os.path.join(visit_summary_path, f),
-                            multiplicity='per_visit'))
-        project = Project(project_id, subjects, datasets)
+            subjects.append(Subject(subject_id=subject_dir, sessions=sessions,
+                                    datasets=subj_datasets))
+        # Get visits
+        visits = []
+        for visit_id, sessions in visit_sessions.iteritems():
+            (visit_summary_subj_name,
+             visit_summary_sess_name) = self.visit_summary_name(
+                 project_id, visit_id)
+            visit_summary_path = os.path.join(
+                project_dir, visit_summary_subj_name, visit_summary_sess_name)
+            files = [d for d in os.listdir(visit_summary_path)
+                     if not os.path.isdir(d)]
+            visit_datasets = []
+            for f in files:
+                visit_datasets.append(
+                    Dataset.from_path(
+                        os.path.join(visit_summary_path, f),
+                        multiplicity='per_visit'))
+            visits.append(Visit(visit_id, sessions, visit_datasets))
+        # Get project summary datasets
+        (proj_summary_subj_name,
+         proj_summary_sess_name) = self.project_summary_name(project_id)
+        proj_summary_path = os.path.join(project_dir, proj_summary_subj_name,
+                                         proj_summary_sess_name)
+        if os.path.exists(proj_summary_path):
+            files = [d for d in os.listdir(proj_summary_path)
+                     if not os.path.isdir(d)]
+            proj_datasets = []
+            for f in files:
+                proj_datasets.append(
+                    Dataset.from_path(
+                        os.path.join(proj_summary_path, f),
+                        multiplicity='per_project'))
+        else:
+            proj_datasets = []
+        project = Project(project_id, subjects, visits, proj_datasets)
         return project
 
     @classmethod

@@ -12,8 +12,8 @@ from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveVisitSinkInputSpec,
-    ArchiveProjectSinkInputSpec, Session, Subject, Project, ArchiveSubjectSink,
-    ArchiveVisitSink, ArchiveProjectSink)
+    ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
+    ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
@@ -546,28 +546,34 @@ class XNATArchive(Archive):
         sessions = defaultdict(list)
         with self._login() as xnat_login:
             xproject = xnat_login.projects[project_id]
-            for xsession in xproject.experiments.itervalues():
-                xsubject = xsession.subject
-                subj_id = xsubject.label
-                sess_id = xsession.label.split('_')[2]
-                processed = False
-                try:
-                    if xsession.label.split('_')[3] == 'PROC':
-                        processed = True
-                except IndexError:
-                    pass
-                if ((subject_ids is not None and subj_id not in subject_ids) or
-                        (visit_ids is not None and
-                         sess_id not in visit_ids)):
-                    continue  # Skip session
-                sessions[subj_id].append(Session(
-                    sess_id,
-                    datasets=self._get_datasets(xsession, 'per_session'),
-                    processed=processed))
+            visit_sessions = defaultdict(list)
+            # Create list of subjects
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
-                if subject_ids is not None and subj_id not in subject_ids:
+                if not (subject_ids is None or subj_id in subject_ids):
                     continue
+                sessions = {}
+                proc_sessions = []
+                # Get per_session datasets
+                for xsession in xsubject.experiments.itervalues():
+                    visit_id = xsession.label.split('_')[2]
+                    if not (visit_ids is None or visit_id in visit_ids):
+                        continue
+                    if xsession.label.endswith(self.PROCESSED_SUFFIX):
+                        processed = True
+                    session = Session(subj_id, visit_id,
+                                      datasets=self._get_datasets(
+                                          xsession, 'per_session'),
+                                      processed=processed)
+                    if processed:
+                        proc_sessions.append(session)
+                    else:
+                        sessions[visit_id] = session
+                        visit_sessions[visit_id].append(session)
+                for proc_session in proc_sessions:
+                    visit_id = proc_session.id[:-len(self.PROCESSED_SUFFIX)]
+                    sessions[visit_id].processed = proc_session
+                # Get per_subject datasets
                 _, subj_summary_name = self.subject_summary_name(
                     *subj_id.split('_'))
                 if subj_summary_name in xsubject.experiments:
@@ -575,15 +581,29 @@ class XNATArchive(Archive):
                         xsubject.experiments[subj_summary_name], 'per_subject')
                 else:
                     subj_summary = []
-                subjects.append(Subject(subj_id, sessions[subj_id],
+                subjects.append(Subject(subj_id, sessions.values(),
                                         subj_summary))
+            # Create list of visits
+            visits = []
+            for visit_id, sessions in visit_sessions.iteritems():
+                (_, visit_summary_sess_name) = self.visit_summary_name(
+                    project_id, visit_id)
+                # Get 'per_visit' datasets
+                try:
+                    visit_summary = self._get_datasets(
+                        xproject.experiments[visit_summary_sess_name],
+                        'per_visit')
+                except KeyError:
+                    visit_summary = []
+                visits.append(Visit(visit_id, sessions, visit_summary))
+            # Get 'per_project' datasets
             (proj_summary_subj_name,
              proj_summary_sess_name) = self.project_summary_name(project_id)
-            if proj_summary_subj_name in xproject.subjects:
+            try:
                 proj_summary = self._get_datasets(
                     xproject.subjects[proj_summary_subj_name].experiments[
                         proj_summary_sess_name], 'per_project')
-            else:
+            except KeyError:
                 proj_summary = []
             if not subjects:
                 raise NiAnalysisError(
@@ -598,7 +618,7 @@ class XNATArchive(Archive):
                     .format("', '".join(visit_ids),
                             "', '".join(s.label for s in xproject.subjects),
                              project_id))
-        return Project(project_id, subjects, proj_summary)
+        return Project(project_id, subjects, visits, proj_summary)
 
     def _get_datasets(self, xsession, mult):
         """
