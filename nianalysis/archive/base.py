@@ -541,6 +541,12 @@ class Session(object):
     def dataset_names(self):
         return (d.name for d in self.datasets)
 
+    @property
+    def processed_dataset_names(self):
+        datasets = (self.datasets
+                    if self.processed is None else self.processed.datasets)
+        return (d.name for d in datasets)
+
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
