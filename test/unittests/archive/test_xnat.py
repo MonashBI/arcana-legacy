@@ -4,17 +4,13 @@ import tempfile
 import logging
 from unittest import TestCase
 import xnat
-from nianalysis.testing import (
-    BaseTestCase, BaseMultiSubjectTestCase, test_data_dir)
+from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
-from nianalysis.requirements import mrtrix3_req
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import XNATArchive
 from nianalysis.data_formats import (
-    nifti_gz_format, dicom_format, mrtrix_format)
+    nifti_gz_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec
-from nianalysis.study.base import Study, set_dataset_specs
-from nianalysis.interfaces.mrtrix import MRCalc
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
@@ -376,64 +372,3 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             self.assertEqual(os.path.basename(path), dname)
             self.assertTrue(os.path.exists(path))
 
- 
-class ExistingPrereqStudy(Study):
- 
-    def tens_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline1',
-            inputs=[DatasetSpec('start', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline1', nifti_gz_format)],
-            description=(
-                "A dummy pipeline used to test 'partial-complete' method"),
-            default_options={'pipeline1_option': False},
-            version=1,
-            citations=[],
-            options=options)
-        if not pipeline.option('pipeline1_option'):
-            raise Exception("Pipeline 1 option was not cascaded down")
-        mult = pipeline.create_node(MRCalc(), name="convert1",
-                                    requirements=[mrtrix3_req])
-        # Connect inputs
-        pipeline.connect_input('ones', mult, 'in_file')
-        # Connect outputs
-        pipeline.connect_output('tens', mult, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
- 
-    def pipeline2(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline2',
-            inputs=[DatasetSpec('start', nifti_gz_format),
-                    DatasetSpec('pipeline1', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
-            description=(
-                "A dummy pipeline used to test 'partial-complete' method"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
-        mrmath.inputs.axis = 0
-        # Connect inputs
-        pipeline.connect_input('start', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
-        # Connect outputs
-        pipeline.connect_output('pipeline2', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
- 
-    _dataset_specs = set_dataset_specs(
-        DatasetSpec('ones', mrtrix_format),
-        DatasetSpec('tens', mrtrix_format, pipeline1),
-        DatasetSpec('hundreds', mrtrix_format, pipeline1),
-        DatasetSpec('thousands', mrtrix_format, pipeline1))
- 
- 
-class TestMultiSubject(BaseMultiSubjectTestCase):
- 
-    def test_partial_complete(self):
-        pass

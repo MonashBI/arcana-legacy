@@ -5,9 +5,10 @@ import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
+from nipype.interfaces.utility import Merge
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
-from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
-from nianalysis.testing import BaseTestCase  # @IgnorePep8
+from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
+from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 import logging  # @IgnorePep8
@@ -369,3 +370,61 @@ class TestRunPipeline(BaseTestCase):
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
+
+
+class ExistingPrereqStudy(Study):
+
+    def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
+        pipeline = self.create_pipeline(
+            name='pipeline1',
+            inputs=[DatasetSpec(input, mrtrix_format)],
+            outputs=[DatasetSpec(output, mrtrix_format)],
+            description=(
+                "A dummy pipeline used to test 'partial-complete' method"),
+            default_options={'pipeline1_option': False},
+            version=1,
+            citations=[],
+            options={})
+        # Nodes
+        operands = pipeline.create_node(Merge(2), name='merge')
+        mult = pipeline.create_node(MRCalc(), name="convert1",
+                                    requirements=[mrtrix3_req])
+        operands.inputs.in2 = incr
+        mult.inputs.operator = 'add'
+        # Connect inputs
+        pipeline.connect_input(input, operands, 'in1')
+        # Connect inter-nodes
+        pipeline.connect(operands, 'out', mult, 'operands')
+        # Connect outputs
+        pipeline.connect_output(output, mult, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def tens_pipeline(self):
+        return self.pipeline_factory(10, 'ones', 'tens')
+
+    def hundreds_pipeline(self):
+        return self.pipeline_factory(100, 'tens', 'hundreds')
+
+    def thousands_pipeline(self):
+        return self.pipeline_factory(1000, 'hundreds', 'thousands')
+
+    _dataset_specs = set_dataset_specs(
+        DatasetSpec('ones', mrtrix_format),
+        DatasetSpec('tens', mrtrix_format, tens_pipeline),
+        DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
+        DatasetSpec('thousands', mrtrix_format, thousands_pipeline))
+
+
+class TestExistingPrereqs(BaseMultiSubjectTestCase):
+    """
+    This unittest tests out that partially previously calculated prereqs
+    are detected and not rerun unless reprocess==True.
+
+    The structure of the "subjects" and "sessions" stored on the XNAT archive
+    are
+    """
+
+    def test_existing_prereqs(self):
+        pass

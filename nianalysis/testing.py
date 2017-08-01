@@ -10,6 +10,9 @@ from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
 from nianalysis.exceptions import NiAnalysisError
+from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+
 
 
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
@@ -144,6 +147,26 @@ class BaseTestCase(TestCase):
                                                                    ref_path))
             else:
                 raise
+
+    def assertStatEqual(self, stat, dataset_name, target, study_name,
+                        subject=None, session=None,
+                        multiplicity='per_session'):
+            try:
+                NiAnalysisNodeMixin.load_module('mrtrix')
+            except NiAnalysisModulesNotInstalledException:
+                pass
+            val = float(sp.check_output(
+                'mrstats {} -output {}'.format(
+                    self.output_file_path(
+                        dataset_name, study_name,
+                        subject=subject, session=session,
+                        multiplicity=multiplicity),
+                    stat),
+                shell=True))
+            self.assertEqual(
+                val, target, (
+                    "{} value of '{}' ({}) does not equal target ({})"
+                    .format(stat, dataset_name, val, target)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
                                 stdev_threshold, study_name):
