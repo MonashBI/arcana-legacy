@@ -116,7 +116,11 @@ class Dataset(BaseDataset):
         specifying whether the dataset is present for each session, subject,
         visit or project.
     processed : bool
-        Whether the scan was generated or acquired
+        Whether the scan was generated or acquired. Depending on the archive
+        used to store the dataset this is used to determine the location of the
+        dataset.
+    location : str
+        The directory that the dataset is stored in.
     """
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8

@@ -2,6 +2,7 @@ import os.path
 import subprocess as sp
 import shutil
 from unittest import TestCase
+import errno
 import nianalysis
 from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME)
@@ -96,7 +97,7 @@ class BaseTestCase(TestCase):
         dirs
         """
         module_path = os.path.abspath(sys.modules[self.__module__].__file__)
-        rel_module_path = module_path[len(unittest_base_dir) + 1:]
+        rel_module_path = module_path[(len(unittest_base_dir) + 1):]
         path_parts = rel_module_path.split(os.path.sep)
         module_name = (''.join(path_parts[:-1]) +
                        os.path.splitext(path_parts[-1])[0][5:]).upper()
@@ -202,6 +203,47 @@ class BaseTestCase(TestCase):
     def ref_file_path(self, fname, subject=None, session=None):
         return os.path.join(self.session_dir, fname,
                             subject=subject, session=session)
+
+
+class BaseMultiSubjectTestCase(BaseTestCase):
+
+    def setUp(self):
+        self.reset_dirs()
+        self.add_sessions(self.project_dir)
+
+    def add_sessions(self, project_dir, required_datasets=None):
+        try:
+            download_all_datasets(
+                self.cache_dir, self.SERVER,
+                '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+                overwrite=False)
+        except Exception as e:
+            warnings.warn(
+                "Could not download datasets from '{}_{}' session on MBI-XNAT,"
+                " attempting with what has already been downloaded:\n\n{}"
+                .format(self.XNAT_TEST_PROJECT, self.name, e))
+        for fname in os.listdir(self.cache_dir):
+            parts = fname.split('_')
+            subject, session = parts[:2]
+            dataset = '_'.join(parts[2:])
+            if required_datasets is None or dataset in required_datasets:
+                session_dir = os.path.join(project_dir, subject, session)
+                try:
+                    os.makedirs(session_dir)
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+                src_path = os.path.join(self.cache_dir, fname)
+                dst_path = os.path.join(session_dir, dataset)
+                if os.path.isdir(src_path):
+                    shutil.copytree(src_path, dst_path)
+                elif os.path.isfile(src_path):
+                    shutil.copy(src_path, dst_path)
+                else:
+                    assert False
+
+    def session_dir(self, subject, session):
+        return self.get_session_dir(self.name, subject, session)
 
 
 class DummyTestCase(BaseTestCase):
