@@ -18,6 +18,7 @@ from nianalysis.interfaces.iterators import (
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
+from nianalysis.dataset import DatasetSpec
 from rdflib import plugin
 
 
@@ -546,7 +547,7 @@ class Pipeline(object):
         pipeline_getters = set()
         for input in self.inputs:  # @ReservedAssignment
             comp = self._study.dataset(input)
-            if comp.processed:
+            if isinstance(comp, DatasetSpec):
                 pipeline_getters.add(comp.pipeline)
         # Call pipeline instancemethods to study with provided options
         return (pg(self._study, **self._prereq_options)
