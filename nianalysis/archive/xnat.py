@@ -112,9 +112,10 @@ class XNATSource(ArchiveSource, XNATMixin):
                     (s.type, s) for s in proj_summary.scans.itervalues())
             except KeyError:
                 proj_datasets = {}
-            for (name, data_format, mult, processed) in self.inputs.datasets:
+            for (name, data_format, mult,
+                 processed, is_spec) in self.inputs.datasets:
                 # Prepend study name if defined and processed input
-                if processed and isdefined(self.inputs.study_name):
+                if is_spec and isdefined(self.inputs.study_name):
                     prefixed_name = self.inputs.study_name + '_' + name
                 else:
                     prefixed_name = name
@@ -264,7 +265,8 @@ class XNATSinkMixin(XNATMixin):
                 os.makedirs(cache_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through datasets connected to the sink and copy them to the
             # cache directory and upload to daris.
-            for name, format_name, mult, processed in self.inputs.datasets:
+            for (name, format_name, mult,
+                 processed, _) in self.inputs.datasets:
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
@@ -617,32 +619,6 @@ class XNATArchive(Archive):
                 dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, location=None))
         return datasets
-
-    def sessions_with_dataset(self, dataset, project_id, sessions):
-        """
-        Return all sessions containing the given dataset
-
-        Parameters
-        ----------
-        dataset : Dataset
-            A file (name) for which to return the sessions that contain it
-        project_id : int
-            The id of the project
-        sessions : List[Session]
-            List of sessions of which to test for the dataset
-        """
-        if sessions is None:
-            sessions = self.all_sessions(project_id=project_id)
-        sess_with_dataset = []
-        with self._login() as xnat_login:
-            for session in sessions:
-                entries = xnat_login.get_datasets(
-                    project_id, session.subject_id, session.visit_id,
-                    repo_id=self._repo_id,
-                    ex_method_id=int(dataset.processed) + 1)
-                if dataset.filename() in (e.name for e in entries):
-                    sess_with_dataset.append(session)
-        return sess_with_dataset
 
     @property
     def local_dir(self):

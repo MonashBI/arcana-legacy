@@ -73,7 +73,8 @@ class BaseDataset(object):
         return iter(self.to_tuple())
 
     def to_tuple(self):
-        return self.name, self.format.name, self.multiplicity, self.processed
+        return (self.name, self.format.name, self.multiplicity, self.processed,
+                self.is_spec)
 
     @classmethod
     def from_tuple(cls, tple):
@@ -122,6 +123,8 @@ class Dataset(BaseDataset):
     location : str
         The directory that the dataset is stored in.
     """
+
+    is_spec = False
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', location=None):
@@ -202,6 +205,8 @@ class DatasetSpec(BaseDataset):
         visit or project.
     """
 
+    is_spec = True
+
     def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', description=None):
         super(DatasetSpec, self).__init__(name, format, multiplicity)
@@ -228,9 +233,6 @@ class DatasetSpec(BaseDataset):
     @property
     def description(self):
         return self._description
-
-    def to_tuple(self):
-        return self.name, self.format.name, self.multiplicity, self.processed
 
     def renamed_copy(self, name):
         cpy = copy(self)
@@ -265,8 +267,12 @@ class DatasetSpec(BaseDataset):
                        desc="multiplicity of the dataset (one of '{}')".format(
                             "', '".join(self.MULTIPLICITY_OPTIONS))),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the file was generate by a pipeline "
-                              "or not")))
+                        desc=("whether the dataset is stored in the processed "
+                              "dataset location")),
+            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        desc=("whether the dataset was explicitly provided to "
+                              "the study, or whether it is to be implicitly "
+                              "generated")))
 
     def __repr__(self):
         return ("DatasetSpec(name='{}', format={}, pipeline={}, "
