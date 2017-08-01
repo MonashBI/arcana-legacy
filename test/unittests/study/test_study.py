@@ -423,7 +423,80 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     are detected and not rerun unless reprocess==True.
 
     The structure of the "subjects" and "sessions" stored on the XNAT archive
-    are
+    is:
+
+
+    -- subject1 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - hundreds
+     |
+     - subject2 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - hundreds
+     |
+     - subject3 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - hundreds
+     |
+     - subject4 -- visit1 -- ones
+                 |         |
+                 |         - tens
+                 |         |
+                 |         - hundreds
+                 |
+                 - visit2 -- ones
+                 |         |
+                 |         - tens
+                 |         |
+                 |         - hundreds
+                 |
+                 - visit3 -- ones
+                           |
+                           - tens
+                           |
+                           - hundreds
     """
 
     def test_existing_prereqs(self):
