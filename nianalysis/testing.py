@@ -3,12 +3,14 @@ import subprocess as sp
 import shutil
 from unittest import TestCase
 import errno
+import sys
+import warnings
 import nianalysis
 from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
-import sys
-import warnings
+from nianalysis.exceptions import NiAnalysisError
+
 
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
 
@@ -36,8 +38,7 @@ class BaseTestCase(TestCase):
         os.makedirs(session_dir)
         try:
             download_all_datasets(
-                self.cache_dir, self.SERVER,
-                '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+                self.cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
         except Exception as e:
             warnings.warn(
@@ -68,6 +69,10 @@ class BaseTestCase(TestCase):
         for d in (self.project_dir, self.work_dir, self.cache_dir):
             if not os.path.exists(d):
                 os.makedirs(d)
+
+    @property
+    def xnat_session_name(self):
+        return '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name)
 
     @property
     def session_dir(self):
@@ -113,12 +118,16 @@ class BaseTestCase(TestCase):
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
                              session=None, multiplicity='per_session'):
+        output_dir = self.get_session_dir(
+            self.project_dir, subject, session, multiplicity)
+        out_path = self.output_file_path(
+            dataset_name, study_name, subject, session, multiplicity)
         self.assertTrue(
-            os.path.exists(self.output_file_path(
-                dataset_name, study_name, subject, session, multiplicity)),
-            "Dataset '{}' was not created in pipeline test (in {})"
-            .format(dataset_name, self.get_session_dir(
-                self.project_dir, subject, session, multiplicity)))
+            os.path.exists(out_path),
+            ("Dataset '{}' (expected at '{}') was not created by unittest"
+             " ('{}' found in '{}' instead)".format(
+                 dataset_name, out_path, "', '".join(os.listdir(output_dir)),
+                 output_dir)))
 
     def assertImagesMatch(self, output, ref, study_name):
         out_path = self.output_file_path(output, study_name)
@@ -224,6 +233,11 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 .format(self.XNAT_TEST_PROJECT, self.name, e))
         for fname in os.listdir(self.cache_dir):
             parts = fname.split('_')
+            if len(parts) < 3:
+                raise NiAnalysisError(
+                    "'{}' in multi-subject test session '{}' needs to be "
+                    "prepended with subject and session IDs (delimited by '_')"
+                    .format(fname, self.xnat_session_name))
             subject, session = parts[:2]
             dataset = '_'.join(parts[2:])
             if required_datasets is None or dataset in required_datasets:

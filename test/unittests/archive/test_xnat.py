@@ -1,21 +1,30 @@
 import os.path
 import shutil
-from unittest import TestCase
 import tempfile
+import logging
+from unittest import TestCase
 import xnat
-from nianalysis.testing import BaseTestCase, test_data_dir
+from nianalysis.testing import (
+    BaseTestCase, BaseMultiSubjectTestCase, test_data_dir)
 from nipype.pipeline import engine as pe
+from nianalysis.requirements import mrtrix3_req
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import XNATArchive
-from nianalysis.data_formats import nifti_gz_format, dicom_format
-from nianalysis.dataset import Dataset
-import logging
+from nianalysis.data_formats import (
+    nifti_gz_format, dicom_format, mrtrix_format)
+from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.study.base import Study, set_dataset_specs
+# from nianalysis.interfaces.mrtrix import MRCalc
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.archive.xnat import download_all_datasets
 
 logger = logging.getLogger('NiAnalysis')
+
+
+def dummy_pipeline():
+    pass
 
 
 class TestXnatArchive(BaseTestCase):
@@ -91,9 +100,12 @@ class TestXnatArchive(BaseTestCase):
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
-        sink_files = [Dataset('sink1', nifti_gz_format, processed=True),
-                      Dataset('sink3', nifti_gz_format, processed=True),
-                      Dataset('sink4', nifti_gz_format, processed=True)]
+        sink_files = [DatasetSpec('sink1', nifti_gz_format,
+                                  pipeline=dummy_pipeline),
+                      DatasetSpec('sink3', nifti_gz_format,
+                                  pipeline=dummy_pipeline),
+                      DatasetSpec('sink4', nifti_gz_format,
+                                  pipeline=dummy_pipeline)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
@@ -157,9 +169,9 @@ class TestXnatArchive(BaseTestCase):
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.SESSION
         source = archive.source(self.PROJECT, source_files)
-        subject_sink_files = [Dataset('sink1', nifti_gz_format,
-                                      multiplicity='per_subject',
-                                      processed=True)]
+        subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
+                                          multiplicity='per_subject',
+                                          pipeline=dummy_pipeline)]
         subject_sink = archive.sink(self.PROJECT,
                                     subject_sink_files,
                                     multiplicity='per_subject',
@@ -168,9 +180,9 @@ class TestXnatArchive(BaseTestCase):
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [Dataset('sink2', nifti_gz_format,
+        visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
                                         multiplicity='per_visit',
-                                        processed=True)]
+                                        pipeline=dummy_pipeline)]
         visit_sink = archive.sink(self.PROJECT,
                                       visit_sink_files,
                                       multiplicity='per_visit',
@@ -179,9 +191,9 @@ class TestXnatArchive(BaseTestCase):
         visit_sink.inputs.description = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
-        project_sink_files = [Dataset('sink3', nifti_gz_format,
-                                      multiplicity='per_project',
-                                      processed=True)]
+        project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
+                                          multiplicity='per_project',
+                                          ipeline=dummy_pipeline)]
         project_sink = archive.sink(self.PROJECT,
                                     project_sink_files,
                                     multiplicity='per_project',
@@ -272,12 +284,12 @@ class TestXnatArchive(BaseTestCase):
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(self.PROJECT,
-                                  [Dataset('resink1', nifti_gz_format,
-                                           processed=True),
-                                   Dataset('resink2', nifti_gz_format,
-                                           processed=True),
-                                   Dataset('resink3', nifti_gz_format,
-                                           processed=True)],
+                                  [DatasetSpec('resink1', nifti_gz_format,
+                                               pipeline=dummy_pipeline),
+                                   DatasetSpec('resink2', nifti_gz_format,
+                                               pipeline=dummy_pipeline),
+                                   DatasetSpec('resink3', nifti_gz_format,
+                                               pipeline=dummy_pipeline)],
                                   study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
@@ -363,3 +375,65 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             path = getattr(result.outputs, dname + OUTPUT_SUFFIX)
             self.assertEqual(os.path.basename(path), dname)
             self.assertTrue(os.path.exists(path))
+
+# 
+# class ExistingPrereqStudy(Study):
+# 
+#     def tens_pipeline(self, **options):
+#         pipeline = self.create_pipeline(
+#             name='pipeline1',
+#             inputs=[DatasetSpec('start', nifti_gz_format)],
+#             outputs=[DatasetSpec('pipeline1', nifti_gz_format)],
+#             description=(
+#                 "A dummy pipeline used to test 'partial-complete' method"),
+#             default_options={'pipeline1_option': False},
+#             version=1,
+#             citations=[],
+#             options=options)
+#         if not pipeline.option('pipeline1_option'):
+#             raise Exception("Pipeline 1 option was not cascaded down")
+#         mult = pipeline.create_node(MRCalc(), name="convert1",
+#                                     requirements=[mrtrix3_req])
+#         # Connect inputs
+#         pipeline.connect_input('start', mrconvert, 'in_file')
+#         # Connect outputs
+#         pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
+#         # Check inputs/outputs are connected
+#         pipeline.assert_connected()
+#         return pipeline
+# 
+#     def pipeline2(self, **options):
+#         pipeline = self.create_pipeline(
+#             name='pipeline2',
+#             inputs=[DatasetSpec('start', nifti_gz_format),
+#                     DatasetSpec('pipeline1', nifti_gz_format)],
+#             outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
+#             description=(
+#                 "A dummy pipeline used to test 'partial-complete' method"),
+#             default_options={},
+#             version=1,
+#             citations=[],
+#             options=options)
+#         mrmath = pipeline.create_node(MRCat(), name="mrcat",
+#                                       requirements=[mrtrix3_req])
+#         mrmath.inputs.axis = 0
+#         # Connect inputs
+#         pipeline.connect_input('start', mrmath, 'first_scan')
+#         pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
+#         # Connect outputs
+#         pipeline.connect_output('pipeline2', mrmath, 'out_file')
+#         # Check inputs/outputs are connected
+#         pipeline.assert_connected()
+#         return pipeline
+# 
+#     _dataset_specs = set_dataset_specs(
+#         DatasetSpec('ones', mrtrix_format),
+#         DatasetSpec('tens', mrtrix_format, pipeline1),
+#         DatasetSpec('hundreds', mrtrix_format, pipeline1),
+#         DatasetSpec('thousands', mrtrix_format, pipeline1))
+# 
+# 
+# class TestMultiSubject(BaseMultiSubjectTestCase):
+# 
+#     def test_partial_complete(self):
+#         pass
