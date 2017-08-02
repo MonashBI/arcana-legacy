@@ -165,8 +165,10 @@ class BaseTestCase(TestCase):
                 shell=True))
             self.assertEqual(
                 val, target, (
-                    "{} value of '{}' ({}) does not equal target ({})"
-                    .format(stat, dataset_name, val, target)))
+                    "{} value of '{}' ({}) does not equal target ({}) "
+                    "for subject {} visit {}"
+                    .format(stat, dataset_name, val, target,
+                            subject, session)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
                                 stdev_threshold, study_name):

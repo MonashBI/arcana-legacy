@@ -376,7 +376,7 @@ class ExistingPrereqStudy(Study):
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
-            name='pipeline1',
+            name=output,
             inputs=[DatasetSpec(input, mrtrix_format)],
             outputs=[DatasetSpec(output, mrtrix_format)],
             description=(
@@ -390,7 +390,7 @@ class ExistingPrereqStudy(Study):
         mult = pipeline.create_node(MRCalc(), name="convert1",
                                     requirements=[mrtrix3_req])
         operands.inputs.in2 = incr
-        mult.inputs.operator = 'add'
+        mult.inputs.operation = 'add'
         # Connect inputs
         pipeline.connect_input(input, operands, 'in1')
         # Connect inter-nodes
@@ -435,69 +435,105 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
-     |           |         |
-     |           |         - hundreds
      |           |
      |           - visit3 -- ones
      |                     |
-     |                     - tens
-     |                     |
      |                     - hundreds
+     |                     |
+     |                     - thousands
      |
      - subject2 -- visit1 -- ones
      |           |         |
      |           |         - tens
-     |           |         |
-     |           |         - hundreds
      |           |
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
-     |           |         |
-     |           |         - hundreds
      |           |
      |           - visit3 -- ones
      |                     |
      |                     - tens
      |                     |
      |                     - hundreds
+     |                     |
+     |                     - thousands
      |
      - subject3 -- visit1 -- ones
-     |           |         |
-     |           |         - tens
-     |           |         |
-     |           |         - hundreds
      |           |
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
-     |           |         |
-     |           |         - hundreds
      |           |
      |           - visit3 -- ones
      |                     |
      |                     - tens
      |                     |
-     |                     - hundreds
+     |                     - thousands
      |
      - subject4 -- visit1 -- ones
-                 |         |
-                 |         - tens
-                 |         |
-                 |         - hundreds
                  |
                  - visit2 -- ones
                  |         |
                  |         - tens
-                 |         |
-                 |         - hundreds
                  |
                  - visit3 -- ones
                            |
                            - tens
                            |
                            - hundreds
+                           |
+                           - thousands
+
+    For prexisting sessions the values in the existing images are multiplied by
+    5, i.e. preexisting tens actually contains voxels of value 50, hundreds 500
     """
 
-    def test_existing_prereqs(self):
-        pass
+    saved_structure = {
+        'subject1': {
+            'visit1': ['ones', 'tens', 'hundreds'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'hundreds', 'thousands']},
+        'subject2': {
+            'visit1': ['ones', 'tens'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']},
+        'subject3': {
+            'visit1': ['ones'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']},
+        'subject4': {
+            'visit1': ['ones'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']}}
+
+    study_name = 'exist_prereq'
+
+    def test_per_session_prereqs(self):
+        study = self.create_study(
+            ExistingPrereqStudy, self.study_name, input_datasets={
+                'ones': Dataset('ones', mrtrix_format)})
+        study.thousands_pipeline().run(work_dir=self.work_dir)
+        targets = {
+            'subject1': {
+                'visit1': 1500,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject2': {
+                'visit1': 1150,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject3': {
+                'visit1': 1111,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject4': {
+                'visit1': 1111,
+                'visit2': 1150,
+                'visit3': 5000}}
+        for subj_id, visits in self.saved_structure.iteritems():
+            for visit_id in visits:
+                self.assertStatEqual('mean', 'thousands.mif',
+                                     targets[subj_id][visit_id],
+                                     self.study_name,
+                                     subject=subj_id, session=visit_id,
+                                     multiplicity='per_session')
