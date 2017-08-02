@@ -1,14 +1,18 @@
-import os.path
+import os
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.local import (LocalArchive, SUMMARY_NAME)
+from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.dataset import Dataset
+from nianalysis.dataset import Dataset, DatasetSpec
 import logging
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.testing import BaseTestCase
 
 logger = logging.getLogger('NiAnalysis')
+
+
+def dummy_pipeline():
+    pass
 
 
 class TestLocalArchive(BaseTestCase):
@@ -25,9 +29,12 @@ class TestLocalArchive(BaseTestCase):
                         Dataset('source2', nifti_gz_format),
                         Dataset('source3', nifti_gz_format),
                         Dataset('source4', nifti_gz_format)]
-        sink_files = [Dataset('sink1', nifti_gz_format, processed=True),
-                      Dataset('sink3', nifti_gz_format, processed=True),
-                      Dataset('sink4', nifti_gz_format, processed=True)]
+        sink_files = [DatasetSpec('sink1', nifti_gz_format,
+                                  pipeline=dummy_pipeline),
+                      DatasetSpec('sink3', nifti_gz_format,
+                                  pipeline=dummy_pipeline),
+                      DatasetSpec('sink4', nifti_gz_format,
+                                  pipeline=dummy_pipeline)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
@@ -75,9 +82,9 @@ class TestLocalArchive(BaseTestCase):
         inputnode.inputs.visit_id = self.SESSION
         source = archive.source(self.name, source_files)
         # Test subject sink
-        subject_sink_files = [Dataset('sink1', nifti_gz_format,
-                                      multiplicity='per_subject',
-                                      processed=True)]
+        subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
+                                          multiplicity='per_subject',
+                                          pipeline=dummy_pipeline)]
         subject_sink = archive.sink(self.name,
                                     subject_sink_files,
                                     multiplicity='per_subject',
@@ -86,9 +93,9 @@ class TestLocalArchive(BaseTestCase):
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [Dataset('sink2', nifti_gz_format,
+        visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
                                         multiplicity='per_visit',
-                                        processed=True)]
+                                        pipeline=dummy_pipeline)]
         visit_sink = archive.sink(self.name,
                                       visit_sink_files,
                                       multiplicity='per_visit',
@@ -97,9 +104,9 @@ class TestLocalArchive(BaseTestCase):
         visit_sink.inputs.description = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
-        project_sink_files = [Dataset('sink3', nifti_gz_format,
-                                      multiplicity='per_project',
-                                      processed=True)]
+        project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
+                                          multiplicity='per_project',
+                                          pipeline=dummy_pipeline)]
         project_sink = archive.sink(self.name,
                                     project_sink_files,
                                     multiplicity='per_project',
@@ -149,12 +156,12 @@ class TestLocalArchive(BaseTestCase):
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(self.name,
-                                  [Dataset('resink1', nifti_gz_format,
-                                           processed=True),
-                                   Dataset('resink2', nifti_gz_format,
-                                           processed=True),
-                                   Dataset('resink3', nifti_gz_format,
-                                           processed=True)],
+                                  [DatasetSpec('resink1', nifti_gz_format,
+                                               pipeline=dummy_pipeline),
+                                   DatasetSpec('resink2', nifti_gz_format,
+                                               pipeline=dummy_pipeline),
+                                   DatasetSpec('resink3', nifti_gz_format,
+                                               pipeline=dummy_pipeline)],
                                   study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (

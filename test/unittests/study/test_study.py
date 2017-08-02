@@ -5,8 +5,9 @@ import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
+from nipype.interfaces.utility import Merge
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
-from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath  # @IgnorePep8
+from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
@@ -371,62 +372,168 @@ class TestRunPipeline(BaseTestCase):
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
 
 
-class DummyMultiSubjectStudy(Study):
+class ExistingPrereqStudy(Study):
 
-    def pipeline1(self, **options):
+    def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
-            name='pipeline1',
-            inputs=[DatasetSpec('start', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline1', nifti_gz_format)],
+            name=output,
+            inputs=[DatasetSpec(input, mrtrix_format)],
+            outputs=[DatasetSpec(output, mrtrix_format)],
             description=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             default_options={'pipeline1_option': False},
             version=1,
             citations=[],
-            options=options)
-        if not pipeline.option('pipeline1_option'):
-            raise Exception("Pipeline 1 option was not cascaded down")
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
-                                         requirements=[mrtrix3_req])
+            options={})
+        # Nodes
+        operands = pipeline.create_node(Merge(2), name='merge')
+        mult = pipeline.create_node(MRCalc(), name="convert1",
+                                    requirements=[mrtrix3_req])
+        operands.inputs.in2 = incr
+        mult.inputs.operation = 'add'
         # Connect inputs
-        pipeline.connect_input('start', mrconvert, 'in_file')
+        pipeline.connect_input(input, operands, 'in1')
+        # Connect inter-nodes
+        pipeline.connect(operands, 'out', mult, 'operands')
         # Connect outputs
-        pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
+        pipeline.connect_output(output, mult, 'out_file')
         # Check inputs/outputs are connected
         pipeline.assert_connected()
         return pipeline
 
-    def pipeline2(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline2',
-            inputs=[DatasetSpec('start', nifti_gz_format),
-                    DatasetSpec('pipeline1', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
-            description=(
-                "A dummy pipeline used to test 'partial-complete' method"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
-        mrmath.inputs.axis = 0
-        # Connect inputs
-        pipeline.connect_input('start', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
-        # Connect outputs
-        pipeline.connect_output('pipeline2', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
+    def tens_pipeline(self):
+        return self.pipeline_factory(10, 'ones', 'tens')
+
+    def hundreds_pipeline(self):
+        return self.pipeline_factory(100, 'tens', 'hundreds')
+
+    def thousands_pipeline(self):
+        return self.pipeline_factory(1000, 'hundreds', 'thousands')
 
     _dataset_specs = set_dataset_specs(
-        DatasetSpec('start', nifti_gz_format),
-        DatasetSpec('pipeline1', nifti_gz_format, pipeline1),
-        DatasetSpec('pipeline2', nifti_gz_format, pipeline1))
+        DatasetSpec('ones', mrtrix_format),
+        DatasetSpec('tens', mrtrix_format, tens_pipeline),
+        DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
+        DatasetSpec('thousands', mrtrix_format, thousands_pipeline))
 
 
-class TestMultiSubject(BaseMultiSubjectTestCase):
+class TestExistingPrereqs(BaseMultiSubjectTestCase):
+    """
+    This unittest tests out that partially previously calculated prereqs
+    are detected and not rerun unless reprocess==True.
 
-    def test_partial_complete(self):
-        pass
+    The structure of the "subjects" and "sessions" stored on the XNAT archive
+    is:
+
+
+    -- subject1 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - hundreds
+     |                     |
+     |                     - thousands
+     |
+     - subject2 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - hundreds
+     |                     |
+     |                     - thousands
+     |
+     - subject3 -- visit1 -- ones
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - thousands
+     |
+     - subject4 -- visit1 -- ones
+                 |
+                 - visit2 -- ones
+                 |         |
+                 |         - tens
+                 |
+                 - visit3 -- ones
+                           |
+                           - tens
+                           |
+                           - hundreds
+                           |
+                           - thousands
+
+    For prexisting sessions the values in the existing images are multiplied by
+    5, i.e. preexisting tens actually contains voxels of value 50, hundreds 500
+    """
+
+    saved_structure = {
+        'subject1': {
+            'visit1': ['ones', 'tens', 'hundreds'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'hundreds', 'thousands']},
+        'subject2': {
+            'visit1': ['ones', 'tens'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']},
+        'subject3': {
+            'visit1': ['ones'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']},
+        'subject4': {
+            'visit1': ['ones'],
+            'visit2': ['ones', 'tens'],
+            'visit3': ['ones', 'tens', 'hundreds', 'thousands']}}
+
+    study_name = 'exist_prereq'
+
+    def test_per_session_prereqs(self):
+        study = self.create_study(
+            ExistingPrereqStudy, self.study_name, input_datasets={
+                'ones': Dataset('ones', mrtrix_format)})
+        study.thousands_pipeline().run(work_dir=self.work_dir)
+        targets = {
+            'subject1': {
+                'visit1': 1500,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject2': {
+                'visit1': 1150,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject3': {
+                'visit1': 1111,
+                'visit2': 1150,
+                'visit3': 5000},
+            'subject4': {
+                'visit1': 1111,
+                'visit2': 1150,
+                'visit3': 5000}}
+        for subj_id, visits in self.saved_structure.iteritems():
+            for visit_id in visits:
+                self.assertStatEqual('mean', 'thousands.mif',
+                                     targets[subj_id][visit_id],
+                                     self.study_name,
+                                     subject=subj_id, session=visit_id,
+                                     multiplicity='per_session')

@@ -80,7 +80,7 @@ class DarisSource(ArchiveSource):
                 self.inputs.cache_dir, self.inputs.repo_id,
                 self.inputs.project_id)))
             for (name, dataset_format,
-                 mult, processed) in self.inputs.datasets:
+                 mult, processed, _) in self.inputs.datasets:
                 (ex_method_id,
                  subject_id, session_id) = self._get_daris_ids(mult, processed)
 
@@ -237,7 +237,8 @@ class DarisSinkMixin(object):
                 os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
             # Loop through datasets connected to the sink and copy them to the
             # cache directory and upload to daris.
-            for name, format_name, mult, processed in self.inputs.datasets:
+            for (name, format_name, mult,
+                 processed, _) in self.inputs.datasets:
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
@@ -441,30 +442,6 @@ class DarisArchive(Archive):
             subjects.append(Subject(subject_id, sessions, subject_summary))
         project = Project(project_id, subjects, project_summary)
         return project
-
-    def sessions_with_dataset(self, dataset, project_id, sessions):
-        """
-        Parameters
-        ----------
-        dataset : Dataset
-            A file (name) for which to return the sessions that contain it
-        project_id : int
-            The id of the project
-        sessions : List[Session]
-            List of sessions of which to test for the dataset
-        """
-        if sessions is None:
-            sessions = self.all_sessions(project_id=project_id)
-        sess_with_dataset = []
-        with self._daris() as daris:
-            for session in sessions:
-                entries = daris.get_datasets(
-                    project_id, session.subject_id, session.session_id,
-                    repo_id=self._repo_id,
-                    ex_method_id=int(dataset.processed) + 1)
-                if dataset.filename() in (e.name for e in entries):
-                    sess_with_dataset.append(session)
-        return sess_with_dataset
 
     def _daris(self):
         return DarisLogin(server=self._server, domain=self._domain,

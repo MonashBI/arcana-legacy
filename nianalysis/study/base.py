@@ -170,7 +170,7 @@ class Study(object):
     def generated_dataset_specs(cls):
         """
         Lists all dataset_specs defined in the study class that are typically
-        generated from other dataset_specs (but can be overridden in input
+        generated from other dataset_specs (but can be overridden by input
         datasets)
         """
         return (c for c in cls.dataset_specs() if c.processed)

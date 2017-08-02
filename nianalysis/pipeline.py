@@ -426,7 +426,7 @@ class Pipeline(object):
                 # Get the dataset spec corresponding to the pipeline's output
                 dataset = self.study.dataset(output.name)
                 # Skip datasets which are already input datasets
-                if dataset.processed:
+                if dataset.is_spec:
                     # Convert the format of the node if it doesn't match
                     if dataset.format != output.format:
                         conv_node_name = output.name + '_output_conversion'
@@ -535,7 +535,7 @@ class Pipeline(object):
 
     @property
     def has_prerequisites(self):
-        return any(self._study.dataset(i).processed for i in self.inputs)
+        return any(self._study.dataset(i).is_spec for i in self.inputs)
 
     @property
     def prerequisities(self):
@@ -550,7 +550,7 @@ class Pipeline(object):
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             comp = self._study.dataset(input)
-            if isinstance(comp, DatasetSpec):
+            if comp.is_spec:
                 pipeline_getters.add(comp.pipeline)
                 required_outputs[comp.pipeline].add(input.name)
         # Call pipeline-getter instance method on study with provided options

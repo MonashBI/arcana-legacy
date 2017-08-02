@@ -53,7 +53,7 @@ class LocalSource(ArchiveSource):
                                    SUMMARY_NAME)
         outputs = {}
         for (name, dataset_format,
-             multiplicity, processed) in self.inputs.datasets:
+             multiplicity, _, is_spec) in self.inputs.datasets:
             if multiplicity == 'per_project':
                 data_dir = project_dir
             elif multiplicity.startswith('per_subject'):
@@ -68,7 +68,7 @@ class LocalSource(ArchiveSource):
             ext = data_formats[dataset_format].extension
             fname = name + (ext if ext is not None else '')
             # Prepend study name if defined
-            if processed and isdefined(self.inputs.study_name):
+            if is_spec and isdefined(self.inputs.study_name):
                 fname = self.inputs.study_name + '_' + fname
             outputs[name + OUTPUT_SUFFIX] = os.path.join(data_dir, fname)
         return outputs
@@ -123,7 +123,7 @@ class LocalSinkMixin(object):
         # Loop through datasets connected to the sink and copy them to the
         # cache directory and upload to daris.
         for (name, dataset_format,
-             multiplicity, processed) in self.inputs.datasets:
+             multiplicity, processed, _) in self.inputs.datasets:
             assert processed, (
                 "Should only be sinking processed datasets, not '{}'"
                 .format(name))
@@ -361,30 +361,6 @@ class LocalArchive(Archive):
                 "Files found in local archive directory '{}' "
                 "('{}') instead of sub-directories".format(
                     path, "', '".join(dirs)))
-
-    def sessions_with_dataset(self, dataset, project_id, sessions=None):
-        """
-        Return all sessions containing the given dataset
-
-        Parameters
-        ----------
-        dataset : Dataset
-            A file (name) for which to return the sessions that contain it
-        project_id : int
-            The id of the project
-        sessions : List[Session]
-            List of sessions of which to test for the dataset
-        """
-        if sessions is None:
-            sessions = self.all_session_ids(project_id)
-        with_dataset = []
-        for session in sessions:
-            if os.path.exists(
-                os.path.join(self._base_dir, str(project_id),
-                             session.subject_id, session.visit_id,
-                             dataset.filename)):
-                with_dataset.append(session)
-        return with_dataset
 
     def all_session_ids(self, project_id):
         project = self.project(project_id)
