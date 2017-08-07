@@ -14,7 +14,6 @@ from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 
 
-
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
 
 unittest_base_dir = os.path.abspath(os.path.join(
@@ -31,26 +30,29 @@ class BaseTestCase(TestCase):
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     XNAT_TEST_PROJECT = 'TEST001'
 
-    def setUp(self):
+    def setUp(self, cache_dir=None):
         self.reset_dirs()
-        self.add_session(self.project_dir, self.SUBJECT, self.SESSION)
+        self.add_session(self.project_dir, self.SUBJECT, self.SESSION,
+                         cache_dir=cache_dir)
 
     def add_session(self, project_dir, subject, session,
-                    required_datasets=None):
+                    required_datasets=None, cache_dir=None):
+        if cache_dir is None:
+            cache_dir = self.cache_dir
         session_dir = os.path.join(project_dir, subject, session)
         os.makedirs(session_dir)
         try:
             download_all_datasets(
-                self.cache_dir, self.SERVER, self.xnat_session_name,
+                cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
         except Exception as e:
             warnings.warn(
                 "Could not download datasets from '{}_{}' session on MBI-XNAT,"
                 " attempting with what has already been downloaded:\n\n{}"
                 .format(self.XNAT_TEST_PROJECT, self.name, e))
-        for f in os.listdir(self.cache_dir):
+        for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
-                src_path = os.path.join(self.cache_dir, f)
+                src_path = os.path.join(cache_dir, f)
                 dst_path = os.path.join(session_dir, f)
                 if os.path.isdir(src_path):
                     shutil.copytree(src_path, dst_path)
@@ -79,7 +81,7 @@ class BaseTestCase(TestCase):
 
     @property
     def session_dir(self):
-        return self.get_session_dir(self.name, self.SUBJECT, self.SESSION)
+        return self.get_session_dir(self.SUBJECT, self.SESSION)
 
     @property
     def cache_dir(self):
@@ -99,23 +101,30 @@ class BaseTestCase(TestCase):
 
     @property
     def name(self):
+        return self._get_name(type(self))
+
+    @property
+    def project_id(self):
+        return self.name  # To allow override in deriving classes
+
+    def _get_name(self, cls):
         """
         Get unique name for test class from module path and its class name to
         be used for storing test data on XNAT and creating unique work/project
         dirs
         """
-        module_path = os.path.abspath(sys.modules[self.__module__].__file__)
+        module_path = os.path.abspath(sys.modules[cls.__module__].__file__)
         rel_module_path = module_path[(len(unittest_base_dir) + 1):]
         path_parts = rel_module_path.split(os.path.sep)
         module_name = (''.join(path_parts[:-1]) +
                        os.path.splitext(path_parts[-1])[0][5:]).upper()
-        test_class_name = type(self).__name__[4:].upper()
+        test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
     def create_study(self, study_cls, name, input_datasets):
         return study_cls(
             name=name,
-            project_id=self.name,
+            project_id=self.project_id,
             archive=self.archive,
             input_datasets=input_datasets)
 
@@ -188,10 +197,8 @@ class BaseTestCase(TestCase):
              .format(mean=mean, stdev=stdev, thresh_mean=mean_threshold,
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
-    def get_session_dir(self, project=None, subject=None, session=None,
+    def get_session_dir(self, subject=None, session=None,
                         multiplicity='per_session'):
-        if project is None:
-            project = self.name
         if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
         if session is None and multiplicity in ('per_session', 'per_visit'):
@@ -199,39 +206,36 @@ class BaseTestCase(TestCase):
         if multiplicity == 'per_session':
             assert subject is not None
             assert session is not None
-            path = os.path.join(self.ARCHIVE_PATH, project, subject,
-                                session)
+            path = os.path.join(self.project_dir, subject, session)
         elif multiplicity == 'per_subject':
             assert subject is not None
             assert session is None
-            path = os.path.join(self.ARCHIVE_PATH, project, subject,
-                                SUMMARY_NAME)
+            path = os.path.join(
+                self.project_dir, subject, SUMMARY_NAME)
         elif multiplicity == 'per_visit':
             assert session is not None
             assert subject is None
-            path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,
-                                session)
+            path = os.path.join(self.project_dir, SUMMARY_NAME, session)
         elif multiplicity == 'per_project':
             assert subject is None
             assert session is None
-            path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,
-                                SUMMARY_NAME)
+            path = os.path.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
         else:
             assert False
         return os.path.abspath(path)
 
     @classmethod
-    def remove_generated_files(cls, project, study=None):
+    def remove_generated_files(cls, study=None):
         # Remove processed datasets
-        for fname in os.listdir(cls.get_session_dir(project)):
+        for fname in os.listdir(cls.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
-                os.remove(os.path.join(cls.get_session_dir(project), fname))
+                os.remove(os.path.join(cls.get_session_dir(), fname))
 
     def output_file_path(self, fname, study_name, subject=None, session=None,
-                         multiplicity='per_session'):
+                         multiplicity='per_session', **kwargs):
         return os.path.join(
             self.get_session_dir(subject=subject, session=session,
-                                 multiplicity=multiplicity),
+                                 multiplicity=multiplicity, **kwargs),
             '{}_{}'.format(study_name, fname))
 
     def ref_file_path(self, fname, subject=None, session=None):
@@ -241,22 +245,24 @@ class BaseTestCase(TestCase):
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
-    def setUp(self):
+    def setUp(self, cache_dir=None):
         self.reset_dirs()
-        self.add_sessions(self.project_dir)
+        self.add_sessions(self.project_dir, cache_dir=cache_dir)
 
-    def add_sessions(self, project_dir, required_datasets=None):
+    def add_sessions(self, project_dir, required_datasets=None,
+                     cache_dir=None):
+        if cache_dir is None:
+            cache_dir = self.cache_dir
         try:
             download_all_datasets(
-                self.cache_dir, self.SERVER,
-                '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
+                cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
         except Exception as e:
             warnings.warn(
                 "Could not download datasets from '{}_{}' session on MBI-XNAT,"
                 " attempting with what has already been downloaded:\n\n{}"
                 .format(self.XNAT_TEST_PROJECT, self.name, e))
-        for fname in os.listdir(self.cache_dir):
+        for fname in os.listdir(cache_dir):
             parts = fname.split('_')
             if len(parts) < 3:
                 raise NiAnalysisError(
@@ -272,7 +278,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 except OSError as e:
                     if e.errno != errno.EEXIST:
                         raise
-                src_path = os.path.join(self.cache_dir, fname)
+                src_path = os.path.join(cache_dir, fname)
                 dst_path = os.path.join(session_dir, dataset)
                 if os.path.isdir(src_path):
                     shutil.copytree(src_path, dst_path)
@@ -282,7 +288,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     assert False
 
     def session_dir(self, subject, session):
-        return self.get_session_dir(self.name, subject, session)
+        return self.get_session_dir(subject, session)
 
 
 class DummyTestCase(BaseTestCase):

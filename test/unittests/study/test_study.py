@@ -5,7 +5,7 @@ import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
-from nipype.interfaces.utility import Merge
+from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
