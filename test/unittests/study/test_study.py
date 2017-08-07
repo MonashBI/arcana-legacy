@@ -537,3 +537,33 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                                      self.study_name,
                                      subject=subj_id, session=visit_id,
                                      multiplicity='per_session')
+
+#     def test_explicit_prereqs(self):
+#         study = self.create_study(
+#             ExistingPrereqStudy, self.study_name, input_datasets={
+#                 'ones': Dataset('ones', mrtrix_format)})
+#         study.thousands_pipeline().run(work_dir=self.work_dir)
+#         targets = {
+#             'subject1': {
+#                 'visit1': 1100,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject2': {
+#                 'visit1': 1110,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject3': {
+#                 'visit1': 1111,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject4': {
+#                 'visit1': 1111,
+#                 'visit2': 1110,
+#                 'visit3': 1000}}
+#         for subj_id, visits in self.saved_structure.iteritems():
+#             for visit_id in visits:
+#                 self.assertStatEqual('mean', 'thousands.mif',
+#                                      targets[subj_id][visit_id],
+#                                      self.study_name,
+#                                      subject=subj_id, session=visit_id,
+#                                      multiplicity='per_session')

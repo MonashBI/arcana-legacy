@@ -12,6 +12,7 @@ from nianalysis.archive.xnat import download_all_datasets
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from traceback import format_exc
 
 
 test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
@@ -45,11 +46,11 @@ class BaseTestCase(TestCase):
             download_all_datasets(
                 cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
-        except Exception as e:
+        except Exception:
             warnings.warn(
                 "Could not download datasets from '{}_{}' session on MBI-XNAT,"
                 " attempting with what has already been downloaded:\n\n{}"
-                .format(self.XNAT_TEST_PROJECT, self.name, e))
+                .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 src_path = os.path.join(cache_dir, f)
@@ -130,8 +131,7 @@ class BaseTestCase(TestCase):
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
                              session=None, multiplicity='per_session'):
-        output_dir = self.get_session_dir(
-            self.project_dir, subject, session, multiplicity)
+        output_dir = self.get_session_dir(subject, session, multiplicity)
         out_path = self.output_file_path(
             dataset_name, study_name, subject, session, multiplicity)
         self.assertTrue(
@@ -338,3 +338,9 @@ class DummyTestCase(BaseTestCase):
             print message
         else:
             print "Test successful"
+
+
+class TestTestCase(BaseTestCase):
+
+    def test_test(self):
+        pass
