@@ -1,5 +1,6 @@
 from itertools import chain
 from nipype.interfaces.base import TraitedSpec, traits, BaseInterface
+from nianalysis.exceptions import NiAnalysisError
 
 
 class InputSubjectsInputSpec(TraitedSpec):
@@ -192,4 +193,45 @@ class PipelineReport(BaseInterface):
         outputs['subject_session_pairs'] = self.inputs.subject_session_pairs
         outputs['subjects'] = self.inputs.subjects
         outputs['project'] = self.inputs.project
+        return outputs
+
+
+class SelectSessionInputSpec(TraitedSpec):
+    subject_id = traits.Int(mandatory=True, desc="The subject ID to select")
+    visit_id = traits.Int(mandatory=True, desc="The visit ID to select")
+    subject_ids = traits.List(
+        traits.Int(), mandatory=True,
+        desc="The subject IDs to select the subject_id from")
+    visit_ids = traits.List(
+        traits.Int(), mandatory=True,
+        desc="The visit IDs to select the visit_id from")
+    items = traits.List(
+        traits.Any(),
+        mandatory=True,
+        desc=("The items from which to select the one corresponding to the "
+              "session from"))
+
+
+class SelectSessionOutputSpec(TraitedSpec):
+    item = traits.Any(desc="The selected item")
+
+
+class SelectSession(BaseInterface):
+
+    input_spec = SelectSessionInputSpec
+    output_spec = SelectSessionOutputSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        outputs = {}
+        session_id = (self.inputs.subject_id, self.inputs.visit_id)
+        session_ids = zip(self.inputs.subject_ids, self.inputs.visit_ids)
+        if session_ids.count(session_id) != 1:
+            raise NiAnalysisError(
+                "More than one indices matched {} in subjects and visits list "
+                "({})".format(session_id, session_ids))
+        index = session_ids.index(session_id)
+        outputs['item'] = self.inputs.items[index]
         return outputs
