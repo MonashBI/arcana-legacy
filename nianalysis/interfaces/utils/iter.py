@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from itertools import chain
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface
@@ -116,5 +117,4 @@ class Chain(IdentityInterface):
         chained_outputs = {}
         for k, v in outputs.iteritems():
             chained_outputs[k] = list(chain(*v))
-        return outputs
-
+        return chained_outputs

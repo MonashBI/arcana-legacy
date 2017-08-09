@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 from nipype.interfaces.base import (
     traits, BaseInterface, File,
     Directory, InputMultiPath, CommandLineInputSpec)

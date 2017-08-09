@@ -263,6 +263,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 " attempting with what has already been downloaded:\n\n{}"
                 .format(self.XNAT_TEST_PROJECT, self.name, e))
         for fname in os.listdir(cache_dir):
+            if fname.startswith('.'):
+                continue
             parts = fname.split('_')
             if len(parts) < 3:
                 raise NiAnalysisError(
