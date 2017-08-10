@@ -454,27 +454,27 @@ class TestOnXnatMixin(object):
     def _proc_sess_id(self, session):
         return session + XNATArchive.PROCESSED_SUFFIX
 
-    def get_session_dir(self, subject=None, session=None,
+    def get_session_dir(self, subject=None, visit=None,
                         multiplicity='per_session', processed=False):
         if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if session is None and multiplicity in ('per_session', 'per_visit'):
-            session = self.SESSION
+        if visit is None and multiplicity in ('per_session', 'per_visit'):
+            visit = self.VISIT
         if multiplicity == 'per_session':
             assert subject is not None
-            assert session is not None
-            parts = [self.PROJECT, subject, session]
+            assert visit is not None
+            parts = [self.PROJECT, subject, visit]
         elif multiplicity == 'per_subject':
             assert subject is not None
-            assert session is None
+            assert visit is None
             parts = [self.PROJECT, subject, XNATArchive.SUMMARY_NAME]
         elif multiplicity == 'per_visit':
-            assert session is not None
+            assert visit is not None
             assert subject is None
-            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME, session]
+            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME, visit]
         elif multiplicity == 'per_project':
             assert subject is None
-            assert session is None
+            assert visit is None
             parts = [self.PROJECT, XNATArchive.SUMMARY_NAME,
                      XNATArchive.SUMMARY_NAME]
         else:

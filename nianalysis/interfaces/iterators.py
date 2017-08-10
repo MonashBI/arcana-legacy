@@ -197,13 +197,13 @@ class PipelineReport(BaseInterface):
 
 
 class SelectSessionInputSpec(TraitedSpec):
-    subject_id = traits.Int(mandatory=True, desc="The subject ID to select")
-    visit_id = traits.Int(mandatory=True, desc="The visit ID to select")
+    subject_id = traits.Str(mandatory=True, desc="The subject ID to select")
+    visit_id = traits.Str(mandatory=True, desc="The visit ID to select")
     subject_ids = traits.List(
-        traits.Int(), mandatory=True,
+        traits.Str(), mandatory=True,
         desc="The subject IDs to select the subject_id from")
     visit_ids = traits.List(
-        traits.Int(), mandatory=True,
+        traits.Str(), mandatory=True,
         desc="The visit IDs to select the visit_id from")
     items = traits.List(
         traits.Any(),
