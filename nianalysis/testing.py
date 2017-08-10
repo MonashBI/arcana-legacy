@@ -34,7 +34,7 @@ class BaseTestCase(TestCase):
 
     def setUp(self, cache_dir=None):
         self.reset_dirs()
-        self.add_session(self.project_dir, self.SUBJECT, self.SESSION,
+        self.add_session(self.project_dir, self.SUBJECT, self.VISIT,
                          cache_dir=cache_dir)
 
     def add_session(self, project_dir, subject, session,
