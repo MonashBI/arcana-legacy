@@ -159,7 +159,7 @@ class BaseTestCase(TestCase):
                 raise
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
-                        subject=None, session=None,
+                        subject=None, visit=None,
                         multiplicity='per_session'):
             try:
                 NiAnalysisNodeMixin.load_module('mrtrix')
@@ -169,7 +169,7 @@ class BaseTestCase(TestCase):
                 'mrstats {} -output {}'.format(
                     self.output_file_path(
                         dataset_name, study_name,
-                        subject=subject, session=session,
+                        subject=subject, visit=visit,
                         multiplicity=multiplicity),
                     stat),
                 shell=True))
@@ -178,7 +178,7 @@ class BaseTestCase(TestCase):
                     "{} value of '{}' ({}) does not equal target ({}) "
                     "for subject {} visit {}"
                     .format(stat, dataset_name, val, target,
-                            subject, session)))
+                            subject, visit)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
                                 stdev_threshold, study_name):

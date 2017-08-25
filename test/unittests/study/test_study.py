@@ -535,7 +535,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 self.assertStatEqual('mean', 'thousands.mif',
                                      targets[subj_id][visit_id],
                                      self.study_name,
-                                     subject=subj_id, session=visit_id,
+                                     subject=subj_id, visit=visit_id,
                                      multiplicity='per_session')
 
 #     def test_explicit_prereqs(self):

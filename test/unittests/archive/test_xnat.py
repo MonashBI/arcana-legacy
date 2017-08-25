@@ -194,7 +194,7 @@ class TestXnatArchive(BaseTestCase):
         # Test project sink
         project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
                                           multiplicity='per_project',
-                                          ipeline=dummy_pipeline)]
+                                          pipeline=dummy_pipeline)]
         project_sink = archive.sink(self.PROJECT,
                                     project_sink_files,
                                     multiplicity='per_project',
@@ -338,7 +338,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(sorted(s.id for s in project_info.subjects),
                          [self.SUBJECT])
         subject = list(project_info.subjects)[0]
-        self.assertEqual([s.id for s in subject.sessions],
+        self.assertEqual([s.visit_id for s in subject.sessions],
                          [self.SESSION])
         session = list(subject.sessions)[0]
         self.assertEqual(
@@ -487,17 +487,17 @@ class TestOnXnatMixin(object):
             download_all_datasets(session_path, self.SERVER, session_id)
         return session_path
 
-    def output_file_path(self, fname, study_name, subject=None, session=None,
+    def output_file_path(self, fname, study_name, subject=None, visit=None,
                          multiplicity='per_session'):
         try:
             acq_path = self.base_class.output_file_path(
-                self, fname, study_name, subject=subject, session=session,
+                self, fname, study_name, subject=subject, visit=visit,
                 multiplicity=multiplicity, processed=False)
         except KeyError:
             acq_path = None
         try:
             proc_path = self.base_class.output_file_path(
-                self, fname, study_name, subject=subject, session=session,
+                self, fname, study_name, subject=subject, visit=visit,
                 multiplicity=multiplicity, processed=True)
         except KeyError:
             proc_path = None
