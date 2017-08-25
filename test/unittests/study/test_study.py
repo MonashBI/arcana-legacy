@@ -5,7 +5,7 @@ import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
-from nipype.interfaces.utility import Merge
+from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
@@ -500,13 +500,13 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         'subject3': {
             'visit1': ['ones'],
             'visit2': ['ones', 'tens'],
-            'visit3': ['ones', 'tens', 'hundreds', 'thousands']},
+            'visit3': ['ones', 'tens', 'thousands']},
         'subject4': {
             'visit1': ['ones'],
             'visit2': ['ones', 'tens'],
             'visit3': ['ones', 'tens', 'hundreds', 'thousands']}}
 
-    study_name = 'exist_prereq'
+    study_name = 'existing'
 
     def test_per_session_prereqs(self):
         study = self.create_study(
@@ -515,25 +515,55 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
             'subject1': {
-                'visit1': 1500,
-                'visit2': 1150,
-                'visit3': 5000},
+                'visit1': 1100,
+                'visit2': 1110,
+                'visit3': 1000},
             'subject2': {
-                'visit1': 1150,
-                'visit2': 1150,
-                'visit3': 5000},
+                'visit1': 1110,
+                'visit2': 1110,
+                'visit3': 1000},
             'subject3': {
                 'visit1': 1111,
-                'visit2': 1150,
-                'visit3': 5000},
+                'visit2': 1110,
+                'visit3': 1000},
             'subject4': {
                 'visit1': 1111,
-                'visit2': 1150,
-                'visit3': 5000}}
+                'visit2': 1110,
+                'visit3': 1000}}
         for subj_id, visits in self.saved_structure.iteritems():
             for visit_id in visits:
                 self.assertStatEqual('mean', 'thousands.mif',
                                      targets[subj_id][visit_id],
                                      self.study_name,
-                                     subject=subj_id, session=visit_id,
+                                     subject=subj_id, visit=visit_id,
                                      multiplicity='per_session')
+
+#     def test_explicit_prereqs(self):
+#         study = self.create_study(
+#             ExistingPrereqStudy, self.study_name, input_datasets={
+#                 'ones': Dataset('ones', mrtrix_format)})
+#         study.thousands_pipeline().run(work_dir=self.work_dir)
+#         targets = {
+#             'subject1': {
+#                 'visit1': 1100,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject2': {
+#                 'visit1': 1110,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject3': {
+#                 'visit1': 1111,
+#                 'visit2': 1110,
+#                 'visit3': 1000},
+#             'subject4': {
+#                 'visit1': 1111,
+#                 'visit2': 1110,
+#                 'visit3': 1000}}
+#         for subj_id, visits in self.saved_structure.iteritems():
+#             for visit_id in visits:
+#                 self.assertStatEqual('mean', 'thousands.mif',
+#                                      targets[subj_id][visit_id],
+#                                      self.study_name,
+#                                      subject=subj_id, session=visit_id,
+#                                      multiplicity='per_session')

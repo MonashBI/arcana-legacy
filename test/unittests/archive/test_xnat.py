@@ -7,14 +7,19 @@ import xnat
 from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import XNATArchive
+from nianalysis.archive.xnat import XNATArchive, download_all_datasets
 from nianalysis.data_formats import (
     nifti_gz_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
-from nianalysis.archive.xnat import download_all_datasets
+from nianalysis.exceptions import NiAnalysisError
+import sys
+# Import TestExistingPrereqs study to test it on XNAT
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
+from test_study import TestExistingPrereqs  # @UnresolvedImport @IgnorePep8
+sys.path.pop(0)
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -189,7 +194,7 @@ class TestXnatArchive(BaseTestCase):
         # Test project sink
         project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
                                           multiplicity='per_project',
-                                          ipeline=dummy_pipeline)]
+                                          pipeline=dummy_pipeline)]
         project_sink = archive.sink(self.PROJECT,
                                     project_sink_files,
                                     multiplicity='per_project',
@@ -333,7 +338,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(sorted(s.id for s in project_info.subjects),
                          [self.SUBJECT])
         subject = list(project_info.subjects)[0]
-        self.assertEqual([s.id for s in subject.sessions],
+        self.assertEqual([s.visit_id for s in subject.sessions],
                          [self.SESSION])
         session = list(subject.sessions)[0]
         self.assertEqual(
@@ -372,3 +377,145 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             self.assertEqual(os.path.basename(path), dname)
             self.assertTrue(os.path.exists(path))
 
+
+class TestOnXnatMixin(object):
+
+    def setUp(self):
+        self._clean_up()
+        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+                                 self._get_name(self.base_class))
+        self.base_class.setUp(self, cache_dir=cache_dir)
+        with xnat.connect(self.SERVER) as mbi_xnat:
+            # Copy local archive to XNAT
+            xproject = mbi_xnat.projects[self.PROJECT]
+            for subj in os.listdir(self.project_dir):
+                subj_dir = os.path.join(self.project_dir, subj)
+                subj_id = self.PROJECT + '_' + subj
+                xsubject = mbi_xnat.classes.SubjectData(label=subj_id,
+                                                        parent=xproject)
+                for visit in os.listdir(subj_dir):
+                    sess_dir = os.path.join(subj_dir, visit)
+                    for scan_fname in os.listdir(sess_dir):
+                        scan_name, ext = split_extension(scan_fname)
+                        sess_id = subj_id + '_' + visit
+                        if '_' in scan_name:
+                            sess_id += XNATArchive.PROCESSED_SUFFIX
+                        xsession = mbi_xnat.classes.MrSessionData(
+                            label=sess_id,
+                            parent=xsubject)
+                        dataset = mbi_xnat.classes.MrScanData(type=scan_name,
+                                                              parent=xsession)
+                        resource = dataset.create_resource(
+                            data_formats_by_ext[ext].name.upper())
+                        resource.upload(os.path.join(sess_dir, scan_fname),
+                                        scan_fname)
+        self._output_cache_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        self._clean_up()
+
+    def _clean_up(self):
+        # Clean up working dirs
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        # Clean up session created for unit-test
+        with xnat.connect(self.SERVER) as mbi_xnat:
+            xproject = mbi_xnat.projects[self.PROJECT]
+            for xsubject in list(xproject.subjects.itervalues()):
+                xsubject.delete()
+
+    @property
+    def archive(self):
+        return XNATArchive(server=self.SERVER, cache_dir=self.cache_dir)
+
+    @property
+    def xnat_session_name(self):
+        return '{}_{}'.format(self.XNAT_TEST_PROJECT,
+                              self._get_name(self.base_class))
+
+    @property
+    def project_dir(self):
+        return os.path.join(self.ARCHIVE_PATH, self._get_name(self.base_class))
+
+    @property
+    def output_cache_dir(self):
+        return self._output_cache_dir
+
+    @property
+    def base_class(self):
+        return type(self).__mro__[2]
+
+    @property
+    def project_id(self):
+        return self.PROJECT
+
+    def _full_subject_id(self, subject):
+        return self.PROJECT + '_' + subject
+
+    def _proc_sess_id(self, session):
+        return session + XNATArchive.PROCESSED_SUFFIX
+
+    def get_session_dir(self, subject=None, visit=None,
+                        multiplicity='per_session', processed=False):
+        if subject is None and multiplicity in ('per_session', 'per_subject'):
+            subject = self.SUBJECT
+        if visit is None and multiplicity in ('per_session', 'per_visit'):
+            visit = self.VISIT
+        if multiplicity == 'per_session':
+            assert subject is not None
+            assert visit is not None
+            parts = [self.PROJECT, subject, visit]
+        elif multiplicity == 'per_subject':
+            assert subject is not None
+            assert visit is None
+            parts = [self.PROJECT, subject, XNATArchive.SUMMARY_NAME]
+        elif multiplicity == 'per_visit':
+            assert visit is not None
+            assert subject is None
+            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME, visit]
+        elif multiplicity == 'per_project':
+            assert subject is None
+            assert visit is None
+            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME,
+                     XNATArchive.SUMMARY_NAME]
+        else:
+            assert False
+        session_id = '_'.join(parts)
+        if processed:
+            session_id += XNATArchive.PROCESSED_SUFFIX
+        session_path = os.path.join(self.output_cache_dir, session_id)
+        if not os.path.exists(session_path):
+            download_all_datasets(session_path, self.SERVER, session_id)
+        return session_path
+
+    def output_file_path(self, fname, study_name, subject=None, visit=None,
+                         multiplicity='per_session'):
+        try:
+            acq_path = self.base_class.output_file_path(
+                self, fname, study_name, subject=subject, visit=visit,
+                multiplicity=multiplicity, processed=False)
+        except KeyError:
+            acq_path = None
+        try:
+            proc_path = self.base_class.output_file_path(
+                self, fname, study_name, subject=subject, visit=visit,
+                multiplicity=multiplicity, processed=True)
+        except KeyError:
+            proc_path = None
+        if acq_path is not None and os.path.exists(acq_path):
+            if os.path.exists(proc_path):
+                raise NiAnalysisError(
+                    "Both acquired and processed paths were found for "
+                    "'{}_{}' ({} and {})".format(study_name, fname, acq_path,
+                                                 proc_path))
+            path = acq_path
+        else:
+            path = proc_path
+        return path
+
+
+class TestExistingPrereqsOnXnat(TestOnXnatMixin, TestExistingPrereqs):
+
+    PROJECT = 'TEST007'
+
+    def test_per_session_prereqs(self):
+        super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()

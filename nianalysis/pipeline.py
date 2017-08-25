@@ -477,7 +477,7 @@ class Pipeline(object):
             # to be specified explicitly
             subject_sessions = defaultdict(list)
             for session in sessions_to_process:
-                subject_sessions[session.subject.id].append(session.id)
+                subject_sessions[session.subject.id].append(session.visit_id)
             sessions.itersource = ('{}_subjects'.format(self.name),
                                    'subject_id')
             sessions.iterables = ('visit_id', subject_sessions)
