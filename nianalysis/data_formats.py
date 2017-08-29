@@ -17,14 +17,14 @@ logger = logging.getLogger('NiAnalysis')
 
 class DataFormat(object):
 
-    def __init__(self, name, extension, lctype=None, description='',
-                 mrinfo='None', directory=False):
+    def __init__(self, name, extension, lctype=None, converter='mrconvert',
+                 description='', mrinfo='None'):
         self._name = name
         self._extension = extension
         self._lctype = lctype
+        self._converter = converter
         self._description = description
         self._mrinfo = mrinfo
-        self._directory = directory
 
     def __repr__(self):
         return ("DataFormat(name='{}', extension='{}')"
@@ -46,16 +46,16 @@ class DataFormat(object):
         return self._lctype
 
     @property
+    def converter(self):
+        return self._converter
+
+    @property
     def description(self):
         return self._description
 
     @property
     def mrinfo(self):
         return self._mrinfo
-
-    @property
-    def directory(self):
-        return self._directory
 
 
 nifti_format = DataFormat(name='nifti', extension='.nii',
@@ -65,23 +65,23 @@ nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
 mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
 analyze_format = DataFormat(name='analyze', extension='.img')
 dicom_format = DataFormat(name='dicom', extension=None, lctype='dicom/series',
-                          mrinfo='DICOM', directory=True)
+                          mrinfo='DICOM')
 fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
-                                         extension='.fs.zip')
-zip_format = DataFormat(name='zip', extension='.zip')
+                                         extension='.fs.zip', converter=None)
+zip_format = DataFormat(name='zip', extension='.zip', converter='unzip')
 directory_format = DataFormat(name='directory', extension=None,
-                              directory=True)
-text_matrix_format = DataFormat(name='text_matrix', extension='.mat')
-text_format = DataFormat(name='text', extension='.txt')
-rdata_format = DataFormat(name='rdata', extension='.RData')
-ica_format = DataFormat(name='ica', extension='.ica')
-par_format = DataFormat(name='parameters', extension='.par')
-gif_format = DataFormat(name='gif', extension='.gif')
-csv_format = DataFormat(name='comma-separated_file', extension='.csv')
+                              converter='unzip')
+text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
+                                converter=None)
+text_format = DataFormat(name='text', extension='.txt', converter=None)
+rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
+ica_format = DataFormat(name='ica', extension='.ica', converter=None)
+par_format = DataFormat(name='parameters', extension='.par', converter=None)
+png_format = DataFormat(name='png', extension='.png')
 
 
 class Converter(object):
