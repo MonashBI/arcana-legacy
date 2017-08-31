@@ -194,7 +194,7 @@ class UnzipDirOutputSpec(TraitedSpec):
 class UnzipDir(CommandLine):
     """Unzips a folder that was zipped by ZipDir"""
 
-    _cmd = 'unzip -q'
+    _cmd = 'unzip -qo'
     input_spec = UnzipDirInputSpec
     output_spec = UnzipDirOutputSpec
 
