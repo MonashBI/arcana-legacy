@@ -5,8 +5,8 @@ import subprocess as sp  # @IgnorePep8
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
-from nipype.interfaces.utility import Merge
 from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
+from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -35,12 +35,13 @@ class DummyStudy(Study):
             outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
                      DatasetSpec('pipeline1_2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={'pipeline1_option': False},
+            default_options={'pipeline_option': False},
             version=1,
             citations=[],
             options=options)
-        if not pipeline.option('pipeline1_option'):
-            raise Exception("Pipeline 1 option was not cascaded down")
+        if not pipeline.option('pipeline_option'):
+            raise Exception("Pipeline option was not cascaded down to "
+                            "pipeline1")
         mrconvert = pipeline.create_node(MRConvert(), name="convert1",
                                          requirements=[mrtrix3_req])
         mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
@@ -62,10 +63,13 @@ class DummyStudy(Study):
                     DatasetSpec('pipeline1_1', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
+            default_options={'pipeline_option': False},
             version=1,
             citations=[],
             options=options)
+        if not pipeline.option('pipeline_option'):
+            raise Exception("Pipeline option was not cascaded down to "
+                            "pipeline2")
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -299,7 +303,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        pipeline = self.study.pipeline4(pipeline1_option=True)
+        pipeline = self.study.pipeline4(pipeline_option=True)
         pipeline.run(work_dir=self.work_dir)
         for dataset in DummyStudy.dataset_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
@@ -308,7 +312,7 @@ class TestRunPipeline(BaseTestCase):
                         self.assertDatasetCreated(
                             dataset.name + dataset.format.extension,
                             self.study.name, subject=subject_id,
-                            session=visit_id)
+                            visit=visit_id)
 
     def test_subject_summary(self):
         self.study.subject_summary_pipeline().run(work_dir=self.work_dir)
@@ -334,7 +338,7 @@ class TestRunPipeline(BaseTestCase):
                 'mrstats {} -output mean'.format(
                     self.output_file_path(
                         'visit_summary.mif', self.study.name,
-                        session=visit_id, multiplicity='per_visit')),
+                        visit=visit_id, multiplicity='per_visit')),
                 shell=True))
             self.assertEqual(mean_val, len(self.SESSION_IDS))
 
@@ -356,7 +360,7 @@ class TestRunPipeline(BaseTestCase):
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
-                session=visit_id, multiplicity='per_visit')
+                visit=visit_id, multiplicity='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))

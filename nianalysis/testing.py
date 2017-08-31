@@ -27,13 +27,13 @@ class BaseTestCase(TestCase):
     WORK_PATH = os.path.join(test_data_dir, 'work')
     CACHE_BASE_PATH = os.path.join(test_data_dir, 'cache')
     SUBJECT = 'SUBJECT'
-    SESSION = 'SESSION'
+    VISIT = 'VISIT'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     XNAT_TEST_PROJECT = 'TEST001'
 
     def setUp(self):
         self.reset_dirs()
-        self.add_session(self.project_dir, self.SUBJECT, self.SESSION)
+        self.add_session(self.project_dir, self.SUBJECT, self.VISIT)
 
     def add_session(self, project_dir, subject, session,
                     required_datasets=None):
@@ -79,7 +79,7 @@ class BaseTestCase(TestCase):
 
     @property
     def session_dir(self):
-        return self.get_session_dir(self.name, self.SUBJECT, self.SESSION)
+        return self.get_session_dir(self.name, self.SUBJECT, self.VISIT)
 
     @property
     def cache_dir(self):
@@ -120,11 +120,11 @@ class BaseTestCase(TestCase):
             input_datasets=input_datasets)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
-                             session=None, multiplicity='per_session'):
+                             visit=None, multiplicity='per_session'):
         output_dir = self.get_session_dir(
-            self.project_dir, subject, session, multiplicity)
+            self.project_dir, subject, visit, multiplicity)
         out_path = self.output_file_path(
-            dataset_name, study_name, subject, session, multiplicity)
+            dataset_name, study_name, subject, visit, multiplicity)
         self.assertTrue(
             os.path.exists(out_path),
             ("Dataset '{}' (expected at '{}') was not created by unittest"
@@ -149,7 +149,7 @@ class BaseTestCase(TestCase):
                 raise
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
-                        subject=None, session=None,
+                        subject=None, visit=None,
                         multiplicity='per_session'):
             try:
                 NiAnalysisNodeMixin.load_module('mrtrix')
@@ -159,7 +159,7 @@ class BaseTestCase(TestCase):
                 'mrstats {} -output {}'.format(
                     self.output_file_path(
                         dataset_name, study_name,
-                        subject=subject, session=session,
+                        subject=subject, visit=visit,
                         multiplicity=multiplicity),
                     stat),
                 shell=True))
@@ -168,7 +168,7 @@ class BaseTestCase(TestCase):
                     "{} value of '{}' ({}) does not equal target ({}) "
                     "for subject {} visit {}"
                     .format(stat, dataset_name, val, target,
-                            subject, session)))
+                            subject, visit)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
                                 stdev_threshold, study_name):
@@ -188,32 +188,32 @@ class BaseTestCase(TestCase):
              .format(mean=mean, stdev=stdev, thresh_mean=mean_threshold,
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
-    def get_session_dir(self, project=None, subject=None, session=None,
+    def get_session_dir(self, project=None, subject=None, visit=None,
                         multiplicity='per_session'):
         if project is None:
             project = self.name
         if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if session is None and multiplicity in ('per_session', 'per_visit'):
-            session = self.SESSION
+        if visit is None and multiplicity in ('per_session', 'per_visit'):
+            visit = self.VISIT
         if multiplicity == 'per_session':
             assert subject is not None
-            assert session is not None
+            assert visit is not None
             path = os.path.join(self.ARCHIVE_PATH, project, subject,
-                                session)
+                                visit)
         elif multiplicity == 'per_subject':
             assert subject is not None
-            assert session is None
+            assert visit is None
             path = os.path.join(self.ARCHIVE_PATH, project, subject,
                                 SUMMARY_NAME)
         elif multiplicity == 'per_visit':
-            assert session is not None
+            assert visit is not None
             assert subject is None
             path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,
-                                session)
+                                visit)
         elif multiplicity == 'per_project':
             assert subject is None
-            assert session is None
+            assert visit is None
             path = os.path.join(self.ARCHIVE_PATH, project, SUMMARY_NAME,
                                 SUMMARY_NAME)
         else:
@@ -227,10 +227,10 @@ class BaseTestCase(TestCase):
             if study is None or fname.startswith(study + '_'):
                 os.remove(os.path.join(cls.get_session_dir(project), fname))
 
-    def output_file_path(self, fname, study_name, subject=None, session=None,
+    def output_file_path(self, fname, study_name, subject=None, visit=None,
                          multiplicity='per_session'):
         return os.path.join(
-            self.get_session_dir(subject=subject, session=session,
+            self.get_session_dir(subject=subject, visit=visit,
                                  multiplicity=multiplicity),
             '{}_{}'.format(study_name, fname))
 
