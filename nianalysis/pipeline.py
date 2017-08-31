@@ -18,7 +18,6 @@ from nianalysis.interfaces.iterators import (
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
-from nianalysis.dataset import DatasetSpec
 from rdflib import plugin
 
 
@@ -556,7 +555,7 @@ class Pipeline(object):
         # Call pipeline-getter instance method on study with provided options
         # to generate pipeline to run
         for getter in pipeline_getters:
-            pipeline = getter(self._study, **self._prereq_options)
+            pipeline = getter(self._study, **dict(self.all_options))
             # Check that the required outputs are created with the given
             # options
             missing_outputs = required_outputs[getter] - set(
@@ -883,7 +882,7 @@ class Pipeline(object):
     @property
     def all_options(self):
         """Return all options, including options of prerequisities"""
-        return chain(self.options, self._prereq_options.itervalues())
+        return chain(self.options, self._prereq_options.iteritems())
 
     @property
     def non_default_options(self):
