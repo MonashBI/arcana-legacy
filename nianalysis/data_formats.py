@@ -81,6 +81,7 @@ text_format = DataFormat(name='text', extension='.txt', converter=None)
 rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
 ica_format = DataFormat(name='ica', extension='.ica', converter=None)
 par_format = DataFormat(name='parameters', extension='.par', converter=None)
+gif_format = DataFormat(name='gif', extension='.gif', converter=None)
 
 
 class Converter(object):
