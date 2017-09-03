@@ -117,7 +117,7 @@ class NiAnalysisNodeMixin(object):
         avail = defaultdict(list)
         for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
                                       ' '.join(sanitized)):
-            avail[module].append(ver)
+            avail[module.lower()].append(ver)
         return avail
 
     @classmethod
@@ -136,7 +136,8 @@ class NiAnalysisNodeMixin(object):
     def _run_module_cmd(cls, *args):
         if 'MODULESHOME' in os.environ:
             try:
-                modulecmd = sp.check_output('which modulecmd', shell=True).strip()
+                modulecmd = sp.check_output('which modulecmd',
+                                            shell=True).strip()
             except sp.CalledProcessError:
                 modulecmd = False
             if not modulecmd:

@@ -54,7 +54,7 @@ class Requirement(object):
 
     def __init__(self, name, min_version, max_version=None,
                  version_split=split_version):
-        self._name = name
+        self._name = name.lower()
         self._min_ver = tuple(min_version)
         if max_version is not None:
             self._max_ver = tuple(max_version)
@@ -203,5 +203,5 @@ niftimatlab_req = Requirement('niftimatlib', (1, 2))
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)
 fix_req = Requirement('fix', min_version=(1, 0))
-afni_req = Requirement('AFNI', min_version=(16, 2, 10))
+afni_req = Requirement('afni', min_version=(16, 2, 10))
 mricrogl_req = Requirement('mricrogl', min_version=(1, 0, 20170207))
