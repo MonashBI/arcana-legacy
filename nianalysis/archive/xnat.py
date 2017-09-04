@@ -545,6 +545,10 @@ class XNATArchive(Archive):
         if subject_ids is not None:
             subject_ids = [('{}_{:03d}'.format(project_id, s)
                             if isinstance(s, int) else s) for s in subject_ids]
+        # Add processed visit IDs to list of visit ids to filter
+        if visit_ids is not None:
+            visit_ids = visit_ids + [i + self.PROCESSED_SUFFIX
+                                     for i in visit_ids]
         subjects = []
         sessions = defaultdict(list)
         with self._login() as xnat_login:
