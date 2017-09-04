@@ -5,13 +5,13 @@ from nipype.interfaces.base import (
     Directory, CommandLineInputSpec, CommandLine)
 from nianalysis.exceptions import NiAnalysisUsageError
 
-zip_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+zip_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                         'resources', 'bash', 'zip.sh'))
-cp_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+cp_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                        'resources', 'bash', 'copy_file.sh'))
-cp_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+cp_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                            'resources', 'bash', 'copy_dir.sh'))
-mkdir_path = os.path.abspath(os.path.join(os.path.dirname(__file__),
+mkdir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                              'resources', 'bash', 'make_dir.sh'))
 
 
