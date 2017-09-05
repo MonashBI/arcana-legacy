@@ -88,7 +88,7 @@ class XNATSource(ArchiveSource, XNATMixin):
              proj_summ_sess_name) = XNATArchive.project_summary_name(
                 project.id)
             try:
-                proc_session = xnat_login.experiments[
+                proc_session = subject.experiments[
                     self.session_id + XNATArchive.PROCESSED_SUFFIX]
                 proc_datasets = dict(
                     (s.type, s) for s in proc_session.scans.itervalues())
