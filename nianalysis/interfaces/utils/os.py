@@ -220,7 +220,8 @@ class UnzipDir(CommandLine):
 
 
 class CopyToDirInputSpec(TraitedSpec):
-    in_files = File(mandatory=True, desc='input dicom files')
+    in_files = traits.List(File(exists=True), mandatory=True,
+                           desc='input dicom files')
     out_dir = File(genfile=True, desc='the output dicom file')
 
 
@@ -246,7 +247,7 @@ class CopyToDir(BaseInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['out_dir'] = self._gen_outfilename()
+        outputs['out_dir'] = self._gen_outdirname()
         return outputs
 
     def _gen_filename(self, name):
@@ -257,8 +258,8 @@ class CopyToDir(BaseInterface):
         return fname
 
     def _gen_outdirname(self):
-        if isdefined(self.inputs.out_file):
-            dpath = self.inputs.out_file
+        if isdefined(self.inputs.out_dir):
+            dpath = self.inputs.out_dir
         else:
             dpath = os.path.join(os.getcwd(), 'dicom_dir')
         return dpath
@@ -266,6 +267,9 @@ class CopyToDir(BaseInterface):
 
 class ListDirInputSpec(TraitedSpec):
     directory = File(mandatory=True, desc='directory to read')
+    sort_key = traits.Function(
+        desc=("A function that generates a key from the listed filenames with "
+              "which to sort them with"))
 
 
 class ListDirOutputSpec(TraitedSpec):
@@ -287,8 +291,9 @@ class ListDir(BaseInterface):
     def _list_outputs(self):
         dname = self.inputs.directory
         outputs = self._outputs().get()
-        outputs['files'] = sorted(
-            os.path.join(dname, f)
-            for f in os.listdir(dname)
-            if os.path.isfile(os.path.join(dname, f)))
+        key = self.inputs.sort_key if isdefined(self.inputs.sort_key) else None
+        outputs['files'] = sorted((os.path.join(dname, f)
+                                   for f in os.listdir(dname)
+                                   if os.path.isfile(os.path.join(dname, f))),
+                                  key=key)
         return outputs
