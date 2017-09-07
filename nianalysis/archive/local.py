@@ -299,7 +299,7 @@ class LocalArchive(Archive):
                 session_path = os.path.join(subject_path, visit_id)
                 datasets = []
                 files = [d for d in os.listdir(session_path)
-                         if not os.path.isdir(d)]
+                         if not d.startswith('.')]
                 for f in files:
                     datasets.append(
                         Dataset.from_path(os.path.join(session_path, f)))
@@ -313,7 +313,7 @@ class LocalArchive(Archive):
             subj_datasets = []
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
-                            if not os.path.isdir(d)]
+                         if not d.startswith('.')]
                 for f in files:
                     subj_datasets.append(
                         Dataset.from_path(
@@ -327,7 +327,7 @@ class LocalArchive(Archive):
             visit_summary_path = self.visit_summary_path(project_id, visit_id)
             if os.path.exists(visit_summary_path):
                 files = [d for d in os.listdir(visit_summary_path)
-                         if not os.path.isdir(d)]
+                         if not d.startswith('.')]
                 visit_datasets = []
                 for f in files:
                     visit_datasets.append(
@@ -341,7 +341,7 @@ class LocalArchive(Archive):
         proj_summary_path = self.project_summary_path(project_id)
         if os.path.exists(proj_summary_path):
             files = [d for d in os.listdir(proj_summary_path)
-                     if not os.path.isdir(d)]
+                     if not d.startswith('.')]
             proj_datasets = []
             for f in files:
                 proj_datasets.append(
