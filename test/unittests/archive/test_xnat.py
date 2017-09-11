@@ -1,7 +1,9 @@
 import os.path
 import shutil
 import tempfile
+import time
 import logging
+from multiprocessing import Process
 from unittest import TestCase
 import xnat
 from nianalysis.testing import BaseTestCase, test_data_dir
@@ -376,14 +378,47 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(source1_fname, target_path,
                          "Output file path '{}' not equal to target path '{}'"
                          .format(source1_fname, target_path))
+        # Clear cache to start again
+        shutil.rmtree(cache_dir, ignore_errors=True)
         # Create tmp_dir before running interface, this time should wait for 1
         # second, check to see that the session hasn't been created and then
         # clear it and redownload the dataset.
-        shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(tmp_dir)
         source.inputs.race_cond_delay = 1
-        source.run()
-        self.assertTrue(os.path.exists(source1_fname))
+        result2 = source.run()
+        source1_fname = result2.outputs.source1_fname
+        # Clear cache to start again
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        # Create tmp_dir before running interface, this time should wait for 1
+        # second, check to see that the session hasn't been created and then
+        # clear it and redownload the dataset.
+        internal_dir = os.path.join(tmp_dir, 'internal')
+
+        def simulate_download():
+            "Simulates a download in a separate process"
+            os.makedirs(internal_dir)
+            time.sleep(1)
+            # Modify a file in the temp dir to make the source download keep
+            # waiting
+            logger.info('Updating simulated download directory')
+            with open(os.path.join(internal_dir, 'a_file'), 'a') as f:
+                f.write('downloading...')
+            time.sleep(1)
+            # Simulate the finalising of the download by copying the previously
+            # downloaded file into place and deleting the temp dir.
+            logger.info('Finalising simulated download')
+            with open(target_path, 'a') as f:
+                f.write('simulated')
+            shutil.rmtree(tmp_dir)
+
+        source.inputs.race_cond_delay = 2
+        p = Process(target=simulate_download)
+        p.start()  # Start the simulated download in separate process
+        source.run()  # Run the local download
+        p.join()
+        with open(target_path) as f:
+            d = f.read()
+        self.assertEqual(d, 'simulated')
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):

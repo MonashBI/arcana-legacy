@@ -181,6 +181,11 @@ class XNATSource(ArchiveSource, XNATMixin):
                 if not os.path.exists(cache_path):
                     tmp_dir = cache_path + '.download'
                     try:
+                        # Attempt to make tmp download directory. This will
+                        # fail if another process (or previous attempt) has
+                        # already created it. In that case this process will
+                        # wait to see if that download finishes successfully,
+                        # and if so use the cached version.
                         os.mkdir(tmp_dir)
                     except OSError as e:
                         if e.errno == errno.EEXIST:
@@ -204,10 +209,6 @@ class XNATSource(ArchiveSource, XNATMixin):
 
     def _download_dataset(self, tmp_dir, dataset, data_format, session_label,
                           name, processed, fname, cache_path):
-        try:
-            assert os.path.exists(tmp_dir)
-        except:
-            raise
         try:
             resource = dataset.resources[data_format.upper()]
         except KeyError:
@@ -249,9 +250,9 @@ class XNATSource(ArchiveSource, XNATMixin):
             return
         elif initial_mod_time != dir_modtime(tmp_dir):
             logger.info("The download of '{}' hasn't completed yet, but it has"
-                        "been updated.  Waiting another {} seconds before "
+                        " been updated.  Waiting another {} seconds before "
                         "checking again.".format(cache_path, delay))
-            self._delayed_download(self, tmp_dir, dataset, data_format,
+            self._delayed_download(tmp_dir, dataset, data_format,
                                    session_label, name, processed, fname,
                                    cache_path, delay)
         else:
