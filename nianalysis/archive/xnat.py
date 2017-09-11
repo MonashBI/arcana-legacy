@@ -3,8 +3,10 @@ from abc import ABCMeta, abstractmethod
 import os.path
 import shutil
 import stat
+import time
 import logging
 import errno
+from zipfile import ZipFile
 from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
 from nianalysis.dataset import Dataset
@@ -17,6 +19,7 @@ from nianalysis.archive.base import (
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
+from nianalysis.utils import dir_modtime
 import re
 import xnat  # NB: XNATPy not PyXNAT
 from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
@@ -53,6 +56,12 @@ class XNATSourceInputSpec(ArchiveSourceInputSpec):
     cache_dir = Directory(
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
+
+    race_cond_delay = traits.Int(
+        usedefault=True, default=30,
+        desc=("The amount of time to wait before checking that the required "
+              "dataset has been downloaded to cache by another process has "
+              "completed if they are attempting to download the same dataset"))
 
 
 class XNATSource(ArchiveSource, XNATMixin):
@@ -172,29 +181,88 @@ class XNATSource(ArchiveSource, XNATMixin):
                 if not os.path.exists(cache_path):
                     tmp_dir = cache_path + '.download'
                     try:
-                        dataset.resources[data_format.upper()].download_dir(
-                            tmp_dir)
-                    except KeyError:
-                        raise NiAnalysisError(
-                            "'{}' dataset is not available in '{}' format, "
-                            "available resources are '{}'"
-                            .format(
-                                name, data_format.upper(),
-                                "', '".join(
-                                    r.label
-                                    for r in dataset.resources.itervalues())))
-                    data_path = os.path.join(
-                        tmp_dir, (session_label + (XNATArchive.PROCESSED_SUFFIX
-                                                   if processed else '')),
-                        'scans', (dataset.id + '-' +
-                                  special_char_re.sub('_', dataset.type)),
-                        'resources', data_format.upper(), 'files')
-                    if data_formats[data_format].extension is not None:
-                        data_path = os.path.join(data_path, fname)
-                    shutil.move(data_path, cache_path)
-                    shutil.rmtree(tmp_dir)
+                        os.mkdir(tmp_dir)
+                    except OSError as e:
+                        if e.errno == errno.EEXIST:
+                            # Another process may be concurrently downloading
+                            # the same file to the cache. Wait for
+                            # 'race_cond_delay' seconds and then check that it
+                            # has been completed or assume interrupted and
+                            # redownload.
+                            self._delayed_download(
+                                tmp_dir, dataset, data_format, session_label,
+                                name, processed, fname, cache_path,
+                                delay=self.inputs.race_cond_delay)
+                        else:
+                            raise
+                    else:
+                        self._download_dataset(
+                            tmp_dir, dataset, data_format, session_label,
+                            name, processed, fname, cache_path)
                 outputs[name + OUTPUT_SUFFIX] = cache_path
         return outputs
+
+    def _download_dataset(self, tmp_dir, dataset, data_format, session_label,
+                          name, processed, fname, cache_path):
+        try:
+            assert os.path.exists(tmp_dir)
+        except:
+            raise
+        try:
+            resource = dataset.resources[data_format.upper()]
+        except KeyError:
+            raise NiAnalysisError(
+                "'{}' dataset is not available in '{}' format, "
+                "available resources are '{}'"
+                .format(name, data_format.upper(), "', '".join(
+                        r.label for r in dataset.resources.itervalues())))
+        # Download resource to zip file
+        zip_path = os.path.join(tmp_dir, 'download.zip')
+        with open(zip_path, 'w') as f:
+            resource.xnat_session.download_stream(resource.uri + '/files', f,
+                                                  format='zip', verbose=True)
+        # Extract downloaded zip file
+        expanded_dir = os.path.join(tmp_dir, 'expanded')
+        with ZipFile(zip_path) as zip_file:
+            zip_file.extractall(expanded_dir)
+        data_path = os.path.join(
+            expanded_dir, (session_label + (XNATArchive.PROCESSED_SUFFIX
+                                            if processed else '')),
+            'scans', (dataset.id + '-' +
+                      special_char_re.sub('_', dataset.type)),
+            'resources', data_format.upper(), 'files')
+        if data_formats[data_format].extension is not None:
+            data_path = os.path.join(data_path, fname)
+        shutil.move(data_path, cache_path)
+        shutil.rmtree(tmp_dir)
+
+    def _delayed_download(self, tmp_dir, dataset, data_format, session_label,
+                          name, processed, fname, cache_path, delay):
+        logger.info("Waiting {} seconds for incomplete download of '{}' "
+                    "initiated another process to finish".format(delay,
+                                                                 cache_path))
+        initial_mod_time = dir_modtime(tmp_dir)
+        time.sleep(delay)
+        if os.path.exists(cache_path):
+            logger.info("The download of '{}' has completed successfully "
+                        "in the other process, continuing".format(cache_path))
+            return
+        elif initial_mod_time != dir_modtime(tmp_dir):
+            logger.info("The download of '{}' hasn't completed yet, but it has"
+                        "been updated.  Waiting another {} seconds before "
+                        "checking again.".format(cache_path, delay))
+            self._delayed_download(self, tmp_dir, dataset, data_format,
+                                   session_label, name, processed, fname,
+                                   cache_path, delay)
+        else:
+            logger.info("The download of '{}' hasn't updated in {} "
+                        "seconds, assuming that it was interrupted and "
+                        "restarting download".format(cache_path, delay))
+            shutil.rmtree(tmp_dir)
+            os.mkdir(tmp_dir)
+            self._download_dataset(
+                tmp_dir, dataset, data_format, session_label,
+                name, processed, fname, cache_path)
 
 
 class XNATSinkInputSpecMixin(object):
