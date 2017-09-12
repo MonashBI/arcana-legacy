@@ -29,7 +29,7 @@ class Archive(object):
         ----------
         project_id : str
             The ID of the project to return the sessions for
-        input_datasets : List[BaseFile]
+        input_datasets : list[Dataset]
             An iterable of nianalysis.Dataset objects, which specify the
             datasets to extract from the archive system for each session
         name : str

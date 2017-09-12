@@ -10,6 +10,14 @@ zip_exts = ('gz',)
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 
 
+def dir_modtime(dpath):
+    """
+    Returns the latest modification time of all files/subdirectories in a
+    directory
+    """
+    return max(os.path.getmtime(d) for d, _, _ in os.walk(dpath))
+
+
 def get_fsl_reference_path():
     return os.path.join(os.environ['FSLDIR'], 'data', 'standard')
 

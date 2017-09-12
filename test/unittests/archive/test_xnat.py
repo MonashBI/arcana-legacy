@@ -1,13 +1,17 @@
 import os.path
 import shutil
 import tempfile
+import json
+import time
 import logging
+from multiprocessing import Process
 from unittest import TestCase
 import xnat
 from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import XNATArchive, download_all_datasets
+from nianalysis.archive.xnat import (XNATArchive, XNATSource,
+                                     download_all_datasets)
 from nianalysis.data_formats import (
     nifti_gz_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec
@@ -22,6 +26,11 @@ from test_study import TestExistingPrereqs  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 logger = logging.getLogger('NiAnalysis')
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 def dummy_pipeline():
@@ -32,13 +41,13 @@ class TestXnatArchive(BaseTestCase):
 
     PROJECT = 'TEST002'
     SUBJECT = 'TEST002_001'
-    SESSION = 'MR01'
+    VISIT = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
 
     @property
     def session_id(self):
-        return '_'.join((self.SUBJECT, self.SESSION))
+        return '_'.join((self.SUBJECT, self.VISIT))
 
     def setUp(self):
         self.reset_dirs()
@@ -63,7 +72,7 @@ class TestXnatArchive(BaseTestCase):
                                                       parent=session)
                 resource = dataset.create_resource(
                     data_formats_by_ext[ext].name.upper())
-                resource.upload(fname, fname)
+                resource.upload(os.path.join(self.cache_dir, fname), fname)
 
     def tearDown(self):
         # Clean up working dirs
@@ -110,7 +119,7 @@ class TestXnatArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
-        inputnode.inputs.visit_id = str(self.SESSION)
+        inputnode.inputs.visit_id = str(self.VISIT)
         source = archive.source(self.PROJECT, source_files,
                                 study_name=self.STUDY_NAME)
         sink = archive.sink(self.PROJECT, sink_files,
@@ -136,12 +145,13 @@ class TestXnatArchive(BaseTestCase):
         # Check cache was created properly
         source_cache_dir = os.path.join(
             self.archive_cache_dir, str(self.PROJECT),
-            str(self.SUBJECT), str(self.SESSION))
+            str(self.SUBJECT), str(self.VISIT))
         sink_cache_dir = os.path.join(
             self.archive_cache_dir, str(self.PROJECT),
             str(self.SUBJECT),
-            str(self.SESSION) + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual(sorted(os.listdir(source_cache_dir)),
+            str(self.VISIT) + XNATArchive.PROCESSED_SUFFIX)
+        self.assertEqual([f for f in sorted(os.listdir(source_cache_dir))
+                          if not f.endswith(XNATSource.MD5_SUFFIX)],
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
@@ -168,7 +178,7 @@ class TestXnatArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.SESSION
+        inputnode.inputs.visit_id = self.VISIT
         source = archive.source(self.PROJECT, source_files)
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                           multiplicity='per_subject',
@@ -244,7 +254,7 @@ class TestXnatArchive(BaseTestCase):
                 self.archive_cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
                 (self.PROJECT + '_' + XNATArchive.SUMMARY_NAME +
-                 '_' + self.SESSION))
+                 '_' + self.VISIT))
             self.assertEqual(sorted(os.listdir(visit_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_visit_datasets])
@@ -253,7 +263,7 @@ class TestXnatArchive(BaseTestCase):
                 self.PROJECT].experiments[
                     '{}_{}_{}'.format(
                         self.PROJECT, XNATArchive.SUMMARY_NAME,
-                        self.SESSION)].scans.keys()
+                        self.VISIT)].scans.keys()
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME + '_sink3']
@@ -277,7 +287,7 @@ class TestXnatArchive(BaseTestCase):
                                                      'visit_id']),
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
-        reloadinputnode.inputs.visit_id = self.SESSION
+        reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource = archive.source(
             self.PROJECT,
             (source_files + subject_sink_files + visit_sink_files +
@@ -315,7 +325,7 @@ class TestXnatArchive(BaseTestCase):
         # Check that the datasets
         session_dir = os.path.join(
             self.archive_cache_dir, self.PROJECT, self.SUBJECT,
-            self.SESSION + XNATArchive.PROCESSED_SUFFIX)
+            self.VISIT + XNATArchive.PROCESSED_SUFFIX)
         self.assertEqual(sorted(os.listdir(session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
@@ -339,11 +349,134 @@ class TestXnatArchive(BaseTestCase):
                          [self.SUBJECT])
         subject = list(project_info.subjects)[0]
         self.assertEqual([s.visit_id for s in subject.sessions],
-                         [self.SESSION])
+                         [self.VISIT])
         session = list(subject.sessions)[0]
         self.assertEqual(
             sorted(d.name for d in sorted(session.datasets)),
             ['source1', 'source2', 'source3', 'source4'])
+
+    def test_delayed_download(self):
+        """
+        Tests handling of race conditions where separate processes attempt to
+        cache the same dataset
+        """
+        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+                                 'delayed-download-cache')
+        DATASET_NAME = 'source1'
+        target_path = os.path.join(cache_dir, self.PROJECT, self.SUBJECT,
+                                   self.VISIT,
+                                   DATASET_NAME + nifti_gz_format.extension)
+        tmp_dir = target_path + '.download'
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        os.makedirs(cache_dir)
+        archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
+        source = archive.source(self.PROJECT,
+                                [Dataset(DATASET_NAME, nifti_gz_format)],
+                                'delayed_source', 'delayed_study')
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.visit_id = self.VISIT
+        result1 = source.run()
+        source1_fname = result1.outputs.source1_fname
+        self.assertTrue(os.path.exists(source1_fname))
+        self.assertEqual(source1_fname, target_path,
+                         "Output file path '{}' not equal to target path '{}'"
+                         .format(source1_fname, target_path))
+        # Clear cache to start again
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        # Create tmp_dir before running interface, this time should wait for 1
+        # second, check to see that the session hasn't been created and then
+        # clear it and redownload the dataset.
+        os.makedirs(tmp_dir)
+        source.inputs.race_cond_delay = 1
+        result2 = source.run()
+        source1_fname = result2.outputs.source1_fname
+        # Clear cache to start again
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        # Create tmp_dir before running interface, this time should wait for 1
+        # second, check to see that the session hasn't been created and then
+        # clear it and redownload the dataset.
+        internal_dir = os.path.join(tmp_dir, 'internal')
+        deleted_tmp_dir = tmp_dir + '.deleted'
+
+        def simulate_download():
+            "Simulates a download in a separate process"
+            os.makedirs(internal_dir)
+            time.sleep(5)
+            # Modify a file in the temp dir to make the source download keep
+            # waiting
+            logger.info('Updating simulated download directory')
+            with open(os.path.join(internal_dir, 'download'), 'a') as f:
+                f.write('downloading')
+            time.sleep(10)
+            # Simulate the finalising of the download by copying the previously
+            # downloaded file into place and deleting the temp dir.
+            logger.info('Finalising simulated download')
+            with open(target_path, 'a') as f:
+                f.write('simulated')
+            shutil.move(tmp_dir, deleted_tmp_dir)
+
+        source.inputs.race_cond_delay = 10
+        p = Process(target=simulate_download)
+        p.start()  # Start the simulated download in separate process
+        source.run()  # Run the local download
+        p.join()
+        with open(os.path.join(deleted_tmp_dir, 'internal', 'download')) as f:
+            d = f.read()
+        self.assertEqual(d, 'downloading')
+        with open(target_path) as f:
+            d = f.read()
+        self.assertEqual(d, 'simulated')
+
+    def test_digest_check(self):
+        """
+        Tests check of downloaded digests to see if file needs to be
+        redownloaded
+        """
+        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+                                 'digest-check-cache')
+        DATASET_NAME = 'source1'
+        dataset_fname = DATASET_NAME + nifti_gz_format.extension
+        target_path = os.path.join(cache_dir, self.PROJECT, self.SUBJECT,
+                                   self.VISIT, dataset_fname)
+        md5_path = target_path + XNATSource.MD5_SUFFIX
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        os.makedirs(cache_dir)
+        archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
+        source = archive.source(self.PROJECT,
+                                [Dataset(DATASET_NAME, nifti_gz_format)],
+                                'digest_check_source', 'digest_check_study')
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.visit_id = self.VISIT
+        source.run()
+        self.assertTrue(os.path.exists(md5_path))
+        self.assertTrue(os.path.exists(target_path))
+        with open(md5_path) as f:
+            digests = json.load(f)
+        # Stash the downloaded file in a new location and create a dummy
+        # file instead
+        stash_path = target_path + '.stash'
+        shutil.move(target_path, stash_path)
+        with open(target_path, 'w') as f:
+            f.write('dummy')
+        # Run the download, which shouldn't download as the digests are the
+        # same
+        source.run()
+        with open(target_path) as f:
+            d = f.read()
+        self.assertEqual(d, 'dummy')
+        # Replace the digest with a dummy
+        os.remove(md5_path)
+        digests[dataset_fname] = 'dummy_digest'
+        with open(md5_path, 'w') as f:
+            json.dump(digests, f)
+        # Retry the download, which should now download since the digests
+        # differ
+        source.run()
+        with open(target_path) as f:
+            d = f.read()
+        with open(stash_path) as f:
+            e = f.read()
+        self.assertEqual(d, e)
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
