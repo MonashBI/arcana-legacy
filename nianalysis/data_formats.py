@@ -18,13 +18,14 @@ logger = logging.getLogger('NiAnalysis')
 class DataFormat(object):
 
     def __init__(self, name, extension, lctype=None, converter='mrconvert',
-                 description='', mrinfo='None'):
+                 description='', mrinfo='None', directory=False):
         self._name = name
         self._extension = extension
         self._lctype = lctype
         self._converter = converter
         self._description = description
         self._mrinfo = mrinfo
+        self._directory = directory
 
     def __repr__(self):
         return ("DataFormat(name='{}', extension='{}')"
@@ -57,6 +58,10 @@ class DataFormat(object):
     def mrinfo(self):
         return self._mrinfo
 
+    @property
+    def directory(self):
+        return self._directory
+
 
 nifti_format = DataFormat(name='nifti', extension='.nii',
                           lctype='nifti/series', mrinfo='NIfTI-1.1')
@@ -65,7 +70,7 @@ nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
 mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
 analyze_format = DataFormat(name='analyze', extension='.img')
 dicom_format = DataFormat(name='dicom', extension=None, lctype='dicom/series',
-                          mrinfo='DICOM')
+                          mrinfo='DICOM', directory=True)
 fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
@@ -74,7 +79,7 @@ freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
                                          extension='.fs.zip', converter=None)
 zip_format = DataFormat(name='zip', extension='.zip', converter='unzip')
 directory_format = DataFormat(name='directory', extension=None,
-                              converter='unzip')
+                              converter='unzip', directory=True)
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
                                 converter=None)
 text_format = DataFormat(name='text', extension='.txt', converter=None)

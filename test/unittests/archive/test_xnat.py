@@ -1,6 +1,7 @@
 import os.path
 import shutil
 import tempfile
+import json
 import time
 import logging
 from multiprocessing import Process
@@ -9,7 +10,8 @@ import xnat
 from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import XNATArchive, download_all_datasets
+from nianalysis.archive.xnat import (XNATArchive, XNATSource,
+                                     download_all_datasets)
 from nianalysis.data_formats import (
     nifti_gz_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec
@@ -398,13 +400,13 @@ class TestXnatArchive(BaseTestCase):
         def simulate_download():
             "Simulates a download in a separate process"
             os.makedirs(internal_dir)
-            time.sleep(1)
+            time.sleep(5)
             # Modify a file in the temp dir to make the source download keep
             # waiting
             logger.info('Updating simulated download directory')
             with open(os.path.join(internal_dir, 'download'), 'a') as f:
                 f.write('downloading')
-            time.sleep(2)
+            time.sleep(10)
             # Simulate the finalising of the download by copying the previously
             # downloaded file into place and deleting the temp dir.
             logger.info('Finalising simulated download')
@@ -412,7 +414,7 @@ class TestXnatArchive(BaseTestCase):
                 f.write('simulated')
             shutil.move(tmp_dir, deleted_tmp_dir)
 
-        source.inputs.race_cond_delay = 2
+        source.inputs.race_cond_delay = 10
         p = Process(target=simulate_download)
         p.start()  # Start the simulated download in separate process
         source.run()  # Run the local download
@@ -423,6 +425,57 @@ class TestXnatArchive(BaseTestCase):
         with open(target_path) as f:
             d = f.read()
         self.assertEqual(d, 'simulated')
+
+    def test_digest_check(self):
+        """
+        Tests check of downloaded digests to see if file needs to be
+        redownloaded
+        """
+        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+                                 'digest-check-cache')
+        DATASET_NAME = 'source1'
+        dataset_fname = DATASET_NAME + nifti_gz_format.extension
+        target_path = os.path.join(cache_dir, self.PROJECT, self.SUBJECT,
+                                   self.VISIT, dataset_fname)
+        md5_path = target_path + XNATSource.MD5_SUFFIX
+        shutil.rmtree(cache_dir, ignore_errors=True)
+        os.makedirs(cache_dir)
+        archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
+        source = archive.source(self.PROJECT,
+                                [Dataset(DATASET_NAME, nifti_gz_format)],
+                                'digest_check_source', 'digest_check_study')
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.visit_id = self.VISIT
+        source.run()
+        self.assertTrue(os.path.exists(md5_path))
+        self.assertTrue(os.path.exists(target_path))
+        with open(md5_path) as f:
+            digests = json.load(f)
+        # Stash the downloaded file in a new location and create a dummy
+        # file instead
+        stash_path = target_path + '.stash'
+        shutil.move(target_path, stash_path)
+        with open(target_path, 'w') as f:
+            f.write('dummy')
+        # Run the download, which shouldn't download as the digests are the
+        # same
+        source.run()
+        with open(target_path) as f:
+            d = f.read()
+        self.assertEqual(d, 'dummy')
+        # Replace the digest with a dummy
+        os.remove(md5_path)
+        digests[dataset_fname] = 'dummy_digest'
+        with open(md5_path, 'w') as f:
+            json.dump(digests, f)
+        # Retry the download, which should now download since the digests
+        # differ
+        source.run()
+        with open(target_path) as f:
+            d = f.read()
+        with open(stash_path) as f:
+            e = f.read()
+        self.assertEqual(d, e)
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
