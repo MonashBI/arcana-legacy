@@ -72,7 +72,7 @@ class TestXnatArchive(BaseTestCase):
                                                       parent=session)
                 resource = dataset.create_resource(
                     data_formats_by_ext[ext].name.upper())
-                resource.upload(fname, fname)
+                resource.upload(os.path.join(self.cache_dir, fname), fname)
 
     def tearDown(self):
         # Clean up working dirs
@@ -150,7 +150,8 @@ class TestXnatArchive(BaseTestCase):
             self.archive_cache_dir, str(self.PROJECT),
             str(self.SUBJECT),
             str(self.VISIT) + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual(sorted(os.listdir(source_cache_dir)),
+        self.assertEqual([f for f in sorted(os.listdir(source_cache_dir))
+                          if not f.endswith(XNATSource.MD5_SUFFIX)],
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
