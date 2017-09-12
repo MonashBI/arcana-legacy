@@ -145,8 +145,10 @@ class XNATSource(ArchiveSource, XNATMixin):
                         if processed:
                             dataset = proc_datasets[prefixed_name]
                             cache_dir += XNATArchive.PROCESSED_SUFFIX
+                            session_label = proc_session.label
                         else:
                             dataset = datasets[prefixed_name]
+                            session_label = session.label
                     except KeyError:
                         raise NiAnalysisError(
                             "Could not find '{}' dataset in acquired and "
@@ -156,7 +158,6 @@ class XNATSource(ArchiveSource, XNATMixin):
                                     "', '".join(proc_datasets),
                                     self.inputs.subject_id,
                                     self.inputs.visit_id))
-                    session_label = session.label
                 elif mult == 'per_subject':
                     assert processed
                     dataset = subj_datasets[prefixed_name]
@@ -226,14 +227,14 @@ class XNATSource(ArchiveSource, XNATMixin):
                             # redownload.
                             self._delayed_download(
                                 tmp_dir, resource, dataset, data_format,
-                                session_label, processed, fname,
-                                cache_path, delay=self.inputs.race_cond_delay)
+                                session_label, fname, cache_path,
+                                delay=self.inputs.race_cond_delay)
                         else:
                             raise
                     else:
                         self._download_dataset(
                             tmp_dir, resource, dataset, data_format,
-                            session_label, processed, fname, cache_path)
+                            session_label, fname, cache_path)
                 outputs[name + OUTPUT_SUFFIX] = cache_path
         return outputs
 
@@ -252,7 +253,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                     for r in result.json()['ResultSet']['Result'])
 
     def _download_dataset(self, tmp_dir, resource, dataset, data_format,
-                          session_label, processed, fname, cache_path):
+                          session_label, fname, cache_path):
         # Download resource to zip file
         zip_path = os.path.join(tmp_dir, 'download.zip')
         with open(zip_path, 'w') as f:
@@ -264,10 +265,8 @@ class XNATSource(ArchiveSource, XNATMixin):
         with ZipFile(zip_path) as zip_file:
             zip_file.extractall(expanded_dir)
         data_path = os.path.join(
-            expanded_dir, (session_label + (XNATArchive.PROCESSED_SUFFIX
-                                            if processed else '')),
-            'scans', (dataset.id + '-' +
-                      special_char_re.sub('_', dataset.type)),
+            expanded_dir, session_label, 'scans',
+            (dataset.id + '-' + special_char_re.sub('_', dataset.type)),
             'resources', data_format.upper(), 'files')
         if not data_formats[data_format].directory:
             data_path = os.path.join(data_path, fname)
@@ -277,7 +276,7 @@ class XNATSource(ArchiveSource, XNATMixin):
         shutil.rmtree(tmp_dir)
 
     def _delayed_download(self, tmp_dir, resource, dataset, data_format,
-                          session_label, processed, fname, cache_path,
+                          session_label, fname, cache_path,
                           delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
                     "initiated another process to finish".format(delay,
@@ -293,7 +292,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                         " been updated.  Waiting another {} seconds before "
                         "checking again.".format(cache_path, delay))
             self._delayed_download(tmp_dir, resource, dataset, data_format,
-                                   session_label, processed, fname,
+                                   session_label, fname,
                                    cache_path, delay)
         else:
             logger.warning("The download of '{}' hasn't updated in {} "
@@ -302,8 +301,8 @@ class XNATSource(ArchiveSource, XNATMixin):
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
             self._download_dataset(
-                tmp_dir, resource, dataset, data_format, session_label,
-                processed, fname, cache_path)
+                tmp_dir, resource, dataset, data_format, session_label, fname,
+                cache_path)
 
 
 class XNATSinkInputSpecMixin(object):
