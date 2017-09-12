@@ -393,6 +393,7 @@ class TestXnatArchive(BaseTestCase):
         # second, check to see that the session hasn't been created and then
         # clear it and redownload the dataset.
         internal_dir = os.path.join(tmp_dir, 'internal')
+        deleted_tmp_dir = tmp_dir + '.deleted'
 
         def simulate_download():
             "Simulates a download in a separate process"
@@ -401,21 +402,24 @@ class TestXnatArchive(BaseTestCase):
             # Modify a file in the temp dir to make the source download keep
             # waiting
             logger.info('Updating simulated download directory')
-            with open(os.path.join(internal_dir, 'a_file'), 'a') as f:
-                f.write('downloading...')
-            time.sleep(1)
+            with open(os.path.join(internal_dir, 'download'), 'a') as f:
+                f.write('downloading')
+            time.sleep(2)
             # Simulate the finalising of the download by copying the previously
             # downloaded file into place and deleting the temp dir.
             logger.info('Finalising simulated download')
             with open(target_path, 'a') as f:
                 f.write('simulated')
-            shutil.rmtree(tmp_dir)
+            shutil.move(tmp_dir, deleted_tmp_dir)
 
         source.inputs.race_cond_delay = 2
         p = Process(target=simulate_download)
         p.start()  # Start the simulated download in separate process
         source.run()  # Run the local download
         p.join()
+        with open(os.path.join(deleted_tmp_dir, 'internal', 'download')) as f:
+            d = f.read()
+        self.assertEqual(d, 'downloading')
         with open(target_path) as f:
             d = f.read()
         self.assertEqual(d, 'simulated')
