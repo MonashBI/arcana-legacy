@@ -640,7 +640,8 @@ class Pipeline(object):
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
-            .format(spec_name, self.name, "', '".join(self._inputs)))
+            .format(spec_name, self.name, "', '".join(str(i)
+                                                      for i in self._inputs)))
         self._workflow.connect(self._inputnode, spec_name, node, node_input)
         if spec_name in self._unconnected_inputs:
             self._unconnected_inputs.remove(spec_name)

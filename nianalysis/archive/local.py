@@ -272,7 +272,7 @@ class LocalArchive(Archive):
             if any(subject_id not in subject_dirs
                    for subject_id in subject_ids):
                 raise NiAnalysisError(
-                    "'{}' sujbect(s) is/are missing from '{}' project in local"
+                    "'{}' subject(s) is/are missing from '{}' project in local"
                     " archive at '{}' (found '{}')".format(
                         "', '".join(set(subject_ids) - set(subject_dirs)),
                         project_id, self._base_dir, "', '".join(subject_dirs)))
