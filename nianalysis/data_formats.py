@@ -17,12 +17,11 @@ logger = logging.getLogger('NiAnalysis')
 
 class DataFormat(object):
 
-    def __init__(self, name, extension, lctype=None, converter='mrconvert',
-                 description='', mrinfo='None', directory=False):
+    def __init__(self, name, extension, lctype=None, description='',
+                 mrinfo='None', directory=False):
         self._name = name
         self._extension = extension
         self._lctype = lctype
-        self._converter = converter
         self._description = description
         self._mrinfo = mrinfo
         self._directory = directory
@@ -45,10 +44,6 @@ class DataFormat(object):
     @property
     def lctype(self):
         return self._lctype
-
-    @property
-    def converter(self):
-        return self._converter
 
     @property
     def description(self):
@@ -76,17 +71,16 @@ fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
 freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
-                                         extension='.fs.zip', converter=None)
-zip_format = DataFormat(name='zip', extension='.zip', converter='unzip')
+                                         extension='.fs.zip')
+zip_format = DataFormat(name='zip', extension='.zip')
 directory_format = DataFormat(name='directory', extension=None,
-                              converter='unzip', directory=True)
-text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
-                                converter=None)
-text_format = DataFormat(name='text', extension='.txt', converter=None)
-rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
-ica_format = DataFormat(name='ica', extension='.ica', converter=None)
-par_format = DataFormat(name='parameters', extension='.par', converter=None)
-gif_format = DataFormat(name='gif', extension='.gif', converter=None)
+                              directory=True)
+text_matrix_format = DataFormat(name='text_matrix', extension='.mat')
+text_format = DataFormat(name='text', extension='.txt')
+rdata_format = DataFormat(name='rdata', extension='.RData')
+ica_format = DataFormat(name='ica', extension='.ica')
+par_format = DataFormat(name='parameters', extension='.par')
+gif_format = DataFormat(name='gif', extension='.gif')
 
 
 class Converter(object):

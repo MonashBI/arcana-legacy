@@ -2,6 +2,7 @@ from __future__ import absolute_import
 from abc import ABCMeta, abstractmethod
 import os.path
 import shutil
+import hashlib
 import stat
 import time
 import logging
@@ -400,6 +401,11 @@ class XNATSinkMixin(XNATMixin):
                 dst_path = os.path.join(cache_dir, out_fname)
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
+                # Create md5 digest
+#                 with open(dst_path) as f:
+#                     digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
+#                 with open(dst_path + self.MD5_SUFFIX) as f:
+#                     json.dump(digests, f)
                 # Upload to XNAT
                 dataset = xnat_login.classes.MrScanData(
                     type=prefixed_name, parent=session)
