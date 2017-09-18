@@ -9,6 +9,8 @@ from nianalysis.exceptions import NiAnalysisUsageError
 
 zip_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                         'resources', 'bash', 'zip.sh'))
+targz_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
+                                          'resources', 'bash', 'targz.sh'))
 cp_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                        'resources', 'bash', 'copy_file.sh'))
 cp_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
@@ -328,7 +330,7 @@ class TarGzDirOutputSpec(TraitedSpec):
 class TarGzDir(CommandLine):
     """Creates a tar_gzip archive from a given folder"""
 
-    _cmd = 'tar -zcvf '
+    _cmd = targz_path
     input_spec = TarGzDirInputSpec
     output_spec = TarGzDirOutputSpec
     targz_ext = '.tar.gz'
@@ -341,7 +343,7 @@ class TarGzDir(CommandLine):
 
     def _gen_filename(self, name):
         if name == 'zipped':
-            fname = os.path.basename(self.inputs.dirname) + self.zip_ext
+            fname = os.path.basename(self.inputs.dirname) + self.targz_ext
         else:
             assert False
         return fname

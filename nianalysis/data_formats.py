@@ -74,14 +74,15 @@ freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
                                          extension='.fs.zip', converter=None)
 zip_format = DataFormat(name='zip', extension='.zip', converter='unzip')
 directory_format = DataFormat(name='directory', extension=None,
-                              converter='unzip')
-text_matrix_format = DataFormat(name='text_matrix', extension='.mat',
-                                converter=None)
-text_format = DataFormat(name='text', extension='.txt', converter=None)
-rdata_format = DataFormat(name='rdata', extension='.RData', converter=None)
-ica_format = DataFormat(name='ica', extension='.ica', converter=None)
-par_format = DataFormat(name='parameters', extension='.par', converter=None)
-png_format = DataFormat(name='png', extension='.png')
+                              directory=True)
+text_matrix_format = DataFormat(name='text_matrix', extension='.mat')
+text_format = DataFormat(name='text', extension='.txt')
+rdata_format = DataFormat(name='rdata', extension='.RData')
+ica_format = DataFormat(name='ica', extension='.ica')
+par_format = DataFormat(name='parameters', extension='.par')
+gif_format = DataFormat(name='gif', extension='.gif')
+targz_format = DataFormat(name='targz', extension='.tar.gz')
+csv_format = DataFormat(name='comma-separated_file', extension='.csv')
 
 
 class Converter(object):
