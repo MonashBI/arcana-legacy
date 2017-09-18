@@ -35,9 +35,7 @@ class XNATMixin(object):
 
     @property
     def session_id(self):
-        if '_' not in self.inputs.visit_id:
-            session_id = (self.inputs.subject_id + '_' + self.inputs.visit_id)
-        return session_id
+        return self.inputs.subject_id + '_' + self.inputs.visit_id
 
 
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
@@ -79,8 +77,6 @@ class XNATSource(ArchiveSource, XNATMixin):
     """
 
     input_spec = XNATSourceInputSpec
-
-    MD5_SUFFIX = '.md5.json'
 
     def _list_outputs(self):
         outputs = {}
@@ -201,7 +197,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                 # FIXME: Should do a check to see if versions match
                 if os.path.exists(cache_path):
                     try:
-                        with open(cache_path + self.MD5_SUFFIX) as f:
+                        with open(cache_path + XNATArchive.MD5_SUFFIX) as f:
                             cached_digests = json.load(f)
                         digests = self._get_digests(resource)
                         if cached_digests == digests:
@@ -272,7 +268,7 @@ class XNATSource(ArchiveSource, XNATMixin):
         if not data_formats[data_format].directory:
             data_path = os.path.join(data_path, fname)
         shutil.move(data_path, cache_path)
-        with open(cache_path + self.MD5_SUFFIX, 'w') as f:
+        with open(cache_path + XNATArchive.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
@@ -402,10 +398,10 @@ class XNATSinkMixin(XNATMixin):
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Create md5 digest
-#                 with open(dst_path) as f:
-#                     digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
-#                 with open(dst_path + self.MD5_SUFFIX) as f:
-#                     json.dump(digests, f)
+                with open(dst_path) as f:
+                    digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
+                with open(dst_path + XNATArchive.MD5_SUFFIX, 'w') as f:
+                    json.dump(digests, f)
                 # Upload to XNAT
                 dataset = xnat_login.classes.MrScanData(
                     type=prefixed_name, parent=session)
@@ -566,6 +562,7 @@ class XNATArchive(Archive):
 
     SUMMARY_NAME = 'ALL'
     PROCESSED_SUFFIX = '_PROC'
+    MD5_SUFFIX = '.md5.json'
 
     def __init__(self, user=None, password=None, cache_dir=None,
                  server='https://mbi-xnat.erc.monash.edu.au'):

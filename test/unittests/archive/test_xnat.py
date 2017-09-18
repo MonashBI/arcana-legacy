@@ -10,8 +10,7 @@ import xnat
 from nianalysis.testing import BaseTestCase, test_data_dir
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import (XNATArchive, XNATSource,
-                                     download_all_datasets)
+from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
 from nianalysis.data_formats import (
     nifti_gz_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec
@@ -37,10 +36,17 @@ def dummy_pipeline():
     pass
 
 
+def filter_md5_fnames(fnames):
+    return [f for f in sorted(fnames)
+            if not f.endswith(XNATArchive.MD5_SUFFIX)]
+
+
 class TestXnatArchive(BaseTestCase):
 
     PROJECT = 'TEST002'
     SUBJECT = 'TEST002_001'
+    DIGEST_SINK_PROJECT = 'TEST009'
+    DIGEST_SINK_SUBJECT = 'TEST009_001'
     VISIT = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
@@ -150,14 +156,13 @@ class TestXnatArchive(BaseTestCase):
             self.archive_cache_dir, str(self.PROJECT),
             str(self.SUBJECT),
             str(self.VISIT) + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual([f for f in sorted(os.listdir(source_cache_dir))
-                          if not f.endswith(XNATSource.MD5_SUFFIX)],
+        self.assertEqual(filter_md5_fnames(os.listdir(source_cache_dir)),
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
                                   self.STUDY_NAME + '_sink3',
                                   self.STUDY_NAME + '_sink4']
-        self.assertEqual(sorted(os.listdir(sink_cache_dir)),
+        self.assertEqual(filter_md5_fnames(os.listdir(sink_cache_dir)),
                          [d + nifti_gz_format.extension
                           for d in expected_sink_datasets])
         with self._connect() as mbi_xnat:
@@ -238,7 +243,7 @@ class TestXnatArchive(BaseTestCase):
             subject_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT, self.SUBJECT,
                 self.SUBJECT + '_' + XNATArchive.SUMMARY_NAME)
-            self.assertEqual(sorted(os.listdir(subject_dir)),
+            self.assertEqual(filter_md5_fnames(os.listdir(subject_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_subj_datasets])
             # and on XNAT
@@ -255,7 +260,7 @@ class TestXnatArchive(BaseTestCase):
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
                 (self.PROJECT + '_' + XNATArchive.SUMMARY_NAME +
                  '_' + self.VISIT))
-            self.assertEqual(sorted(os.listdir(visit_dir)),
+            self.assertEqual(filter_md5_fnames(os.listdir(visit_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_visit_datasets])
             # and on XNAT
@@ -272,7 +277,7 @@ class TestXnatArchive(BaseTestCase):
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME + '_' +
                 XNATArchive.SUMMARY_NAME)
-            self.assertEqual(sorted(os.listdir(project_dir)),
+            self.assertEqual(filter_md5_fnames(os.listdir(project_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_proj_datasets])
             # and on XNAT
@@ -326,7 +331,7 @@ class TestXnatArchive(BaseTestCase):
         session_dir = os.path.join(
             self.archive_cache_dir, self.PROJECT, self.SUBJECT,
             self.VISIT + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual(sorted(os.listdir(session_dir)),
+        self.assertEqual(filter_md5_fnames(os.listdir(session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink3.nii.gz'])
@@ -435,33 +440,35 @@ class TestXnatArchive(BaseTestCase):
         cache_dir = os.path.join(self.CACHE_BASE_PATH,
                                  'digest-check-cache')
         DATASET_NAME = 'source1'
+        STUDY_NAME = 'digest_check_study'
         dataset_fname = DATASET_NAME + nifti_gz_format.extension
-        target_path = os.path.join(cache_dir, self.PROJECT, self.SUBJECT,
-                                   self.VISIT, dataset_fname)
-        md5_path = target_path + XNATSource.MD5_SUFFIX
+        source_target_path = os.path.join(cache_dir, self.PROJECT,
+                                          self.SUBJECT, self.VISIT,
+                                          dataset_fname)
+        md5_path = source_target_path + XNATArchive.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
                                 [Dataset(DATASET_NAME, nifti_gz_format)],
-                                'digest_check_source', 'digest_check_study')
+                                'digest_check_source', STUDY_NAME)
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
         self.assertTrue(os.path.exists(md5_path))
-        self.assertTrue(os.path.exists(target_path))
+        self.assertTrue(os.path.exists(source_target_path))
         with open(md5_path) as f:
             digests = json.load(f)
         # Stash the downloaded file in a new location and create a dummy
         # file instead
-        stash_path = target_path + '.stash'
-        shutil.move(target_path, stash_path)
-        with open(target_path, 'w') as f:
+        stash_path = source_target_path + '.stash'
+        shutil.move(source_target_path, stash_path)
+        with open(source_target_path, 'w') as f:
             f.write('dummy')
         # Run the download, which shouldn't download as the digests are the
         # same
         source.run()
-        with open(target_path) as f:
+        with open(source_target_path) as f:
             d = f.read()
         self.assertEqual(d, 'dummy')
         # Replace the digest with a dummy
@@ -472,11 +479,42 @@ class TestXnatArchive(BaseTestCase):
         # Retry the download, which should now download since the digests
         # differ
         source.run()
-        with open(target_path) as f:
+        with open(source_target_path) as f:
             d = f.read()
         with open(stash_path) as f:
             e = f.read()
         self.assertEqual(d, e)
+        # Resink the source file and check that the generated MD5 digest is
+        # stored in identical format
+        DATASET_NAME = 'sink'
+        sink = archive.sink(self.DIGEST_SINK_PROJECT,
+                            [Dataset(DATASET_NAME, nifti_gz_format,
+                                     processed=True)],
+                            name='digest_check_sink',
+                            study_name=STUDY_NAME)
+        sink.inputs.name = 'digest_check_sink'
+        sink.inputs.description = "Tests the generation of MD5 digests"
+        sink.inputs.subject_id = self.DIGEST_SINK_SUBJECT
+        sink.inputs.visit_id = self.VISIT
+        sink.inputs.sink_fname = source_target_path
+        sink_fname = (STUDY_NAME + '_' + DATASET_NAME +
+                        nifti_gz_format.extension)
+        sink_target_path = os.path.join(cache_dir, self.DIGEST_SINK_PROJECT,
+                                          self.DIGEST_SINK_SUBJECT,
+                                          self.VISIT +
+                                          XNATArchive.PROCESSED_SUFFIX,
+                                          sink_fname)
+        sink_md5_path = sink_target_path + XNATArchive.MD5_SUFFIX
+        sink.run()
+        with open(md5_path) as f:
+            source_digests = json.load(f)
+        with open(sink_md5_path) as f:
+            sink_digests = json.load(f)
+        self.assertEqual(source_digests[dataset_fname],
+                         sink_digests[sink_fname],
+                         "Source digest ({}) did not equal sink digest ({})"
+                         .format(source_digests[dataset_fname],
+                                 sink_digests[sink_fname]))
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
