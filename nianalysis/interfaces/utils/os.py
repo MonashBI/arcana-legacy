@@ -1,5 +1,6 @@
 from __future__ import absolute_import
 import os.path
+import re
 import shutil
 from nipype.interfaces.base import (
     TraitedSpec, traits, BaseInterface, File, isdefined,
@@ -14,6 +15,21 @@ cp_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                            'resources', 'bash', 'copy_dir.sh'))
 mkdir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                              'resources', 'bash', 'make_dir.sh'))
+
+
+special_char_re = re.compile(r'[^\w]')
+
+
+def dicom_fname_sort_key(fname):
+    in_parts = special_char_re.split(os.path.basename(fname))
+    out_parts = []
+    for part in in_parts:
+        try:
+            part = int(part)
+        except ValueError:
+            pass
+        out_parts.append(part)
+    return tuple(out_parts)
 
 
 class JoinPathInputSpec(TraitedSpec):
