@@ -1,7 +1,8 @@
 from __future__ import absolute_import
 import os.path
+import shutil
 from nipype.interfaces.base import (
-    TraitedSpec, traits, BaseInterface, File,
+    TraitedSpec, traits, BaseInterface, File, isdefined,
     Directory, CommandLineInputSpec, CommandLine)
 from nianalysis.exceptions import NiAnalysisUsageError
 
@@ -217,3 +218,82 @@ class UnzipDir(CommandLine):
         outputs['unzipped'] = os.path.join(os.getcwd(), unzipped)
         return outputs
 
+
+class CopyToDirInputSpec(TraitedSpec):
+    in_files = traits.List(File(exists=True), mandatory=True,
+                           desc='input dicom files')
+    out_dir = File(genfile=True, desc='the output dicom file')
+
+
+class CopyToDirOutputSpec(TraitedSpec):
+    out_dir = Directory(exists=True, desc='the output dicom directory')
+
+
+class CopyToDir(BaseInterface):
+    """
+    Copies a list of files into a directory
+    """
+
+    input_spec = CopyToDirInputSpec
+    output_spec = CopyToDirOutputSpec
+
+    def _run_interface(self, runtime):
+        dirname = self._gen_outdirname()
+        os.makedirs(dirname)
+        for i, f in enumerate(self.inputs.in_files):
+            fname = os.path.join(dirname, str(i).zfill(4)) + '.dcm'
+            shutil.copy(f, fname)
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['out_dir'] = self._gen_outdirname()
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'out_dir':
+            fname = self._gen_outdirname()
+        else:
+            assert False
+        return fname
+
+    def _gen_outdirname(self):
+        if isdefined(self.inputs.out_dir):
+            dpath = self.inputs.out_dir
+        else:
+            dpath = os.path.join(os.getcwd(), 'dicom_dir')
+        return dpath
+
+
+class ListDirInputSpec(TraitedSpec):
+    directory = File(mandatory=True, desc='directory to read')
+    sort_key = traits.Function(
+        desc=("A function that generates a key from the listed filenames with "
+              "which to sort them with"))
+
+
+class ListDirOutputSpec(TraitedSpec):
+    files = traits.List(File(exists=True),
+                        desc='The files present in the directory')
+
+
+class ListDir(BaseInterface):
+    """
+    Lists all files (not sub-directories) in a directory
+    """
+
+    input_spec = ListDirInputSpec
+    output_spec = ListDirOutputSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        dname = self.inputs.directory
+        outputs = self._outputs().get()
+        key = self.inputs.sort_key if isdefined(self.inputs.sort_key) else None
+        outputs['files'] = sorted((os.path.join(dname, f)
+                                   for f in os.listdir(dname)
+                                   if os.path.isfile(os.path.join(dname, f))),
+                                  key=key)
+        return outputs
