@@ -13,7 +13,48 @@ from nianalysis.exceptions import NiAnalysisError
 logger = getLogger('NiAnalysis')
 
 
-class BaseDataset(object):
+class Base(object):
+
+    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
+                            'per_project')
+
+    __metaclass__ = ABCMeta
+
+    def __init__(self, name, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
+        assert isinstance(name, basestring)
+        assert multiplicity in self.MULTIPLICITY_OPTIONS
+        self._name = name
+        self._multiplicity = multiplicity
+
+    def __eq__(self, other):
+        try:
+            return (self.name == other.name and
+                    self.multiplicity == other.multiplicity)
+        except AttributeError as e:
+            assert not e.message.startswith(
+                "'{}'".format(self.__class__.__name__))
+            return False
+
+    def __ne__(self, other):
+        return not (self == other)
+
+    def __iter__(self):
+        return iter(self.to_tuple())
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def format(self):
+        return self._format
+
+    @property
+    def multiplicity(self):
+        return self._multiplicity
+
+
+class BaseDataset(Base):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a processed dataset.
@@ -31,46 +72,20 @@ class BaseDataset(object):
         visit or project.
     """
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
-                            'per_project')
-
     __metaclass__ = ABCMeta
 
     def __init__(self, name, format=None, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
-        assert isinstance(name, basestring)
+        super(BaseDataset, self).__init__(name=name, multiplicity=multiplicity)
         assert format is None or isinstance(format, DataFormat)
-        assert multiplicity in self.MULTIPLICITY_OPTIONS
-        self._name = name
         self._format = format
-        self._multiplicity = multiplicity
 
     def __eq__(self, other):
-        try:
-            return (self.name == other.name and
-                    self.format == other.format and
-                    self.multiplicity == other.multiplicity)
-        except AttributeError as e:
-            assert not e.message.startswith(
-                "'{}'".format(self.__class__.__name__))
-            return False
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    @property
-    def name(self):
-        return self._name
+        return (super(BaseDataset, self).__eq__(other) and
+                self._format == format)
 
     @property
     def format(self):
         return self._format
-
-    @property
-    def multiplicity(self):
-        return self._multiplicity
-
-    def __iter__(self):
-        return iter(self.to_tuple())
 
     def to_tuple(self):
         return (self.name, self.format.name, self.multiplicity, self.processed,
@@ -278,3 +293,99 @@ class DatasetSpec(BaseDataset):
         return ("DatasetSpec(name='{}', format={}, pipeline={}, "
                 "multiplicity={})".format(
                     self.name, self.format, self.pipeline, self.multiplicity))
+
+
+class BaseValue(Base):
+    """
+    An abstract base class representing either an acquired dataset or the
+    specification for a processed dataset.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    """
+
+    dtypes = (int, float, str)
+
+    def __init__(self, name, dtype=float, multiplicity='per_session'):
+        super(BaseValue, self).__init__(name, multiplicity)
+        if dtype not in self.dtypes:
+            raise NiAnalysisError(
+                "Invalid dtype {} (can be one of '{}')"
+                .format(dtype, "', '".join(dt.__name__ for dt in self.dtypes)))
+        self._dtype = dtype
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    def to_tuple(self):
+        return (self.name, self.dtype.__name__, self.multiplicity,
+                self.processed, self.is_spec)
+
+    @classmethod
+    def from_tuple(cls, tple):
+        name, dtype_name, multiplicity, processed = tple
+        if dtype_name not in (dt.__name__ for dt in cls.dtypes):
+            raise NiAnalysisError(
+                "Invalid dtype name '{}' (can be one of '{}')"
+                .format(dtype_name, "', '".join(
+                    dt.__name__ for dt in cls.dtypes)))
+        return cls(name, eval(dtype_name), pipeline=processed,
+                   multiplicity=multiplicity)
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, multiplicity={})"
+                .format(self.__class__.__name__, self.dtype, self.format,
+                        self.multiplicity))
+
+
+class Value(BaseValue):
+    """
+    An abstract base class representing either an acquired dataset or the
+    specification for a processed dataset.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    """
+
+    dtypes = (int, float, str)
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    def to_tuple(self):
+        return (self.name, self.dtype.__name__, self.multiplicity,
+                self.processed, self.is_spec)
+
+    @classmethod
+    def from_tuple(cls, tple):
+        name, dtype_name, multiplicity, processed = tple
+        if dtype_name not in (dt.__name__ for dt in cls.dtypes):
+            raise NiAnalysisError(
+                "Invalid dtype name '{}' (can be one of '{}')"
+                .format(dtype_name, "', '".join(
+                    dt.__name__ for dt in cls.dtypes)))
+        return cls(name, eval(dtype_name), pipeline=processed,
+                   multiplicity=multiplicity)
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, multiplicity={})"
+                .format(self.__class__.__name__, self.dtype, self.format,
+                        self.multiplicity))
