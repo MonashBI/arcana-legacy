@@ -189,7 +189,7 @@ class Pipeline(object):
                                      updatehash=updatehash)
 
     def submit(self, work_dir, scheduler='slurm', email=None,
-               mail_on=('END', 'FAIL'), **kwargs):
+               mail_on=('FAIL',), **kwargs):
         """
         Submits a pipeline to a scheduler que for processing
 
