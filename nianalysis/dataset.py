@@ -312,19 +312,9 @@ class BaseValue(Base):
         visit or project.
     """
 
+    __metaclass__ = ABCMeta
+
     dtypes = (int, float, str)
-
-    def __init__(self, name, dtype=float, multiplicity='per_session'):
-        super(BaseValue, self).__init__(name, multiplicity)
-        if dtype not in self.dtypes:
-            raise NiAnalysisError(
-                "Invalid dtype {} (can be one of '{}')"
-                .format(dtype, "', '".join(dt.__name__ for dt in self.dtypes)))
-        self._dtype = dtype
-
-    @property
-    def dtype(self):
-        return self._dtype
 
     def to_tuple(self):
         return (self.name, self.dtype.__name__, self.multiplicity,
@@ -356,19 +346,33 @@ class Value(BaseValue):
     ----------
     name : str
         The name of the dataset
-    dtype : type
+    value : type
         The datatype of the value. Can be one of (float, int, str)
     multiplicity : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
+    processed : bool
+        Whether or not the value belongs in the processed session or not
     """
 
-    dtypes = (int, float, str)
+    def __init__(self, name, value, multiplicity='per_session',
+                 processed=False):
+        super(BaseValue, self).__init__(name, multiplicity)
+        self._value = value
+        self._processed = processed
 
     @property
     def dtype(self):
-        return self._dtype
+        return type(self.value)
+
+    @property
+    def value(self):
+        return self._value
+
+    @property
+    def processed(self):
+        return self._processed
 
     def to_tuple(self):
         return (self.name, self.dtype.__name__, self.multiplicity,
@@ -376,16 +380,98 @@ class Value(BaseValue):
 
     @classmethod
     def from_tuple(cls, tple):
-        name, dtype_name, multiplicity, processed = tple
-        if dtype_name not in (dt.__name__ for dt in cls.dtypes):
-            raise NiAnalysisError(
-                "Invalid dtype name '{}' (can be one of '{}')"
-                .format(dtype_name, "', '".join(
-                    dt.__name__ for dt in cls.dtypes)))
-        return cls(name, eval(dtype_name), pipeline=processed,
+        name, value, multiplicity, processed = tple
+        return cls(name, eval(value), pipeline=processed,
                    multiplicity=multiplicity)
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={})"
-                .format(self.__class__.__name__, self.dtype, self.format,
-                        self.multiplicity))
+        return ("{}(name='{}', value={}, multiplicity={}, processed={})"
+                .format(self.__class__.__name__, self.value, self.format,
+                        self.processed))
+
+
+class ValueSpec(BaseValue):
+
+    is_spec = True
+
+    def __init__(self, name, dtype, pipeline=None, multiplicity='per_session',
+                 description=None):
+        super(BaseValue, self).__init__(name, multiplicity)
+        if dtype not in self.dtypes:
+            raise NiAnalysisError(
+                "Invalid dtype {} (can be one of '{}')"
+                .format(dtype, "', '".join(dt.__name__ for dt in self.dtypes)))
+        self._dtype = dtype
+        self._pipeline = pipeline
+        self._description = description
+        self._prefix = ''
+
+    def __eq__(self, other):
+        return (super(ValueSpec, self).__eq__(other) and
+                self.pipeline == other.pipeline and
+                self.dtype == other.dtype)
+
+    @property
+    def prefixed_name(self):
+        return self._prefix + self.name
+
+    @property
+    def dtype(self):
+        return self._dtype
+
+    @property
+    def pipeline(self):
+        return self._pipeline
+
+    @property
+    def processed(self):
+        return self._pipeline is not None
+
+    @property
+    def description(self):
+        return self._description
+
+    def renamed_copy(self, name):
+        cpy = copy(self)
+        cpy._name = name
+        return cpy
+
+    @property
+    def filename(self):
+        return self._prefix + super(DatasetSpec, self).filename
+
+    def apply_prefix(self, prefix):
+        """
+        Duplicate the dataset and provide a prefix to apply to the filename
+        """
+        duplicate = copy(self)
+        duplicate._prefix = prefix
+        return duplicate
+
+    @classmethod
+    def traits_spec(self):
+        """
+        Return the specification for a Dataset as a tuple
+        """
+        return traits.Tuple(  # @UndefinedVariable
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of file"),
+            traits.Str(  # @UndefinedVariable
+                mandatory=True,
+                desc="name of the dataset format"),
+            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                       desc="multiplicity of the dataset (one of '{}')".format(
+                            "', '".join(self.MULTIPLICITY_OPTIONS))),
+            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        desc=("whether the dataset is stored in the processed "
+                              "dataset location")),
+            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
+                        desc=("whether the dataset was explicitly provided to "
+                              "the study, or whether it is to be implicitly "
+                              "generated")))
+
+    def __repr__(self):
+        return ("DatasetSpec(name='{}', format={}, pipeline={}, "
+                "multiplicity={})".format(
+                    self.name, self.format, self.pipeline, self.multiplicity))
