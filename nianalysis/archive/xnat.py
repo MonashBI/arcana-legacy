@@ -80,6 +80,14 @@ class XNATSource(ArchiveSource, XNATMixin):
 
     input_spec = XNATSourceInputSpec
 
+    def __init__(self, *args, **kwargs):
+        self._check_md5 = kwargs.pop('check_md5', True)
+        super(XNATSource, self).__init__(*args, **kwargs)
+
+    @property
+    def check_md5(self):
+        return self._check_md5
+
     def _list_outputs(self):
         # FIXME: Should probably not prepend the project before this point
         subject_id = self.inputs.subject_id.split('_')[-1]
@@ -147,14 +155,18 @@ class XNATSource(ArchiveSource, XNATMixin):
                     os.makedirs(cache_dir)
                 cache_path = os.path.join(cache_dir, fname)
                 if os.path.exists(cache_path):
-                    try:
-                        with open(cache_path + XNATArchive.MD5_SUFFIX) as f:
-                            cached_digests = json.load(f)
-                        digests = self._get_digests(resource)
-                        if cached_digests == digests:
-                            need_to_download = False
-                    except IOError:
-                        pass
+                    if self.check_md5:
+                        try:
+                            with open(cache_path +
+                                      XNATArchive.MD5_SUFFIX) as f:
+                                cached_digests = json.load(f)
+                            digests = self._get_digests(resource)
+                            if cached_digests == digests:
+                                need_to_download = False
+                        except IOError:
+                            pass
+                    else:
+                        need_to_download = False
                 if need_to_download:
                     # The path to the directory which the files will be
                     # downloaded to.
@@ -540,6 +552,20 @@ class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
 class XNATArchive(Archive):
     """
     An 'Archive' class for the DaRIS research management system.
+
+    Parameters
+    ----------
+    user : str
+        Username with which to connect to XNAT with
+    password : str
+        Password to connect to XNAt with
+    cache_dir : str (path)
+        Path to local directory to cache XNAT data in
+    server : str (URI)
+        URI of XNAT server to connect to
+    check_md5 : bool
+        Whether to check the MD5 digest of cached files before using. This
+        checks for updates on the server since the file was cached
     """
 
     type = 'xnat'
@@ -554,7 +580,8 @@ class XNATArchive(Archive):
     MD5_SUFFIX = '.md5.json'
 
     def __init__(self, user=None, password=None, cache_dir=None,
-                 server='https://mbi-xnat.erc.monash.edu.au'):
+                 server='https://mbi-xnat.erc.monash.edu.au',
+                 check_md5=True):
         self._server = server
         self._user = user
         self._password = password
@@ -568,6 +595,7 @@ class XNATArchive(Archive):
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
+        self._check_md5 = check_md5
 
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
