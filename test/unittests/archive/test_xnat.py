@@ -17,7 +17,7 @@ from nianalysis.data_formats import (
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import FNAME_SUFFIX
 from nianalysis.exceptions import NiAnalysisError
 import sys
 # Import TestExistingPrereqs study to test it on XNAT
@@ -146,8 +146,8 @@ class TestXnatArchive(BaseTestCase):
             if source_file.name != 'source2':
                 sink_name = source_file.name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_file.name + OUTPUT_SUFFIX,
-                    sink, sink_name + INPUT_SUFFIX)
+                    source, source_file.name + FNAME_SUFFIX,
+                    sink, sink_name + FNAME_SUFFIX)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
@@ -229,14 +229,14 @@ class TestXnatArchive(BaseTestCase):
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
         workflow.connect(
-            source, 'source1' + OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + INPUT_SUFFIX)
+            source, 'source1' + FNAME_SUFFIX,
+            subject_sink, 'sink1' + FNAME_SUFFIX)
         workflow.connect(
-            source, 'source2' + OUTPUT_SUFFIX,
-            visit_sink, 'sink2' + INPUT_SUFFIX)
+            source, 'source2' + FNAME_SUFFIX,
+            visit_sink, 'sink2' + FNAME_SUFFIX)
         workflow.connect(
-            source, 'source3' + OUTPUT_SUFFIX,
-            project_sink, 'sink3' + INPUT_SUFFIX)
+            source, 'source3' + FNAME_SUFFIX,
+            project_sink, 'sink3' + FNAME_SUFFIX)
         workflow.run()
         with self._connect() as mbi_xnat:
             # Check subject summary directories were created properly in cache
@@ -321,12 +321,12 @@ class TestXnatArchive(BaseTestCase):
                                reloadsink, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'visit_id',
                                reloadsink, 'visit_id')
-        reloadworkflow.connect(reloadsource, 'sink1' + OUTPUT_SUFFIX,
-                               reloadsink, 'resink1' + INPUT_SUFFIX)
-        reloadworkflow.connect(reloadsource, 'sink2' + OUTPUT_SUFFIX,
-                               reloadsink, 'resink2' + INPUT_SUFFIX)
-        reloadworkflow.connect(reloadsource, 'sink3' + OUTPUT_SUFFIX,
-                               reloadsink, 'resink3' + INPUT_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink1' + FNAME_SUFFIX,
+                               reloadsink, 'resink1' + FNAME_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink2' + FNAME_SUFFIX,
+                               reloadsink, 'resink2' + FNAME_SUFFIX)
+        reloadworkflow.connect(reloadsource, 'sink3' + FNAME_SUFFIX,
+                               reloadsink, 'resink3' + FNAME_SUFFIX)
         reloadworkflow.run()
         # Check that the datasets
         session_dir = os.path.join(
@@ -545,7 +545,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         graph = workflow.run()
         result = next(n.result for n in graph.nodes() if n.name == source.name)
         for dname in self.DATASETS:
-            path = getattr(result.outputs, dname + OUTPUT_SUFFIX)
+            path = getattr(result.outputs, dname + FNAME_SUFFIX)
             self.assertEqual(os.path.basename(path), dname)
             self.assertTrue(os.path.exists(path))
 

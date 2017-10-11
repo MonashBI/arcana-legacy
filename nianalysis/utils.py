@@ -2,8 +2,8 @@ import os.path
 from nianalysis.exceptions import NiAnalysisError
 
 
-OUTPUT_SUFFIX = '_fname'
-INPUT_SUFFIX = '_fname'
+FNAME_SUFFIX = '_fname'
+FNAME_SUFFIX = '_fname'
 
 FIELD_SUFFIX = '_field'
 

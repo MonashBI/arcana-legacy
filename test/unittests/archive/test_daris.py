@@ -8,7 +8,7 @@ from nianalysis.archive.daris.base import (
 from nianalysis.exceptions import DarisException
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import FNAME_SUFFIX
 from nianalysis.testing import BaseTestCase
 from nianalysis.archive.xnat import download_all_datasets
 
@@ -320,8 +320,8 @@ class TestDarisArchive(BaseTestCase):
             if source_file.name != 'source2':
                 sink_name = source_file.name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_file.name + OUTPUT_SUFFIX,
-                    sink, sink_name + INPUT_SUFFIX)
+                    source, source_file.name + FNAME_SUFFIX,
+                    sink, sink_name + FNAME_SUFFIX)
         workflow.run()
         # Check cache was created properly
         source_cache_dir = os.path.join(
@@ -458,11 +458,11 @@ class TestDarisArchiveSummary(BaseTestCase):
         workflow.connect(inputnode, 'session_id', source, 'session_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(
-            source, 'source1' + OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + INPUT_SUFFIX)
+            source, 'source1' + FNAME_SUFFIX,
+            subject_sink, 'sink1' + FNAME_SUFFIX)
         workflow.connect(
-            source, 'source2' + OUTPUT_SUFFIX,
-            project_sink, 'sink2' + INPUT_SUFFIX)
+            source, 'source2' + FNAME_SUFFIX,
+            project_sink, 'sink2' + FNAME_SUFFIX)
         workflow.run()
         # Check cached summary directories were created properly
         subject_dir = os.path.join(
@@ -516,13 +516,13 @@ class TestDarisArchiveSummary(BaseTestCase):
         reloadworkflow.connect(reloadinputnode, 'session_id',
                                reloadsink, 'session_id')
         reloadworkflow.connect(reloadsource,
-                               'sink1' + OUTPUT_SUFFIX,
+                               'sink1' + FNAME_SUFFIX,
                                reloadsink,
-                               'resink1' + INPUT_SUFFIX)
+                               'resink1' + FNAME_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink2' + OUTPUT_SUFFIX,
+                               'sink2' + FNAME_SUFFIX,
                                reloadsink,
-                               'resink2' + INPUT_SUFFIX)
+                               'resink2' + FNAME_SUFFIX)
         reloadworkflow.run()
         session_dir = os.path.join(
             self.archive_cache_dir, str(REPO_ID), str(PROJECT_ID),

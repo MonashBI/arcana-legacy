@@ -15,7 +15,7 @@ from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import FNAME_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 from rdflib import plugin
@@ -392,11 +392,11 @@ class Pipeline(object):
                 conv_node_name = '{}_{}_input_conversion'.format(self.name,
                                                                   inpt.name)
                 dataset_source, dataset_name = get_converter_node(
-                    dataset, dataset.name + OUTPUT_SUFFIX, inpt.format,
+                    dataset, dataset.name + FNAME_SUFFIX, inpt.format,
                     source, complete_workflow, conv_node_name)
             else:
                 dataset_source = source
-                dataset_name = dataset.name + OUTPUT_SUFFIX
+                dataset_name = dataset.name + FNAME_SUFFIX
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt.name)
@@ -438,7 +438,7 @@ class Pipeline(object):
                         node_dataset_name = dataset.name
                     complete_workflow.connect(
                         output_node, node_dataset_name,
-                        sink, dataset.name + INPUT_SUFFIX)
+                        sink, dataset.name + FNAME_SUFFIX)
             self._connect_to_reports(
                 sink, report, mult, subjects, sessions, complete_workflow)
         return report

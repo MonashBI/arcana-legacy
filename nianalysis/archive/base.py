@@ -7,7 +7,7 @@ from nipype.interfaces.base import (
 from nianalysis.nodes import Node
 from nianalysis.dataset import Dataset, DatasetSpec, FieldSpec
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX, FIELD_SUFFIX
+from nianalysis.utils import FNAME_SUFFIX, FIELD_SUFFIX
 
 
 class Archive(object):
@@ -179,7 +179,7 @@ class ArchiveSource(IOBase):
         pass
 
     def _add_output_traits(self, base):
-        return add_traits(base, [dataset[0] + OUTPUT_SUFFIX
+        return add_traits(base, [dataset[0] + FNAME_SUFFIX
                                  for dataset in self.inputs.datasets])
 
 
@@ -219,7 +219,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         # unpickling
         if (isdefined(self.datasets) and self.datasets and
                 not hasattr(self, name)):
-            accepted = [s[0] + INPUT_SUFFIX for s in self.datasets]
+            accepted = [s[0] + FNAME_SUFFIX for s in self.datasets]
             assert name in accepted, (
                 "'{}' is not a valid input filename for '{}' archive sink "
                 "(accepts '{}')".format(name, self.name,
@@ -302,7 +302,7 @@ class BaseArchiveSink(IOBase):
         self._outfields = None
         # Add output datasets
         for dataset in output_datasets:
-            self.inputs.add_trait(dataset.name + INPUT_SUFFIX, traits.Str)
+            self.inputs.add_trait(dataset.name + FNAME_SUFFIX, traits.Str)
             self.inputs.trait_set(trait_change_notify=False,
                                   **{dataset.name: Undefined})
             # Access the trait (not sure why but this is done in add_traits
