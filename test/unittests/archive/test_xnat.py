@@ -378,15 +378,16 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
                                 [Dataset(DATASET_NAME, nifti_gz_format)],
-                                'delayed_source', 'delayed_study')
+                                name='delayed_source',
+                                study_name='delayed_study')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         result1 = source.run()
-        source1_fname = result1.outputs.source1_fname
-        self.assertTrue(os.path.exists(source1_fname))
-        self.assertEqual(source1_fname, target_path,
+        source1_path = result1.outputs.source1_path
+        self.assertTrue(os.path.exists(source1_path))
+        self.assertEqual(source1_path, target_path,
                          "Output file path '{}' not equal to target path '{}'"
-                         .format(source1_fname, target_path))
+                         .format(source1_path, target_path))
         # Clear cache to start again
         shutil.rmtree(cache_dir, ignore_errors=True)
         # Create tmp_dir before running interface, this time should wait for 1
@@ -395,7 +396,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(tmp_dir)
         source.inputs.race_cond_delay = 1
         result2 = source.run()
-        source1_fname = result2.outputs.source1_fname
+        source1_path = result2.outputs.source1_path
         # Clear cache to start again
         shutil.rmtree(cache_dir, ignore_errors=True)
         # Create tmp_dir before running interface, this time should wait for 1
@@ -452,7 +453,8 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
                                 [Dataset(DATASET_NAME, nifti_gz_format)],
-                                'digest_check_source', STUDY_NAME)
+                                name='digest_check_source',
+                                study_name=STUDY_NAME)
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
