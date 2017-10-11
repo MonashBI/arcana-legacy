@@ -218,6 +218,8 @@ class DatasetSpec(BaseDataset):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
+    description : str
+        Description of what the field represents
     """
 
     is_spec = True
@@ -295,10 +297,10 @@ class DatasetSpec(BaseDataset):
                     self.name, self.format, self.pipeline, self.multiplicity))
 
 
-class BaseValue(Base):
+class BaseField(Base):
     """
-    An abstract base class representing either an acquired dataset or the
-    specification for a processed dataset.
+    An abstract base class representing either an acquired value or the
+    specification for a processed value.
 
     Parameters
     ----------
@@ -316,37 +318,61 @@ class BaseValue(Base):
 
     dtypes = (int, float, str)
 
+    def __init__(self, name, dtype, multiplicity):
+        super(BaseField, self).__init__(name, multiplicity)
+        if dtype not in self.dtypes:
+            raise NiAnalysisError(
+                "Invalid dtype {}, can be one of {}".format(
+                    dtype.__name__, ', '.join(self._dtype_names())))
+        self._dtype = dtype
+
+    def __eq__(self, other):
+        return (super(BaseField, self).__eq__(other) and
+                self.dtype == other.dtype)
+
+    @property
+    def dtype(self):
+        return self._dtype
+
     def to_tuple(self):
-        return (self.name, self.dtype.__name__, self.multiplicity,
+        return (self.name, self.dtype, self.multiplicity,
                 self.processed, self.is_spec)
 
     @classmethod
     def from_tuple(cls, tple):
-        name, dtype_name, multiplicity, processed = tple
-        if dtype_name not in (dt.__name__ for dt in cls.dtypes):
+        name, dtype, multiplicity, processed = tple
+        if dtype not in cls.dtypes:
             raise NiAnalysisError(
-                "Invalid dtype name '{}' (can be one of '{}')"
-                .format(dtype_name, "', '".join(
-                    dt.__name__ for dt in cls.dtypes)))
-        return cls(name, eval(dtype_name), pipeline=processed,
+                "Invalid dtype {}, can be one of {}".format(
+                    dtype.__name__, ', '.join(cls._dtype_names())))
+        return cls(name, dtype, pipeline=processed,
                    multiplicity=multiplicity)
 
-    def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={})"
-                .format(self.__class__.__name__, self.dtype, self.format,
-                        self.multiplicity))
+    @classmethod
+    def _dtype_names(cls):
+        return (d.__name__ for d in cls.dtypes)
+
+    @property
+    def trait_cls(self):
+        if self.dtype == int:
+            trait_type = traits.Int
+        elif self.dtype == float:
+            trait_type = traits.Float
+        elif self.dtype == str:
+            trait_type = traits.Str
+        return trait_type
 
 
-class Value(BaseValue):
+class Field(BaseField):
     """
-    An abstract base class representing either an acquired dataset or the
+    An abstract base class representing either an acquired value or the
     specification for a processed dataset.
 
     Parameters
     ----------
     name : str
         The name of the dataset
-    value : type
+    dtype : type
         The datatype of the value. Can be one of (float, int, str)
     multiplicity : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
@@ -356,60 +382,56 @@ class Value(BaseValue):
         Whether or not the value belongs in the processed session or not
     """
 
-    def __init__(self, name, value, multiplicity='per_session',
+    is_spec = False
+
+    def __init__(self, name, dtype, multiplicity='per_session',
                  processed=False):
-        super(BaseValue, self).__init__(name, multiplicity)
-        self._value = value
+        super(BaseField, self).__init__(name, dtype, multiplicity)
         self._processed = processed
-
-    @property
-    def dtype(self):
-        return type(self.value)
-
-    @property
-    def value(self):
-        return self._value
 
     @property
     def processed(self):
         return self._processed
 
-    def to_tuple(self):
-        return (self.name, self.dtype.__name__, self.multiplicity,
-                self.processed, self.is_spec)
-
-    @classmethod
-    def from_tuple(cls, tple):
-        name, value, multiplicity, processed = tple
-        return cls(name, eval(value), pipeline=processed,
-                   multiplicity=multiplicity)
-
     def __repr__(self):
-        return ("{}(name='{}', value={}, multiplicity={}, processed={})"
-                .format(self.__class__.__name__, self.value, self.format,
-                        self.processed))
+        return ("{}(name='{}', dtype={}, multiplicity={}, processed={})"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.multiplicity, self.processed))
 
 
-class ValueSpec(BaseValue):
+class FieldSpec(BaseField):
+    """
+    An abstract base class representing either an acquired value or the
+    specification for a processed dataset.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    pipeline : method
+        Method that generates values for the specified field.
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    description : str
+        Description of what the field represents
+    """
 
     is_spec = True
 
     def __init__(self, name, dtype, pipeline=None, multiplicity='per_session',
                  description=None):
-        super(BaseValue, self).__init__(name, multiplicity)
-        if dtype not in self.dtypes:
-            raise NiAnalysisError(
-                "Invalid dtype {} (can be one of '{}')"
-                .format(dtype, "', '".join(dt.__name__ for dt in self.dtypes)))
-        self._dtype = dtype
+        super(BaseField, self).__init__(name, dtype, multiplicity)
         self._pipeline = pipeline
         self._description = description
         self._prefix = ''
 
     def __eq__(self, other):
-        return (super(ValueSpec, self).__eq__(other) and
-                self.pipeline == other.pipeline and
-                self.dtype == other.dtype)
+        return (super(FieldSpec, self).__eq__(other) and
+                self.pipeline == other.pipeline)
 
     @property
     def prefixed_name(self):
@@ -436,10 +458,6 @@ class ValueSpec(BaseValue):
         cpy._name = name
         return cpy
 
-    @property
-    def filename(self):
-        return self._prefix + super(DatasetSpec, self).filename
-
     def apply_prefix(self, prefix):
         """
         Duplicate the dataset and provide a prefix to apply to the filename
@@ -457,21 +475,22 @@ class ValueSpec(BaseValue):
             traits.Str(  # @UndefinedVariable
                 mandatory=True,
                 desc="name of file"),
-            traits.Str(  # @UndefinedVariable
+            traits.Class(  # @UndefinedVariable
                 mandatory=True,
-                desc="name of the dataset format"),
+                desc="The datatype of the field"),
             traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
                        desc="multiplicity of the dataset (one of '{}')".format(
                             "', '".join(self.MULTIPLICITY_OPTIONS))),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the dataset is stored in the processed "
+                        desc=("whether the field is stored in the processed "
                               "dataset location")),
             traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the dataset was explicitly provided to "
+                        desc=("whether the field was explicitly provided to "
                               "the study, or whether it is to be implicitly "
                               "generated")))
 
     def __repr__(self):
-        return ("DatasetSpec(name='{}', format={}, pipeline={}, "
+        return ("{}(name='{}', format={}, pipeline={}, "
                 "multiplicity={})".format(
-                    self.name, self.format, self.pipeline, self.multiplicity))
+                    self.__class__.__name__, self.name, self.format,
+                    self.pipeline, self.multiplicity))

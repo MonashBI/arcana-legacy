@@ -5,9 +5,9 @@ from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
     Undefined, isdefined, File, Directory)
 from nianalysis.nodes import Node
-from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.dataset import Dataset, DatasetSpec, FieldSpec
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX, FIELD_SUFFIX
 
 
 class Archive(object):
@@ -19,7 +19,8 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_datasets, name=None, study_name=None):
+    def source(self, project_id, input_datasets, input_fields, name=None,
+               study_name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -31,7 +32,10 @@ class Archive(object):
             The ID of the project to return the sessions for
         input_datasets : list[Dataset]
             An iterable of nianalysis.Dataset objects, which specify the
-            datasets to extract from the archive system for each session
+            datasets to extract from the archive system
+        input_fields : list(Field)
+            An iterable of nianalysis.Field objects, which specify the fields
+            to extract from the archive system
         name : str
             Name of the NiPype node
         study_name: str
@@ -43,13 +47,14 @@ class Archive(object):
         source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
         source.inputs.datasets = [s.to_tuple() for s in input_datasets]
+        source.inputs.fields = [f.to_tuple() for f in input_fields]
         if study_name is not None:
             source.inputs.study_name = study_name
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets, multiplicity='per_session',
-             name=None, study_name=None):
+    def sink(self, project_id, output_datasets, output_fields,
+             multiplicity='per_session', name=None, study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -61,7 +66,10 @@ class Archive(object):
             The ID of the project to return the sessions for
         output_datasets : List[BaseFile]
             An iterable of nianalysis.Dataset objects, which specify the
-            datasets to extract from the archive system for each session
+            datasets to put into the archive system
+        output_fields : list(Field)
+            An iterable of nianalysis.Field objects, which specify the fields
+            to put into the archive system
         name : str
             Name of the NiPype node
         study_name: str
@@ -86,9 +94,11 @@ class Archive(object):
             name = "{}_{}_sink".format(self.type, multiplicity)
         # Ensure iterators aren't exhausted
         output_datasets = list(output_datasets)
-        sink = Node(sink_class(output_datasets), name=name)
+        output_fields = list(output_fields)
+        sink = Node(sink_class(output_datasets, output_fields), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
+        sink.inputs.fields = [f.to_tuple() for f in output_fields]
         if study_name is not None:
             sink.inputs.study_name = study_name
         return sink
@@ -190,7 +200,12 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                              desc="Description of the study")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
-        desc="Names of all datasets that comprise the (sub)project")
+        desc="Lists the datasets to be retrieved from the archive")
+
+    fields = traits.List(
+        FieldSpec.traits_spec(),
+        desc=("List of all the fields to be retrieved from the archive"))
+
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
@@ -268,7 +283,7 @@ class BaseArchiveSink(IOBase):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, output_datasets, **kwargs):
+    def __init__(self, output_datasets, output_fields, **kwargs):
         """
         Parameters
         ----------
@@ -285,8 +300,22 @@ class BaseArchiveSink(IOBase):
         # used for mandatory inputs check
         self._infields = None
         self._outfields = None
-        add_traits(self.inputs, [s.name + INPUT_SUFFIX
-                                 for s in output_datasets])
+        # Add output datasets
+        for dataset in output_datasets:
+            self.inputs.add_trait(dataset.name + INPUT_SUFFIX, traits.Str)
+            self.inputs.trait_set(trait_change_notify=False,
+                                  **{dataset.name: Undefined})
+            # Access the trait (not sure why but this is done in add_traits
+            # so I have also done it here
+            getattr(self.inputs, dataset.name)
+        # Add output fields
+        for field in output_fields:
+            self.inputs.add_trait(field.name + FIELD_SUFFIX, field.trait_cls)
+            self.inputs.trait_set(trait_change_notify=False,
+                                  **{field.name: Undefined})
+            # Access the trait (not sure why but this is done in add_traits
+            # so I have also done it here
+            getattr(self.inputs, field.name)
 
     @abstractmethod
     def _base_outputs(self):
