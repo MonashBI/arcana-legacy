@@ -93,7 +93,9 @@ class BaseDataset(Base):
 
     @classmethod
     def from_tuple(cls, tple):
-        name, format_name, multiplicity, processed = tple
+        name, format_name, multiplicity, processed, is_spec = tple
+        assert (is_spec and issubclass(DatasetSpec, cls) or
+                not is_spec and issubclass(Dataset, cls))
         data_format = data_formats[format_name]
         return cls(name, data_format, pipeline=processed,
                    multiplicity=multiplicity)
@@ -340,7 +342,9 @@ class BaseField(Base):
 
     @classmethod
     def from_tuple(cls, tple):
-        name, dtype, multiplicity, processed = tple
+        name, dtype, multiplicity, processed, is_spec = tple
+        assert (is_spec and issubclass(FieldSpec, cls) or
+                not is_spec and issubclass(Field, cls))
         if dtype not in cls.dtypes:
             raise NiAnalysisError(
                 "Invalid dtype {}, can be one of {}".format(
@@ -351,16 +355,6 @@ class BaseField(Base):
     @classmethod
     def _dtype_names(cls):
         return (d.__name__ for d in cls.dtypes)
-
-    @property
-    def trait_cls(self):
-        if self.dtype == int:
-            trait_type = traits.Int
-        elif self.dtype == float:
-            trait_type = traits.Float
-        elif self.dtype == str:
-            trait_type = traits.Str
-        return trait_type
 
 
 class Field(BaseField):

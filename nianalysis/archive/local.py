@@ -18,7 +18,7 @@ from nianalysis.dataset import Dataset
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
-from nianalysis.utils import FNAME_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 
 
 logger = logging.getLogger('NiAnalysis')
@@ -70,7 +70,7 @@ class LocalSource(ArchiveSource):
             # Prepend study name if defined
             if is_spec and isdefined(self.inputs.study_name):
                 fname = self.inputs.study_name + '_' + fname
-            outputs[name + FNAME_SUFFIX] = os.path.join(data_dir, fname)
+            outputs[name + PATH_SUFFIX] = os.path.join(data_dir, fname)
         return outputs
 
 
@@ -127,7 +127,7 @@ class LocalSinkMixin(object):
             assert processed, (
                 "Should only be sinking processed datasets, not '{}'"
                 .format(name))
-            filename = getattr(self.inputs, name + FNAME_SUFFIX)
+            filename = getattr(self.inputs, name + PATH_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):
                 missing_files.append(name)

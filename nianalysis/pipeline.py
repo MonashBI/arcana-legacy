@@ -15,7 +15,7 @@ from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
-from nianalysis.utils import FNAME_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 from rdflib import plugin
@@ -392,11 +392,11 @@ class Pipeline(object):
                 conv_node_name = '{}_{}_input_conversion'.format(self.name,
                                                                   inpt.name)
                 dataset_source, dataset_name = get_converter_node(
-                    dataset, dataset.name + FNAME_SUFFIX, inpt.format,
+                    dataset, dataset.name + PATH_SUFFIX, inpt.format,
                     source, complete_workflow, conv_node_name)
             else:
                 dataset_source = source
-                dataset_name = dataset.name + FNAME_SUFFIX
+                dataset_name = dataset.name + PATH_SUFFIX
             # Connect the dataset to the pipeline input
             complete_workflow.connect(dataset_source, dataset_name,
                                       self.inputnode, inpt.name)
@@ -410,7 +410,8 @@ class Pipeline(object):
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
                 self.study._project_id,
-                (self.study.dataset(o) for o in outputs), mult,
+                (self.study.dataset(o) for o in outputs),
+                multiplicity=mult,
                 study_name=self.study.name,
                 name='{}_{}_sink'.format(self.name, mult))
             sink.inputs.description = self.description
@@ -438,7 +439,7 @@ class Pipeline(object):
                         node_dataset_name = dataset.name
                     complete_workflow.connect(
                         output_node, node_dataset_name,
-                        sink, dataset.name + FNAME_SUFFIX)
+                        sink, dataset.name + PATH_SUFFIX)
             self._connect_to_reports(
                 sink, report, mult, subjects, sessions, complete_workflow)
         return report

@@ -5,7 +5,7 @@ from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset, DatasetSpec
 import logging
-from nianalysis.utils import FNAME_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase
 
 logger = logging.getLogger('NiAnalysis')
@@ -38,7 +38,7 @@ class TestLocalArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.SESSION
+        inputnode.inputs.visit_id = self.VISIT
         source = archive.source(self.name, source_files,
                                 study_name=self.STUDY_NAME)
         sink = archive.sink(self.name, sink_files, study_name=self.STUDY_NAME)
@@ -57,8 +57,8 @@ class TestLocalArchive(BaseTestCase):
                 source_name = source_file.name
                 sink_name = source_name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_name + FNAME_SUFFIX,
-                    sink, sink_name + FNAME_SUFFIX)
+                    source, source_name + PATH_SUFFIX,
+                    sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check local directory was created properly
         self.assertEqual(sorted(os.listdir(self.session_dir)),
@@ -79,7 +79,7 @@ class TestLocalArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.SESSION
+        inputnode.inputs.visit_id = self.VISIT
         source = archive.source(self.name, source_files)
         # Test subject sink
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
@@ -124,14 +124,14 @@ class TestLocalArchive(BaseTestCase):
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
         workflow.connect(
-            source, 'source1' + FNAME_SUFFIX,
-            subject_sink, 'sink1' + FNAME_SUFFIX)
+            source, 'source1' + PATH_SUFFIX,
+            subject_sink, 'sink1' + PATH_SUFFIX)
         workflow.connect(
-            source, 'source2' + FNAME_SUFFIX,
-            visit_sink, 'sink2' + FNAME_SUFFIX)
+            source, 'source2' + PATH_SUFFIX,
+            visit_sink, 'sink2' + PATH_SUFFIX)
         workflow.connect(
-            source, 'source3' + FNAME_SUFFIX,
-            project_sink, 'sink3' + FNAME_SUFFIX)
+            source, 'source3' + PATH_SUFFIX,
+            project_sink, 'sink3' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(multiplicity='per_subject')
@@ -148,7 +148,7 @@ class TestLocalArchive(BaseTestCase):
                                                      'visit_id']),
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
-        reloadinputnode.inputs.visit_id = self.SESSION
+        reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource = archive.source(
             self.name,
             (source_files + subject_sink_files + visit_sink_files +
@@ -177,17 +177,17 @@ class TestLocalArchive(BaseTestCase):
         reloadworkflow.connect(reloadinputnode, 'visit_id',
                                reloadsink, 'visit_id')
         reloadworkflow.connect(reloadsource,
-                               'sink1' + FNAME_SUFFIX,
+                               'sink1' + PATH_SUFFIX,
                                reloadsink,
-                               'resink1' + FNAME_SUFFIX)
+                               'resink1' + PATH_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink2' + FNAME_SUFFIX,
+                               'sink2' + PATH_SUFFIX,
                                reloadsink,
-                               'resink2' + FNAME_SUFFIX)
+                               'resink2' + PATH_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink3' + FNAME_SUFFIX,
+                               'sink3' + PATH_SUFFIX,
                                reloadsink,
-                               'resink3' + FNAME_SUFFIX)
+                               'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         self.assertEqual(sorted(os.listdir(self.session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',

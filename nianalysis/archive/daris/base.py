@@ -17,7 +17,7 @@ from nianalysis.archive.base import (
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project, ArchiveSubjectSink,
     ArchiveProjectSink)
-from nianalysis.utils import FNAME_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 from nianalysis.data_formats import data_formats
 import re
 import collections
@@ -103,7 +103,7 @@ class DarisSource(ArchiveSource):
                         ex_method_id=ex_method_id,
                         session_id=session_id,
                         dataset_id=dataset.id)
-                outputs[name + FNAME_SUFFIX] = cache_path
+                outputs[name + PATH_SUFFIX] = cache_path
         return outputs
 
     def _get_daris_ids(self, multiplicity, processed):
@@ -242,7 +242,7 @@ class DarisSinkMixin(object):
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
-                filename = getattr(self.inputs, name + FNAME_SUFFIX)
+                filename = getattr(self.inputs, name + PATH_SUFFIX)
                 if not isdefined(filename):
                     missing_files.append(name)
                     continue  # skip the upload for this file

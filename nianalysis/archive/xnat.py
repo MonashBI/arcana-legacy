@@ -27,7 +27,7 @@ from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import dir_modtime
 import re
 import xnat  # NB: XNATPy not PyXNAT
-from nianalysis.utils import FNAME_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -235,7 +235,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                         self._download_dataset(
                             tmp_dir, resource, dataset, data_format,
                             session_label, fname, cache_path)
-                outputs[name + FNAME_SUFFIX] = cache_path
+                outputs[name + PATH_SUFFIX] = cache_path
         return outputs
 
     def _get_digests(self, resource):
@@ -379,7 +379,7 @@ class XNATSinkMixin(XNATMixin):
                 assert mult in self.ACCEPTED_MULTIPLICITIES
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
-                filename = getattr(self.inputs, name + FNAME_SUFFIX)
+                filename = getattr(self.inputs, name + PATH_SUFFIX)
                 if not isdefined(filename):
                     missing_files.append(name)
                     continue  # skip the upload for this file

@@ -1,13 +1,14 @@
 from abc import ABCMeta, abstractmethod
 from itertools import chain
-from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
-    DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined, isdefined, File, Directory)
+    DynamicTraitedSpec, traits, TraitedSpec, Undefined, isdefined, File,
+    Directory, BaseInterface)
 from nianalysis.nodes import Node
 from nianalysis.dataset import Dataset, DatasetSpec, FieldSpec
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.utils import FNAME_SUFFIX, FIELD_SUFFIX
+from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+
+PATH_TRAIT_CLS = traits.Either(File, Directory)
 
 
 class Archive(object):
@@ -19,8 +20,8 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_datasets, input_fields, name=None,
-               study_name=None):
+    def source(self, project_id, input_datasets=None, input_fields=None,
+               name=None, study_name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -44,6 +45,10 @@ class Archive(object):
         """
         if name is None:
             name = "{}_source".format(self.type)
+        if input_datasets is None:
+            input_datasets = []
+        if input_fields is None:
+            input_fields = []
         source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
         source.inputs.datasets = [s.to_tuple() for s in input_datasets]
@@ -53,7 +58,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets, output_fields,
+    def sink(self, project_id, output_datasets=None, output_fields=None,
              multiplicity='per_session', name=None, study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -77,6 +82,18 @@ class Archive(object):
             study. Used for processed datasets only
 
         """
+        if name is None:
+            name = "{}_{}_sink".format(self.type, multiplicity)
+        if output_datasets is None:
+            output_datasets = []
+        else:
+            # Ensure iterators aren't exhausted
+            output_datasets = list(output_datasets)
+        if output_fields is None:
+            output_fields = []
+        else:
+            # Ensure iterators aren't exhausted
+            output_fields = list(output_fields)
         if multiplicity.startswith('per_session'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
@@ -90,11 +107,6 @@ class Archive(object):
                 "Unrecognised multiplicity '{}' can be one of '{}'"
                 .format(multiplicity,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
-        if name is None:
-            name = "{}_{}_sink".format(self.type, multiplicity)
-        # Ensure iterators aren't exhausted
-        output_datasets = list(output_datasets)
-        output_fields = list(output_fields)
         sink = Node(sink_class(output_datasets, output_fields), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
@@ -123,7 +135,39 @@ class Archive(object):
         """
 
 
-class ArchiveSourceInputSpec(TraitedSpec):
+class BaseArchiveNode(BaseInterface):
+    """
+    Parameters
+    ----------
+    infields : list of str
+        Indicates the input fields to be dynamically created
+
+    outfields: list of str
+        Indicates output fields to be dynamically created
+
+    See class examples for usage
+
+    """
+
+    __metaclass__ = ABCMeta
+
+    def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
+        return runtime
+
+    @abstractmethod
+    def _list_outputs(self):
+        pass
+
+    @classmethod
+    def _add_trait(cls, spec, name, trait_type):
+        spec.add_trait(name, trait_type)
+        spec.trait_set(trait_change_notify=False, **{name: Undefined})
+        # Access the trait (not sure why but this is done in add_traits
+        # so I have also done it here
+        getattr(spec, name)
+
+
+class ArchiveSourceInputSpec(DynamicTraitedSpec):
     """
     Base class for archive source input specifications. Provides a common
     interface for 'run_pipeline' when using the archive source to extract
@@ -137,53 +181,34 @@ class ArchiveSourceInputSpec(TraitedSpec):
                             desc="The visit or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
-        desc="Names of all datasets that comprise the (sub)project")
+        desc="List of all datasets to be extracted from the archive")
+    fields = traits.List(
+        FieldSpec.traits_spec(),
+        desc=("List of all the fields that are to be extracted from the"
+              "archive"))
     study_name = traits.Str(desc=("Prefix prepended onto processed dataset "
                                   "names"))
 
 
-class ArchiveSource(IOBase):
-
-    __metaclass__ = ABCMeta
+class ArchiveSource(BaseArchiveNode):
 
     output_spec = DynamicTraitedSpec
     _always_run = True
 
-    def __init__(self, infields=None, outfields=None, **kwargs):
-        """
-        Parameters
-        ----------
-        infields : list of str
-            Indicates the input fields to be dynamically created
+    def _outputs(self):
+        return self._add_dataset_and_field_traits(
+            super(ArchiveSource, self)._outputs())
 
-        outfields: list of str
-            Indicates output fields to be dynamically created
-
-        See class examples for usage
-
-        """
-        if not outfields:
-            outfields = ['outfiles']
-        super(ArchiveSource, self).__init__(**kwargs)
-        undefined_traits = {}
-        # used for mandatory inputs check
-        self._infields = infields
-        self._outfields = outfields
-        if infields:
-            for key in infields:
-                self.inputs.add_trait(key, traits.Any)
-                undefined_traits[key] = Undefined
-
-    @abstractmethod
-    def _list_outputs(self):
-        pass
-
-    def _add_output_traits(self, base):
-        return add_traits(base, [dataset[0] + FNAME_SUFFIX
-                                 for dataset in self.inputs.datasets])
+    def _add_dataset_and_field_traits(self, base):
+        for dataset in self.inputs.datasets:
+            self._add_trait(base, dataset[0] + PATH_SUFFIX, PATH_TRAIT_CLS)
+        # Add output fields
+        for name, dtype, _, _ in self.inputs.fields:
+            self._add_trait(base, name + FIELD_SUFFIX, dtype)
+        return base
 
 
-class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+class BaseArchiveSinkInputSpec(DynamicTraitedSpec):
     """
     Base class for archive sink input specifications. Provides a common
     interface for 'run_pipeline' when using the archive save
@@ -198,6 +223,7 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
+
     datasets = traits.List(
         DatasetSpec.traits_spec(),
         desc="Lists the datasets to be retrieved from the archive")
@@ -218,12 +244,16 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         # Need to check whether datasets is not empty, as it can be when
         # unpickling
         if (isdefined(self.datasets) and self.datasets and
+            isdefined(self.fields) and self.fields and
                 not hasattr(self, name)):
-            accepted = [s[0] + FNAME_SUFFIX for s in self.datasets]
-            assert name in accepted, (
-                "'{}' is not a valid input filename for '{}' archive sink "
-                "(accepts '{}')".format(name, self.name,
-                                        "', '".join(accepted)))
+            accepted = set(chain(
+                (s[0] + PATH_SUFFIX for s in self.datasets),
+                (f[0] + FIELD_SUFFIX for f in self.fields)))
+            if name not in accepted:
+                raise NiAnalysisError(
+                    "'{}' is not a valid input filename for '{}' archive sink "
+                    "(accepts '{}')".format(name, self.name,
+                                            "', '".join(accepted)))
         super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
 
 
@@ -279,43 +309,18 @@ class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
     project_id = traits.Str(desc="The project ID")
 
 
-class BaseArchiveSink(IOBase):
-
-    __metaclass__ = ABCMeta
+class BaseArchiveSink(BaseArchiveNode):
 
     def __init__(self, output_datasets, output_fields, **kwargs):
-        """
-        Parameters
-        ----------
-        infields : list of str
-            Indicates the input fields to be dynamically created
-
-        outfields: list of str
-            Indicates output fields to be dynamically created
-
-        See class examples for usage
-
-        """
         super(BaseArchiveSink, self).__init__(**kwargs)
-        # used for mandatory inputs check
-        self._infields = None
-        self._outfields = None
         # Add output datasets
         for dataset in output_datasets:
-            self.inputs.add_trait(dataset.name + FNAME_SUFFIX, traits.Str)
-            self.inputs.trait_set(trait_change_notify=False,
-                                  **{dataset.name: Undefined})
-            # Access the trait (not sure why but this is done in add_traits
-            # so I have also done it here
-            getattr(self.inputs, dataset.name)
+            self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
+                            PATH_TRAIT_CLS)
         # Add output fields
         for field in output_fields:
-            self.inputs.add_trait(field.name + FIELD_SUFFIX, field.trait_cls)
-            self.inputs.trait_set(trait_change_notify=False,
-                                  **{field.name: Undefined})
-            # Access the trait (not sure why but this is done in add_traits
-            # so I have also done it here
-            getattr(self.inputs, field.name)
+            self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
+                            field.dtype)
 
     @abstractmethod
     def _base_outputs(self):
