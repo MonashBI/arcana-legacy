@@ -8,7 +8,8 @@ from nianalysis.dataset import Dataset, DatasetSpec, FieldSpec
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
-PATH_TRAIT_CLS = traits.Either(File, Directory)
+PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
+FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
 
 
 class Archive(object):
@@ -201,9 +202,9 @@ class ArchiveSource(BaseArchiveNode):
 
     def _add_dataset_and_field_traits(self, base):
         for dataset in self.inputs.datasets:
-            self._add_trait(base, dataset[0] + PATH_SUFFIX, PATH_TRAIT_CLS)
+            self._add_trait(base, dataset[0] + PATH_SUFFIX, PATH_TRAIT)
         # Add output fields
-        for name, dtype, _, _ in self.inputs.fields:
+        for name, dtype, _, _, _ in self.inputs.fields:
             self._add_trait(base, name + FIELD_SUFFIX, dtype)
         return base
 
@@ -280,9 +281,10 @@ class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class BaseArchiveSinkOutputSpec(TraitedSpec):
 
-    out_files = traits.List(
-        traits.Either(File(exists=True), Directory(exists=True)),
-        desc='datasink outputs')
+    out_files = traits.List(PATH_TRAIT, desc='Output datasets')
+
+    out_fields = traits.List(
+        traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
 
 
 class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -316,7 +318,7 @@ class BaseArchiveSink(BaseArchiveNode):
         # Add output datasets
         for dataset in output_datasets:
             self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
-                            PATH_TRAIT_CLS)
+                            PATH_TRAIT)
         # Add output fields
         for field in output_fields:
             self._add_trait(self.inputs, field.name + FIELD_SUFFIX,

@@ -380,7 +380,7 @@ class Field(BaseField):
 
     def __init__(self, name, dtype, multiplicity='per_session',
                  processed=False):
-        super(BaseField, self).__init__(name, dtype, multiplicity)
+        super(Field, self).__init__(name, dtype, multiplicity)
         self._processed = processed
 
     @property
@@ -418,7 +418,7 @@ class FieldSpec(BaseField):
 
     def __init__(self, name, dtype, pipeline=None, multiplicity='per_session',
                  description=None):
-        super(BaseField, self).__init__(name, dtype, multiplicity)
+        super(FieldSpec, self).__init__(name, dtype, multiplicity)
         self._pipeline = pipeline
         self._description = description
         self._prefix = ''
@@ -469,7 +469,7 @@ class FieldSpec(BaseField):
             traits.Str(  # @UndefinedVariable
                 mandatory=True,
                 desc="name of file"),
-            traits.Class(  # @UndefinedVariable
+            traits.Any(  # Should really be of type type but not sure how
                 mandatory=True,
                 desc="The datatype of the field"),
             traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8

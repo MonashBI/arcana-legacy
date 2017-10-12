@@ -3,7 +3,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 import logging
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase
@@ -67,6 +67,40 @@ class TestLocalArchive(BaseTestCase):
                           self.STUDY_NAME + '_sink4.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
+
+    def test_fields_roundtrip(self):
+        archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
+        sink = archive.sink(self.name,
+                            output_fields=[
+                                Field('field1', int, processed=True),
+                                Field('field2', float, processed=True),
+                                Field('field3', str, processed=True)],
+                            name='fields_sink',
+                            study_name='test')
+        sink.inputs.field1_field = field1 = 1
+        sink.inputs.field2_field = field2 = 2.0
+        sink.inputs.field3_field = field3 = '3'
+        sink.inputs.subject_id = self.SUBJECT
+        sink.inputs.visit_id = self.VISIT
+        sink.inputs.description = "Test sink of fields"
+        sink.inputs.name = 'test_sink'
+        sink.run()
+        source = archive.source(
+            self.name,
+            input_fields=[
+                FieldSpec('field1', int, pipeline=dummy_pipeline),
+                FieldSpec('field2', float, pipeline=dummy_pipeline),
+                FieldSpec('field3', str, pipeline=dummy_pipeline)],
+            name='fields_source',
+            study_name='test')
+        source.inputs.visit_id = self.VISIT
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.description = "Test source of fields"
+        source.inputs.name = 'test_source'
+        results = source.run()
+        self.assertEqual(results.outputs.field1_field, field1)
+        self.assertEqual(results.outputs.field2_field, field2)
+        self.assertEqual(results.outputs.field3_field, field3)
 
     def test_summary(self):
         # Create working dirs
