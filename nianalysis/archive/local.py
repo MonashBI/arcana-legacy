@@ -88,13 +88,13 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
              multiplicity, _, is_spec) in self.inputs.datasets:
             ext = data_formats[dataset_format].extension
             fname = name + (ext if ext is not None else '')
-            fname = self.prefixed_name(fname, is_spec)
+            fname = self.prefix_study_name(fname, is_spec)
             outputs[name + PATH_SUFFIX] = os.path.join(
                 self._get_data_dir(multiplicity), fname)
         for (name, dtype, multiplicity, _, is_spec) in self.inputs.fields:
             fields = self._get_fields_dict(multiplicity)
             outputs[name + FIELD_SUFFIX] = dtype(
-                fields[self.prefixed_name(name, is_spec)])
+                fields[self.prefix_study_name(name, is_spec)])
         return outputs
 
 
@@ -166,7 +166,7 @@ class LocalSinkMixin(LocalNodeMixin):
             assert mult in self.ACCEPTED_MULTIPLICITIES
             # Copy to local system
             src_path = os.path.abspath(filename)
-            out_fname = self.prefixed_name(
+            out_fname = self.prefix_study_name(
                 name + (ext if ext is not None else ''))
             dst_path = os.path.join(out_dir, out_fname)
             out_files.append(dst_path)
@@ -191,7 +191,7 @@ class LocalSinkMixin(LocalNodeMixin):
         for (name, dtype, mult, _, _) in self.inputs.fields:
             fields = self._get_fields_dict(mult)
             value = getattr(self.inputs, name + FIELD_SUFFIX)
-            qual_name = self.prefixed_name(name)
+            qual_name = self.prefix_study_name(name)
             assert isinstance(value, dtype)
             fields[qual_name] = value
             out_fields.append((qual_name, value))

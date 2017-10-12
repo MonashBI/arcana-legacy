@@ -168,7 +168,7 @@ class BaseArchiveNode(BaseInterface):
         # so I have also done it here
         getattr(spec, name)
 
-    def prefixed_name(self, name, is_spec=True):
+    def prefix_study_name(self, name, is_spec=True):
         """Prepend study name if defined"""
         if is_spec and isdefined(self.inputs.study_name):
             name = self.inputs.study_name + '_' + name

@@ -81,7 +81,9 @@ class XNATSource(ArchiveSource, XNATMixin):
     input_spec = XNATSourceInputSpec
 
     def _list_outputs(self):
-        outputs = {}
+        # FIXME: Should probably not prepend the project before this point
+        subject_id = self.inputs.subject_id.split('_')[-1]
+        visit_id = self.inputs.visit_id
         base_cache_dir = os.path.join(self.inputs.cache_dir,
                                       self.inputs.project_id)
         sess_kwargs = {}
@@ -99,8 +101,7 @@ class XNATSource(ArchiveSource, XNATMixin):
             for mult, processed in ([('per_session', False)] +
                                     zip(MULTIPLICITIES, repeat(True))):
                 subj_label, sess_label = XNATArchive.get_labels(
-                    mult, self.inputs.project_id, self.inputs.subject_id,
-                    self.inputs.visit_id)
+                    mult, self.inputs.project_id, subject_id, visit_id)
                 if mult == 'per_session' and processed:
                     sess_label += XNATArchive.PROCESSED_SUFFIX
                 cache_dirs[(mult, processed)] = os.path.join(
@@ -112,14 +113,18 @@ class XNATSource(ArchiveSource, XNATMixin):
                         sess_label]
                 except KeyError:
                     continue
+            outputs = {}
             for (name, data_format, mult,
                  processed, is_spec) in self.inputs.datasets:
                 # Prepend study name if defined and processed input
-                prefixed_name = self.prefixed_name(name, is_spec)
-                session = sessions[(mult, processed)]
+                prefixed_name = self.prefix_study_name(name, is_spec)
+                try:
+                    session = sessions[(mult, processed)]
+                except:
+                    raise
                 cache_dir = cache_dirs[(mult, processed)]
                 try:
-                    dataset = session[prefixed_name]
+                    dataset = session.scans[prefixed_name]
                 except KeyError:
                     raise NiAnalysisError(
                         "Could not find '{}' dataset in session '{}' "
@@ -323,7 +328,7 @@ class XNATSinkMixin(XNATMixin):
             # cache directory and upload to daris.
             for (name, format_name, mult,
                  processed, _) in self.inputs.datasets:
-                assert mult in self.ACCEPTED_MULTIPLICITIES
+                assert mult == self.multiplicity
                 assert processed, ("{} (format: {}, mult: {}) isn't processed"
                                    .format(name, format_name, mult))
                 filename = getattr(self.inputs, name + PATH_SUFFIX)
@@ -338,7 +343,7 @@ class XNATSinkMixin(XNATMixin):
                             data_formats[format_name].name,
                             dataset_format.extension))
                 src_path = os.path.abspath(filename)
-                prefixed_name = self.prefixed_name(name)
+                prefixed_name = self.prefix_study_name(name)
                 out_fname = prefixed_name + (ext if ext is not None else '')
                 # Copy to local cache
                 dst_path = os.path.join(cache_dir, out_fname)
