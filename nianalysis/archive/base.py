@@ -10,6 +10,7 @@ from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
 FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
+MULTIPLICITIES = ('per_session', 'per_subject', 'per_visit', 'per_project')
 
 
 class Archive(object):
@@ -166,6 +167,12 @@ class BaseArchiveNode(BaseInterface):
         # Access the trait (not sure why but this is done in add_traits
         # so I have also done it here
         getattr(spec, name)
+
+    def prefixed_name(self, name, is_spec=True):
+        """Prepend study name if defined"""
+        if is_spec and isdefined(self.inputs.study_name):
+            name = self.inputs.study_name + '_' + name
+        return name
 
 
 class ArchiveSourceInputSpec(DynamicTraitedSpec):
@@ -335,7 +342,7 @@ class ArchiveSink(BaseArchiveSink):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_session',)
+    multiplicity = 'per_session'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -350,7 +357,7 @@ class ArchiveSubjectSink(BaseArchiveSink):
     input_spec = ArchiveSubjectSinkInputSpec
     output_spec = ArchiveSubjectSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_subject',)
+    multiplicity = 'per_subject'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -364,7 +371,7 @@ class ArchiveVisitSink(BaseArchiveSink):
     input_spec = ArchiveVisitSinkInputSpec
     output_spec = ArchiveVisitSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_visit',)
+    multiplicity = 'per_visit'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -378,7 +385,7 @@ class ArchiveProjectSink(BaseArchiveSink):
     input_spec = ArchiveProjectSinkInputSpec
     output_spec = ArchiveProjectSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_project',)
+    multiplicity = 'per_project'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
