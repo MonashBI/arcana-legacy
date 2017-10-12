@@ -56,13 +56,17 @@ class LocalNodeMixin(object):
                 multiplicity)
         return data_dir
 
+    @property
+    def fields_cache(self):
+        try:
+            cache = self._fields_cache
+        except AttributeError:
+            cache = self._fields_cache = {}
+        return cache
+
     def _get_fields_dict(self, multiplicity):
         try:
-            cache = self.fields_cache
-        except AttributeError:
-            cache = self.fields_cache = {}
-        try:
-            fields = cache[multiplicity]
+            fields = self.fields_cache[multiplicity]
         except KeyError:
             data_dir = self._get_data_dir(multiplicity)
             try:
@@ -73,7 +77,7 @@ class LocalNodeMixin(object):
                     fields = {}
                 else:
                     raise
-            cache[multiplicity] = fields
+            self.fields_cache[multiplicity] = fields
         return fields
 
 
@@ -163,7 +167,7 @@ class LocalSinkMixin(LocalNodeMixin):
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
                         data_formats[dataset_format].name, ext))
-            assert mult in self.ACCEPTED_MULTIPLICITIES
+            assert mult == self.multiplicity
             # Copy to local system
             src_path = os.path.abspath(filename)
             out_fname = self.prefix_study_name(

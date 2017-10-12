@@ -1,5 +1,5 @@
 from __future__ import absolute_import
-from abc import ABCMeta, abstractmethod
+from abc import ABCMeta
 import os.path
 from itertools import repeat
 import shutil
@@ -402,102 +402,132 @@ class XNATSinkMixin(XNATMixin):
         return xnat_login.classes.MrSessionData(uri=uri,
                                                 xnat_session=xnat_login)
 
-    @abstractmethod
     def _get_session(self, xnat_login):
-        "Returns the session matching the sink specification"
+        project = xnat_login.projects[self.inputs.project_id]
+        # FIXME: Subject should probably be input without the project prefix
+        try:
+            subject_id = self.inputs.subject_id.split('_')[-1]
+        except AttributeError:
+            subject_id = None
+        try:
+            visit_id = self.inputs.visit_id
+        except AttributeError:
+            visit_id = None
+        subj_label, sess_label = XNATArchive.get_labels(
+            self.multiplicity, self.inputs.project_id, subject_id, visit_id)
+        if self.multiplicity == 'per_session':
+            sess_label += XNATArchive.PROCESSED_SUFFIX
+            if visit_id is not None:
+                visit_id += XNATArchive.PROCESSED_SUFFIX
+        try:
+            subject = project.subjects[subj_label]
+        except KeyError:
+            subject = xnat_login.classes.SubjectData(
+                label=subj_label, parent=project)
+        try:
+            session = subject.experiments[sess_label]
+        except KeyError:
+            session = self._create_session(xnat_login, subj_label,
+                                           sess_label)
+        # Get cache dir for session
+        cache_dir = os.path.abspath(os.path.join(
+            self.inputs.cache_dir, self.inputs.project_id,
+            (subject_id if subject_id is not None else 'ALL'),
+            (visit_id if visit_id is not None else 'ALL')))
+        return session, cache_dir
 
 
 class XNATSink(XNATSinkMixin, ArchiveSink):
 
     input_spec = XNATSinkInputSpec
 
-    def _get_session(self, xnat_login):
-        project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.inputs.subject_id]
-        assert self.session_id in subject.experiments
-        session_name = self.session_id + XNATArchive.PROCESSED_SUFFIX
-        try:
-            session = subject.experiments[session_name]
-        except KeyError:
-            session = self._create_session(xnat_login, subject.id,
-                                           session_name)
-        # Get cache dir for session
-        cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            self.inputs.subject_id,
-            self.inputs.visit_id + XNATArchive.PROCESSED_SUFFIX))
-        return session, cache_dir
+#     def _get_session(self, xnat_login):
+#         project = xnat_login.projects[self.inputs.project_id]
+#         subject = project.subjects[self.inputs.subject_id]
+#         assert self.session_id in subject.experiments
+#         session_name = self.session_id + XNATArchive.PROCESSED_SUFFIX
+#         try:
+#             session = subject.experiments[session_name]
+#         except KeyError:
+#             session = self._create_session(xnat_login, subject.id,
+#                                            session_name)
+#         # Get cache dir for session
+#         cache_dir = os.path.abspath(os.path.join(
+#             self.inputs.cache_dir, self.inputs.project_id,
+#             self.inputs.subject_id,
+#             self.inputs.visit_id + XNATArchive.PROCESSED_SUFFIX))
+#         return session, cache_dir
 
 
 class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
 
     input_spec = XNATSubjectSinkInputSpec
-
-    def _get_session(self, xnat_login):
-        project = xnat_login.projects[self.inputs.project_id]
-        subject = project.subjects[self.inputs.subject_id]
-        subject_name, session_name = XNATArchive.get_labels(
-            self.multiplicity, *self.inputs.subject_id.split('_'))
-        try:
-            session = subject.experiments[session_name]
-        except KeyError:
-            session = self._create_session(xnat_login, subject.id,
-                                           session_name)
-        # Get cache dir for session
-        cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            subject_name, session_name))
-        return session, cache_dir
+# 
+#     def _get_session(self, xnat_login):
+#         project = xnat_login.projects[self.inputs.project_id]
+#         subject = project.subjects[self.inputs.subject_id]
+#         subject_name, session_name = XNATArchive.get_labels(
+#             self.multiplicity, *self.inputs.subject_id.split('_'))
+#         try:
+#             session = subject.experiments[session_name]
+#         except KeyError:
+#             session = self._create_session(xnat_login, subject.id,
+#                                            session_name)
+#         # Get cache dir for session
+#         cache_dir = os.path.abspath(os.path.join(
+#             self.inputs.cache_dir, self.inputs.project_id,
+#             subject_name, session_name))
+#         return session, cache_dir
 
 
 class XNATVisitSink(XNATSinkMixin, ArchiveVisitSink):
 
     input_spec = XNATVisitSinkInputSpec
-
-    def _get_session(self, xnat_login):
-        project = xnat_login.projects[self.inputs.project_id]
-        subject_name, session_name = XNATArchive.get_labels(
-            self.multiplicity, self.inputs.project_id, self.inputs.visit_id)
-        try:
-            subject = project.subjects[subject_name]
-        except KeyError:
-            subject = xnat_login.classes.SubjectData(
-                label=subject_name, parent=project)
-        try:
-            session = subject.experiments[session_name]
-        except KeyError:
-            session = self._create_session(xnat_login, subject.id,
-                                           session_name)
-        # Get cache dir for session
-        cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            subject_name, session_name))
-        return session, cache_dir
+# 
+#     def _get_session(self, xnat_login):
+#         project = xnat_login.projects[self.inputs.project_id]
+#         subject_name, session_name = XNATArchive.get_labels(
+#             self.multiplicity, self.inputs.project_id, self.inputs.visit_id)
+#         try:
+#             subject = project.subjects[subject_name]
+#         except KeyError:
+#             subject = xnat_login.classes.SubjectData(
+#                 label=subject_name, parent=project)
+#         try:
+#             session = subject.experiments[session_name]
+#         except KeyError:
+#             session = self._create_session(xnat_login, subject.id,
+#                                            session_name)
+#         # Get cache dir for session
+#         cache_dir = os.path.abspath(os.path.join(
+#             self.inputs.cache_dir, self.inputs.project_id,
+#             subject_name, session_name))
+#         return session, cache_dir
 
 
 class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
 
     input_spec = XNATProjectSinkInputSpec
-
-    def _get_session(self, xnat_login):
-        project = xnat_login.projects[self.inputs.project_id]
-        subject_name, session_name = XNATArchive.project_summary_name(
-            self.inputs.project_id)
-        try:
-            subject = project.subjects[subject_name]
-        except KeyError:
-            subject = xnat_login.classes.SubjectData(
-                label=subject_name, parent=project)
-        try:
-            session = subject.experiments[session_name]
-        except KeyError:
-            session = xnat_login.classes.MrSessionData(
-                label=session_name, parent=subject)
-        # Get cache dir for session
-        cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            subject_name, session_name))
-        return session, cache_dir
+# 
+#     def _get_session(self, xnat_login):
+#         project = xnat_login.projects[self.inputs.project_id]
+#         subject_name, session_name = XNATArchive.project_summary_name(
+#             self.inputs.project_id)
+#         try:
+#             subject = project.subjects[subject_name]
+#         except KeyError:
+#             subject = xnat_login.classes.SubjectData(
+#                 label=subject_name, parent=project)
+#         try:
+#             session = subject.experiments[session_name]
+#         except KeyError:
+#             session = xnat_login.classes.MrSessionData(
+#                 label=session_name, parent=subject)
+#         # Get cache dir for session
+#         cache_dir = os.path.abspath(os.path.join(
+#             self.inputs.cache_dir, self.inputs.project_id,
+#             subject_name, session_name))
+#         return session, cache_dir
 
 
 class XNATArchive(Archive):
@@ -664,7 +694,7 @@ class XNATArchive(Archive):
             visits = []
             for visit_id, sessions in visit_sessions.iteritems():
                 (_, visit_summary_sess_name) = self.get_labels(
-                    'per_visit', project_id, visit_id)
+                    'per_visit', project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
                 try:
                     visit_summary = self._get_datasets(
@@ -675,7 +705,8 @@ class XNATArchive(Archive):
                 visits.append(Visit(visit_id, sessions, visit_summary))
             # Get 'per_project' datasets
             (proj_summary_subj_name,
-             proj_summary_sess_name) = self.project_summary_name(project_id)
+             proj_summary_sess_name) = self.get_labels('per_project',
+                                                       project_id)
             try:
                 proj_summary = self._get_datasets(
                     xproject.subjects[proj_summary_subj_name].experiments[
@@ -726,7 +757,7 @@ class XNATArchive(Archive):
         return self._cache_dir
 
     @classmethod
-    def get_labels(cls, multiplicity, project_id=None, subject_id=None,
+    def get_labels(cls, multiplicity, project_id, subject_id=None,
                    visit_id=None):
         if multiplicity == 'per_session':
             subj_label = '{}_{}'.format(project_id, subject_id)
