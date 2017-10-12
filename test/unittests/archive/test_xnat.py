@@ -443,10 +443,10 @@ class TestXnatArchive(BaseTestCase):
                                  'digest-check-cache')
         DATASET_NAME = 'source1'
         STUDY_NAME = 'digest_check_study'
-        dataset_fname = DATASET_NAME + nifti_gz_format.extension
+        dataset_fpath = DATASET_NAME + nifti_gz_format.extension
         source_target_path = os.path.join(cache_dir, self.PROJECT,
                                           self.SUBJECT, self.VISIT,
-                                          dataset_fname)
+                                          dataset_fpath)
         md5_path = source_target_path + XNATArchive.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
@@ -476,7 +476,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(d, 'dummy')
         # Replace the digest with a dummy
         os.remove(md5_path)
-        digests[dataset_fname] = 'dummy_digest'
+        digests[dataset_fpath] = 'dummy_digest'
         with open(md5_path, 'w') as f:
             json.dump(digests, f)
         # Retry the download, which should now download since the digests
@@ -499,25 +499,25 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.description = "Tests the generation of MD5 digests"
         sink.inputs.subject_id = self.DIGEST_SINK_SUBJECT
         sink.inputs.visit_id = self.VISIT
-        sink.inputs.sink_fname = source_target_path
-        sink_fname = (STUDY_NAME + '_' + DATASET_NAME +
-                        nifti_gz_format.extension)
+        sink.inputs.sink_path = source_target_path
+        sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
+                      nifti_gz_format.extension)
         sink_target_path = os.path.join(cache_dir, self.DIGEST_SINK_PROJECT,
                                           self.DIGEST_SINK_SUBJECT,
                                           self.VISIT +
                                           XNATArchive.PROCESSED_SUFFIX,
-                                          sink_fname)
+                                          sink_fpath)
         sink_md5_path = sink_target_path + XNATArchive.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
             source_digests = json.load(f)
         with open(sink_md5_path) as f:
             sink_digests = json.load(f)
-        self.assertEqual(source_digests[dataset_fname],
-                         sink_digests[sink_fname],
+        self.assertEqual(source_digests[dataset_fpath],
+                         sink_digests[sink_fpath],
                          "Source digest ({}) did not equal sink digest ({})"
-                         .format(source_digests[dataset_fname],
-                                 sink_digests[sink_fname]))
+                         .format(source_digests[dataset_fpath],
+                                 sink_digests[sink_fpath]))
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
