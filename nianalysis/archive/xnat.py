@@ -105,8 +105,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                 if mult == 'per_session' and processed:
                     sess_label += XNATArchive.PROCESSED_SUFFIX
                 cache_dirs[(mult, processed)] = os.path.join(
-                    base_cache_dir, subj_label,
-                    '_'.join(sess_label.split('_')[2:]))
+                    base_cache_dir, subj_label, sess_label)
                 try:
                     subject = project.subjects[subj_label]
                     sessions[(mult, processed)] = subject.experiments[
@@ -378,30 +377,6 @@ class XNATSinkMixin(XNATMixin):
         outputs['out_files'] = out_files
         return outputs
 
-    def _create_session(self, xnat_login, subject_id, visit_id):
-        """
-        This creates a processed session in a way that respects whether
-        the acquired session has been shared into another project or not.
-
-        If we weren't worried about this we could just use
-
-            session = xnat_login.classes.MrSessionData(label=proc_session_id,
-                                                       parent=subject)
-        """
-        uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
-               .format(self.inputs.project_id, subject_id, visit_id))
-        query = {'xsiType': 'xnat:mrSessionData', 'label': visit_id,
-                 'req_format': 'qa'}
-        response = xnat_login.put(uri, query=query)
-        if response.status_code not in (200, 201):
-            raise NiAnalysisError(
-                "Could not create session '{}' in subject '{}' in project '{}'"
-                " response code {}"
-                .format(visit_id, subject_id, self.inputs.project_id,
-                        response))
-        return xnat_login.classes.MrSessionData(uri=uri,
-                                                xnat_session=xnat_login)
-
     def _get_session(self, xnat_login):
         project = xnat_login.projects[self.inputs.project_id]
         # FIXME: Subject should probably be input without the project prefix
@@ -431,10 +406,33 @@ class XNATSinkMixin(XNATMixin):
                                            sess_label)
         # Get cache dir for session
         cache_dir = os.path.abspath(os.path.join(
-            self.inputs.cache_dir, self.inputs.project_id,
-            (subject_id if subject_id is not None else 'ALL'),
-            (visit_id if visit_id is not None else 'ALL')))
+            self.inputs.cache_dir, self.inputs.project_id, subject.label,
+            session.label))
         return session, cache_dir
+
+    def _create_session(self, xnat_login, subject_id, visit_id):
+        """
+        This creates a processed session in a way that respects whether
+        the acquired session has been shared into another project or not.
+
+        If we weren't worried about this we could just use
+
+            session = xnat_login.classes.MrSessionData(label=proc_session_id,
+                                                       parent=subject)
+        """
+        uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
+               .format(self.inputs.project_id, subject_id, visit_id))
+        query = {'xsiType': 'xnat:mrSessionData', 'label': visit_id,
+                 'req_format': 'qa'}
+        response = xnat_login.put(uri, query=query)
+        if response.status_code not in (200, 201):
+            raise NiAnalysisError(
+                "Could not create session '{}' in subject '{}' in project '{}'"
+                " response code {}"
+                .format(visit_id, subject_id, self.inputs.project_id,
+                        response))
+        return xnat_login.classes.MrSessionData(uri=uri,
+                                                xnat_session=xnat_login)
 
 
 class XNATSink(XNATSinkMixin, ArchiveSink):

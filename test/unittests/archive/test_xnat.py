@@ -52,9 +52,28 @@ class TestXnatArchive(BaseTestCase):
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
 
-    @property
-    def session_id(self):
-        return '_'.join((self.SUBJECT, self.VISIT))
+    def session_label(self, subject=None, visit=None):
+        if subject is None:
+            subject = self.SUBJECT
+        if visit is None:
+            visit = self.VISIT
+        return '_'.join((subject, visit))
+
+    def session_cache(self, base_dir=None, project=None, subject=None,
+                      visit=None):
+        if base_dir is None:
+            base_dir = self.archive_cache_dir
+        if project is None:
+            project = self.PROJECT
+        if subject is None:
+            subject = self.SUBJECT
+        return os.path.join(
+            base_dir, project, subject,
+            self.session_label(subject=subject, visit=visit))
+
+    def proc_session_cache(self, *args, **kwargs):
+        return self.session_cache(*args,
+                                  **kwargs) + XNATArchive.PROCESSED_SUFFIX
 
     def setUp(self):
         self.reset_dirs()
@@ -71,7 +90,7 @@ class TestXnatArchive(BaseTestCase):
                 label=self.SUBJECT,
                 parent=project)
             session = mbi_xnat.classes.MrSessionData(
-                label=self.session_id,
+                label=self.session_label(),
                 parent=subject)
             for fname in os.listdir(self.cache_dir):
                 name, ext = split_extension(fname)
@@ -130,7 +149,7 @@ class TestXnatArchive(BaseTestCase):
         source = archive.source(self.PROJECT, source_files,
                                 study_name=self.STUDY_NAME)
         sink = archive.sink(self.PROJECT, sink_files,
-                                study_name=self.STUDY_NAME)
+                            study_name=self.STUDY_NAME)
         sink.inputs.name = 'archive-roundtrip-unittest'
         sink.inputs.description = (
             "A test session created by archive roundtrip unittest")
@@ -150,25 +169,19 @@ class TestXnatArchive(BaseTestCase):
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check cache was created properly
-        source_cache_dir = os.path.join(
-            self.archive_cache_dir, str(self.PROJECT),
-            str(self.SUBJECT), str(self.VISIT))
-        sink_cache_dir = os.path.join(
-            self.archive_cache_dir, str(self.PROJECT),
-            str(self.SUBJECT),
-            str(self.VISIT) + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual(filter_md5_fnames(os.listdir(source_cache_dir)),
+        self.assertEqual(filter_md5_fnames(os.listdir(self.session_cache())),
                          ['source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
                                   self.STUDY_NAME + '_sink3',
                                   self.STUDY_NAME + '_sink4']
-        self.assertEqual(filter_md5_fnames(os.listdir(sink_cache_dir)),
-                         [d + nifti_gz_format.extension
-                          for d in expected_sink_datasets])
+        self.assertEqual(
+            filter_md5_fnames(os.listdir(self.proc_session_cache())),
+            [d + nifti_gz_format.extension
+             for d in expected_sink_datasets])
         with self._connect() as mbi_xnat:
             dataset_names = mbi_xnat.experiments[
-                self.session_id +
+                self.session_label() +
                 XNATArchive.PROCESSED_SUFFIX].scans.keys()
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
@@ -372,18 +385,16 @@ class TestXnatArchive(BaseTestCase):
                                reloadsink, 'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         # Check that the datasets
-        session_dir = os.path.join(
-            self.archive_cache_dir, self.PROJECT, self.SUBJECT,
-            self.VISIT + XNATArchive.PROCESSED_SUFFIX)
-        self.assertEqual(filter_md5_fnames(os.listdir(session_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
-                          self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
-                          self.SUMMARY_STUDY_NAME + '_resink3.nii.gz'])
+        self.assertEqual(
+            filter_md5_fnames(os.listdir(self.proc_session_cache())),
+            [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
+             self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
+             self.SUMMARY_STUDY_NAME + '_resink3.nii.gz'])
         # and on XNAT
         with self._connect() as mbi_xnat:
             resinked_dataset_names = mbi_xnat.projects[
                 self.PROJECT].experiments[
-                    self.session_id +
+                    self.session_label() +
                     XNATArchive.PROCESSED_SUFFIX].scans.keys()
             self.assertEqual(sorted(resinked_dataset_names),
                              [self.SUMMARY_STUDY_NAME + '_resink1',
@@ -412,8 +423,7 @@ class TestXnatArchive(BaseTestCase):
         cache_dir = os.path.join(self.CACHE_BASE_PATH,
                                  'delayed-download-cache')
         DATASET_NAME = 'source1'
-        target_path = os.path.join(cache_dir, self.PROJECT, self.SUBJECT,
-                                   self.VISIT,
+        target_path = os.path.join(self.session_cache(cache_dir),
                                    DATASET_NAME + nifti_gz_format.extension)
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -487,8 +497,7 @@ class TestXnatArchive(BaseTestCase):
         DATASET_NAME = 'source1'
         STUDY_NAME = 'digest_check_study'
         dataset_fpath = DATASET_NAME + nifti_gz_format.extension
-        source_target_path = os.path.join(cache_dir, self.PROJECT,
-                                          self.SUBJECT, self.VISIT,
+        source_target_path = os.path.join(self.session_cache(cache_dir),
                                           dataset_fpath)
         md5_path = source_target_path + XNATArchive.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -545,11 +554,11 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.sink_path = source_target_path
         sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
                       nifti_gz_format.extension)
-        sink_target_path = os.path.join(cache_dir, self.DIGEST_SINK_PROJECT,
-                                          self.DIGEST_SINK_SUBJECT,
-                                          self.VISIT +
-                                          XNATArchive.PROCESSED_SUFFIX,
-                                          sink_fpath)
+        sink_target_path = os.path.join(
+            (self.session_cache(cache_dir, project=self.DIGEST_SINK_PROJECT,
+                                subject=(self.DIGEST_SINK_SUBJECT)) +
+             XNATArchive.PROCESSED_SUFFIX),
+            sink_fpath)
         sink_md5_path = sink_target_path + XNATArchive.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
