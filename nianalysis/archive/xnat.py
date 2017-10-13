@@ -26,7 +26,7 @@ from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import dir_modtime
 import re
 import xnat  # NB: XNATPy not PyXNAT
-from nianalysis.utils import PATH_SUFFIX
+from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -117,10 +117,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                  processed, is_spec) in self.inputs.datasets:
                 # Prepend study name if defined and processed input
                 prefixed_name = self.prefix_study_name(name, is_spec)
-                try:
-                    session = sessions[(mult, processed)]
-                except:
-                    raise
+                session = sessions[(mult, processed)]
                 cache_dir = cache_dirs[(mult, processed)]
                 try:
                     dataset = session.scans[prefixed_name]
@@ -187,6 +184,11 @@ class XNATSource(ArchiveSource, XNATMixin):
                             tmp_dir, resource, dataset, data_format,
                             session.label, fname, cache_path)
                 outputs[name + PATH_SUFFIX] = cache_path
+            for (name, dtype, mult, processed, is_spec) in self.inputs.fields:
+                prefixed_name = self.prefix_study_name(name, is_spec)
+                session = sessions[(mult, processed)]
+                outputs[name + FIELD_SUFFIX] = dtype(
+                    session.fields[prefixed_name])
         return outputs
 
     def _get_digests(self, resource):
@@ -366,6 +368,13 @@ class XNATSinkMixin(XNATMixin):
                     pass
                 resource = dataset.create_resource(format_name.upper())
                 resource.upload(dst_path, out_fname)
+            for (name, _, mult, processed, _) in self.inputs.fields:
+                assert mult == self.multiplicity
+                prefixed_name = self.prefix_study_name(name)
+                assert processed, ("{} isn't processed".format(
+                    name, format_name, mult))
+                session.fields[prefixed_name] = getattr(
+                    self.inputs, name + FIELD_SUFFIX)
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
