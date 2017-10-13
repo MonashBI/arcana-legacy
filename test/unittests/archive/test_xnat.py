@@ -188,7 +188,7 @@ class TestXnatArchive(BaseTestCase):
     def test_fields_roundtrip(self):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir)
-        sink = archive.sink(self.name,
+        sink = archive.sink(self.PROJECT,
                             output_fields=[
                                 Field('field1', int, processed=True),
                                 Field('field2', float, processed=True),
@@ -204,7 +204,7 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
-            self.name,
+            self.PROJECT,
             input_fields=[
                 FieldSpec('field1', int, pipeline=dummy_pipeline),
                 FieldSpec('field2', float, pipeline=dummy_pipeline),
@@ -215,14 +215,6 @@ class TestXnatArchive(BaseTestCase):
         source.inputs.subject_id = self.SUBJECT
         source.inputs.description = "Test source of fields"
         source.inputs.name = 'test_source'
-        # Read from cache
-        results = source.run()
-        self.assertEqual(results.outputs.field1_field, field1)
-        self.assertEqual(results.outputs.field2_field, field2)
-        self.assertEqual(results.outputs.field3_field, field3)
-        # Clear cache and download
-        shutil.rmtree(self.archive_cache_dir)
-        os.mkdir(self.archive_cache_dir)
         results = source.run()
         self.assertEqual(results.outputs.field1_field, field1)
         self.assertEqual(results.outputs.field2_field, field2)
