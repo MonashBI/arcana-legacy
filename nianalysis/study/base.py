@@ -42,31 +42,30 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, input_datasets,
-                 check_input_datasets=True):
+    def __init__(self, name, project_id, archive, inputs, check_inputs=True):
         self._name = name
         self._project_id = project_id
-        self._input_datasets = {}
+        self._inputs = {}
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study type
-        for dataset_name, dataset in input_datasets.iteritems():
-            if dataset_name not in self._dataset_specs:
+        for name, inpt in inputs.iteritems():
+            if name not in self._data_specs:
                 raise NiAnalysisDatasetNameError(
                     "Input dataset dataset_spec name '{}' doesn't match any "
                     "dataset_specs in {} studies".format(
-                        dataset_name, self.__class__.__name__))
-            self._input_datasets[dataset_name] = dataset
+                        name, self.__class__.__name__))
+            self._inputs[name] = inpt
         # Emit a warning if an primary dataset_spec has not been provided for
         # an "primary dataset_spec"
-        if check_input_datasets:
+        if check_inputs:
             for spec in self.primary_dataset_specs():
-                if spec.name not in self._input_datasets:
+                if spec.name not in self._inputs:
                     logger.warning(
                         "'{}' primary dataset_spec was not specified in {} "
                         "'{}' (provided '{}'). Pipelines depending on this "
                         "dataset will not run".format(
                             spec.name, self.__class__.__name__, self.name,
-                            "', '".join(self._input_datasets)))
+                            "', '".join(self._inputs)))
         # TODO: Check that every session has the primary datasets
         self._archive = archive
 
@@ -90,10 +89,10 @@ class Study(object):
         if isinstance(name, BaseDataset):
             name = name.name
         try:
-            dataset = self._input_datasets[name]
+            dataset = self._inputs[name]
         except KeyError:
             try:
-                dataset = self._dataset_specs[name].apply_prefix(self.prefix)
+                dataset = self._data_specs[name].apply_prefix(self.prefix)
             except KeyError:
                 raise NiAnalysisDatasetNameError(
                     "'{}' is not a recognised dataset_spec name for {} "
@@ -146,17 +145,17 @@ class Study(object):
         """
         if isinstance(name, BaseDataset):
             name = name.name
-        return cls._dataset_specs[name]
+        return cls._data_specs[name]
 
     @classmethod
     def dataset_spec_names(cls):
         """Lists the names of all dataset_specs defined in the study"""
-        return cls._dataset_specs.iterkeys()
+        return cls._data_specs.iterkeys()
 
     @classmethod
     def dataset_specs(cls):
         """Lists all dataset_specs defined in the study class"""
-        return cls._dataset_specs.itervalues()
+        return cls._data_specs.itervalues()
 
     @classmethod
     def primary_dataset_specs(cls):

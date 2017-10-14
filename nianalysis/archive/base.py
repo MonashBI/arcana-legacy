@@ -4,7 +4,8 @@ from nipype.interfaces.base import (
     DynamicTraitedSpec, traits, TraitedSpec, Undefined, isdefined, File,
     Directory, BaseInterface)
 from nianalysis.nodes import Node
-from nianalysis.dataset import Dataset, DatasetSpec, FieldSpec
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
@@ -22,8 +23,7 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_datasets=None, input_fields=None,
-               name=None, study_name=None):
+    def source(self, project_id, inputs, name=None, study_name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -47,21 +47,19 @@ class Archive(object):
         """
         if name is None:
             name = "{}_source".format(self.type)
-        if input_datasets is None:
-            input_datasets = []
-        if input_fields is None:
-            input_fields = []
         source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
-        source.inputs.datasets = [s.to_tuple() for s in input_datasets]
-        source.inputs.fields = [f.to_tuple() for f in input_fields]
+        source.inputs.datasets = [i.to_tuple() for i in inputs
+                                  if isinstance(i, BaseDataset)]
+        source.inputs.fields = [i.to_tuple() for i in inputs
+                                if isinstance(i, BaseField)]
         if study_name is not None:
             source.inputs.study_name = study_name
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets=None, output_fields=None,
-             multiplicity='per_session', name=None, study_name=None):
+    def sink(self, project_id, outputs, multiplicity='per_session', name=None,
+             study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -86,16 +84,7 @@ class Archive(object):
         """
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
-        if output_datasets is None:
-            output_datasets = []
-        else:
-            # Ensure iterators aren't exhausted
-            output_datasets = list(output_datasets)
-        if output_fields is None:
-            output_fields = []
-        else:
-            # Ensure iterators aren't exhausted
-            output_fields = list(output_fields)
+        outputs = list(outputs)
         if multiplicity.startswith('per_session'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
@@ -109,10 +98,12 @@ class Archive(object):
                 "Unrecognised multiplicity '{}' can be one of '{}'"
                 .format(multiplicity,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
-        sink = Node(sink_class(output_datasets, output_fields), name=name)
+        datasets = [o for o in outputs if isinstance(o, DatasetSpec)]
+        fields = [o for o in outputs if isinstance(o, FieldSpec)]
+        sink = Node(sink_class(datasets, fields), name=name)
         sink.inputs.project_id = str(project_id)
-        sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
-        sink.inputs.fields = [f.to_tuple() for f in output_fields]
+        sink.inputs.datasets = [s.to_tuple() for s in datasets]
+        sink.inputs.fields = [f.to_tuple() for f in fields]
         if study_name is not None:
             sink.inputs.study_name = study_name
         return sink

@@ -953,8 +953,8 @@ class Pipeline(object):
         """
         if input_name not in self.study.dataset_spec_names():
             raise NiAnalysisDatasetNameError(
-                "'{}' is not a name of a dataset_spec in {} Studys"
-                .format(input_name, self.study.name))
+                "'{}' is not a name of a specified dataset or field in {} "
+                "Study".format(input_name, self.study.name))
         self._inputs.append(input_name)
 
     def assert_connected(self):
