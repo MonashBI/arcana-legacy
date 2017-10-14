@@ -24,7 +24,7 @@ class Study(object):
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
-    input_datasets : Dict[str, base.Dataset]
+    inputs : Dict[str, base.Dataset]
         A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
         also be replacements for generated data_specs)

@@ -13,7 +13,7 @@ from nianalysis.exceptions import NiAnalysisError
 logger = getLogger('NiAnalysis')
 
 
-class Base(object):
+class BaseDatum(object):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
                             'per_project')
@@ -54,7 +54,7 @@ class Base(object):
         return self._multiplicity
 
 
-class BaseDataset(Base):
+class BaseDataset(BaseDatum):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a processed dataset.
@@ -81,7 +81,7 @@ class BaseDataset(Base):
 
     def __eq__(self, other):
         return (super(BaseDataset, self).__eq__(other) and
-                self._format == format)
+                self._format == other._format)
 
     @property
     def format(self):
@@ -299,7 +299,7 @@ class DatasetSpec(BaseDataset):
                     self.name, self.format, self.pipeline, self.multiplicity))
 
 
-class BaseField(Base):
+class BaseField(BaseDatum):
     """
     An abstract base class representing either an acquired value or the
     specification for a processed value.

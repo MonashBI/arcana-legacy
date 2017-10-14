@@ -22,7 +22,7 @@ class CombinedStudy(Study):
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
-    input_datasets : Dict[str, base.Dataset]
+    inputs : Dict[str, base.Dataset]
         A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
         also be replacements for generated data_specs)
@@ -47,16 +47,16 @@ class CombinedStudy(Study):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, input_datasets):
+    def __init__(self, name, project_id, archive, inputs):
         super(CombinedStudy, self).__init__(name, project_id, archive,
-                                            input_datasets)
+                                            inputs)
         self._sub_studies = {}
         for (sub_study_name,
              (cls, dataset_map)) in self.sub_study_specs.iteritems():
             # Create copies of the input datasets to pass to the __init__
             # method of the generated sub-studies
             mapped_inputs = {}
-            for dataset_name, dataset in input_datasets.iteritems():
+            for dataset_name, dataset in inputs.iteritems():
                 try:
                     mapped_inputs[dataset_map[dataset_name]] = dataset
                 except KeyError:

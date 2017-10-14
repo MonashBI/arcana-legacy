@@ -297,7 +297,7 @@ class TestRunPipeline(BaseTestCase):
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
-            DummyStudy, 'dummy', input_datasets={
+            DummyStudy, 'dummy', inputs={
                 'start': Dataset('start', nifti_gz_format),
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
@@ -519,7 +519,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
     def test_per_session_prereqs(self):
         study = self.create_study(
-            ExistingPrereqStudy, self.study_name, input_datasets={
+            ExistingPrereqStudy, self.study_name, inputs={
                 'ones': Dataset('ones', mrtrix_format)})
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
@@ -549,7 +549,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
-#             ExistingPrereqStudy, self.study_name, input_datasets={
+#             ExistingPrereqStudy, self.study_name, inputs={
 #                 'ones': Dataset('ones', mrtrix_format)})
 #         study.thousands_pipeline().run(work_dir=self.work_dir)
 #         targets = {

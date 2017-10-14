@@ -128,12 +128,12 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, input_datasets):
+    def create_study(self, study_cls, name, inputs):
         return study_cls(
             name=name,
             project_id=self.project_id,
             archive=self.archive,
-            input_datasets=input_datasets)
+            inputs=inputs)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
                              visit=None, multiplicity='per_session'):
