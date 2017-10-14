@@ -2,7 +2,7 @@ from nipype.interfaces.fsl.maths import BinaryMaths
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.study.base import Study, set_dataset_specs
+from nianalysis.study.base import Study, set_data_specs
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
 from nianalysis.requirements import fsl5_req, mrtrix3_req
@@ -45,7 +45,7 @@ class RequirementsStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('ones', nifti_gz_format),
         DatasetSpec('twos', nifti_gz_format, pipeline))
 

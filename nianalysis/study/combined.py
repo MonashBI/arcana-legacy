@@ -23,9 +23,9 @@ class CombinedStudy(Study):
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
     input_datasets : Dict[str, base.Dataset]
-        A dict containing the a mapping between names of study dataset_specs
+        A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
-        also be replacements for generated dataset_specs)
+        also be replacements for generated data_specs)
 
     Required Sub-Class attributes
     -----------------------------
@@ -40,7 +40,7 @@ class CombinedStudy(Study):
             sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
                                't2_study': (MRIStudy, {'t2': 'mr_scan'})}
 
-            dataset_specs = set_dataset_specs(
+            data_specs = set_data_specs(
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format'))
     """
