@@ -56,9 +56,9 @@ class CombinedStudy(Study):
             # Create copies of the input datasets to pass to the __init__
             # method of the generated sub-studies
             mapped_inputs = {}
-            for dataset_name, dataset in inputs.iteritems():
+            for name, inpt in inputs.iteritems():
                 try:
-                    mapped_inputs[dataset_map[dataset_name]] = dataset
+                    mapped_inputs[dataset_map[name]] = inpt
                 except KeyError:
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study

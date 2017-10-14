@@ -11,11 +11,12 @@ from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
+from nianalysis.dataset import BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
-from nianalysis.utils import PATH_SUFFIX
+from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 from nianalysis.exceptions import NiAnalysisUsageError
 from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 from rdflib import plugin
@@ -382,24 +383,30 @@ class Pipeline(object):
                                   source, 'subject_id')
         complete_workflow.connect(sessions, 'visit_id',
                                   source, 'visit_id')
-        for inpt in self.inputs:
+        for input_spec in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            dataset = self.study.dataset(inpt.name)
-            if dataset.format != inpt.format:
-                # Insert a format converter node into the workflow if the
-                # format of the dataset if it is not in the required format for
-                # the study
-                conv_node_name = '{}_{}_input_conversion'.format(self.name,
-                                                                  inpt.name)
-                dataset_source, dataset_name = get_converter_node(
-                    dataset, dataset.name + PATH_SUFFIX, inpt.format,
-                    source, complete_workflow, conv_node_name)
+            input = self.study.datum(input_spec.name)  # @ReservedAssignment
+            if isinstance(input, BaseDataset):
+                if input.format != input_spec.format:
+                    # Insert a format converter node into the workflow if the
+                    # format of the dataset if it is not in the required format
+                    # for the study
+                    conv_node_name = '{}_{}_input_conversion'.format(
+                        self.name, input_spec.name)
+                    dataset_source, dataset_name = get_converter_node(
+                        input, input.name + PATH_SUFFIX, input_spec.format,
+                        source, complete_workflow, conv_node_name)
+                else:
+                    dataset_source = source
+                    dataset_name = input.name + PATH_SUFFIX
+                # Connect the dataset to the pipeline input
+                complete_workflow.connect(dataset_source, dataset_name,
+                                          self.inputnode, input_spec.name)
             else:
-                dataset_source = source
-                dataset_name = dataset.name + PATH_SUFFIX
-            # Connect the dataset to the pipeline input
-            complete_workflow.connect(dataset_source, dataset_name,
-                                      self.inputnode, inpt.name)
+                assert isinstance(input, BaseField)
+                complete_workflow.connect(
+                    source, input.name + FIELD_SUFFIX,
+                    self.inputnode, input_spec.name)
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
@@ -422,24 +429,32 @@ class Pipeline(object):
             if mult in ('per_session', 'per_visit'):
                 complete_workflow.connect(sessions, 'visit_id',
                                           sink, 'visit_id')
-            for output in outputs:
+            for output_spec in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
-                dataset = self.study.dataset(output.name)
+                output = self.study.datum(output_spec.name)
                 # Skip datasets which are already input datasets
-                if dataset.is_spec:
-                    # Convert the format of the node if it doesn't match
-                    if dataset.format != output.format:
-                        conv_node_name = output.name + '_output_conversion'
-                        output_node, node_dataset_name = get_converter_node(
-                            output, output.name, dataset.format,
-                            self._outputnodes[mult], complete_workflow,
-                            conv_node_name)
+                if output.is_spec:
+                    if isinstance(output, BaseDataset):
+                        # Convert the format of the node if it doesn't match
+                        if output.format != output_spec.format:
+                            conv_node_name = (output_spec.name +
+                                              '_output_conversion')
+                            (output_node,
+                             node_dataset_name) = get_converter_node(
+                                output_spec, output_spec.name, output.format,
+                                self._outputnodes[mult], complete_workflow,
+                                conv_node_name)
+                        else:
+                            output_node = self._outputnodes[mult]
+                            node_dataset_name = output.name
+                        complete_workflow.connect(
+                            output_node, node_dataset_name,
+                            sink, output.name + PATH_SUFFIX)
                     else:
-                        output_node = self._outputnodes[mult]
-                        node_dataset_name = dataset.name
-                    complete_workflow.connect(
-                        output_node, node_dataset_name,
-                        sink, dataset.name + PATH_SUFFIX)
+                        assert isinstance(output, BaseField)
+                        complete_workflow.connect(
+                            output_node, output.name, sink,
+                            output.name + FIELD_SUFFIX)
             self._connect_to_reports(
                 sink, report, mult, subjects, sessions, complete_workflow)
         return report
@@ -596,28 +611,28 @@ class Pipeline(object):
                 return sessions
             else:
                 return (s for s in sessions if s.visit_id in visit_ids)
-        for output in self.outputs:
-            dataset = self.study.dataset(output)
+        for output_spec in self.outputs:
+            output = self.study.datum(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
-            if dataset.multiplicity == 'per_project':
-                if dataset.prefixed_name not in project.dataset_names:
+            if output.multiplicity == 'per_project':
+                if output.prefixed_name not in project.data_names:
                     return all_sessions
-            elif dataset.multiplicity == 'per_subject':
+            elif output.multiplicity == 'per_subject':
                 sessions_to_process.update(chain(*(
                     filter_sessions(sub.sessions) for sub in all_subjects
-                    if dataset.prefixed_name not in sub.dataset_names)))
-            elif dataset.multiplicity == 'per_visit':
+                    if output.prefixed_name not in sub.data_names)))
+            elif output.multiplicity == 'per_visit':
                 sessions_to_process.update(chain(*(
                     visit.sessions for visit in all_visits
                     if ((visit_ids is None or visit.id in visit_ids) and
-                        dataset.prefixed_name not in visit.dataset_names))))
-            elif dataset.multiplicity == 'per_session':
+                        output.prefixed_name not in visit.data_names))))
+            elif output.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if dataset.prefixed_name not in s.processed_dataset_names))
+                    if output.prefixed_name not in s.processed_data_names))
             else:
-                assert False, "Unrecognised multiplicity of {}".format(dataset)
+                assert False, "Unrecognised multiplicity of {}".format(output)
         return list(sessions_to_process)
 
     def connect(self, *args, **kwargs):

@@ -386,11 +386,13 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, visits, datasets):
+    def __init__(self, project_id, subjects, visits, datasets,
+                 fields):
         self._id = project_id
         self._subjects = subjects
         self._visits = visits
         self._datasets = datasets
+        self._fields = fields
 
     @property
     def id(self):
@@ -409,14 +411,33 @@ class Project(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datsets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Project):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._subjects == other._subjects and
+                self._visits == other._visits and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -425,19 +446,17 @@ class Project(object):
         return "Subject(id={}, num_subjects={})".format(
             self._id, len(list(self.subjects)))
 
-    def __hash__(self):
-        return hash(self._id)
-
 
 class Subject(object):
     """
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, subject_id, sessions, datasets):
+    def __init__(self, subject_id, sessions, datasets, fields):
         self._id = subject_id
         self._sessions = sessions
         self._datasets = datasets
+        self._fields = fields
         for session in sessions:
             session.subject = self
 
@@ -454,14 +473,32 @@ class Subject(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datsets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._sessions == other._sessions and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -470,19 +507,17 @@ class Subject(object):
         return "Subject(id={}, num_sessions={})".format(self._id,
                                                         len(self._sessions))
 
-    def __hash__(self):
-        return hash(self._id)
-
 
 class Visit(object):
     """
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, visit_id, sessions, datasets):
+    def __init__(self, visit_id, sessions, datasets, fields):
         self._id = visit_id
         self._sessions = sessions
         self._datasets = datasets
+        self._fields = fields
         for session in sessions:
             session.visit = self
 
@@ -499,14 +534,32 @@ class Visit(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datsets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._sessions == other._sessions and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -514,9 +567,6 @@ class Visit(object):
     def __repr__(self):
         return "Subject(id={}, num_sessions={})".format(self._id,
                                                         len(self._sessions))
-
-    def __hash__(self):
-        return hash(self._id)
 
 
 class Session(object):
@@ -536,10 +586,11 @@ class Session(object):
         here
     """
 
-    def __init__(self, subject_id, visit_id, datasets, processed=None):
+    def __init__(self, subject_id, visit_id, datasets, fields, processed=None):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._datasets = datasets
+        self._fields = fields
         self._subject = None
         self._visit = None
         self._processed = processed
@@ -583,11 +634,27 @@ class Session(object):
 
     @property
     def datasets(self):
-        return iter(self._datasets)
+        return self._datasets
+
+    @property
+    def fields(self):
+        return self._fields
 
     @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datsets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     @property
     def processed_dataset_names(self):
@@ -596,8 +663,22 @@ class Session(object):
         return (d.name for d in datasets)
 
     @property
+    def processed_field_names(self):
+        fields = (self.fields
+                    if self.processed is None else self.processed.fields)
+        return (f.name for f in fields)
+
+    @property
+    def processed_data_names(self):
+        return chain(self.processed_dataset_names, self.processed_field_names)
+
+    @property
     def all_dataset_names(self):
         return chain(self.dataset_names, self.processed_dataset_names)
+
+    @property
+    def all_field_names(self):
+        return chain(self.field_names, self.processed_field_names)
 
     def __eq__(self, other):
         if not isinstance(other, Session):
@@ -605,6 +686,7 @@ class Session(object):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
                 self.datasets == other.datasets and
+                self.fields == other.fields and
                 self.processed == other.processed)
 
     def __ne__(self, other):
@@ -612,8 +694,6 @@ class Session(object):
 
     def __repr__(self):
         return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
-                "processed={})".format(self.subject_id, self.visit_id,
-                                       len(self._datasets), self.processed))
-
-    def __hash__(self):
-        return hash((self.subject_id, self.visit_id))
+                "num_fields={}, processed={})".format(
+                    self.subject_id, self.visit_id, len(self._datasets),
+                    len(self._fields), self.processed))
