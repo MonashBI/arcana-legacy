@@ -696,9 +696,7 @@ class Pipeline(object):
         """
         self._workflow.connect(self._inputnode, 'visit_id', node, node_input)
 
-    def create_node(self, interface, name, requirements=[],
-                    wall_time=DEFAULT_WALL_TIME,
-                    memory=DEFAULT_MEMORY, nthreads=1, gpu=False, **kwargs):
+    def create_node(self, interface, name, **kwargs):
         """
         Creates a Node in the pipeline (prepending the pipeline namespace)
 
@@ -719,18 +717,14 @@ class Pipeline(object):
         gpu : bool
             Flags whether a GPU compute node is preferred or not
             (default: False)
+        account : str
+            Name of the account to submit slurm scripts to
         """
-        node = Node(interface, name="{}_{}".format(self._name, name),
-                    requirements=requirements, wall_time=wall_time,
-                    nthreads=nthreads, memory=memory, gpu=gpu,
-                    **kwargs)
+        node = Node(interface, name="{}_{}".format(self._name, name), **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_map_node(self, interface, name, requirements=[],
-                        wall_time=DEFAULT_WALL_TIME,
-                        memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
-                        **kwargs):
+    def create_map_node(self, interface, name, **kwargs):
         """
         Creates a MapNode in the pipeline (prepending the pipeline namespace)
 
@@ -751,18 +745,15 @@ class Pipeline(object):
         gpu : bool
             Flags whether a GPU compute node is preferred or not
             (default: False)
+        account : str
+            Name of the account to submit slurm scripts to
         """
         node = MapNode(interface, name="{}_{}".format(self._name, name),
-                       requirements=requirements, wall_time=wall_time,
-                       nthreads=nthreads, memory=memory, gpu=gpu,
                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 
-    def create_join_visits_node(self, interface, joinfield, name,
-                                requirements=[], wall_time=DEFAULT_WALL_TIME,
-                                memory=DEFAULT_MEMORY,
-                                nthreads=1, gpu=False, **kwargs):
+    def create_join_visits_node(self, interface, joinfield, name, **kwargs):
         """
         Creates a JoinNode that joins an input over all visits for each subject
         (nipype.readthedocs.io/en/latest/users/joinnode_and_itersource.html)
@@ -786,19 +777,17 @@ class Pipeline(object):
         gpu : bool
             Flags whether a GPU compute node is preferred or not
             (default: False)
+        account : str
+            Name of the account to submit slurm scripts to
         """
         node = JoinNode(interface,
                         joinsource='{}_sessions'.format(self.name),
-                        joinfield=joinfield, name=name,
-                        requirements=requirements, wall_time=wall_time,
-                        nthreads=nthreads, memory=memory, gpu=gpu,
-                        **kwargs)
+                        joinfield=joinfield,
+                        name="{}_{}".format(self._name, name), **kwargs)
         self._workflow.add_nodes([node])
         return node
 
     def create_join_subjects_node(self, interface, joinfield, name,
-                                  requirements=[], wall_time=DEFAULT_WALL_TIME,
-                                  memory=DEFAULT_MEMORY, nthreads=1, gpu=False,
                                   **kwargs):
         """
         Creates a JoinNode that joins an input over all subjects for each visit
@@ -823,12 +812,13 @@ class Pipeline(object):
         gpu : bool
             Flags whether a GPU compute node is preferred or not
             (default: False)
+        account : str
+            Name of the account to submit slurm scripts to
         """
         node = JoinNode(interface,
                         joinsource='{}_subjects'.format(self.name),
-                        joinfield=joinfield, name=name,
-                        requirements=requirements, wall_time=wall_time,
-                        nthreads=nthreads, memory=memory, gpu=gpu, **kwargs)
+                        joinfield=joinfield,
+                        name='{}_{}'.format(self._name, name), **kwargs)
         self._workflow.add_nodes([node])
         return node
 
