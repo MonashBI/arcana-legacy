@@ -44,6 +44,7 @@ class NiAnalysisNodeMixin(object):
         self._wall_time = kwargs.pop('wall_time', DEFAULT_WALL_TIME)
         self._memory = kwargs.pop('memory', DEFAULT_MEMORY)
         self._gpu = kwargs.pop('gpu', False)
+        self._account = kwargs.pop('account', 'dq13')
         self._loaded_modules = []
         self.nipype_cls.__init__(self, *args, **kwargs)
 
@@ -162,11 +163,16 @@ class NiAnalysisNodeMixin(object):
 
     @property
     def slurm_template(self):
+        additional = ''
+        if self._gpu:
+            additional += '#SBATCH --gres=gpu:1\n'
+        if self._account is not None:
+            additional += '#SBATCH --account={}'.format(self._account)
         return sbatch_template.format(
             wall_time=self.wall_time_str, ntasks=self._nthreads,
             memory=self._memory,
             partition=('m3c' if self._gpu else 'm3a'),
-            additional=('SBATCH --gres=gpu:1\n' if self._gpu else ''))
+            additional=additional)
 
     @property
     def wall_time_str(self):

@@ -136,7 +136,7 @@ class DummyStudy(Study):
             citations=[],
             options=options)
         sessions_to_file = pipeline.create_join_visits_node(
-            IteratorToFile(), name='sessions_to_file', joinfield='ids')
+            IteratorToFile(), name='sess_to_file', joinfield='ids')
         pipeline.connect_visit_id(sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
         # Check inputs/outputs are connected
