@@ -385,7 +385,7 @@ class Pipeline(object):
                                   source, 'visit_id')
         for input_spec in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            input = self.study.datum(input_spec.name)  # @ReservedAssignment
+            input = self.study.dataset(input_spec.name)  # @ReservedAssignment
             if isinstance(input, BaseDataset):
                 if input.format != input_spec.format:
                     # Insert a format converter node into the workflow if the
@@ -431,7 +431,7 @@ class Pipeline(object):
                                           sink, 'visit_id')
             for output_spec in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
-                output = self.study.datum(output_spec.name)
+                output = self.study.dataset(output_spec.name)
                 # Skip datasets which are already input datasets
                 if output.is_spec:
                     if isinstance(output, BaseDataset):
@@ -612,7 +612,7 @@ class Pipeline(object):
             else:
                 return (s for s in sessions if s.visit_id in visit_ids)
         for output_spec in self.outputs:
-            output = self.study.datum(output_spec)
+            output = self.study.dataset(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
             if output.multiplicity == 'per_project':

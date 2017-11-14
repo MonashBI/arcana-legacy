@@ -16,7 +16,7 @@ import json
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset
+from nianalysis.dataset import Dataset, Field
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
@@ -346,57 +346,77 @@ class LocalArchive(Archive):
                 datasets = []
                 files = [d for d in os.listdir(session_path)
                          if not d.startswith('.')]
+                fields = []
                 for f in files:
-                    datasets.append(
-                        Dataset.from_path(os.path.join(session_path, f)))
+                    if f == FIELDS_FNAME:
+                        fields = self.fields_from_json(os.path.join(
+                            session_path, FIELDS_FNAME))
+                    else:
+                        datasets.append(
+                            Dataset.from_path(os.path.join(session_path, f)))
                 session = Session(subject_id=subject_id,
-                                  visit_id=visit_id, datasets=datasets)
+                                  visit_id=visit_id, datasets=datasets,
+                                  fields=fields)
                 sessions.append(session)
                 visit_sessions[visit_id].append(session)
             # Get subject summary datasets
             subject_summary_path = self.subject_summary_path(project_id,
                                                              subject_id)
             subj_datasets = []
+            subj_fields = []
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
                          if not d.startswith('.')]
                 for f in files:
-                    subj_datasets.append(
-                        Dataset.from_path(
-                            os.path.join(subject_summary_path, f),
-                            multiplicity='per_subject'))
+                    if f == FIELDS_FNAME:
+                        subj_fields = self.fields_from_json(os.path.join(
+                            subject_summary_path, FIELDS_FNAME))
+                    else:
+                        subj_datasets.append(
+                            Dataset.from_path(
+                                os.path.join(subject_summary_path, f),
+                                multiplicity='per_subject'))
             subjects.append(Subject(subject_id=subject_id, sessions=sessions,
-                                    datasets=subj_datasets))
+                                    datasets=subj_datasets,
+                                    fields=subj_fields))
         # Get visits
         visits = []
         for visit_id, sessions in visit_sessions.iteritems():
             visit_summary_path = self.visit_summary_path(project_id, visit_id)
+            visit_datasets = []
+            visit_fields = []
             if os.path.exists(visit_summary_path):
                 files = [d for d in os.listdir(visit_summary_path)
                          if not d.startswith('.')]
-                visit_datasets = []
                 for f in files:
-                    visit_datasets.append(
-                        Dataset.from_path(
-                            os.path.join(visit_summary_path, f),
-                            multiplicity='per_visit'))
-            else:
-                visit_datasets = []
-            visits.append(Visit(visit_id, sessions, visit_datasets))
+                    if f == FIELDS_FNAME:
+                        visit_fields = self.fields_from_json(os.path.join(
+                            visit_summary_path, FIELDS_FNAME))
+                    else:
+                        visit_datasets.append(
+                            Dataset.from_path(
+                                os.path.join(visit_summary_path, f),
+                                multiplicity='per_visit'))
+            visits.append(Visit(visit_id, sessions, visit_datasets,
+                                visit_fields))
         # Get project summary datasets
         proj_summary_path = self.project_summary_path(project_id)
+        proj_datasets = []
+        proj_fields = []
         if os.path.exists(proj_summary_path):
             files = [d for d in os.listdir(proj_summary_path)
                      if not d.startswith('.')]
-            proj_datasets = []
             for f in files:
-                proj_datasets.append(
-                    Dataset.from_path(
-                        os.path.join(proj_summary_path, f),
-                        multiplicity='per_project'))
-        else:
-            proj_datasets = []
-        project = Project(project_id, subjects, visits, proj_datasets)
+                if f == FIELDS_FNAME:
+                    proj_fields = self.fields_from_json(os.path.join(
+                        proj_summary_path, FIELDS_FNAME))
+                else:
+                    proj_datasets.append(
+                        Dataset.from_path(
+                            os.path.join(proj_summary_path, f),
+                            multiplicity='per_project'))
+        project = Project(project_id, subjects, visits, proj_datasets,
+                          proj_fields)
         return project
 
     @classmethod
@@ -428,3 +448,8 @@ class LocalArchive(Archive):
     def project_summary_path(self, project_id):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
+
+    def fields_from_json(self, fname):
+        with open(fname) as f:
+            dct = json.load(f)
+        return [Field(k, )]

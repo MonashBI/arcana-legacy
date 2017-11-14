@@ -75,10 +75,10 @@ class Study(object):
 
     def dataset(self, name):
         """
-        Returns either the dataset that has been passed to the study __init__
-        matching the dataset name provided or the processed dataset that is
-        to be generated using the pipeline associated with the generated
-        dataset_spec
+        Returns either the dataset/field that has been passed to the study
+        __init__ matching the dataset/field name provided or the processed
+        dataset that is to be generated using the pipeline associated with the
+        generated data_spec
 
         Parameters
         ----------

@@ -424,7 +424,7 @@ class Project(object):
 
     @property
     def data(self):
-        return chain(self.datsets, self.fields)
+        return chain(self.datasets, self.fields)
 
     @property
     def data_names(self):
@@ -486,7 +486,7 @@ class Subject(object):
 
     @property
     def data(self):
-        return chain(self.datsets, self.fields)
+        return chain(self.datasets, self.fields)
 
     @property
     def data_names(self):
@@ -547,7 +547,7 @@ class Visit(object):
 
     @property
     def data(self):
-        return chain(self.datsets, self.fields)
+        return chain(self.datasets, self.fields)
 
     @property
     def data_names(self):
@@ -650,7 +650,7 @@ class Session(object):
 
     @property
     def data(self):
-        return chain(self.datsets, self.fields)
+        return chain(self.datasets, self.fields)
 
     @property
     def data_names(self):
