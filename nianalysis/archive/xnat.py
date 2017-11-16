@@ -8,6 +8,7 @@ import time
 import logging
 import errno
 import json
+from nipype.pipeline import engine as pe
 from zipfile import ZipFile
 from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
@@ -18,6 +19,8 @@ from nianalysis.archive.base import (
     ArchiveVisitSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink)
+from nianalysis.interfaces.iterators import (
+    InputSessions, InputSubjects)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import NiAnalysisError
@@ -607,6 +610,34 @@ class XNATArchive(Archive):
         if self._password is not None:
             sess_kwargs['password'] = self._password
         return xnat.connect(server=self._server, **sess_kwargs)
+
+    def cache(self, project_id, datasets, subject_ids=None, visit_ids=None):
+        """
+        Creates the local cache of datasets. Useful when launching many
+        parallel jobs that will all try to pull the data through tomcat
+        server at the same time, and probably lead to timeout errors.
+
+        Parameters
+        ----------
+        datasets : list(Dataset)
+            List of datasets to download to the cache
+        subject_ids : list(str | int) | None
+            List of subjects to download the datasets for. If None the datasets
+            will be downloaded for all subjects
+        filter_session_ids : list(str) | None
+            List of sessions to download the datasets for. If None all sessions
+            will be downloaded.
+        """
+        workflow = pe.Workflow(name='cache_download')
+        subjects = pe.Node(InputSubjects(), name='subjects')
+        sessions = pe.Node(InputSessions(), name='sessions')
+        subjects.iterables = ('subject_id', tuple(subject_ids))
+        sessions.iterables = ('visit_id', tuple(visit_ids))
+        source = self.source(project_id, datasets, study_name='cache')
+        workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
+        workflow.connect(sessions, 'subject_id', source, 'subject_id')
+        workflow.connect(sessions, 'visit_id', source, 'visit_id')
+        workflow.run()
 
     def all_session_ids(self, project_id):
         """

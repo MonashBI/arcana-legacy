@@ -7,7 +7,8 @@ import logging
 from multiprocessing import Process
 from unittest import TestCase
 import xnat
-from nianalysis.testing import BaseTestCase, test_data_dir
+from nianalysis.testing import (
+    BaseTestCase, BaseMultiSubjectTestCase, test_data_dir)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
@@ -553,8 +554,7 @@ class TestOnXnatMixin(object):
 
     def setUp(self):
         self._clean_up()
-        cache_dir = os.path.join(self.CACHE_BASE_PATH,
-                                 self._get_name(self.base_class))
+        cache_dir = os.path.join(self.CACHE_BASE_PATH, self.base_name)
         self.base_class.setUp(self, cache_dir=cache_dir)
         with xnat.connect(self.SERVER) as mbi_xnat:
             # Copy local archive to XNAT
@@ -600,16 +600,19 @@ class TestOnXnatMixin(object):
 
     @property
     def xnat_session_name(self):
-        return '{}_{}'.format(self.XNAT_TEST_PROJECT,
-                              self._get_name(self.base_class))
+        return '{}_{}'.format(self.XNAT_TEST_PROJECT, self.base_name)
 
     @property
     def project_dir(self):
-        return os.path.join(self.ARCHIVE_PATH, self._get_name(self.base_class))
+        return os.path.join(self.ARCHIVE_PATH, self.base_name)
 
     @property
     def output_cache_dir(self):
         return self._output_cache_dir
+
+    @property
+    def base_name(self):
+        return self._get_name(self.base_class)
 
     @property
     def base_class(self):
@@ -690,3 +693,22 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin, TestExistingPrereqs):
 
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
+
+
+class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
+
+    PROJECT = 'TEST011'
+
+    def test_cache_download(self):
+        archive = self.archive
+        archive.cache(self.PROJECT,
+                      datasets=[Dataset('dataset1', nifti_gz_format),
+                                Dataset('dataset2', nifti_gz_format),
+                                Dataset('dataset3', nifti_gz_format),
+                                Dataset('dataset5', nifti_gz_format)],
+                      subjects=['subject1', 'subject3', 'subject4'],
+                      visit_ids=['visit1'])
+
+    @property
+    def base_name(self):
+        return self.name
