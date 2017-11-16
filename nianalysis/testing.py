@@ -3,6 +3,7 @@ import subprocess as sp
 import shutil
 from unittest import TestCase
 import errno
+from xnat.exceptions import XNATError
 import sys
 import warnings
 import nianalysis
@@ -48,10 +49,14 @@ class BaseTestCase(TestCase):
                 cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
         except Exception:
-            warnings.warn(
-                "Could not download datasets from '{}_{}' session on MBI-XNAT,"
-                " attempting with what has already been downloaded:\n\n{}"
-                .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
+            if os.path.exists(cache_dir):
+                warnings.warn(
+                    "Could not download datasets from '{}_{}' session on "
+                    "MBI-XNAT, attempting with what has already been "
+                    "downloaded:\n\n{}"
+                    .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
+            else:
+                raise
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 src_path = os.path.join(cache_dir, f)
@@ -260,11 +265,15 @@ class BaseMultiSubjectTestCase(BaseTestCase):
             download_all_datasets(
                 cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
-        except Exception as e:
-            warnings.warn(
-                "Could not download datasets from '{}_{}' session on MBI-XNAT,"
-                " attempting with what has already been downloaded:\n\n{}"
-                .format(self.XNAT_TEST_PROJECT, self.name, e))
+        except XNATError as e:
+            if os.path.exists(cache_dir):
+                warnings.warn(
+                    "Could not download datasets from '{}_{}' session on "
+                    "MBI-XNAT, attempting with what has already been "
+                    "downloaded:\n\n{}"
+                    .format(self.XNAT_TEST_PROJECT, self.name, e))
+            else:
+                raise
         for fname in os.listdir(cache_dir):
             if fname.startswith('.'):
                 continue
