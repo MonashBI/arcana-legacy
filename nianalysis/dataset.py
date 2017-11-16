@@ -46,10 +46,6 @@ class BaseDatum(object):
         return self._name
 
     @property
-    def format(self):
-        return self._format
-
-    @property
     def multiplicity(self):
         return self._multiplicity
 
@@ -484,7 +480,7 @@ class FieldSpec(BaseField):
                               "generated")))
 
     def __repr__(self):
-        return ("{}(name='{}', format={}, pipeline={}, "
+        return ("{}(name='{}', dtype={}, pipeline={}, "
                 "multiplicity={})".format(
-                    self.__class__.__name__, self.name, self.format,
+                    self.__class__.__name__, self.name, self.dtype,
                     self.pipeline, self.multiplicity))

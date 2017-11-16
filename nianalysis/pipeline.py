@@ -11,7 +11,7 @@ from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
-from nianalysis.dataset import BaseDataset, BaseField
+from nianalysis.dataset import BaseDatum, BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
@@ -453,7 +453,7 @@ class Pipeline(object):
                     else:
                         assert isinstance(output, BaseField)
                         complete_workflow.connect(
-                            output_node, output.name, sink,
+                            self._outputnodes[mult], output.name, sink,
                             output.name + FIELD_SUFFIX)
             self._connect_to_reports(
                 sink, report, mult, subjects, sessions, complete_workflow)
