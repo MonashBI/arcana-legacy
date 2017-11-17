@@ -106,6 +106,10 @@ class Study(object):
         return dataset
 
     @property
+    def inputs(self):
+        return self._inputs.values()
+
+    @property
     def prefix(self):
         """The study name as a prefix for dataset names"""
         return self.name + '_'

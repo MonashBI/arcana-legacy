@@ -12,7 +12,7 @@ import json
 from zipfile import ZipFile
 from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
-from nianalysis.dataset import Dataset
+from nianalysis.dataset import Dataset, Field
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -669,6 +669,8 @@ class XNATArchive(Archive):
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
                                           xsession, 'per_session'),
+                                      fields=self._get_fields(
+                                          xsession, 'per_session'),
                                       processed=None)
                     if xsession.label.endswith(self.PROCESSED_SUFFIX):
                         proc_sessions.append(session)
@@ -690,13 +692,19 @@ class XNATArchive(Archive):
                 # Get per_subject datasets
                 _, subj_summary_name = self.get_labels(
                     'per_subject', *subj_id.split('_'))
-                if subj_summary_name in xsubject.experiments:
-                    subj_summary = self._get_datasets(
-                        xsubject.experiments[subj_summary_name], 'per_subject')
+                try:
+                    xsubj_summary = xsubject.experiments[subj_summary_name]
+                except KeyError:
+                    subj_datasets = []
+                    subj_fields = []
                 else:
-                    subj_summary = []
+                    subj_datasets = self._get_datasets(
+                        xsubj_summary, 'per_subject')
+                    subj_fields = self._get_fields(
+                        xsubj_summary, 'per_subject')
                 subjects.append(Subject(subj_id, sessions.values(),
-                                        subj_summary))
+                                        datasets=subj_datasets,
+                                        fields=subj_fields))
             # Create list of visits
             visits = []
             for visit_id, sessions in visit_sessions.iteritems():
@@ -704,22 +712,33 @@ class XNATArchive(Archive):
                     'per_visit', project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
                 try:
-                    visit_summary = self._get_datasets(
-                        xproject.experiments[visit_summary_sess_name],
-                        'per_visit')
+                    xvisit_summary = xproject.experiments[
+                        visit_summary_sess_name]
                 except KeyError:
-                    visit_summary = []
-                visits.append(Visit(visit_id, sessions, visit_summary))
+                    visit_datasets = []
+                    visit_fields = {}
+                else:
+                    visit_datasets = self._get_datasets(xvisit_summary,
+                                                        'per_visit')
+                    visit_fields = self._get_fields(xvisit_summary,
+                                                    'per_visit')
+                visits.append(Visit(visit_id, sessions,
+                                    datasets=visit_datasets,
+                                    fields=visit_fields))
             # Get 'per_project' datasets
             (proj_summary_subj_name,
              proj_summary_sess_name) = self.get_labels('per_project',
                                                        project_id)
             try:
-                proj_summary = self._get_datasets(
-                    xproject.subjects[proj_summary_subj_name].experiments[
-                        proj_summary_sess_name], 'per_project')
+                xproj_summary = xproject.subjects[
+                    proj_summary_subj_name].experiments[proj_summary_sess_name]
             except KeyError:
-                proj_summary = []
+                proj_datasets = []
+                proj_fields = []
+            else:
+                proj_datasets = self._get_datasets(xproj_summary,
+                                                   'per_project')
+                proj_fields = self._get_fields(xproj_summary, 'per_project')
             if not subjects:
                 raise NiAnalysisError(
                     "Did not find any subjects matching the IDs '{}' in "
@@ -733,7 +752,8 @@ class XNATArchive(Archive):
                     .format("', '".join(visit_ids),
                             "', '".join(s.label for s in xproject.subjects),
                              project_id))
-        return Project(project_id, subjects, visits, proj_summary)
+        return Project(project_id, subjects, visits, datasets=proj_datasets,
+                       fields=proj_fields)
 
     def _get_datasets(self, xsession, mult):
         """
@@ -758,6 +778,38 @@ class XNATArchive(Archive):
                 dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, location=None))
         return datasets
+
+    def _get_fields(self, xsession, mult):
+        """
+        Returns a list of fields within an XNAT session
+
+        Parameters
+        ----------
+        xsession : xnat.classes.MrSessionData
+            The XNAT session to extract the fields from
+        mult : str
+            The multiplicity of the returned fields (either 'per_session',
+            'per_subject', 'per_visit', or 'per_project')
+
+        Returns
+        -------
+        fields : list(nianalysis.dataset.Dataset)
+            List of fields within an XNAT session
+        """
+        fields = []
+        for name, value in xsession.fields.items():
+            # Try convert to each datatypes in order of specificity to 
+            # determine type
+            for dtype in (int, float, str):
+                try:
+                    dtype(value)
+                    break
+                except ValueError:
+                    continue
+            fields.append(Field(
+                name=name, dtype=dtype, processed=False,  # @ReservedAssignment @IgnorePep8
+                multiplicity=mult))
+        return fields
 
     @property
     def local_dir(self):
