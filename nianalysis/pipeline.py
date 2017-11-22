@@ -467,7 +467,7 @@ class Pipeline(object):
         # Create nodes to control the iteration over subjects and sessions in
         # the project
         subjects = self.create_node(InputSubjects(), 'subjects', wall_time=10,
-                                    memory=4000)
+                                    memory=1000)
         sessions = self.create_node(InputSessions(), 'sessions', wall_time=10,
                                     memory=4000)
         # Construct iterable over all subjects to process
