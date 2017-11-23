@@ -1,4 +1,4 @@
-from setuptools import setup
+from setuptools import setup, find_packages
 
 # Get information about the version (polling mercurial if possible)
 version = '0.1'
@@ -8,14 +8,19 @@ setup(
     version=version,
     author='Tom G. Close',
     author_email='tom.g.close@gmail.com',
-    packages=['nianalysis'],
+    packages=find_packages(),
     url='https://gitlab.erc.monash.edu.au/mbi-image/NiAnalysis',
     license='The MIT License (MIT)',
     description=(
         'An data-centric NeuroImaging analysis processing package based on '
         'NiPype with archive backends for XNAT and DaRIS'),
     long_description=open('README.rst').read(),
-    install_requires=['xnat', 'nipype'],
+    install_requires=['xnat>=0.3.4',
+                      'nipype>=0.14.0-rc1',
+                      'pydicom>=0.9.9'],
+    dependency_links=[
+        "git+https://github.com/nipy/nipype#egg=nipype-0.14.0-rc1"
+    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",
