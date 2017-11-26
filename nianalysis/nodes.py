@@ -206,9 +206,6 @@ sbatch_template = """#!/bin/bash
 # Set the partition to run the job on
 #SBATCH --partition={partition}
 
-# To set a project account for credit charging,
-# SBATCH --account=pmosp
-
 # Request CPU resource for a parallel job, for example:
 #   4 Nodes each with 12 Cores/MPI processes
 #SBATCH --ntasks={ntasks}
@@ -221,6 +218,8 @@ sbatch_template = """#!/bin/bash
 # Set your minimum acceptable walltime, format: day-hours:minutes:seconds
 #SBATCH --time={wall_time}
 
+# Kill job if dependencies fail
+#SBATCH --kill-on-invalid-dep=yes
 
 # Use reserved node to run job when a node reservation is made for you already
 # SBATCH --reservation=reservation_name

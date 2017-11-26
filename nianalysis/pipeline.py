@@ -451,9 +451,9 @@ class Pipeline(object):
         # Create nodes to control the iteration over subjects and sessions in
         # the project
         subjects = self.create_node(InputSubjects(), 'subjects', wall_time=10,
-                                    memory=1000)
+                                    memory=4000)
         sessions = self.create_node(InputSessions(), 'sessions', wall_time=10,
-                                    memory=1000)
+                                    memory=4000)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subject_ids_to_process = set(s.id for s in subjects_to_process)
@@ -497,13 +497,13 @@ class Pipeline(object):
             session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
-                name=self.name + '_session_outputs', wall_time=10,
-                memory=1000)
+                name=self.name + '_session_outputs', wall_time=20,
+                memory=4000)
             subject_session_outputs = JoinNode(
                 SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
-                name=self.name + '_subject_session_outputs', wall_time=10,
-                memory=1000)
+                name=self.name + '_subject_session_outputs', wall_time=20,
+                memory=4000)
             workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
             workflow.connect(sink, 'visit_id', session_outputs, 'sessions')
             workflow.connect(session_outputs, 'subject_session_pairs',
@@ -514,8 +514,8 @@ class Pipeline(object):
         elif mult == 'per_subject':
             subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
-                name=self.name + '_subject_summary_outputs', wall_time=10,
-                memory=1000)
+                name=self.name + '_subject_summary_outputs', wall_time=20,
+                memory=4000)
             workflow.connect(sink, 'subject_id',
                              subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
@@ -523,8 +523,8 @@ class Pipeline(object):
         elif mult == 'per_visit':
             visit_output_summary = JoinNode(
                 VisitReport(), joinsource=sessions, joinfield='sessions',
-                name=self.name + '_visit_summary_outputs', wall_time=10,
-                memory=1000)
+                name=self.name + '_visit_summary_outputs', wall_time=20,
+                memory=4000)
             workflow.connect(sink, 'visit_id',
                              visit_output_summary, 'sessions')
             workflow.connect(visit_output_summary, 'sessions',
@@ -640,7 +640,8 @@ class Pipeline(object):
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
-            .format(spec_name, self.name, "', '".join(self._inputs)))
+            .format(spec_name, self.name, "', '".join(str(i)
+                                                      for i in self._inputs)))
         self._workflow.connect(self._inputnode, spec_name, node, node_input)
         if spec_name in self._unconnected_inputs:
             self._unconnected_inputs.remove(spec_name)
