@@ -15,16 +15,3 @@ RUN ./build
 
 # Install NiAnalysis and prerequisite pipelines
 RUN pip install git+https://github.com/mbi-image/NiAnalysis.git@phantom_qc
-
-# Add docker user
-RUN useradd -ms /bin/bash docker
-USER docker
-ENV HOME=/home/docker
-WORKDIR $HOME
-
-# Add netrc
-COPY .netrc $HOME/.netrc
-
-# Download QA script to run
-RUN mkdir $HOME/scripts
-RUN wget https://raw.githubusercontent.com/mbi-image/NiAnalysis/phantom_qc/scripts/qa.py $HOME/scripts
