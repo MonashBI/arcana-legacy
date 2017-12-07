@@ -13,5 +13,8 @@ WORKDIR /packages/mrtrix
 RUN ./configure
 RUN ./build
 
+ENV PATH /packages/mrtrix/bin:$PATH
+
 # Install NiAnalysis and prerequisite pipelines
-RUN pip install git+https://github.com/mbi-image/NiAnalysis.git@phantom_qc
+RUN git clone --branch phantom_qc git+https://github.com/mbi-image/NiAnalysis.git
+RUN pip install git+https://gitlab.erc.monash.edu.au/mbi-image/xnat-utils.git
