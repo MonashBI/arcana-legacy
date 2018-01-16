@@ -9,3 +9,4 @@
 .settings/
 *.swp 
 .settings/
+/nianalysis.egg-info/
