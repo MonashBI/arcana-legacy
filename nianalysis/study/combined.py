@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from nipype.pipeline import engine as pe
+from copy import copy
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import NiAnalysisMissingDatasetError
 from nianalysis.pipeline import Pipeline
@@ -124,10 +124,18 @@ class CombinedStudy(Study):
         """
 
         def __init__(self, name, pipeline, combined_study, add_inputs=None,
-                     add_outputs=None):
+                     add_outputs=None, default_options=None):
             self._name = name
             self._study = combined_study
+            # FIXME: Should probably regenerate the original workflow
+            # with updated names instead of renaming previously
+            # connected nodes
             self._workflow = pipeline.workflow
+            self._workflow.name = name
+            prefix_len = len(pipeline.name)
+            for node_name in self._workflow.list_node_names():
+                node = self._workflow.get_node(node_name)
+                node.name = name + node.name[prefix_len:]
             ss_name = pipeline.study.name[(len(combined_study.name) + 1):]
             ss_cls, dataset_map = combined_study.sub_study_specs[ss_name]
             inv_dataset_map = dict((v, combined_study.dataset_spec(k))
@@ -151,7 +159,7 @@ class CombinedStudy(Study):
             # Create new input node
             self._inputnode = self.create_node(
                 IdentityInterface(fields=list(self.input_names)),
-                name="inputnode")
+                name="inputnode_wrapper")
             # Connect to sub-study input node
             for input_name in pipeline.input_names:
                 self.workflow.connect(
@@ -183,14 +191,20 @@ class CombinedStudy(Study):
                 self._outputnodes[mult] = self.create_node(
                     IdentityInterface(
                         fields=list(self.multiplicity_output_names(mult))),
-                    name="{}_outputnode".format(mult))
+                    name="{}_outputnode_wrapper".format(mult))
                 # Connect sub-study outputs
                 for output_name in pipeline.multiplicity_output_names(mult):
                     self.workflow.connect(pipeline.outputnode(mult),
                                           output_name,
                                           self._outputnodes[mult],
                                           inv_dataset_map[output_name].name)
+            # Copy across default options and override with extra
+            # provided
+            self._default_options = copy(pipeline._default_options)
+            if default_options is not None:
+                self._default_options.update(default_options)
             # Copy additional info fields
-            self._citations = pipeline.citations
-            self._options = pipeline.options
-            self._description = pipeline.description
+            self._citations = pipeline._citations
+            self._options = pipeline._options
+            self._prereq_options = pipeline._prereq_options
+            self._description = pipeline._description

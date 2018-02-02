@@ -1,7 +1,8 @@
 from abc import ABCMeta
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError)
+    NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError,
+    NiAnalysisDatasetNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import BaseDataset
 
@@ -146,7 +147,13 @@ class Study(object):
         """
         if isinstance(name, BaseDataset):
             name = name.name
-        return cls._dataset_specs[name]
+        try:
+            return cls._dataset_specs[name]
+        except KeyError:
+            raise NiAnalysisDatasetNameError(
+                "No dataset spec named '{}' in {} (available: "
+                "'{}')".format(name, cls.__name__,
+                               "', '".join(cls._dataset_specs.keys())))
 
     @classmethod
     def dataset_spec_names(cls):

@@ -134,7 +134,8 @@ class Pipeline(object):
                         "', '".join(self.study.dataset_spec_names())))
 
     def __repr__(self):
-        return "Pipeline(name='{}')".format(self.name)
+        return "{}(name='{}')".format(self.__class__.__name__,
+                                      self.name)
 
     @property
     def requires_gpu(self):
@@ -562,9 +563,11 @@ class Pipeline(object):
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise NiAnalysisError(
-                    "Output(s) '{}' will not be created by '{}' pipeline with "
-                    "options: {}".format(
-                        "', '".join(missing_outputs), pipeline.name,
+                    "Output(s) '{}', required for '{}' pipeline, will "
+                    "not be created by prerequisite pipeline '{}' "
+                    "with options: {}".format(
+                        "', '".join(missing_outputs), self.name,
+                        pipeline.name,
                         ','.join('{}={}'.format(k, v)
                                  for k, v in self.options)))
             yield pipeline
