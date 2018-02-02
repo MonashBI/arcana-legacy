@@ -83,6 +83,10 @@ par_format = DataFormat(name='parameters', extension='.par')
 gif_format = DataFormat(name='gif', extension='.gif')
 targz_format = DataFormat(name='targz', extension='.tar.gz')
 csv_format = DataFormat(name='comma-separated_file', extension='.csv')
+<<<<<<< Upstream, based on master
+=======
+png_format = DataFormat(name='png', extension='.png')
+>>>>>>> 84b75a3 start testing epi_mc pipeline
 
 
 class Converter(object):
@@ -221,6 +225,41 @@ class ZipConverter(Converter):
         return [zip_format]
 
 
+<<<<<<< Upstream, based on master
+=======
+class TarGzConverter(Converter):
+
+    requirements = []
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = Node(TarGzDir(), name=node_name,
+                            memory=12000)
+        return convert_node, 'dirname', 'zipped'
+
+    def input_formats(self):
+        return [directory_format]
+
+    def output_formats(self):
+        return [targz_format]
+
+
+class UnTarGzConverter(Converter):
+
+    requirements = []
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = Node(UnTarGzDir(), name=node_name,
+                            memory=12000)
+        return convert_node, 'gzipped', 'gunzipped'
+
+    def input_formats(self):
+        return [targz_format]
+
+    def output_formats(self):
+        return [directory_format]
+
+
+>>>>>>> 84b75a3 start testing epi_mc pipeline
 # List all possible converters in order of preference
 all_converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),
                   ZipConverter()]
