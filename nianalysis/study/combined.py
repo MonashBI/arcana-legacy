@@ -90,11 +90,11 @@ class CombinedStudy(Study):
         pipeline_getter : Study.method
             Unbound method used to create the pipeline in the sub-study
         """
-        def translated_getter(self, **kwargs):
-            pipeline = pipeline_getter(self._sub_studies[sub_study_name],
-                                       **kwargs)
-            trans_pipeline = self.TranslatedPipeline(
-                sub_study_name + '_' + pipeline.name, pipeline, self)
+        def translated_getter(self, **options):
+            pipeline = pipeline_getter(
+                self._sub_studies[sub_study_name],
+                __name_prefix__=sub_study_name, **options)
+            trans_pipeline = self.TranslatedPipeline(self, pipeline)
             trans_pipeline.assert_connected()
             return trans_pipeline
         return translated_getter
@@ -123,19 +123,16 @@ class CombinedStudy(Study):
             translate_getter decorator).
         """
 
-        def __init__(self, name, pipeline, combined_study, add_inputs=None,
-                     add_outputs=None, default_options=None):
-            self._name = name
+        def __init__(self, combined_study, pipeline,
+                     add_inputs=None, add_outputs=None,
+                     default_options=None):
+            # Create pipeline and overriding its name
+            self._name = pipeline.name
             self._study = combined_study
             # FIXME: Should probably regenerate the original workflow
             # with updated names instead of renaming previously
             # connected nodes
             self._workflow = pipeline.workflow
-            self._workflow.name = name
-            prefix_len = len(pipeline.name)
-            for node_name in self._workflow.list_node_names():
-                node = self._workflow.get_node(node_name)
-                node.name = name + node.name[prefix_len:]
             ss_name = pipeline.study.name[(len(combined_study.name) + 1):]
             ss_cls, dataset_map = combined_study.sub_study_specs[ss_name]
             inv_dataset_map = dict((v, combined_study.dataset_spec(k))

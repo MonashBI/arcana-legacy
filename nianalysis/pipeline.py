@@ -72,9 +72,9 @@ class Pipeline(object):
 
     def __init__(self, study, name, inputs, outputs, description,
                  default_options, citations, version, options={}):
-        self._name = name
+        self._name = options.pop('__name_prefix__', '') + name
         self._study = study
-        self._workflow = pe.Workflow(name=name)
+        self._workflow = pe.Workflow(name=self.name)
         self._version = int(version)
         self._description = description
         # Set up inputs
