@@ -2,7 +2,8 @@ from copy import copy
 from abc import ABCMeta, abstractmethod
 from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRConvert
-from nianalysis.interfaces.utils import ZipDir, UnzipDir
+from nianalysis.interfaces.utils.os import (
+    ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException)
@@ -61,7 +62,7 @@ class DataFormat(object):
 nifti_format = DataFormat(name='nifti', extension='.nii',
                           lctype='nifti/series', mrinfo='NIfTI-1.1')
 nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
-                                lctype='nifti/gz', mrinfo='NIfTI-1.1')
+                             lctype='nifti/gz', mrinfo='NIfTI-1.1')
 mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
 analyze_format = DataFormat(name='analyze', extension='.img')
 dicom_format = DataFormat(name='dicom', extension=None, lctype='dicom/series',
@@ -81,6 +82,7 @@ rdata_format = DataFormat(name='rdata', extension='.RData')
 ica_format = DataFormat(name='ica', extension='.ica')
 par_format = DataFormat(name='parameters', extension='.par')
 gif_format = DataFormat(name='gif', extension='.gif')
+targz_format = DataFormat(name='targz', extension='.tar.gz')
 csv_format = DataFormat(name='comma-separated_file', extension='.csv')
 
 
@@ -92,7 +94,7 @@ class Converter(object):
     __metaclass__ = ABCMeta
 
     def convert(self, workflow, source, dataset, dataset_name, node_name,
-                 output_format):
+                output_format):
         """
         Inserts a format converter node into a complete workflow.
 
@@ -220,9 +222,40 @@ class ZipConverter(Converter):
         return [zip_format]
 
 
+class TarGzConverter(Converter):
+
+    requirements = []
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = Node(TarGzDir(), name=node_name,
+                            memory=12000)
+        return convert_node, 'dirname', 'zipped'
+
+    def input_formats(self):
+        return [directory_format]
+
+    def output_formats(self):
+        return [targz_format]
+
+
+class UnTarGzConverter(Converter):
+
+    requirements = []
+
+    def _get_convert_node(self, node_name, input_format, output_format):  # @UnusedVariable @IgnorePep8
+        convert_node = Node(UnTarGzDir(), name=node_name,
+                            memory=12000)
+        return convert_node, 'gzipped', 'gunzipped'
+
+    def input_formats(self):
+        return [targz_format]
+
+    def output_formats(self):
+        return [directory_format]
+
 # List all possible converters in order of preference
 all_converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),
-                  ZipConverter()]
+                  ZipConverter(), UnTarGzConverter(), TarGzConverter()]
 
 # A dictionary to access all the formats by name
 data_formats = dict(

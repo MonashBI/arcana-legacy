@@ -657,6 +657,7 @@ class XNATArchive(Archive):
             # Create list of subjects
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
+                logger.debug("Getting info for subject '{}'".format(subj_id))
                 if not (subject_ids is None or subj_id in subject_ids):
                     continue
                 sessions = {}

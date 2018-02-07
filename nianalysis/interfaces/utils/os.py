@@ -9,6 +9,8 @@ from nianalysis.exceptions import NiAnalysisUsageError
 
 zip_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                         'resources', 'bash', 'zip.sh'))
+targz_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
+                                          'resources', 'bash', 'targz.sh'))
 cp_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
                                        'resources', 'bash', 'copy_file.sh'))
 cp_dir_path = os.path.abspath(os.path.join(os.path.dirname(__file__), '..',
@@ -312,4 +314,73 @@ class ListDir(BaseInterface):
                                    for f in os.listdir(dname)
                                    if os.path.isfile(os.path.join(dname, f))),
                                   key=key)
+        return outputs
+
+class TarGzDirInputSpec(CommandLineInputSpec):
+    dirname = Directory(mandatory=True, desc='directory name', argstr='%s',
+                        position=1)
+    zipped = File(genfile=True, argstr='%s', position=0,
+                  desc=("The tar_gz file"))
+
+
+class TarGzDirOutputSpec(TraitedSpec):
+    zipped = File(exists=True, desc="The tar_gz directory")
+
+
+class TarGzDir(CommandLine):
+    """Creates a tar_gzip archive from a given folder"""
+
+    _cmd = targz_path
+    input_spec = TarGzDirInputSpec
+    output_spec = TarGzDirOutputSpec
+    targz_ext = '.tar.gz'
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        outputs['zipped'] = os.path.join(os.getcwd(),
+                                         self._gen_filename('zipped'))
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'zipped':
+            fname = os.path.basename(self.inputs.dirname) + self.targz_ext
+        else:
+            assert False
+        return fname
+
+
+class UnTarGzDirInputSpec(CommandLineInputSpec):
+
+    gzipped = Directory(mandatory=True, argstr='%s', position=0,
+                        desc=("The tar_gz file"))
+
+
+class UnTarGzDirOutputSpec(TraitedSpec):
+    gunzipped = Directory(exists=True, desc="The gunzipped directory")
+
+
+class UnTarGzDir(CommandLine):
+    """Unzip a folder created using TarGz"""
+
+    _cmd = 'tar -zxvf '
+    input_spec = UnTarGzDirInputSpec
+    output_spec = UnTarGzDirOutputSpec
+
+    def _run_interface(self, *args, **kwargs):
+        self.listdir_before = set(os.listdir(os.getcwd()))
+        return super(UnTarGzDir, self)._run_interface(*args, **kwargs)
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        new_files = set(os.listdir(os.getcwd())) - self.listdir_before
+        if len(new_files) > 1:
+            raise NiAnalysisUsageError(
+                "Zip archives can only contain a single directory, found '{}'"
+                .format("', '".join(new_files)))
+        try:
+            unzipped = next(iter(new_files))
+        except StopIteration:
+            raise NiAnalysisUsageError(
+                "No files or directories found in unzipped directory")
+        outputs['gunzipped'] = os.path.join(os.getcwd(), unzipped)
         return outputs

@@ -1,5 +1,5 @@
 from abc import ABCMeta
-from nipype.pipeline import engine as pe
+from copy import copy
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import NiAnalysisMissingDatasetError
 from nianalysis.pipeline import Pipeline
@@ -90,11 +90,11 @@ class CombinedStudy(Study):
         pipeline_getter : Study.method
             Unbound method used to create the pipeline in the sub-study
         """
-        def translated_getter(self, **kwargs):
-            pipeline = pipeline_getter(self._sub_studies[sub_study_name],
-                                       **kwargs)
-            trans_pipeline = self.TranslatedPipeline(
-                sub_study_name + '_' + pipeline.name, pipeline, self)
+        def translated_getter(self, **options):
+            pipeline = pipeline_getter(
+                self._sub_studies[sub_study_name],
+                __name_prefix__=sub_study_name, **options)
+            trans_pipeline = self.TranslatedPipeline(self, pipeline)
             trans_pipeline.assert_connected()
             return trans_pipeline
         return translated_getter
@@ -123,10 +123,15 @@ class CombinedStudy(Study):
             translate_getter decorator).
         """
 
-        def __init__(self, name, pipeline, combined_study, add_inputs=None,
-                     add_outputs=None):
-            self._name = name
+        def __init__(self, combined_study, pipeline,
+                     add_inputs=None, add_outputs=None,
+                     default_options=None):
+            # Create pipeline and overriding its name
+            self._name = pipeline.name
             self._study = combined_study
+            # FIXME: Should probably regenerate the original workflow
+            # with updated names instead of renaming previously
+            # connected nodes
             self._workflow = pipeline.workflow
             ss_name = pipeline.study.name[(len(combined_study.name) + 1):]
             ss_cls, dataset_map = combined_study.sub_study_specs[ss_name]
@@ -151,7 +156,7 @@ class CombinedStudy(Study):
             # Create new input node
             self._inputnode = self.create_node(
                 IdentityInterface(fields=list(self.input_names)),
-                name="inputnode")
+                name="inputnode_wrapper")
             # Connect to sub-study input node
             for input_name in pipeline.input_names:
                 self.workflow.connect(
@@ -183,14 +188,20 @@ class CombinedStudy(Study):
                 self._outputnodes[mult] = self.create_node(
                     IdentityInterface(
                         fields=list(self.multiplicity_output_names(mult))),
-                    name="{}_outputnode".format(mult))
+                    name="{}_outputnode_wrapper".format(mult))
                 # Connect sub-study outputs
                 for output_name in pipeline.multiplicity_output_names(mult):
                     self.workflow.connect(pipeline.outputnode(mult),
                                           output_name,
                                           self._outputnodes[mult],
                                           inv_dataset_map[output_name].name)
+            # Copy across default options and override with extra
+            # provided
+            self._default_options = copy(pipeline._default_options)
+            if default_options is not None:
+                self._default_options.update(default_options)
             # Copy additional info fields
-            self._citations = pipeline.citations
-            self._options = pipeline.options
-            self._description = pipeline.description
+            self._citations = pipeline._citations
+            self._options = pipeline._options
+            self._prereq_options = pipeline._prereq_options
+            self._description = pipeline._description
