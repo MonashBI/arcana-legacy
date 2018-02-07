@@ -172,7 +172,8 @@ class BaseTestCase(TestCase):
                  output_dir)))
 
     def assertField(self, name, ref_value, study_name, subject=None,
-                    visit=None, multiplicity='per_session'):
+                    visit=None, multiplicity='per_session',
+                    to_places=None):
         esc_name = study_name + '_' + name
         output_dir = self.get_session_dir(subject, visit, multiplicity)
         try:
@@ -190,10 +191,15 @@ class BaseTestCase(TestCase):
                 "Field '{}' was not created by pipeline in study '{}'. "
                 "Created fields were ('{}')"
                 .format(esc_name, study_name, "', '".join(fields)))
-        self.assertEqual(value, ref_value,
-                         "Field value '{}' for study '{}', {}, does not match "
-                         "reference value ({})".format(
-                             name, study_name, value, ref_value))
+        msg = ("Field value '{}' for study '{}', {}, does not match "
+               "reference value ({})".format(name, study_name, value,
+                                             ref_value))
+        if to_places is not None:
+            self.assertAlmostEqual(
+                value, ref_value, to_places,
+                '{} to {} decimal places'.format(msg, to_places))
+        else:
+            self.assertEqual(value, ref_value, msg)
 
     def assertImagesMatch(self, output, ref, study_name):
         out_path = self.output_file_path(output, study_name)

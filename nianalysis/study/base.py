@@ -1,8 +1,7 @@
 from abc import ABCMeta
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisDatasetNameError, NiAnalysisMissingDatasetError,
-    NiAnalysisDatasetNameError)
+    NiAnalysisMissingDatasetError, NiAnalysisDatasetNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import BaseDatum
 
@@ -52,7 +51,7 @@ class Study(object):
         for name, inpt in inputs.iteritems():
             if name not in self._data_specs:
                 raise NiAnalysisDatasetNameError(
-                    "Input dataset dataset_spec name '{}' doesn't match any "
+                    "Input dataset data_spec name '{}' doesn't match any "
                     "data_specs in {} studies".format(
                         name, self.__class__.__name__))
             self._inputs[name] = inpt
