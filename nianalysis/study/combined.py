@@ -56,9 +56,9 @@ class CombinedStudy(Study):
             # Create copies of the input datasets to pass to the __init__
             # method of the generated sub-studies
             mapped_inputs = {}
-            for name, inpt in inputs.iteritems():
+            for n, inpt in inputs.iteritems():
                 try:
-                    mapped_inputs[dataset_map[name]] = inpt
+                    mapped_inputs[dataset_map[n]] = inpt
                 except KeyError:
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study
@@ -76,7 +76,7 @@ class CombinedStudy(Study):
         return self._sub_studies.itervalues()
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_getter):
+    def translate(cls, sub_study_name, pipeline_getter, **kwargs):
         """
         A "decorator" (although not intended to be used with @) for translating
         pipeline getter methods from a sub-study of a CombinedStudy.
@@ -91,10 +91,9 @@ class CombinedStudy(Study):
             Unbound method used to create the pipeline in the sub-study
         """
         def translated_getter(self, **options):
-            pipeline = pipeline_getter(
-                self._sub_studies[sub_study_name],
-                __name_prefix__=sub_study_name, **options)
-            trans_pipeline = self.TranslatedPipeline(self, pipeline)
+            trans_pipeline = self.TranslatedPipeline(
+                self, self._sub_studies[sub_study_name],
+                pipeline_getter, options, **kwargs)
             trans_pipeline.assert_connected()
             return trans_pipeline
         return translated_getter
@@ -123,18 +122,20 @@ class CombinedStudy(Study):
             translate_getter decorator).
         """
 
-        def __init__(self, combined_study, pipeline,
-                     add_inputs=None, add_outputs=None,
+        def __init__(self, combined_study, sub_study, pipeline_getter,
+                     options, add_inputs=None, add_outputs=None,
                      default_options=None):
-            # Create pipeline and overriding its name
+            # Get the relative name of the sub-study (i.e. without the
+            # combined study name prefixed)
+            ss_name = sub_study.name[(len(combined_study.name) + 1):]
+            # Create pipeline and overriding its name to include prefix
+            pipeline = pipeline_getter(
+                sub_study, __name_prefix__=ss_name, **options)
             self._name = pipeline.name
             self._study = combined_study
-            # FIXME: Should probably regenerate the original workflow
-            # with updated names instead of renaming previously
-            # connected nodes
             self._workflow = pipeline.workflow
-            ss_name = pipeline.study.name[(len(combined_study.name) + 1):]
-            ss_cls, dataset_map = combined_study.sub_study_specs[ss_name]
+            ss_cls, dataset_map = combined_study.sub_study_specs[
+                ss_name]
             inv_dataset_map = dict((v, combined_study.dataset_spec(k))
                                     for k, v in dataset_map.iteritems())
             assert isinstance(pipeline.study, ss_cls)
@@ -145,14 +146,15 @@ class CombinedStudy(Study):
             except KeyError as e:
                 raise NiAnalysisMissingDatasetError(
                     "{} input required for pipeline '{}' in '{}' is not "
-                    "present in dataset map:\n{}".format(e, pipeline.name,
-                                                         ss_name, dataset_map))
+                    "present in dataset map:\n{}".format(
+                        e, pipeline.name, ss_name, dataset_map))
             # Add additional inputs
             self._unconnected_inputs = set()
             if add_inputs is not None:
                 self._check_spec_names(add_inputs, 'additional inputs')
                 self._inputs.extend(add_inputs)
-                self._unconnected_inputs.update(i.name for i in add_inputs)
+                self._unconnected_inputs.update(i.name
+                                                for i in add_inputs)
             # Create new input node
             self._inputnode = self.create_node(
                 IdentityInterface(fields=list(self.input_names)),
@@ -173,7 +175,8 @@ class CombinedStudy(Study):
                     raise NiAnalysisMissingDatasetError(
                         "'{}' output required for pipeline '{}' in '{}' is not"
                         " present in inverse dataset map:\n{}".format(
-                            e, pipeline.name, ss_name, inv_dataset_map))
+                            e, pipeline.name, ss_name,
+                            inv_dataset_map))
             # Add additional outputs
             self._unconnected_outputs = set()
             if add_outputs is not None:
