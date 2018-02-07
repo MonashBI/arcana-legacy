@@ -3,9 +3,9 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 import logging
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase
 
 logger = logging.getLogger('NiAnalysis')
@@ -38,7 +38,7 @@ class TestLocalArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.SESSION
+        inputnode.inputs.visit_id = self.VISIT
         source = archive.source(self.name, source_files,
                                 study_name=self.STUDY_NAME)
         sink = archive.sink(self.name, sink_files, study_name=self.STUDY_NAME)
@@ -57,8 +57,8 @@ class TestLocalArchive(BaseTestCase):
                 source_name = source_file.name
                 sink_name = source_name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_name + OUTPUT_SUFFIX,
-                    sink, sink_name + INPUT_SUFFIX)
+                    source, source_name + PATH_SUFFIX,
+                    sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check local directory was created properly
         self.assertEqual(sorted(os.listdir(self.session_dir)),
@@ -67,6 +67,40 @@ class TestLocalArchive(BaseTestCase):
                           self.STUDY_NAME + '_sink4.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
+
+    def test_fields_roundtrip(self):
+        archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
+        sink = archive.sink(self.name,
+                            output_fields=[
+                                Field('field1', int, processed=True),
+                                Field('field2', float, processed=True),
+                                Field('field3', str, processed=True)],
+                            name='fields_sink',
+                            study_name='test')
+        sink.inputs.field1_field = field1 = 1
+        sink.inputs.field2_field = field2 = 2.0
+        sink.inputs.field3_field = field3 = '3'
+        sink.inputs.subject_id = self.SUBJECT
+        sink.inputs.visit_id = self.VISIT
+        sink.inputs.description = "Test sink of fields"
+        sink.inputs.name = 'test_sink'
+        sink.run()
+        source = archive.source(
+            self.name,
+            input_fields=[
+                FieldSpec('field1', int, pipeline=dummy_pipeline),
+                FieldSpec('field2', float, pipeline=dummy_pipeline),
+                FieldSpec('field3', str, pipeline=dummy_pipeline)],
+            name='fields_source',
+            study_name='test')
+        source.inputs.visit_id = self.VISIT
+        source.inputs.subject_id = self.SUBJECT
+        source.inputs.description = "Test source of fields"
+        source.inputs.name = 'test_source'
+        results = source.run()
+        self.assertEqual(results.outputs.field1_field, field1)
+        self.assertEqual(results.outputs.field2_field, field2)
+        self.assertEqual(results.outputs.field3_field, field3)
 
     def test_summary(self):
         # Create working dirs
@@ -79,7 +113,7 @@ class TestLocalArchive(BaseTestCase):
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.SESSION
+        inputnode.inputs.visit_id = self.VISIT
         source = archive.source(self.name, source_files)
         # Test subject sink
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
@@ -124,14 +158,14 @@ class TestLocalArchive(BaseTestCase):
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
         workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
         workflow.connect(
-            source, 'source1' + OUTPUT_SUFFIX,
-            subject_sink, 'sink1' + INPUT_SUFFIX)
+            source, 'source1' + PATH_SUFFIX,
+            subject_sink, 'sink1' + PATH_SUFFIX)
         workflow.connect(
-            source, 'source2' + OUTPUT_SUFFIX,
-            visit_sink, 'sink2' + INPUT_SUFFIX)
+            source, 'source2' + PATH_SUFFIX,
+            visit_sink, 'sink2' + PATH_SUFFIX)
         workflow.connect(
-            source, 'source3' + OUTPUT_SUFFIX,
-            project_sink, 'sink3' + INPUT_SUFFIX)
+            source, 'source3' + PATH_SUFFIX,
+            project_sink, 'sink3' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(multiplicity='per_subject')
@@ -148,7 +182,7 @@ class TestLocalArchive(BaseTestCase):
                                                      'visit_id']),
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
-        reloadinputnode.inputs.visit_id = self.SESSION
+        reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource = archive.source(
             self.name,
             (source_files + subject_sink_files + visit_sink_files +
@@ -177,17 +211,17 @@ class TestLocalArchive(BaseTestCase):
         reloadworkflow.connect(reloadinputnode, 'visit_id',
                                reloadsink, 'visit_id')
         reloadworkflow.connect(reloadsource,
-                               'sink1' + OUTPUT_SUFFIX,
+                               'sink1' + PATH_SUFFIX,
                                reloadsink,
-                               'resink1' + INPUT_SUFFIX)
+                               'resink1' + PATH_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink2' + OUTPUT_SUFFIX,
+                               'sink2' + PATH_SUFFIX,
                                reloadsink,
-                               'resink2' + INPUT_SUFFIX)
+                               'resink2' + PATH_SUFFIX)
         reloadworkflow.connect(reloadsource,
-                               'sink3' + OUTPUT_SUFFIX,
+                               'sink3' + PATH_SUFFIX,
                                reloadsink,
-                               'resink3' + INPUT_SUFFIX)
+                               'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         self.assertEqual(sorted(os.listdir(self.session_dir)),
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',

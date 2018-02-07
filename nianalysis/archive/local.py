@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
 from itertools import chain
+import errno
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -11,19 +12,21 @@ from .base import (
 import stat
 import shutil
 import logging
+import json
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset
+from nianalysis.dataset import Dataset, Field
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 
 logger = logging.getLogger('NiAnalysis')
 
 SUMMARY_NAME = 'ALL'
+FIELDS_FNAME = 'fields.json'
 
 
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
@@ -33,44 +36,69 @@ class LocalSourceInputSpec(ArchiveSourceInputSpec):
                            " be cached before uploading"))
 
 
-class LocalSource(ArchiveSource):
+class LocalNodeMixin(object):
+
+    def _get_data_dir(self, multiplicity):
+        project_dir = os.path.join(self.inputs.base_dir,
+                                   str(self.inputs.project_id))
+        subject_dir = os.path.join(project_dir, str(self.inputs.subject_id))
+        if multiplicity == 'per_project':
+            data_dir = os.path.join(project_dir, SUMMARY_NAME, SUMMARY_NAME)
+        elif multiplicity.startswith('per_subject'):
+            data_dir = os.path.join(subject_dir, SUMMARY_NAME)
+        elif multiplicity.startswith('per_visit'):
+            data_dir = os.path.join(project_dir, SUMMARY_NAME,
+                                    str(self.inputs.visit_id))
+        elif multiplicity.startswith('per_session'):
+            data_dir = os.path.join(subject_dir, str(self.inputs.visit_id))
+        else:
+            assert False, "Unrecognised multiplicity '{}'".format(
+                multiplicity)
+        return data_dir
+
+    @property
+    def fields_cache(self):
+        try:
+            cache = self._fields_cache
+        except AttributeError:
+            cache = self._fields_cache = {}
+        return cache
+
+    def _get_fields_dict(self, multiplicity):
+        try:
+            fields = self.fields_cache[multiplicity]
+        except KeyError:
+            data_dir = self._get_data_dir(multiplicity)
+            try:
+                with open(os.path.join(data_dir, FIELDS_FNAME)) as f:
+                    fields = json.load(f)
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    fields = {}
+                else:
+                    raise
+            self.fields_cache[multiplicity] = fields
+        return fields
+
+
+class LocalSource(ArchiveSource, LocalNodeMixin):
 
     input_spec = LocalSourceInputSpec
 
     def _list_outputs(self):
         # Directory that holds session-specific
-        base_project_dir = os.path.join(self.inputs.base_dir,
-                                        str(self.inputs.project_id))
-        base_subject_dir = os.path.join(base_project_dir,
-                                        str(self.inputs.subject_id))
-        session_dir = os.path.join(base_subject_dir,
-                                   str(self.inputs.visit_id))
-        subject_dir = os.path.join(base_subject_dir, SUMMARY_NAME)
-        visit_dir = os.path.join(base_project_dir,
-                                     SUMMARY_NAME,
-                                     str(self.inputs.visit_id))
-        project_dir = os.path.join(base_project_dir, SUMMARY_NAME,
-                                   SUMMARY_NAME)
         outputs = {}
         for (name, dataset_format,
              multiplicity, _, is_spec) in self.inputs.datasets:
-            if multiplicity == 'per_project':
-                data_dir = project_dir
-            elif multiplicity.startswith('per_subject'):
-                data_dir = subject_dir
-            elif multiplicity.startswith('per_visit'):
-                data_dir = visit_dir
-            elif multiplicity.startswith('per_session'):
-                data_dir = session_dir
-            else:
-                assert False, "Unrecognised multiplicity '{}'".format(
-                    multiplicity)
             ext = data_formats[dataset_format].extension
             fname = name + (ext if ext is not None else '')
-            # Prepend study name if defined
-            if is_spec and isdefined(self.inputs.study_name):
-                fname = self.inputs.study_name + '_' + fname
-            outputs[name + OUTPUT_SUFFIX] = os.path.join(data_dir, fname)
+            fname = self.prefix_study_name(fname, is_spec)
+            outputs[name + PATH_SUFFIX] = os.path.join(
+                self._get_data_dir(multiplicity), fname)
+        for (name, dtype, multiplicity, _, is_spec) in self.inputs.fields:
+            fields = self._get_fields_dict(multiplicity)
+            outputs[name + FIELD_SUFFIX] = dtype(
+                fields[self.prefix_study_name(name, is_spec)])
         return outputs
 
 
@@ -101,10 +129,14 @@ class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
     pass
 
 
-class LocalSinkMixin(object):
+class LocalSinkMixin(LocalNodeMixin):
 
     __metaclass = ABCMeta
     input_spec = LocalSinkInputSpec
+
+    def __init__(self, *args, **kwargs):
+        super(LocalSinkMixin, self).__init__(*args, **kwargs)
+        LocalNodeMixin.__init__(self)
 
     def _list_outputs(self):
         """Execute this module.
@@ -120,14 +152,13 @@ class LocalSinkMixin(object):
         # Make session dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-        # Loop through datasets connected to the sink and copy them to the
-        # cache directory and upload to daris.
-        for (name, dataset_format,
-             multiplicity, processed, _) in self.inputs.datasets:
+        # Loop through datasets connected to the sink and copy them to archive
+        # directory
+        for (name, dataset_format, mult, processed, _) in self.inputs.datasets:
             assert processed, (
                 "Should only be sinking processed datasets, not '{}'"
                 .format(name))
-            filename = getattr(self.inputs, name + INPUT_SUFFIX)
+            filename = getattr(self.inputs, name + PATH_SUFFIX)
             ext = data_formats[dataset_format].extension
             if not isdefined(filename):
                 missing_files.append(name)
@@ -136,12 +167,11 @@ class LocalSinkMixin(object):
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
                         data_formats[dataset_format].name, ext))
-            assert multiplicity in self.ACCEPTED_MULTIPLICITIES
+            assert mult == self.multiplicity
             # Copy to local system
             src_path = os.path.abspath(filename)
-            out_fname = name + (ext if ext is not None else '')
-            if isdefined(self.inputs.study_name):
-                out_fname = self.inputs.study_name + '_' + out_fname
+            out_fname = self.prefix_study_name(
+                name + (ext if ext is not None else ''))
             dst_path = os.path.join(out_dir, out_fname)
             out_files.append(dst_path)
             if os.path.isfile(src_path):
@@ -155,10 +185,26 @@ class LocalSinkMixin(object):
             #        indicates a problem but stopping now would throw
             #        away the datasets that were created
             logger.warning(
-                "Missing input datasets '{}' in DarisSink".format(
+                "Missing input datasets '{}' in LocalSink".format(
                     "', '".join(missing_files)))
         # Return cache file paths
         outputs['out_files'] = out_files
+        # Loop through fields connected to the sink and save them in the
+        # fields JSON file
+        out_fields = []
+        for (name, dtype, mult, _, _) in self.inputs.fields:
+            fields = self._get_fields_dict(mult)
+            value = getattr(self.inputs, name + FIELD_SUFFIX)
+            qual_name = self.prefix_study_name(name)
+            assert isinstance(value, dtype)
+            fields[qual_name] = value
+            out_fields.append((qual_name, value))
+        outputs['out_fields'] = out_fields
+        # Save updated fields dicts to files
+        for mult, fields in self.fields_cache.iteritems():
+            with open(os.path.join(self._get_data_dir(mult),
+                                   FIELDS_FNAME), 'w') as f:
+                json.dump(fields, f)
         return outputs
 
     @abstractmethod
@@ -300,57 +346,77 @@ class LocalArchive(Archive):
                 datasets = []
                 files = [d for d in os.listdir(session_path)
                          if not d.startswith('.')]
+                fields = []
                 for f in files:
-                    datasets.append(
-                        Dataset.from_path(os.path.join(session_path, f)))
+                    if f == FIELDS_FNAME:
+                        fields = self.fields_from_json(os.path.join(
+                            session_path, FIELDS_FNAME))
+                    else:
+                        datasets.append(
+                            Dataset.from_path(os.path.join(session_path, f)))
                 session = Session(subject_id=subject_id,
-                                  visit_id=visit_id, datasets=datasets)
+                                  visit_id=visit_id, datasets=datasets,
+                                  fields=fields)
                 sessions.append(session)
                 visit_sessions[visit_id].append(session)
             # Get subject summary datasets
             subject_summary_path = self.subject_summary_path(project_id,
                                                              subject_id)
             subj_datasets = []
+            subj_fields = []
             if os.path.exists(subject_summary_path):
                 files = [d for d in os.listdir(subject_summary_path)
                          if not d.startswith('.')]
                 for f in files:
-                    subj_datasets.append(
-                        Dataset.from_path(
-                            os.path.join(subject_summary_path, f),
-                            multiplicity='per_subject'))
+                    if f == FIELDS_FNAME:
+                        subj_fields = self.fields_from_json(os.path.join(
+                            subject_summary_path, FIELDS_FNAME))
+                    else:
+                        subj_datasets.append(
+                            Dataset.from_path(
+                                os.path.join(subject_summary_path, f),
+                                multiplicity='per_subject'))
             subjects.append(Subject(subject_id=subject_id, sessions=sessions,
-                                    datasets=subj_datasets))
+                                    datasets=subj_datasets,
+                                    fields=subj_fields))
         # Get visits
         visits = []
         for visit_id, sessions in visit_sessions.iteritems():
             visit_summary_path = self.visit_summary_path(project_id, visit_id)
+            visit_datasets = []
+            visit_fields = []
             if os.path.exists(visit_summary_path):
                 files = [d for d in os.listdir(visit_summary_path)
                          if not d.startswith('.')]
-                visit_datasets = []
                 for f in files:
-                    visit_datasets.append(
-                        Dataset.from_path(
-                            os.path.join(visit_summary_path, f),
-                            multiplicity='per_visit'))
-            else:
-                visit_datasets = []
-            visits.append(Visit(visit_id, sessions, visit_datasets))
+                    if f == FIELDS_FNAME:
+                        visit_fields = self.fields_from_json(os.path.join(
+                            visit_summary_path, FIELDS_FNAME))
+                    else:
+                        visit_datasets.append(
+                            Dataset.from_path(
+                                os.path.join(visit_summary_path, f),
+                                multiplicity='per_visit'))
+            visits.append(Visit(visit_id, sessions, visit_datasets,
+                                visit_fields))
         # Get project summary datasets
         proj_summary_path = self.project_summary_path(project_id)
+        proj_datasets = []
+        proj_fields = []
         if os.path.exists(proj_summary_path):
             files = [d for d in os.listdir(proj_summary_path)
                      if not d.startswith('.')]
-            proj_datasets = []
             for f in files:
-                proj_datasets.append(
-                    Dataset.from_path(
-                        os.path.join(proj_summary_path, f),
-                        multiplicity='per_project'))
-        else:
-            proj_datasets = []
-        project = Project(project_id, subjects, visits, proj_datasets)
+                if f == FIELDS_FNAME:
+                    proj_fields = self.fields_from_json(os.path.join(
+                        proj_summary_path, FIELDS_FNAME))
+                else:
+                    proj_datasets.append(
+                        Dataset.from_path(
+                            os.path.join(proj_summary_path, f),
+                            multiplicity='per_project'))
+        project = Project(project_id, subjects, visits, proj_datasets,
+                          proj_fields)
         return project
 
     @classmethod
@@ -382,3 +448,8 @@ class LocalArchive(Archive):
     def project_summary_path(self, project_id):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
+
+    def fields_from_json(self, fname):
+        with open(fname) as f:
+            dct = json.load(f)
+        return [Field(k, )]

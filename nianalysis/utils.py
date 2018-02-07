@@ -2,8 +2,8 @@ import os.path
 from nianalysis.exceptions import NiAnalysisError
 
 
-OUTPUT_SUFFIX = '_fname'
-INPUT_SUFFIX = '_fname'
+PATH_SUFFIX = '_path'
+FIELD_SUFFIX = '_field'
 
 zip_exts = ('gz',)
 

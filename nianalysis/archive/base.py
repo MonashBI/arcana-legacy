@@ -1,13 +1,17 @@
 from abc import ABCMeta, abstractmethod
 from itertools import chain
-from nipype.interfaces.io import IOBase, add_traits
 from nipype.interfaces.base import (
-    DynamicTraitedSpec, traits, TraitedSpec, BaseInterfaceInputSpec,
-    Undefined, isdefined, File, Directory)
+    DynamicTraitedSpec, traits, TraitedSpec, Undefined, isdefined, File,
+    Directory, BaseInterface)
 from nianalysis.nodes import Node
-from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.utils import INPUT_SUFFIX, OUTPUT_SUFFIX
+from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+
+PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
+FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
+MULTIPLICITIES = ('per_session', 'per_subject', 'per_visit', 'per_project')
 
 
 class Archive(object):
@@ -19,7 +23,7 @@ class Archive(object):
     __metaclass__ = ABCMeta
 
     @abstractmethod
-    def source(self, project_id, input_datasets, name=None, study_name=None):
+    def source(self, project_id, inputs, name=None, study_name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -29,9 +33,12 @@ class Archive(object):
         ----------
         project_id : str
             The ID of the project to return the sessions for
-        input_datasets : list[Dataset]
+        inputs : list[Dataset]
             An iterable of nianalysis.Dataset objects, which specify the
-            datasets to extract from the archive system for each session
+            datasets to extract from the archive system
+        input_fields : list(Field)
+            An iterable of nianalysis.Field objects, which specify the fields
+            to extract from the archive system
         name : str
             Name of the NiPype node
         study_name: str
@@ -42,14 +49,17 @@ class Archive(object):
             name = "{}_source".format(self.type)
         source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
-        source.inputs.datasets = [s.to_tuple() for s in input_datasets]
+        source.inputs.datasets = [i.to_tuple() for i in inputs
+                                  if isinstance(i, BaseDataset)]
+        source.inputs.fields = [i.to_tuple() for i in inputs
+                                if isinstance(i, BaseField)]
         if study_name is not None:
             source.inputs.study_name = study_name
         return source
 
     @abstractmethod
-    def sink(self, project_id, output_datasets, multiplicity='per_session',
-             name=None, study_name=None):
+    def sink(self, project_id, outputs, multiplicity='per_session', name=None,
+             study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -61,7 +71,10 @@ class Archive(object):
             The ID of the project to return the sessions for
         output_datasets : List[BaseFile]
             An iterable of nianalysis.Dataset objects, which specify the
-            datasets to extract from the archive system for each session
+            datasets to put into the archive system
+        output_fields : list(Field)
+            An iterable of nianalysis.Field objects, which specify the fields
+            to put into the archive system
         name : str
             Name of the NiPype node
         study_name: str
@@ -69,6 +82,9 @@ class Archive(object):
             study. Used for processed datasets only
 
         """
+        if name is None:
+            name = "{}_{}_sink".format(self.type, multiplicity)
+        outputs = list(outputs)
         if multiplicity.startswith('per_session'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
@@ -82,13 +98,12 @@ class Archive(object):
                 "Unrecognised multiplicity '{}' can be one of '{}'"
                 .format(multiplicity,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
-        if name is None:
-            name = "{}_{}_sink".format(self.type, multiplicity)
-        # Ensure iterators aren't exhausted
-        output_datasets = list(output_datasets)
-        sink = Node(sink_class(output_datasets), name=name)
+        datasets = [o for o in outputs if isinstance(o, DatasetSpec)]
+        fields = [o for o in outputs if isinstance(o, FieldSpec)]
+        sink = Node(sink_class(datasets, fields), name=name)
         sink.inputs.project_id = str(project_id)
-        sink.inputs.datasets = [s.to_tuple() for s in output_datasets]
+        sink.inputs.datasets = [s.to_tuple() for s in datasets]
+        sink.inputs.fields = [f.to_tuple() for f in fields]
         if study_name is not None:
             sink.inputs.study_name = study_name
         return sink
@@ -113,7 +128,45 @@ class Archive(object):
         """
 
 
-class ArchiveSourceInputSpec(TraitedSpec):
+class BaseArchiveNode(BaseInterface):
+    """
+    Parameters
+    ----------
+    infields : list of str
+        Indicates the input fields to be dynamically created
+
+    outfields: list of str
+        Indicates output fields to be dynamically created
+
+    See class examples for usage
+
+    """
+
+    __metaclass__ = ABCMeta
+
+    def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
+        return runtime
+
+    @abstractmethod
+    def _list_outputs(self):
+        pass
+
+    @classmethod
+    def _add_trait(cls, spec, name, trait_type):
+        spec.add_trait(name, trait_type)
+        spec.trait_set(trait_change_notify=False, **{name: Undefined})
+        # Access the trait (not sure why but this is done in add_traits
+        # so I have also done it here
+        getattr(spec, name)
+
+    def prefix_study_name(self, name, is_spec=True):
+        """Prepend study name if defined"""
+        if is_spec and isdefined(self.inputs.study_name):
+            name = self.inputs.study_name + '_' + name
+        return name
+
+
+class ArchiveSourceInputSpec(DynamicTraitedSpec):
     """
     Base class for archive source input specifications. Provides a common
     interface for 'run_pipeline' when using the archive source to extract
@@ -127,53 +180,34 @@ class ArchiveSourceInputSpec(TraitedSpec):
                             desc="The visit or processed group ID")
     datasets = traits.List(
         DatasetSpec.traits_spec(),
-        desc="Names of all datasets that comprise the (sub)project")
+        desc="List of all datasets to be extracted from the archive")
+    fields = traits.List(
+        FieldSpec.traits_spec(),
+        desc=("List of all the fields that are to be extracted from the"
+              "archive"))
     study_name = traits.Str(desc=("Prefix prepended onto processed dataset "
                                   "names"))
 
 
-class ArchiveSource(IOBase):
-
-    __metaclass__ = ABCMeta
+class ArchiveSource(BaseArchiveNode):
 
     output_spec = DynamicTraitedSpec
     _always_run = True
 
-    def __init__(self, infields=None, outfields=None, **kwargs):
-        """
-        Parameters
-        ----------
-        infields : list of str
-            Indicates the input fields to be dynamically created
+    def _outputs(self):
+        return self._add_dataset_and_field_traits(
+            super(ArchiveSource, self)._outputs())
 
-        outfields: list of str
-            Indicates output fields to be dynamically created
-
-        See class examples for usage
-
-        """
-        if not outfields:
-            outfields = ['outfiles']
-        super(ArchiveSource, self).__init__(**kwargs)
-        undefined_traits = {}
-        # used for mandatory inputs check
-        self._infields = infields
-        self._outfields = outfields
-        if infields:
-            for key in infields:
-                self.inputs.add_trait(key, traits.Any)
-                undefined_traits[key] = Undefined
-
-    @abstractmethod
-    def _list_outputs(self):
-        pass
-
-    def _add_output_traits(self, base):
-        return add_traits(base, [dataset[0] + OUTPUT_SUFFIX
-                                 for dataset in self.inputs.datasets])
+    def _add_dataset_and_field_traits(self, base):
+        for dataset in self.inputs.datasets:
+            self._add_trait(base, dataset[0] + PATH_SUFFIX, PATH_TRAIT)
+        # Add output fields
+        for name, dtype, _, _, _ in self.inputs.fields:
+            self._add_trait(base, name + FIELD_SUFFIX, dtype)
+        return base
 
 
-class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+class BaseArchiveSinkInputSpec(DynamicTraitedSpec):
     """
     Base class for archive sink input specifications. Provides a common
     interface for 'run_pipeline' when using the archive save
@@ -188,9 +222,15 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
                               "'tractography'"))
     description = traits.Str(mandatory=True,  # @UndefinedVariable
                              desc="Description of the study")
+
     datasets = traits.List(
         DatasetSpec.traits_spec(),
-        desc="Names of all datasets that comprise the (sub)project")
+        desc="Lists the datasets to be retrieved from the archive")
+
+    fields = traits.List(
+        FieldSpec.traits_spec(),
+        desc=("List of all the fields to be retrieved from the archive"))
+
     # TODO: Not implemented yet
     overwrite = traits.Bool(  # @UndefinedVariable
         False, mandatory=True, usedefault=True,
@@ -203,12 +243,16 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
         # Need to check whether datasets is not empty, as it can be when
         # unpickling
         if (isdefined(self.datasets) and self.datasets and
+            isdefined(self.fields) and self.fields and
                 not hasattr(self, name)):
-            accepted = [s[0] + INPUT_SUFFIX for s in self.datasets]
-            assert name in accepted, (
-                "'{}' is not a valid input filename for '{}' archive sink "
-                "(accepts '{}')".format(name, self.name,
-                                        "', '".join(accepted)))
+            accepted = set(chain(
+                (s[0] + PATH_SUFFIX for s in self.datasets),
+                (f[0] + FIELD_SUFFIX for f in self.fields)))
+            if name not in accepted:
+                raise NiAnalysisError(
+                    "'{}' is not a valid input filename for '{}' archive sink "
+                    "(accepts '{}')".format(name, self.name,
+                                            "', '".join(accepted)))
         super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
 
 
@@ -235,9 +279,10 @@ class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
 
 class BaseArchiveSinkOutputSpec(TraitedSpec):
 
-    out_files = traits.List(
-        traits.Either(File(exists=True), Directory(exists=True)),
-        desc='datasink outputs')
+    out_files = traits.List(PATH_TRAIT, desc='Output datasets')
+
+    out_fields = traits.List(
+        traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
 
 
 class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
@@ -264,29 +309,18 @@ class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
     project_id = traits.Str(desc="The project ID")
 
 
-class BaseArchiveSink(IOBase):
+class BaseArchiveSink(BaseArchiveNode):
 
-    __metaclass__ = ABCMeta
-
-    def __init__(self, output_datasets, **kwargs):
-        """
-        Parameters
-        ----------
-        infields : list of str
-            Indicates the input fields to be dynamically created
-
-        outfields: list of str
-            Indicates output fields to be dynamically created
-
-        See class examples for usage
-
-        """
+    def __init__(self, output_datasets, output_fields, **kwargs):
         super(BaseArchiveSink, self).__init__(**kwargs)
-        # used for mandatory inputs check
-        self._infields = None
-        self._outfields = None
-        add_traits(self.inputs, [s.name + INPUT_SUFFIX
-                                 for s in output_datasets])
+        # Add output datasets
+        for dataset in output_datasets:
+            self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
+                            PATH_TRAIT)
+        # Add output fields
+        for field in output_fields:
+            self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
+                            field.dtype)
 
     @abstractmethod
     def _base_outputs(self):
@@ -299,7 +333,7 @@ class ArchiveSink(BaseArchiveSink):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_session',)
+    multiplicity = 'per_session'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -314,7 +348,7 @@ class ArchiveSubjectSink(BaseArchiveSink):
     input_spec = ArchiveSubjectSinkInputSpec
     output_spec = ArchiveSubjectSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_subject',)
+    multiplicity = 'per_subject'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -328,7 +362,7 @@ class ArchiveVisitSink(BaseArchiveSink):
     input_spec = ArchiveVisitSinkInputSpec
     output_spec = ArchiveVisitSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_visit',)
+    multiplicity = 'per_visit'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -342,7 +376,7 @@ class ArchiveProjectSink(BaseArchiveSink):
     input_spec = ArchiveProjectSinkInputSpec
     output_spec = ArchiveProjectSinkOutputSpec
 
-    ACCEPTED_MULTIPLICITIES = ('per_project',)
+    multiplicity = 'per_project'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -352,11 +386,13 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, visits, datasets):
+    def __init__(self, project_id, subjects, visits, datasets,
+                 fields):
         self._id = project_id
         self._subjects = subjects
         self._visits = visits
         self._datasets = datasets
+        self._fields = fields
 
     @property
     def id(self):
@@ -375,14 +411,33 @@ class Project(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datasets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Project):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._subjects == other._subjects and
+                self._visits == other._visits and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -391,19 +446,17 @@ class Project(object):
         return "Subject(id={}, num_subjects={})".format(
             self._id, len(list(self.subjects)))
 
-    def __hash__(self):
-        return hash(self._id)
-
 
 class Subject(object):
     """
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, subject_id, sessions, datasets):
+    def __init__(self, subject_id, sessions, datasets, fields):
         self._id = subject_id
         self._sessions = sessions
         self._datasets = datasets
+        self._fields = fields
         for session in sessions:
             session.subject = self
 
@@ -420,14 +473,32 @@ class Subject(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datasets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._sessions == other._sessions and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -436,19 +507,17 @@ class Subject(object):
         return "Subject(id={}, num_sessions={})".format(self._id,
                                                         len(self._sessions))
 
-    def __hash__(self):
-        return hash(self._id)
-
 
 class Visit(object):
     """
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, visit_id, sessions, datasets):
+    def __init__(self, visit_id, sessions, datasets, fields):
         self._id = visit_id
         self._sessions = sessions
         self._datasets = datasets
+        self._fields = fields
         for session in sessions:
             session.visit = self
 
@@ -465,14 +534,32 @@ class Visit(object):
         return self._datasets
 
     @property
+    def fields(self):
+        return self._fields
+
+    @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datasets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     def __eq__(self, other):
         if not isinstance(other, Subject):
             return False
         return (self._id == other._id and
-                self._sessions == other._sessions)
+                self._sessions == other._sessions and
+                self._datasets == other._datasets and
+                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -480,9 +567,6 @@ class Visit(object):
     def __repr__(self):
         return "Subject(id={}, num_sessions={})".format(self._id,
                                                         len(self._sessions))
-
-    def __hash__(self):
-        return hash(self._id)
 
 
 class Session(object):
@@ -502,10 +586,11 @@ class Session(object):
         here
     """
 
-    def __init__(self, subject_id, visit_id, datasets, processed=None):
+    def __init__(self, subject_id, visit_id, datasets, fields, processed=None):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._datasets = datasets
+        self._fields = fields
         self._subject = None
         self._visit = None
         self._processed = processed
@@ -549,11 +634,27 @@ class Session(object):
 
     @property
     def datasets(self):
-        return iter(self._datasets)
+        return self._datasets
+
+    @property
+    def fields(self):
+        return self._fields
 
     @property
     def dataset_names(self):
         return (d.name for d in self.datasets)
+
+    @property
+    def field_names(self):
+        return (f.name for f in self.fields)
+
+    @property
+    def data(self):
+        return chain(self.datasets, self.fields)
+
+    @property
+    def data_names(self):
+        return (d.name for d in self.data)
 
     @property
     def processed_dataset_names(self):
@@ -562,8 +663,22 @@ class Session(object):
         return (d.name for d in datasets)
 
     @property
+    def processed_field_names(self):
+        fields = (self.fields
+                    if self.processed is None else self.processed.fields)
+        return (f.name for f in fields)
+
+    @property
+    def processed_data_names(self):
+        return chain(self.processed_dataset_names, self.processed_field_names)
+
+    @property
     def all_dataset_names(self):
         return chain(self.dataset_names, self.processed_dataset_names)
+
+    @property
+    def all_field_names(self):
+        return chain(self.field_names, self.processed_field_names)
 
     def __eq__(self, other):
         if not isinstance(other, Session):
@@ -571,6 +686,7 @@ class Session(object):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
                 self.datasets == other.datasets and
+                self.fields == other.fields and
                 self.processed == other.processed)
 
     def __ne__(self, other):
@@ -578,8 +694,6 @@ class Session(object):
 
     def __repr__(self):
         return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
-                "processed={})".format(self.subject_id, self.visit_id,
-                                       len(self._datasets), self.processed))
-
-    def __hash__(self):
-        return hash((self.subject_id, self.visit_id))
+                "num_fields={}, processed={})".format(
+                    self.subject_id, self.visit_id, len(self._datasets),
+                    len(self._fields), self.processed))

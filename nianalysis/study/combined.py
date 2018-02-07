@@ -22,10 +22,10 @@ class CombinedStudy(Study):
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
-    input_datasets : Dict[str, base.Dataset]
-        A dict containing the a mapping between names of study dataset_specs
+    inputs : Dict[str, base.Dataset]
+        A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
-        also be replacements for generated dataset_specs)
+        also be replacements for generated data_specs)
 
     Required Sub-Class attributes
     -----------------------------
@@ -40,30 +40,30 @@ class CombinedStudy(Study):
             sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
                                't2_study': (MRIStudy, {'t2': 'mr_scan'})}
 
-            dataset_specs = set_dataset_specs(
+            data_specs = set_data_specs(
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format'))
     """
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, input_datasets):
+    def __init__(self, name, project_id, archive, inputs):
         super(CombinedStudy, self).__init__(name, project_id, archive,
-                                            input_datasets)
+                                            inputs)
         self._sub_studies = {}
         for (sub_study_name,
              (cls, dataset_map)) in self.sub_study_specs.iteritems():
             # Create copies of the input datasets to pass to the __init__
             # method of the generated sub-studies
             mapped_inputs = {}
-            for dataset_name, dataset in input_datasets.iteritems():
+            for name, inpt in inputs.iteritems():
                 try:
-                    mapped_inputs[dataset_map[dataset_name]] = dataset
+                    mapped_inputs[dataset_map[name]] = inpt
                 except KeyError:
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study
             sub_study = cls(name + '_' + sub_study_name, project_id,
-                            archive, mapped_inputs, check_input_datasets=False)
+                            archive, mapped_inputs, check_inputs=False)
             # Set sub-study as attribute
             setattr(self, sub_study_name, sub_study)
             # Append to dictionary of sub_studies

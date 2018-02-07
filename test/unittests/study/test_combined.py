@@ -4,7 +4,7 @@ from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, set_dataset_specs
+from nianalysis.study.base import Study, set_data_specs
 from nianalysis.study.combined import CombinedStudy
 from nianalysis.interfaces.mrtrix import MRMath
 import logging
@@ -45,7 +45,7 @@ class DummySubStudyA(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format),
         DatasetSpec('z', mrtrix_format, pipeline1))
@@ -94,7 +94,7 @@ class DummySubStudyB(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('w', mrtrix_format),
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format, pipeline1),
@@ -110,7 +110,7 @@ class DummyCombinedStudy(CombinedStudy):
     pipeline_a1 = CombinedStudy.translate('A', DummySubStudyA.pipeline1)
     pipeline_b1 = CombinedStudy.translate('B', DummySubStudyB.pipeline1)
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format),

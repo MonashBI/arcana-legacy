@@ -6,7 +6,7 @@ from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, set_dataset_specs  # @IgnorePep8
+from nianalysis.study.base import Study, set_data_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -226,7 +226,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
         DatasetSpec('pipeline1_1', nifti_gz_format, pipeline1),
@@ -297,7 +297,7 @@ class TestRunPipeline(BaseTestCase):
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
-            DummyStudy, 'dummy', input_datasets={
+            DummyStudy, 'dummy', inputs={
                 'start': Dataset('start', nifti_gz_format),
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
 
@@ -310,7 +310,7 @@ class TestRunPipeline(BaseTestCase):
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4(pipeline_option=True)
         pipeline.run(work_dir=self.work_dir)
-        for dataset in DummyStudy.dataset_specs():
+        for dataset in DummyStudy.data_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:
@@ -419,7 +419,7 @@ class ExistingPrereqStudy(Study):
     def thousands_pipeline(self, **options):  # @UnusedVariable
         return self.pipeline_factory(1000, 'hundreds', 'thousands')
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('ones', mrtrix_format),
         DatasetSpec('tens', mrtrix_format, tens_pipeline),
         DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
@@ -519,7 +519,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
     def test_per_session_prereqs(self):
         study = self.create_study(
-            ExistingPrereqStudy, self.study_name, input_datasets={
+            ExistingPrereqStudy, self.study_name, inputs={
                 'ones': Dataset('ones', mrtrix_format)})
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
@@ -549,7 +549,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
-#             ExistingPrereqStudy, self.study_name, input_datasets={
+#             ExistingPrereqStudy, self.study_name, inputs={
 #                 'ones': Dataset('ones', mrtrix_format)})
 #         study.thousands_pipeline().run(work_dir=self.work_dir)
 #         targets = {

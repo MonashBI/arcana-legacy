@@ -5,10 +5,11 @@ from unittest import TestCase
 import errno
 from xnat.exceptions import XNATError
 import sys
+import json
 import warnings
 import nianalysis
 from nianalysis.archive.local import (
-    LocalArchive, SUMMARY_NAME)
+    LocalArchive, SUMMARY_NAME, FIELDS_FNAME)
 from nianalysis.archive.xnat import download_all_datasets
 from nianalysis.exceptions import NiAnalysisError
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -128,12 +129,12 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, input_datasets):
+    def create_study(self, study_cls, name, inputs):
         return study_cls(
             name=name,
             project_id=self.project_id,
             archive=self.archive,
-            input_datasets=input_datasets)
+            inputs=inputs)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
                              visit=None, multiplicity='per_session'):
@@ -146,6 +147,30 @@ class BaseTestCase(TestCase):
              " ('{}' found in '{}' instead)".format(
                  dataset_name, out_path, "', '".join(os.listdir(output_dir)),
                  output_dir)))
+
+    def assertField(self, name, ref_value, study_name, subject=None,
+                    visit=None, multiplicity='per_session'):
+        esc_name = study_name + '_' + name
+        output_dir = self.get_session_dir(subject, visit, multiplicity)
+        try:
+            with open(os.path.join(output_dir, FIELDS_FNAME)) as f:
+                fields = json.load(f)
+        except OSError as e:
+            if e.errno == errno.ENOENT:
+                raise NiAnalysisError(
+                    "No fields were created by pipeline in study '{}'"
+                    .format(study_name))
+        try:
+            value = fields[esc_name]
+        except KeyError:
+            raise NiAnalysisError(
+                "Field '{}' was not created by pipeline in study '{}'. "
+                "Created fields were ('{}')"
+                .format(esc_name, study_name, "', '".join(fields)))
+        self.assertEqual(value, ref_value,
+                         "Field value '{}' for study '{}', {}, does not match "
+                         "reference value ({})".format(
+                             name, study_name, value, ref_value))
 
     def assertImagesMatch(self, output, ref, study_name):
         out_path = self.output_file_path(output, study_name)

@@ -7,8 +7,7 @@ from collections import defaultdict
 import logging
 from nianalysis.requirements import Requirement
 from nianalysis.exceptions import (
-    NiAnalysisError, NiAnalysisModulesNotInstalledException,
-    NiAnalysisRequirementVersionException)
+    NiAnalysisError, NiAnalysisModulesNotInstalledException)
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 

@@ -10,7 +10,7 @@ from nianalysis.data_formats import (
     get_converter_node, nifti_gz_format)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
-from nianalysis.study.base import Study, set_dataset_specs
+from nianalysis.study.base import Study, set_data_specs
 from nianalysis.dataset import DatasetSpec
 
 # import logging
@@ -61,7 +61,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _dataset_specs = set_dataset_specs(
+    _data_specs = set_data_specs(
         DatasetSpec('input', dicom_format),
         DatasetSpec('output', nifti_gz_format, pipeline))
 
@@ -91,7 +91,7 @@ class TestDicom2Niix(BaseTestCase):
 
     def test_dcm2niix(self):
         study = self.create_study(
-            DummyStudy, 'concatenate', input_datasets={
+            DummyStudy, 'concatenate', inputs={
                 'input': Dataset('t2_tse_tra_p2_448', dicom_format)})
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('output.nii.gz', study.name)
