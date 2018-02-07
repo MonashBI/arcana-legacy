@@ -124,13 +124,21 @@ class CombinedStudy(Study):
 
         def __init__(self, combined_study, sub_study, pipeline_getter,
                      options, add_inputs=None, add_outputs=None,
-                     default_options=None):
+                     override_default_options=None):
             # Get the relative name of the sub-study (i.e. without the
             # combined study name prefixed)
             ss_name = sub_study.name[(len(combined_study.name) + 1):]
+            # Override default options
+            if override_default_options is not None:
+                for n, val in override_default_options.items():
+                    if n not in options:
+                        options[n] = val
             # Create pipeline and overriding its name to include prefix
+            # Copy across default options and override with extra
+            # provided
             pipeline = pipeline_getter(
                 sub_study, __name_prefix__=ss_name, **options)
+            self._options = pipeline._options
             self._name = pipeline.name
             self._study = combined_study
             self._workflow = pipeline.workflow
@@ -198,13 +206,10 @@ class CombinedStudy(Study):
                                           output_name,
                                           self._outputnodes[mult],
                                           inv_dataset_map[output_name].name)
-            # Copy across default options and override with extra
-            # provided
-            self._default_options = copy(pipeline._default_options)
-            if default_options is not None:
-                self._default_options.update(default_options)
             # Copy additional info fields
-            self._citations = pipeline._citations
-            self._options = pipeline._options
+            self._default_options = copy(pipeline._default_options)
+            if override_default_options is not None:
+                self._default_options.update(override_default_options)
             self._prereq_options = pipeline._prereq_options
+            self._citations = pipeline._citations
             self._description = pipeline._description
