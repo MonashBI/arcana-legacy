@@ -17,6 +17,7 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.4',
                       'nipype>=0.14.0-rc1',
+                      'networkx==1.9',
                       'pydicom>=0.9.9'],
     dependency_links=[
         "git+https://github.com/nipy/nipype#egg=nipype-0.14.0-rc1"
