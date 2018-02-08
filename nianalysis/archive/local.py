@@ -196,7 +196,10 @@ class LocalSinkMixin(LocalNodeMixin):
             fields = self._get_fields_dict(mult)
             value = getattr(self.inputs, name + FIELD_SUFFIX)
             qual_name = self.prefix_study_name(name)
-            assert isinstance(value, dtype)
+            if dtype is str:
+                assert isinstance(value, basestring)
+            else:
+                assert isinstance(value, dtype)
             fields[qual_name] = value
             out_fields.append((qual_name, value))
         outputs['out_fields'] = out_fields
