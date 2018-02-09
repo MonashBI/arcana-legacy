@@ -412,7 +412,7 @@ class TestXnatArchive(BaseTestCase):
         Tests handling of race conditions where separate processes attempt to
         cache the same dataset
         """
-        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+        cache_dir = os.path.join(self.base_cache_path,
                                  'delayed-download-cache')
         DATASET_NAME = 'source1'
         target_path = os.path.join(self.session_cache(cache_dir),
@@ -484,7 +484,7 @@ class TestXnatArchive(BaseTestCase):
         Tests check of downloaded digests to see if file needs to be
         redownloaded
         """
-        cache_dir = os.path.join(self.CACHE_BASE_PATH,
+        cache_dir = os.path.join(self.base_cache_path,
                                  'digest-check-cache')
         DATASET_NAME = 'source1'
         STUDY_NAME = 'digest_check_study'
@@ -573,7 +573,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
     TEST_NAME = 'special_char_in_scan_name'
     DATASETS = ['localizer 3 PLANES (Left)',
                 'PosDisp: [3] cv_t1rho_3D_2_TR450 (Left)']
-    WORK_PATH = os.path.join(test_data_dir, 'work', TEST_NAME)
+    work_path = os.path.join(test_data_dir, 'work', TEST_NAME)
 
     def test_special_char_in_scan_name(self):
         """
@@ -586,7 +586,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             self.PROJECT, [Dataset(d, dicom_format) for d in self.DATASETS])
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
-        workflow = pe.Workflow(self.TEST_NAME, base_dir=self.WORK_PATH)
+        workflow = pe.Workflow(self.TEST_NAME, base_dir=self.work_path)
         workflow.add_nodes([source])
         graph = workflow.run()
         result = next(n.result for n in graph.nodes() if n.name == source.name)
@@ -600,7 +600,7 @@ class TestOnXnatMixin(object):
 
     def setUp(self):
         self._clean_up()
-        cache_dir = os.path.join(self.CACHE_BASE_PATH, self.base_name)
+        cache_dir = os.path.join(self.base_cache_path, self.base_name)
         self.base_class.setUp(self, cache_dir=cache_dir)
         with xnat.connect(self.SERVER) as mbi_xnat:
             # Copy local archive to XNAT
@@ -650,7 +650,7 @@ class TestOnXnatMixin(object):
 
     @property
     def project_dir(self):
-        return os.path.join(self.ARCHIVE_PATH, self.base_name)
+        return os.path.join(self.archive_path, self.base_name)
 
     @property
     def output_cache_dir(self):
