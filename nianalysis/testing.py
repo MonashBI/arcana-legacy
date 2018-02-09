@@ -33,23 +33,28 @@ class BaseTestCase(TestCase):
         os.path.dirname(nianalysis.__file__), '..', 'test'))
 
     @classproperty
-    def test_data_dir(cls):  # @NoSelf
+    @classmethod
+    def test_data_dir(cls):
         return os.path.join(cls.BASE_TEST_DIR, 'data')
 
     @classproperty
-    def unittest_root(cls):  # @NoSelf
-        return os.path.join(cls.test_data_dir, 'unittests')
+    @classmethod
+    def unittest_root(cls):
+        return os.path.join(cls.BASE_TEST_DIR, 'unittests')
 
     @classproperty
-    def archive_path(cls):  # @NoSelf
+    @classmethod
+    def archive_path(cls):
         return os.path.join(cls.test_data_dir, 'archive')
 
     @classproperty
-    def work_path(cls):  # @NoSelf
+    @classmethod
+    def work_path(cls):
         return os.path.join(cls.test_data_dir, 'work')
 
     @classproperty
-    def base_cache_path(cls):  # @NoSelf
+    @classmethod
+    def base_cache_path(cls):
         return os.path.join(cls.test_data_dir, 'cache')
 
     def setUp(self, cache_dir=None):
@@ -140,8 +145,7 @@ class BaseTestCase(TestCase):
         dirs
         """
         module_path = os.path.abspath(sys.modules[cls.__module__].__file__)
-        
-        rel_module_path = module_path[(len(unittest_base_dir) + 1):]
+        rel_module_path = module_path[(len(self.unittest_root) + 1):]
         path_parts = rel_module_path.split(os.path.sep)
         module_name = (''.join(path_parts[:-1]) +
                        os.path.splitext(path_parts[-1])[0][5:]).upper()
