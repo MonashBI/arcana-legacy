@@ -8,6 +8,7 @@ import sys
 import json
 import warnings
 import nianalysis
+from nianalysis.utils import classproperty
 from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME, FIELDS_FNAME)
 from nianalysis.archive.xnat import download_all_datasets
@@ -18,21 +19,38 @@ from traceback import format_exc
 from nianalysis.archive.local import SUMMARY_NAME as LOCAL_SUMMARY_NAME
 
 
-test_data_dir = os.path.join(os.path.dirname(__file__), '..', 'test', '_data')
-
-unittest_base_dir = os.path.abspath(os.path.join(
-    os.path.dirname(nianalysis.__file__), '..', 'test', 'unittests'))
-
-
 class BaseTestCase(TestCase):
 
-    ARCHIVE_PATH = os.path.join(test_data_dir, 'archive')
-    WORK_PATH = os.path.join(test_data_dir, 'work')
-    CACHE_BASE_PATH = os.path.join(test_data_dir, 'cache')
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     XNAT_TEST_PROJECT = 'TEST001'
+
+    # The path to the test directory, which should sit along side the
+    # the package directory. Note this will not work when NiAnalysis
+    # is installed by a package manager.
+    BASE_TEST_DIR = os.path.abspath(os.path.join(
+        os.path.dirname(nianalysis.__file__), '..', 'test'))
+
+    @classproperty
+    def test_data_dir(cls):  # @NoSelf
+        return os.path.join(cls.BASE_TEST_DIR, 'data')
+
+    @classproperty
+    def unittest_root(cls):  # @NoSelf
+        return os.path.join(cls.test_data_dir, 'unittests')
+
+    @classproperty
+    def archive_path(cls):  # @NoSelf
+        return os.path.join(cls.test_data_dir, 'archive')
+
+    @classproperty
+    def work_path(cls):  # @NoSelf
+        return os.path.join(cls.test_data_dir, 'work')
+
+    @classproperty
+    def base_cache_path(cls):  # @NoSelf
+        return os.path.join(cls.test_data_dir, 'cache')
 
     def setUp(self, cache_dir=None):
         self.reset_dirs()
@@ -93,19 +111,19 @@ class BaseTestCase(TestCase):
 
     @property
     def cache_dir(self):
-        return os.path.join(self.CACHE_BASE_PATH, self.name)
+        return os.path.join(self.base_cache_path, self.name)
 
     @property
     def archive(self):
-        return LocalArchive(self.ARCHIVE_PATH)
+        return LocalArchive(self.archive_path)
 
     @property
     def project_dir(self):
-        return os.path.join(self.ARCHIVE_PATH, self.name)
+        return os.path.join(self.archive_path, self.name)
 
     @property
     def work_dir(self):
-        return os.path.join(self.WORK_PATH, self.name)
+        return os.path.join(self.work_path, self.name)
 
     @property
     def name(self):
@@ -122,6 +140,7 @@ class BaseTestCase(TestCase):
         dirs
         """
         module_path = os.path.abspath(sys.modules[cls.__module__].__file__)
+        
         rel_module_path = module_path[(len(unittest_base_dir) + 1):]
         path_parts = rel_module_path.split(os.path.sep)
         module_name = (''.join(path_parts[:-1]) +

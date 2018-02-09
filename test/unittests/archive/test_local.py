@@ -23,7 +23,7 @@ class TestLocalArchive(BaseTestCase):
     def test_archive_roundtrip(self):
         # Create working dirs
         # Create LocalSource node
-        archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
+        archive = LocalArchive(base_dir=self.archive_path)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),
@@ -69,7 +69,7 @@ class TestLocalArchive(BaseTestCase):
                           'source3.nii.gz', 'source4.nii.gz'])
 
     def test_fields_roundtrip(self):
-        archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
+        archive = LocalArchive(base_dir=self.archive_path)
         sink = archive.sink(self.name,
                             output_fields=[
                                 Field('field1', int, processed=True),
@@ -105,7 +105,7 @@ class TestLocalArchive(BaseTestCase):
     def test_summary(self):
         # Create working dirs
         # Create LocalSource node
-        archive = LocalArchive(base_dir=self.ARCHIVE_PATH)
+        archive = LocalArchive(base_dir=self.archive_path)
         # TODO: Should test out other file formats as well.
         source_files = [Dataset('source1', nifti_gz_format),
                         Dataset('source2', nifti_gz_format),

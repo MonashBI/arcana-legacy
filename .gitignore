@@ -1,7 +1,7 @@
 /.project
 /.pydevproject
 *.pyc
-/test/_data/*
+/test/data/*
 *.pklz
 *~
 .DS_Store
