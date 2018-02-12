@@ -138,6 +138,10 @@ class CombinedStudy(Study):
             # provided
             pipeline = pipeline_getter(
                 sub_study, __name_prefix__=ss_name, **options)
+            try:
+                assert isinstance(pipeline, Pipeline)
+            except Exception:
+                raise
             self._options = pipeline._options
             self._name = pipeline.name
             self._study = combined_study

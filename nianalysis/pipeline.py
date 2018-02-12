@@ -332,6 +332,7 @@ class Pipeline(object):
                     (connected_prereq,
                      prereq_report) = connected_prereqs[prereq.name]
                     if connected_prereq != prereq:
+                        print(connected_prereq == prereq)
                         raise NiAnalysisError(
                             "Name clash between {} and {} non-matching "
                             "prerequisite pipelines".format(connected_prereq,
