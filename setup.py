@@ -2,7 +2,7 @@ import sys
 import os.path
 from setuptools import setup, find_packages
 
-PACKAGE_NAME = 'nianalysis'
+PACKAGE_NAME = 'mbianalysis'
 
 # Get version from module inside package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),
