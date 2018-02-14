@@ -2,14 +2,14 @@ from copy import copy
 from abc import ABCMeta, abstractmethod
 from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRConvert
-from nianalysis.interfaces.utils.os import (
+from nianalysis.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException)
 from nianalysis.requirements import (
     mrtrix3_req, dcm2niix_req, mricrogl_req, Requirement)
-from nianalysis.interfaces.converters import Dcm2niix
+from nipype.interfaces.dcm2nii import Dcm2niix
 import logging
 
 

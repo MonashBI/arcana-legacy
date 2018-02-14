@@ -8,7 +8,7 @@ from multiprocessing import Process
 from unittest import TestCase
 import xnat
 from nianalysis.testing import (
-    BaseTestCase, BaseMultiSubjectTestCase, test_data_dir)
+    BaseTestCase, BaseMultiSubjectTestCase)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
@@ -573,7 +573,8 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
     TEST_NAME = 'special_char_in_scan_name'
     DATASETS = ['localizer 3 PLANES (Left)',
                 'PosDisp: [3] cv_t1rho_3D_2_TR450 (Left)']
-    work_path = os.path.join(test_data_dir, 'work', TEST_NAME)
+    work_path = os.path.join(BaseTestCase.test_data_dir, 'work',
+                             TEST_NAME)
 
     def test_special_char_in_scan_name(self):
         """
