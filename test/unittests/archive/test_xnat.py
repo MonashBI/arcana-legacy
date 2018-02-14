@@ -189,7 +189,7 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir)
         sink = archive.sink(self.PROJECT,
-                            output_fields=[
+                            outputs=[
                                 Field('field1', int, processed=True),
                                 Field('field2', float, processed=True),
                                 Field('field3', str, processed=True)],
@@ -205,7 +205,7 @@ class TestXnatArchive(BaseTestCase):
         sink.run()
         source = archive.source(
             self.PROJECT,
-            input_fields=[
+            inputs=[
                 FieldSpec('field1', int, pipeline=dummy_pipeline),
                 FieldSpec('field2', float, pipeline=dummy_pipeline),
                 FieldSpec('field3', str, pipeline=dummy_pipeline)],

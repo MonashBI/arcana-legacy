@@ -71,7 +71,7 @@ class TestLocalArchive(BaseTestCase):
     def test_fields_roundtrip(self):
         archive = LocalArchive(base_dir=self.archive_path)
         sink = archive.sink(self.name,
-                            output_fields=[
+                            outputs=[
                                 Field('field1', int, processed=True),
                                 Field('field2', float, processed=True),
                                 Field('field3', str, processed=True)],
@@ -87,7 +87,7 @@ class TestLocalArchive(BaseTestCase):
         sink.run()
         source = archive.source(
             self.name,
-            input_fields=[
+            inputs=[
                 FieldSpec('field1', int, pipeline=dummy_pipeline),
                 FieldSpec('field2', float, pipeline=dummy_pipeline),
                 FieldSpec('field3', str, pipeline=dummy_pipeline)],

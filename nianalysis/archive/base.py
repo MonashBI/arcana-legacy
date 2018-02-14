@@ -33,12 +33,10 @@ class Archive(object):
         ----------
         project_id : str
             The ID of the project to return the sessions for
-        inputs : list[Dataset]
-            An iterable of nianalysis.Dataset objects, which specify the
-            datasets to extract from the archive system
-        input_fields : list(Field)
-            An iterable of nianalysis.Field objects, which specify the fields
-            to extract from the archive system
+        inputs : list(Dataset|Field)
+            An iterable of nianalysis.Dataset or nianalysis.Field
+            objects, which specify the datasets to extract from the
+            archive system
         name : str
             Name of the NiPype node
         study_name: str
@@ -69,12 +67,9 @@ class Archive(object):
         ----------
         project_id : str
             The ID of the project to return the sessions for
-        output_datasets : List[BaseFile]
-            An iterable of nianalysis.Dataset objects, which specify the
-            datasets to put into the archive system
-        output_fields : list(Field)
-            An iterable of nianalysis.Field objects, which specify the fields
-            to put into the archive system
+        outputs : List(BaseFile|Field) | list(
+            An iterable of nianalysis.Dataset nianalysis.Field objects,
+            which specify the datasets to put into the archive system
         name : str
             Name of the NiPype node
         study_name: str

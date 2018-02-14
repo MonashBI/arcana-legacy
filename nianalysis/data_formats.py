@@ -9,7 +9,7 @@ from nianalysis.exceptions import (
     NiAnalysisModulesNotInstalledException)
 from nianalysis.requirements import (
     mrtrix3_req, dcm2niix_req, mricrogl_req, Requirement)
-from nipype.interfaces.dcm2nii import Dcm2niix
+from nianalysis.interfaces.converters import Dcm2niix
 import logging
 
 

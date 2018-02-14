@@ -64,7 +64,8 @@ class TestSlurmTemplate(TestCase):
 
     def test_template(self):
         x = Node(IdentityInterface('x'), name='x', wall_time=150,
-                 nthreads=10, memory=2000, gpu=True)
+                 nthreads=10, memory=2000, gpu=True,
+                 account='test_account')
         self.assertEqual(
             x.slurm_template.strip(), ref_template.strip(),
             '{}\n----\n{}'.format(x.slurm_template, ref_template))
@@ -84,9 +85,6 @@ ref_template = """
 # Set the partition to run the job on
 #SBATCH --partition=m3c
 
-# To set a project account for credit charging,
-# SBATCH --account=pmosp
-
 # Request CPU resource for a parallel job, for example:
 #   4 Nodes each with 12 Cores/MPI processes
 #SBATCH --ntasks=10
@@ -99,8 +97,11 @@ ref_template = """
 # Set your minimum acceptable walltime, format: day-hours:minutes:seconds
 #SBATCH --time=0-02:30:00
 
+# Kill job if dependencies fail
+#SBATCH --kill-on-invalid-dep=yes
 
 # Use reserved node to run job when a node reservation is made for you already
 # SBATCH --reservation=reservation_name
 #SBATCH --gres=gpu:1
+#SBATCH --account=test_account
 """
