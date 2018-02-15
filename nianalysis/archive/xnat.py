@@ -22,7 +22,8 @@ from nianalysis.archive.base import (
     MULTIPLICITIES)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisXnatArchiveMissingDatasetException)
 from nianalysis.utils import dir_modtime
 import re
 import xnat  # NB: XNATPy not PyXNAT
@@ -121,10 +122,11 @@ class XNATSource(ArchiveSource, XNATMixin):
                 except KeyError:
                     continue
             outputs = {}
-            for (name, data_format, mult,
+            for (name, data_format_name, mult,
                  processed, is_spec) in self.inputs.datasets:
                 # Prepend study name if defined and processed input
                 prefixed_name = self.prefix_study_name(name, is_spec)
+                data_format = data_formats[data_format_name]
                 session = sessions[(mult, processed)]
                 cache_dir = cache_dirs[(mult, processed)]
                 try:
@@ -137,18 +139,21 @@ class XNATSource(ArchiveSource, XNATMixin):
                             "', '".join(session.scans.keys())))
                 # Get filename
                 fname = prefixed_name
-                if data_formats[data_format].extension is not None:
-                    fname += data_formats[data_format].extension
+                if data_format.extension is not None:
+                    fname += data_format.extension
                 # Get resource to check its MD5 digest
                 try:
-                    resource = dataset.resources[data_format.upper()]
+                    resource = dataset.resources[
+                        data_format.xnat_resource_name]
                 except KeyError:
                     raise NiAnalysisError(
                         "'{}' dataset is not available in '{}' format, "
                         "available resources are '{}'"
-                        .format(name, data_format.upper(), "', '".join(
+                        .format(
+                            name, data_format.xnat_resource_name,
+                            "', '".join(
                                 r.label
-                                for r in dataset.resources.itervalues())))
+                                for r in dataset.resources.values())))
                 need_to_download = True
                 # FIXME: Should do a check to see if versions match
                 if not os.path.exists(cache_dir):
@@ -187,16 +192,17 @@ class XNATSource(ArchiveSource, XNATMixin):
                             # redownload.
                             self._delayed_download(
                                 tmp_dir, resource, dataset, data_format,
-                                session.label, fname, cache_path,
+                                session.label, cache_path,
                                 delay=self.inputs.race_cond_delay)
                         else:
                             raise
                     else:
                         self._download_dataset(
                             tmp_dir, resource, dataset, data_format,
-                            session.label, fname, cache_path)
+                            session.label, cache_path)
                 outputs[name + PATH_SUFFIX] = cache_path
-            for (name, dtype, mult, processed, is_spec) in self.inputs.fields:
+            for (name, dtype, mult,
+                 processed, is_spec) in self.inputs.fields:
                 prefixed_name = self.prefix_study_name(name, is_spec)
                 session = sessions[(mult, processed)]
                 outputs[name + FIELD_SUFFIX] = dtype(
@@ -218,12 +224,12 @@ class XNATSource(ArchiveSource, XNATMixin):
                     for r in result.json()['ResultSet']['Result'])
 
     def _download_dataset(self, tmp_dir, resource, dataset, data_format,
-                          session_label, fname, cache_path):
+                          session_label, cache_path):
         # Download resource to zip file
         zip_path = os.path.join(tmp_dir, 'download.zip')
         with open(zip_path, 'w') as f:
-            resource.xnat_session.download_stream(resource.uri + '/files', f,
-                                                  format='zip', verbose=True)
+            resource.xnat_session.download_stream(
+                resource.uri + '/files', f, format='zip', verbose=True)
         digests = self._get_digests(resource)
         # Extract downloaded zip file
         expanded_dir = os.path.join(tmp_dir, 'expanded')
@@ -232,41 +238,58 @@ class XNATSource(ArchiveSource, XNATMixin):
         data_path = os.path.join(
             expanded_dir, session_label, 'scans',
             (dataset.id + '-' + special_char_re.sub('_', dataset.type)),
-            'resources', data_format.upper(), 'files')
-        if not data_formats[data_format].directory:
-            data_path = os.path.join(data_path, fname)
+            'resources', data_format.xnat_resource_name, 'files')
+        if not data_format.directory:
+            # If the dataformat is not a directory (e.g. DICOM),
+            # attempt to locate a single file within the resource
+            # directory with the appropriate filename and add that
+            # to be the complete data path.
+            fnames = os.listdir(data_path)
+            match_fnames = [
+                f for f in fnames
+                if split_extension(f)[-1] == data_format.extension]
+            if len(match_fnames) == 1:
+                data_path = os.path.join(data_path, match_fnames[0])
+            else:
+                raise NiAnalysisXnatArchiveMissingDatasetException(
+                    "Did not find single file with extension '{}' "
+                    "(found '{}') in resource '{}'"
+                    .format(data_format.extension,
+                            "', '".join(fnames), data_path))
         shutil.move(data_path, cache_path)
         with open(cache_path + XNATArchive.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
     def _delayed_download(self, tmp_dir, resource, dataset, data_format,
-                          session_label, fname, cache_path,
-                          delay):
+                          session_label, cache_path, delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
-                    "initiated another process to finish".format(delay,
-                                                                 cache_path))
+                    "initiated another process to finish"
+                    .format(delay, cache_path))
         initial_mod_time = dir_modtime(tmp_dir)
         time.sleep(delay)
         if os.path.exists(cache_path):
-            logger.info("The download of '{}' has completed successfully "
-                        "in the other process, continuing".format(cache_path))
+            logger.info("The download of '{}' has completed "
+                        "successfully in the other process, continuing"
+                        .format(cache_path))
             return
         elif initial_mod_time != dir_modtime(tmp_dir):
-            logger.info("The download of '{}' hasn't completed yet, but it has"
-                        " been updated.  Waiting another {} seconds before "
-                        "checking again.".format(cache_path, delay))
-            self._delayed_download(tmp_dir, resource, dataset, data_format,
-                                   session_label, fname,
+            logger.info(
+                "The download of '{}' hasn't completed yet, but it has"
+                " been updated.  Waiting another {} seconds before "
+                "checking again.".format(cache_path, delay))
+            self._delayed_download(tmp_dir, resource, dataset,
+                                   data_format, session_label,
                                    cache_path, delay)
         else:
-            logger.warning("The download of '{}' hasn't updated in {} "
-                           "seconds, assuming that it was interrupted and "
-                           "restarting download".format(cache_path, delay))
+            logger.warning(
+                "The download of '{}' hasn't updated in {} "
+                "seconds, assuming that it was interrupted and "
+                "restarting download".format(cache_path, delay))
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
             self._download_dataset(
-                tmp_dir, resource, dataset, data_format, session_label, fname,
+                tmp_dir, resource, dataset, data_format, session_label,
                 cache_path)
 
 
@@ -879,14 +902,14 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
                 "Didn't find session matching '{}' on {}".format(session_id,
                                                                  server))
         for dataset in session.scans.itervalues():
-            data_format = _guess_data_format(dataset)
-            ext = data_formats[data_format.lower()].extension
+            data_format_name = _guess_data_format(dataset)
+            ext = data_formats[data_format_name.lower()].extension
             if ext is None:
                 ext = ''
             download_path = os.path.join(download_dir, dataset.type + ext)
             if overwrite or not os.path.exists(download_path):
-                download_resource(download_path, dataset, data_format,
-                                  session.label)
+                download_resource(download_path, dataset,
+                                  data_format_name, session.label)
 
 
 def download_dataset(download_path, server, user, password, session_id,
@@ -929,23 +952,35 @@ def _guess_data_format(dataset):
     return dataset_formats[0].label
 
 
-def download_resource(download_path, dataset, data_format, session_label):
+def download_resource(download_path, dataset, data_format_name,
+                      session_label):
 
-    ext = data_formats[data_format.lower()].extension
+    data_format = data_formats[data_format_name.lower()]
     try:
-        resource = dataset.resources[data_format.upper()]
+        resource = dataset.resources[data_format.xnat_resource_name]
     except KeyError:
         raise NiAnalysisError(
             "Didn't find {} resource in {} dataset matching '{}' in {}"
-            .format(data_format.upper(), dataset.type))
+            .format(data_format.xnat_resource_name, dataset.type))
     tmp_dir = download_path + '.download'
     resource.download_dir(tmp_dir)
     dataset_label = dataset.id + '-' + special_char_re.sub('_', dataset.type)
     src_path = os.path.join(tmp_dir, session_label, 'scans',
                             dataset_label, 'resources',
-                            data_format.upper(), 'files')
-    if data_format.lower() != 'dicom':
-        src_path = os.path.join(src_path, dataset.type + ext)
+                            data_format.xnat_resource_name, 'files')
+    if not data_format.directory:
+        fnames = os.listdir(src_path)
+        match_fnames = [
+            f for f in fnames
+            if split_extension(f)[-1] == data_format.extension]
+        if len(match_fnames) == 1:
+            src_path = os.path.join(src_path, match_fnames[0])
+        else:
+            raise NiAnalysisXnatArchiveMissingDatasetException(
+                "Did not find single file with extension '{}' "
+                "(found '{}') in resource '{}'"
+                .format(data_format.extension,
+                        "', '".join(fnames), src_path))
     shutil.move(src_path, download_path)
     shutil.rmtree(tmp_dir)
 

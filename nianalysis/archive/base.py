@@ -93,8 +93,8 @@ class Archive(object):
                 "Unrecognised multiplicity '{}' can be one of '{}'"
                 .format(multiplicity,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
-        datasets = [o for o in outputs if isinstance(o, DatasetSpec)]
-        fields = [o for o in outputs if isinstance(o, FieldSpec)]
+        datasets = [o for o in outputs if isinstance(o, BaseDataset)]
+        fields = [o for o in outputs if isinstance(o, BaseField)]
         sink = Node(sink_class(datasets, fields), name=name)
         sink.inputs.project_id = str(project_id)
         sink.inputs.datasets = [s.to_tuple() for s in datasets]

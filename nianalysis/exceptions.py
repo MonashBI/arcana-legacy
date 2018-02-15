@@ -42,7 +42,12 @@ class DarisNameNotFoundException(DarisException):
     pass
 
 
-class XNATException(Exception):
+class NiAnalysisXnatArchiveException(Exception):
+    pass
+
+
+class NiAnalysisXnatArchiveMissingDatasetException(
+        NiAnalysisXnatArchiveException):
     pass
 
 

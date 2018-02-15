@@ -58,6 +58,10 @@ class DataFormat(object):
     def directory(self):
         return self._directory
 
+    @property
+    def xnat_resource_name(self):
+        return self.name.upper()
+
 
 nifti_format = DataFormat(name='nifti', extension='.nii',
                           lctype='nifti/series', mrinfo='NIfTI-1.1')

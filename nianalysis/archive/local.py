@@ -97,8 +97,11 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
                 self._get_data_dir(multiplicity), fname)
         for (name, dtype, multiplicity, _, is_spec) in self.inputs.fields:
             fields = self._get_fields_dict(multiplicity)
-            outputs[name + FIELD_SUFFIX] = dtype(
-                fields[self.prefix_study_name(name, is_spec)])
+            try:
+                outputs[name + FIELD_SUFFIX] = dtype(
+                    fields[self.prefix_study_name(name, is_spec)])
+            except Exception:
+                raise
         return outputs
 
 
