@@ -13,7 +13,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
 from nianalysis.data_formats import (
-    nifti_gz_format, dicom_format)
+    nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
@@ -470,6 +470,7 @@ class TestXnatArchive(BaseTestCase):
         source.inputs.race_cond_delay = 10
         p = Process(target=simulate_download)
         p.start()  # Start the simulated download in separate process
+        time.sleep(1)
         source.run()  # Run the local download
         p.join()
         with open(os.path.join(deleted_tmp_dir, 'internal', 'download')) as f:
@@ -749,12 +750,13 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     def test_cache_download(self):
         archive = self.archive
         archive.cache(self.PROJECT,
-                      datasets=[Dataset('dataset1', nifti_gz_format),
-                                Dataset('dataset2', nifti_gz_format),
-                                Dataset('dataset3', nifti_gz_format),
-                                Dataset('dataset5', nifti_gz_format)],
-                      subjects=['subject1', 'subject3', 'subject4'],
-                      visit_ids=['visit1'])
+                      datasets=[Dataset('dataset1', mrtrix_format),
+                                Dataset('dataset2', mrtrix_format),
+                                Dataset('dataset3', mrtrix_format),
+                                Dataset('dataset5', mrtrix_format)],
+                      subject_ids=['subject1', 'subject3', 'subject4'],
+                      visit_ids=['visit1'],
+                      work_dir=self.work_dir)
 
     @property
     def base_name(self):
