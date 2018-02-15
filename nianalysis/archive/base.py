@@ -47,6 +47,7 @@ class Archive(object):
             name = "{}_source".format(self.type)
         source = Node(self.Source(), name=name)
         source.inputs.project_id = str(project_id)
+        inputs = list(inputs)  # protected against iterators
         source.inputs.datasets = [i.to_tuple() for i in inputs
                                   if isinstance(i, BaseDataset)]
         source.inputs.fields = [i.to_tuple() for i in inputs
@@ -79,7 +80,7 @@ class Archive(object):
         """
         if name is None:
             name = "{}_{}_sink".format(self.type, multiplicity)
-        outputs = list(outputs)
+        outputs = list(outputs)  # protected against iterators
         if multiplicity.startswith('per_session'):
             sink_class = self.Sink
         elif multiplicity.startswith('per_subject'):
