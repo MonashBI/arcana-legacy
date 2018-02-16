@@ -1,11 +1,11 @@
-NiAnalysis is a data-centric NeuroImaging analysis package based on nipype
+NiAnalysis
+==========
 
-Requirements
-------------
+.. image:: https://travis-ci.org/mbi-image/nianalysis.svg?branch=master
+    :target: https://travis-ci.org/mbi-image/nianalysis
+.. image:: https://codecov.io/gh/mbi-image/nianalysis/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/mbi-image/nianalysis
 
-* nipype (https://github.com/tclose/nipype)
-* xnatpy (https://bitbucket.org/bigr_erasmusmc/xnatpy)
-* mrtrix3 (https://github.com/MRtrix3/mrtrix3)
-* fsl (not required for all pipelines)
-* matlab (not required for all pipelines)
-* spm12 (not required for all pipelines)
+NeuroImaging Analysis (NiAnalysis) is an archive-centric NeuroImaging
+analysis package based on the popular nipype package
+(https://github.com/nipy/nipype.git).
