@@ -14,5 +14,6 @@ cd $HOME/downloads/modules-$MODULE_VER
 make
 make install
 echo '/modules' > $HOME/packages/modules/init/.modulespath
-cp $HOME/downloads/modules-$MODULE_VER/compat/etc/global/profile.modules /etc/profile.d/modules.sh
-sed -i 's/Modules//g' /etc/profile.d/modules.sh
+cp $HOME/downloads/modules-$MODULE_VER/compat/etc/global/profile.modules $HOME/modules.sh
+sed -i 's/Modules//g' $HOME/modules.sh
+echo "source $HOME/modules.sh" >> $HOME/.bashrc
