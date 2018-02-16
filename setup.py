@@ -25,7 +25,7 @@ setup(
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.4',
                       'nipype>=1.0',
-                      'pydicom>=0.9.9'],
+                      'pydicom>=1.0'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",

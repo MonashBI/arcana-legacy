@@ -3,7 +3,7 @@ import os.path
 from nipype.interfaces.base import (
     TraitedSpec, BaseInterface, File, Directory, traits, isdefined,
     CommandLineInputSpec, CommandLine)
-import dicom
+import pydicom
 import nibabel as nib
 from nianalysis.utils import split_extension
 import re
@@ -119,7 +119,7 @@ class Nii2Dicom(BaseInterface):
     output_spec = Nii2DicomOutputSpec
 
     def _run_interface(self, runtime):
-        dcm = dicom.read_file(self.inputs.reference_dicom)
+        dcm = pydicom.read_file(self.inputs.reference_dicom)
         nifti = nib.load(self.inputs.in_file)
         nifti = nifti.get_data()
         nifti = nifti.astype('uint16')
