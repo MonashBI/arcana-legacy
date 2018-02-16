@@ -53,7 +53,8 @@ NiAnalysis itself can be installed using ``pip``::
     $ pip install git+https://github.com/mbi-image/nianalysis.git
 
 although for most pipelines you will also need to install the relevant
-neuro-imaging tools that are called on to the the processing.
+neuro-imaging tools that are called on to the the processing (e.g.
+FSL, SPM/Matlab, AFNI, MRtrix, etc...).
 
 For automated file format conversion between common neuroimaging
 formats (e.g. DICOM, NIfTI, MRtrix) the MRtrix (http://mrtrix.org)
