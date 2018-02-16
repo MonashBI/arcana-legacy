@@ -128,6 +128,12 @@ class CombinedStudy(Study):
             # Get the relative name of the sub-study (i.e. without the
             # combined study name prefixed)
             ss_name = sub_study.name[(len(combined_study.name) + 1):]
+            name_prefix = ss_name
+            if '__name_prefix__' in options:
+                name_prefix = (
+                    ss_name + '_' + options.pop('__name_prefix__'))
+            else:
+                name_prefix = ss_name
             # Override default options
             if override_default_options is not None:
                 for n, val in override_default_options.items():
@@ -137,7 +143,7 @@ class CombinedStudy(Study):
             # Copy across default options and override with extra
             # provided
             pipeline = pipeline_getter(
-                sub_study, __name_prefix__=ss_name, **options)
+                sub_study, __name_prefix__=name_prefix, **options)
             try:
                 assert isinstance(pipeline, Pipeline)
             except Exception:
