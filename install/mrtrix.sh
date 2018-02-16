@@ -4,10 +4,13 @@
 PKG_DIR=$HOME/packages/mrtrix
 mkdir -p $PKG_DIR
 
+# Try to limit the memory required
+export NUMBER_OF_PROCESSORS=4
+
 git clone https://github.com/MRtrix3/mrtrix3.git $PKG_DIR
 cd $PKG_DIR
 ./configure
-./build
+./build -nowarnings
 
 
 # Create modulefile
