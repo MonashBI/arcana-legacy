@@ -27,5 +27,9 @@ install:
   - pip install coveralls
 script:
   nosetests test/unittests --with-coverage --cover-package=nianalysis
+cache:
+  directories:
+    - $HOME/packages
+    - $HOME/modules
 after_success:
   coveralls

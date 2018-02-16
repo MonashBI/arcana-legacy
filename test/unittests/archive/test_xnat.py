@@ -42,6 +42,20 @@ def filter_md5_fnames(fnames):
             if not f.endswith(XNATArchive.MD5_SUFFIX)]
 
 
+class LockXnatProjectTestCase(BaseTestCase):
+    """
+    Provides methods to lock the use of an XNAT project used for testing
+    the XnatArchive, to avoid conflicts between multiple runs of the
+    same unittests
+    """
+
+    def setUp(self):
+        super(LockXnatProjectTestCase, self).setUp()
+
+    def tearDown(self):
+        super(LockXnatProjectTestCase, self).tearDown()
+
+
 class TestXnatArchive(BaseTestCase):
 
     PROJECT = 'TEST002'
