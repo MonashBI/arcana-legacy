@@ -1,0 +1,31 @@
+language: python
+python:
+  - 2.7
+addons:
+  apt:
+    packages:
+    - git
+    - g++
+    - python
+    - python-numpy
+    - libeigen3-dev
+    - zlib1g-dev
+    - libqt4-opengl-dev
+    - libgl1-mesa-dev
+    - libfftw3-dev
+    - libtiff5-dev
+    - python-pip
+    - vim
+    - wget
+    - cmake
+install:
+  - install/modules.sh
+  - install/dcm2niix.sh
+  - install/mrtrix.sh
+  - pip install .
+  - pip install nose
+  - pip install coveralls
+script:
+  nosetests test/unittests --with-coverage --cover-package=nianalysis
+after_success:
+  coveralls

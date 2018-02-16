@@ -250,7 +250,8 @@ class XNATSource(ArchiveSource, XNATMixin):
             fnames = os.listdir(data_path)
             match_fnames = [
                 f for f in fnames
-                if split_extension(f)[-1] == data_format.extension]
+                if (split_extension(f)[-1].lower() ==
+                    data_format.extension)]
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
@@ -1004,7 +1005,7 @@ def download_resource(download_path, dataset, data_format_name,
         fnames = os.listdir(src_path)
         match_fnames = [
             f for f in fnames
-            if split_extension(f)[-1] == data_format.extension]
+            if split_extension(f)[-1].lower() == data_format.extension]
         if len(match_fnames) == 1:
             src_path = os.path.join(src_path, match_fnames[0])
         else:
