@@ -82,7 +82,7 @@ directory_format = DataFormat(name='directory', extension=None,
                               directory=True)
 text_matrix_format = DataFormat(name='text_matrix', extension='.mat')
 text_format = DataFormat(name='text', extension='.txt')
-rdata_format = DataFormat(name='rdata', extension='.RData')
+rdata_format = DataFormat(name='rdata', extension='.rdata')
 ica_format = DataFormat(name='ica', extension='.ica')
 par_format = DataFormat(name='parameters', extension='.par')
 gif_format = DataFormat(name='gif', extension='.gif')
