@@ -90,6 +90,7 @@ targz_format = DataFormat(name='targz', extension='.tar.gz')
 csv_format = DataFormat(name='comma-separated_file', extension='.csv')
 png_format = DataFormat(name='portable-network-graphics',
                         extension='.png')
+eddy_par_format = DataFormat(name='eddy_par', extension='.eddy_parameters')
 
 
 class Converter(object):

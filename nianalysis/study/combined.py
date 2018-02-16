@@ -47,9 +47,9 @@ class CombinedStudy(Study):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, inputs):
+    def __init__(self, name, project_id, archive, inputs, **kwargs):
         super(CombinedStudy, self).__init__(name, project_id, archive,
-                                            inputs)
+                                            inputs, **kwargs)
         self._sub_studies = {}
         for (sub_study_name,
              (cls, dataset_map)) in self.sub_study_specs.iteritems():
