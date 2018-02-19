@@ -4,7 +4,7 @@
 PKG_DIR=$HOME/packages/dcm2niix
 BUILD_DIR=$PKG_DIR/build
 
-if [ -d $PKG_DIR ]; then
+if [ ! -d $PKG_DIR ]; then
   mkdir -p $BUILD_DIR
   git clone https://github.com/rordenlab/dcm2niix.git $PKG_DIR
   cd $BUILD_DIR
@@ -12,7 +12,7 @@ if [ -d $PKG_DIR ]; then
   make
 fi
 
-if [ -d $HOME/modules/dcm2niix ]; then
+if [ ! -d $HOME/modules/dcm2niix ]; then
   mkdir -p $HOME/modules/dcm2niix
   echo '#%Module1.0' >> $HOME/modules/dcm2niix/1.0.2
   echo 'proc ModulesHelp { } {' >> $HOME/modules/dcm2niix/1.0.2
