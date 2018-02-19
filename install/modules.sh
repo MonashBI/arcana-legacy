@@ -15,5 +15,6 @@ make
 make install
 echo '/modules' > $HOME/packages/modules/init/.modulespath
 cp $HOME/downloads/modules-$MODULE_VER/compat/etc/global/profile.modules $HOME/modules.sh
+cat $HOME/modules.sh
 sed -i 's/Modules//g' $HOME/modules.sh
 . $HOME/modules.sh
