@@ -20,7 +20,8 @@ addons:
     - cmake
 install:
   - install/modules.sh
-  - cat $HOME/modules.sh | grep "/modules"
+  - cat /home/travis/packages/modules/init/bash | grep "/modules"
+  - cat /home/travis/packages/modules/init/sh | grep "/modules"
   - . $HOME/modules.sh  
   - install/dcm2niix.sh
   - install/mrtrix.sh
