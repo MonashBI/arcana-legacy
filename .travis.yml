@@ -15,14 +15,12 @@ addons:
     - libfftw3-dev
     - libtiff5-dev
     - python-pip
-    - vim
     - wget
     - cmake
 install:
   - install/modules.sh
-  - cat /home/travis/packages/modules/init/bash | grep "/modules"
-  - cat /home/travis/packages/modules/init/sh | grep "/modules"
-  - . $HOME/modules.sh  
+  - export MODULESHOME=$HOME/packages/modules
+  - export MODULEPATH=$HOME/modules
   - install/dcm2niix.sh
   - install/mrtrix.sh
   - pip install .
