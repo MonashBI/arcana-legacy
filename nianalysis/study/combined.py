@@ -128,12 +128,10 @@ class CombinedStudy(Study):
             # Get the relative name of the sub-study (i.e. without the
             # combined study name prefixed)
             ss_name = sub_study.name[(len(combined_study.name) + 1):]
-            name_prefix = ss_name
+            name_prefix = ss_name + '_'
             if '__name_prefix__' in options:
                 name_prefix = (
-                    ss_name + '_' + options.pop('__name_prefix__'))
-            else:
-                name_prefix = ss_name
+                    options.pop('__name_prefix__') + name_prefix)
             # Override default options
             if override_default_options is not None:
                 for n, val in override_default_options.items():
@@ -176,7 +174,7 @@ class CombinedStudy(Study):
             # Create new input node
             self._inputnode = self.create_node(
                 IdentityInterface(fields=list(self.input_names)),
-                name="inputnode_wrapper")
+                name="{}_inputnode_wrapper".format(ss_name))
             # Connect to sub-study input node
             for input_name in pipeline.input_names:
                 self.workflow.connect(
@@ -209,7 +207,8 @@ class CombinedStudy(Study):
                 self._outputnodes[mult] = self.create_node(
                     IdentityInterface(
                         fields=list(self.multiplicity_output_names(mult))),
-                    name="{}_outputnode_wrapper".format(mult))
+                    name="{}_{}_outputnode_wrapper".format(ss_name,
+                                                           mult))
                 # Connect sub-study outputs
                 for output_name in pipeline.multiplicity_output_names(mult):
                     self.workflow.connect(pipeline.outputnode(mult),
@@ -223,3 +222,7 @@ class CombinedStudy(Study):
             self._prereq_options = pipeline._prereq_options
             self._citations = pipeline._citations
             self._description = pipeline._description
+
+    def __repr__(self):
+        return "{}(name='{}')".format(self.__class__.__name__,
+                                      self.name)
