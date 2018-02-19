@@ -26,7 +26,7 @@ setup(
     install_requires=['xnat>=0.3.4',
                       'nipype>=1.0',
                       'pydicom>=1.0'],
-    dependency_links=['git+https://github.com/pydicom/pydicom.git'],
+    dependency_links=['git+https://github.com/pydicom/pydicom.git#pydicom-1.0'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",
