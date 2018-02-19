@@ -19,7 +19,8 @@ addons:
     - wget
     - cmake
 install:
-  - . install/modules.sh
+  - install/modules.sh
+  - . $HOME/modules.sh  
   - install/dcm2niix.sh
   - install/mrtrix.sh
   - pip install .

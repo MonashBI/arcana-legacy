@@ -16,6 +16,3 @@ make install
 echo '/modules' > $HOME/packages/modules/init/.modulespath
 cp $HOME/downloads/modules-$MODULE_VER/compat/etc/global/profile.modules $HOME/modules.sh
 sed -i 's/Modules\///g' $HOME/modules.sh
-cat $HOME/modules.sh
-cat /home/travis/packages/modules/init/bash 
-. $HOME/modules.sh
