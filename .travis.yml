@@ -32,5 +32,6 @@ cache:
   directories:
     - $HOME/packages
     - $HOME/modules
+    - $HOME/downloads
 after_success:
   coveralls
