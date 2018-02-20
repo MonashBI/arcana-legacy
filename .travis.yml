@@ -22,11 +22,13 @@ install:
   - export MODULESHOME=$HOME/packages/modules
   - export MODULEPATH=$HOME/modules
   - install/dcm2niix.sh
-  - install/mrtrix.sh
   - install/netrc.sh
+  - export NUMBER_OF_PROCESSORS=4
+  - install/mrtrix.sh
   - pip install .
   - pip install nose
   - pip install coveralls
+  - export NUMBER_OF_PROCESSORS=1
 script:
   nosetests test/unittests --with-coverage --cover-package=nianalysis
 cache:

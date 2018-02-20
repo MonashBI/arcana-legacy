@@ -3,9 +3,6 @@
 
 PKG_DIR=$HOME/packages/mrtrix
 
-# Try to limit the memory required
-export NUMBER_OF_PROCESSORS=4
-
 if [ ! -d $PKG_DIR ]; then
   mkdir -p $PKG_DIR
   git clone https://github.com/MRtrix3/mrtrix3.git $PKG_DIR
