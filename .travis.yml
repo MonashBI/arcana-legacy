@@ -27,7 +27,7 @@ install:
   - install/mrtrix.sh
   - pip install .
   - pip install nose
-  - pip install coveralls
+  - pip install codecov
   - export NUMBER_OF_PROCESSORS=1
 script:
   nosetests test/unittests --with-coverage --cover-package=nianalysis
@@ -37,4 +37,4 @@ cache:
     - $HOME/modules
     - $HOME/downloads
 after_success:
-  coveralls
+  codecov

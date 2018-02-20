@@ -26,6 +26,8 @@ formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+logging.getLogger("urllib3").setLevel(logging.WARNING)
+
 
 class BaseTestCase(TestCase):
 

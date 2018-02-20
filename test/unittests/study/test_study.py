@@ -1,11 +1,10 @@
 import os.path
-from nipype import config
+# from nipype import config
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirements import Requirement, mrtrix3_req
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
-from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_data_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
@@ -369,8 +368,8 @@ class TestRunPipeline(BaseTestCase):
             self.assertEqual(mean_val,
                              len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
         finally:
-                if self.mrtrix_req is not None:
-                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+            if self.mrtrix_req is not None:
+                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
         self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
@@ -391,9 +390,6 @@ class TestRunPipeline(BaseTestCase):
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
-
-    def _load_mrtrix(self):
-        
 
 
 class ExistingPrereqStudy(Study):
