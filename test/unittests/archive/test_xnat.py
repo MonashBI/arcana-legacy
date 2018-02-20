@@ -19,10 +19,14 @@ from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.exceptions import NiAnalysisError
 import sys
+import logging
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
 from test_study import TestExistingPrereqs  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
+
+
+logger = logging.getLogger('NiAnalysis')
 
 
 def dummy_pipeline():
