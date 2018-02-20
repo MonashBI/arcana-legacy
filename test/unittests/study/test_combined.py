@@ -1,5 +1,6 @@
 from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
+from nianalysis.requirements import Requirement
 from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
@@ -7,6 +8,8 @@ from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_data_specs
 from nianalysis.study.combined import CombinedStudy
 from nianalysis.interfaces.mrtrix import MRMath
+from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 
 
 class DummySubStudyA(Study):
@@ -112,6 +115,15 @@ class DummyCombinedStudy(CombinedStudy):
 
 class TestCombined(TestCase):
 
+    def setUp(self):
+        # Calculate MRtrix module required for 'mrstats' commands
+        try:
+            self.mrtrix_req = Requirement.best_requirement(
+                [mrtrix3_req], NiAnalysisNodeMixin.available_modules(),
+                NiAnalysisNodeMixin.preloaded_modules())
+        except NiAnalysisModulesNotInstalledException:
+            self.mrtrix_req = None
+
     def test_combined_study(self):
         study = self.create_study(
             DummyCombinedStudy, 'combined', {
@@ -120,18 +132,23 @@ class TestCombined(TestCase):
                 'c': Dataset('ones', mrtrix_format)})
         study.pipeline_a1().run(work_dir=self.work_dir)
         study.pipeline_b1().run(work_dir=self.work_dir)
-        d_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(self.output_file_path(
-                'd.mif', study.name)),
-            shell=True))
-        self.assertEqual(d_mean, 2.0)
-        e_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(self.output_file_path(
-                'e.mif', study.name)),
-            shell=True))
-        self.assertEqual(e_mean, 3.0)
-        f_mean = float(sp.check_output(
-            'mrstats {} -output mean'.format(self.output_file_path(
-                'f.mif', study.name)),
-            shell=True))
-        self.assertEqual(f_mean, 6.0)
+        try:
+            d_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'd.mif', study.name)),
+                shell=True))
+            self.assertEqual(d_mean, 2.0)
+            e_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'e.mif', study.name)),
+                shell=True))
+            self.assertEqual(e_mean, 3.0)
+            f_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'f.mif', study.name)),
+                shell=True))
+            self.assertEqual(f_mean, 6.0)
+        finally:
+            if self.mrtrix_req is not None:
+                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+
