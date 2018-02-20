@@ -23,6 +23,7 @@ install:
   - export MODULEPATH=$HOME/modules
   - install/dcm2niix.sh
   - install/mrtrix.sh
+  - install/netrc.sh
   - pip install .
   - pip install nose
   - pip install coveralls
