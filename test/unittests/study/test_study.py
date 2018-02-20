@@ -2,6 +2,7 @@ import os.path
 from nipype import config
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
+from nianalysis.requirements import Requirement, mrtrix3_req
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nianalysis.requirements import mrtrix3_req  # @IgnorePep8
@@ -277,10 +278,6 @@ class TestRunPipeline(BaseTestCase):
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
 
     def setUp(self):
-        try:
-            NiAnalysisNodeMixin.load_module('mrtrix')
-        except NiAnalysisModulesNotInstalledException:
-            pass
         self.reset_dirs()
         for subject_id in self.SUBJECT_IDS:
             for visit_id in self.SESSION_IDS:
@@ -289,6 +286,13 @@ class TestRunPipeline(BaseTestCase):
             DummyStudy, 'dummy', inputs={
                 'start': Dataset('start', nifti_gz_format),
                 'ones_slice': Dataset('ones_slice', mrtrix_format)})
+        # Calculate MRtrix module required for 'mrstats' commands
+        try:
+            self.mrtrix_req = Requirement.best_requirement(
+                [mrtrix3_req], NiAnalysisNodeMixin.available_modules(),
+                NiAnalysisNodeMixin.preloaded_modules())
+        except NiAnalysisModulesNotInstalledException:
+            self.mrtrix_req = None
 
     def tearDown(self):
         try:
@@ -314,13 +318,20 @@ class TestRunPipeline(BaseTestCase):
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
-            mean_val = float(sp.check_output(
-                'mrstats {} -output mean'.format(
-                    self.output_file_path(
-                        'subject_summary.mif', self.study.name,
-                        subject=subject_id, multiplicity='per_subject')),
-                shell=True))
-            self.assertEqual(mean_val, len(self.SESSION_IDS))
+            if self.mrtrix_req is not None:
+                NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            try:
+                mean_val = float(sp.check_output(
+                    'mrstats {} -output mean'.format(
+                        self.output_file_path(
+                            'subject_summary.mif', self.study.name,
+                            subject=subject_id,
+                            multiplicity='per_subject')),
+                    shell=True))
+                self.assertEqual(mean_val, len(self.SESSION_IDS))
+            finally:
+                if self.mrtrix_req is not None:
+                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_visit_summary(self):
         self.study.visit_summary_pipeline().run(work_dir=self.work_dir)
@@ -328,26 +339,38 @@ class TestRunPipeline(BaseTestCase):
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
-            mean_val = float(sp.check_output(
-                'mrstats {} -output mean'.format(
-                    self.output_file_path(
-                        'visit_summary.mif', self.study.name,
-                        visit=visit_id, multiplicity='per_visit')),
-                shell=True))
-            self.assertEqual(mean_val, len(self.SESSION_IDS))
+            if self.mrtrix_req is not None:
+                NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            try:
+                mean_val = float(sp.check_output(
+                    'mrstats {} -output mean'.format(
+                        self.output_file_path(
+                            'visit_summary.mif', self.study.name,
+                            visit=visit_id, multiplicity='per_visit')),
+                    shell=True))
+                self.assertEqual(mean_val, len(self.SESSION_IDS))
+            finally:
+                if self.mrtrix_req is not None:
+                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_project_summary(self):
         self.study.project_summary_pipeline().run(work_dir=self.work_dir)
         # Get mean value from resultant image (should be the same as the
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
-        mean_val = float(sp.check_output(
-            'mrstats {} -output mean'.format(self.output_file_path(
-                'project_summary.mif', self.study.name,
-                multiplicity='per_project')),
-            shell=True))
-        self.assertEqual(mean_val,
-                         len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
+        if self.mrtrix_req is not None:
+            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+        try:
+            mean_val = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'project_summary.mif', self.study.name,
+                    multiplicity='per_project')),
+                shell=True))
+            self.assertEqual(mean_val,
+                             len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
+        finally:
+                if self.mrtrix_req is not None:
+                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
         self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
@@ -368,6 +391,9 @@ class TestRunPipeline(BaseTestCase):
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
+
+    def _load_mrtrix(self):
+        
 
 
 class ExistingPrereqStudy(Study):
