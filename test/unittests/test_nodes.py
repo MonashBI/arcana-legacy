@@ -5,7 +5,7 @@ from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_data_specs
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
-from nianalysis.requirements import dcm2niix_req, mrtrix3_req
+from nianalysis.requirements import dcm2niix1_req, mrtrix3_req
 from nianalysis.nodes import Node
 from nianalysis.requirements import Requirement
 
@@ -30,7 +30,7 @@ class RequirementsStudy(Study):
             Merge(2), "input_merge")
         maths = pipeline.create_node(
             MRMath(), "maths", requirements=[
-                (dummy1_req, dummy2_req, mrtrix3_req), dcm2niix_req])
+                (dummy1_req, dummy2_req, mrtrix3_req), dcm2niix1_req])
         pipeline.connect_input('ones', input_merge, 'in1')
         pipeline.connect_input('ones', input_merge, 'in2')
         pipeline.connect(input_merge, 'out', maths, 'in_files')

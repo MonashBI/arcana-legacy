@@ -205,6 +205,7 @@ matlab2015_req = Requirement('matlab', min_version=(2015, 'a'),
                              version_split=matlab_version_split)
 noddi_req = Requirement('noddi', min_version=(0, 9)),
 niftimatlab_req = Requirement('niftimatlib', (1, 2))
+dcm2niix1_req = Requirement('dcm2niix', min_version=(1, 0, 2))
 dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
                            version_split=date_split)
 fix_req = Requirement('fix', min_version=(1, 0))
