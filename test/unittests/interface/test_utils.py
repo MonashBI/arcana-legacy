@@ -1,10 +1,7 @@
 import os.path
 from nianalysis.testing import BaseTestCase
-import logging
 from nipype.pipeline import engine as pe
 from nianalysis.interfaces.utils import ZipDir, UnzipDir
-
-logger = logging.getLogger('NiAnalysis')
 
 
 class TestUtilsInterface(BaseTestCase):

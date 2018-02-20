@@ -7,6 +7,7 @@ from xnat.exceptions import XNATError
 import sys
 import json
 import warnings
+import logging
 import nianalysis
 from nianalysis.utils import classproperty
 from nianalysis.archive.local import (
@@ -17,6 +18,13 @@ from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from traceback import format_exc
 from nianalysis.archive.local import SUMMARY_NAME as LOCAL_SUMMARY_NAME
+
+logger = logging.getLogger('NiAnalysis')
+logger.setLevel(logging.INFO)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 
 class BaseTestCase(TestCase):

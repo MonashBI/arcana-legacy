@@ -8,14 +8,6 @@ from unittest import TestCase
 from nianalysis.requirements import fsl5_req, mrtrix3_req
 from nianalysis.nodes import Node
 from nianalysis.requirements import Requirement
-import logging
-
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))

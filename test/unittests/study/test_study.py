@@ -11,19 +11,8 @@ from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @Ig
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
-import logging  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-
-logging.getLogger("requests").setLevel(logging.WARNING)
-logging.getLogger("workflow").setLevel(logging.INFO)
-
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 class DummyStudy(Study):

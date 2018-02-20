@@ -5,15 +5,6 @@ from nianalysis.data_formats import (
 from nianalysis.study.base import Study, set_data_specs
 from nianalysis.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
-import logging
-
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 class ConversionStudy(Study):

@@ -13,11 +13,6 @@ from nianalysis.nodes import Node
 from nianalysis.study.base import Study, set_data_specs
 from nianalysis.dataset import DatasetSpec
 
-# import logging
-# logger = logging.getLogger('NiAnalysis')
-# logger.setLevel(logging.DEBUG)
-# handler = logging.StreamHandler()
-# logger.addHandler(handler)
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',
                         min_version=(0, 3, 12))

@@ -4,11 +4,8 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
-import logging
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase
-
-logger = logging.getLogger('NiAnalysis')
 
 
 def dummy_pipeline():

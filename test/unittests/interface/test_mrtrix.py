@@ -1,12 +1,9 @@
 import os.path
 from nianalysis.testing import BaseTestCase
-import logging
 import tempfile
 from nianalysis.nodes import Node
 from nianalysis.interfaces.mrtrix import MRCalc
 from nianalysis.requirements import mrtrix3_req
-
-logger = logging.getLogger('NiAnalysis')
 
 
 class TestMRCalcInterface(BaseTestCase):

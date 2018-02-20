@@ -7,15 +7,6 @@ from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_data_specs
 from nianalysis.study.combined import CombinedStudy
 from nianalysis.interfaces.mrtrix import MRMath
-import logging
-
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.DEBUG)
-handler = logging.StreamHandler()
-handler.setLevel(logging.INFO)
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 class DummySubStudyA(Study):

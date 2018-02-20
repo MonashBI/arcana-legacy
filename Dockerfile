@@ -23,6 +23,16 @@ RUN echo '/modules' > /packages/modules/init/.modulespath
 RUN cp /downloads/modules-$MODULE_VER/compat/etc/global/profile.modules /etc/profile.d/modules.sh
 RUN sed -i 's/Modules//g' /etc/profile.d/modules.sh
 
+# Set modules environment variables
+ENV BASH_ENV '/packages/modules/init/bash'
+ENV ENV '/packages/modules/init/profile.sh'
+ENV LOADEDMODULES ''
+ENV MANPATH '/packages/modules/share/man'
+ENV MODULEPATH '/modules'
+ENV MODULEPATH_modshare '/modules:1'
+ENV MODULESHOME '/packages/modules'
+ENV MODULES_CMD '/packages/modules/libexec/modulecmd.tcl'
+ENV PATH "/packages/modules/bin:$PATH"
 
 # Install Dcm2niix and MRtrix for format conversion
 

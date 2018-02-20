@@ -3,7 +3,6 @@ import shutil
 import tempfile
 import json
 import time
-import logging
 from multiprocessing import Process
 from unittest import TestCase
 import xnat
@@ -24,13 +23,6 @@ import sys
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
 from test_study import TestExistingPrereqs  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
-
-logger = logging.getLogger('NiAnalysis')
-logger.setLevel(logging.INFO)
-handler = logging.StreamHandler()
-formatter = logging.Formatter("%(levelname)s - %(message)s")
-handler.setFormatter(formatter)
-logger.addHandler(handler)
 
 
 def dummy_pipeline():
