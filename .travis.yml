@@ -26,6 +26,8 @@ install:
   - export NUMBER_OF_PROCESSORS=4
   - install/mrtrix.sh
   - pip install .
+  - mkdir -p $HOME/data
+  - ln -s $HOME/data ./test/data
   - pip install nose
   - pip install codecov
   - export NUMBER_OF_PROCESSORS=1
@@ -36,5 +38,6 @@ cache:
     - $HOME/packages
     - $HOME/modules
     - $HOME/downloads
+    - $HOME/data
 after_success:
   codecov
