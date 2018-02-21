@@ -613,7 +613,7 @@ class TestOnXnatMixin(object):
     def setUp(self):
         self._clean_up()
         cache_dir = os.path.join(self.base_cache_path, self.base_name)
-        self.base_class.setUp(self, cache_dir=cache_dir)
+        self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
         with xnat.connect(self.SERVER) as mbi_xnat:
             # Copy local archive to XNAT
             xproject = mbi_xnat.projects[self.PROJECT]
@@ -670,12 +670,7 @@ class TestOnXnatMixin(object):
 
     @property
     def base_name(self):
-        return self._get_name(self.base_class)
-
-    @property
-    def base_class(self):
-        return next(a for a in type(self).__mro__
-                    if a.__module__ == 'test_study')
+        return self._get_name(self.BASE_CLASS)
 
     @property
     def project_id(self):
@@ -723,13 +718,13 @@ class TestOnXnatMixin(object):
     def output_file_path(self, fname, study_name, subject=None, visit=None,
                          multiplicity='per_session'):
         try:
-            acq_path = self.base_class.output_file_path(
+            acq_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
                 multiplicity=multiplicity, processed=False)
         except KeyError:
             acq_path = None
         try:
-            proc_path = self.base_class.output_file_path(
+            proc_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
                 multiplicity=multiplicity, processed=True)
         except KeyError:
@@ -749,6 +744,7 @@ class TestOnXnatMixin(object):
 class TestExistingPrereqsOnXnat(TestOnXnatMixin, TestExistingPrereqs):
 
     PROJECT = 'TEST007'
+    BASE_CLASS = TestExistingPrereqs
 
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
@@ -757,6 +753,7 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin, TestExistingPrereqs):
 class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     PROJECT = 'TEST011'
+    BASE_CLASS = BaseMultiSubjectTestCase
 
     def test_cache_download(self):
         archive = self.archive
