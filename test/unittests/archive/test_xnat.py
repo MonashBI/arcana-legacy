@@ -674,8 +674,8 @@ class TestOnXnatMixin(object):
 
     @property
     def base_class(self):
-        print type(self).__mro__
-        return type(self).__mro__[2]
+        return next(a for a in type(self).__mro__
+                    if a.__module__ == 'test_study')
 
     @property
     def project_id(self):
