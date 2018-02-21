@@ -155,11 +155,16 @@ class BaseTestCase(TestCase):
         dirs
         """
         module_path = os.path.abspath(sys.modules[cls.__module__].__file__)
+        print("module-path: {}".format(module_path))
         rel_module_path = module_path[(len(self.unittest_root) + 1):]
+        print("rel-module-path: {}".format(rel_module_path))
         path_parts = rel_module_path.split(os.path.sep)
+        print("path_parts: {}".format(path_parts))
         module_name = (''.join(path_parts[:-1]) +
                        os.path.splitext(path_parts[-1])[0][5:]).upper()
+        print("module-name: {}".format(module_name))
         test_class_name = cls.__name__[4:].upper()
+        print("test-class-name: {}".format(test_class_name))
         return module_name + '_' + test_class_name
 
     def create_study(self, study_cls, name, inputs):

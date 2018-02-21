@@ -27,7 +27,7 @@ install:
   - install/mrtrix.sh
   - pip install .
   - mkdir -p $HOME/data
-  - ln -s $HOME/data ./test/data
+  - ln -s $HOME/xnat-cache ./test/data/cache
   - pip install nose
   - pip install codecov
   - export NUMBER_OF_PROCESSORS=1
@@ -38,6 +38,6 @@ cache:
     - $HOME/packages
     - $HOME/modules
     - $HOME/downloads
-    - $HOME/data
+    - $HOME/xnat-cache
 after_success:
   codecov

@@ -116,6 +116,7 @@ class DummyCombinedStudy(CombinedStudy):
 class TestCombined(TestCase):
 
     def setUp(self):
+        super(TestCombined, self).setUp()
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
@@ -151,4 +152,3 @@ class TestCombined(TestCase):
         finally:
             if self.mrtrix_req is not None:
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
-
