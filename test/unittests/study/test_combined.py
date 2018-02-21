@@ -133,6 +133,8 @@ class TestCombined(TestCase):
                 'c': Dataset('ones', mrtrix_format)})
         study.pipeline_a1().run(work_dir=self.work_dir)
         study.pipeline_b1().run(work_dir=self.work_dir)
+        if self.mrtrix_req is not None:
+            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             d_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
