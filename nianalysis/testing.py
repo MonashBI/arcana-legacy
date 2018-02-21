@@ -325,10 +325,6 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                      cache_dir=None):
         if cache_dir is None:
             cache_dir = self.cache_dir
-        print(self)
-        print(self.BASE_CLASS)
-        print(self.base_name)
-        print(self.xnat_session_name)
         try:
             download_all_datasets(
                 cache_dir, self.SERVER, self.xnat_session_name,
