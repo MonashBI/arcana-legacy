@@ -49,6 +49,14 @@ class BaseDatum(object):
     def multiplicity(self):
         return self._multiplicity
 
+    def rename(self, name):
+        """
+        Duplicate the datum and rename it
+        """
+        duplicate = copy(self)
+        duplicate._name = name
+        return duplicate
+
 
 class BaseDataset(BaseDatum):
     """

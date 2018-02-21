@@ -221,7 +221,7 @@ class Pipeline(object):
         self.connect_to_archive(complete_workflow, **kwargs)
         return complete_workflow.run(plugin=plugin)
 
-    def write_graph(self, fname, detailed=False, style='flat', complete=False):
+    def write_graph(self, fname, detailed=True, style='flat', complete=False):
         """
         Writes a graph of the pipeline to file
 
@@ -253,9 +253,9 @@ class Pipeline(object):
             out_dir = tmpdir
         workflow.write_graph(graph2use=style)
         if detailed:
-            graph_file = 'graph_detailed.dot.png'
+            graph_file = 'graph_detailed.png'
         else:
-            graph_file = 'graph.dot.png'
+            graph_file = 'graph.png'
         os.chdir(orig_dir)
         shutil.move(os.path.join(out_dir, graph_file), fname)
         shutil.rmtree(tmpdir)

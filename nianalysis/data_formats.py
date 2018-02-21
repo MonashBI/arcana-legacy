@@ -120,11 +120,8 @@ class Converter(object):
         """
         convert_node, in_field, out_field = self._get_convert_node(
             node_name, dataset.format, output_format)
-        try:
-            workflow.connect(
-                source, dataset_name, convert_node, in_field)
-        except:
-            raise
+        workflow.connect(
+            source, dataset_name, convert_node, in_field)
         return convert_node, out_field
 
     @abstractmethod
@@ -259,6 +256,7 @@ class UnTarGzConverter(Converter):
 
     def output_formats(self):
         return [directory_format]
+
 
 # List all possible converters in order of preference
 all_converters = [Dcm2niixConverter(), MrtrixConverter(), UnzipConverter(),

@@ -152,13 +152,13 @@ class CombinedStudy(Study):
             self._workflow = pipeline.workflow
             ss_cls, dataset_map = combined_study.sub_study_specs[
                 ss_name]
-            inv_dataset_map = dict((v, combined_study.dataset_spec(k))
-                                    for k, v in dataset_map.iteritems())
+            inv_dataset_map = dict(
+                (v, k) for k, v in dataset_map.iteritems())
             assert isinstance(pipeline.study, ss_cls)
             # Translate inputs from sub-study pipeline
             try:
-                self._inputs = [inv_dataset_map[i]
-                                for i in pipeline.input_names]
+                self._inputs = [i.rename(inv_dataset_map[i.name])
+                                for i in pipeline.inputs]
             except KeyError as e:
                 raise NiAnalysisMissingDatasetError(
                     "{} input required for pipeline '{}' in '{}' is not "
@@ -178,15 +178,15 @@ class CombinedStudy(Study):
             # Connect to sub-study input node
             for input_name in pipeline.input_names:
                 self.workflow.connect(
-                    self._inputnode, inv_dataset_map[input_name].name,
+                    self._inputnode, inv_dataset_map[input_name],
                     pipeline.inputnode, input_name)
             # Translate outputs from sub-study pipeline
             self._outputs = {}
             for mult in pipeline.mutliplicities:
                 try:
                     self._outputs[mult] = [
-                        inv_dataset_map[o_name]
-                        for o_name in pipeline.multiplicity_output_names(mult)]
+                        o.rename(inv_dataset_map[o.name])
+                        for o in pipeline.multiplicity_outputs(mult)]
                 except KeyError as e:
                     raise NiAnalysisMissingDatasetError(
                         "'{}' output required for pipeline '{}' in '{}' is not"
@@ -214,7 +214,7 @@ class CombinedStudy(Study):
                     self.workflow.connect(pipeline.outputnode(mult),
                                           output_name,
                                           self._outputnodes[mult],
-                                          inv_dataset_map[output_name].name)
+                                          inv_dataset_map[output_name])
             # Copy additional info fields
             self._default_options = copy(pipeline._default_options)
             if override_default_options is not None:
@@ -224,5 +224,5 @@ class CombinedStudy(Study):
             self._description = pipeline._description
 
     def __repr__(self):
-        return "{}(name='{}')".format(self.__class__.__name__,
-                                      self.name)
+        return "{}(name='{}', study='{}')".format(
+            self.__class__.__name__, self.name, self.study.name)
