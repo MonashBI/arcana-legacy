@@ -674,6 +674,7 @@ class TestOnXnatMixin(object):
 
     @property
     def base_class(self):
+        print type(self).__mro__
         return type(self).__mro__[2]
 
     @property
