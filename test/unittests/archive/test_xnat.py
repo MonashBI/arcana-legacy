@@ -22,7 +22,7 @@ import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
-from test_study import TestExistingPrereqs  # @UnresolvedImport @IgnorePep8
+import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
@@ -741,10 +741,11 @@ class TestOnXnatMixin(object):
         return path
 
 
-class TestExistingPrereqsOnXnat(TestOnXnatMixin, TestExistingPrereqs):
+class TestExistingPrereqsOnXnat(TestOnXnatMixin,
+                                test_study.TestExistingPrereqs):
 
     PROJECT = 'TEST007'
-    BASE_CLASS = TestExistingPrereqs
+    BASE_CLASS = test_study.TestExistingPrereqs
 
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
