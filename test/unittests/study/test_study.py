@@ -81,7 +81,8 @@ class DummyStudy(Study):
             version=1,
             citations=[],
             options=options)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert")
+        mrconvert = pipeline.create_node(MRConvert(), name="convert",
+                                         requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
