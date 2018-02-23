@@ -458,4 +458,4 @@ class LocalArchive(Archive):
     def fields_from_json(self, fname):
         with open(fname) as f:
             dct = json.load(f)
-        return [Field(k, )]
+        return [Field(k, ) for k, v in dct.items()]

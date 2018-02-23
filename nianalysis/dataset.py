@@ -397,6 +397,25 @@ class Field(BaseField):
                         self.multiplicity, self.processed))
 
 
+class FieldValue(Field):
+
+    def __init__(self, name, dtype, value, multiplicity='per_session',
+                     processed=False):
+        super(FieldValue, self).__init__(name, dtype, multiplicity,
+                                         processed=processed)
+        self._value = value
+
+    @property
+    def value(self):
+        return self._value
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, multiplicity={}, processed={},"
+                " value={})"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.multiplicity, self.processed, self.value))
+
+
 class FieldSpec(BaseField):
     """
     An abstract base class representing either an acquired value or the
