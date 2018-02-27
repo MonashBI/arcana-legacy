@@ -22,9 +22,10 @@ package, and can either be run locally or submitted to high HPC
 facilities using NiPype’s execution plugins. For a requested analysis
 output, NiAnalysis determines the required processing steps by querying
 the archive to check for missing intermediate outputs before
-constructing the workflow graph. When running on HPC infrastructure
-with environment modules installed, NiAnalysis manages the loading and
-unloading of software modules per pipeline node.
+constructing the workflow graph. When running in an environment
+with ` the modules package <http://modules.sourceforge.net>`_ installed,
+NiAnalysis manages the loading and unloading of software modules per
+pipeline node.
 
 Design
 ------
@@ -33,23 +34,19 @@ NiAnalysis is designed with an object-oriented philosophy, with
 the acquired and derived data sets along with the analysis pipelines
 used to derive the derived data sets encapsulated within "Study" classes.
 
-The NiAnalysis package itself only provides the abstract study base
-class, which is designed to be derived by more specific Study classes
-representing the analysis that can be performed on different modalities
-and contrasts (e.g. PetStudy, DiffusionMriStudy, FmriStudy). These
-contrast/modality classes are intended to be derived in turn can to
-for Study classes that are specific to the a particular PET|MRI study,
-providing a way to integrate the complete analysis from preprocessing
-to statistics. 
-
-Study classes for multi-modality/contrast studies can be constructed
-using the "CombinedStudy" class, which provides a way to combine
-multiple Study classes into a single combined class. 
+The NiAnalysis package itself only provides the abstract *Study* and
+*CombinedStudy* base classes, which are designed to be sub-classed by
+more specific classes representing the analysis that can be performed
+on different modalities and contrasts (e.g. PetStudy, DiffusionMriStudy,
+FmriStudy). These contrast/modality classes are intended to be sub-classed and
+combined into classes that are specific to the a particular PET|MRI study,
+class (e.g. ASPREE Neuro), and integrate the complete workflow from preprocessing
+to statistic analysis.
 
 Installation
 ------------
 
-NiAnalysis itself can be installed using ``pip``::
+NiAnalysis can be installed using ``pip``::
 
     $ pip install git+https://github.com/mbi-image/nianalysis.git
 
