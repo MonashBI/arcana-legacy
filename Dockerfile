@@ -75,3 +75,5 @@ RUN echo 'prepend-path LD_LIBRARY_PATH /packages/mrtrix/lib' >> /modules/mrtrix/
 
 # Install NiAnalysis and prerequisite pipelines
 RUN pip install git+https://github.com/mbi-image/nianalysis.git
+
+# From here add your pipeline specific commands
