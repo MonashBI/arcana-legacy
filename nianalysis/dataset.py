@@ -49,7 +49,7 @@ class BaseDatum(object):
     def multiplicity(self):
         return self._multiplicity
 
-    def rename(self, name):
+    def renamed(self, name):
         """
         Duplicate the datum and rename it
         """
@@ -256,11 +256,6 @@ class DatasetSpec(BaseDataset):
     @property
     def description(self):
         return self._description
-
-    def renamed_copy(self, name):
-        cpy = copy(self)
-        cpy._name = name
-        return cpy
 
     @property
     def filename(self):
@@ -469,11 +464,6 @@ class FieldSpec(BaseField):
     @property
     def description(self):
         return self._description
-
-    def renamed_copy(self, name):
-        cpy = copy(self)
-        cpy._name = name
-        return cpy
 
     def apply_prefix(self, prefix):
         """

@@ -1,12 +1,32 @@
-from abc import ABCMeta
 from copy import copy
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.exceptions import NiAnalysisMissingDatasetError
+from nianalysis.exceptions import (
+    NiAnalysisMissingDatasetError, NiAnalysisDatasetNameError)
 from nianalysis.pipeline import Pipeline
 from .base import Study
 
 
-class CombinedStudy(Study):
+class MultiStudyMetaClass(type):
+    """
+    Metaclass for "multi" study classes that automatically adds
+    translated data specs and pipelines from sub-study specs if they
+    are not explicitly mapped in the spec.
+    """
+
+    def __new__(self, name, bases, dct):
+        sub_study_specs = dct['_sub_study_specs']
+        if '_data_specs' not in dct:
+            dct['_data_specs'] = {}
+        data_specs = dct['_data_specs']
+        for sub_study_spec in sub_study_specs:
+            for data_spec in sub_study_spec.auto_specs:
+                pipeline = MultiStudy.translate(sub_study_name,
+                                                pipeline_getter)
+                
+        return type(name, bases, dct)
+
+
+class MultiStudy(Study):
     """
     Abstract base class for all studies that combine multiple studies into a
     a combined study
@@ -29,8 +49,8 @@ class CombinedStudy(Study):
 
     Required Sub-Class attributes
     -----------------------------
-    sub_study_specs : dict[str, (type(Study), dict[str, str])
-        Subclasses of CombinedStudy are expected to have a 'sub_study_specs'
+    sub_study_specs : list[SubStudySpec]
+        Subclasses of MultiStudy are expected to have a 'sub_study_specs'
         class member, which defines the sub-studies that make up the combined
         study and the mapping of their dataset names. The key of the outer
         dictionary will be the name of the sub-study, and the value is a tuple
@@ -45,31 +65,32 @@ class CombinedStudy(Study):
                 DatasetSpec('t2', nifti_gz_format'))
     """
 
-    __metaclass__ = ABCMeta
+    __metaclass__ = MultiStudyMetaClass
 
     def __init__(self, name, project_id, archive, inputs, **kwargs):
-        super(CombinedStudy, self).__init__(name, project_id, archive,
+        super(MultiStudy, self).__init__(name, project_id, archive,
                                             inputs, **kwargs)
         self._sub_studies = {}
-        for (sub_study_name,
-             (cls, dataset_map)) in self.sub_study_specs.iteritems():
-            # Create copies of the input datasets to pass to the __init__
-            # method of the generated sub-studies
+        for sub_study_spec in self.sub_study_specs.iteritems():
+            # Create copies of the input datasets to pass to the
+            # __init__ method of the generated sub-studies
             mapped_inputs = {}
             for n, inpt in inputs.iteritems():
                 try:
-                    mapped_inputs[dataset_map[n]] = inpt
+                    mapped_inputs[sub_study_spec.map(n)] = inpt
                 except KeyError:
                     pass  # Ignore datasets that are not required for sub-study
             # Create sub-study
-            sub_study = cls(name + '_' + sub_study_name, project_id,
-                            archive, mapped_inputs, check_inputs=False)
+            sub_study = cls(name + '_' + sub_study_spec.name,
+                            project_id, archive, mapped_inputs,
+                            check_inputs=False)
             # Set sub-study as attribute
-            setattr(self, sub_study_name, sub_study)
+            setattr(self, sub_study.name, sub_study)
             # Append to dictionary of sub_studies
-            assert sub_study_name not in self._sub_studies, (
-                "duplicate sub-study names '{}'".format(sub_study_name))
-            self._sub_studies[sub_study_name] = sub_study
+            assert sub_study.name not in self._sub_studies, (
+                "duplicate sub-study names '{}'"
+                .format(sub_study.name))
+            self._sub_studies[sub_study.name] = sub_study
 
     @property
     def sub_studies(self):
@@ -78,10 +99,11 @@ class CombinedStudy(Study):
     @classmethod
     def translate(cls, sub_study_name, pipeline_getter, **kwargs):
         """
-        A "decorator" (although not intended to be used with @) for translating
-        pipeline getter methods from a sub-study of a CombinedStudy.
-        Returns a new method that calls the getter on the specified sub-
-        sub-study then translates the pipeline to the CombinedStudy.
+        A "decorator" (although not intended to be used with @) for
+        translating pipeline getter methods from a sub-study of a
+        MultiStudy. Returns a new method that calls the getter on
+        the specified sub-study then translates the pipeline to the
+        MultiStudy.
 
         Parameters
         ----------
@@ -100,9 +122,8 @@ class CombinedStudy(Study):
 
     class TranslatedPipeline(Pipeline):
         """
-        A pipeline that is translated from a sub-study to the combined study.
-        It takes the untranslated pipeline as an input and destroys it in the
-        process
+        A pipeline that is translated from a sub-study to the combined
+        study.
 
         Parameters
         ----------
@@ -110,16 +131,16 @@ class CombinedStudy(Study):
             Name of the translated pipeline
         pipeline : Pipeline
             Sub-study pipeline to translate
-        combined_study : CombinedStudy
+        combined_study : MultiStudy
             Study to translate the pipeline to
         add_inputs : list[str]
-            List of additional inputs to add to the translated pipeline to be
-            connected manually in combined-study getter (i.e. not using
-            translate_getter decorator).
+            List of additional inputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
         add_outputs : list[str]
-            List of additional outputs to add to the translated pipeline to be
-            connected manually in combined-study getter (i.e. not using
-            translate_getter decorator).
+            List of additional outputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
         """
 
         def __init__(self, combined_study, sub_study, pipeline_getter,
@@ -150,20 +171,19 @@ class CombinedStudy(Study):
             self._name = pipeline.name
             self._study = combined_study
             self._workflow = pipeline.workflow
-            ss_cls, dataset_map = combined_study.sub_study_specs[
-                ss_name]
-            inv_dataset_map = dict(
-                (v, k) for k, v in dataset_map.iteritems())
-            assert isinstance(pipeline.study, ss_cls)
+            sub_study_spec = combined_study.sub_study_spec(ss_name)
+            assert isinstance(pipeline.study, sub_study.study_class)
             # Translate inputs from sub-study pipeline
             try:
-                self._inputs = [i.rename(inv_dataset_map[i.name])
-                                for i in pipeline.inputs]
+                self._inputs = [
+                    i.renamed(sub_study_spec.inverse_map(i.name))
+                    for i in pipeline.inputs]
             except KeyError as e:
                 raise NiAnalysisMissingDatasetError(
                     "{} input required for pipeline '{}' in '{}' is not "
                     "present in dataset map:\n{}".format(
-                        e, pipeline.name, ss_name, dataset_map))
+                        e, pipeline.name, ss_name,
+                        sub_study_spec.name_map))
             # Add additional inputs
             self._unconnected_inputs = set()
             if add_inputs is not None:
@@ -178,21 +198,23 @@ class CombinedStudy(Study):
             # Connect to sub-study input node
             for input_name in pipeline.input_names:
                 self.workflow.connect(
-                    self._inputnode, inv_dataset_map[input_name],
+                    self._inputnode,
+                    sub_study_spec.inverse_map(input_name),
                     pipeline.inputnode, input_name)
             # Translate outputs from sub-study pipeline
             self._outputs = {}
             for mult in pipeline.mutliplicities:
                 try:
                     self._outputs[mult] = [
-                        o.rename(inv_dataset_map[o.name])
+                        o.renamed(sub_study_spec.inverse_map(o.name))
                         for o in pipeline.multiplicity_outputs(mult)]
                 except KeyError as e:
                     raise NiAnalysisMissingDatasetError(
-                        "'{}' output required for pipeline '{}' in '{}' is not"
-                        " present in inverse dataset map:\n{}".format(
+                        "'{}' output required for pipeline '{}' in '{}'"
+                        " is not present in inverse dataset map:\n{}"
+                        .format(
                             e, pipeline.name, ss_name,
-                            inv_dataset_map))
+                            sub_study_spec.name_map))
             # Add additional outputs
             self._unconnected_outputs = set()
             if add_outputs is not None:
@@ -200,21 +222,24 @@ class CombinedStudy(Study):
                 for output in add_outputs:
                     combined_study.dataset_spec(output).multiplicity
                     self._outputs[mult].append(output)
-                self._unconnected_outputs.update(o.name for o in add_outputs)
+                self._unconnected_outputs.update(o.name
+                                                 for o in add_outputs)
             # Create output nodes for each multiplicity
             self._outputnodes = {}
             for mult in pipeline.mutliplicities:
                 self._outputnodes[mult] = self.create_node(
                     IdentityInterface(
-                        fields=list(self.multiplicity_output_names(mult))),
+                        fields=list(
+                            self.multiplicity_output_names(mult))),
                     name="{}_{}_outputnode_wrapper".format(ss_name,
                                                            mult))
                 # Connect sub-study outputs
                 for output_name in pipeline.multiplicity_output_names(mult):
-                    self.workflow.connect(pipeline.outputnode(mult),
-                                          output_name,
-                                          self._outputnodes[mult],
-                                          inv_dataset_map[output_name])
+                    self.workflow.connect(
+                        pipeline.outputnode(mult),
+                        output_name,
+                        self._outputnodes[mult],
+                        sub_study_spec.inverse_map(output_name))
             # Copy additional info fields
             self._default_options = copy(pipeline._default_options)
             if override_default_options is not None:
@@ -226,3 +251,86 @@ class CombinedStudy(Study):
     def __repr__(self):
         return "{}(name='{}', study='{}')".format(
             self.__class__.__name__, self.name, self.study.name)
+
+
+class SubStudySpec(object):
+    """
+    Specify a study to be included in a MultiStudy class
+
+    Parameters
+    ----------
+    name : str
+        Name for the sub-study
+    study_class : type (sub-classed from Study)
+        The class of the sub-study
+    name_map : dict[str, str]
+        A mapping of dataset/field names from the MultiStudy scope to
+        the scopy of the sub-study (i.e. the _data_specs dict in the
+        class of the sub-study). All data-specs that are not explicitly
+        provided in this mapping are auto-translated using the sub-study
+        prefix.
+    prefix : str
+        Prefix to use for auto-translated datasets and pipelines of the
+        sub-study in the MultiStudy scope.
+    """
+
+    def __init__(self, name, study_class, name_map=None, prefix=None):
+        self._name = name
+        self._study_class = study_class
+        self._prefix = prefix
+        # Fill dataset map with default values before overriding with
+        # argument provided to constructor
+        self._name_map = name_map if name_map is not None else {}
+        self._inv_map = dict((v, k) for k, v in self._name_map.items())
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def study_class(self):
+        return self._study_class
+
+    @property
+    def name_map(self):
+        nmap = dict((self._apply_prefix(s.name), s.name)
+                    for s in self.auto_specs)
+        nmap.update(self._name_map)
+        return nmap
+
+    @property
+    def prefix(self):
+        return self._prefix if self._prefix is not None else self._name
+
+    def map(self, name):
+        try:
+            return self._name_map[name]
+        except KeyError:
+            return self._strip_prefix(name)
+
+    def inverse_map(self, name):
+        try:
+            return self._inv_map[name]
+        except KeyError:
+            return self._apply_prefix(name)
+
+    def _apply_prefix(self, name):
+        return self.prefix + '_' + name
+
+    def _strip_prefix(self, name):
+        if not name.startswith(self.prefix + '_'):
+            raise NiAnalysisDatasetNameError(
+                "'{}' is not explicitly provided in SubStudySpec "
+                "name map and doesn't start with the SubStudySpec "
+                "prefix '{}_'".format(name, self.prefix))
+        return name[len(self.prefix) + 1:]
+
+    @property
+    def auto_specs(self):
+        """
+        Specs in the sub-study class that are not explicitly provided
+        in the name map
+        """
+        for spec in self.study_class.data_specs():
+            if spec.name not in self._inv_map:
+                yield spec

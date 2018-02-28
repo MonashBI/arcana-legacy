@@ -6,7 +6,7 @@ from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_data_specs
-from nianalysis.study.combined import CombinedStudy
+from nianalysis.study.combined import MultiStudy
 from nianalysis.interfaces.mrtrix import MRMath
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
@@ -20,7 +20,7 @@ class DummySubStudyA(Study):
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
             outputs=[DatasetSpec('z', mrtrix_format)],
-            description="A dummy pipeline used to test CombinedStudy class",
+            description="A dummy pipeline used to test MultiStudy class",
             default_options={},
             version=1,
             citations=[])
@@ -54,7 +54,7 @@ class DummySubStudyB(Study):
                     DatasetSpec('x', mrtrix_format)],
             outputs=[DatasetSpec('y', mrtrix_format),
                      DatasetSpec('z', mrtrix_format)],
-            description="A dummy pipeline used to test CombinedStudy class",
+            description="A dummy pipeline used to test MultiStudy class",
             default_options={},
             version=1,
             citations=[])
@@ -95,14 +95,14 @@ class DummySubStudyB(Study):
         DatasetSpec('z', mrtrix_format, pipeline1))
 
 
-class DummyCombinedStudy(CombinedStudy):
+class DummyMultiStudy(MultiStudy):
 
     sub_study_specs = {'A': (DummySubStudyA, {'a': 'x', 'b': 'y', 'd': 'z'}),
                        'B': (DummySubStudyB, {'b': 'w', 'c': 'x', 'e': 'y',
                                               'f': 'z'})}
 
-    pipeline_a1 = CombinedStudy.translate('A', DummySubStudyA.pipeline1)
-    pipeline_b1 = CombinedStudy.translate('B', DummySubStudyB.pipeline1)
+    pipeline_a1 = MultiStudy.translate('A', DummySubStudyA.pipeline1)
+    pipeline_b1 = MultiStudy.translate('B', DummySubStudyB.pipeline1)
 
     _data_specs = set_data_specs(
         DatasetSpec('a', mrtrix_format),
@@ -127,7 +127,7 @@ class TestCombined(TestCase):
 
     def test_combined_study(self):
         study = self.create_study(
-            DummyCombinedStudy, 'combined', {
+            DummyMultiStudy, 'combined', {
                 'a': Dataset('ones', mrtrix_format),
                 'b': Dataset('ones', mrtrix_format),
                 'c': Dataset('ones', mrtrix_format)})
