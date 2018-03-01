@@ -1,4 +1,5 @@
 FROM neurodebian:xenial
+MAINTAINER Tom Close <tom.close@monash.edu>
 
 RUN apt-get update; apt-get install -y git g++ python python-numpy \
     libeigen3-dev zlib1g-dev libqt4-opengl-dev libgl1-mesa-dev \
