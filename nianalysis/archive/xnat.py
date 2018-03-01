@@ -357,6 +357,7 @@ class XNATSinkMixin(XNATMixin):
             sess_kwargs['user'] = self.inputs.user
         if 'password' in self.inputs.trait_names():
             sess_kwargs['password'] = self.inputs.password
+        logger.debug("Session kwargs: {}".format(**sess_kwargs))
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
             # Add session for processed scans if not present
