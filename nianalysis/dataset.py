@@ -57,6 +57,10 @@ class BaseDatum(object):
         duplicate._name = name
         return duplicate
 
+    def initkwargs(self):
+        return {'name': self.name,
+                'multiplicity': self.multiplicity}
+
 
 class BaseDataset(BaseDatum):
     """
@@ -120,6 +124,11 @@ class BaseDataset(BaseDatum):
         return ("{}(name='{}', format={}, multiplicity={})"
                 .format(self.__class__.__name__, self.name, self.format,
                         self.multiplicity))
+
+    def initkwargs(self):
+        dct = super(BaseDataset, self).initkwargs()
+        dct['format'] = self.format
+        return dct
 
 
 class Dataset(BaseDataset):
@@ -201,6 +210,11 @@ class Dataset(BaseDataset):
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
                    location=location)
+
+    def initkwargs(self):
+        dct = super(Dataset, self).initkwargs()
+        dct['processed'] = self.processed
+        return dct
 
 
 class DatasetSpec(BaseDataset):
@@ -297,6 +311,12 @@ class DatasetSpec(BaseDataset):
                 "multiplicity={})".format(
                     self.name, self.format, self.pipeline, self.multiplicity))
 
+    def initkwargs(self):
+        dct = super(DatasetSpec, self).initkwargs()
+        dct['pipeline'] = self.format
+        dct['description'] = self.description
+        return dct
+
 
 class BaseField(BaseDatum):
     """
@@ -355,6 +375,11 @@ class BaseField(BaseDatum):
     def _dtype_names(cls):
         return (d.__name__ for d in cls.dtypes)
 
+    def initkwargs(self):
+        dct = super(BaseField, self).initkwargs()
+        dct['dtype'] = self.dtype
+        return dct
+
 
 class Field(BaseField):
     """
@@ -391,24 +416,10 @@ class Field(BaseField):
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.multiplicity, self.processed))
 
-
-class FieldValue(Field):
-
-    def __init__(self, name, dtype, value, multiplicity='per_session',
-                     processed=False):
-        super(FieldValue, self).__init__(name, dtype, multiplicity,
-                                         processed=processed)
-        self._value = value
-
-    @property
-    def value(self):
-        return self._value
-
-    def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={}, processed={},"
-                " value={})"
-                .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self.processed, self.value))
+    def initkwargs(self):
+        dct = super(Field, self).initkwargs()
+        dct['processed'] = self.processed
+        return dct
 
 
 class FieldSpec(BaseField):
@@ -434,8 +445,8 @@ class FieldSpec(BaseField):
 
     is_spec = True
 
-    def __init__(self, name, dtype, pipeline=None, multiplicity='per_session',
-                 description=None):
+    def __init__(self, name, dtype, pipeline=None,
+                 multiplicity='per_session', description=None):
         super(FieldSpec, self).__init__(name, dtype, multiplicity)
         self._pipeline = pipeline
         self._description = description
@@ -501,3 +512,46 @@ class FieldSpec(BaseField):
                 "multiplicity={})".format(
                     self.__class__.__name__, self.name, self.dtype,
                     self.pipeline, self.multiplicity))
+
+    def initkwargs(self):
+        dct = super(FieldSpec, self).initkwargs()
+        dct['pipeline'] = self.pipeline
+        dct['description'] = self.description
+        return dct
+
+
+class FieldValue(object):
+
+    def __init__(self, field, value):
+        self._field = field
+        self._value = value
+
+    @property
+    def field(self):
+        return self._field
+
+    @property
+    def name(self):
+        return self.field.name
+
+    @property
+    def dtype(self):
+        return self.field.dtype
+
+    @property
+    def multiplicity(self):
+        return self.field.multiplicity
+
+    @property
+    def processed(self):
+        return self.field.processed
+
+    @property
+    def value(self):
+        return self._value
+
+    def __repr__(self):
+        return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
+                "processed={})"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.multiplicity, self.processed, self.value))
