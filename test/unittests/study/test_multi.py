@@ -6,7 +6,8 @@ from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_data_specs
-from nianalysis.study.combined import MultiStudy
+from nianalysis.study.multi import (
+    MultiStudy, translate_pipeline)
 from nianalysis.interfaces.mrtrix import MRMath
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
@@ -14,7 +15,7 @@ from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @Ign
 
 class DummySubStudyA(Study):
 
-    def pipeline1(self, **kwargs):
+    def pipeline1(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('x', mrtrix_format),
@@ -47,7 +48,7 @@ class DummySubStudyA(Study):
 
 class DummySubStudyB(Study):
 
-    def pipeline1(self, **kwargs):
+    def pipeline1(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('w', mrtrix_format),
@@ -101,8 +102,8 @@ class DummyMultiStudy(MultiStudy):
                        'B': (DummySubStudyB, {'b': 'w', 'c': 'x', 'e': 'y',
                                               'f': 'z'})}
 
-    pipeline_a1 = MultiStudy.translate('A', DummySubStudyA.pipeline1)
-    pipeline_b1 = MultiStudy.translate('B', DummySubStudyB.pipeline1)
+    pipeline_a1 = translate_pipeline('A', DummySubStudyA.pipeline1)
+    pipeline_b1 = translate_pipeline('B', DummySubStudyB.pipeline1)
 
     _data_specs = set_data_specs(
         DatasetSpec('a', mrtrix_format),
@@ -113,10 +114,10 @@ class DummyMultiStudy(MultiStudy):
         DatasetSpec('f', mrtrix_format, pipeline_b1))
 
 
-class TestCombined(TestCase):
+class TestMulti(TestCase):
 
     def setUp(self):
-        super(TestCombined, self).setUp()
+        super(TestMulti, self).setUp()
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
