@@ -2,7 +2,7 @@ from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
-from nianalysis.study.base import Study, set_data_specs
+from nianalysis.study.base import Study, set_specs
 from nianalysis.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 
@@ -65,7 +65,7 @@ class ConversionStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('mrtrix', nifti_gz_format),
         DatasetSpec('nifti_gz', mrtrix_format),
         DatasetSpec('dicom', dicom_format),
