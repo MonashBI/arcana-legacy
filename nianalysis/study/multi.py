@@ -35,10 +35,10 @@ class MultiStudyMetaClass(type):
                 initkwargs['name'] = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if data_spec.pipeline is not None:
-                    pipeline = translate_pipeline(
+                    pipeline_getter = translate_pipeline(
                         sub_study_spec.name, data_spec.pipeline)
-                    dct[pipeline.name + '_pipeline'] = pipeline
-                    initkwargs['pipeline'] = pipeline
+                    dct[pipeline_getter.translated_name] = pipeline_getter
+                    initkwargs['pipeline'] = pipeline_getter
                 new_data_spec = type(data_spec)(**initkwargs)
                 data_specs[new_data_spec.name] = new_data_spec
         return type(name, bases, dct)
@@ -365,4 +365,9 @@ def translate_pipeline(sub_study_name, pipeline_getter, **kwargs):
             pipeline_getter, options, **kwargs)
         trans_pipeline.assert_connected()
         return trans_pipeline
+    try:
+        name = pipeline_getter.translated_name
+    except AttributeError:
+        name = pipeline_getter.__name__
+    translated_getter.translated_name = sub_study_name + '_' + name
     return translated_getter

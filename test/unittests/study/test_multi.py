@@ -191,17 +191,17 @@ class TestMulti(TestCase):
         try:
             d_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
-                    'd.mif', study.name)),
+                    'ss1_z.mif', study.name)),
                 shell=True))
             self.assertEqual(d_mean, 2.0)
             e_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
-                    'e.mif', study.name)),
+                    'ss2_y.mif', study.name)),
                 shell=True))
             self.assertEqual(e_mean, 3.0)
             f_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
-                    'f.mif', study.name)),
+                    'ss2_z.mif', study.name)),
                 shell=True))
             self.assertEqual(f_mean, 6.0)
         finally:
