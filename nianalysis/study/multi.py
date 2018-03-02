@@ -1,7 +1,7 @@
 from copy import copy
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisDatasetNameError)
+    NiAnalysisMissingDatasetError, NiAnalysisNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.exceptions import NiAnalysisUsageError
 from .base import Study
@@ -29,14 +29,16 @@ class MultiStudyMetaClass(type):
                 "Multi-study class '{}' doesn't not have required "
                 "'_data_specs' class attribute"
                 .format(name))
-        for sub_study_spec in sub_study_specs:
+        for sub_study_spec in sub_study_specs.values():
             for data_spec in sub_study_spec.auto_specs:
                 initkwargs = data_spec.initkwargs()
                 initkwargs['name'] = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if data_spec.pipeline is not None:
-                    initkwargs['pipeline'] = translate_pipeline(
+                    pipeline = translate_pipeline(
                         sub_study_spec.name, data_spec.pipeline)
+                    dct[pipeline.name + '_pipeline'] = pipeline
+                    initkwargs['pipeline'] = pipeline
                 new_data_spec = type(data_spec)(**initkwargs)
                 data_specs[new_data_spec.name] = new_data_spec
         return type(name, bases, dct)
@@ -81,20 +83,18 @@ class MultiStudy(Study):
                 DatasetSpec('t2', nifti_gz_format'))
     """
 
-    __metaclass__ = MultiStudyMetaClass
-
     def __init__(self, name, project_id, archive, inputs, **kwargs):
         super(MultiStudy, self).__init__(name, project_id, archive,
                                             inputs, **kwargs)
         self._sub_studies = {}
-        for sub_study_spec in self.sub_study_specs.iteritems():
+        for sub_study_spec in self.sub_study_specs():
             # Create copies of the input datasets to pass to the
             # __init__ method of the generated sub-studies
             mapped_inputs = {}
             for n, inpt in inputs.iteritems():
                 try:
                     mapped_inputs[sub_study_spec.map(n)] = inpt
-                except KeyError:
+                except NiAnalysisNameError:
                     pass  # Ignore datasets not required for sub-study
             # Create sub-study
             sub_study = sub_study_spec.study_class(
@@ -102,19 +102,38 @@ class MultiStudy(Study):
                 project_id, archive, mapped_inputs,
                 check_inputs=False)
             # Set sub-study as attribute
-            setattr(self, sub_study.name, sub_study)
+            setattr(self, sub_study_spec.name, sub_study)
             # Append to dictionary of sub_studies
-            assert sub_study.name not in self._sub_studies, (
-                "duplicate sub-study names '{}'"
-                .format(sub_study.name))
-            self._sub_studies[sub_study.name] = sub_study
+            if sub_study_spec.name in self._sub_studies:
+                raise NiAnalysisNameError(
+                    "Duplicate sub-study names '{}'"
+                    .format(sub_study_spec.name))
+            self._sub_studies[sub_study_spec.name] = sub_study
 
     @property
     def sub_studies(self):
         return self._sub_studies.itervalues()
 
     def sub_study(self, name):
-        return self._sub_studies[name]
+        try:
+            return self._sub_studies[name]
+        except KeyError:
+            raise NiAnalysisNameError(
+                "'{}' not found in sub-studes ('{}')"
+                .format(name, "', '".join(self._sub_studies)))
+
+    @classmethod
+    def sub_study_specs(cls):
+        return cls._sub_study_specs.itervalues()
+
+    @classmethod
+    def sub_study_spec(cls, name):
+        try:
+            return cls._sub_study_specs[name]
+        except KeyError:
+            raise NiAnalysisNameError(
+                "'{}' not found in sub-studes ('{}')"
+                .format(name, "', '".join(cls._sub_study_specs)))
 
     def __repr__(self):
         return "{}(name='{}', study='{}')".format(
@@ -137,9 +156,6 @@ class SubStudySpec(object):
         class of the sub-study). All data-specs that are not explicitly
         provided in this mapping are auto-translated using the sub-study
         prefix.
-    prefix : str
-        Prefix to use for auto-translated datasets and pipelines of the
-        sub-study in the MultiStudy scope.
     """
 
     def __init__(self, name, study_class, name_map=None):
@@ -182,7 +198,7 @@ class SubStudySpec(object):
 
     def strip_prefix(self, name):
         if not name.startswith(self.name + '_'):
-            raise NiAnalysisDatasetNameError(
+            raise NiAnalysisNameError(
                 "'{}' is not explicitly provided in SubStudySpec "
                 "name map and doesn't start with the SubStudySpec "
                 "prefix '{}_'".format(name, self.name))
@@ -251,7 +267,7 @@ class TranslatedPipeline(Pipeline):
         self._study = combined_study
         self._workflow = pipeline.workflow
         sub_study_spec = combined_study.sub_study_spec(ss_name)
-        assert isinstance(pipeline.study, sub_study.study_class)
+        assert isinstance(pipeline.study, sub_study_spec.study_class)
         # Translate inputs from sub-study pipeline
         try:
             self._inputs = [
@@ -344,7 +360,7 @@ def translate_pipeline(sub_study_name, pipeline_getter, **kwargs):
         Unbound method used to create the pipeline in the sub-study
     """
     def translated_getter(self, **options):
-        trans_pipeline = self.TranslatedPipeline(
+        trans_pipeline = TranslatedPipeline(
             self, self.sub_study(sub_study_name),
             pipeline_getter, options, **kwargs)
         trans_pipeline.assert_connected()

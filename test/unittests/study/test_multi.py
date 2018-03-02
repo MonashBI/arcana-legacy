@@ -5,9 +5,9 @@ from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import Dataset, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, set_data_specs
+from nianalysis.study.base import Study, set_specs
 from nianalysis.study.multi import (
-    MultiStudy, translate_pipeline)
+    MultiStudy, translate_pipeline, SubStudySpec, MultiStudyMetaClass)
 from nianalysis.interfaces.mrtrix import MRMath
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
@@ -40,7 +40,7 @@ class DummySubStudyA(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format),
         DatasetSpec('z', mrtrix_format, pipeline1))
@@ -89,29 +89,51 @@ class DummySubStudyB(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('w', mrtrix_format),
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format, pipeline1),
         DatasetSpec('z', mrtrix_format, pipeline1))
 
 
-class DummyMultiStudy(MultiStudy):
+class FullMultiStudy(MultiStudy):
 
-    sub_study_specs = {'A': (DummySubStudyA, {'a': 'x', 'b': 'y', 'd': 'z'}),
-                       'B': (DummySubStudyB, {'b': 'w', 'c': 'x', 'e': 'y',
-                                              'f': 'z'})}
+    __metaclass__ = MultiStudyMetaClass
 
-    pipeline_a1 = translate_pipeline('A', DummySubStudyA.pipeline1)
-    pipeline_b1 = translate_pipeline('B', DummySubStudyB.pipeline1)
+    pipeline_a1 = translate_pipeline('ss1', DummySubStudyA.pipeline1)
+    pipeline_b1 = translate_pipeline('ss2', DummySubStudyB.pipeline1)
 
-    _data_specs = set_data_specs(
+    _sub_study_specs = set_specs(
+        SubStudySpec('ss1', DummySubStudyA,
+                     {'a': 'x', 'b': 'y', 'd': 'z'}),
+        SubStudySpec('ss2', DummySubStudyB,
+                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'}))
+
+    _data_specs = set_specs(
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format),
         DatasetSpec('d', mrtrix_format, pipeline_a1),
         DatasetSpec('e', mrtrix_format, pipeline_b1),
         DatasetSpec('f', mrtrix_format, pipeline_b1))
+
+
+class PartialMultiStudy(MultiStudy):
+
+    __metaclass__ = MultiStudyMetaClass
+
+    pipeline_a1 = translate_pipeline('ss1', DummySubStudyA.pipeline1)
+
+    _sub_study_specs = set_specs(
+        SubStudySpec('ss1', DummySubStudyA,
+                     {'a': 'x', 'b': 'y'}),
+        SubStudySpec('ss2', DummySubStudyB,
+                     {'b': 'w', 'c': 'x'}))
+
+    _data_specs = set_specs(
+        DatasetSpec('a', mrtrix_format),
+        DatasetSpec('b', mrtrix_format),
+        DatasetSpec('c', mrtrix_format))
 
 
 class TestMulti(TestCase):
@@ -126,14 +148,44 @@ class TestMulti(TestCase):
         except NiAnalysisModulesNotInstalledException:
             self.mrtrix_req = None
 
-    def test_combined_study(self):
+    def test_full_multi_study(self):
         study = self.create_study(
-            DummyMultiStudy, 'combined', {
+            FullMultiStudy, 'full', {
                 'a': Dataset('ones', mrtrix_format),
                 'b': Dataset('ones', mrtrix_format),
                 'c': Dataset('ones', mrtrix_format)})
         study.pipeline_a1().run(work_dir=self.work_dir)
         study.pipeline_b1().run(work_dir=self.work_dir)
+        if self.mrtrix_req is not None:
+            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+        try:
+            d_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'd.mif', study.name)),
+                shell=True))
+            self.assertEqual(d_mean, 2.0)
+            e_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'e.mif', study.name)),
+                shell=True))
+            self.assertEqual(e_mean, 3.0)
+            f_mean = float(sp.check_output(
+                'mrstats {} -output mean'.format(self.output_file_path(
+                    'f.mif', study.name)),
+                shell=True))
+            self.assertEqual(f_mean, 6.0)
+        finally:
+            if self.mrtrix_req is not None:
+                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+
+    def test_partial_multi_study(self):
+        study = self.create_study(
+            PartialMultiStudy, 'partial', {
+                'a': Dataset('ones', mrtrix_format),
+                'b': Dataset('ones', mrtrix_format),
+                'c': Dataset('ones', mrtrix_format)})
+        study.pipeline_a1().run(work_dir=self.work_dir)
+        study.ss2_pipeline1().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
