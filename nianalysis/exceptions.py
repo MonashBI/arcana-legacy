@@ -14,7 +14,7 @@ class NiAnalysisUsageError(NiAnalysisError):
     pass
 
 
-class NiAnalysisDatasetNameError(NiAnalysisError):
+class NiAnalysisNameError(NiAnalysisError):
     pass
 
 
