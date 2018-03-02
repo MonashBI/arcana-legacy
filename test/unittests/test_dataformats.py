@@ -10,7 +10,7 @@ from nianalysis.data_formats import (
     get_converter_node, nifti_gz_format)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
-from nianalysis.study.base import Study, set_data_specs
+from nianalysis.study.base import Study, set_specs
 from nianalysis.dataset import DatasetSpec
 
 
@@ -56,7 +56,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('input', dicom_format),
         DatasetSpec('output', nifti_gz_format, pipeline))
 
