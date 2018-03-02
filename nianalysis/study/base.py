@@ -195,7 +195,7 @@ class Study(object):
         return (c.name for c in cls.primary_data_specs())
 
 
-def set_data_specs(*comps, **kwargs):
+def set_specs(*comps, **kwargs):
     """
     Used to set the dataset specs in every Study class.
 
@@ -215,7 +215,7 @@ def set_data_specs(*comps, **kwargs):
                            .format(comp.name))
         dct[comp.name] = comp
     if 'inherit_from' in kwargs:
-        combined = set_data_specs(*set(kwargs['inherit_from']))
+        combined = set_specs(*set(kwargs['inherit_from']))
         # Allow the current components to override the inherited ones
         combined.update(dct)
         dct = combined
