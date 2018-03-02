@@ -5,12 +5,13 @@ from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
-from .nodes import Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME
+from .nodes import (
+    Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME)
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisDatasetNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
+    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
 from nianalysis.dataset import BaseDatum, BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
@@ -774,6 +775,43 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         return node
 
+    def create_join_node(self, interface, joinfield, joinsource, name,
+                         **kwargs):
+        """
+        Creates a JoinNode in the pipeline (prepending the pipeline
+        namespace)
+
+        Parameters
+        ----------
+        interface : nipype.Interface
+            The interface to use for the node
+        joinfield : str | list(str)
+            The name of the field(s) to join into a list
+        joinsource : str
+            Name of the "iterables" node over which to join
+        name : str
+            Name for the node
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        memory : int
+            Required memory for the node in MB (default: 1000)
+        nthreads : int
+            Preferred number of threads to run the node on (default: 1)
+        gpu : bool
+            Flags whether a GPU compute node is preferred or not
+            (default: False)
+        account : str
+            Name of the account to submit slurm scripts to
+        """
+        node = JoinNode(interface,
+                        name="{}_{}".format(self._name, name),
+                        joinsource=joinsource,
+                        joinfield=joinfield, **kwargs)
+        self._workflow.add_nodes([node])
+        return node
+
     def create_join_visits_node(self, interface, joinfield, name, **kwargs):
         """
         Creates a JoinNode that joins an input over all visits for each subject
@@ -971,7 +1009,7 @@ class Pipeline(object):
             Name of the input to add to the pipeline
         """
         if input_name not in self.study.dataset_spec_names():
-            raise NiAnalysisDatasetNameError(
+            raise NiAnalysisNameError(
                 "'{}' is not a name of a specified dataset or field in {} "
                 "Study".format(input_name, self.study.name))
         self._inputs.append(input_name)
