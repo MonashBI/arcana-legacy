@@ -2,7 +2,7 @@ from nianalysis.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
 from nianalysis.dataset import DatasetSpec, Dataset
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.study.base import Study, set_data_specs
+from nianalysis.study.base import Study, set_specs
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
 from nianalysis.requirements import dcm2niix1_req, mrtrix3_req
@@ -39,7 +39,7 @@ class RequirementsStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('ones', nifti_gz_format),
         DatasetSpec('twos', nifti_gz_format, pipeline))
 

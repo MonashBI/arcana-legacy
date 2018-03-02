@@ -6,7 +6,7 @@ from nianalysis.requirements import Requirement, mrtrix3_req
 from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, set_data_specs  # @IgnorePep8
+from nianalysis.study.base import Study, set_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -216,7 +216,7 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
         DatasetSpec('pipeline1_1', nifti_gz_format, pipeline1),
@@ -431,7 +431,7 @@ class ExistingPrereqStudy(Study):
     def thousands_pipeline(self, **options):  # @UnusedVariable
         return self.pipeline_factory(1000, 'hundreds', 'thousands')
 
-    _data_specs = set_data_specs(
+    _data_specs = set_specs(
         DatasetSpec('ones', mrtrix_format),
         DatasetSpec('tens', mrtrix_format, tens_pipeline),
         DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),

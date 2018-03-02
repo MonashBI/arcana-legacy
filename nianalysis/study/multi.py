@@ -78,7 +78,7 @@ class MultiStudy(Study):
             sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
                                't2_study': (MRIStudy, {'t2': 'mr_scan'})}
 
-            data_specs = set_data_specs(
+            _data_specs = set_specs(
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format'))
     """
