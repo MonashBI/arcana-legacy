@@ -13,7 +13,7 @@ RUN mkdir /modules
 WORKDIR /downloads
 
 # Install environment modules to handle package versions
-ENV MODULE_VER=4.1.0
+ENV MODULE_VER 4.1.0
 RUN wget http://downloads.sourceforge.net/project/modules/Modules/modules-$MODULE_VER/modules-$MODULE_VER.tar.gz
 RUN tar xzf modules-$MODULE_VER.tar.gz
 WORKDIR /downloads/modules-$MODULE_VER
