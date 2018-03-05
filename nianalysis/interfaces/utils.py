@@ -295,6 +295,10 @@ class ZipDirInputSpec(CommandLineInputSpec):
                         position=1)
     zipped = File(genfile=True, argstr='%s', position=0,
                   desc=("The zipped zip file"))
+    ext_prefix = traits.Str(
+        mandatory=False, default='',
+        desc=("Extra extension to prepend before .zip is appended to "
+              "file name"))
 
 
 class ZipDirOutputSpec(TraitedSpec):
@@ -317,7 +321,8 @@ class ZipDir(CommandLine):
 
     def _gen_filename(self, name):
         if name == 'zipped':
-            fname = os.path.basename(self.inputs.dirname) + self.zip_ext
+            fname = (os.path.basename(self.inputs.dirname) +
+                     self.inputs.ext_prefix + self.zip_ext)
         else:
             assert False
         return fname
