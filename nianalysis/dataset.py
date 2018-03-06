@@ -313,7 +313,7 @@ class DatasetSpec(BaseDataset):
 
     def initkwargs(self):
         dct = super(DatasetSpec, self).initkwargs()
-        dct['pipeline'] = self.format
+        dct['pipeline'] = self.pipeline
         dct['description'] = self.description
         return dct
 

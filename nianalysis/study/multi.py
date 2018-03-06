@@ -365,10 +365,15 @@ class MultiStudyMetaClass(type):
                 initkwargs['name'] = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if data_spec.pipeline is not None:
-                    pipeline_getter = MultiStudy.translate(
+                    pipe_getter = MultiStudy.translate(
                         sub_study_spec.name, data_spec.pipeline)
-                    dct[pipeline_getter.translated_name] = pipeline_getter
-                    initkwargs['pipeline'] = pipeline_getter
+                    # Check to see whether pipeline has already been translated
+                    # or always existed in the class (when overriding default
+                    # options for example)
+                    if pipe_getter.translated_name not in dct:
+                        dct[pipe_getter.translated_name] = pipe_getter
+                    initkwargs['pipeline'] = dct[
+                        pipe_getter.translated_name]
                 new_data_spec = type(data_spec)(**initkwargs)
                 data_specs[new_data_spec.name] = new_data_spec
         return type(name, bases, dct)
