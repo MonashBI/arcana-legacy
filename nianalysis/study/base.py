@@ -56,13 +56,13 @@ class Study(object):
                     "data_specs in {} studies".format(
                         name, self.__class__.__name__))
             self._inputs[name] = inpt
-        # Emit a warning if an primary dataset_spec has not been provided for
-        # an "primary dataset_spec"
+        # Emit a warning if an acquired dataset has not been provided for
+        # an "acquired dataset"
         if check_inputs:
             for spec in self.acquired_data_specs():
                 if spec.name not in self._inputs:
                     logger.warning(
-                        "'{}' primary dataset_spec was not specified in {} "
+                        "'{}' acquired dataset was not specified in {} "
                         "'{}' (provided '{}'). Pipelines depending on this "
                         "dataset will not run".format(
                             spec.name, self.__class__.__name__, self.name,
