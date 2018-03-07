@@ -296,7 +296,7 @@ class ZipDirInputSpec(CommandLineInputSpec):
     zipped = File(genfile=True, argstr='%s', position=0,
                   desc=("The zipped zip file"))
     ext_prefix = traits.Str(
-        mandatory=False, default='',
+        mandatory=False, default='', usedefault=True,
         desc=("Extra extension to prepend before .zip is appended to "
               "file name"))
 
