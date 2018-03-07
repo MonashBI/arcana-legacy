@@ -14,8 +14,11 @@ class NiAnalysisUsageError(NiAnalysisError):
     pass
 
 
-class NiAnalysisNameError(NiAnalysisError, KeyError):
-    pass
+class NiAnalysisNameError(NiAnalysisError):
+
+    def __init__(self, name, msg):
+        super(NiAnalysisNameError, self).__init__(msg)
+        self.name = name
 
 
 class NiAnalysisMissingDatasetError(NiAnalysisError):

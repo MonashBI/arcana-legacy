@@ -69,6 +69,7 @@ class MultiStudy(Study):
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise NiAnalysisNameError(
+                    sub_study_spec.name,
                     "Duplicate sub-study names '{}'"
                     .format(sub_study_spec.name))
             self._sub_studies[sub_study_spec.name] = sub_study
@@ -82,6 +83,7 @@ class MultiStudy(Study):
             return self._sub_studies[name]
         except KeyError:
             raise NiAnalysisNameError(
+                name,
                 "'{}' not found in sub-studes ('{}')"
                 .format(name, "', '".join(self._sub_studies)))
 
@@ -95,6 +97,7 @@ class MultiStudy(Study):
             return cls._sub_study_specs[name]
         except KeyError:
             raise NiAnalysisNameError(
+                name,
                 "'{}' not found in sub-studes ('{}')"
                 .format(name, "', '".join(cls._sub_study_specs)))
 
@@ -186,10 +189,13 @@ class SubStudySpec(object):
             mapped = self.strip_prefix(name)
             if mapped not in self.study_class.data_spec_names():
                 raise NiAnalysisNameError(
+                    name,
                     "'{}' has a matching prefix '{}_' but '{}' doesn't"
                     " match any data_sets in the study class {} ('{}')"
-                    .format(name, self.name, mapped, self.study_class,
-                            self.study_class.data_spec_names()))
+                    .format(name, self.name, mapped,
+                            self.study_class.__name__,
+                            "', '".join(
+                                self.study_class.data_spec_names())))
             return mapped
 
     def inverse_map(self, name):
@@ -198,10 +204,12 @@ class SubStudySpec(object):
         except KeyError:
             if name not in self.study_class.data_spec_names():
                 raise NiAnalysisNameError(
+                    name,
                     "'{}' doesn't match any data_sets in the study "
                     "class {} ('{}')"
-                    .format(name, self.study_class,
-                            self.study_class.data_spec_names()))
+                    .format(name, self.study_class.__name__,
+                            "', '".join(
+                                self.study_class.data_spec_names())))
             return self.apply_prefix(name)
 
     def apply_prefix(self, name):
@@ -210,6 +218,7 @@ class SubStudySpec(object):
     def strip_prefix(self, name):
         if not name.startswith(self.name + '_'):
             raise NiAnalysisNameError(
+                name,
                 "'{}' is not explicitly provided in SubStudySpec "
                 "name map and doesn't start with the SubStudySpec "
                 "prefix '{}_'".format(name, self.name))
@@ -284,12 +293,12 @@ class TranslatedPipeline(Pipeline):
             self._inputs = [
                 i.renamed(sub_study_spec.inverse_map(i.name))
                 for i in pipeline.inputs]
-        except KeyError as e:
+        except NiAnalysisNameError as e:
             raise NiAnalysisMissingDatasetError(
-                "{} input required for pipeline '{}' in '{}' is not "
-                "present in dataset map:\n{}".format(
-                    e, pipeline.name, ss_name,
-                    sub_study_spec.name_map))
+                "'{}' input required for pipeline '{}' in '{}' study "
+                " is not present in inverse dataset map:\n{}".format(
+                    e.name, pipeline.name, ss_name,
+                    sorted(sub_study_spec.name_map.values())))
         # Add additional inputs
         self._unconnected_inputs = set()
         if add_inputs is not None:
@@ -314,13 +323,13 @@ class TranslatedPipeline(Pipeline):
                 self._outputs[mult] = [
                     o.renamed(sub_study_spec.inverse_map(o.name))
                     for o in pipeline.multiplicity_outputs(mult)]
-            except KeyError as e:
+            except NiAnalysisNameError as e:
                 raise NiAnalysisMissingDatasetError(
                     "'{}' output required for pipeline '{}' in '{}'"
-                    " is not present in inverse dataset map:\n{}"
+                    "study is not present in inverse dataset map:\n{}"
                     .format(
-                        e, pipeline.name, ss_name,
-                        sub_study_spec.name_map))
+                        e.name, pipeline.name, ss_name,
+                        sorted(sub_study_spec.name_map.values())))
         # Add additional outputs
         self._unconnected_outputs = set()
         if add_outputs is not None:

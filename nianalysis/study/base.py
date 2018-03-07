@@ -52,6 +52,7 @@ class Study(object):
         for name, inpt in inputs.iteritems():
             if name not in self._data_specs:
                 raise NiAnalysisNameError(
+                    name,
                     "Input dataset data_spec name '{}' doesn't match any "
                     "data_specs in {} studies".format(
                         name, self.__class__.__name__))
@@ -154,6 +155,7 @@ class Study(object):
             return cls._data_specs[name]
         except KeyError:
             raise NiAnalysisNameError(
+                name,
                 "No dataset spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
                                "', '".join(cls._data_specs.keys())))

@@ -1010,6 +1010,7 @@ class Pipeline(object):
         """
         if input_name not in self.study.data_spec_names():
             raise NiAnalysisNameError(
+                input_name,
                 "'{}' is not a name of a specified dataset or field in {} "
                 "Study".format(input_name, self.study.name))
         self._inputs.append(input_name)
