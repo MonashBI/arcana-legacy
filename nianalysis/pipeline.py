@@ -94,7 +94,7 @@ class Pipeline(object):
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
         for output in outputs:
-            mult = self._study.dataset_spec(output).multiplicity
+            mult = self._study.data_spec(output).multiplicity
             self._outputs[mult].append(output)
         self._outputnodes = {}
         for mult in self._outputs:
@@ -686,7 +686,7 @@ class Pipeline(object):
         assert spec_name in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
-            self._study.dataset_spec(spec_name).multiplicity]
+            self._study.data_spec(spec_name).multiplicity]
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 

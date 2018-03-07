@@ -59,7 +59,7 @@ class Study(object):
         # Emit a warning if an primary dataset_spec has not been provided for
         # an "primary dataset_spec"
         if check_inputs:
-            for spec in self.primary_data_specs():
+            for spec in self.acquired_data_specs():
                 if spec.name not in self._inputs:
                     logger.warning(
                         "'{}' primary dataset_spec was not specified in {} "
@@ -138,7 +138,7 @@ class Study(object):
         return Pipeline(self, *args, **options)
 
     @classmethod
-    def dataset_spec(cls, name):
+    def data_spec(cls, name):
         """
         Return the dataset_spec, i.e. the template of the dataset expected to
         be supplied or generated corresponding to the dataset_spec name.
@@ -159,7 +159,7 @@ class Study(object):
                                "', '".join(cls._data_specs.keys())))
 
     @classmethod
-    def dataset_spec_names(cls):
+    def data_spec_names(cls):
         """Lists the names of all data_specs defined in the study"""
         return cls._data_specs.iterkeys()
 
@@ -169,10 +169,10 @@ class Study(object):
         return cls._data_specs.itervalues()
 
     @classmethod
-    def primary_data_specs(cls):
+    def acquired_data_specs(cls):
         """
-        Lists all data_specs defined in the study class that are provided as
-        inputs to the study
+        Lists all data_specs defined in the study class that are
+        provided as inputs to the study
         """
         return (c for c in cls.data_specs() if not c.processed)
 
@@ -186,14 +186,14 @@ class Study(object):
         return (c for c in cls.data_specs() if c.processed)
 
     @classmethod
-    def generated_dataset_spec_names(cls):
+    def generated_data_spec_names(cls):
         """Lists the names of generated data_specs defined in the study"""
         return (c.name for c in cls.generated_data_specs())
 
     @classmethod
-    def primary_dataset_spec_names(cls):
-        """Lists the names of primary data_specs defined in the study"""
-        return (c.name for c in cls.primary_data_specs())
+    def acquired_data_spec_names(cls):
+        "Lists the names of acquired data_specs defined in the study"
+        return (c.name for c in cls.acquired_data_specs())
 
 
 def set_specs(*comps, **kwargs):

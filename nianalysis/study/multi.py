@@ -163,6 +163,11 @@ class SubStudySpec(object):
     def name(self):
         return self._name
 
+    def __repr__(self):
+        return "{}(name='{}', cls={}, name_map={}".format(
+            type(self).__name__, self.name, self.study_class,
+            self._name_map)
+
     @property
     def study_class(self):
         return self._study_class
@@ -178,12 +183,24 @@ class SubStudySpec(object):
         try:
             return self._name_map[name]
         except KeyError:
-            return self.strip_prefix(name)
+            mapped = self.strip_prefix(name)
+            if mapped not in self.study_class.data_spec_names():
+                raise NiAnalysisNameError(
+                    "'{}' has a matching prefix '{}_' but '{}' doesn't"
+                    " match any data_sets in the study class {} ('{}')"
+                    .format(name, self.name, mapped, self.study_class,
+                            self.study_class.data_spec_names()))
 
     def inverse_map(self, name):
         try:
             return self._inv_map[name]
         except KeyError:
+            if name not in self.study_class.data_spec_names():
+                raise NiAnalysisNameError(
+                    "'{}' doesn't match any data_sets in the study "
+                    "class {} ('{}')"
+                    .format(name, self.study_class,
+                            self.study_class.data_spec_names()))
             return self.apply_prefix(name)
 
     def apply_prefix(self, name):
@@ -308,7 +325,7 @@ class TranslatedPipeline(Pipeline):
         if add_outputs is not None:
             self._check_spec_names(add_outputs, 'additional outputs')
             for output in add_outputs:
-                combined_study.dataset_spec(output).multiplicity
+                combined_study.data_spec(output).multiplicity
                 self._outputs[mult].append(output)
             self._unconnected_outputs.update(o.name
                                              for o in add_outputs)
