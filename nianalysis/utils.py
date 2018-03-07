@@ -5,7 +5,7 @@ from nianalysis.exceptions import NiAnalysisError
 PATH_SUFFIX = '_path'
 FIELD_SUFFIX = '_field'
 
-zip_exts = ('gz',)
+zip_exts = ('gz', 'zip')
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 
