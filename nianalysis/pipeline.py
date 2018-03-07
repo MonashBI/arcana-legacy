@@ -127,13 +127,13 @@ class Pipeline(object):
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
         unrecognised = set(s for s in specs
-                           if s.name not in self.study.dataset_spec_names())
+                           if s.name not in self.study.data_spec_names())
         if unrecognised:
             raise NiAnalysisError(
                 "'{}' are not valid {} names for {} study ('{}')"
                 .format("', '".join(u.name for u in unrecognised), spec_type,
                         self.study.__class__.__name__,
-                        "', '".join(self.study.dataset_spec_names())))
+                        "', '".join(self.study.data_spec_names())))
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -1008,7 +1008,7 @@ class Pipeline(object):
         input_name : str
             Name of the input to add to the pipeline
         """
-        if input_name not in self.study.dataset_spec_names():
+        if input_name not in self.study.data_spec_names():
             raise NiAnalysisNameError(
                 "'{}' is not a name of a specified dataset or field in {} "
                 "Study".format(input_name, self.study.name))

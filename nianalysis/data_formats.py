@@ -75,8 +75,8 @@ fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
 matlab_format = DataFormat(name='matlab', extension='.mat')
-freesurfer_recon_all_format = DataFormat(name='freesurfer_recon_all',
-                                         extension='.fs.zip')
+freesurfer_recon_all_format = DataFormat(
+    name='fs_recon_all', extension=None, directory=True)
 zip_format = DataFormat(name='zip', extension='.zip')
 directory_format = DataFormat(name='directory', extension=None,
                               directory=True)

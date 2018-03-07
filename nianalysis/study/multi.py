@@ -190,6 +190,7 @@ class SubStudySpec(object):
                     " match any data_sets in the study class {} ('{}')"
                     .format(name, self.name, mapped, self.study_class,
                             self.study_class.data_spec_names()))
+            return mapped
 
     def inverse_map(self, name):
         try:
