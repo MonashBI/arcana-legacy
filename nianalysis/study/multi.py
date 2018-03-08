@@ -325,7 +325,7 @@ class TranslatedPipeline(Pipeline):
                     for o in pipeline.multiplicity_outputs(mult)]
             except NiAnalysisNameError as e:
                 raise NiAnalysisMissingDatasetError(
-                    "'{}' output required for pipeline '{}' in '{}'"
+                    "'{}' output required for pipeline '{}' in '{}' "
                     "study is not present in inverse dataset map:\n{}"
                     .format(
                         e.name, pipeline.name, ss_name,
