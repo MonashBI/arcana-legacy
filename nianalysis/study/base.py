@@ -1,8 +1,7 @@
 from abc import ABCMeta
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisNameError,
-    NiAnalysisUsageError)
+    NiAnalysisMissingDatasetError, NiAnalysisNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import BaseDatum
 

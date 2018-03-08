@@ -163,9 +163,8 @@ class Dataset(BaseDataset):
         self._location = location
         if processed and multiplicity != 'per_session':
             raise NiAnalysisUsageError(
-                "Datasets with not multiplicity not equal to "
-                "'per_session' ({}) must have processed=True"
-                .format(self))
+                "Datasets with not multiplicity!='per_session' ({}) "
+                "must have processed=True".format(self))
 
     @property
     def prefixed_name(self):
@@ -411,6 +410,10 @@ class Field(BaseField):
                  processed=False):
         super(Field, self).__init__(name, dtype, multiplicity)
         self._processed = processed
+        if processed and multiplicity != 'per_session':
+            raise NiAnalysisUsageError(
+                "Fields with not multiplicity!='per_session' ({}) "
+                "must have processed=True".format(self))
 
     @property
     def processed(self):
