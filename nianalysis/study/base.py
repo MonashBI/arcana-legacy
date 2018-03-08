@@ -97,6 +97,7 @@ class Study(object):
                 dataset = self._data_specs[name].apply_prefix(self.prefix)
             except KeyError:
                 raise NiAnalysisNameError(
+                    name,
                     "'{}' is not a recognised dataset_spec name for {} "
                     "studies."
                     .format(name, self.__class__.__name__))

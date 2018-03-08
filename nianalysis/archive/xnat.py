@@ -45,8 +45,8 @@ class XNATMixin(object):
 
 
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
-    server = traits.Str('https://mf-erc.its.monash.edu.au', mandatory=True,
-                        usedefault=True, desc="The address of the MF server")
+    server = traits.Str(mandatory=True,
+                        desc="The address of the XNAT server")
     user = traits.Str(
         mandatory=False,
         desc=("The XNAT username to connect with in with if not "

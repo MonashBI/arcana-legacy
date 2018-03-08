@@ -8,7 +8,7 @@ from nianalysis.data_formats import (
     data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import NiAnalysisError, NiAnalysisUsageError
 
 logger = getLogger('NiAnalysis')
 
@@ -161,6 +161,11 @@ class Dataset(BaseDataset):
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._location = location
+        if processed and multiplicity != 'per_session':
+            raise NiAnalysisUsageError(
+                "Datasets with not multiplicity not equal to "
+                "'per_session' ({}) must have processed=True"
+                .format(self))
 
     @property
     def prefixed_name(self):
