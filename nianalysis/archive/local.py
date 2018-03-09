@@ -166,7 +166,8 @@ class LocalSinkMixin(LocalNodeMixin):
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
-            assert (split_extension(filename)[1] == ext), (
+            assert (
+                split_extension(filename)[1].lower() == ext.lower()), (
                 "Mismatching extension '{}' for format '{}' ('{}')"
                 .format(split_extension(filename)[1],
                         data_formats[dataset_format].name, ext))

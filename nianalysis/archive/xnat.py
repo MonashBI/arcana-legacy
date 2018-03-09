@@ -251,7 +251,7 @@ class XNATSource(ArchiveSource, XNATMixin):
             match_fnames = [
                 f for f in fnames
                 if (split_extension(f)[-1].lower() ==
-                    data_format.extension)]
+                    data_format.extension.lower())]
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
