@@ -5,8 +5,6 @@ from nianalysis.exceptions import NiAnalysisError
 PATH_SUFFIX = '_path'
 FIELD_SUFFIX = '_field'
 
-zip_exts = ('gz', 'zip')
-
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 
 
@@ -69,6 +67,9 @@ def get_atlas_path(name, dataset='brain', resolution='1mm'):
     return os.path.abspath(path)
 
 
+double_exts = ('.tar.gz', '.nii.gz')
+
+
 def split_extension(path):
     """
     A extension splitter that checks for compound extensions such as
@@ -86,6 +87,9 @@ def split_extension(path):
     ext : str
         The extension part of the string, i.e. 'nii.gz' of 'file.nii.gz'
     """
+    for double_ext in double_exts:
+        if path.endswith(double_ext):
+            return path[:-len(double_ext)], double_ext
     dirname = os.path.dirname(path)
     filename = os.path.basename(path)
     parts = filename.split('.')
@@ -93,12 +97,8 @@ def split_extension(path):
         base = filename
         ext = None
     else:
-        if parts[-1] in zip_exts:
-            num_ext_parts = 2
-        else:
-            num_ext_parts = 1
-        ext = '.' + '.'.join(parts[-num_ext_parts:])
-        base = '.'.join(parts[:-num_ext_parts])
+        ext = '.' + parts[-1]
+        base = '.'.join(parts[:-1])
     return os.path.join(dirname, base), ext
 
 

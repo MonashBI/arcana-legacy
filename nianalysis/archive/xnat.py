@@ -752,13 +752,17 @@ class XNATArchive(Archive):
                     visit_id = '_'.join(xsession.label.split('_')[2:])
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
+                    processed = xsession.label.endswith(
+                        self.PROCESSED_SUFFIX)
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
-                                          xsession, 'per_session'),
+                                          xsession, 'per_session',
+                                          processed=processed),
                                       fields=self._get_fields(
-                                          xsession, 'per_session'),
+                                          xsession, 'per_session',
+                                          processed=processed),
                                       processed=None)
-                    if xsession.label.endswith(self.PROCESSED_SUFFIX):
+                    if processed:
                         proc_sessions.append(session)
                     else:
                         sessions[visit_id] = session
@@ -785,9 +789,9 @@ class XNATArchive(Archive):
                     subj_fields = []
                 else:
                     subj_datasets = self._get_datasets(
-                        xsubj_summary, 'per_subject')
+                        xsubj_summary, 'per_subject', processed=True)
                     subj_fields = self._get_fields(
-                        xsubj_summary, 'per_subject')
+                        xsubj_summary, 'per_subject', processed=True)
                 subjects.append(Subject(subj_id, sessions.values(),
                                         datasets=subj_datasets,
                                         fields=subj_fields))
@@ -805,9 +809,11 @@ class XNATArchive(Archive):
                     visit_fields = {}
                 else:
                     visit_datasets = self._get_datasets(xvisit_summary,
-                                                        'per_visit')
+                                                        'per_visit',
+                                                        processed=True)
                     visit_fields = self._get_fields(xvisit_summary,
-                                                    'per_visit')
+                                                    'per_visit',
+                                                    processed=True)
                 visits.append(Visit(visit_id, sessions,
                                     datasets=visit_datasets,
                                     fields=visit_fields))
@@ -823,8 +829,10 @@ class XNATArchive(Archive):
                 proj_fields = []
             else:
                 proj_datasets = self._get_datasets(xproj_summary,
-                                                   'per_project')
-                proj_fields = self._get_fields(xproj_summary, 'per_project')
+                                                   'per_project',
+                                                   processed=True)
+                proj_fields = self._get_fields(xproj_summary, 'per_project',
+                                               processed=True)
             if not subjects:
                 raise NiAnalysisError(
                     "Did not find any subjects matching the IDs '{}' in "
@@ -841,7 +849,7 @@ class XNATArchive(Archive):
         return Project(project_id, subjects, visits, datasets=proj_datasets,
                        fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult):
+    def _get_datasets(self, xsession, mult, processed):
         """
         Returns a list of datasets within an XNAT session
 
@@ -861,11 +869,11 @@ class XNATArchive(Archive):
         datasets = []
         for dataset in xsession.scans.itervalues():
             datasets.append(Dataset(
-                dataset.type, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
+                dataset.type, format=None, processed=processed,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, location=None))
         return datasets
 
-    def _get_fields(self, xsession, mult):
+    def _get_fields(self, xsession, mult, processed):
         """
         Returns a list of fields within an XNAT session
 
@@ -884,7 +892,7 @@ class XNATArchive(Archive):
         """
         fields = []
         for name, value in xsession.fields.items():
-            # Try convert to each datatypes in order of specificity to 
+            # Try convert to each datatypes in order of specificity to
             # determine type
             for dtype in (int, float, str):
                 try:
@@ -893,7 +901,7 @@ class XNATArchive(Archive):
                 except ValueError:
                     continue
             fields.append(Field(
-                name=name, dtype=dtype, processed=False,  # @ReservedAssignment @IgnorePep8
+                name=name, dtype=dtype, processed=processed,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult))
         return fields
 

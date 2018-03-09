@@ -198,6 +198,7 @@ class Dataset(BaseDataset):
         location = os.path.dirname(path)
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
+        processed = (multiplicity != 'per_session')  # required for checks in Dataset
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
@@ -213,7 +214,7 @@ class Dataset(BaseDataset):
                                "assuming it is a dicom".format(abbrev, path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   location=location)
+                   location=location, processed=processed)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
