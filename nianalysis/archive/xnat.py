@@ -9,7 +9,7 @@ import time
 import logging
 import errno
 import json
-from zipfile import ZipFile
+from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.base import Directory, traits, isdefined
@@ -236,8 +236,13 @@ class XNATSource(ArchiveSource, XNATMixin):
         digests = self._get_digests(resource)
         # Extract downloaded zip file
         expanded_dir = os.path.join(tmp_dir, 'expanded')
-        with ZipFile(zip_path) as zip_file:
-            zip_file.extractall(expanded_dir)
+        try:
+            with ZipFile(zip_path) as zip_file:
+                zip_file.extractall(expanded_dir)
+        except BadZipfile as e:
+            raise NiAnalysisError(
+                "Could not unzip file '{}'"
+                .format(resource.id))
         data_path = os.path.join(
             expanded_dir, session_label, 'scans',
             (dataset.id + '-' + special_char_re.sub('_', dataset.type)),
@@ -837,15 +842,19 @@ class XNATArchive(Archive):
                 raise NiAnalysisError(
                     "Did not find any subjects matching the IDs '{}' in "
                     "project '{}' (found '{}')"
-                    .format("', '".join(subject_ids), project_id,
-                            "', '".join(s.label for s in xproject.subjects)))
+                    .format(
+                        "', '".join(subject_ids), project_id,
+                        "', '".join(
+                            s.label for s in xproject.subjects.values())))
             if not sessions:
                 raise NiAnalysisError(
-                    "Did not find any sessions subjects matching the IDs '{}'"
+                    "Did not find any sessions matching the IDs '{}'"
                     "(in subjects '{}') for project '{}'"
-                    .format("', '".join(visit_ids),
-                            "', '".join(s.label for s in xproject.subjects),
-                             project_id))
+                    .format(
+                        "', '".join(visit_ids),
+                        "', '".join(
+                            s.label for s in xproject.experiments.values()),
+                        project_id))
         return Project(project_id, subjects, visits, datasets=proj_datasets,
                        fields=proj_fields)
 
