@@ -37,6 +37,12 @@ logger = logging.getLogger('NiAnalysis')
 special_char_re = re.compile(r'[^a-zA-Z_0-9]')
 
 
+def lower(s):
+    if s is None:
+        return None
+    return s.lower()
+
+
 class XNATMixin(object):
 
     @property
@@ -241,8 +247,8 @@ class XNATSource(ArchiveSource, XNATMixin):
                 zip_file.extractall(expanded_dir)
         except BadZipfile as e:
             raise NiAnalysisError(
-                "Could not unzip file '{}'"
-                .format(resource.id))
+                "Could not unzip file '{}' ({})"
+                .format(resource.id, e))
         data_path = os.path.join(
             expanded_dir, session_label, 'scans',
             (dataset.id + '-' + special_char_re.sub('_', dataset.type)),
@@ -255,8 +261,8 @@ class XNATSource(ArchiveSource, XNATMixin):
             fnames = os.listdir(data_path)
             match_fnames = [
                 f for f in fnames
-                if (split_extension(f)[-1].lower() ==
-                    data_format.extension.lower())]
+                if (lower(split_extension(f)[-1]) ==
+                    lower(data_format.extension))]
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
@@ -1023,7 +1029,8 @@ def download_resource(download_path, dataset, data_format_name,
         fnames = os.listdir(src_path)
         match_fnames = [
             f for f in fnames
-            if split_extension(f)[-1].lower() == data_format.extension]
+            if lower(split_extension(f)[-1]) == lower(
+                data_format.extension)]
         if len(match_fnames) == 1:
             src_path = os.path.join(src_path, match_fnames[0])
         else:

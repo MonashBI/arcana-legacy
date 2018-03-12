@@ -29,6 +29,12 @@ SUMMARY_NAME = 'ALL'
 FIELDS_FNAME = 'fields.json'
 
 
+def lower(s):
+    if s is None:
+        return None
+    return s.lower()
+
+
 class LocalSourceInputSpec(ArchiveSourceInputSpec):
 
     base_dir = Directory(
@@ -166,11 +172,11 @@ class LocalSinkMixin(LocalNodeMixin):
             if not isdefined(filename):
                 missing_files.append(name)
                 continue  # skip the upload for this file
-            assert (
-                split_extension(filename)[1].lower() == ext.lower()), (
-                "Mismatching extension '{}' for format '{}' ('{}')"
-                .format(split_extension(filename)[1],
-                        data_formats[dataset_format].name, ext))
+            if lower(split_extension(filename)[1]) != lower(ext):
+                raise NiAnalysisError(
+                    "Mismatching extension '{}' for format '{}' ('{}')"
+                    .format(split_extension(filename)[1],
+                            data_formats[dataset_format].name, ext))
             assert mult == self.multiplicity
             # Copy to local system
             src_path = os.path.abspath(filename)
