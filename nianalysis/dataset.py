@@ -35,6 +35,9 @@ class BaseDatum(object):
                 "'{}'".format(self.__class__.__name__))
             return False
 
+    def __lt__(self, other):
+        return self.name < other.name
+
     def __ne__(self, other):
         return not (self == other)
 

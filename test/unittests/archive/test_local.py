@@ -5,7 +5,9 @@ from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 from nianalysis.utils import PATH_SUFFIX
-from nianalysis.testing import BaseTestCase
+from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
+from nianalysis.archive.base import Project, Subject, Session
+from nianalysis.data_formats import mrtrix_format
 
 
 def dummy_pipeline():
@@ -226,3 +228,153 @@ class TestLocalArchive(BaseTestCase):
                           self.SUMMARY_STUDY_NAME + '_resink3.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
+
+
+class TestProjectInfo(BaseMultiSubjectTestCase):
+    """
+    This unittest tests out that extracting the existing scans and
+    fields in a project returned in a Project object.
+
+    -- subject1 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         - hundreds
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - hundreds
+     |                     |
+     |                     - thousands
+     |
+     - subject2 -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - hundreds
+     |                     |
+     |                     - thousands
+     |
+     - subject3 -- visit1 -- ones
+     |           |
+     |           - visit2 -- ones
+     |           |         |
+     |           |         - tens
+     |           |
+     |           - visit3 -- ones
+     |                     |
+     |                     - tens
+     |                     |
+     |                     - thousands
+     |
+     - subject4 -- visit1 -- ones
+                 |
+                 - visit2 -- ones
+                 |         |
+                 |         - tens
+                 |
+                 - visit3 -- ones
+                           |
+                           - tens
+                           |
+                           - hundreds
+                           |
+                           - thousands
+    """
+
+    def test_project_info(self):
+        archive = LocalArchive(base_dir=self.archive_path)
+        project = archive.project(self.project_id)
+        ref_project = Project(
+            self.project_id, subjects=[
+                Subject(
+                    'subject1', sessions=[
+                        Session(
+                            'subject1', 'visit1', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format),
+                                Dataset('hundreds', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject1', 'visit2', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject1', 'visit3', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format),
+                                Dataset('thousands', mrtrix_format)],
+                            fields=[])],
+                    datasets=[], fields=[]),
+                Subject(
+                    'subject2', sessions=[
+                        Session(
+                            'subject2', 'visit1', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject2', 'visit2', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject2', 'visit3', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format),
+                                Dataset('hundreds', mrtrix_format),
+                                Dataset('thousands', mrtrix_format)],
+                            fields=[])],
+                    datasets=[], fields=[]),
+                Subject(
+                    'subject3', sessions=[
+                        Session(
+                            'subject3', 'visit1', datasets=[
+                                Dataset('ones', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject3', 'visit2', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject3', 'visit3', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format),
+                                Dataset('thousands', mrtrix_format)],
+                            fields=[])],
+                    datasets=[], fields=[]),
+                Subject(
+                    'subject4', sessions=[
+                        Session(
+                            'subject4', 'visit1', datasets=[
+                                Dataset('ones', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject4', 'visit2', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format)],
+                            fields=[]),
+                        Session(
+                            'subject4', 'visit3', datasets=[
+                                Dataset('ones', mrtrix_format),
+                                Dataset('tens', mrtrix_format),
+                                Dataset('hundreds', mrtrix_format),
+                                Dataset('thousands', mrtrix_format)],
+                            fields=[])],
+                    datasets=[], fields=[])],
+            visits=[], datasets=[], fields=[])
+        self.assertEqual(project, ref_project)

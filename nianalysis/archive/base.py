@@ -385,10 +385,10 @@ class Project(object):
     def __init__(self, project_id, subjects, visits, datasets,
                  fields):
         self._id = project_id
-        self._subjects = subjects
-        self._visits = visits
+        self._subjects = sorted(subjects)
+        self._visits = sorted(visits)
         self._datasets = datasets
-        self._fields = fields
+        self._fields = sorted(fields)
 
     @property
     def id(self):
@@ -450,15 +450,18 @@ class Subject(object):
 
     def __init__(self, subject_id, sessions, datasets, fields):
         self._id = subject_id
-        self._sessions = sessions
+        self._sessions = sorted(sessions)
         self._datasets = datasets
-        self._fields = fields
+        self._fields = sorted(fields)
         for session in sessions:
             session.subject = self
 
     @property
     def id(self):
         return self._id
+
+    def __lt__(self, other):
+        return self._id < other._id
 
     @property
     def sessions(self):
@@ -500,8 +503,8 @@ class Subject(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
+        return ("Subject(id={}, num_sessions={})"
+                .format(self._id, len(self._sessions)))
 
 
 class Visit(object):
@@ -511,15 +514,18 @@ class Visit(object):
 
     def __init__(self, visit_id, sessions, datasets, fields):
         self._id = visit_id
-        self._sessions = sessions
+        self._sessions = sorted(sessions)
         self._datasets = datasets
-        self._fields = fields
+        self._fields = sorted(fields)
         for session in sessions:
             session.visit = self
 
     @property
     def id(self):
         return self._id
+
+    def __lt__(self, other):
+        return self._id < other._id
 
     @property
     def sessions(self):
@@ -598,6 +604,12 @@ class Session(object):
     @property
     def subject_id(self):
         return self._subject_id
+
+    def __lt__(self, other):
+        if self.subject_id < other.subject_id:
+            return True
+        else:
+            return self.visit_id < other.visit_id
 
     @property
     def subject(self):
