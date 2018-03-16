@@ -691,6 +691,12 @@ class Session(object):
     def __eq__(self, other):
         if not isinstance(other, Session):
             return False
+        print("{}:{}".format(self.subject_id, self.visit_id))
+        print(self.subject_id == other.subject_id)
+        print(self.visit_id == other.visit_id)
+        print(self.datasets == other.datasets)
+        print(self.fields == other.fields)
+        print(self.processed == other.processed)
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
                 self.datasets == other.datasets and

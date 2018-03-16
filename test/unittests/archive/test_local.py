@@ -303,9 +303,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject1', sessions=[
                         Session(
                             'subject1', 'visit1', datasets=[
+                                Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
-                                Dataset('tens', mrtrix_format),
-                                Dataset('hundreds', mrtrix_format)],
+                                Dataset('tens', mrtrix_format)],
                             fields=[]),
                         Session(
                             'subject1', 'visit2', datasets=[
@@ -314,8 +314,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                             fields=[]),
                         Session(
                             'subject1', 'visit3', datasets=[
+                                Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
-                                Dataset('tens', mrtrix_format),
                                 Dataset('thousands', mrtrix_format)],
                             fields=[])],
                     datasets=[], fields=[]),
@@ -333,9 +333,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                             fields=[]),
                         Session(
                             'subject2', 'visit3', datasets=[
+                                Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
                                 Dataset('tens', mrtrix_format),
-                                Dataset('hundreds', mrtrix_format),
                                 Dataset('thousands', mrtrix_format)],
                             fields=[])],
                     datasets=[], fields=[]),
@@ -370,9 +370,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                             fields=[]),
                         Session(
                             'subject4', 'visit3', datasets=[
+                                Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
                                 Dataset('tens', mrtrix_format),
-                                Dataset('hundreds', mrtrix_format),
                                 Dataset('thousands', mrtrix_format)],
                             fields=[])],
                     datasets=[], fields=[])],
