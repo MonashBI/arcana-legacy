@@ -370,6 +370,8 @@ class CopyToDirInputSpec(TraitedSpec):
     in_files = traits.List(File(exists=True), mandatory=True,
                            desc='input dicom files')
     out_dir = File(genfile=True, desc='the output dicom file')
+    file_ext = traits.Str(desc='specify the extention for the copied file.',
+                          default='', usedefault=True)
 
 
 class CopyToDirOutputSpec(TraitedSpec):
@@ -378,7 +380,7 @@ class CopyToDirOutputSpec(TraitedSpec):
 
 class CopyToDir(BaseInterface):
     """
-    Copies a list of files into a directory
+    Copies a list of files of directories into a directory
     """
 
     input_spec = CopyToDirInputSpec
@@ -387,9 +389,13 @@ class CopyToDir(BaseInterface):
     def _run_interface(self, runtime):
         dirname = self._gen_outdirname()
         os.makedirs(dirname)
+        ext = self.inputs.file_ext
         for i, f in enumerate(self.inputs.in_files):
-            fname = os.path.join(dirname, str(i).zfill(4)) + '.dcm'
-            shutil.copy(f, fname)
+            if os.path.isdir(f):
+                shutil.copytree(f, dirname)
+            elif os.path.isfile(f):
+                fname = os.path.join(dirname, str(i).zfill(4)) + ext
+                shutil.copy(f, fname)
         return runtime
 
     def _list_outputs(self):
@@ -408,7 +414,7 @@ class CopyToDir(BaseInterface):
         if isdefined(self.inputs.out_dir):
             dpath = self.inputs.out_dir
         else:
-            dpath = os.path.join(os.getcwd(), 'dicom_dir')
+            dpath = os.path.join(os.getcwd(), 'store_dir')
         return dpath
 
 

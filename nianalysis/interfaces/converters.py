@@ -9,6 +9,8 @@ from nianalysis.utils import split_extension
 import re
 from nianalysis.exception import NiAnalysisError
 import numpy as np
+import glob
+from nipype.utils.filemanip import split_filename
 
 
 class Dcm2niixInputSpec(CommandLineInputSpec):
@@ -97,12 +99,12 @@ class Dcm2niix(CommandLine):
 
 class Nii2DicomInputSpec(TraitedSpec):
     in_file = File(mandatory=True, desc='input nifti file')
-    reference_dicom = File(mandatory=True, desc='original umap')
-    out_file = File(genfile=True, desc='the output dicom file')
+    reference_dicom = Directory(mandatory=True, desc='original umap')
+#     out_file = Directory(genfile=True, desc='the output dicom file')
 
 
 class Nii2DicomOutputSpec(TraitedSpec):
-    out_file = File(exists=True, desc='the output dicom file')
+    out_file = Directory(exists=True, desc='the output dicom file')
 
 
 class Nii2Dicom(BaseInterface):
@@ -119,18 +121,46 @@ class Nii2Dicom(BaseInterface):
     output_spec = Nii2DicomOutputSpec
 
     def _run_interface(self, runtime):
-        dcm = pydicom.read_file(self.inputs.reference_dicom)
-        nifti = nib.load(self.inputs.in_file)
-        nifti = nifti.get_data()
-        nifti = nifti.astype('uint16')
-        dcm.pixel_array.flat[:] = nifti.flat[:]
-        dcm.PixelData = dcm.pixel_array.T.tostring()
-        dcm.save_as(self._gen_outfilename())
+        dcms = glob.glob(self.inputs.reference_dicom+'/*.dcm')
+        if not dcms:
+            dcms = glob.glob(self.inputs.reference_dicom+'/*.IMA')
+        if not dcms:
+            raise Exception('No DICOM files found in {}'
+                            .format(self.inputs.reference_dicom))
+        nifti_image = nib.load(self.inputs.in_file)
+        nii_data = nifti_image.get_data()
+        if len(dcms) != nii_data.shape[2]:
+            raise Exception('Different number of nifti and dicom files '
+                            'provided. Dicom to nifti conversion require the '
+                            'same number of files in order to run. Please '
+                            'check.')
+        os.mkdir('nifti2dicom')
+        _, basename, _ = split_filename(self.inputs.in_file)
+        for i in range(nii_data.shape[2]):
+            dcm = pydicom.read_file(dcms[i])
+            nifti = nii_data[:, :, i]
+            nifti = nifti.astype('uint16')
+            dcm.pixel_array.flat[:] = nifti.flat[:]
+            dcm.PixelData = dcm.pixel_array.T.tostring()
+            dcm.save_as('nifti2dicom/{0}_vol{1}.nii.gz'
+                        .format(basename, str(i).zfill(4)))
+
+#         for i in range(len(dcms)):
+#             dcm = pydicom.read_file(dcms[i])
+#             outname = split_extension(niftis[i])[0]
+#             nifti = nib.load(niftis[i])
+#             nifti = nifti.get_data()
+#             nifti = nifti.astype('uint16')
+#             dcm.pixel_array.flat[:] = nifti.flat[:]
+#             dcm.PixelData = dcm.pixel_array.T.tostring()
+#             dcm.save_as('nifti2dicom/'+outname+'_dicom')
+#             dcm.save_as('/'+self._gen_outfilename())
         return runtime
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['out_file'] = self._gen_outfilename()
+        outputs['out_file'] = (
+            os.getcwd()+'/nifti2dicom')
         return outputs
 
     def _gen_filename(self, name):
