@@ -10,6 +10,10 @@ class NiAnalysisError(NiAnalysisException):
     pass
 
 
+class NiAnalysisBadlyFormattedLocalArchiveError(NiAnalysisError):
+    pass
+
+
 class NiAnalysisUsageError(NiAnalysisError):
     pass
 
@@ -30,18 +34,6 @@ class AcquiredComponentException(NiAnalysisException):
 
 
 class NoMatchingPipelineException(NiAnalysisException):
-    pass
-
-
-class DarisException(Exception):
-    pass
-
-
-class DarisExistingCIDException(DarisException):
-    pass
-
-
-class DarisNameNotFoundException(DarisException):
     pass
 
 

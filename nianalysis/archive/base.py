@@ -385,10 +385,10 @@ class Project(object):
     def __init__(self, project_id, subjects, visits, datasets,
                  fields):
         self._id = project_id
-        self._subjects = sorted(subjects)
-        self._visits = sorted(visits)
+        self._subjects = subjects
+        self._visits = visits
         self._datasets = datasets
-        self._fields = sorted(fields)
+        self._fields = fields
 
     @property
     def id(self):
@@ -450,9 +450,9 @@ class Subject(object):
 
     def __init__(self, subject_id, sessions, datasets, fields):
         self._id = subject_id
-        self._sessions = sorted(sessions)
+        self._sessions = sessions
         self._datasets = datasets
-        self._fields = sorted(fields)
+        self._fields = fields
         for session in sessions:
             session.subject = self
 
@@ -514,9 +514,9 @@ class Visit(object):
 
     def __init__(self, visit_id, sessions, datasets, fields):
         self._id = visit_id
-        self._sessions = sorted(sessions)
+        self._sessions = sessions
         self._datasets = datasets
-        self._fields = sorted(fields)
+        self._fields = fields
         for session in sessions:
             session.visit = self
 

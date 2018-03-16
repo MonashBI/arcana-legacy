@@ -2,6 +2,7 @@ from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
 from itertools import chain
+from operator import itemgetter
 import errno
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -17,7 +18,8 @@ from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
 from nianalysis.dataset import Dataset, Field
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
@@ -299,6 +301,112 @@ class LocalArchive(Archive):
         return sink
 
     def project(self, project_id, subject_ids=None, visit_ids=None):
+        """
+        Return subject and session information for a project in the local
+        archive
+
+        Parameters
+        ----------
+        project_id : str
+            ID of the project to inspect
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If None all
+            are returned
+        visit_ids : list(str)
+            List of visit IDs with which to filter the tree with. If None all
+            are returned
+
+        Returns
+        -------
+        project : nianalysis.archive.Project
+            A hierarchical tree of subject, session and dataset information for
+            the archive
+        """
+        project_dir = os.path.abspath(
+            os.path.join(self.base_dir, str(project_id)))
+        summaries = defaultdict(dict)
+        all_sessions = defaultdict(dict)
+        for session_path, _, fnames in os.walk(project_dir):
+            relpath = os.path.relpath(session_path, project_dir)
+            path_parts = os.path.split(relpath)
+            if len(path_parts) > 2:
+                raise NiAnalysisBadlyFormattedLocalArchiveError(
+                    "Directory structure has depth > 2 ('{}')"
+                    .format(relpath))
+            subj_id, visit_id = path_parts
+            if not subj_id or subj_id == '.':
+                if fnames:
+                    raise NiAnalysisBadlyFormattedLocalArchiveError(
+                        "Files ('{}') not permitted at {} level in "
+                        "local archive".format(
+                            "', '".join(fnames),
+                            ('subject' if len(path_parts) == 1
+                             else 'project')))
+                continue  # Not a session directory
+            if (subject_ids is not None and
+                subj_id is not SUMMARY_NAME and
+                    subj_id not in subject_ids):
+                continue
+            if (visit_ids is not None and
+                visit_id is not SUMMARY_NAME and
+                    visit_id not in visit_ids):
+                continue
+            if subj_id == SUMMARY_NAME and visit_id == SUMMARY_NAME:
+                multiplicity = 'per_project'
+            elif subj_id == SUMMARY_NAME:
+                multiplicity = 'per_visit'
+            elif visit_id == SUMMARY_NAME:
+                multiplicity = 'per_subject'
+            else:
+                multiplicity = 'per_session'
+            datasets = []
+            fields = {}
+            for fname in sorted(fnames):
+                if fname == FIELDS_FNAME:
+                    fields = self.fields_from_json(os.path.join(
+                        session_path, FIELDS_FNAME))
+                else:
+                    datasets.append(
+                        Dataset.from_path(
+                            os.path.join(session_path, fname),
+                            multiplicity=multiplicity))
+            datasets = sorted(datasets)
+            fields = sorted(fields)
+            if multiplicity == 'per_session':
+                all_sessions[subj_id][visit_id] = Session(
+                    subject_id=subj_id, visit_id=visit_id,
+                    datasets=datasets, fields=fields)
+            else:
+                summaries[subj_id][visit_id] = (datasets, fields)
+        subjects = []
+        for subj_id, subj_sessions in all_sessions.items():
+            try:
+                datasets, fields = summaries[subj_id][SUMMARY_NAME]
+            except KeyError:
+                datasets = []
+                fields = []
+            subjects.append(Subject(
+                subj_id, sorted(subj_sessions.values()), datasets,
+                fields))
+        visits = []
+        if SUMMARY_NAME in summaries:
+            for visit_id, (datasets,
+                           fields) in summaries[SUMMARY_NAME].items():
+                if visit_id == SUMMARY_NAME:
+                    continue  # Per project instead of per visit
+                visit_sessions = list(chain(
+                    sess[visit_id] for sess in all_sessions.values()))
+                visits.append(Visit(visit_id, sorted(visit_sessions),
+                                    datasets, fields))
+        try:
+            datasets, fields = summaries[SUMMARY_NAME][SUMMARY_NAME]
+        except KeyError:
+            datasets = []
+            fields = []
+        return Project(project_id, sorted(subjects), sorted(visits),
+                       datasets, fields)
+
+    def project_old(self, project_id, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         archive
