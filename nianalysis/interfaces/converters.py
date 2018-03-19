@@ -9,7 +9,6 @@ from nianalysis.utils import split_extension
 import re
 from nianalysis.exception import NiAnalysisError
 import numpy as np
-import glob
 from nipype.utils.filemanip import split_filename
 
 
@@ -99,7 +98,7 @@ class Dcm2niix(CommandLine):
 
 class Nii2DicomInputSpec(TraitedSpec):
     in_file = File(mandatory=True, desc='input nifti file')
-    reference_dicom = Directory(mandatory=True, desc='original umap')
+    reference_dicom = traits.List(mandatory=True, desc='original umap')
 #     out_file = Directory(genfile=True, desc='the output dicom file')
 
 
@@ -121,12 +120,17 @@ class Nii2Dicom(BaseInterface):
     output_spec = Nii2DicomOutputSpec
 
     def _run_interface(self, runtime):
-        dcms = glob.glob(self.inputs.reference_dicom+'/*.dcm')
-        if not dcms:
-            dcms = glob.glob(self.inputs.reference_dicom+'/*.IMA')
-        if not dcms:
-            raise Exception('No DICOM files found in {}'
-                            .format(self.inputs.reference_dicom))
+        dcms = self.inputs.reference_dicom
+        to_remove = [x for x in dcms if '.dcm' not in x]
+        if to_remove:
+            for f in to_remove:
+                dcms.remove(f)
+#         dcms = glob.glob(self.inputs.reference_dicom+'/*.dcm')
+#         if not dcms:
+#             dcms = glob.glob(self.inputs.reference_dicom+'/*.IMA')
+#         if not dcms:
+#             raise Exception('No DICOM files found in {}'
+#                             .format(self.inputs.reference_dicom))
         nifti_image = nib.load(self.inputs.in_file)
         nii_data = nifti_image.get_data()
         if len(dcms) != nii_data.shape[2]:
@@ -142,19 +146,9 @@ class Nii2Dicom(BaseInterface):
             nifti = nifti.astype('uint16')
             dcm.pixel_array.flat[:] = nifti.flat[:]
             dcm.PixelData = dcm.pixel_array.T.tostring()
-            dcm.save_as('nifti2dicom/{0}_vol{1}.nii.gz'
+            dcm.save_as('nifti2dicom/{0}_vol{1}.dcm'
                         .format(basename, str(i).zfill(4)))
 
-#         for i in range(len(dcms)):
-#             dcm = pydicom.read_file(dcms[i])
-#             outname = split_extension(niftis[i])[0]
-#             nifti = nib.load(niftis[i])
-#             nifti = nifti.get_data()
-#             nifti = nifti.astype('uint16')
-#             dcm.pixel_array.flat[:] = nifti.flat[:]
-#             dcm.PixelData = dcm.pixel_array.T.tostring()
-#             dcm.save_as('nifti2dicom/'+outname+'_dicom')
-#             dcm.save_as('/'+self._gen_outfilename())
         return runtime
 
     def _list_outputs(self):

@@ -367,7 +367,8 @@ class UnzipDir(CommandLine):
 
 
 class CopyToDirInputSpec(TraitedSpec):
-    in_files = traits.List(File(exists=True), mandatory=True,
+    in_files = traits.List(traits.Either(File(exists=True),
+                                         Directory(exists=True)), mandatory=True,
                            desc='input dicom files')
     out_dir = File(genfile=True, desc='the output dicom file')
     file_ext = traits.Str(desc='specify the extention for the copied file.',
@@ -392,7 +393,9 @@ class CopyToDir(BaseInterface):
         ext = self.inputs.file_ext
         for i, f in enumerate(self.inputs.in_files):
             if os.path.isdir(f):
-                shutil.copytree(f, dirname)
+                name_folder = f.split('/')[-1]
+                shutil.copytree(f, dirname+'/{0}_{1}'.format(
+                    name_folder, str(i).zfill(3)))
             elif os.path.isfile(f):
                 fname = os.path.join(dirname, str(i).zfill(4)) + ext
                 shutil.copy(f, fname)
