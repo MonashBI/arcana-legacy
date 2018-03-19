@@ -235,29 +235,71 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     This unittest tests out that extracting the existing scans and
     fields in a project returned in a Project object.
 
-    -- subject1 -- visit1 -- ones
+    -- ALL      -- ALL    -- ones
+     |           |         |
+     |          -- visit1 -- ones
+     |           |         |
+     |          -- visit2 -- ones
+     |           |         |
+     |          -- visit1 -- ones
+     |
+     - subject1 -- ALL    -- ones
+     |           |         |
+     |           |         - tens
+     |           |         |
+     |           |         *
+     |           |         * e == 4.44444
+     |           |
+     |          -- visit1 -- ones
      |           |         |
      |           |         - tens
      |           |         |
      |           |         - hundreds
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit3 -- ones
      |                     |
      |                     - hundreds
      |                     |
      |                     - thousands
+     |                     *
+     |                     * a == 1
+     |                     *
+     |                     * b == 2
      |
-     - subject2 -- visit1 -- ones
+     - subject2 -- ALL    -- ones
      |           |         |
      |           |         - tens
+     |           |         |
+     |           |         *
+     |           |         * e == 3.33333
+     |           |
+     |          -- visit1 -- ones
+     |           |         |
+     |           |         - tens
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit3 -- ones
      |                     |
@@ -266,24 +308,58 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
      |                     - hundreds
      |                     |
      |                     - thousands
+     |                     *
+     |                     * a == 1
+     |                     *
+     |                     * b == 2
      |
-     - subject3 -- visit1 -- ones
+     - subject3 -- ALL    -- tens
+     |           |         |
+     |           |         *
+     |           |         * e == 2.22222
+     |           |
+     |          -- visit1 -- ones
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit2 -- ones
      |           |         |
      |           |         - tens
+     |           |         *
+     |           |         * a == 1
+     |           |         *
+     |           |         * b == 2
      |           |
      |           - visit3 -- ones
      |                     |
      |                     - tens
      |                     |
      |                     - thousands
+     |                     *
+     |                     * a == 1
+     |                     *
+     |                     * b == 2
      |
-     - subject4 -- visit1 -- ones
+     - subject4 -- ALL    -- tens
+                 |         |
+                 |         *
+                 |         * e == 1.11111
+                 |
+                -- visit1 -- ones
+                 |         *
+                 |         * a == 1
+                 |         *
+                 |         * b == 2
                  |
                  - visit2 -- ones
                  |         |
                  |         - tens
+                 |         *
+                 |         * a == 1
+                 |         *
+                 |         * b == 2
                  |
                  - visit3 -- ones
                            |
@@ -292,6 +368,10 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                            - hundreds
                            |
                            - thousands
+                           *
+                           * a == 1
+                           *
+                           * b == 2
     """
 
     def test_project_info(self):

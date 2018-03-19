@@ -6,6 +6,7 @@ import errno
 from xnat.exceptions import XNATError
 import sys
 import json
+from collections import defaultdict
 import warnings
 import logging
 import nianalysis
@@ -17,7 +18,8 @@ from nianalysis.exceptions import NiAnalysisError
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from traceback import format_exc
-from nianalysis.archive.local import SUMMARY_NAME as LOCAL_SUMMARY_NAME
+from nianalysis.archive.local import (
+    SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 
 logger = logging.getLogger('NiAnalysis')
 logger.setLevel(logging.INFO)
@@ -338,19 +340,16 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     .format(self.XNAT_TEST_PROJECT, self.name, e))
             else:
                 raise
-        for fname in os.listdir(cache_dir):
+        fnames = os.listdir(cache_dir)
+        for fname in fnames:
+            if fname == FIELDS_FNAME:
+                continue
             if fname.startswith('.'):
                 continue
-            parts = fname.split('_')
-            if len(parts) < 3:
-                raise NiAnalysisError(
-                    "'{}' in multi-subject test session '{}' needs to be "
-                    "prepended with subject and session IDs (delimited by '_')"
-                    .format(fname, self.xnat_session_name))
-            subject, session = parts[:2]
-            dataset = '_'.join(parts[2:])
+            subj_id, visit_id, dataset = self._extract_ids(fname)
             if required_datasets is None or dataset in required_datasets:
-                session_dir = os.path.join(project_dir, subject, session)
+                session_dir = os.path.join(project_dir, subj_id,
+                                           visit_id)
                 try:
                     os.makedirs(session_dir)
                 except OSError as e:
@@ -364,6 +363,31 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     shutil.copy(src_path, dst_path)
                 else:
                     assert False
+        if FIELDS_FNAME in fnames:
+            fields = defaultdict(defaultdict(dict))
+            with open(os.path.join(cache_dir, fname), 'rb') as f:
+                all_fields = json.load(f)
+            for name, value in all_fields.items():
+                subj_id, visit_id, field_name = self._extract_ids(name)
+                fields[subj_id][visit_id][field_name] = value
+            for subj_id, subj_fields in fields.items():
+                for visit_id, visit_fields in subj_fields.items():
+                    session_dir = os.path.join(project_dir, subj_id,
+                                               visit_id)
+                    with open(os.path.join(session_dir, FIELDS_FNAME),
+                              'w') as f:
+                        json.dump(visit_fields, f)
+
+    def _extract_ids(self, name):
+        parts = name.split('_')
+        if len(parts) < 3:
+            raise NiAnalysisError(
+                "'{}' in multi-subject test session '{}' needs to be "
+                "prepended with subject and session IDs (delimited by "
+                "'_')".format(name, self.xnat_session_name))
+        subj_id, visit_id = parts[:2]
+        basename = '_'.join(parts[2:])
+        return subj_id, visit_id, basename
 
     @property
     def subject_ids(self):

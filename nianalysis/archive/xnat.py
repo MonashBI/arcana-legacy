@@ -31,10 +31,13 @@ from nianalysis.utils import dir_modtime
 import re
 import xnat  # NB: XNATPy not PyXNAT
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+from .local import FIELDS_FNAME
 
 logger = logging.getLogger('NiAnalysis')
 
 special_char_re = re.compile(r'[^a-zA-Z_0-9]')
+
+BUILTIN_XNAT_FIELDS = []
 
 
 def lower(s):
@@ -958,6 +961,11 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
             raise NiAnalysisError(
                 "Didn't find session matching '{}' on {}".format(session_id,
                                                                  server))
+        try:
+            os.makedirs(download_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
         for dataset in session.scans.itervalues():
             data_format_name = _guess_data_format(dataset)
             ext = data_formats[data_format_name.lower()].extension
@@ -967,6 +975,14 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
             if overwrite or not os.path.exists(download_path):
                 download_resource(download_path, dataset,
                                   data_format_name, session.label)
+        fields = {}
+        for name, value in session.fields.items():
+            # Try convert to each datatypes in order of specificity to
+            # determine type
+            if name not in BUILTIN_XNAT_FIELDS:
+                fields[name] = value
+        with open(os.path.join(download_dir, FIELDS_FNAME), 'wb') as f:
+            json.dump(fields, f)
 
 
 def download_dataset(download_path, server, user, password, session_id,
