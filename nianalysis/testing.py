@@ -364,8 +364,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 else:
                     assert False
         if FIELDS_FNAME in fnames:
-            fields = defaultdict(defaultdict(dict))
-            with open(os.path.join(cache_dir, fname), 'rb') as f:
+            fields = defaultdict(lambda: defaultdict(dict))
+            with open(os.path.join(cache_dir, FIELDS_FNAME), 'rb') as f:
                 all_fields = json.load(f)
             for name, value in all_fields.items():
                 subj_id, visit_id, field_name = self._extract_ids(name)
