@@ -36,13 +36,17 @@ class BaseDatum(object):
             return False
 
     def find_mismatch(self, other, indent=''):
-        mismatch = ''
+        if self != other:
+            mismatch = "\n{}{} '{}' != '{}".format(
+                indent, type(self).__name__, self.name, other.name)
+        else:
+            mismatch = ''
         if self.name != other.name:
             mismatch += ('\n{}name: self={} v other={}'
-                         .format(indent, self.name, other.name))
+                         .format(indent + '  ', self.name, other.name))
         if self.multiplicity != other.multiplicity:
             mismatch += ('\n{}multiplicity: self={} v other={}'
-                         .format(indent, self.multiplicity,
+                         .format(indent + '  ', self.multiplicity,
                                  other.multiplicity))
         return mismatch
 
@@ -110,7 +114,8 @@ class BaseDataset(BaseDatum):
         super(BaseDataset, self).find_mismatch(other)
         if self.processed != other.processed:
             mismatch += ('\n{}format: self={} v other={}'
-                         .format(indent, self.format, other.format))
+                         .format(indent + '  ', self.format,
+                                 other.format))
         return mismatch
 
     @property
@@ -201,7 +206,7 @@ class Dataset(BaseDataset):
         super(Dataset, self).find_mismatch(other)
         if self.processed != other.processed:
             mismatch += ('\n{}processed: self={} v other={}'
-                         .format(indent, self.processed,
+                         .format(indent + '  ', self.processed,
                                  other.processed))
         return mismatch
 
@@ -296,7 +301,8 @@ class DatasetSpec(BaseDataset):
         super(DatasetSpec, self).find_mismatch(other)
         if self.pipeline != other.pipeline:
             mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(indent, self.pipeline, other.pipeline))
+                         .format(indent + '  ', self.pipeline,
+                                 other.pipeline))
         return mismatch
 
     @property
@@ -400,7 +406,8 @@ class BaseField(BaseDatum):
         super(Dataset, self).find_mismatch(other)
         if self.dtype != other.dtype:
             mismatch += ('\n{}dtype: self={} v other={}'
-                         .format(indent, self.dtype, other.dtype))
+                         .format(indent + '  ', self.dtype,
+                                 other.dtype))
         return mismatch
 
     @property
@@ -472,7 +479,7 @@ class Field(BaseField):
         super(Field, self).find_mismatch(other)
         if self.processed != other.processed:
             mismatch += ('\n{}processed: self={} v other={}'
-                         .format(indent, self.processed,
+                         .format(indent + '  ', self.processed,
                                  other.processed))
         return mismatch
 
@@ -530,7 +537,8 @@ class FieldSpec(BaseField):
         super(Field, self).find_mismatch(other)
         if self.pipeline != other.pipeline:
             mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(indent, self.pipeline, other.pipeline))
+                         .format(indent + '  ', self.pipeline,
+                                 other.pipeline))
         return mismatch
 
     @property
@@ -633,7 +641,8 @@ class FieldValue(Field):
         super(FieldValue, self).find_mismatch(other)
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
-                         .format(indent, self.value, other.value))
+                         .format(indent + '  ', self.value,
+                                 other.value))
         return mismatch
 
     @property
