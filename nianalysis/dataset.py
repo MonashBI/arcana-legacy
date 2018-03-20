@@ -532,31 +532,32 @@ class FieldSpec(BaseField):
         return dct
 
 
-class FieldValue(object):
+class FieldValue(Field):
 
-    def __init__(self, field, value):
-        self._field = field
+    def __init__(self, name, value, multiplicity='per_session',
+                 processed=False):
+        if isinstance(value, int):
+            dtype = int
+        elif isinstance(value, float):
+            dtype = float
+        elif isinstance(value, basestring):
+            # Attempt to implicitly convert from string
+            try:
+                value = int(value)
+                dtype = int
+            except ValueError:
+                try:
+                    value = float(value)
+                    dtype = float
+                except ValueError:
+                    dtype = str
+        else:
+            raise NiAnalysisError(
+                "Unrecognised field dtype {}".format(value))
+        super(FieldValue, self).__init__(
+            name, dtype, multiplicity=multiplicity,
+            processed=processed)
         self._value = value
-
-    @property
-    def field(self):
-        return self._field
-
-    @property
-    def name(self):
-        return self.field.name
-
-    @property
-    def dtype(self):
-        return self.field.dtype
-
-    @property
-    def multiplicity(self):
-        return self.field.multiplicity
-
-    @property
-    def processed(self):
-        return self.field.processed
 
     @property
     def value(self):

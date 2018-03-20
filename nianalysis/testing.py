@@ -348,13 +348,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 continue
             subj_id, visit_id, dataset = self._extract_ids(fname)
             if required_datasets is None or dataset in required_datasets:
-                session_dir = os.path.join(project_dir, subj_id,
-                                           visit_id)
-                try:
-                    os.makedirs(session_dir)
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
+                session_dir = self.make_session_dir(
+                    project_dir, subj_id, visit_id)
                 src_path = os.path.join(cache_dir, fname)
                 dst_path = os.path.join(session_dir, dataset)
                 if os.path.isdir(src_path):
@@ -372,8 +367,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 fields[subj_id][visit_id][field_name] = value
             for subj_id, subj_fields in fields.items():
                 for visit_id, visit_fields in subj_fields.items():
-                    session_dir = os.path.join(project_dir, subj_id,
-                                               visit_id)
+                    session_dir = self.make_session_dir(
+                        project_dir, subj_id, visit_id)
                     with open(os.path.join(session_dir, FIELDS_FNAME),
                               'w') as f:
                         json.dump(visit_fields, f)
@@ -405,6 +400,17 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def get_session_dir(self, subject, visit, multiplicity='per_session'):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
             subject=subject, visit=visit, multiplicity=multiplicity)
+
+    @classmethod
+    def make_session_dir(cls, project_dir, subj_id, visit_id):
+        session_dir = os.path.join(project_dir, subj_id,
+                                   visit_id)
+        try:
+            os.makedirs(session_dir)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        return session_dir
 
 
 class DummyTestCase(BaseTestCase):

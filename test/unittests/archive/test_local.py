@@ -3,7 +3,8 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session
@@ -386,7 +387,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                 Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
                                 Dataset('tens', mrtrix_format)],
-                            fields=[]),
+                            fields=[
+                                FieldValue()]),
                         Session(
                             'subject1', 'visit2', datasets=[
                                 Dataset('ones', mrtrix_format),

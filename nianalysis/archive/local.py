@@ -2,7 +2,6 @@ from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
 from itertools import chain
-from operator import itemgetter
 import errno
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -17,7 +16,7 @@ import json
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset, Field
+from nianalysis.dataset import Dataset, FieldValue
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
 from nianalysis.data_formats import data_formats
@@ -364,7 +363,8 @@ class LocalArchive(Archive):
             for fname in sorted(fnames):
                 if fname == FIELDS_FNAME:
                     fields = self.fields_from_json(os.path.join(
-                        session_path, FIELDS_FNAME))
+                        session_path, FIELDS_FNAME),
+                        multiplicity=multiplicity)
                 else:
                     datasets.append(
                         Dataset.from_path(
@@ -570,7 +570,7 @@ class LocalArchive(Archive):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
 
-    def fields_from_json(self, fname):
+    def fields_from_json(self, fname, multiplicity):
         with open(fname) as f:
             dct = json.load(f)
-        return [Field(k, ) for k, v in dct.items()]
+        return [FieldValue(k, v, multiplicity) for k, v in dct.items()]
