@@ -441,8 +441,9 @@ class Project(object):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(indent, self.id, other.id))
         if len(list(self.subjects)) != len(list(other.subjects)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching subject lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.subjects)),
                                  len(list(other.subjects)),
                                  list(self.subjects),
@@ -452,8 +453,9 @@ class Project(object):
             for s, o in zip(self.subjects, other.subjects):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.visits)) != len(list(other.visits)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching visit lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.visits)),
                                  len(list(other.visits)),
                                  list(self.visits),
@@ -463,8 +465,9 @@ class Project(object):
             for s, o in zip(self.visits, other.visits):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.datasets)) != len(list(other.datasets)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.datasets)),
                                  len(list(other.datasets)),
                                  list(self.datasets),
@@ -474,8 +477,9 @@ class Project(object):
             for s, o in zip(self.datasets, other.datasets):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.fields)) != len(list(other.fields)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.fields)),
                                  len(list(other.fields)),
                                  list(self.fields),
@@ -556,8 +560,9 @@ class Subject(object):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(indent, self.id, other.id))
         if len(list(self.sessions)) != len(list(other.sessions)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching session lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.sessions)),
                                  len(list(other.sessions)),
                                  list(self.sessions),
@@ -567,8 +572,9 @@ class Subject(object):
             for s, o in zip(self.sessions, other.sessions):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.datasets)) != len(list(other.datasets)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.datasets)),
                                  len(list(other.datasets)),
                                  list(self.datasets),
@@ -578,8 +584,9 @@ class Subject(object):
             for s, o in zip(self.datasets, other.datasets):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.fields)) != len(list(other.fields)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.fields)),
                                  len(list(other.fields)),
                                  list(self.fields),
@@ -660,8 +667,9 @@ class Visit(object):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(indent, self.id, other.id))
         if len(list(self.sessions)) != len(list(other.sessions)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching session lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.sessions)),
                                  len(list(other.sessions)),
                                  list(self.sessions),
@@ -671,8 +679,9 @@ class Visit(object):
             for s, o in zip(self.sessions, other.sessions):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.datasets)) != len(list(other.datasets)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.datasets)),
                                  len(list(other.datasets)),
                                  list(self.datasets),
@@ -682,8 +691,9 @@ class Visit(object):
             for s, o in zip(self.datasets, other.datasets):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.fields)) != len(list(other.fields)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.fields)),
                                  len(list(other.fields)),
                                  list(self.fields),
@@ -842,8 +852,9 @@ class Session(object):
                          .format(indent, self.processed,
                                  other.processed))
         if len(list(self.datasets)) != len(list(other.datasets)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.datasets)),
                                  len(list(other.datasets)),
                                  list(self.datasets),
@@ -853,8 +864,9 @@ class Session(object):
             for s, o in zip(self.datasets, other.datasets):
                 mismatch += s.find_mismatch(o, indent='  ')
         if len(list(self.fields)) != len(list(other.fields)):
-            mismatch += ('{indent}mismatching subject lengths ({} vs {}): '
-                          '\n{indent}  {}\n{indent}  {}'
+            mismatch += ('\n{indent}mismatching field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
                          .format(len(list(self.fields)),
                                  len(list(other.fields)),
                                  list(self.fields),

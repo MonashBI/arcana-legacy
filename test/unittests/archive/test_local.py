@@ -462,5 +462,5 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         project = archive.project(self.project_id)
         self.assertEqual(
             project, self.ref_project(),
-            "Generated project doesn't match reference:\n{}"
+            "Generated project doesn't match reference:{}"
             .format(project.find_mismatch(self.ref_project())))

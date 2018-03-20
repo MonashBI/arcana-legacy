@@ -619,10 +619,10 @@ class FieldValue(Field):
         else:
             raise NiAnalysisError(
                 "Unrecognised field dtype {}".format(value))
+        self._value = value
         super(FieldValue, self).__init__(
             name, dtype, multiplicity=multiplicity,
             processed=processed)
-        self._value = value
 
     def __eq__(self, other):
         return (super(FieldValue, self).__eq__(other) and

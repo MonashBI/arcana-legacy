@@ -381,6 +381,10 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 "prepended with subject and session IDs (delimited by "
                 "'_')".format(name, self.xnat_session_name))
         subj_id, visit_id = parts[:2]
+        if subj_id.lower() == SUMMARY_NAME.lower():
+            subj_id = SUMMARY_NAME
+        if visit_id.lower() == SUMMARY_NAME.lower():
+            visit_id = SUMMARY_NAME
         basename = '_'.join(parts[2:])
         return subj_id, visit_id, basename
 

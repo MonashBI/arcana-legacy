@@ -573,4 +573,5 @@ class LocalArchive(Archive):
     def fields_from_json(self, fname, multiplicity):
         with open(fname) as f:
             dct = json.load(f)
-        return [FieldValue(k, v, multiplicity) for k, v in dct.items()]
+        return [FieldValue(k, v, multiplicity, processed=True)
+                for k, v in dct.items()]
