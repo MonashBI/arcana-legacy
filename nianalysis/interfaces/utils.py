@@ -371,8 +371,8 @@ class CopyToDirInputSpec(TraitedSpec):
                                          Directory(exists=True)), mandatory=True,
                            desc='input dicom files')
     out_dir = File(genfile=True, desc='the output dicom file')
-    file_ext = traits.Str(desc='specify the extention for the copied file.',
-                          default='', usedefault=True)
+    extension = traits.Str(desc='specify the extention for the copied file.',
+                           default='', usedefault=True)
 
 
 class CopyToDirOutputSpec(TraitedSpec):
@@ -390,14 +390,19 @@ class CopyToDir(BaseInterface):
     def _run_interface(self, runtime):
         dirname = self._gen_outdirname()
         os.makedirs(dirname)
-        ext = self.inputs.file_ext
+        ext = self.inputs.extension
         for i, f in enumerate(self.inputs.in_files):
             if os.path.isdir(f):
-                name_folder = f.split('/')[-1]
-                shutil.copytree(f, dirname+'/{0}_{1}'.format(
-                    name_folder, str(i).zfill(3)))
+                out_name = f.split('/')[-1]
+                if ext:
+                    out_name = '{0}_{1}'.format(
+                        out_name, ext+str(i).zfill(3))
+                shutil.copytree(f, dirname+'/'.format(out_name))
             elif os.path.isfile(f):
-                fname = os.path.join(dirname, str(i).zfill(4)) + ext
+                if ext == '.dcm':
+                    fname = os.path.join(dirname, str(i).zfill(4)) + ext
+                else:
+                    fname = dirname
                 shutil.copy(f, fname)
         return runtime
 
