@@ -375,10 +375,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                            * b == 2
     """
 
-    def test_project_info(self):
-        archive = LocalArchive(base_dir=self.archive_path)
-        project = archive.project(self.project_id)
-        ref_project = Project(
+    def ref_project(self):
+        return Project(
             self.project_id, subjects=[
                 Subject(
                     'subject1', sessions=[
@@ -387,8 +385,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                 Dataset('hundreds', mrtrix_format),
                                 Dataset('ones', mrtrix_format),
                                 Dataset('tens', mrtrix_format)],
-                            fields=[
-                                FieldValue()]),
+                            fields=[]),
                         Session(
                             'subject1', 'visit2', datasets=[
                                 Dataset('ones', mrtrix_format),
@@ -459,4 +456,11 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                             fields=[])],
                     datasets=[], fields=[])],
             visits=[], datasets=[], fields=[])
-        self.assertEqual(project, ref_project)
+
+    def test_project_info(self):
+        archive = LocalArchive(base_dir=self.archive_path)
+        project = archive.project(self.project_id)
+        self.assertEqual(
+            project, self.ref_project(),
+            "Generated project doesn't match reference:\n{}"
+            .format(project.find_mismatch(self.ref_project())))
