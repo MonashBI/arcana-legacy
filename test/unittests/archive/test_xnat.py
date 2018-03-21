@@ -631,24 +631,23 @@ class TestOnXnatMixin(object):
                 for visit in os.listdir(subj_dir):
                     sess_dir = os.path.join(subj_dir, visit)
                     sess_id = subj_id + '_' + visit
+                    fnames = os.listdir(sess_dir)
                     xsession = mbi_xnat.classes.MrSessionData(
                         label=sess_id,
                         parent=xsubject)
-                    xsession_proc = mbi_xnat.classes.MrSessionData(
-                        label=sess_id + XNATArchive.PROCESSED_SUFFIX,
-                        parent=xsubject)
-                    for scan_fname in os.listdir(sess_dir):
+                    if any('_' in f for f in fnames):
+                        xsession_proc = mbi_xnat.classes.MrSessionData(
+                            label=sess_id + XNATArchive.PROCESSED_SUFFIX,
+                            parent=xsubject)
+                    for scan_fname in fnames:
                         if scan_fname == FIELDS_FNAME:
                             with open(
                                 os.path.join(sess_dir, scan_fname),
                                     'rb') as f:
                                 fields = json.load(f)
                             for field_name, value in fields.items():
-                                if '_' in field_name:
-                                    xsess = xsession_proc
-                                else:
-                                    xsess = xsession
-                                xsess.fields[field_name] = value
+                                xsession.fields[field_name] = value
+                            continue
                         scan_name, ext = split_extension(scan_fname)
                         if '_' in scan_name:
                             xsess = xsession_proc
@@ -797,7 +796,7 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 class TestProjectInfo(TestOnXnatMixin,
                       test_local.TestProjectInfo):
 
-    PROJECT = 'TEST012'
+    PROJECT = 'TEST013'
     BASE_CLASS = test_local.TestProjectInfo
 
     def test_project_info(self):
