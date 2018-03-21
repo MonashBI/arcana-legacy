@@ -1,5 +1,4 @@
 import os
-from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
