@@ -664,7 +664,7 @@ class Visit(object):
         return (d.name for d in self.data)
 
     def __eq__(self, other):
-        if not isinstance(other, Subject):
+        if not isinstance(other, Visit):
             return False
         return (self._id == other._id and
                 self._sessions == other._sessions and
@@ -723,8 +723,8 @@ class Visit(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
+        return "Visit(id={}, num_sessions={})".format(self._id,
+                                                      len(self._sessions))
 
 
 class Session(object):
