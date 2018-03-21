@@ -37,6 +37,7 @@ class BaseDatum(object):
 
     def find_mismatch(self, other, indent=''):
         if self != other:
+            self != other
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
                 indent, self.name, other.name,
                 t=type(self).__name__)
@@ -114,7 +115,7 @@ class BaseDataset(BaseDatum):
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseDataset, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
-        if self.processed != other.processed:
+        if self.format != other.format:
             mismatch += ('\n{}format: self={} v other={}'
                          .format(sub_indent, self.format,
                                  other.format))

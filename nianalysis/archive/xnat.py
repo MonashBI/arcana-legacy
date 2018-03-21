@@ -502,93 +502,20 @@ class XNATSink(XNATSinkMixin, ArchiveSink):
 
     input_spec = XNATSinkInputSpec
 
-#     def _get_session(self, xnat_login):
-#         project = xnat_login.projects[self.inputs.project_id]
-#         subject = project.subjects[self.inputs.subject_id]
-#         assert self.session_id in subject.experiments
-#         session_name = self.session_id + XNATArchive.PROCESSED_SUFFIX
-#         try:
-#             session = subject.experiments[session_name]
-#         except KeyError:
-#             session = self._create_session(xnat_login, subject.id,
-#                                            session_name)
-#         # Get cache dir for session
-#         cache_dir = os.path.abspath(os.path.join(
-#             self.inputs.cache_dir, self.inputs.project_id,
-#             self.inputs.subject_id,
-#             self.inputs.visit_id + XNATArchive.PROCESSED_SUFFIX))
-#         return session, cache_dir
-
 
 class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
 
     input_spec = XNATSubjectSinkInputSpec
-# 
-#     def _get_session(self, xnat_login):
-#         project = xnat_login.projects[self.inputs.project_id]
-#         subject = project.subjects[self.inputs.subject_id]
-#         subject_name, session_name = XNATArchive.get_labels(
-#             self.multiplicity, *self.inputs.subject_id.split('_'))
-#         try:
-#             session = subject.experiments[session_name]
-#         except KeyError:
-#             session = self._create_session(xnat_login, subject.id,
-#                                            session_name)
-#         # Get cache dir for session
-#         cache_dir = os.path.abspath(os.path.join(
-#             self.inputs.cache_dir, self.inputs.project_id,
-#             subject_name, session_name))
-#         return session, cache_dir
 
 
 class XNATVisitSink(XNATSinkMixin, ArchiveVisitSink):
 
     input_spec = XNATVisitSinkInputSpec
-# 
-#     def _get_session(self, xnat_login):
-#         project = xnat_login.projects[self.inputs.project_id]
-#         subject_name, session_name = XNATArchive.get_labels(
-#             self.multiplicity, self.inputs.project_id, self.inputs.visit_id)
-#         try:
-#             subject = project.subjects[subject_name]
-#         except KeyError:
-#             subject = xnat_login.classes.SubjectData(
-#                 label=subject_name, parent=project)
-#         try:
-#             session = subject.experiments[session_name]
-#         except KeyError:
-#             session = self._create_session(xnat_login, subject.id,
-#                                            session_name)
-#         # Get cache dir for session
-#         cache_dir = os.path.abspath(os.path.join(
-#             self.inputs.cache_dir, self.inputs.project_id,
-#             subject_name, session_name))
-#         return session, cache_dir
 
 
 class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
 
     input_spec = XNATProjectSinkInputSpec
-# 
-#     def _get_session(self, xnat_login):
-#         project = xnat_login.projects[self.inputs.project_id]
-#         subject_name, session_name = XNATArchive.project_summary_name(
-#             self.inputs.project_id)
-#         try:
-#             subject = project.subjects[subject_name]
-#         except KeyError:
-#             subject = xnat_login.classes.SubjectData(
-#                 label=subject_name, parent=project)
-#         try:
-#             session = subject.experiments[session_name]
-#         except KeyError:
-#             session = xnat_login.classes.MrSessionData(
-#                 label=session_name, parent=subject)
-#         # Get cache dir for session
-#         cache_dir = os.path.abspath(os.path.join(
-#             self.inputs.cache_dir, self.inputs.project_id,
-#             subject_name, session_name))
-#         return session, cache_dir
 
 
 class XNATArchive(Archive):
@@ -886,8 +813,10 @@ class XNATArchive(Archive):
         """
         datasets = []
         for dataset in xsession.scans.itervalues():
+            data_format = data_formats[
+                guess_data_format(dataset).lower()]
             datasets.append(Dataset(
-                dataset.type, format=None, processed=processed,  # @ReservedAssignment @IgnorePep8
+                dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, location=None))
         return datasets
 
@@ -959,7 +888,7 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
             if e.errno != errno.EEXIST:
                 raise
         for dataset in session.scans.itervalues():
-            data_format_name = _guess_data_format(dataset)
+            data_format_name = guess_data_format(dataset)
             ext = data_formats[data_format_name.lower()].extension
             if ext is None:
                 ext = ''
@@ -996,11 +925,11 @@ def download_dataset(download_path, server, user, password, session_id,
                 "Didn't find dataset matching '{}' in {}".format(dataset_name,
                                                                  session_id))
         if data_format is None:
-            data_format = _guess_data_format(dataset)
+            data_format = guess_data_format(dataset)
         download_resource(download_path, dataset, data_format, session.label)
 
 
-def _guess_data_format(dataset):
+def guess_data_format(dataset):
     dataset_formats = [r for r in dataset.resources.itervalues()
                        if r.label.lower() in data_formats]
     if len(dataset_formats) > 1:
