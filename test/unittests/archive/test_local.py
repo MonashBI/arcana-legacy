@@ -3,9 +3,12 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
 from nianalysis.utils import PATH_SUFFIX
-from nianalysis.testing import BaseTestCase
+from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
+from nianalysis.archive.base import Project, Subject, Session, Visit
+from nianalysis.data_formats import mrtrix_format
 
 
 def dummy_pipeline():
@@ -226,3 +229,210 @@ class TestLocalArchive(BaseTestCase):
                           self.SUMMARY_STUDY_NAME + '_resink3.nii.gz',
                           'source1.nii.gz', 'source2.nii.gz',
                           'source3.nii.gz', 'source4.nii.gz'])
+
+
+class TestProjectInfo(BaseMultiSubjectTestCase):
+    """
+    This unittest tests out that extracting the existing scans and
+    fields in a project returned in a Project object.
+    """
+
+    def ref_project(self):
+        sessions = [
+            Session(
+                'subject1', 'visit1', datasets=[
+                    Dataset('hundreds', mrtrix_format),
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=1,
+                               processed=True),
+                    FieldValue('b', value=10,
+                               processed=True),
+                    FieldValue('d', value=42.42,
+                               processed=True)]),
+            Session(
+                'subject1', 'visit2', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=2,
+                               processed=True),
+                    FieldValue('c', value='van',
+                               processed=True)]),
+            Session(
+                'subject1', 'visit3', datasets=[
+                    Dataset('hundreds', mrtrix_format),
+                    Dataset('ones', mrtrix_format),
+                    Dataset('thousands', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=3,
+                               processed=True),
+                    FieldValue('b', value=30,
+                               processed=True)]),
+            Session(
+                'subject2', 'visit1', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[]),
+            Session(
+                'subject2', 'visit2', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=22,
+                               processed=True),
+                    FieldValue('b', value=220,
+                               processed=True),
+                    FieldValue('c', value='buggy',
+                               processed=True)]),
+            Session(
+                'subject2', 'visit3', datasets=[
+                    Dataset('hundreds', mrtrix_format),
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format),
+                    Dataset('thousands', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=33,
+                               processed=True)]),
+            Session(
+                'subject3', 'visit1', datasets=[
+                    Dataset('ones', mrtrix_format)],
+                fields=[]),
+            Session(
+                'subject3', 'visit2', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[]),
+            Session(
+                'subject3', 'visit3', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format),
+                    Dataset('thousands', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=333,
+                               processed=True),
+                    FieldValue('b', value=3330,
+                               processed=True)]),
+            Session(
+                'subject4', 'visit1', datasets=[
+                    Dataset('ones', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=1111,
+                               processed=True),
+                    FieldValue('d', value=0.9999999999,
+                               processed=True)]),
+            Session(
+                'subject4', 'visit2', datasets=[
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format)],
+                fields=[
+                    FieldValue('a', value=2222,
+                               processed=True),
+                    FieldValue('b', value=22220,
+                               processed=True),
+                    FieldValue('c', value='bus',
+                               processed=True)]),
+            Session(
+                'subject4', 'visit3', datasets=[
+                    Dataset('hundreds', mrtrix_format),
+                    Dataset('ones', mrtrix_format),
+                    Dataset('tens', mrtrix_format),
+                    Dataset('thousands', mrtrix_format)],
+                fields=[])]
+        return Project(
+            self.project_id, subjects=[
+                Subject(
+                    'subject1', sessions=[s for s in sessions
+                                          if s.subject_id == 'subject1'],
+                    datasets=[
+                        Dataset('ones', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True),
+                        Dataset('tens', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True)],
+                    fields=[
+                        FieldValue('e', value=4.44444,
+                                   multiplicity='per_subject',
+                                   processed=True)]),
+                Subject(
+                    'subject2', sessions=[s for s in sessions
+                                          if s.subject_id == 'subject2'],
+                    datasets=[
+                        Dataset('ones', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True),
+                        Dataset('tens', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True)],
+                    fields=[
+                        FieldValue('e', value=3.33333,
+                                   multiplicity='per_subject',
+                                   processed=True)]),
+                Subject(
+                    'subject3', sessions=[s for s in sessions
+                                          if s.subject_id == 'subject3'],
+                    datasets=[
+                        Dataset('tens', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True)],
+                    fields=[
+                        FieldValue('e', value=2.22222,
+                                   multiplicity='per_subject',
+                                   processed=True)]),
+                Subject(
+                    'subject4', sessions=[s for s in sessions
+                                          if s.subject_id == 'subject4'],
+                    datasets=[
+                        Dataset('tens', mrtrix_format,
+                                multiplicity='per_subject',
+                                processed=True)],
+                    fields=[
+                        FieldValue('e', value=1.11111,
+                                   multiplicity='per_subject',
+                                   processed=True)])],
+            visits=[
+                Visit(
+                    'visit1', sessions=[s for s in sessions
+                                          if s.visit_id == 'visit1'],
+                    datasets=[
+                        Dataset('ones', mrtrix_format,
+                                multiplicity='per_visit',
+                                processed=True)],
+                    fields=[
+                        FieldValue('f', value='dog',
+                                   multiplicity='per_visit',
+                                   processed=True)]),
+                Visit(
+                    'visit2', sessions=[s for s in sessions
+                                          if s.visit_id == 'visit2'],
+                    datasets=[],
+                    fields=[
+                        FieldValue('f', value='cat',
+                                   multiplicity='per_visit',
+                                   processed=True)]),
+                Visit(
+                    'visit3', sessions=[s for s in sessions
+                                          if s.visit_id == 'visit3'],
+                    datasets=[],
+                    fields=[
+                        FieldValue('f', value='hippopotamus',
+                                   multiplicity='per_visit',
+                                   processed=True)])],
+            datasets=[
+                Dataset('ones', mrtrix_format,
+                        multiplicity='per_project',
+                        processed=True)],
+            fields=[
+                FieldValue('g', value=100,
+                           multiplicity='per_project',
+                           processed=True)])
+
+    def test_project_info(self):
+        archive = LocalArchive(base_dir=self.archive_path)
+        project = archive.project(self.project_id)
+        self.assertEqual(
+            project, self.ref_project(),
+            "Generated project doesn't match reference:{}"
+            .format(project.find_mismatch(self.ref_project())))

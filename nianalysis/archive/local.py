@@ -16,8 +16,9 @@ import json
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset, Field
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.dataset import Dataset, FieldValue
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
@@ -320,117 +321,90 @@ class LocalArchive(Archive):
             A hierarchical tree of subject, session and dataset information for
             the archive
         """
-        project_dir = os.path.join(self.base_dir, str(project_id))
-        subjects = []
-        subject_dirs = [d for d in os.listdir(project_dir)
-                        if not d.startswith('.') and d != SUMMARY_NAME]
-        if subject_ids is not None:
-            # Ensure ids are strings
-            subject_ids = [str(i) for i in subject_ids]
-        if subject_ids is not None:
-            if any(subject_id not in subject_dirs
-                   for subject_id in subject_ids):
-                raise NiAnalysisError(
-                    "'{}' subject(s) is/are missing from '{}' project in local"
-                    " archive at '{}' (found '{}')".format(
-                        "', '".join(set(subject_ids) - set(subject_dirs)),
-                        project_id, self._base_dir, "', '".join(subject_dirs)))
-            subject_dirs = subject_ids
-        self._check_only_dirs(subject_dirs, project_dir)
-        visit_sessions = defaultdict(list)
-        for subject_id in subject_dirs:
-            subject_path = os.path.join(project_dir, subject_id)
-            sessions = []
-            session_dirs = [d for d in os.listdir(subject_path)
-                            if (not d.startswith('.') and d != SUMMARY_NAME)]
-            if visit_ids is not None:
-                if any(visit_id not in session_dirs
-                       for visit_id in visit_ids):
-                    raise NiAnalysisError(
-                        "'{}' sessions(s) is/are missing from '{}' subject of "
-                        "'{}' project in local archive (found '{}')"
-                        .format("', '".join(visit_ids), subject_id,
-                                project_id, "', '".join(session_dirs)))
-                session_dirs = visit_ids
-            self._check_only_dirs(session_dirs, subject_path)
-            # Get datasets in all sessions
-            for visit_id in session_dirs:
-                session_path = os.path.join(subject_path, visit_id)
-                datasets = []
-                files = [d for d in os.listdir(session_path)
-                         if not d.startswith('.')]
-                fields = []
-                for f in files:
-                    if f == FIELDS_FNAME:
-                        fields = self.fields_from_json(os.path.join(
-                            session_path, FIELDS_FNAME))
-                    else:
-                        datasets.append(
-                            Dataset.from_path(os.path.join(session_path, f)))
-                session = Session(subject_id=subject_id,
-                                  visit_id=visit_id, datasets=datasets,
-                                  fields=fields)
-                sessions.append(session)
-                visit_sessions[visit_id].append(session)
-            # Get subject summary datasets
-            subject_summary_path = self.subject_summary_path(project_id,
-                                                             subject_id)
-            subj_datasets = []
-            subj_fields = []
-            if os.path.exists(subject_summary_path):
-                files = [d for d in os.listdir(subject_summary_path)
-                         if not d.startswith('.')]
-                for f in files:
-                    if f == FIELDS_FNAME:
-                        subj_fields = self.fields_from_json(os.path.join(
-                            subject_summary_path, FIELDS_FNAME))
-                    else:
-                        subj_datasets.append(
-                            Dataset.from_path(
-                                os.path.join(subject_summary_path, f),
-                                multiplicity='per_subject'))
-            subjects.append(Subject(subject_id=subject_id, sessions=sessions,
-                                    datasets=subj_datasets,
-                                    fields=subj_fields))
-        # Get visits
-        visits = []
-        for visit_id, sessions in visit_sessions.iteritems():
-            visit_summary_path = self.visit_summary_path(project_id, visit_id)
-            visit_datasets = []
-            visit_fields = []
-            if os.path.exists(visit_summary_path):
-                files = [d for d in os.listdir(visit_summary_path)
-                         if not d.startswith('.')]
-                for f in files:
-                    if f == FIELDS_FNAME:
-                        visit_fields = self.fields_from_json(os.path.join(
-                            visit_summary_path, FIELDS_FNAME))
-                    else:
-                        visit_datasets.append(
-                            Dataset.from_path(
-                                os.path.join(visit_summary_path, f),
-                                multiplicity='per_visit'))
-            visits.append(Visit(visit_id, sessions, visit_datasets,
-                                visit_fields))
-        # Get project summary datasets
-        proj_summary_path = self.project_summary_path(project_id)
-        proj_datasets = []
-        proj_fields = []
-        if os.path.exists(proj_summary_path):
-            files = [d for d in os.listdir(proj_summary_path)
-                     if not d.startswith('.')]
-            for f in files:
-                if f == FIELDS_FNAME:
-                    proj_fields = self.fields_from_json(os.path.join(
-                        proj_summary_path, FIELDS_FNAME))
+        project_dir = os.path.abspath(
+            os.path.join(self.base_dir, str(project_id)))
+        summaries = defaultdict(dict)
+        all_sessions = defaultdict(dict)
+        for session_path, _, fnames in os.walk(project_dir):
+            relpath = os.path.relpath(session_path, project_dir)
+            path_parts = os.path.split(relpath)
+            if len(path_parts) > 2:
+                raise NiAnalysisBadlyFormattedLocalArchiveError(
+                    "Directory structure has depth > 2 ('{}')"
+                    .format(relpath))
+            subj_id, visit_id = path_parts
+            if not subj_id or subj_id == '.':
+                if fnames:
+                    raise NiAnalysisBadlyFormattedLocalArchiveError(
+                        "Files ('{}') not permitted at {} level in "
+                        "local archive".format(
+                            "', '".join(fnames),
+                            ('subject' if len(path_parts) == 1
+                             else 'project')))
+                continue  # Not a session directory
+            if (subject_ids is not None and
+                subj_id is not SUMMARY_NAME and
+                    subj_id not in subject_ids):
+                continue
+            if (visit_ids is not None and
+                visit_id is not SUMMARY_NAME and
+                    visit_id not in visit_ids):
+                continue
+            if subj_id == SUMMARY_NAME and visit_id == SUMMARY_NAME:
+                multiplicity = 'per_project'
+            elif subj_id == SUMMARY_NAME:
+                multiplicity = 'per_visit'
+            elif visit_id == SUMMARY_NAME:
+                multiplicity = 'per_subject'
+            else:
+                multiplicity = 'per_session'
+            datasets = []
+            fields = {}
+            for fname in sorted(fnames):
+                if fname == FIELDS_FNAME:
+                    fields = self.fields_from_json(os.path.join(
+                        session_path, FIELDS_FNAME),
+                        multiplicity=multiplicity)
                 else:
-                    proj_datasets.append(
+                    datasets.append(
                         Dataset.from_path(
-                            os.path.join(proj_summary_path, f),
-                            multiplicity='per_project'))
-        project = Project(project_id, subjects, visits, proj_datasets,
-                          proj_fields)
-        return project
+                            os.path.join(session_path, fname),
+                            multiplicity=multiplicity))
+            datasets = sorted(datasets)
+            fields = sorted(fields)
+            if multiplicity == 'per_session':
+                all_sessions[subj_id][visit_id] = Session(
+                    subject_id=subj_id, visit_id=visit_id,
+                    datasets=datasets, fields=fields)
+            else:
+                summaries[subj_id][visit_id] = (datasets, fields)
+        subjects = []
+        for subj_id, subj_sessions in all_sessions.items():
+            try:
+                datasets, fields = summaries[subj_id][SUMMARY_NAME]
+            except KeyError:
+                datasets = []
+                fields = []
+            subjects.append(Subject(
+                subj_id, sorted(subj_sessions.values()), datasets,
+                fields))
+        visits = []
+        if SUMMARY_NAME in summaries:
+            for visit_id, (datasets,
+                           fields) in summaries[SUMMARY_NAME].items():
+                if visit_id == SUMMARY_NAME:
+                    continue  # Per project instead of per visit
+                visit_sessions = list(chain(
+                    sess[visit_id] for sess in all_sessions.values()))
+                visits.append(Visit(visit_id, sorted(visit_sessions),
+                                    datasets, fields))
+        try:
+            datasets, fields = summaries[SUMMARY_NAME][SUMMARY_NAME]
+        except KeyError:
+            datasets = []
+            fields = []
+        return Project(project_id, sorted(subjects), sorted(visits),
+                       datasets, fields)
 
     @classmethod
     def _check_only_dirs(cls, dirs, path):
@@ -462,7 +436,9 @@ class LocalArchive(Archive):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
 
-    def fields_from_json(self, fname):
+    def fields_from_json(self, fname, multiplicity):
         with open(fname) as f:
             dct = json.load(f)
-        return [Field(k, ) for k, v in dct.items()]
+        return [FieldValue(name=k, value=v, multiplicity=multiplicity,
+                           processed=True)
+                for k, v in dct.items()]

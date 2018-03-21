@@ -435,6 +435,66 @@ class Project(object):
                 self._datasets == other._datasets and
                 self._fields == other._fields)
 
+    def find_mismatch(self, other, indent=''):
+        if self != other:
+            mismatch = "\n{}Project '{}' != '{}'".format(indent, self.id,
+                                                       other.id)
+        else:
+            mismatch = ''
+        sub_indent = indent + '  '
+        if self.id != other.id:
+            mismatch += ('\n{}id: self={} v other={}'
+                         .format(sub_indent, self.id, other.id))
+        if len(list(self.subjects)) != len(list(other.subjects)):
+            mismatch += ('\n{indent}mismatching subject lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.subjects)),
+                                 len(list(other.subjects)),
+                                 list(self.subjects),
+                                 list(other.subjects),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.subjects, other.subjects):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.visits)) != len(list(other.visits)):
+            mismatch += ('\n{indent}mismatching visit lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.visits)),
+                                 len(list(other.visits)),
+                                 list(self.visits),
+                                 list(other.visits),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.visits, other.visits):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.datasets)) != len(list(other.datasets)):
+            mismatch += ('\n{indent}mismatching summary dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.datasets)),
+                                 len(list(other.datasets)),
+                                 list(self.datasets),
+                                 list(other.datasets),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.datasets, other.datasets):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.fields)) != len(list(other.fields)):
+            mismatch += ('\n{indent}mismatching summary field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.fields)),
+                                 len(list(other.fields)),
+                                 list(self.fields),
+                                 list(other.fields),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.fields, other.fields):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        return mismatch
+
     def __ne__(self, other):
         return not (self == other)
 
@@ -460,6 +520,9 @@ class Subject(object):
     def id(self):
         return self._id
 
+    def __lt__(self, other):
+        return self._id < other._id
+
     @property
     def sessions(self):
         return iter(self._sessions)
@@ -496,12 +559,60 @@ class Subject(object):
                 self._datasets == other._datasets and
                 self._fields == other._fields)
 
+    def find_mismatch(self, other, indent=''):
+        if self != other:
+            mismatch = "\n{}Subject '{}' != '{}'".format(
+                indent, self.id, other.id)
+        else:
+            mismatch = ''
+        sub_indent = indent + '  '
+        if self.id != other.id:
+            mismatch += ('\n{}id: self={} v other={}'
+                         .format(sub_indent, self.id, other.id))
+        if len(list(self.sessions)) != len(list(other.sessions)):
+            mismatch += ('\n{indent}mismatching session lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.sessions)),
+                                 len(list(other.sessions)),
+                                 list(self.sessions),
+                                 list(other.sessions),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.sessions, other.sessions):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.datasets)) != len(list(other.datasets)):
+            mismatch += ('\n{indent}mismatching summary dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.datasets)),
+                                 len(list(other.datasets)),
+                                 list(self.datasets),
+                                 list(other.datasets),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.datasets, other.datasets):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.fields)) != len(list(other.fields)):
+            mismatch += ('\n{indent}mismatching summary field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.fields)),
+                                 len(list(other.fields)),
+                                 list(self.fields),
+                                 list(other.fields),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.fields, other.fields):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        return mismatch
+
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
+        return ("Subject(id={}, num_sessions={})"
+                .format(self._id, len(self._sessions)))
 
 
 class Visit(object):
@@ -521,6 +632,9 @@ class Visit(object):
     def id(self):
         return self._id
 
+    def __lt__(self, other):
+        return self._id < other._id
+
     @property
     def sessions(self):
         return iter(self._sessions)
@@ -550,19 +664,67 @@ class Visit(object):
         return (d.name for d in self.data)
 
     def __eq__(self, other):
-        if not isinstance(other, Subject):
+        if not isinstance(other, Visit):
             return False
         return (self._id == other._id and
                 self._sessions == other._sessions and
                 self._datasets == other._datasets and
                 self._fields == other._fields)
 
+    def find_mismatch(self, other, indent=''):
+        if self != other:
+            mismatch = "\n{}Visit '{}' != '{}'".format(
+                indent, self.id, other.id)
+        else:
+            mismatch = ''
+        sub_indent = indent + '  '
+        if self.id != other.id:
+            mismatch += ('\n{}id: self={} v other={}'
+                         .format(sub_indent, self.id, other.id))
+        if len(list(self.sessions)) != len(list(other.sessions)):
+            mismatch += ('\n{indent}mismatching session lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.sessions)),
+                                 len(list(other.sessions)),
+                                 list(self.sessions),
+                                 list(other.sessions),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.sessions, other.sessions):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.datasets)) != len(list(other.datasets)):
+            mismatch += ('\n{indent}mismatching summary dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.datasets)),
+                                 len(list(other.datasets)),
+                                 list(self.datasets),
+                                 list(other.datasets),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.datasets, other.datasets):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.fields)) != len(list(other.fields)):
+            mismatch += ('\n{indent}mismatching summary field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}    self={}\n{indent}    other={}'
+                         .format(len(list(self.fields)),
+                                 len(list(other.fields)),
+                                 list(self.fields),
+                                 list(other.fields),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.fields, other.fields):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        return mismatch
+
     def __ne__(self, other):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_sessions={})".format(self._id,
-                                                        len(self._sessions))
+        return "Visit(id={}, num_sessions={})".format(self._id,
+                                                      len(self._sessions))
 
 
 class Session(object):
@@ -598,6 +760,12 @@ class Session(object):
     @property
     def subject_id(self):
         return self._subject_id
+
+    def __lt__(self, other):
+        if self.subject_id < other.subject_id:
+            return True
+        else:
+            return self.visit_id < other.visit_id
 
     @property
     def subject(self):
@@ -661,7 +829,7 @@ class Session(object):
     @property
     def processed_field_names(self):
         fields = (self.fields
-                    if self.processed is None else self.processed.fields)
+                  if self.processed is None else self.processed.fields)
         return (f.name for f in fields)
 
     @property
@@ -684,6 +852,52 @@ class Session(object):
                 self.datasets == other.datasets and
                 self.fields == other.fields and
                 self.processed == other.processed)
+
+    def find_mismatch(self, other, indent=''):
+        if self != other:
+            mismatch = "\n{}Session '{}-{}' != '{}-{}'".format(
+                indent, self.subject_id, self.visit_id,
+                other.subject_id, other.visit_id)
+        else:
+            mismatch = ''
+        sub_indent = indent + '  '
+        if self.subject_id != other.subject_id:
+            mismatch += ('\n{}subject_id: self={} v other={}'
+                         .format(sub_indent, self.subject_id,
+                                 other.subject_id))
+        if self.visit_id != other.visit_id:
+            mismatch += ('\n{}visit_id: self={} v other={}'
+                         .format(sub_indent, self.visit_id,
+                                 other.visit_id))
+        if self.processed != other.processed:
+            mismatch += ('\n{}processed: self={} v other={}'
+                         .format(sub_indent, self.processed,
+                                 other.processed))
+        if len(list(self.datasets)) != len(list(other.datasets)):
+            mismatch += ('\n{indent}mismatching dataset lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.datasets)),
+                                 len(list(other.datasets)),
+                                 list(self.datasets),
+                                 list(other.datasets),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.datasets, other.datasets):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        if len(list(self.fields)) != len(list(other.fields)):
+            mismatch += ('\n{indent}mismatching field lengths '
+                         '(self={} vs other={}): '
+                         '\n{indent}  self={}\n{indent}  other={}'
+                         .format(len(list(self.fields)),
+                                 len(list(other.fields)),
+                                 list(self.fields),
+                                 list(other.fields),
+                                 indent=sub_indent))
+        else:
+            for s, o in zip(self.fields, other.fields):
+                mismatch += s.find_mismatch(o, indent=sub_indent)
+        return mismatch
 
     def __ne__(self, other):
         return not (self == other)

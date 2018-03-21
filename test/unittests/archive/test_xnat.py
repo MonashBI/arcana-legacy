@@ -25,6 +25,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
 import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
+# Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+import test_local  # @UnresolvedImport @IgnorePep8
+sys.path.pop(0)
+
 
 logger = logging.getLogger('NiAnalysis')
 
@@ -770,3 +775,14 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     @property
     def base_name(self):
         return self.name
+
+
+class TestProjectInfo(TestOnXnatMixin,
+                      test_local.TestProjectInfo):
+
+    def test_project_info(self):
+        project = self.archive.project(self.project_id)
+        self.assertEqual(
+            project, self.ref_project(),
+            "Generated project doesn't match reference:{}"
+            .format(project.find_mismatch(self.ref_project())))

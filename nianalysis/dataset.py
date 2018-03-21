@@ -35,6 +35,26 @@ class BaseDatum(object):
                 "'{}'".format(self.__class__.__name__))
             return False
 
+    def find_mismatch(self, other, indent=''):
+        if self != other:
+            mismatch = "\n{}{t}('{}') != {t}('{}')".format(
+                indent, self.name, other.name,
+                t=type(self).__name__)
+        else:
+            mismatch = ''
+        sub_indent = indent + '  '
+        if self.name != other.name:
+            mismatch += ('\n{}name: self={} v other={}'
+                         .format(sub_indent, self.name, other.name))
+        if self.multiplicity != other.multiplicity:
+            mismatch += ('\n{}multiplicity: self={} v other={}'
+                         .format(sub_indent, self.multiplicity,
+                                 other.multiplicity))
+        return mismatch
+
+    def __lt__(self, other):
+        return self.name < other.name
+
     def __ne__(self, other):
         return not (self == other)
 
@@ -90,6 +110,15 @@ class BaseDataset(BaseDatum):
     def __eq__(self, other):
         return (super(BaseDataset, self).__eq__(other) and
                 self._format == other._format)
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(BaseDataset, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.processed != other.processed:
+            mismatch += ('\n{}format: self={} v other={}'
+                         .format(sub_indent, self.format,
+                                 other.format))
+        return mismatch
 
     @property
     def format(self):
@@ -173,6 +202,15 @@ class Dataset(BaseDataset):
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed)
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(Dataset, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.processed != other.processed:
+            mismatch += ('\n{}processed: self={} v other={}'
+                         .format(sub_indent, self.processed,
+                                 other.processed))
+        return mismatch
 
     @property
     def path(self):
@@ -259,6 +297,15 @@ class DatasetSpec(BaseDataset):
     def __eq__(self, other):
         return (super(DatasetSpec, self).__eq__(other) and
                 self.pipeline == other.pipeline)
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(DatasetSpec, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.pipeline != other.pipeline:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, self.pipeline,
+                                 other.pipeline))
+        return mismatch
 
     @property
     def prefixed_name(self):
@@ -356,6 +403,15 @@ class BaseField(BaseDatum):
         return (super(BaseField, self).__eq__(other) and
                 self.dtype == other.dtype)
 
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(BaseField, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.dtype != other.dtype:
+            mismatch += ('\n{}dtype: self={} v other={}'
+                         .format(sub_indent, self.dtype,
+                                 other.dtype))
+        return mismatch
+
     @property
     def dtype(self):
         return self._dtype
@@ -416,6 +472,19 @@ class Field(BaseField):
                 "Fields with not multiplicity!='per_session' ({}) "
                 "must have processed=True".format(self))
 
+    def __eq__(self, other):
+        return (super(Field, self).__eq__(other) and
+                self.processed == other.processed)
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(Field, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.processed != other.processed:
+            mismatch += ('\n{}processed: self={} v other={}'
+                         .format(sub_indent, self.processed,
+                                 other.processed))
+        return mismatch
+
     @property
     def processed(self):
         return self._processed
@@ -464,6 +533,15 @@ class FieldSpec(BaseField):
     def __eq__(self, other):
         return (super(FieldSpec, self).__eq__(other) and
                 self.pipeline == other.pipeline)
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(FieldSpec, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.pipeline != other.pipeline:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, self.pipeline,
+                                 other.pipeline))
+        return mismatch
 
     @property
     def prefixed_name(self):
@@ -529,31 +607,45 @@ class FieldSpec(BaseField):
         return dct
 
 
-class FieldValue(object):
+class FieldValue(Field):
 
-    def __init__(self, field, value):
-        self._field = field
+    def __init__(self, name, value, multiplicity='per_session',
+                 processed=False):
+        if isinstance(value, int):
+            dtype = int
+        elif isinstance(value, float):
+            dtype = float
+        elif isinstance(value, basestring):
+            # Attempt to implicitly convert from string
+            try:
+                value = int(value)
+                dtype = int
+            except ValueError:
+                try:
+                    value = float(value)
+                    dtype = float
+                except ValueError:
+                    dtype = str
+        else:
+            raise NiAnalysisError(
+                "Unrecognised field dtype {}".format(value))
         self._value = value
+        super(FieldValue, self).__init__(
+            name, dtype, multiplicity=multiplicity,
+            processed=processed)
 
-    @property
-    def field(self):
-        return self._field
+    def __eq__(self, other):
+        return (super(FieldValue, self).__eq__(other) and
+                self.value == other.value)
 
-    @property
-    def name(self):
-        return self.field.name
-
-    @property
-    def dtype(self):
-        return self.field.dtype
-
-    @property
-    def multiplicity(self):
-        return self.field.multiplicity
-
-    @property
-    def processed(self):
-        return self.field.processed
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(FieldValue, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.value != other.value:
+            mismatch += ('\n{}value: self={} v other={}'
+                         .format(sub_indent, self.value,
+                                 other.value))
+        return mismatch
 
     @property
     def value(self):
@@ -562,5 +654,6 @@ class FieldValue(object):
     def __repr__(self):
         return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
                 "processed={})"
-                .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self.processed, self.value))
+                .format(self.__class__.__name__, self.name,
+                        self.value, self.dtype, self.multiplicity,
+                        self.processed))
