@@ -682,15 +682,21 @@ class XNATArchive(Archive):
             visit_sessions = defaultdict(list)
             # Create list of subjects
             for xsubject in xproject.subjects.itervalues():
-                subj_id = xsubject.label
-                logger.debug("Getting info for subject '{}'".format(subj_id))
+                # This assumes that the subject ID is prepended with
+                # the project ID
+                subj_id = xsubject.label[(len(project_id) + 1):]
+                if subj_id == XNATArchive.SUMMARY_NAME:
+                    continue
                 if not (subject_ids is None or subj_id in subject_ids):
                     continue
+                logger.debug("Getting info for subject '{}'".format(subj_id))
                 sessions = {}
                 proc_sessions = []
                 # Get per_session datasets
                 for xsession in xsubject.experiments.itervalues():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
+                    if visit_id == XNATArchive.SUMMARY_NAME:
+                        continue
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
                     processed = xsession.label.endswith(
@@ -733,12 +739,13 @@ class XNATArchive(Archive):
                         xsubj_summary, 'per_subject', processed=True)
                     subj_fields = self._get_fields(
                         xsubj_summary, 'per_subject', processed=True)
-                subjects.append(Subject(subj_id, sessions.values(),
+                subjects.append(Subject(subj_id,
+                                        sorted(sessions.values()),
                                         datasets=subj_datasets,
                                         fields=subj_fields))
             # Create list of visits
             visits = []
-            for visit_id, sessions in visit_sessions.iteritems():
+            for visit_id, v_sessions in visit_sessions.iteritems():
                 (_, visit_summary_sess_name) = self.get_labels(
                     'per_visit', project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
@@ -755,7 +762,7 @@ class XNATArchive(Archive):
                     visit_fields = self._get_fields(xvisit_summary,
                                                     'per_visit',
                                                     processed=True)
-                visits.append(Visit(visit_id, sessions,
+                visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
             # Get 'per_project' datasets
@@ -791,8 +798,8 @@ class XNATArchive(Archive):
                         "', '".join(
                             s.label for s in xproject.experiments.values()),
                         project_id))
-        return Project(project_id, subjects, visits, datasets=proj_datasets,
-                       fields=proj_fields)
+        return Project(project_id, sorted(subjects), sorted(visits),
+                       datasets=proj_datasets, fields=proj_fields)
 
     def _get_datasets(self, xsession, mult, processed):
         """
@@ -817,8 +824,8 @@ class XNATArchive(Archive):
                 guess_data_format(dataset).lower()]
             datasets.append(Dataset(
                 dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
-                multiplicity=mult, location=None))
-        return datasets
+                multiplicity=mult, location=None, order=dataset.id))
+        return sorted(datasets)
 
     def _get_fields(self, xsession, mult, processed):
         """
@@ -842,7 +849,7 @@ class XNATArchive(Archive):
             fields.append(FieldValue(
                 name=name, value=value, processed=processed,
                 multiplicity=mult))
-        return fields
+        return sorted(fields)
 
     @property
     def local_dir(self):

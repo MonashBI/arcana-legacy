@@ -182,15 +182,22 @@ class Dataset(BaseDataset):
         dataset.
     location : str
         The directory that the dataset is stored in.
+    order : int | None
+        The order of the dataset in the session. To be used to
+        distinguish multiple datasets with the same scan type in the
+        same session, e.g. scans taken before and after a task. For
+        archives where this isn't stored (i.e. Local), order can be None
     """
 
     is_spec = False
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', location=None):
+                 multiplicity='per_session', location=None,
+                 order=None):
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._location = location
+        self._order = order
         if not processed and multiplicity != 'per_session':
             raise NiAnalysisUsageError(
                 "Datasets with not multiplicity!='per_session' ({}) "
@@ -202,7 +209,11 @@ class Dataset(BaseDataset):
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
+                self.order == other.order and
                 self.processed == other.processed)
+
+    def __lt__(self, other):
+        return self.order < other.order
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Dataset, self).find_mismatch(other, indent)
@@ -211,6 +222,10 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
+        if self.order != other.order:
+            mismatch += ('\n{}order: self={} v other={}'
+                         .format(sub_indent, self.order,
+                                 other.order))
         return mismatch
 
     @property
@@ -224,6 +239,13 @@ class Dataset(BaseDataset):
     @property
     def processed(self):
         return self._processed
+
+    @property
+    def order(self):
+        if self._order is None:
+            return self.name
+        else:
+            return self._order
 
     def in_directory(self, dir_path):
         """

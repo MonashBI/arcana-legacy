@@ -11,10 +11,11 @@ from nianalysis.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
-from nianalysis.archive.local import FIELDS_FNAME
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
+from nianalysis.archive.base import Project, Subject, Session, Visit
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
-from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import PATH_SUFFIX
