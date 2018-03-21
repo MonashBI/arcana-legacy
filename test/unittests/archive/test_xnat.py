@@ -11,6 +11,7 @@ from nianalysis.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
+from nianalysis.archive.local import FIELDS_FNAME
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
@@ -629,16 +630,32 @@ class TestOnXnatMixin(object):
                                                         parent=xproject)
                 for visit in os.listdir(subj_dir):
                     sess_dir = os.path.join(subj_dir, visit)
+                    sess_id = subj_id + '_' + visit
+                    xsession = mbi_xnat.classes.MrSessionData(
+                        label=sess_id,
+                        parent=xsubject)
+                    xsession_proc = mbi_xnat.classes.MrSessionData(
+                        label=sess_id + XNATArchive.PROCESSED_SUFFIX,
+                        parent=xsubject)
                     for scan_fname in os.listdir(sess_dir):
+                        if scan_fname == FIELDS_FNAME:
+                            with open(
+                                os.path.join(sess_dir, scan_fname),
+                                    'rb') as f:
+                                fields = json.load(f)
+                            for field_name, value in fields.items():
+                                if '_' in field_name:
+                                    xsess = xsession_proc
+                                else:
+                                    xsess = xsession
+                                xsess.fields[field_name] = value
                         scan_name, ext = split_extension(scan_fname)
-                        sess_id = subj_id + '_' + visit
                         if '_' in scan_name:
-                            sess_id += XNATArchive.PROCESSED_SUFFIX
-                        xsession = mbi_xnat.classes.MrSessionData(
-                            label=sess_id,
-                            parent=xsubject)
-                        dataset = mbi_xnat.classes.MrScanData(type=scan_name,
-                                                              parent=xsession)
+                            xsess = xsession_proc
+                        else:
+                            xsess = xsession
+                        dataset = mbi_xnat.classes.MrScanData(
+                            type=scan_name, parent=xsess)
                         resource = dataset.create_resource(
                             data_formats_by_ext[ext].name.upper())
                         resource.upload(os.path.join(sess_dir, scan_fname),
@@ -779,6 +796,9 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
 class TestProjectInfo(TestOnXnatMixin,
                       test_local.TestProjectInfo):
+
+    PROJECT = 'TEST012'
+    BASE_CLASS = test_local.TestProjectInfo
 
     def test_project_info(self):
         project = self.archive.project(self.project_id)

@@ -361,6 +361,8 @@ class LocalArchive(Archive):
             datasets = []
             fields = {}
             for fname in sorted(fnames):
+                if fnames.startswith('.'):
+                    continue  # Ignore hidden files
                 if fname == FIELDS_FNAME:
                     fields = self.fields_from_json(os.path.join(
                         session_path, FIELDS_FNAME),
