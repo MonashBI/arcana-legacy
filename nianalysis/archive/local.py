@@ -325,7 +325,8 @@ class LocalArchive(Archive):
             os.path.join(self.base_dir, str(project_id)))
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
-        for session_path, _, fnames in os.walk(project_dir):
+        for session_path, _, all_fnames in os.walk(project_dir):
+            fnames = [f for f in all_fnames if not f.startswith('.')]
             relpath = os.path.relpath(session_path, project_dir)
             path_parts = os.path.split(relpath)
             if len(path_parts) > 2:
@@ -361,8 +362,6 @@ class LocalArchive(Archive):
             datasets = []
             fields = {}
             for fname in sorted(fnames):
-                if fnames.startswith('.'):
-                    continue  # Ignore hidden files
                 if fname == FIELDS_FNAME:
                     fields = self.fields_from_json(os.path.join(
                         session_path, FIELDS_FNAME),

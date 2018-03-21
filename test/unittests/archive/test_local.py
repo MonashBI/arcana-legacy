@@ -431,6 +431,14 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
 
     def test_project_info(self):
         archive = LocalArchive(base_dir=self.archive_path)
+        # Add hidden file to local archive at project and subject
+        # levels to test ignore
+        proj_dir = os.path.join(self.archive_path, self.project_id)
+        a_subj_dir = os.listdir(proj_dir)[0]
+        open(os.path.join(os.path.join(proj_dir, '.DS_Store')),
+             'w').close()
+        open(os.path.join(os.path.join(proj_dir, a_subj_dir,
+                                       '.DS_Store')), 'w').close()
         project = archive.project(self.project_id)
         self.assertEqual(
             project, self.ref_project(),
