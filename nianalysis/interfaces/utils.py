@@ -397,7 +397,7 @@ class CopyToDir(BaseInterface):
                 if ext:
                     out_name = '{0}_{1}'.format(
                         out_name, ext+str(i).zfill(3))
-                shutil.copytree(f, dirname+'/'.format(out_name))
+                shutil.copytree(f, dirname+'/{}'.format(out_name))
             elif os.path.isfile(f):
                 if ext == '.dcm':
                     fname = os.path.join(dirname, str(i).zfill(4)) + ext
