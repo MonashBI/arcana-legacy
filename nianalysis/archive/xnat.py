@@ -13,7 +13,7 @@ from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.base import Directory, traits, isdefined
-from nianalysis.dataset import Dataset, Field
+from nianalysis.dataset import Dataset, FieldValue
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -754,27 +754,17 @@ class XNATArchive(Archive):
             xproject = xnat_login.projects[project_id]
             visit_sessions = defaultdict(list)
             # Create list of subjects
-            proj_summary_name = self.get_labels('per_project',
-                                                project_id)[1]
             for xsubject in xproject.subjects.itervalues():
                 subj_id = xsubject.label
+                logger.debug("Getting info for subject '{}'".format(subj_id))
                 if not (subject_ids is None or subj_id in subject_ids):
                     continue
-                if subj_id == proj_summary_name:
-                    continue
-                logger.debug("Getting info for subject '{}'"
-                             .format(subj_id))
                 sessions = {}
                 proc_sessions = []
-                # Get per_subject datasets
-                subj_summary_name = self.get_labels(
-                    'per_subject', *subj_id.split('_'))[1]
                 # Get per_session datasets
                 for xsession in xsubject.experiments.itervalues():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
                     if not (visit_ids is None or visit_id in visit_ids):
-                        continue
-                    if xsession.label == subj_summary_name:
                         continue
                     processed = xsession.label.endswith(
                         self.PROCESSED_SUFFIX)
@@ -799,9 +789,13 @@ class XNATArchive(Archive):
                     except KeyError:
                         raise NiAnalysisError(
                             "No matching acquired session for processed "
-                            "session '{}_{}'".format(
+                            "session '{}_{}_{}'".format(
+                                project_id,
                                 proc_session.subject_id,
                                 proc_session.visit_id))
+                # Get per_subject datasets
+                _, subj_summary_name = self.get_labels(
+                    'per_subject', *subj_id.split('_'))
                 try:
                     xsubj_summary = xsubject.experiments[subj_summary_name]
                 except KeyError:
@@ -916,16 +910,8 @@ class XNATArchive(Archive):
         """
         fields = []
         for name, value in xsession.fields.items():
-            # Try convert to each datatypes in order of specificity to
-            # determine type
-            for dtype in (int, float, str):
-                try:
-                    dtype(value)
-                    break
-                except ValueError:
-                    continue
             fields.append(FieldValue(
-                name=name, value=value, processed=processed,  # @ReservedAssignment @IgnorePep8
+                name=name, value=value, processed=processed,
                 multiplicity=mult))
         return fields
 

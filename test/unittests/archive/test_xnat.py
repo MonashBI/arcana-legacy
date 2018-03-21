@@ -646,7 +646,15 @@ class TestOnXnatMixin(object):
                                     'rb') as f:
                                 fields = json.load(f)
                             for field_name, value in fields.items():
+<<<<<<< Upstream, based on master
                                 xsession.fields[field_name] = value
+=======
+                                if '_' in field_name:
+                                    xsess = xsession_proc
+                                else:
+                                    xsess = xsession
+                                xsess.fields[field_name] = value
+>>>>>>> f850ace debugging xnatarchive project info method
                             continue
                         scan_name, ext = split_extension(scan_fname)
                         if '_' in scan_name:
