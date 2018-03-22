@@ -37,6 +37,7 @@ class BaseDatum(object):
 
     def find_mismatch(self, other, indent=''):
         if self != other:
+            self != other
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
                 indent, self.name, other.name,
                 t=type(self).__name__)
@@ -114,7 +115,7 @@ class BaseDataset(BaseDatum):
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseDataset, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
-        if self.processed != other.processed:
+        if self.format != other.format:
             mismatch += ('\n{}format: self={} v other={}'
                          .format(sub_indent, self.format,
                                  other.format))
@@ -181,19 +182,22 @@ class Dataset(BaseDataset):
         dataset.
     location : str
         The directory that the dataset is stored in.
+    order : int | None
+        The order of the dataset in the session. To be used to
+        distinguish multiple datasets with the same scan type in the
+        same session, e.g. scans taken before and after a task. For
+        archives where this isn't stored (i.e. Local), order can be None
     """
 
     is_spec = False
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', location=None):
+                 multiplicity='per_session', location=None,
+                 order=None):
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._location = location
-        if not processed and multiplicity != 'per_session':
-            raise NiAnalysisUsageError(
-                "Datasets with not multiplicity!='per_session' ({}) "
-                "must have processed=True".format(self))
+        self._order = order
 
     @property
     def prefixed_name(self):
@@ -201,7 +205,11 @@ class Dataset(BaseDataset):
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
+                self.order == other.order and
                 self.processed == other.processed)
+
+    def __lt__(self, other):
+        return self.order < other.order
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Dataset, self).find_mismatch(other, indent)
@@ -210,6 +218,10 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
+        if self.order != other.order:
+            mismatch += ('\n{}order: self={} v other={}'
+                         .format(sub_indent, self.order,
+                                 other.order))
         return mismatch
 
     @property
@@ -224,6 +236,13 @@ class Dataset(BaseDataset):
     def processed(self):
         return self._processed
 
+    @property
+    def order(self):
+        if self._order is None:
+            return self.name
+        else:
+            return self._order
+
     def in_directory(self, dir_path):
         """
         Returns a copy of the dataset with its location set
@@ -236,7 +255,6 @@ class Dataset(BaseDataset):
         location = os.path.dirname(path)
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
-        processed = (multiplicity != 'per_session')  # required for checks in Dataset
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
@@ -252,7 +270,7 @@ class Dataset(BaseDataset):
                                "assuming it is a dicom".format(abbrev, path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   location=location, processed=processed)
+                   location=location, processed=False)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
@@ -467,10 +485,6 @@ class Field(BaseField):
                  processed=False):
         super(Field, self).__init__(name, dtype, multiplicity)
         self._processed = processed
-        if not processed and multiplicity != 'per_session':
-            raise NiAnalysisUsageError(
-                "Fields with not multiplicity!='per_session' ({}) "
-                "must have processed=True".format(self))
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and

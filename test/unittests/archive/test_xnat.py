@@ -11,10 +11,11 @@ from nianalysis.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
-from nianalysis.archive.local import FIELDS_FNAME
+from nianalysis.dataset import (
+    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
+from nianalysis.archive.base import Project, Subject, Session, Visit
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
-from nianalysis.dataset import Dataset, DatasetSpec, Field, FieldSpec
 from nianalysis.utils import split_extension
 from nianalysis.data_formats import data_formats_by_ext
 from nianalysis.utils import PATH_SUFFIX
@@ -618,60 +619,61 @@ class TestOnXnatMixin(object):
 
     def setUp(self):
         self._clean_up()
-        cache_dir = os.path.join(self.base_cache_path, self.base_name)
-        self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
-        with xnat.connect(self.SERVER) as mbi_xnat:
-            # Copy local archive to XNAT
-            xproject = mbi_xnat.projects[self.PROJECT]
-            for subj in os.listdir(self.project_dir):
-                subj_dir = os.path.join(self.project_dir, subj)
-                subj_id = self.PROJECT + '_' + subj
-                xsubject = mbi_xnat.classes.SubjectData(label=subj_id,
-                                                        parent=xproject)
-                for visit in os.listdir(subj_dir):
-                    sess_dir = os.path.join(subj_dir, visit)
-                    sess_id = subj_id + '_' + visit
-                    fnames = os.listdir(sess_dir)
-                    xsession = mbi_xnat.classes.MrSessionData(
-                        label=sess_id,
-                        parent=xsubject)
-                    if any('_' in f for f in fnames):
-                        xsession_proc = mbi_xnat.classes.MrSessionData(
-                            label=sess_id + XNATArchive.PROCESSED_SUFFIX,
-                            parent=xsubject)
-                    for scan_fname in fnames:
-                        if scan_fname == FIELDS_FNAME:
-                            with open(
-                                os.path.join(sess_dir, scan_fname),
-                                    'rb') as f:
-                                fields = json.load(f)
-                            for field_name, value in fields.items():
-                                xsession.fields[field_name] = value
-                            continue
-                        scan_name, ext = split_extension(scan_fname)
-                        if '_' in scan_name:
-                            xsess = xsession_proc
-                        else:
-                            xsess = xsession
-                        dataset = mbi_xnat.classes.MrScanData(
-                            type=scan_name, parent=xsess)
-                        resource = dataset.create_resource(
-                            data_formats_by_ext[ext].name.upper())
-                        resource.upload(os.path.join(sess_dir, scan_fname),
-                                        scan_fname)
-        self._output_cache_dir = tempfile.mkdtemp()
+#         cache_dir = os.path.join(self.base_cache_path, self.base_name)
+#         self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
+#         with xnat.connect(self.SERVER) as mbi_xnat:
+#             # Copy local archive to XNAT
+#             xproject = mbi_xnat.projects[self.PROJECT]
+#             for subj in os.listdir(self.project_dir):
+#                 subj_dir = os.path.join(self.project_dir, subj)
+#                 subj_id = self.PROJECT + '_' + subj
+#                 xsubject = mbi_xnat.classes.SubjectData(label=subj_id,
+#                                                         parent=xproject)
+#                 for visit in os.listdir(subj_dir):
+#                     sess_dir = os.path.join(subj_dir, visit)
+#                     sess_id = subj_id + '_' + visit
+#                     fnames = os.listdir(sess_dir)
+#                     xsession = mbi_xnat.classes.MrSessionData(
+#                         label=sess_id,
+#                         parent=xsubject)
+#                     if any('_' in f for f in fnames):
+#                         xsession_proc = mbi_xnat.classes.MrSessionData(
+#                             label=sess_id + XNATArchive.PROCESSED_SUFFIX,
+#                             parent=xsubject)
+#                     for scan_fname in fnames:
+#                         if scan_fname == FIELDS_FNAME:
+#                             with open(
+#                                 os.path.join(sess_dir, scan_fname),
+#                                     'rb') as f:
+#                                 fields = json.load(f)
+#                             for field_name, value in fields.items():
+#                                 xsession.fields[field_name] = value
+#                             continue
+#                         scan_name, ext = split_extension(scan_fname)
+#                         if '_' in scan_name:
+#                             xsess = xsession_proc
+#                         else:
+#                             xsess = xsession
+#                         dataset = mbi_xnat.classes.MrScanData(
+#                             type=scan_name, parent=xsess)
+#                         resource = dataset.create_resource(
+#                             data_formats_by_ext[ext].name.upper())
+#                         resource.upload(os.path.join(sess_dir, scan_fname),
+#                                         scan_fname)
+#         self._output_cache_dir = tempfile.mkdtemp()
 
     def tearDown(self):
         self._clean_up()
 
     def _clean_up(self):
-        # Clean up working dirs
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
-        # Clean up session created for unit-test
-        with xnat.connect(self.SERVER) as mbi_xnat:
-            xproject = mbi_xnat.projects[self.PROJECT]
-            for xsubject in list(xproject.subjects.itervalues()):
-                xsubject.delete()
+        pass
+#         # Clean up working dirs
+#         shutil.rmtree(self.cache_dir, ignore_errors=True)
+#         # Clean up session created for unit-test
+#         with xnat.connect(self.SERVER) as mbi_xnat:
+#             xproject = mbi_xnat.projects[self.PROJECT]
+#             for xsubject in list(xproject.subjects.itervalues()):
+#                 xsubject.delete()
 
     @property
     def archive(self):
