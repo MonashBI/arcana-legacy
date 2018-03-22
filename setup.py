@@ -26,7 +26,8 @@ setup(
     install_requires=['xnat>=0.3.4',
                       'nipype>=1.0',
                       'pydicom>=1.0.1rc1',
-                      'networkx==1.9'],
+                      'networkx==1.9',
+                      'fasteners>=0.7.0'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",

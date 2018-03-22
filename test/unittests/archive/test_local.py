@@ -1,7 +1,7 @@
 import os
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.local import LocalArchive
+from nianalysis.archive.local import LocalArchive, FIELDS_FNAME
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import (
     Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
@@ -61,7 +61,10 @@ class TestLocalArchive(BaseTestCase):
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check local directory was created properly
-        self.assertEqual(sorted(os.listdir(self.session_dir)),
+        outputs = [
+            f for f in sorted(os.listdir(self.session_dir))
+            if f != FIELDS_FNAME]
+        self.assertEqual(outputs,
                          [self.STUDY_NAME + '_sink1.nii.gz',
                           self.STUDY_NAME + '_sink3.nii.gz',
                           self.STUDY_NAME + '_sink4.nii.gz',
@@ -223,7 +226,10 @@ class TestLocalArchive(BaseTestCase):
                                reloadsink,
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
-        self.assertEqual(sorted(os.listdir(self.session_dir)),
+        outputs = [
+            f for f in sorted(os.listdir(self.session_dir))
+            if f != FIELDS_FNAME]
+        self.assertEqual(outputs,
                          [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
                           self.SUMMARY_STUDY_NAME + '_resink3.nii.gz',
