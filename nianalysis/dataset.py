@@ -198,10 +198,6 @@ class Dataset(BaseDataset):
         self._processed = processed
         self._location = location
         self._order = order
-        if not processed and multiplicity != 'per_session':
-            raise NiAnalysisUsageError(
-                "Datasets with not multiplicity!='per_session' ({}) "
-                "must have processed=True".format(self))
 
     @property
     def prefixed_name(self):
@@ -259,7 +255,6 @@ class Dataset(BaseDataset):
         location = os.path.dirname(path)
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
-        processed = (multiplicity != 'per_session')  # required for checks in Dataset
         try:
             data_format = data_formats_by_ext[ext]
         except KeyError:
@@ -275,7 +270,7 @@ class Dataset(BaseDataset):
                                "assuming it is a dicom".format(abbrev, path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   location=location, processed=processed)
+                   location=location, processed=False)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
@@ -490,10 +485,6 @@ class Field(BaseField):
                  processed=False):
         super(Field, self).__init__(name, dtype, multiplicity)
         self._processed = processed
-        if not processed and multiplicity != 'per_session':
-            raise NiAnalysisUsageError(
-                "Fields with not multiplicity!='per_session' ({}) "
-                "must have processed=True".format(self))
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and

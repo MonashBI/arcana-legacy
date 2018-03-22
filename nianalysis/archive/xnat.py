@@ -728,7 +728,7 @@ class XNATArchive(Archive):
                                 proc_session.visit_id))
                 # Get per_subject datasets
                 _, subj_summary_name = self.get_labels(
-                    'per_subject', *subj_id.split('_'))
+                    'per_subject', project_id, subj_id)
                 try:
                     xsubj_summary = xsubject.experiments[subj_summary_name]
                 except KeyError:
@@ -736,9 +736,9 @@ class XNATArchive(Archive):
                     subj_fields = []
                 else:
                     subj_datasets = self._get_datasets(
-                        xsubj_summary, 'per_subject', processed=True)
+                        xsubj_summary, 'per_subject')
                     subj_fields = self._get_fields(
-                        xsubj_summary, 'per_subject', processed=True)
+                        xsubj_summary, 'per_subject')
                 subjects.append(Subject(subj_id,
                                         sorted(sessions.values()),
                                         datasets=subj_datasets,
@@ -757,11 +757,9 @@ class XNATArchive(Archive):
                     visit_fields = {}
                 else:
                     visit_datasets = self._get_datasets(xvisit_summary,
-                                                        'per_visit',
-                                                        processed=True)
+                                                        'per_visit')
                     visit_fields = self._get_fields(xvisit_summary,
-                                                    'per_visit',
-                                                    processed=True)
+                                                    'per_visit')
                 visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
@@ -777,10 +775,9 @@ class XNATArchive(Archive):
                 proj_fields = []
             else:
                 proj_datasets = self._get_datasets(xproj_summary,
-                                                   'per_project',
-                                                   processed=True)
-                proj_fields = self._get_fields(xproj_summary, 'per_project',
-                                               processed=True)
+                                                   'per_project')
+                proj_fields = self._get_fields(xproj_summary,
+                                               'per_project')
             if not subjects:
                 raise NiAnalysisError(
                     "Did not find any subjects matching the IDs '{}' in "
@@ -801,7 +798,7 @@ class XNATArchive(Archive):
         return Project(project_id, sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult, processed):
+    def _get_datasets(self, xsession, mult, processed=False):
         """
         Returns a list of datasets within an XNAT session
 
@@ -827,7 +824,7 @@ class XNATArchive(Archive):
                 multiplicity=mult, location=None, order=dataset.id))
         return sorted(datasets)
 
-    def _get_fields(self, xsession, mult, processed):
+    def _get_fields(self, xsession, mult, processed=False):
         """
         Returns a list of fields within an XNAT session
 
@@ -859,18 +856,26 @@ class XNATArchive(Archive):
     def get_labels(cls, multiplicity, project_id, subject_id=None,
                    visit_id=None):
         if multiplicity == 'per_session':
+            assert visit_id is not None
+            assert subject_id is not None
             subj_label = '{}_{}'.format(project_id, subject_id)
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            visit_id)
         elif multiplicity == 'per_subject':
+            assert visit_id is None
+            assert subject_id is not None
             subj_label = '{}_{}'.format(project_id, subject_id)
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            cls.SUMMARY_NAME)
         elif multiplicity == 'per_visit':
+            assert visit_id is not None
+            assert subject_id is None
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            visit_id)
         elif multiplicity == 'per_project':
+            assert visit_id is None
+            assert subject_id is None
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            cls.SUMMARY_NAME)
