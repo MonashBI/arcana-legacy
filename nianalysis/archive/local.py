@@ -1,7 +1,8 @@
 from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
-from itertools import chain
+from itertools import chain, groupby
+from operator import itemgetter
 import errno
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -13,6 +14,7 @@ import stat
 import shutil
 import logging
 import json
+from fasteners import InterProcessLock
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
@@ -28,6 +30,8 @@ logger = logging.getLogger('NiAnalysis')
 
 SUMMARY_NAME = 'ALL'
 FIELDS_FNAME = 'fields.json'
+
+LOCK = '.lock'
 
 
 def lower(s):
@@ -48,44 +52,26 @@ class LocalNodeMixin(object):
     def _get_data_dir(self, multiplicity):
         project_dir = os.path.join(self.inputs.base_dir,
                                    str(self.inputs.project_id))
-        subject_dir = os.path.join(project_dir, str(self.inputs.subject_id))
         if multiplicity == 'per_project':
             data_dir = os.path.join(project_dir, SUMMARY_NAME, SUMMARY_NAME)
         elif multiplicity.startswith('per_subject'):
-            data_dir = os.path.join(subject_dir, SUMMARY_NAME)
+            data_dir = os.path.join(
+                project_dir, str(self.inputs.subject_id), SUMMARY_NAME)
         elif multiplicity.startswith('per_visit'):
             data_dir = os.path.join(project_dir, SUMMARY_NAME,
                                     str(self.inputs.visit_id))
         elif multiplicity.startswith('per_session'):
-            data_dir = os.path.join(subject_dir, str(self.inputs.visit_id))
+            data_dir = os.path.join(
+                project_dir, str(self.inputs.subject_id),
+                str(self.inputs.visit_id))
         else:
             assert False, "Unrecognised multiplicity '{}'".format(
                 multiplicity)
         return data_dir
 
-    @property
-    def fields_cache(self):
-        try:
-            cache = self._fields_cache
-        except AttributeError:
-            cache = self._fields_cache = {}
-        return cache
-
-    def _get_fields_dict(self, multiplicity):
-        try:
-            fields = self.fields_cache[multiplicity]
-        except KeyError:
-            data_dir = self._get_data_dir(multiplicity)
-            try:
-                with open(os.path.join(data_dir, FIELDS_FNAME)) as f:
-                    fields = json.load(f)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    fields = {}
-                else:
-                    raise
-            self.fields_cache[multiplicity] = fields
-        return fields
+    def fields_path(self, multiplicity):
+        return os.path.join(self._get_data_dir(multiplicity),
+                            FIELDS_FNAME)
 
 
 class LocalSource(ArchiveSource, LocalNodeMixin):
@@ -102,13 +88,23 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
             fname = self.prefix_study_name(fname, is_spec)
             outputs[name + PATH_SUFFIX] = os.path.join(
                 self._get_data_dir(multiplicity), fname)
-        for (name, dtype, multiplicity, _, is_spec) in self.inputs.fields:
-            fields = self._get_fields_dict(multiplicity)
+        for mult, spec_grp in groupby(sorted(self.inputs.fields,
+                                             key=itemgetter(2)),
+                                      key=itemgetter(2)):
+            # Load fields JSON, locking to prevent read/write conflicts
+            # Would be better if only check locked
+            fpath = self.fields_path(mult)
             try:
+                with InterProcessLock(fpath + LOCK), open(fpath) as f:
+                    fields = json.load(f)
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    fields = {}
+                else:
+                    raise
+            for name, dtype, _, _, is_spec in spec_grp:
                 outputs[name + FIELD_SUFFIX] = dtype(
                     fields[self.prefix_study_name(name, is_spec)])
-            except Exception:
-                raise
         return outputs
 
 
@@ -203,22 +199,33 @@ class LocalSinkMixin(LocalNodeMixin):
         # Loop through fields connected to the sink and save them in the
         # fields JSON file
         out_fields = []
-        for (name, dtype, mult, _, _) in self.inputs.fields:
-            fields = self._get_fields_dict(mult)
-            value = getattr(self.inputs, name + FIELD_SUFFIX)
-            qual_name = self.prefix_study_name(name)
-            if dtype is str:
-                assert isinstance(value, basestring)
-            else:
-                assert isinstance(value, dtype)
-            fields[qual_name] = value
-            out_fields.append((qual_name, value))
+        fpath = self.fields_path(self.multiplicity)
+        # Open fields JSON, locking to prevent other processes
+        # reading or writing
+        if self.inputs.fields:
+            with InterProcessLock(fpath + LOCK):
+                try:
+                    with open(fpath, 'rb') as f:
+                        fields = json.load(f)
+                except IOError as e:
+                    if e.errno == errno.ENOENT:
+                        fields = {}
+                    else:
+                        raise
+                # Update fields JSON and write back to file.
+                for spec in self.inputs.fields:
+                    name, dtype = spec[:2]
+                    value = getattr(self.inputs, name + FIELD_SUFFIX)
+                    qual_name = self.prefix_study_name(name)
+                    if dtype is str:
+                        assert isinstance(value, basestring)
+                    else:
+                        assert isinstance(value, dtype)
+                    fields[qual_name] = value
+                    out_fields.append((qual_name, value))
+                with open(fpath, 'wb') as f:
+                    json.dump(fields, f)
         outputs['out_fields'] = out_fields
-        # Save updated fields dicts to files
-        for mult, fields in self.fields_cache.iteritems():
-            with open(os.path.join(self._get_data_dir(mult),
-                                   FIELDS_FNAME), 'w') as f:
-                json.dump(fields, f)
         return outputs
 
     @abstractmethod
