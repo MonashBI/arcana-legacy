@@ -179,8 +179,8 @@ class Dataset(BaseDataset):
         Whether the scan was generated or acquired. Depending on the archive
         used to store the dataset this is used to determine the location of the
         dataset.
-    location : str
-        The directory that the dataset is stored in.
+    path : str | None
+        The path to the dataset (for archives on the local system)
     id : int | None
         The ID of the dataset in the session. To be used to
         distinguish multiple datasets with the same scan type in the
@@ -191,24 +191,21 @@ class Dataset(BaseDataset):
     is_spec = False
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', location=None,
+                 multiplicity='per_session', path=None,
                  id=None):  # @ReservedAssignment
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
-        self._location = location
+        self._path = path
         self._id = id
-
-    @property
-    def prefixed_name(self):
-        return self.name
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
+                self.path == other.path and
                 self._id == other._id)
 
     def __lt__(self, other):
-        return self.order < other.order
+        return self.id < other.id
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Dataset, self).find_mismatch(other, indent)
@@ -217,19 +214,23 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
+        if self.path != other.path:
+            mismatch += ('\n{}path: self={} v other={}'
+                         .format(sub_indent, self.path,
+                                 other.path))
         if self._id != other._id:
-            mismatch += ('\n{}order: self={} v other={}'
+            mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
         return mismatch
 
     @property
     def path(self):
-        if self.location is None:
+        if self.path is None:
             raise NiAnalysisError(
-                "Dataset '{}' location has not been set, please use "
-                "'in_directory' method to set it".format(self.name))
-        return os.path.join(self.location, self.name + self.filename)
+                "Dataset '{}' location has not been set".format(
+                    self.name))
+        return self._path
 
     @property
     def processed(self):
@@ -237,21 +238,13 @@ class Dataset(BaseDataset):
 
     @property
     def id(self):
-        if self._order is None:
+        if self._id is None:
             return self.name
         else:
             return self._id
 
-    def in_directory(self, dir_path):
-        """
-        Returns a copy of the dataset with its location set
-        """
-        cpy = copy(self)
-        cpy._location = dir_path
-
     @classmethod
     def from_path(cls, path, multiplicity='per_session'):
-        location = os.path.dirname(path)
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
         try:
@@ -266,10 +259,11 @@ class Dataset(BaseDataset):
                 data_format = data_formats_by_mrinfo[abbrev]
             except KeyError:
                 logger.warning("Unrecognised format '{}' of path '{}'"
-                               "assuming it is a dicom".format(abbrev, path))
+                               "assuming it is a dicom".format(abbrev,
+                                                               path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   location=location, processed=False)
+                   path=path, processed=False)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
@@ -279,25 +273,99 @@ class Dataset(BaseDataset):
 
 class DatasetMatch(BaseDataset):
     """
-    A class representing a set of datasets within the archive that
-    match the given criteria. Used when initiating a study.
+    A class representing a dataset, which was primary.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    format : FileFormat
+        The file format used to store the dataset. Can be one of the
+        recognised formats
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    processed : bool
+        Whether the scan was generated or acquired. Depending on the archive
+        used to store the dataset this is used to determine the location of the
+        dataset.
+    pattern : str
+        A regex pattern to match the dataset names with. Must match
+        one and only one dataset per <multiplicity>. If None, the name
+        is used instead.
+    id : int | None
+        To be used to distinguish multiple datasets that match the
+        pattern in the same session. The ID of the dataset within the
+        session.
+    order : int | None
+        To be used to distinguish multiple datasets that match the
+        pattern in the same session. The order of the dataset within the
+        session. Based on the scan ID but is more robust to small
+        changes to the IDs within the session if for example there are
+        two scans of the same type taken before and after a task.
+    dicom_values : dct(str | str)
+        To be used to distinguish multiple datasets that match the
+        pattern in the same session. The provided DICOM values dicom
+        header values must match exactly.
     """
 
     is_spec = False
 
     def __init__(self, name, format, multiplicity='per_session',  # @ReservedAssignment @IgnorePep8
-                 processed=False, pattern=None, order=None,
-                 dicom_tags=None, id=None):  # @ReservedAssignment @IgnorePep8
+                 processed=False, pattern=None, id=None, order=None,  # @ReservedAssignment @IgnorePep8
+                 dicom_values=None):
         super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._pattern = pattern
-        self._dicom_tags = dicom_tags
+        self._dicom_values = dicom_values
         if order is not None and id is not None:
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
         self._order = order
         self._id = id
+
+    @property
+    def prefixed_name(self):
+        return self.name
+
+    @property
+    def pattern(self):
+        if self._pattern is None:
+            return self._name
+        return self._pattern
+
+    @property
+    def processed(self):
+        return self._processed
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def order(self):
+        return self._order
+
+    @property
+    def dicom_values(self):
+        return self._dicom_values
+
+    def __eq__(self, other):
+        return (super(Dataset, self).__eq__(other) and
+                self.processed == other.processed and
+                self.path == other.path and
+                self._id == other._id)
+
+    def initkwargs(self):
+        dct = super(DatasetMatch, self).initkwargs()
+        dct['processed'] = self.processed
+        dct['pattern'] = self.pattern
+        dct['dicom_values'] = self.dicom_values
+        dct['id'] = self.id
+        dct['order'] = self.order
+        return dct
 
 
 class DatasetSpec(BaseDataset):

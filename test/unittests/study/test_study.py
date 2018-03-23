@@ -3,7 +3,7 @@ import os.path
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirements import Requirement, mrtrix3_req
-from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
+from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_specs  # @IgnorePep8
@@ -284,8 +284,8 @@ class TestRunPipeline(BaseTestCase):
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
             DummyStudy, 'dummy', inputs={
-                'start': Dataset('start', nifti_gz_format),
-                'ones_slice': Dataset('ones_slice', mrtrix_format)})
+                'start': DatasetMatch('start', nifti_gz_format),
+                'ones_slice': DatasetMatch('ones_slice', mrtrix_format)})
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
@@ -373,7 +373,8 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
+        self.study.subject_ids_access_pipeline().run(
+            work_dir=self.work_dir)
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
@@ -532,7 +533,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs={
-                'ones': Dataset('ones', mrtrix_format)})
+                'ones': DatasetMatch('ones', mrtrix_format)})
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
             'subject1': {
@@ -562,7 +563,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.study_name, inputs={
-#                 'ones': Dataset('ones', mrtrix_format)})
+#                 'ones': DatasetMatch('ones', mrtrix_format)})
 #         study.thousands_pipeline().run(work_dir=self.work_dir)
 #         targets = {
 #             'subject1': {

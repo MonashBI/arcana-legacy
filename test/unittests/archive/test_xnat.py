@@ -146,10 +146,10 @@ class TestXnatArchive(BaseTestCase):
         # Create DarisSource node
         archive = XNATArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir)
-        source_files = [Dataset('source1', nifti_gz_format),
-                        Dataset('source2', nifti_gz_format),
-                        Dataset('source3', nifti_gz_format),
-                        Dataset('source4', nifti_gz_format)]
+        source_files = [DatasetMatch('source1', nifti_gz_format),
+                        DatasetMatch('source2', nifti_gz_format),
+                        DatasetMatch('source3', nifti_gz_format),
+                        DatasetMatch('source4', nifti_gz_format)]
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
@@ -243,9 +243,9 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir)
         # TODO: Should test out other file formats as well.
-        source_files = [Dataset('source1', nifti_gz_format),
-                        Dataset('source2', nifti_gz_format),
-                        Dataset('source3', nifti_gz_format)]
+        source_files = [DatasetMatch('source1', nifti_gz_format),
+                        DatasetMatch('source2', nifti_gz_format),
+                        DatasetMatch('source3', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
@@ -439,7 +439,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
-                                [Dataset(DATASET_NAME, nifti_gz_format)],
+                                [DatasetMatch(DATASET_NAME, nifti_gz_format)],
                                 name='delayed_source',
                                 study_name='delayed_study')
         source.inputs.subject_id = self.SUBJECT
@@ -514,7 +514,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
-                                [Dataset(DATASET_NAME, nifti_gz_format)],
+                                [DatasetMatch(DATASET_NAME, nifti_gz_format)],
                                 name='digest_check_source',
                                 study_name=STUDY_NAME)
         source.inputs.subject_id = self.SUBJECT
@@ -553,7 +553,7 @@ class TestXnatArchive(BaseTestCase):
         # stored in identical format
         DATASET_NAME = 'sink'
         sink = archive.sink(self.DIGEST_SINK_PROJECT,
-                            [Dataset(DATASET_NAME, nifti_gz_format,
+                            [DatasetMatch(DATASET_NAME, nifti_gz_format,
                                      processed=True)],
                             name='digest_check_sink',
                             study_name=STUDY_NAME)
@@ -602,7 +602,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(
-            self.PROJECT, [Dataset(d, dicom_format) for d in self.DATASETS])
+            self.PROJECT, [DatasetMatch(d, dicom_format) for d in self.DATASETS])
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         workflow = pe.Workflow(self.TEST_NAME, base_dir=self.work_path)
@@ -782,10 +782,10 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     def test_cache_download(self):
         archive = self.archive
         archive.cache(self.PROJECT,
-                      datasets=[Dataset('dataset1', mrtrix_format),
-                                Dataset('dataset2', mrtrix_format),
-                                Dataset('dataset3', mrtrix_format),
-                                Dataset('dataset5', mrtrix_format)],
+                      datasets=[DatasetMatch('dataset1', mrtrix_format),
+                                DatasetMatch('dataset2', mrtrix_format),
+                                DatasetMatch('dataset3', mrtrix_format),
+                                DatasetMatch('dataset5', mrtrix_format)],
                       subject_ids=['subject1', 'subject3', 'subject4'],
                       visit_ids=['visit1'],
                       work_dir=self.work_dir)

@@ -25,10 +25,10 @@ class TestLocalArchive(BaseTestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.archive_path)
         # TODO: Should test out other file formats as well.
-        source_files = [Dataset('source1', nifti_gz_format),
-                        Dataset('source2', nifti_gz_format),
-                        Dataset('source3', nifti_gz_format),
-                        Dataset('source4', nifti_gz_format)]
+        source_files = [DatasetMatch('source1', nifti_gz_format),
+                        DatasetMatch('source2', nifti_gz_format),
+                        DatasetMatch('source3', nifti_gz_format),
+                        DatasetMatch('source4', nifti_gz_format)]
         sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                   pipeline=dummy_pipeline),
                       DatasetSpec('sink3', nifti_gz_format,
@@ -110,9 +110,9 @@ class TestLocalArchive(BaseTestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.archive_path)
         # TODO: Should test out other file formats as well.
-        source_files = [Dataset('source1', nifti_gz_format),
-                        Dataset('source2', nifti_gz_format),
-                        Dataset('source3', nifti_gz_format)]
+        source_files = [DatasetMatch('source1', nifti_gz_format),
+                        DatasetMatch('source2', nifti_gz_format),
+                        DatasetMatch('source3', nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
@@ -247,86 +247,86 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('hundreds', mrtrix_format),
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[
                     Field('a', value=1),
                     Field('b', value=10),
                     Field('d', value=42.42)]),
             Session(
                 'subject1', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[
                     Field('a', value=2),
                     Field('c', value='van')]),
             Session(
                 'subject1', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    DatasetMatch('hundreds', mrtrix_format),
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('thousands', mrtrix_format)],
                 fields=[
                     Field('a', value=3),
                     Field('b', value=30)]),
             Session(
                 'subject2', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[
                     Field('a', value=22),
                     Field('b', value=220),
                     Field('c', value='buggy')]),
             Session(
                 'subject2', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    DatasetMatch('hundreds', mrtrix_format),
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format),
+                    DatasetMatch('thousands', mrtrix_format)],
                 fields=[
                     Field('a', value=33)]),
             Session(
                 'subject3', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format)],
                 fields=[]),
             Session(
                 'subject3', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[]),
             Session(
                 'subject3', 'visit3', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format),
+                    DatasetMatch('thousands', mrtrix_format)],
                 fields=[
                     Field('a', value=333),
                     Field('b', value=3330)]),
             Session(
                 'subject4', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format)],
                 fields=[
                     Field('a', value=1111),
                     Field('d', value=0.9999999999)]),
             Session(
                 'subject4', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format)],
                 fields=[
                     Field('a', value=2222),
                     Field('b', value=22220),
                     Field('c', value='bus')]),
             Session(
                 'subject4', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    DatasetMatch('hundreds', mrtrix_format),
+                    DatasetMatch('ones', mrtrix_format),
+                    DatasetMatch('tens', mrtrix_format),
+                    DatasetMatch('thousands', mrtrix_format)],
                 fields=[])]
         return Project(
             self.project_id, subjects=[
@@ -334,9 +334,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject1', sessions=[s for s in sessions
                                           if s.subject_id == 'subject1'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        DatasetMatch('ones', mrtrix_format,
                                 multiplicity='per_subject'),
-                        Dataset('tens', mrtrix_format,
+                        DatasetMatch('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
                         Field('e', value=4.44444,
@@ -345,9 +345,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        DatasetMatch('ones', mrtrix_format,
                                 multiplicity='per_subject'),
-                        Dataset('tens', mrtrix_format,
+                        DatasetMatch('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
                         Field('e', value=3.33333,
@@ -356,7 +356,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
                     datasets=[
-                        Dataset('tens', mrtrix_format,
+                        DatasetMatch('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
                         Field('e', value=2.22222,
@@ -365,7 +365,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
                     datasets=[
-                        Dataset('tens', mrtrix_format,
+                        DatasetMatch('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
                         Field('e', value=1.11111,
@@ -375,7 +375,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'visit1', sessions=[s for s in sessions
                                         if s.visit_id == 'visit1'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        DatasetMatch('ones', mrtrix_format,
                                 multiplicity='per_visit')],
                     fields=[
                         Field('f', value='dog',
@@ -395,7 +395,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Field('f', value='hippopotamus',
                               multiplicity='per_visit')])],
             datasets=[
-                Dataset('ones', mrtrix_format,
+                DatasetMatch('ones', mrtrix_format,
                         multiplicity='per_project')],
             fields=[
                 Field('g', value=100,
