@@ -201,8 +201,8 @@ class Dataset(BaseDataset):
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
-                self.path == other.path and
-                self._id == other._id)
+                self._path == other._path and
+                self.id == other.id)
 
     def __lt__(self, other):
         return self.id < other.id
@@ -214,10 +214,10 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
-        if self.path != other.path:
+        if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
-                         .format(sub_indent, self.path,
-                                 other.path))
+                         .format(sub_indent, self._path,
+                                 other._path))
         if self._id != other._id:
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
@@ -226,11 +226,14 @@ class Dataset(BaseDataset):
 
     @property
     def path(self):
-        if self.path is None:
+        if self._path is None:
             raise NiAnalysisError(
-                "Dataset '{}' location has not been set".format(
-                    self.name))
+                "Dataset '{}' path has not been set".format(self.name))
         return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
 
     @property
     def processed(self):
@@ -355,8 +358,10 @@ class DatasetMatch(BaseDataset):
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
-                self.path == other.path and
-                self._id == other._id)
+                self.pattern == other.pattern and
+                self.dicom_values == other.dicom_values and
+                self.id == other.id and
+                self.order == other.order)
 
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()
@@ -636,12 +641,33 @@ class Field(BaseField):
 
 
 class FieldMatch(BaseField):
+    """
+    A representation of a field-value in the archive.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    processed : bool
+        Whether or not the value belongs in the processed session or not
+    pattern : str
+        A regex pattern to match the field names with. Must match
+        one and only one dataset per <multiplicity>. If None, the name
+        is used instead.
+    """
 
     is_spec = False
 
     def __init__(self, name, dtype, multiplicity='per_session',
-                 pattern=None):
-        super(Field, self).__init__(name, dtype, multiplicity)
+                 processed=False, pattern=None):
+        super(FieldMatch, self).__init__(name, dtype, multiplicity)
+        self._processed = processed
         self._pattern = pattern
 
     @property
@@ -651,17 +677,25 @@ class FieldMatch(BaseField):
         return self._pattern
 
     def __eq__(self, other):
-        return (super(BaseField, self).__eq__(other) and
-                self._pattern == other._pattern)
+        return (super(FieldMatch, self).__eq__(other) and
+                self._pattern == other._pattern and
+                self.processed == other.processed)
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={}, pattern={})"
+        return ("{}(name='{}', dtype={}, multiplicity={}, processed={},"
+                " pattern={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self._pattern))
+                        self.multiplicity, self.processed,
+                        self._pattern))
+
+    @property
+    def processed(self):
+        return self._processed
 
     def initkwargs(self):
-        dct = super(Field, self).initkwargs()
+        dct = super(FieldMatch, self).initkwargs()
         dct['pattern'] = self._pattern
+        dct['processed'] = self.processed
         return dct
 
 

@@ -62,9 +62,9 @@ class LockXnatProjectTestCase(BaseTestCase):
 class TestXnatArchive(BaseTestCase):
 
     PROJECT = 'TEST002'
-    SUBJECT = 'TEST002_001'
+    SUBJECT = '001'
     DIGEST_SINK_PROJECT = 'TEST009'
-    DIGEST_SINK_SUBJECT = 'TEST009_001'
+    DIGEST_SINK_SUBJECT = '001'
     VISIT = 'MR01'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
@@ -588,7 +588,7 @@ class TestXnatArchive(BaseTestCase):
 class TestXnatArchiveSpecialCharInScanName(TestCase):
 
     PROJECT = 'MRH033'
-    SUBJECT = 'MRH033_001'
+    SUBJECT = '001'
     VISIT = 'MR01'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     TEST_NAME = 'special_char_in_scan_name'

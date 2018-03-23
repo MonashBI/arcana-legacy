@@ -783,7 +783,9 @@ class XNATArchive(Archive):
                     "Did not find any subjects matching the IDs '{}' in "
                     "project '{}' (found '{}')"
                     .format(
-                        "', '".join(subject_ids), project_id,
+                        ("', '".join(subject_ids)
+                         if subject_ids is not None else ''),
+                        project_id,
                         "', '".join(
                             s.label for s in xproject.subjects.values())))
             if not sessions:
@@ -791,7 +793,8 @@ class XNATArchive(Archive):
                     "Did not find any sessions matching the IDs '{}'"
                     "(in subjects '{}') for project '{}'"
                     .format(
-                        "', '".join(visit_ids),
+                        ("', '".join(visit_ids)
+                         if visit_ids is not None else ''),
                         "', '".join(
                             s.label for s in xproject.experiments.values()),
                         project_id))
@@ -862,20 +865,16 @@ class XNATArchive(Archive):
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            visit_id)
         elif multiplicity == 'per_subject':
-            assert visit_id is None
             assert subject_id is not None
             subj_label = '{}_{}'.format(project_id, subject_id)
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            cls.SUMMARY_NAME)
         elif multiplicity == 'per_visit':
             assert visit_id is not None
-            assert subject_id is None
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            visit_id)
         elif multiplicity == 'per_project':
-            assert visit_id is None
-            assert subject_id is None
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            cls.SUMMARY_NAME)
