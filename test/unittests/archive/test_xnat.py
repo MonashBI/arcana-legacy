@@ -12,7 +12,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
 from nianalysis.dataset import (
-    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
+    Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
 from nianalysis.archive.base import Project, Subject, Session, Visit
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
@@ -207,9 +207,9 @@ class TestXnatArchive(BaseTestCase):
             server=self.SERVER, cache_dir=self.archive_cache_dir)
         sink = archive.sink(self.PROJECT,
                             outputs=[
-                                Field('field1', int, processed=True),
-                                Field('field2', float, processed=True),
-                                Field('field3', str, processed=True)],
+                                FieldMatch('field1', int, processed=True),
+                                FieldMatch('field2', float, processed=True),
+                                FieldMatch('field3', str, processed=True)],
                             name='fields_sink',
                             study_name='test')
         sink.inputs.field1_field = field1 = 1

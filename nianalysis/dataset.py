@@ -8,7 +8,7 @@ from nianalysis.data_formats import (
     data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exceptions import NiAnalysisError, NiAnalysisUsageError
 
 logger = getLogger('NiAnalysis')
 
@@ -277,6 +277,29 @@ class Dataset(BaseDataset):
         return dct
 
 
+class DatasetMatch(BaseDataset):
+    """
+    A class representing a set of datasets within the archive that
+    match the given criteria. Used when initiating a study.
+    """
+
+    is_spec = False
+
+    def __init__(self, name, format, multiplicity='per_session',  # @ReservedAssignment @IgnorePep8
+                 processed=False, pattern=None, order=None,
+                 dicom_tags=None, id=None):  # @ReservedAssignment @IgnorePep8
+        super(DatasetMatch, self).__init__(name, format, multiplicity)
+        self._processed = processed
+        self._pattern = pattern
+        self._dicom_tags = dicom_tags
+        if order is not None and id is not None:
+            raise NiAnalysisUsageError(
+                "Cannot provide both 'order' and 'id' to a dataset"
+                "match")
+        self._order = order
+        self._id = id
+
+
 class DatasetSpec(BaseDataset):
     """
     A class representing a "specification" for a dataset within a study, which
@@ -461,8 +484,7 @@ class BaseField(BaseDatum):
 
 class Field(BaseField):
     """
-    An abstract base class representing either an acquired value or the
-    specification for a processed dataset.
+    A representation of a field-value in the archive.
 
     Parameters
     ----------
@@ -478,16 +500,35 @@ class Field(BaseField):
         Whether or not the value belongs in the processed session or not
     """
 
-    is_spec = False
-
-    def __init__(self, name, dtype, multiplicity='per_session',
+    def __init__(self, name, value, multiplicity='per_session',
                  processed=False):
-        super(Field, self).__init__(name, dtype, multiplicity)
+        if isinstance(value, int):
+            dtype = int
+        elif isinstance(value, float):
+            dtype = float
+        elif isinstance(value, basestring):
+            # Attempt to implicitly convert from string
+            try:
+                value = int(value)
+                dtype = int
+            except ValueError:
+                try:
+                    value = float(value)
+                    dtype = float
+                except ValueError:
+                    dtype = str
+        else:
+            raise NiAnalysisError(
+                "Unrecognised field dtype {}".format(value))
+        self._value = value
         self._processed = processed
+        super(Field, self).__init__(
+            name, dtype, multiplicity=multiplicity)
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
-                self.processed == other.processed)
+                self.processed == other.processed and
+                self.value == other.value)
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)
@@ -496,20 +537,63 @@ class Field(BaseField):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
+        if self.value != other.value:
+            mismatch += ('\n{}value: self={} v other={}'
+                         .format(sub_indent, self.value,
+                                 other.value))
         return mismatch
 
     @property
     def processed(self):
         return self._processed
 
+    @property
+    def value(self):
+        return self._value
+
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={}, processed={})"
+        return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
+                "processed={})"
+                .format(self.__class__.__name__, self.name,
+                        self.value, self.dtype, self.multiplicity,
+                        self.processed))
+
+    def initkwargs(self):
+        dct = {}
+        dct['name'] = self.name
+        dct['value'] = self.value
+        dct['multiplicity'] = self.multiplicity
+        dct['processed'] = self.processed
+        return dct
+
+
+class FieldMatch(BaseField):
+
+    is_spec = False
+
+    def __init__(self, name, dtype, multiplicity='per_session',
+                 pattern=None):
+        super(Field, self).__init__(name, dtype, multiplicity)
+        self._pattern = pattern
+
+    @property
+    def pattern(self):
+        if self._pattern is None:
+            return self.name
+        return self._pattern
+
+    def __eq__(self, other):
+        return (super(BaseField, self).__eq__(other) and
+                self._pattern == other._pattern)
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, multiplicity={}, pattern={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self.processed))
+                        self.multiplicity, self._pattern))
 
     def initkwargs(self):
         dct = super(Field, self).initkwargs()
-        dct['processed'] = self.processed
+        dct['pattern'] = self._pattern
         return dct
 
 
@@ -618,55 +702,3 @@ class FieldSpec(BaseField):
         dct['pipeline'] = self.pipeline
         dct['description'] = self.description
         return dct
-
-
-class FieldValue(Field):
-
-    def __init__(self, name, value, multiplicity='per_session',
-                 processed=False):
-        if isinstance(value, int):
-            dtype = int
-        elif isinstance(value, float):
-            dtype = float
-        elif isinstance(value, basestring):
-            # Attempt to implicitly convert from string
-            try:
-                value = int(value)
-                dtype = int
-            except ValueError:
-                try:
-                    value = float(value)
-                    dtype = float
-                except ValueError:
-                    dtype = str
-        else:
-            raise NiAnalysisError(
-                "Unrecognised field dtype {}".format(value))
-        self._value = value
-        super(FieldValue, self).__init__(
-            name, dtype, multiplicity=multiplicity,
-            processed=processed)
-
-    def __eq__(self, other):
-        return (super(FieldValue, self).__eq__(other) and
-                self.value == other.value)
-
-    def find_mismatch(self, other, indent=''):
-        mismatch = super(FieldValue, self).find_mismatch(other, indent)
-        sub_indent = indent + '  '
-        if self.value != other.value:
-            mismatch += ('\n{}value: self={} v other={}'
-                         .format(sub_indent, self.value,
-                                 other.value))
-        return mismatch
-
-    @property
-    def value(self):
-        return self._value
-
-    def __repr__(self):
-        return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
-                "processed={})"
-                .format(self.__class__.__name__, self.name,
-                        self.value, self.dtype, self.multiplicity,
-                        self.processed))

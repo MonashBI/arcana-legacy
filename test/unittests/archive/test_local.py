@@ -4,7 +4,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive, FIELDS_FNAME
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import (
-    Dataset, DatasetSpec, Field, FieldSpec, FieldValue)
+    Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session, Visit
@@ -75,9 +75,9 @@ class TestLocalArchive(BaseTestCase):
         archive = LocalArchive(base_dir=self.archive_path)
         sink = archive.sink(self.name,
                             outputs=[
-                                Field('field1', int, processed=True),
-                                Field('field2', float, processed=True),
-                                Field('field3', str, processed=True)],
+                                FieldMatch('field1', int, processed=True),
+                                FieldMatch('field2', float, processed=True),
+                                FieldMatch('field3', str, processed=True)],
                             name='fields_sink',
                             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -251,24 +251,24 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     Dataset('ones', mrtrix_format),
                     Dataset('tens', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=1),
-                    FieldValue('b', value=10),
-                    FieldValue('d', value=42.42)]),
+                    Field('a', value=1),
+                    Field('b', value=10),
+                    Field('d', value=42.42)]),
             Session(
                 'subject1', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format),
                     Dataset('tens', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=2),
-                    FieldValue('c', value='van')]),
+                    Field('a', value=2),
+                    Field('c', value='van')]),
             Session(
                 'subject1', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format),
                     Dataset('ones', mrtrix_format),
                     Dataset('thousands', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=3),
-                    FieldValue('b', value=30)]),
+                    Field('a', value=3),
+                    Field('b', value=30)]),
             Session(
                 'subject2', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format),
@@ -279,9 +279,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     Dataset('ones', mrtrix_format),
                     Dataset('tens', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=22),
-                    FieldValue('b', value=220),
-                    FieldValue('c', value='buggy')]),
+                    Field('a', value=22),
+                    Field('b', value=220),
+                    Field('c', value='buggy')]),
             Session(
                 'subject2', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format),
@@ -289,7 +289,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     Dataset('tens', mrtrix_format),
                     Dataset('thousands', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=33)]),
+                    Field('a', value=33)]),
             Session(
                 'subject3', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format)],
@@ -305,22 +305,22 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     Dataset('tens', mrtrix_format),
                     Dataset('thousands', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=333),
-                    FieldValue('b', value=3330)]),
+                    Field('a', value=333),
+                    Field('b', value=3330)]),
             Session(
                 'subject4', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=1111),
-                    FieldValue('d', value=0.9999999999)]),
+                    Field('a', value=1111),
+                    Field('d', value=0.9999999999)]),
             Session(
                 'subject4', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format),
                     Dataset('tens', mrtrix_format)],
                 fields=[
-                    FieldValue('a', value=2222),
-                    FieldValue('b', value=22220),
-                    FieldValue('c', value='bus')]),
+                    Field('a', value=2222),
+                    Field('b', value=22220),
+                    Field('c', value='bus')]),
             Session(
                 'subject4', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format),
@@ -339,8 +339,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
-                        FieldValue('e', value=4.44444,
-                                   multiplicity='per_subject')]),
+                        Field('e', value=4.44444,
+                              multiplicity='per_subject')]),
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
@@ -350,8 +350,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
-                        FieldValue('e', value=3.33333,
-                                   multiplicity='per_subject')]),
+                        Field('e', value=3.33333,
+                              multiplicity='per_subject')]),
                 Subject(
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
@@ -359,8 +359,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
-                        FieldValue('e', value=2.22222,
-                                   multiplicity='per_subject')]),
+                        Field('e', value=2.22222,
+                              multiplicity='per_subject')]),
                 Subject(
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
@@ -368,8 +368,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('tens', mrtrix_format,
                                 multiplicity='per_subject')],
                     fields=[
-                        FieldValue('e', value=1.11111,
-                                   multiplicity='per_subject')])],
+                        Field('e', value=1.11111,
+                              multiplicity='per_subject')])],
             visits=[
                 Visit(
                     'visit1', sessions=[s for s in sessions
@@ -378,28 +378,28 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('ones', mrtrix_format,
                                 multiplicity='per_visit')],
                     fields=[
-                        FieldValue('f', value='dog',
-                                   multiplicity='per_visit')]),
+                        Field('f', value='dog',
+                              multiplicity='per_visit')]),
                 Visit(
                     'visit2', sessions=[s for s in sessions
                                         if s.visit_id == 'visit2'],
                     datasets=[],
                     fields=[
-                        FieldValue('f', value='cat',
-                                   multiplicity='per_visit')]),
+                        Field('f', value='cat',
+                              multiplicity='per_visit')]),
                 Visit(
                     'visit3', sessions=[s for s in sessions
                                         if s.visit_id == 'visit3'],
                     datasets=[],
                     fields=[
-                        FieldValue('f', value='hippopotamus',
-                                   multiplicity='per_visit')])],
+                        Field('f', value='hippopotamus',
+                              multiplicity='per_visit')])],
             datasets=[
                 Dataset('ones', mrtrix_format,
                         multiplicity='per_project')],
             fields=[
-                FieldValue('g', value=100,
-                           multiplicity='per_project')])
+                Field('g', value=100,
+                      multiplicity='per_project')])
 
     def test_project_info(self):
         archive = LocalArchive(base_dir=self.archive_path)

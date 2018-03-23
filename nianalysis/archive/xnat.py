@@ -13,7 +13,7 @@ from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
 from nipype.pipeline import engine as pe
 from nipype.interfaces.base import Directory, traits, isdefined
-from nianalysis.dataset import Dataset, FieldValue
+from nianalysis.dataset import Dataset, Field
 from nianalysis.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
@@ -843,7 +843,7 @@ class XNATArchive(Archive):
         """
         fields = []
         for name, value in xsession.fields.items():
-            fields.append(FieldValue(
+            fields.append(Field(
                 name=name, value=value, processed=processed,
                 multiplicity=mult))
         return sorted(fields)

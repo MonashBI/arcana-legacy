@@ -18,7 +18,7 @@ from fasteners import InterProcessLock
 from nipype.interfaces.base import (
     Directory, isdefined)
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset, FieldValue
+from nianalysis.dataset import Dataset, Field
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
 from nianalysis.data_formats import data_formats
@@ -452,5 +452,5 @@ class LocalArchive(Archive):
     def fields_from_json(self, fname, multiplicity):
         with open(fname) as f:
             dct = json.load(f)
-        return [FieldValue(name=k, value=v, multiplicity=multiplicity)
+        return [Field(name=k, value=v, multiplicity=multiplicity)
                 for k, v in dct.items()]
