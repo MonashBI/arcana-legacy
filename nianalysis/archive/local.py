@@ -340,21 +340,19 @@ class LocalArchive(Archive):
         for session_path, _, all_fnames in os.walk(project_dir):
             fnames = [f for f in all_fnames if not f.startswith('.')]
             relpath = os.path.relpath(session_path, project_dir)
-            path_parts = os.path.split(relpath)
-            if len(path_parts) > 2:
-                raise NiAnalysisBadlyFormattedLocalArchiveError(
-                    "Directory structure has depth > 2 ('{}')"
-                    .format(relpath))
-            subj_id, visit_id = path_parts
-            if not subj_id or subj_id == '.':
+            path_parts = relpath.split(os.path.sep)
+            depth = len(path_parts)
+            if depth > 2:
+                continue
+            if depth < 2:
                 if fnames:
                     raise NiAnalysisBadlyFormattedLocalArchiveError(
                         "Files ('{}') not permitted at {} level in "
                         "local archive".format(
                             "', '".join(fnames),
-                            ('subject' if len(path_parts) == 1
-                             else 'project')))
+                            ('subject' if depth else 'project')))
                 continue  # Not a session directory
+            subj_id, visit_id = path_parts
             if (subject_ids is not None and
                 subj_id is not SUMMARY_NAME and
                     subj_id not in subject_ids):
@@ -406,8 +404,11 @@ class LocalArchive(Archive):
                 fields))
         visits = []
         for visit_id in all_visit_ids:
-            visit_sessions = list(chain(
-                sess[visit_id] for sess in all_sessions.values()))
+            try:
+                visit_sessions = list(chain(
+                    sess[visit_id] for sess in all_sessions.values()))
+            except:
+                raise
             try:
                 datasets, fields = summaries[SUMMARY_NAME][visit_id]
             except KeyError:
