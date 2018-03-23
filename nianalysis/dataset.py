@@ -8,7 +8,7 @@ from nianalysis.data_formats import (
     data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import NiAnalysisError, NiAnalysisUsageError
+from nianalysis.exceptions import NiAnalysisError
 
 logger = getLogger('NiAnalysis')
 
@@ -37,7 +37,6 @@ class BaseDatum(object):
 
     def find_mismatch(self, other, indent=''):
         if self != other:
-            self != other
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
                 indent, self.name, other.name,
                 t=type(self).__name__)
@@ -182,22 +181,22 @@ class Dataset(BaseDataset):
         dataset.
     location : str
         The directory that the dataset is stored in.
-    order : int | None
-        The order of the dataset in the session. To be used to
+    id : int | None
+        The ID of the dataset in the session. To be used to
         distinguish multiple datasets with the same scan type in the
         same session, e.g. scans taken before and after a task. For
-        archives where this isn't stored (i.e. Local), order can be None
+        archives where this isn't stored (i.e. Local), id can be None
     """
 
     is_spec = False
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', location=None,
-                 order=None):
+                 id=None):  # @ReservedAssignment
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._location = location
-        self._order = order
+        self._id = id
 
     @property
     def prefixed_name(self):
@@ -205,8 +204,8 @@ class Dataset(BaseDataset):
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
-                self.order == other.order and
-                self.processed == other.processed)
+                self.processed == other.processed and
+                self._id == other._id)
 
     def __lt__(self, other):
         return self.order < other.order
@@ -218,10 +217,10 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}processed: self={} v other={}'
                          .format(sub_indent, self.processed,
                                  other.processed))
-        if self.order != other.order:
+        if self._id != other._id:
             mismatch += ('\n{}order: self={} v other={}'
-                         .format(sub_indent, self.order,
-                                 other.order))
+                         .format(sub_indent, self._id,
+                                 other._id))
         return mismatch
 
     @property
@@ -237,11 +236,11 @@ class Dataset(BaseDataset):
         return self._processed
 
     @property
-    def order(self):
+    def id(self):
         if self._order is None:
             return self.name
         else:
-            return self._order
+            return self._id
 
     def in_directory(self, dir_path):
         """
