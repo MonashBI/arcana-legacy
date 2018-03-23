@@ -838,7 +838,7 @@ class XNATArchive(Archive):
 
         Returns
         -------
-        fields : list(nianalysis.dataset.Dataset)
+        fields : list(nianalysis.dataset.Field)
             List of fields within an XNAT session
         """
         fields = []
