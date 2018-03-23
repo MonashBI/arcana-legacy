@@ -11,9 +11,9 @@ from nianalysis.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
+from nianalysis.archive.local import FIELDS_FNAME
 from nianalysis.dataset import (
-    Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
-from nianalysis.archive.base import Project, Subject, Session, Visit
+    DatasetMatch, DatasetSpec, FieldSpec, FieldMatch)
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
@@ -110,12 +110,15 @@ class TestXnatArchive(BaseTestCase):
                 label=self.session_label(),
                 parent=subject)
             for fname in os.listdir(self.cache_dir):
+                if fname == FIELDS_FNAME:
+                    continue
                 name, ext = split_extension(fname)
                 dataset = mbi_xnat.classes.MrScanData(type=name,
                                                       parent=session)
                 resource = dataset.create_resource(
                     data_formats_by_ext[ext].name.upper())
-                resource.upload(os.path.join(self.cache_dir, fname), fname)
+                resource.upload(os.path.join(self.cache_dir, fname),
+                                fname)
 
     def tearDown(self):
         # Clean up working dirs
@@ -554,7 +557,7 @@ class TestXnatArchive(BaseTestCase):
         DATASET_NAME = 'sink'
         sink = archive.sink(self.DIGEST_SINK_PROJECT,
                             [DatasetMatch(DATASET_NAME, nifti_gz_format,
-                                     processed=True)],
+                                          processed=True)],
                             name='digest_check_sink',
                             study_name=STUDY_NAME)
         sink.inputs.name = 'digest_check_sink'
@@ -602,7 +605,8 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(
-            self.PROJECT, [DatasetMatch(d, dicom_format) for d in self.DATASETS])
+            self.PROJECT, [DatasetMatch(d, dicom_format)
+                           for d in self.DATASETS])
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         workflow = pe.Workflow(self.TEST_NAME, base_dir=self.work_path)

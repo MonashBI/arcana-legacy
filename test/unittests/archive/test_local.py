@@ -4,7 +4,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import LocalArchive, FIELDS_FNAME
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import (
-    Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
+    DatasetMatch, DatasetSpec, Field, FieldSpec, FieldMatch)
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session, Visit
@@ -335,9 +335,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject1'],
                     datasets=[
                         DatasetMatch('ones', mrtrix_format,
-                                multiplicity='per_subject'),
+                                     multiplicity='per_subject'),
                         DatasetMatch('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                     multiplicity='per_subject')],
                     fields=[
                         Field('e', value=4.44444,
                               multiplicity='per_subject')]),
@@ -346,9 +346,9 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject2'],
                     datasets=[
                         DatasetMatch('ones', mrtrix_format,
-                                multiplicity='per_subject'),
+                                     multiplicity='per_subject'),
                         DatasetMatch('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                     multiplicity='per_subject')],
                     fields=[
                         Field('e', value=3.33333,
                               multiplicity='per_subject')]),
@@ -357,7 +357,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject3'],
                     datasets=[
                         DatasetMatch('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                     multiplicity='per_subject')],
                     fields=[
                         Field('e', value=2.22222,
                               multiplicity='per_subject')]),
@@ -366,7 +366,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject4'],
                     datasets=[
                         DatasetMatch('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                     multiplicity='per_subject')],
                     fields=[
                         Field('e', value=1.11111,
                               multiplicity='per_subject')])],
@@ -376,7 +376,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                         if s.visit_id == 'visit1'],
                     datasets=[
                         DatasetMatch('ones', mrtrix_format,
-                                multiplicity='per_visit')],
+                                     multiplicity='per_visit')],
                     fields=[
                         Field('f', value='dog',
                               multiplicity='per_visit')]),
@@ -396,7 +396,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                               multiplicity='per_visit')])],
             datasets=[
                 DatasetMatch('ones', mrtrix_format,
-                        multiplicity='per_project')],
+                             multiplicity='per_project')],
             fields=[
                 Field('g', value=100,
                       multiplicity='per_project')])

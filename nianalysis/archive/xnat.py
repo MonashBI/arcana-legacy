@@ -821,7 +821,7 @@ class XNATArchive(Archive):
                 guess_data_format(dataset).lower()]
             datasets.append(Dataset(
                 dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
-                multiplicity=mult, location=None, id=dataset.id))
+                multiplicity=mult, path=None, id=dataset.id))
         return sorted(datasets)
 
     def _get_fields(self, xsession, mult, processed=False):
