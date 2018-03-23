@@ -27,6 +27,7 @@ from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 
 logger = logging.getLogger('NiAnalysis')
+locking_logger = logging.getLogger('NiAnalysisLocking')
 
 SUMMARY_NAME = 'ALL'
 FIELDS_FNAME = 'fields.json'
@@ -95,7 +96,9 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
             # Would be better if only check locked
             fpath = self.fields_path(mult)
             try:
-                with InterProcessLock(fpath + LOCK), open(fpath) as f:
+                with InterProcessLock(
+                        fpath + LOCK,
+                        logger=locking_logger), open(fpath) as f:
                     fields = json.load(f)
             except IOError as e:
                 if e.errno == errno.ENOENT:
@@ -203,7 +206,8 @@ class LocalSinkMixin(LocalNodeMixin):
         # Open fields JSON, locking to prevent other processes
         # reading or writing
         if self.inputs.fields:
-            with InterProcessLock(fpath + LOCK):
+            with InterProcessLock(fpath + LOCK,
+                                  logger=locking_logger):
                 try:
                     with open(fpath, 'rb') as f:
                         fields = json.load(f)
