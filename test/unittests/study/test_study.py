@@ -15,7 +15,7 @@ from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 
 
-class DummyStudy(Study):
+class TestStudy(Study):
 
     def pipeline1(self, **options):
         pipeline = self.create_pipeline(
@@ -283,7 +283,7 @@ class TestRunPipeline(BaseTestCase):
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
-            DummyStudy, 'dummy', inputs={
+            TestStudy, 'dummy', inputs={
                 'start': DatasetMatch('start', nifti_gz_format),
                 'ones_slice': DatasetMatch('ones_slice', mrtrix_format)})
         # Calculate MRtrix module required for 'mrstats' commands
@@ -303,7 +303,7 @@ class TestRunPipeline(BaseTestCase):
     def test_pipeline_prerequisites(self):
         pipeline = self.study.pipeline4(pipeline_option=True)
         pipeline.run(work_dir=self.work_dir)
-        for dataset in DummyStudy.data_specs():
+        for dataset in TestStudy.data_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:
@@ -373,7 +373,8 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.subject_ids_access_pipeline().run(
+        pipeline = self.study.subject_ids_access_pipeline()
+        pipeline.run(
             work_dir=self.work_dir)
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(

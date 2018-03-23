@@ -5,6 +5,7 @@ from itertools import chain
 from collections import defaultdict
 from copy import copy
 from nipype.pipeline import engine as pe
+import errno
 from .nodes import (
     Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME)
 from nipype.interfaces.utility import IdentityInterface
@@ -222,7 +223,7 @@ class Pipeline(object):
         self.connect_to_archive(complete_workflow, **kwargs)
         return complete_workflow.run(plugin=plugin)
 
-    def write_graph(self, fname, detailed=True, style='flat', complete=False):
+    def write_graph(self, fname, style='flat', complete=False):
         """
         Writes a graph of the pipeline to file
 
@@ -230,8 +231,6 @@ class Pipeline(object):
         ----------
         fname : str
             The filename for the saved graph
-        detailed : bool
-            Whether to save a detailed version of the graph or not
         style : str
             The style of the graph, can be one of can be one of
             'orig', 'flat', 'exec', 'hierarchical'
@@ -253,12 +252,15 @@ class Pipeline(object):
             workflow = self._workflow
             out_dir = tmpdir
         workflow.write_graph(graph2use=style)
-        if detailed:
-            graph_file = 'graph_detailed.png'
-        else:
-            graph_file = 'graph.png'
         os.chdir(orig_dir)
-        shutil.move(os.path.join(out_dir, graph_file), fname)
+        try:
+            shutil.move(os.path.join(out_dir, 'graph_detailed.png'),
+                        fname)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                shutil.move(os.path.join(out_dir, 'graph.png'), fname)
+            else:
+                raise
         shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,

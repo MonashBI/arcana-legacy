@@ -336,6 +336,7 @@ class LocalArchive(Archive):
             os.path.join(self.base_dir, str(project_id)))
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
+        all_visit_ids = set()
         for session_path, _, all_fnames in os.walk(project_dir):
             fnames = [f for f in all_fnames if not f.startswith('.')]
             relpath = os.path.relpath(session_path, project_dir)
@@ -366,10 +367,12 @@ class LocalArchive(Archive):
                 multiplicity = 'per_project'
             elif subj_id == SUMMARY_NAME:
                 multiplicity = 'per_visit'
+                all_visit_ids.add(visit_id)
             elif visit_id == SUMMARY_NAME:
                 multiplicity = 'per_subject'
             else:
                 multiplicity = 'per_session'
+                all_visit_ids.add(visit_id)
             datasets = []
             fields = {}
             for fname in sorted(fnames):
@@ -402,15 +405,16 @@ class LocalArchive(Archive):
                 subj_id, sorted(subj_sessions.values()), datasets,
                 fields))
         visits = []
-        if SUMMARY_NAME in summaries:
-            for visit_id, (datasets,
-                           fields) in summaries[SUMMARY_NAME].items():
-                if visit_id == SUMMARY_NAME:
-                    continue  # Per project instead of per visit
-                visit_sessions = list(chain(
-                    sess[visit_id] for sess in all_sessions.values()))
-                visits.append(Visit(visit_id, sorted(visit_sessions),
-                                    datasets, fields))
+        for visit_id in all_visit_ids:
+            visit_sessions = list(chain(
+                sess[visit_id] for sess in all_sessions.values()))
+            try:
+                datasets, fields = summaries[SUMMARY_NAME][visit_id]
+            except KeyError:
+                datasets = []
+                fields = []
+            visits.append(Visit(visit_id, sorted(visit_sessions),
+                                datasets, fields))
         try:
             datasets, fields = summaries[SUMMARY_NAME][SUMMARY_NAME]
         except KeyError:

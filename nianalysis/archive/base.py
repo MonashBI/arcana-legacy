@@ -499,8 +499,11 @@ class Project(object):
         return not (self == other)
 
     def __repr__(self):
-        return "Subject(id={}, num_subjects={})".format(
-            self._id, len(list(self.subjects)))
+        return ("Project(id={}, num_subjects={}, num_visits={}, "
+                "num_datasets={}, num_fields={})".format(
+                    self._id, len(list(self.subjects)),
+                    len(list(self.visits)),
+                    len(list(self.datasets)), len(list(self.fields))))
 
 
 class Subject(object):
