@@ -38,8 +38,9 @@ class MultiStudy(Study):
         consisting of the class of the sub-study and a map of dataset names
         from the combined study to the sub-study e.g.
 
-            sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
-                               't2_study': (MRIStudy, {'t2': 'mr_scan'})}
+            _sub_study_specs = set_specs(
+                SubStudySpec('t1_study', MRIStudy, {'t1': 'mr_scan'}),
+                SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'}))
 
             _data_specs = set_specs(
                 DatasetSpec('t1', nifti_gz_format'),
@@ -48,15 +49,16 @@ class MultiStudy(Study):
 
     def __init__(self, name, project_id, archive, inputs, **kwargs):
         super(MultiStudy, self).__init__(name, project_id, archive,
-                                            inputs, **kwargs)
+                                         inputs, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
             # Create copies of the input datasets to pass to the
             # __init__ method of the generated sub-studies
-            mapped_inputs = {}
-            for n, inpt in inputs.iteritems():
+            mapped_inputs = []
+            for inpt in inputs:
                 try:
-                    mapped_inputs[sub_study_spec.map(n)] = inpt
+                    mapped_inputs.append(
+                        inpt.renamed(sub_study_spec.map(inpt.name)))
                 except NiAnalysisNameError:
                     pass  # Ignore datasets not required for sub-study
             # Create sub-study

@@ -82,13 +82,14 @@ class TestFormatConversions(BaseTestCase):
 
     def test_pipeline_prerequisites(self):
         study = self.create_study(
-            ConversionStudy, 'conversion', {
-                'mrtrix': DatasetMatch('mrtrix', mrtrix_format),
-                'nifti_gz': DatasetMatch('nifti_gz', nifti_gz_format),
-                'dicom': DatasetMatch('t1_mprage_sag_p2_iso_1_ADNI', dicom_format),
-                'directory': DatasetMatch('t1_mprage_sag_p2_iso_1_ADNI',
+            ConversionStudy, 'conversion', [
+                DatasetMatch('mrtrix', 'mrtrix', mrtrix_format),
+                DatasetMatch('nifti_gz', 'nifti_gz', nifti_gz_format),
+                DatasetMatch('dicom', 't1_mprage_sag_p2_iso_1_ADNI',
+                             dicom_format),
+                DatasetMatch('directory', 't1_mprage_sag_p2_iso_1_ADNI',
                                           directory_format),
-                'zip': DatasetMatch('zip', zip_format)})
+                DatasetMatch('zip', 'zip', zip_format)])
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('nifti_gz_from_dicom.nii.gz', study.name)
         self.assertDatasetCreated('mrtrix_from_nifti_gz.mif', study.name)

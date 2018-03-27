@@ -1,4 +1,5 @@
 import os.path
+import re
 from abc import ABCMeta
 from nianalysis.data_formats import DataFormat
 from copy import copy
@@ -21,7 +22,7 @@ class BaseDatum(object):
     __metaclass__ = ABCMeta
 
     def __init__(self, name, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
-        assert isinstance(name, basestring)
+        assert name is None or isinstance(name, basestring)
         assert multiplicity in self.MULTIPLICITY_OPTIONS
         self._name = name
         self._multiplicity = multiplicity
@@ -280,8 +281,10 @@ class DatasetMatch(BaseDataset):
 
     Parameters
     ----------
-    name : str
-        The name of the dataset
+    pattern : str
+        A regex pattern to match the dataset names with. Must match
+        one and only one dataset per <multiplicity>. If None, the name
+        is used instead.
     format : FileFormat
         The file format used to store the dataset. Can be one of the
         recognised formats
@@ -293,10 +296,6 @@ class DatasetMatch(BaseDataset):
         Whether the scan was generated or acquired. Depending on the archive
         used to store the dataset this is used to determine the location of the
         dataset.
-    pattern : str
-        A regex pattern to match the dataset names with. Must match
-        one and only one dataset per <multiplicity>. If None, the name
-        is used instead.
     id : int | None
         To be used to distinguish multiple datasets that match the
         pattern in the same session. The ID of the dataset within the
@@ -311,16 +310,17 @@ class DatasetMatch(BaseDataset):
         To be used to distinguish multiple datasets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
+    name : str | None
+        The name of the dataset, typically left None and set in Study
     """
 
     is_spec = False
 
-    def __init__(self, name, format, multiplicity='per_session',  # @ReservedAssignment @IgnorePep8
-                 processed=False, pattern=None, id=None, order=None,  # @ReservedAssignment @IgnorePep8
-                 dicom_values=None):
+    def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
+                 multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
+                 order=None, dicom_values=None):
         super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
-        self._pattern = pattern
         self._dicom_values = dicom_values
         if order is not None and id is not None:
             raise NiAnalysisUsageError(
@@ -328,20 +328,22 @@ class DatasetMatch(BaseDataset):
                 "match")
         self._order = order
         self._id = id
-
-    @property
-    def prefixed_name(self):
-        return self.name
+        self._pattern = pattern
 
     @property
     def pattern(self):
-        if self._pattern is None:
-            return self._name
         return self._pattern
 
     @property
     def processed(self):
         return self._processed
+
+    def matches(self, names):
+        return [n for n in names if re.match(self.pattern, n)]
+
+    @property
+    def prefixed_name(self):
+        return self.name
 
     @property
     def id(self):
@@ -646,8 +648,10 @@ class FieldMatch(BaseField):
 
     Parameters
     ----------
-    name : str
-        The name of the dataset
+    pattern : str
+        A regex pattern to match the field names with. Must match
+        one and only one dataset per <multiplicity>. If None, the name
+        is used instead.
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     multiplicity : str
@@ -656,25 +660,28 @@ class FieldMatch(BaseField):
         visit or project.
     processed : bool
         Whether or not the value belongs in the processed session or not
-    pattern : str
-        A regex pattern to match the field names with. Must match
-        one and only one dataset per <multiplicity>. If None, the name
-        is used instead.
+    name : str
+        The name of the dataset
     """
 
     is_spec = False
 
-    def __init__(self, name, dtype, multiplicity='per_session',
-                 processed=False, pattern=None):
+    def __init__(self, name, pattern, dtype, multiplicity='per_session',
+                 processed=False):
         super(FieldMatch, self).__init__(name, dtype, multiplicity)
         self._processed = processed
         self._pattern = pattern
 
     @property
     def pattern(self):
-        if self._pattern is None:
-            return self.name
         return self._pattern
+
+    @property
+    def processed(self):
+        return self._processed
+
+    def matches(self, names):
+        return [n for n in names if re.match(self.pattern, n)]
 
     def __eq__(self, other):
         return (super(FieldMatch, self).__eq__(other) and
@@ -687,10 +694,6 @@ class FieldMatch(BaseField):
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.multiplicity, self.processed,
                         self._pattern))
-
-    @property
-    def processed(self):
-        return self._processed
 
     def initkwargs(self):
         dct = super(FieldMatch, self).initkwargs()

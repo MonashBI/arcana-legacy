@@ -42,20 +42,22 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, inputs, check_inputs=True):
+    def __init__(self, name, project_id, archive, inputs,
+                 check_inputs=True):
         self._name = name
         self._project_id = project_id
         self._inputs = {}
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study type
-        for name, inpt in inputs.iteritems():
-            if name not in self._data_specs:
+        for inpt in inputs:
+            if inpt.name not in self._data_specs:
                 raise NiAnalysisNameError(
-                    name,
-                    "Input dataset data_spec name '{}' doesn't match any "
-                    "data_specs in {} studies".format(
-                        name, self.__class__.__name__))
-            self._inputs[name] = inpt
+                    inpt.name,
+                    "Input match name '{}' doesn't match that of any "
+                    "data-spec in {} ('{}')".format(
+                        inpt.name, self.__class__.__name__,
+                        "', '".join(self._data_specs)))
+            self._inputs[inpt.name] = inpt
         # Emit a warning if an acquired dataset has not been provided for
         # an "acquired dataset"
         if check_inputs:
@@ -65,8 +67,8 @@ class Study(object):
                         "'{}' acquired dataset was not specified in {} "
                         "'{}' (provided '{}'). Pipelines depending on this "
                         "dataset will not run".format(
-                            spec.name, self.__class__.__name__, self.name,
-                            "', '".join(self._inputs)))
+                            spec.name, self.__class__.__name__,
+                            self.name, "', '".join(self._inputs)))
         # TODO: Check that every session has the primary datasets
         self._archive = archive
 

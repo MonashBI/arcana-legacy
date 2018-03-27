@@ -49,7 +49,7 @@ class TestModuleLoad(BaseTestCase):
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            {'ones': DatasetMatch('ones', nifti_gz_format)})
+            [DatasetMatch('ones', 'ones', nifti_gz_format)])
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('twos.nii.gz', study.name)
 

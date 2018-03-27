@@ -196,10 +196,10 @@ class TestMulti(TestCase):
 
     def test_full_multi_study(self):
         study = self.create_study(
-            FullMultiStudy, 'full', {
-                'a': DatasetMatch('ones', mrtrix_format),
-                'b': DatasetMatch('ones', mrtrix_format),
-                'c': DatasetMatch('ones', mrtrix_format)})
+            FullMultiStudy, 'full', [
+                DatasetMatch('a', 'ones', mrtrix_format),
+                DatasetMatch('b', 'ones', mrtrix_format),
+                DatasetMatch('c', 'ones', mrtrix_format)])
         study.pipeline_alpha_trans().run(work_dir=self.work_dir)
         study.pipeline_beta_trans().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
@@ -226,10 +226,10 @@ class TestMulti(TestCase):
 
     def test_partial_multi_study(self):
         study = self.create_study(
-            PartialMultiStudy, 'partial', {
-                'a': DatasetMatch('ones', mrtrix_format),
-                'b': DatasetMatch('ones', mrtrix_format),
-                'c': DatasetMatch('ones', mrtrix_format)})
+            PartialMultiStudy, 'partial', [
+                DatasetMatch('a', 'ones', mrtrix_format),
+                DatasetMatch('b', 'ones', mrtrix_format),
+                DatasetMatch('c', 'ones', mrtrix_format)])
         study.pipeline_alpha_trans().run(work_dir=self.work_dir)
         study.ss2_pipeline_beta().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
@@ -256,15 +256,15 @@ class TestMulti(TestCase):
 
     def test_multi_multi_study(self):
         study = self.create_study(
-            MultiMultiStudy, 'partial', {
-                'ss1_x': DatasetMatch('ones', mrtrix_format),
-                'ss1_y': DatasetMatch('ones', mrtrix_format),
-                'full_a': DatasetMatch('ones', mrtrix_format),
-                'full_b': DatasetMatch('ones', mrtrix_format),
-                'full_c': DatasetMatch('ones', mrtrix_format),
-                'partial_a': DatasetMatch('ones', mrtrix_format),
-                'partial_b': DatasetMatch('ones', mrtrix_format),
-                'partial_c': DatasetMatch('ones', mrtrix_format)})
+            MultiMultiStudy, 'partial', [
+                DatasetMatch('ss1_x', 'ones', mrtrix_format),
+                DatasetMatch('ss1_y', 'ones', mrtrix_format),
+                DatasetMatch('full_a', 'ones', mrtrix_format),
+                DatasetMatch('full_b', 'ones', mrtrix_format),
+                DatasetMatch('full_c', 'ones', mrtrix_format),
+                DatasetMatch('partial_a', 'ones', mrtrix_format),
+                DatasetMatch('partial_b', 'ones', mrtrix_format),
+                DatasetMatch('partial_c', 'ones', mrtrix_format)])
         study.combined_pipeline().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
