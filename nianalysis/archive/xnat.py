@@ -139,7 +139,10 @@ class XNATSource(ArchiveSource, XNATMixin):
                 # Prepend study name if defined and processed input
                 prefixed_name = self.prefix_study_name(name, is_spec)
                 data_format = data_formats[data_format_name]
-                session = sessions[(mult, processed)]
+                try:
+                    session = sessions[(mult, processed)]
+                except:
+                    raise
                 cache_dir = cache_dirs[(mult, processed)]
                 try:
                     dataset = session.scans[prefixed_name]

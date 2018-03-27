@@ -417,7 +417,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         proj_dir, subject.id, SUMMARY_NAME,
                         dataset.filename)
                 for session in subject.sessions:
-                    for dataset in subject.datasets:
+                    for dataset in session.datasets:
                         dataset.path = os.path.join(
                             proj_dir, session.subject_id,
                             session.visit_id, dataset.filename)
