@@ -54,6 +54,7 @@ class XNATMixin(object):
 
 
 class XNATSourceInputSpec(ArchiveSourceInputSpec):
+    project_id = traits.Str(mandatory=True, desc='The project ID')
     server = traits.Str(mandatory=True,
                         desc="The address of the XNAT server")
     user = traits.Str(
@@ -312,6 +313,7 @@ class XNATSource(ArchiveSource, XNATMixin):
 
 
 class XNATSinkInputSpecMixin(object):
+    project_id = traits.Str(mandatory=True, desc='The project ID')
     server = traits.Str('https://mf-erc.its.monash.edu.au', mandatory=True,
                         usedefault=True, desc="The address of the MF server")
     user = traits.Str(
@@ -583,6 +585,7 @@ class XNATArchive(Archive):
 
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
+        source.inputs.project_id = str(self.project_id)
         source.inputs.server = self._server
         if self._user is not None:
             source.inputs.user = self._user
@@ -593,6 +596,7 @@ class XNATArchive(Archive):
 
     def sink(self, *args, **kwargs):
         sink = super(XNATArchive, self).sink(*args, **kwargs)
+        sink.inputs.project_id = str(self.project_id)
         sink.inputs.server = self._server
         if self._user is not None:
             sink.inputs.user = self._user

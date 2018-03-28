@@ -13,7 +13,7 @@ from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
-from nianalysis.dataset import BaseDatum, BaseDataset, BaseField
+from nianalysis.dataset import BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
@@ -146,11 +146,11 @@ class Pipeline(object):
 
     @property
     def max_memory(self):
-        return 4000
+        return 4000  # FIXME: This shouldn't be hard-coded here
 
     @property
     def wall_time(self):
-        return '7-00:00:00'  # Max amount
+        return '7-00:00:00'  # Max amount FIXME: this shouldn't be HCed
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -265,7 +265,7 @@ class Pipeline(object):
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
                            visit_ids=None, reprocess=False,
-                           project=None, connected_prereqs=None):
+                           connected_prereqs=None):
         """
         Gets a data source and data sink from the archive for the requested
         sessions, connects them to the pipeline's NiPyPE workflow
@@ -284,11 +284,6 @@ class Pipeline(object):
             A flag which determines whether to rerun the processing for this
             step. If set to 'all' then pre-requisite pipelines will also be
             reprocessed.
-        project: Project
-            Project info loaded from archive. It is typically only passed to
-            runs of prerequisite pipelines to avoid having to re-query the
-            archive. If None, the study info is loaded from the study
-            archive.
         connected_prereqs: list(Pipeline, Node)
             Prerequisite pipelines that have already been connected to the
             workflow (prequisites of prerequisites) and their corresponding
@@ -304,16 +299,11 @@ class Pipeline(object):
             connected_prereqs = {}
         # Check all inputs and outputs are connected
         self.assert_connected()
-        # Get list of available subjects and their associated sessions/datasets
-        # from the archive
-        if project is None:
-            project = self._study.archive.project(
-                self._study._project_id, subject_ids=subject_ids,
-                visit_ids=visit_ids)
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         sessions_to_process = self._sessions_to_process(
-            project, visit_ids=visit_ids, reprocess=reprocess)
+            subject_ids=subject_ids, visit_ids=visit_ids,
+            reprocess=reprocess)
         if not sessions_to_process:
             logger.info(
                 "All outputs of '{}' are already present in project archive, "
@@ -350,7 +340,6 @@ class Pipeline(object):
                         subject_ids=prereq_subject_ids,
                         visit_ids=visit_ids,
                         reprocess=(reprocess if reprocess == 'all' else False),
-                        project=project,
                         connected_prereqs=connected_prereqs)
                     if prereq_report is not None:
                         connected_prereqs[prereq.name] = prereq, prereq_report
@@ -592,7 +581,8 @@ class Pipeline(object):
                                  for k, v in self.options)))
             yield pipeline
 
-    def _sessions_to_process(self, project, visit_ids=None, reprocess=False):
+    def _sessions_to_process(self, subject_ids=None, visit_ids=None,
+                             reprocess=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project archive, and make a list of the sessions and subjects
@@ -600,46 +590,57 @@ class Pipeline(object):
 
         Parameters
         ----------
-        project : Project
-            A representation of the project and associated subjects and
-            sessions for the study's archive.
+        subject_ids : list(str)
+            Filter the subject IDs to process
         visit_ids : list(str)
             Filter the visit IDs to process
+        reprocess : bool
+            Whether to reprocess the pipeline outputs even if they
+            exist.
         """
-        all_subjects = list(project.subjects)
-        all_visits = list(project.visits)
-        all_sessions = list(chain(*[s.sessions for s in all_subjects]))
+        # Get list of available subjects and their associated sessions/datasets
+        # from the archive
+        def filter_sessions(sessions):  # @IgnorePep8
+            if visit_ids is None and subject_ids is None:
+                return sessions
+            return (
+                s for s in sessions
+                if ((visit_ids is None or s.visit_id in visit_ids) and
+                    (subject_ids is None or s.subject_id in subject_ids)))
+        tree = self._study.archive.tree
+        subjects = ([s for s in tree.subjects if s.id in subject_ids]
+                    if subject_ids is not None else list(tree.subjects))
+        visits = ([v for v in tree.visits if s.id in visit_ids]
+                    if visit_ids is not None else list(tree.visits))
+        # Get all filtered sessions
+        all_sessions = list(chain(*[filter_sessions(s.sessions)
+                                    for s in subjects]))
         if reprocess:
             return all_sessions
         sessions_to_process = set()
-        # Define filter function
-        def filter_sessions(sessions):  # @IgnorePep8
-            if visit_ids is None:
-                return sessions
-            else:
-                return (s for s in sessions if s.visit_id in visit_ids)
         for output_spec in self.outputs:
             output = self.study.dataset(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
             if output.multiplicity == 'per_project':
-                if output.prefixed_name not in project.data_names:
+                if output.prefixed_name not in tree.data_names:
+                    # Return all filtered sessions
                     return all_sessions
             elif output.multiplicity == 'per_subject':
                 sessions_to_process.update(chain(*(
-                    filter_sessions(sub.sessions) for sub in all_subjects
-                    if output.prefixed_name not in sub.data_names)))
+                    filter_sessions(s.sessions) for s in subjects
+                    if output.prefixed_name not in s.data_names)))
             elif output.multiplicity == 'per_visit':
                 sessions_to_process.update(chain(*(
-                    visit.sessions for visit in all_visits
-                    if ((visit_ids is None or visit.id in visit_ids) and
-                        output.prefixed_name not in visit.data_names))))
+                    filter_sessions(v.sessions) for v in visits
+                    if (output.prefixed_name not in v.data_names))))
             elif output.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if output.prefixed_name not in s.processed_data_names))
+                    if output.prefixed_name not in s.data_names))
             else:
-                assert False, "Unrecognised multiplicity of {}".format(output)
+                assert False, ("Unrecognised multiplicity of {}"
+                               .format(output))
         return list(sessions_to_process)
 
     def connect(self, *args, **kwargs):

@@ -30,7 +30,7 @@ class Archive(object):
         return self._tree
 
     @abstractmethod
-    def source(self, project_id, inputs, name=None, study_name=None):
+    def source(self, inputs, name=None, study_name=None):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -52,8 +52,7 @@ class Archive(object):
         """
         if name is None:
             name = "{}_source".format(self.type)
-        source = Node(self.Source(), name=name)
-        source.inputs.project_id = str(project_id)
+        source = Node(self.Source(self._tree), name=name)
         inputs = list(inputs)  # protected against iterators
         source.inputs.datasets = [i.to_tuple() for i in inputs
                                   if isinstance(i, BaseDataset)]
@@ -64,7 +63,7 @@ class Archive(object):
         return source
 
     @abstractmethod
-    def sink(self, project_id, outputs, multiplicity='per_session', name=None,
+    def sink(self, outputs, multiplicity='per_session', name=None,
              study_name=None):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -104,7 +103,7 @@ class Archive(object):
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
         sink = Node(sink_class(datasets, fields), name=name)
-        sink.inputs.project_id = str(project_id)
+        sink.inputs.project_id = str(self.project_id)
         sink.inputs.datasets = [s.to_tuple() for s in datasets]
         sink.inputs.fields = [f.to_tuple() for f in fields]
         if study_name is not None:
@@ -112,22 +111,11 @@ class Archive(object):
         return sink
 
     @abstractmethod
-    def project(self, project_id, subject_ids=None, visit_ids=None):
+    def _retrieve_tree(self, *args, **kwargs):
         """
-        Returns a nianalysis.archive.Project object for the given project id,
+        Returns a nianalysis.archive.Project tree for the given project id,
         which holds information on all available subjects, sessions and
         datasets in the project.
-
-        Parameters
-        ----------
-        project_id : str
-            The ID of the project to return the sessions for
-        subject_ids : list(str)
-            List of subject ids to filter the returned subjects. If None all
-            subjects will be returned.
-        visit_ids : list(str)
-            List of visit ids to filter the returned sessions. If None all
-            sessions will be returned
         """
 
 
@@ -175,9 +163,6 @@ class ArchiveSourceInputSpec(DynamicTraitedSpec):
     interface for 'run_pipeline' when using the archive source to extract
     primary and preprocessed datasets from the archive system
     """
-    project_id = traits.Str(  # @UndefinedVariable
-        mandatory=True,
-        desc='The project ID')
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
                             desc="The visit or processed group ID")
@@ -197,8 +182,8 @@ class ArchiveSource(BaseArchiveNode):
     output_spec = DynamicTraitedSpec
     _always_run = True
 
-    def __init__(self, project_info):
-        self._project_info = project_info
+    def __init__(self, tree):
+        self._tree = tree
 
     def _outputs(self):
         return self._add_dataset_and_field_traits(
@@ -219,9 +204,6 @@ class BaseArchiveSinkInputSpec(DynamicTraitedSpec):
     interface for 'run_pipeline' when using the archive save
     processed datasets in the archive system
     """
-    project_id = traits.Str(  # @UndefinedVariable
-        mandatory=True,
-        desc='The project ID')  # @UndefinedVariable @IgnorePep8
 
     name = traits.Str(  # @UndefinedVariable @IgnorePep8
         mandatory=True, desc=("The name of the processed data group, e.g. "
@@ -392,17 +374,11 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, project_id, subjects, visits, datasets,
-                 fields):
-        self._id = project_id
+    def __init__(self, subjects, visits, datasets, fields):
         self._subjects = subjects
         self._visits = visits
         self._datasets = datasets
         self._fields = fields
-
-    @property
-    def id(self):
-        return self._id
 
     @property
     def subjects(self):
@@ -439,22 +415,17 @@ class Project(object):
     def __eq__(self, other):
         if not isinstance(other, Project):
             return False
-        return (self._id == other._id and
-                self._subjects == other._subjects and
+        return (self._subjects == other._subjects and
                 self._visits == other._visits and
                 self._datasets == other._datasets and
                 self._fields == other._fields)
 
     def find_mismatch(self, other, indent=''):
         if self != other:
-            mismatch = "\n{}Project '{}' != '{}'".format(indent, self.id,
-                                                       other.id)
+            mismatch = "\n{}Project".format(indent)
         else:
             mismatch = ''
         sub_indent = indent + '  '
-        if self.id != other.id:
-            mismatch += ('\n{}id: self={} v other={}'
-                         .format(sub_indent, self.id, other.id))
         if len(list(self.subjects)) != len(list(other.subjects)):
             mismatch += ('\n{indent}mismatching subject lengths '
                          '(self={} vs other={}): '
@@ -509,9 +480,9 @@ class Project(object):
         return not (self == other)
 
     def __repr__(self):
-        return ("Project(id={}, num_subjects={}, num_visits={}, "
+        return ("Project(num_subjects={}, num_visits={}, "
                 "num_datasets={}, num_fields={})".format(
-                    self._id, len(list(self.subjects)),
+                    len(list(self.subjects)),
                     len(list(self.visits)),
                     len(list(self.datasets)), len(list(self.fields))))
 

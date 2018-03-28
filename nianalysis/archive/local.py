@@ -287,11 +287,12 @@ class LocalArchive(Archive):
     VisitSink = LocalVisitSink
     ProjectSink = LocalProjectSink
 
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, subject_ids=None, visit_ids=None):
         if not os.path.exists(base_dir):
             raise NiAnalysisError(
                 "Base directory for LocalArchive '{}' does not exist"
                 .format(base_dir))
+        super(LocalArchive, self).__init__(subject_ids, visit_ids)
         self._base_dir = os.path.abspath(base_dir)
 
     def __repr__(self):
@@ -314,8 +315,6 @@ class LocalArchive(Archive):
 
         Parameters
         ----------
-        project_id : str
-            ID of the project to inspect
         subject_ids : list(str)
             List of subject IDs with which to filter the tree with. If None all
             are returned
@@ -413,8 +412,8 @@ class LocalArchive(Archive):
         except KeyError:
             datasets = []
             fields = []
-        return Project(project_id, sorted(subjects), sorted(visits),
-                       datasets, fields)
+        return Project(self.project_id, sorted(subjects),
+                       sorted(visits), datasets, fields)
 
     @classmethod
     def _check_only_dirs(cls, dirs, path):
