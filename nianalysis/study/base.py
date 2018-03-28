@@ -42,10 +42,8 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, project_id, archive, inputs,
-                 check_inputs=True):
+    def __init__(self, name, archive, inputs, check_inputs=True):
         self._name = name
-        self._project_id = project_id
         self._inputs = {}
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study type
@@ -117,11 +115,6 @@ class Study(object):
     def prefix(self):
         """The study name as a prefix for dataset names"""
         return self.name + '_'
-
-    @property
-    def project_id(self):
-        """Accessor for the project id"""
-        return self._project_id
 
     @property
     def name(self):

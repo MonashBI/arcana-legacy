@@ -167,7 +167,6 @@ class BaseTestCase(TestCase):
     def create_study(self, study_cls, name, inputs):
         return study_cls(
             name=name,
-            project_id=self.project_id,
             archive=self.archive,
             inputs=inputs)
 

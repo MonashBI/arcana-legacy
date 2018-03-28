@@ -358,7 +358,6 @@ class Pipeline(object):
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
-                self.study.project_id,
                 (self.study.dataset(i) for i in self.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(self.name))

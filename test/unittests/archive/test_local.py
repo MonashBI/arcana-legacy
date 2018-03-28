@@ -254,7 +254,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     fields in a project returned in a Project object.
     """
 
-    def ref_project(self, proj_dir=None):
+    def ref_tree(self, base_dir=None):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
@@ -340,7 +340,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     Dataset('thousands', mrtrix_format)],
                 fields=[])]
         project = Project(
-            self.project_id, subjects=[
+            subjects=[
                 Subject(
                     'subject1', sessions=[s for s in sessions
                                           if s.subject_id == 'subject1'],
@@ -411,25 +411,25 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
             fields=[
                 Field('g', value=100,
                       multiplicity='per_project')])
-        if proj_dir is not None:
+        if base_dir is not None:
             for dataset in project.datasets:
                 dataset.path = os.path.join(
-                    proj_dir, SUMMARY_NAME, SUMMARY_NAME,
+                    base_dir, SUMMARY_NAME, SUMMARY_NAME,
                     dataset.filename)
             for visit in project.visits:
                 for dataset in visit.datasets:
                     dataset.path = os.path.join(
-                        proj_dir, SUMMARY_NAME, visit.id,
+                        base_dir, SUMMARY_NAME, visit.id,
                         dataset.filename)
             for subject in project.subjects:
                 for dataset in subject.datasets:
                     dataset.path = os.path.join(
-                        proj_dir, subject.id, SUMMARY_NAME,
+                        base_dir, subject.id, SUMMARY_NAME,
                         dataset.filename)
                 for session in subject.sessions:
                     for dataset in session.datasets:
                         dataset.path = os.path.join(
-                            proj_dir, session.subject_id,
+                            base_dir, session.subject_id,
                             session.visit_id, dataset.filename)
         return project
 
@@ -437,15 +437,14 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         archive = LocalArchive(base_dir=self.archive_path)
         # Add hidden file to local archive at project and subject
         # levels to test ignore
-        proj_dir = os.path.join(self.archive_path, self.project_id)
-        a_subj_dir = os.listdir(proj_dir)[0]
-        open(os.path.join(os.path.join(proj_dir, '.DS_Store')),
+        a_subj_dir = os.listdir(self.archive_path)[0]
+        open(os.path.join(os.path.join(self.archive_path, '.DS_Store')),
              'w').close()
-        open(os.path.join(os.path.join(proj_dir, a_subj_dir,
+        open(os.path.join(os.path.join(self.archive_path, a_subj_dir,
                                        '.DS_Store')), 'w').close()
-        project = archive.project(self.project_id)
-        ref_project = self.ref_project(proj_dir)
+        tree = archive.tree
+        ref_tree = self.ref_project(self.archive_path)
         self.assertEqual(
-            project, ref_project,
+            tree, ref_tree,
             "Generated project doesn't match reference:{}"
-            .format(project.find_mismatch(self.ref_project())))
+            .format(tree.find_mismatch(self.ref_tree())))

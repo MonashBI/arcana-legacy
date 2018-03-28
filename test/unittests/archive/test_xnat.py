@@ -533,8 +533,8 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
                                 [DatasetPattern(DATASET_NAME,
-                                              DATASET_NAME,
-                                              nifti_gz_format)],
+                                                DATASET_NAME,
+                                                nifti_gz_format)],
                                 name='digest_check_source',
                                 study_name=STUDY_NAME)
         source.inputs.subject_id = self.SUBJECT
@@ -574,8 +574,8 @@ class TestXnatArchive(BaseTestCase):
         DATASET_NAME = 'sink'
         sink = archive.sink(self.DIGEST_SINK_PROJECT,
                             [DatasetPattern(DATASET_NAME, DATASET_NAME,
-                                          nifti_gz_format,
-                                          processed=True)],
+                                            nifti_gz_format,
+                                            processed=True)],
                             name='digest_check_sink',
                             study_name=STUDY_NAME)
         sink.inputs.name = 'digest_check_sink'
@@ -684,6 +684,8 @@ class TestOnXnatMixin(object):
                         resource.upload(os.path.join(sess_dir, scan_fname),
                                         scan_fname)
         self._output_cache_dir = tempfile.mkdtemp()
+        self._archive = XNATArchive(self.project, server=self.SERVER,
+                                    cache_dir=self.cache_dir)
 
     def tearDown(self):
         self._clean_up()
@@ -699,7 +701,7 @@ class TestOnXnatMixin(object):
 
     @property
     def archive(self):
-        return XNATArchive(server=self.SERVER, cache_dir=self.cache_dir)
+        return self._archive
 
     @property
     def xnat_session_name(self):
@@ -805,13 +807,13 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
         archive = self.archive
         archive.cache(self.PROJECT,
                       datasets=[DatasetPattern('dataset1', 'dataset1',
-                                             mrtrix_format),
+                                               mrtrix_format),
                                 DatasetPattern('dataset2', 'dataset2',
-                                             mrtrix_format),
+                                               mrtrix_format),
                                 DatasetPattern('dataset3', 'dataset3',
-                                             mrtrix_format),
+                                               mrtrix_format),
                                 DatasetPattern('dataset5', 'dataset5',
-                                             mrtrix_format)],
+                                               mrtrix_format)],
                       subject_ids=['subject1', 'subject3', 'subject4'],
                       visit_ids=['visit1'],
                       work_dir=self.work_dir)
@@ -828,8 +830,8 @@ class TestProjectInfo(TestOnXnatMixin,
     BASE_CLASS = test_local.TestProjectInfo
 
     def test_project_info(self):
-        project = self.archive.project(self.project_id)
+        tree = self.archive.tree
         self.assertEqual(
-            project, self.ref_project(),
+            tree, self.ref_tree(),
             "Generated project doesn't match reference:{}"
-            .format(project.find_mismatch(self.ref_project())))
+            .format(tree.find_mismatch(self.ref_tree())))
