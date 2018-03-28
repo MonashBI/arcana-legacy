@@ -139,10 +139,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                 # Prepend study name if defined and processed input
                 prefixed_name = self.prefix_study_name(name, is_spec)
                 data_format = data_formats[data_format_name]
-                try:
-                    session = sessions[(mult, processed)]
-                except:
-                    raise
+                session = sessions[(mult, processed)]
                 cache_dir = cache_dirs[(mult, processed)]
                 try:
                     dataset = session.scans[prefixed_name]
@@ -527,6 +524,8 @@ class XNATArchive(Archive):
 
     Parameters
     ----------
+    project_id : str
+        The ID of the project on XNAT
     user : str
         Username with which to connect to XNAT with
     password : str
@@ -538,6 +537,14 @@ class XNATArchive(Archive):
     check_md5 : bool
         Whether to check the MD5 digest of cached files before using. This
         checks for updates on the server since the file was cached
+    subject_ids : list(str) | None
+        A list of subject IDs to filter the project search for. Will
+        reduce the time taken to initialise the archive but will also
+        limit the subjects that can be analysed
+    visit_ids : list(str) | None
+        A list of subject IDs to filter the project search for. Will
+        reduce the time taken to initialise the archive but will also
+        limit the subjects that can be analysed
     """
 
     type = 'xnat'
@@ -551,9 +558,14 @@ class XNATArchive(Archive):
     PROCESSED_SUFFIX = '_PROC'
     MD5_SUFFIX = '.md5.json'
 
-    def __init__(self, user=None, password=None, cache_dir=None,
+    def __init__(self, project_id, user=None, password=None,
+                 cache_dir=None,
                  server='https://mbi-xnat.erc.monash.edu.au',
-                 check_md5=True):
+                 check_md5=True,
+                 subject_ids=None,
+                 visit_ids=None):
+        self._project_id = project_id
+        super(XNATArchive, self).__init__(subject_ids, visit_ids)
         self._server = server
         self._user = user
         self._password = password
@@ -648,32 +660,31 @@ class XNATArchive(Archive):
                 s.label for s in xnat_login.projects[
                     project_id].experiments.itervalues()]
 
-    def project(self, project_id, subject_ids=None, visit_ids=None):
+    def _retrieve_tree(self, subject_ids=None, visit_ids=None):
         """
-        Return subject and session information for a project in the XNAT
-        archive
+        Return the tree of subject and sessions information within a
+        project in the XNAT archive
 
         Parameters
         ----------
-        project_id : str
-            ID of the project to inspect
         subject_ids : list(str)
-            List of subject IDs with which to filter the tree with. If None all
-            are returned
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
         visit_ids : list(str)
-            List of visit IDs with which to filter the tree with. If None all
-            are returned
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
 
         Returns
         -------
         project : nianalysis.archive.Project
-            A hierarchical tree of subject, session and dataset information for
-            the archive
+            A hierarchical tree of subject, session and dataset
+            information for the archive
         """
         # Convert subject ids to strings if they are integers
         if subject_ids is not None:
-            subject_ids = [('{}_{:03d}'.format(project_id, s)
-                            if isinstance(s, int) else s) for s in subject_ids]
+            subject_ids = [
+                ('{}_{:03d}'.format(self.project_id, s)
+                 if isinstance(s, int) else s) for s in subject_ids]
         # Add processed visit IDs to list of visit ids to filter
         if visit_ids is not None:
             visit_ids = visit_ids + [i + self.PROCESSED_SUFFIX
@@ -681,18 +692,19 @@ class XNATArchive(Archive):
         subjects = []
         sessions = defaultdict(list)
         with self._login() as xnat_login:
-            xproject = xnat_login.projects[project_id]
+            xproject = xnat_login.projects[self.project_id]
             visit_sessions = defaultdict(list)
             # Create list of subjects
             for xsubject in xproject.subjects.itervalues():
                 # This assumes that the subject ID is prepended with
                 # the project ID
-                subj_id = xsubject.label[(len(project_id) + 1):]
+                subj_id = xsubject.label[(len(self.project_id) + 1):]
                 if subj_id == XNATArchive.SUMMARY_NAME:
                     continue
                 if not (subject_ids is None or subj_id in subject_ids):
                     continue
-                logger.debug("Getting info for subject '{}'".format(subj_id))
+                logger.debug("Getting info for subject '{}'"
+                             .format(subj_id))
                 sessions = {}
                 proc_sessions = []
                 # Get per_session datasets
@@ -726,12 +738,12 @@ class XNATArchive(Archive):
                         raise NiAnalysisError(
                             "No matching acquired session for processed "
                             "session '{}_{}_{}'".format(
-                                project_id,
+                                self.project_id,
                                 proc_session.subject_id,
                                 proc_session.visit_id))
                 # Get per_subject datasets
                 _, subj_summary_name = self.get_labels(
-                    'per_subject', project_id, subj_id)
+                    'per_subject', self.project_id, subj_id)
                 try:
                     xsubj_summary = xsubject.experiments[subj_summary_name]
                 except KeyError:
@@ -750,7 +762,7 @@ class XNATArchive(Archive):
             visits = []
             for visit_id, v_sessions in visit_sessions.iteritems():
                 (_, visit_summary_sess_name) = self.get_labels(
-                    'per_visit', project_id, visit_id=visit_id)
+                    'per_visit', self.project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
                 try:
                     xvisit_summary = xproject.experiments[
@@ -769,7 +781,7 @@ class XNATArchive(Archive):
             # Get 'per_project' datasets
             (proj_summary_subj_name,
              proj_summary_sess_name) = self.get_labels('per_project',
-                                                       project_id)
+                                                       self.project_id)
             try:
                 xproj_summary = xproject.subjects[
                     proj_summary_subj_name].experiments[proj_summary_sess_name]
@@ -788,7 +800,7 @@ class XNATArchive(Archive):
                     .format(
                         ("', '".join(subject_ids)
                          if subject_ids is not None else ''),
-                        project_id,
+                        self.project_id,
                         "', '".join(
                             s.label for s in xproject.subjects.values())))
             if not sessions:
@@ -800,8 +812,8 @@ class XNATArchive(Archive):
                          if visit_ids is not None else ''),
                         "', '".join(
                             s.label for s in xproject.experiments.values()),
-                        project_id))
-        return Project(project_id, sorted(subjects), sorted(visits),
+                        self.project_id))
+        return Project(self.project_id, sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
     def _get_datasets(self, xsession, mult, processed=False):

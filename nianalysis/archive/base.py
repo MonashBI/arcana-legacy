@@ -22,6 +22,13 @@ class Archive(object):
 
     __metaclass__ = ABCMeta
 
+    def __init__(self, *args, **kwargs):
+        self._tree = self._retrieve_tree(*args, **kwargs)
+
+    @property
+    def tree(self):
+        return self._tree
+
     @abstractmethod
     def source(self, project_id, inputs, name=None, study_name=None):
         """
@@ -189,6 +196,9 @@ class ArchiveSource(BaseArchiveNode):
 
     output_spec = DynamicTraitedSpec
     _always_run = True
+
+    def __init__(self, project_info):
+        self._project_info = project_info
 
     def _outputs(self):
         return self._add_dataset_and_field_traits(

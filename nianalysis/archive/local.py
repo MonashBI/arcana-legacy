@@ -50,19 +50,19 @@ class LocalSourceInputSpec(ArchiveSourceInputSpec):
 class LocalNodeMixin(object):
 
     def _get_data_dir(self, multiplicity):
-        project_dir = os.path.join(self.inputs.base_dir,
-                                   str(self.inputs.project_id))
         if multiplicity == 'per_project':
-            data_dir = os.path.join(project_dir, SUMMARY_NAME, SUMMARY_NAME)
+            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
+                                    SUMMARY_NAME)
         elif multiplicity.startswith('per_subject'):
             data_dir = os.path.join(
-                project_dir, str(self.inputs.subject_id), SUMMARY_NAME)
+                self.base_dir, str(self.inputs.subject_id),
+                SUMMARY_NAME)
         elif multiplicity.startswith('per_visit'):
-            data_dir = os.path.join(project_dir, SUMMARY_NAME,
+            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
                                     str(self.inputs.visit_id))
         elif multiplicity.startswith('per_session'):
             data_dir = os.path.join(
-                project_dir, str(self.inputs.subject_id),
+                self.base_dir, str(self.inputs.subject_id),
                 str(self.inputs.visit_id))
         else:
             assert False, "Unrecognised multiplicity '{}'".format(
@@ -307,7 +307,7 @@ class LocalArchive(Archive):
         sink.inputs.base_dir = self.base_dir
         return sink
 
-    def project(self, project_id, subject_ids=None, visit_ids=None):
+    def _retrieve_tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         archive
@@ -329,14 +329,12 @@ class LocalArchive(Archive):
             A hierarchical tree of subject, session and dataset information for
             the archive
         """
-        project_dir = os.path.abspath(
-            os.path.join(self.base_dir, str(project_id)))
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
         all_visit_ids = set()
-        for session_path, _, all_fnames in os.walk(project_dir):
+        for session_path, _, all_fnames in os.walk(self.base_dir):
             fnames = [f for f in all_fnames if not f.startswith('.')]
-            relpath = os.path.relpath(session_path, project_dir)
+            relpath = os.path.relpath(session_path, self.base_dir)
             path_parts = relpath.split(os.path.sep)
             depth = len(path_parts)
             if depth > 2:
