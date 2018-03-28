@@ -401,11 +401,8 @@ class LocalArchive(Archive):
                 fields))
         visits = []
         for visit_id in all_visit_ids:
-            try:
-                visit_sessions = list(chain(
-                    sess[visit_id] for sess in all_sessions.values()))
-            except:
-                raise
+            visit_sessions = list(chain(
+                sess[visit_id] for sess in all_sessions.values()))
             try:
                 datasets, fields = summaries[SUMMARY_NAME][visit_id]
             except KeyError:
