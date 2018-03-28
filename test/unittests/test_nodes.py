@@ -1,6 +1,6 @@
 from nianalysis.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
-from nianalysis.dataset import DatasetSpec, DatasetMatch
+from nianalysis.dataset import DatasetSpec, DatasetPattern
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, set_specs
 from nianalysis.testing import BaseTestCase
@@ -49,7 +49,7 @@ class TestModuleLoad(BaseTestCase):
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [DatasetMatch('ones', 'ones', nifti_gz_format)])
+            [DatasetPattern('ones', 'ones', nifti_gz_format)])
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('twos.nii.gz', study.name)
 

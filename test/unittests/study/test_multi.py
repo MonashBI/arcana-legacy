@@ -2,7 +2,7 @@ from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
 from nianalysis.requirements import Requirement
 from nianalysis.interfaces.utils import Merge
-from nianalysis.dataset import DatasetMatch, DatasetSpec
+from nianalysis.dataset import DatasetPattern, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
 from nianalysis.study.base import Study, set_specs
@@ -197,9 +197,9 @@ class TestMulti(TestCase):
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full', [
-                DatasetMatch('a', 'ones', mrtrix_format),
-                DatasetMatch('b', 'ones', mrtrix_format),
-                DatasetMatch('c', 'ones', mrtrix_format)])
+                DatasetPattern('a', 'ones', mrtrix_format),
+                DatasetPattern('b', 'ones', mrtrix_format),
+                DatasetPattern('c', 'ones', mrtrix_format)])
         study.pipeline_alpha_trans().run(work_dir=self.work_dir)
         study.pipeline_beta_trans().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
@@ -227,9 +227,9 @@ class TestMulti(TestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial', [
-                DatasetMatch('a', 'ones', mrtrix_format),
-                DatasetMatch('b', 'ones', mrtrix_format),
-                DatasetMatch('c', 'ones', mrtrix_format)])
+                DatasetPattern('a', 'ones', mrtrix_format),
+                DatasetPattern('b', 'ones', mrtrix_format),
+                DatasetPattern('c', 'ones', mrtrix_format)])
         study.pipeline_alpha_trans().run(work_dir=self.work_dir)
         study.ss2_pipeline_beta().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
@@ -257,14 +257,14 @@ class TestMulti(TestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'partial', [
-                DatasetMatch('ss1_x', 'ones', mrtrix_format),
-                DatasetMatch('ss1_y', 'ones', mrtrix_format),
-                DatasetMatch('full_a', 'ones', mrtrix_format),
-                DatasetMatch('full_b', 'ones', mrtrix_format),
-                DatasetMatch('full_c', 'ones', mrtrix_format),
-                DatasetMatch('partial_a', 'ones', mrtrix_format),
-                DatasetMatch('partial_b', 'ones', mrtrix_format),
-                DatasetMatch('partial_c', 'ones', mrtrix_format)])
+                DatasetPattern('ss1_x', 'ones', mrtrix_format),
+                DatasetPattern('ss1_y', 'ones', mrtrix_format),
+                DatasetPattern('full_a', 'ones', mrtrix_format),
+                DatasetPattern('full_b', 'ones', mrtrix_format),
+                DatasetPattern('full_c', 'ones', mrtrix_format),
+                DatasetPattern('partial_a', 'ones', mrtrix_format),
+                DatasetPattern('partial_b', 'ones', mrtrix_format),
+                DatasetPattern('partial_c', 'ones', mrtrix_format)])
         study.combined_pipeline().run(work_dir=self.work_dir)
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)

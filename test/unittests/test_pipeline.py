@@ -1,4 +1,4 @@
-from nianalysis.dataset import DatasetSpec, DatasetMatch
+from nianalysis.dataset import DatasetSpec, DatasetPattern
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
@@ -83,13 +83,13 @@ class TestFormatConversions(BaseTestCase):
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             ConversionStudy, 'conversion', [
-                DatasetMatch('mrtrix', 'mrtrix', mrtrix_format),
-                DatasetMatch('nifti_gz', 'nifti_gz', nifti_gz_format),
-                DatasetMatch('dicom', 't1_mprage_sag_p2_iso_1_ADNI',
+                DatasetPattern('mrtrix', 'mrtrix', mrtrix_format),
+                DatasetPattern('nifti_gz', 'nifti_gz', nifti_gz_format),
+                DatasetPattern('dicom', 't1_mprage_sag_p2_iso_1_ADNI',
                              dicom_format),
-                DatasetMatch('directory', 't1_mprage_sag_p2_iso_1_ADNI',
+                DatasetPattern('directory', 't1_mprage_sag_p2_iso_1_ADNI',
                                           directory_format),
-                DatasetMatch('zip', 'zip', zip_format)])
+                DatasetPattern('zip', 'zip', zip_format)])
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('nifti_gz_from_dicom.nii.gz', study.name)
         self.assertDatasetCreated('mrtrix_from_nifti_gz.mif', study.name)

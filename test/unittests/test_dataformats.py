@@ -11,7 +11,7 @@ from nianalysis.data_formats import (
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
 from nianalysis.study.base import Study, set_specs
-from nianalysis.dataset import DatasetMatch, DatasetSpec
+from nianalysis.dataset import DatasetPattern, DatasetSpec
 
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',
@@ -87,7 +87,7 @@ class TestDicom2Niix(BaseTestCase):
     def test_dcm2niix(self):
         study = self.create_study(
             DummyStudy, 'concatenate', inputs=[
-                DatasetMatch('input', 't2_tse_tra_p2_448',
+                DatasetPattern('input', 't2_tse_tra_p2_448',
                              dicom_format)])
         study.pipeline().run(work_dir=self.work_dir)
         self.assertDatasetCreated('output.nii.gz', study.name)
