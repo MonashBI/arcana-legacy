@@ -456,8 +456,8 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir)
         source = archive.source(self.PROJECT,
                                 [DatasetPattern(DATASET_NAME,
-                                              DATASET_NAME,
-                                              nifti_gz_format)],
+                                                DATASET_NAME,
+                                                nifti_gz_format)],
                                 name='delayed_source',
                                 study_name='delayed_study')
         source.inputs.subject_id = self.SUBJECT
