@@ -369,15 +369,16 @@ class LocalArchive(Archive):
             datasets = []
             fields = {}
             for fname in sorted(fnames):
-                if fname == FIELDS_FNAME:
-                    fields = self.fields_from_json(os.path.join(
-                        session_path, FIELDS_FNAME),
-                        multiplicity=multiplicity)
-                else:
-                    datasets.append(
-                        Dataset.from_path(
-                            os.path.join(session_path, fname),
-                            multiplicity=multiplicity))
+                if fname.startswith(FIELDS_FNAME):
+                    continue
+                datasets.append(
+                    Dataset.from_path(
+                        os.path.join(session_path, fname),
+                        multiplicity=multiplicity))
+            if FIELDS_FNAME in fnames:
+                fields = self.fields_from_json(os.path.join(
+                    session_path, FIELDS_FNAME),
+                    multiplicity=multiplicity)
             datasets = sorted(datasets)
             fields = sorted(fields)
             if multiplicity == 'per_session':
