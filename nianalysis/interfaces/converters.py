@@ -144,6 +144,7 @@ class Nii2Dicom(BaseInterface):
             dcm = pydicom.read_file(dcms[i])
             nifti = nii_data[:, :, i]
             nifti = nifti.astype('uint16')
+            dcm.pixel_array.setflags(write=True)
             dcm.pixel_array.flat[:] = nifti.flat[:]
             dcm.PixelData = dcm.pixel_array.T.tostring()
             dcm.save_as('nifti2dicom/{0}_vol{1}.dcm'
