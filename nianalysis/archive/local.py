@@ -81,6 +81,7 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
     def _list_outputs(self):
         # Directory that holds session-specific
         outputs = {}
+        # Source datasets
         for (name, dataset_format,
              multiplicity, _, is_spec) in self.inputs.datasets:
             ext = data_formats[dataset_format].extension
@@ -88,11 +89,14 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
             fname = self.prefix_study_name(fname, is_spec)
             outputs[name + PATH_SUFFIX] = os.path.join(
                 self._get_data_dir(multiplicity), fname)
+        # Source fields from JSON file
         for mult, spec_grp in groupby(sorted(self.inputs.fields,
                                              key=itemgetter(2)),
                                       key=itemgetter(2)):
             # Load fields JSON, locking to prevent read/write conflicts
-            # Would be better if only check locked
+            # Would be better if only checked if locked to allow
+            # concurrent reads but not possible with multi-process
+            # locks I believe.
             fpath = self.fields_path(mult)
             try:
                 with InterProcessLock(

@@ -129,14 +129,14 @@ class BaseDataset(BaseDatum):
         return (self.name, self.format.name, self.multiplicity, self.processed,
                 self.is_spec)
 
-    @classmethod
-    def from_tuple(cls, tple):
-        name, format_name, multiplicity, processed, is_spec = tple
-        assert (is_spec and issubclass(DatasetSpec, cls) or
-                not is_spec and issubclass(Dataset, cls))
-        data_format = data_formats[format_name]
-        return cls(name, data_format, pipeline=processed,
-                   multiplicity=multiplicity)
+#     @classmethod
+#     def from_tuple(cls, tple):
+#         name, format_name, multiplicity, processed, is_spec = tple
+#         assert (is_spec and issubclass(DatasetSpec, cls) or
+#                 not is_spec and issubclass(Dataset, cls))
+#         data_format = data_formats[format_name]
+#         return cls(name, data_format, pipeline=processed,
+#                    multiplicity=multiplicity)
 
     @property
     def filename(self, format=None):  # @ReservedAssignment
@@ -358,6 +358,10 @@ class DatasetMatch(BaseDataset):
     def dicom_values(self):
         return self._dicom_values
 
+    def to_tuple(self):
+        return (self.pattern, self.format.name, self.multiplicity,
+                self.processed, self.is_spec)
+
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
@@ -535,18 +539,18 @@ class BaseField(BaseDatum):
     def to_tuple(self):
         return (self.name, self.dtype, self.multiplicity,
                 self.processed, self.is_spec)
-
-    @classmethod
-    def from_tuple(cls, tple):
-        name, dtype, multiplicity, processed, is_spec = tple
-        assert (is_spec and issubclass(FieldSpec, cls) or
-                not is_spec and issubclass(Field, cls))
-        if dtype not in cls.dtypes:
-            raise NiAnalysisError(
-                "Invalid dtype {}, can be one of {}".format(
-                    dtype.__name__, ', '.join(cls._dtype_names())))
-        return cls(name, dtype, pipeline=processed,
-                   multiplicity=multiplicity)
+# 
+#     @classmethod
+#     def from_tuple(cls, tple):
+#         name, dtype, multiplicity, processed, is_spec = tple
+#         assert (is_spec and issubclass(FieldSpec, cls) or
+#                 not is_spec and issubclass(Field, cls))
+#         if dtype not in cls.dtypes:
+#             raise NiAnalysisError(
+#                 "Invalid dtype {}, can be one of {}".format(
+#                     dtype.__name__, ', '.join(cls._dtype_names())))
+#         return cls(name, dtype, pipeline=processed,
+#                    multiplicity=multiplicity)
 
     @classmethod
     def _dtype_names(cls):
