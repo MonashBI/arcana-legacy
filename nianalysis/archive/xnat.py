@@ -567,7 +567,6 @@ class XNATArchive(Archive):
                  subject_ids=None,
                  visit_ids=None):
         self._project_id = project_id
-        super(XNATArchive, self).__init__(subject_ids, visit_ids)
         self._server = server
         self._user = user
         self._password = password
@@ -582,6 +581,7 @@ class XNATArchive(Archive):
             if e.errno != errno.EEXIST:
                 raise
         self._check_md5 = check_md5
+        super(XNATArchive, self).__init__(subject_ids, visit_ids)
 
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
@@ -613,8 +613,8 @@ class XNATArchive(Archive):
             sess_kwargs['password'] = self._password
         return xnat.connect(server=self._server, **sess_kwargs)
 
-    def cache(self, project_id, datasets, subject_ids=None,
-              visit_ids=None, work_dir=None):
+    def cache(self, datasets, subject_ids=None, visit_ids=None,
+              work_dir=None):
         """
         Creates the local cache of datasets. Useful when launching many
         parallel jobs that will all try to pull the data through tomcat
@@ -636,7 +636,7 @@ class XNATArchive(Archive):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(subject_ids))
         sessions.iterables = ('visit_id', tuple(visit_ids))
-        source = self.source(project_id, datasets, study_name='cache')
+        source = self.source(datasets, study_name='cache')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
@@ -817,10 +817,10 @@ class XNATArchive(Archive):
                         "', '".join(
                             s.label for s in xproject.experiments.values()),
                         self.project_id))
-        return Project(self.project_id, sorted(subjects), sorted(visits),
+        return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult, processed=False):
+    def _get_datasets(self, xsession, mult, processed=False):  #,  dicom_keys=None): @IgnorePep8
         """
         Returns a list of datasets within an XNAT session
 
@@ -831,6 +831,8 @@ class XNATArchive(Archive):
         mult : str
             The multiplicity of the returned datasets (either 'per_session',
             'per_subject', 'per_visit', or 'per_project')
+        processed : bool
+            Whether the session is processed or not
 
         Returns
         -------
@@ -841,6 +843,10 @@ class XNATArchive(Archive):
         for dataset in xsession.scans.itervalues():
             data_format = data_formats[
                 guess_data_format(dataset).lower()]
+#             if dicom_keys is not None:
+#                 # /REST/services/dicomdump?src=/archive/projects/MMH010/experiments/MBI_XNAT_E14786/scans/1&format=json
+#                 full_dicom_dict = xnat_login.get('/REST/services/dicomdump?src={}&format=json'.format(dataset.address))
+#                 dicom_dct = {k: full_dicom_dict[k] for k in dicom_keys}
             datasets.append(Dataset(
                 dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, path=None, id=dataset.id))
@@ -873,6 +879,10 @@ class XNATArchive(Archive):
     @property
     def local_dir(self):
         return self._cache_dir
+
+    @property
+    def project_id(self):
+        return self._project_id
 
     @classmethod
     def get_labels(cls, multiplicity, project_id, subject_id=None,

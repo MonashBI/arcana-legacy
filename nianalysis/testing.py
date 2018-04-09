@@ -132,7 +132,7 @@ class BaseTestCase(TestCase):
 
     @property
     def archive(self):
-        return LocalArchive(self.archive_path)
+        return LocalArchive(self.project_dir)
 
     @property
     def project_dir(self):

@@ -47,9 +47,9 @@ class MultiStudy(Study):
                 DatasetSpec('t2', nifti_gz_format'))
     """
 
-    def __init__(self, name, project_id, archive, inputs, **kwargs):
-        super(MultiStudy, self).__init__(name, project_id, archive,
-                                         inputs, **kwargs)
+    def __init__(self, name, archive, inputs, **kwargs):
+        super(MultiStudy, self).__init__(name, archive, inputs,
+                                         **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
             # Create copies of the input datasets to pass to the
@@ -64,7 +64,7 @@ class MultiStudy(Study):
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
-                project_id, archive, mapped_inputs,
+                archive, mapped_inputs,
                 check_inputs=False)
             # Set sub-study as attribute
             setattr(self, sub_study_spec.name, sub_study)

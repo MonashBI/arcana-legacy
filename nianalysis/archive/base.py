@@ -103,7 +103,6 @@ class Archive(object):
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
         sink = Node(sink_class(datasets, fields), name=name)
-        sink.inputs.project_id = str(self.project_id)
         sink.inputs.datasets = [s.to_tuple() for s in datasets]
         sink.inputs.fields = [f.to_tuple() for f in fields]
         if study_name is not None:
@@ -183,6 +182,7 @@ class ArchiveSource(BaseArchiveNode):
     _always_run = True
 
     def __init__(self, tree):
+        super(ArchiveSource, self).__init__()
         self._tree = tree
 
     def _outputs(self):
@@ -275,20 +275,17 @@ class BaseArchiveSinkOutputSpec(TraitedSpec):
 
 class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
-    project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
     visit_id = traits.Str(desc="The visit ID")
 
 
 class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
-    project_id = traits.Str(desc="The project ID")
     subject_id = traits.Str(desc="The subject ID")
 
 
 class ArchiveVisitSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
-    project_id = traits.Str(desc="The project ID")
     visit_id = traits.Str(desc="The visit ID")
 
 
@@ -325,7 +322,6 @@ class ArchiveSink(BaseArchiveSink):
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
-        outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
         outputs['visit_id'] = self.inputs.visit_id
         return outputs
@@ -340,7 +336,6 @@ class ArchiveSubjectSink(BaseArchiveSink):
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
-        outputs['project_id'] = self.inputs.project_id
         outputs['subject_id'] = self.inputs.subject_id
         return outputs
 
@@ -354,7 +349,6 @@ class ArchiveVisitSink(BaseArchiveSink):
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
-        outputs['project_id'] = self.inputs.project_id
         outputs['visit_id'] = self.inputs.visit_id
         return outputs
 
@@ -368,7 +362,6 @@ class ArchiveProjectSink(BaseArchiveSink):
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
-        outputs['project_id'] = self.inputs.project_id
         return outputs
 
 
@@ -818,7 +811,8 @@ class Session(object):
 
     @property
     def processed_data_names(self):
-        return chain(self.processed_dataset_names, self.processed_field_names)
+        return chain(self.processed_dataset_names,
+                     self.processed_field_names)
 
     @property
     def all_dataset_names(self):
@@ -827,6 +821,10 @@ class Session(object):
     @property
     def all_field_names(self):
         return chain(self.field_names, self.processed_field_names)
+
+    @property
+    def all_data_names(self):
+        return chain(self.data_names, self.processed_data_names)
 
     def __eq__(self, other):
         if not isinstance(other, Session):

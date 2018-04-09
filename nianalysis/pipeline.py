@@ -304,6 +304,7 @@ class Pipeline(object):
         sessions_to_process = self._sessions_to_process(
             subject_ids=subject_ids, visit_ids=visit_ids,
             reprocess=reprocess)
+        print(sessions_to_process)
         if not sessions_to_process:
             logger.info(
                 "All outputs of '{}' are already present in project archive, "
@@ -409,7 +410,6 @@ class Pipeline(object):
             # Create a new sink for each multiplicity level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
-                self.study._project_id,
                 (self.study.dataset(o) for o in outputs),
                 multiplicity=mult,
                 study_name=self.study.name,
@@ -636,7 +636,7 @@ class Pipeline(object):
             elif output.multiplicity == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if output.prefixed_name not in s.data_names))
+                    if output.prefixed_name not in s.all_data_names))
             else:
                 assert False, ("Unrecognised multiplicity of {}"
                                .format(output))

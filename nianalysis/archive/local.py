@@ -51,18 +51,18 @@ class LocalNodeMixin(object):
 
     def _get_data_dir(self, multiplicity):
         if multiplicity == 'per_project':
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
+            data_dir = os.path.join(self.inputs.base_dir, SUMMARY_NAME,
                                     SUMMARY_NAME)
         elif multiplicity.startswith('per_subject'):
             data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
+                self.inputs.base_dir, str(self.inputs.subject_id),
                 SUMMARY_NAME)
         elif multiplicity.startswith('per_visit'):
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
+            data_dir = os.path.join(self.inputs.base_dir, SUMMARY_NAME,
                                     str(self.inputs.visit_id))
         elif multiplicity.startswith('per_session'):
             data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
+                self.inputs.base_dir, str(self.inputs.subject_id),
                 str(self.inputs.visit_id))
         else:
             assert False, "Unrecognised multiplicity '{}'".format(
@@ -240,8 +240,8 @@ class LocalSink(LocalSinkMixin, ArchiveSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, self.inputs.visit_id]
+            self.inputs.base_dir, self.inputs.subject_id,
+            self.inputs.visit_id]
 
 
 class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
@@ -250,8 +250,7 @@ class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id,
-            self.inputs.subject_id, SUMMARY_NAME]
+            self.inputs.base_dir, self.inputs.subject_id, SUMMARY_NAME]
 
 
 class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
@@ -260,8 +259,7 @@ class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id,
-            SUMMARY_NAME, self.inputs.visit_id]
+            self.inputs.base_dir, SUMMARY_NAME, self.inputs.visit_id]
 
 
 class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
@@ -270,8 +268,7 @@ class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.project_id, SUMMARY_NAME,
-            SUMMARY_NAME]
+            self.inputs.base_dir, SUMMARY_NAME, SUMMARY_NAME]
 
 
 class LocalArchive(Archive):
@@ -292,8 +289,8 @@ class LocalArchive(Archive):
             raise NiAnalysisError(
                 "Base directory for LocalArchive '{}' does not exist"
                 .format(base_dir))
-        super(LocalArchive, self).__init__(subject_ids, visit_ids)
         self._base_dir = os.path.abspath(base_dir)
+        super(LocalArchive, self).__init__(subject_ids, visit_ids)
 
     def __repr__(self):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
@@ -412,8 +409,8 @@ class LocalArchive(Archive):
         except KeyError:
             datasets = []
             fields = []
-        return Project(self.project_id, sorted(subjects),
-                       sorted(visits), datasets, fields)
+        return Project(sorted(subjects), sorted(visits), datasets,
+                       fields)
 
     @classmethod
     def _check_only_dirs(cls, dirs, path):

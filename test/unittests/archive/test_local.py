@@ -24,16 +24,16 @@ class TestLocalArchive(BaseTestCase):
     def test_archive_roundtrip(self):
         # Create working dirs
         # Create LocalSource node
-        archive = LocalArchive(base_dir=self.archive_path)
+        archive = LocalArchive(base_dir=self.project_dir)
         # TODO: Should test out other file formats as well.
         source_files = [DatasetPattern('source1', 'source1',
-                                     nifti_gz_format),
-                        DatasetPattern('source1', 'source1',
-                                     nifti_gz_format),
+                                       nifti_gz_format),
+                        DatasetPattern('source2', 'source1',
+                                       nifti_gz_format),
                         DatasetPattern('source3', 'source3',
-                                     nifti_gz_format),
+                                       nifti_gz_format),
                         DatasetPattern('source4', 'source4',
-                                     nifti_gz_format)]
+                                       nifti_gz_format)]
         sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                   pipeline=dummy_pipeline),
                       DatasetSpec('sink3', nifti_gz_format,
@@ -44,9 +44,9 @@ class TestLocalArchive(BaseTestCase):
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = archive.source(self.name, source_files,
+        source = archive.source(source_files,
                                 study_name=self.STUDY_NAME)
-        sink = archive.sink(self.name, sink_files, study_name=self.STUDY_NAME)
+        sink = archive.sink(sink_files, study_name=self.STUDY_NAME)
         sink.inputs.name = 'archive_sink'
         sink.inputs.description = (
             "A test session created by archive roundtrip unittest")
@@ -77,17 +77,14 @@ class TestLocalArchive(BaseTestCase):
                           'source3.nii.gz', 'source4.nii.gz'])
 
     def test_fields_roundtrip(self):
-        archive = LocalArchive(base_dir=self.archive_path)
-        sink = archive.sink(self.name,
-                            outputs=[
-                                FieldPattern('field1', 'field1', int,
-                                           processed=True),
-                                FieldPattern('field2', 'field2', float,
-                                           processed=True),
-                                FieldPattern('field3', 'field3', str,
-                                           processed=True)],
-                            name='fields_sink',
-                            study_name='test')
+        archive = LocalArchive(base_dir=self.project_dir)
+        sink = archive.sink(
+            outputs=[
+                FieldPattern('field1', 'field1', int, processed=True),
+                FieldPattern('field2', 'field2', float, processed=True),
+                FieldPattern('field3', 'field3', str, processed=True)],
+            name='fields_sink',
+            study_name='test')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
         sink.inputs.field3_field = field3 = '3'
@@ -97,7 +94,6 @@ class TestLocalArchive(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
-            self.name,
             inputs=[
                 FieldSpec('field1', int, pipeline=dummy_pipeline),
                 FieldSpec('field2', float, pipeline=dummy_pipeline),
@@ -116,7 +112,7 @@ class TestLocalArchive(BaseTestCase):
     def test_summary(self):
         # Create working dirs
         # Create LocalSource node
-        archive = LocalArchive(base_dir=self.archive_path)
+        archive = LocalArchive(base_dir=self.project_dir)
         # TODO: Should test out other file formats as well.
         source_files = [DatasetPattern('source1', 'source1',
                                      nifti_gz_format),
@@ -128,13 +124,12 @@ class TestLocalArchive(BaseTestCase):
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = archive.source(self.name, source_files)
+        source = archive.source(source_files)
         # Test subject sink
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                           multiplicity='per_subject',
                                           pipeline=dummy_pipeline)]
-        subject_sink = archive.sink(self.name,
-                                    subject_sink_files,
+        subject_sink = archive.sink(subject_sink_files,
                                     multiplicity='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
@@ -144,10 +139,9 @@ class TestLocalArchive(BaseTestCase):
         visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
                                         multiplicity='per_visit',
                                         pipeline=dummy_pipeline)]
-        visit_sink = archive.sink(self.name,
-                                      visit_sink_files,
-                                      multiplicity='per_visit',
-                                      study_name=self.SUMMARY_STUDY_NAME)
+        visit_sink = archive.sink(visit_sink_files,
+                                  multiplicity='per_visit',
+                                  study_name=self.SUMMARY_STUDY_NAME)
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.description = (
             "Tests the sinking of visit-wide datasets")
@@ -155,8 +149,7 @@ class TestLocalArchive(BaseTestCase):
         project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
                                           multiplicity='per_project',
                                           pipeline=dummy_pipeline)]
-        project_sink = archive.sink(self.name,
-                                    project_sink_files,
+        project_sink = archive.sink(project_sink_files,
                                     multiplicity='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
 
@@ -198,19 +191,18 @@ class TestLocalArchive(BaseTestCase):
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource = archive.source(
-            self.name,
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
-        reloadsink = archive.sink(self.name,
-                                  [DatasetSpec('resink1', nifti_gz_format,
-                                               pipeline=dummy_pipeline),
-                                   DatasetSpec('resink2', nifti_gz_format,
-                                               pipeline=dummy_pipeline),
-                                   DatasetSpec('resink3', nifti_gz_format,
-                                               pipeline=dummy_pipeline)],
-                                  study_name=self.SUMMARY_STUDY_NAME)
+        reloadsink = archive.sink(
+            [DatasetSpec('resink1', nifti_gz_format,
+                         pipeline=dummy_pipeline),
+             DatasetSpec('resink2', nifti_gz_format,
+                         pipeline=dummy_pipeline),
+             DatasetSpec('resink3', nifti_gz_format,
+                         pipeline=dummy_pipeline)],
+            study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
             "Tests the reloading of subject and project summary datasets")
@@ -434,16 +426,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         return project
 
     def test_project_info(self):
-        archive = LocalArchive(base_dir=self.archive_path)
+        archive = LocalArchive(base_dir=self.project_dir)
         # Add hidden file to local archive at project and subject
         # levels to test ignore
-        a_subj_dir = os.listdir(self.archive_path)[0]
-        open(os.path.join(os.path.join(self.archive_path, '.DS_Store')),
+        a_subj_dir = os.listdir(self.project_dir)[0]
+        open(os.path.join(os.path.join(self.project_dir, '.DS_Store')),
              'w').close()
-        open(os.path.join(os.path.join(self.archive_path, a_subj_dir,
+        open(os.path.join(os.path.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
         tree = archive.tree
-        ref_tree = self.ref_project(self.archive_path)
+        ref_tree = self.ref_tree(self.project_dir)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
