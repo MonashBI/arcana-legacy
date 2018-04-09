@@ -3,7 +3,7 @@ import os.path
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirements import Requirement, mrtrix3_req
-from nianalysis.dataset import DatasetPattern, DatasetSpec  # @IgnorePep8
+from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_specs  # @IgnorePep8
@@ -284,8 +284,8 @@ class TestRunPipeline(BaseTestCase):
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
             TestStudy, 'dummy', inputs=[
-                DatasetPattern('start', 'start', nifti_gz_format),
-                DatasetPattern('ones_slice', 'ones_slice',
+                DatasetMatch('start', 'start', nifti_gz_format),
+                DatasetMatch('ones_slice', 'ones_slice',
                              mrtrix_format)])
         # Calculate MRtrix module required for 'mrstats' commands
         try:
@@ -535,7 +535,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs=[
-                DatasetPattern('ones', 'ones', mrtrix_format)])
+                DatasetMatch('ones', 'ones', mrtrix_format)])
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
             'subject1': {
@@ -565,7 +565,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.study_name, inputs=[
-#                 DatasetPattern('ones', 'ones', mrtrix_format)])
+#                 DatasetMatch('ones', 'ones', mrtrix_format)])
 #         study.thousands_pipeline().run(work_dir=self.work_dir)
 #         targets = {
 #             'subject1': {

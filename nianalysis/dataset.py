@@ -275,7 +275,7 @@ class Dataset(BaseDataset):
         return dct
 
 
-class DatasetPattern(BaseDataset):
+class DatasetMatch(BaseDataset):
     """
     A pattern that describes a single dataset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -320,7 +320,7 @@ class DatasetPattern(BaseDataset):
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_values=None):
-        super(DatasetPattern, self).__init__(name, format, multiplicity)
+        super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._dicom_values = dicom_values
         if order is not None and id is not None:
@@ -367,7 +367,7 @@ class DatasetPattern(BaseDataset):
                 self.order == other.order)
 
     def initkwargs(self):
-        dct = super(DatasetPattern, self).initkwargs()
+        dct = super(DatasetMatch, self).initkwargs()
         dct['processed'] = self.processed
         dct['pattern'] = self.pattern
         dct['dicom_values'] = self.dicom_values
@@ -643,7 +643,7 @@ class Field(BaseField):
         return dct
 
 
-class FieldPattern(BaseField):
+class FieldMatch(BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -670,7 +670,7 @@ class FieldPattern(BaseField):
 
     def __init__(self, name, pattern, dtype, multiplicity='per_session',
                  processed=False):
-        super(FieldPattern, self).__init__(name, dtype, multiplicity)
+        super(FieldMatch, self).__init__(name, dtype, multiplicity)
         self._processed = processed
         self._pattern = pattern
 
@@ -686,7 +686,7 @@ class FieldPattern(BaseField):
         return [n for n in names if re.match(self.pattern, n)]
 
     def __eq__(self, other):
-        return (super(FieldPattern, self).__eq__(other) and
+        return (super(FieldMatch, self).__eq__(other) and
                 self._pattern == other._pattern and
                 self.processed == other.processed)
 
@@ -698,7 +698,7 @@ class FieldPattern(BaseField):
                         self._pattern))
 
     def initkwargs(self):
-        dct = super(FieldPattern, self).initkwargs()
+        dct = super(FieldMatch, self).initkwargs()
         dct['pattern'] = self._pattern
         dct['processed'] = self.processed
         return dct

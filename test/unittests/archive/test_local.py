@@ -5,7 +5,7 @@ from nianalysis.archive.local import (
     LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import (
-    DatasetPattern, Dataset, DatasetSpec, Field, FieldSpec, FieldPattern)
+    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session, Visit
@@ -26,13 +26,13 @@ class TestLocalArchive(BaseTestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.project_dir)
         # TODO: Should test out other file formats as well.
-        source_files = [DatasetPattern('source1', 'source1',
+        source_files = [DatasetMatch('source1', 'source1',
                                        nifti_gz_format),
-                        DatasetPattern('source2', 'source1',
+                        DatasetMatch('source2', 'source1',
                                        nifti_gz_format),
-                        DatasetPattern('source3', 'source3',
+                        DatasetMatch('source3', 'source3',
                                        nifti_gz_format),
-                        DatasetPattern('source4', 'source4',
+                        DatasetMatch('source4', 'source4',
                                        nifti_gz_format)]
         sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                   pipeline=dummy_pipeline),
@@ -80,9 +80,9 @@ class TestLocalArchive(BaseTestCase):
         archive = LocalArchive(base_dir=self.project_dir)
         sink = archive.sink(
             outputs=[
-                FieldPattern('field1', 'field1', int, processed=True),
-                FieldPattern('field2', 'field2', float, processed=True),
-                FieldPattern('field3', 'field3', str, processed=True)],
+                FieldMatch('field1', 'field1', int, processed=True),
+                FieldMatch('field2', 'field2', float, processed=True),
+                FieldMatch('field3', 'field3', str, processed=True)],
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -114,11 +114,11 @@ class TestLocalArchive(BaseTestCase):
         # Create LocalSource node
         archive = LocalArchive(base_dir=self.project_dir)
         # TODO: Should test out other file formats as well.
-        source_files = [DatasetPattern('source1', 'source1',
+        source_files = [DatasetMatch('source1', 'source1',
                                      nifti_gz_format),
-                        DatasetPattern('source2', 'source2',
+                        DatasetMatch('source2', 'source2',
                                      nifti_gz_format),
-                        DatasetPattern('source3', 'source3',
+                        DatasetMatch('source3', 'source3',
                                      nifti_gz_format)]
         inputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')

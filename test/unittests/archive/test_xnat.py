@@ -13,7 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
 from nianalysis.archive.local import FIELDS_FNAME
 from nianalysis.dataset import (
-    DatasetPattern, DatasetSpec, FieldSpec, FieldPattern)
+    DatasetMatch, DatasetSpec, FieldSpec, FieldMatch)
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
@@ -154,13 +154,13 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=self.archive_cache_dir)
-        source_files = [DatasetPattern('source1', 'source1',
+        source_files = [DatasetMatch('source1', 'source1',
                                      nifti_gz_format),
-                        DatasetPattern('source2', 'source2',
+                        DatasetMatch('source2', 'source2',
                                      nifti_gz_format),
-                        DatasetPattern('source3', 'source3',
+                        DatasetMatch('source3', 'source3',
                                      nifti_gz_format),
-                        DatasetPattern('source4', 'source4',
+                        DatasetMatch('source4', 'source4',
                                      nifti_gz_format)]
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
@@ -220,9 +220,9 @@ class TestXnatArchive(BaseTestCase):
             project_id=self.PROJECT)
         sink = archive.sink(
             outputs=[
-                FieldPattern('field1', 'field1', int, processed=True),
-                FieldPattern('field2', 'field2', float, processed=True),
-                FieldPattern('field3', 'field3', str, processed=True)],
+                FieldMatch('field1', 'field1', int, processed=True),
+                FieldMatch('field2', 'field2', float, processed=True),
+                FieldMatch('field3', 'field3', str, processed=True)],
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -256,11 +256,11 @@ class TestXnatArchive(BaseTestCase):
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         # TODO: Should test out other file formats as well.
-        source_files = [DatasetPattern('source1', 'source1',
+        source_files = [DatasetMatch('source1', 'source1',
                                        nifti_gz_format),
-                        DatasetPattern('source2', 'source2',
+                        DatasetMatch('source2', 'source2',
                                        nifti_gz_format),
-                        DatasetPattern('source3', 'source3',
+                        DatasetMatch('source3', 'source3',
                                        nifti_gz_format)]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
@@ -454,7 +454,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir,
                               project_id=self.PROJECT)
-        source = archive.source([DatasetPattern(DATASET_NAME,
+        source = archive.source([DatasetMatch(DATASET_NAME,
                                                 DATASET_NAME,
                                                 nifti_gz_format)],
                                 name='delayed_source',
@@ -532,7 +532,7 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=cache_dir)
-        source = archive.source([DatasetPattern(DATASET_NAME,
+        source = archive.source([DatasetMatch(DATASET_NAME,
                                                 DATASET_NAME,
                                                 nifti_gz_format)],
                                 name='digest_check_source',
@@ -576,7 +576,7 @@ class TestXnatArchive(BaseTestCase):
             cache_dir=cache_dir)
         DATASET_NAME = 'sink'
         sink = sink_archive.sink(
-            [DatasetPattern(DATASET_NAME, DATASET_NAME,
+            [DatasetMatch(DATASET_NAME, DATASET_NAME,
                             nifti_gz_format, processed=True)],
             name='digest_check_sink',
             study_name=STUDY_NAME)
@@ -628,7 +628,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             server=self.SERVER, cache_dir=cache_dir,
             project_id=self.PROJECT)
         source = archive.source(
-            [DatasetPattern(d, d, dicom_format)
+            [DatasetMatch(d, d, dicom_format)
                            for d in self.DATASETS])
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
@@ -809,13 +809,13 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     def test_cache_download(self):
         archive = self.archive
-        archive.cache(datasets=[DatasetPattern('dataset1', 'dataset1',
+        archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
                                                mrtrix_format),
-                                DatasetPattern('dataset2', 'dataset2',
+                                DatasetMatch('dataset2', 'dataset2',
                                                mrtrix_format),
-                                DatasetPattern('dataset3', 'dataset3',
+                                DatasetMatch('dataset3', 'dataset3',
                                                mrtrix_format),
-                                DatasetPattern('dataset5', 'dataset5',
+                                DatasetMatch('dataset5', 'dataset5',
                                                mrtrix_format)],
                       subject_ids=['subject1', 'subject3', 'subject4'],
                       visit_ids=['visit1'],

@@ -304,7 +304,6 @@ class Pipeline(object):
         sessions_to_process = self._sessions_to_process(
             subject_ids=subject_ids, visit_ids=visit_ids,
             reprocess=reprocess)
-        print(sessions_to_process)
         if not sessions_to_process:
             logger.info(
                 "All outputs of '{}' are already present in project archive, "
