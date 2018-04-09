@@ -30,7 +30,7 @@ class Archive(object):
         return self._tree
 
     @abstractmethod
-    def source(self, inputs, name=None, study_name=None):
+    def source(self, inputs, name=None, study_name=None, **kwargs):
         """
         Returns a NiPype node that gets the input data from the archive
         system. The input spec of the node's interface should inherit from
@@ -55,12 +55,12 @@ class Archive(object):
         inputs = list(inputs)  # protected against iterators
         datasets = [i for i in inputs if isinstance(i, BaseDataset)]
         fields = [i for i in inputs if isinstance(i, BaseField)]
-        return Node(self.Source(study_name, datasets, fields),
+        return Node(self.Source(study_name, datasets, fields, **kwargs),
                     name=name)
 
     @abstractmethod
     def sink(self, outputs, multiplicity='per_session', name=None,
-             study_name=None):
+             study_name=None, **kwargs):
         """
         Returns a NiPype node that puts the output data back to the archive
         system. The input spec of the node's interface should inherit from
@@ -98,7 +98,8 @@ class Archive(object):
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
-        return Node(sink_class(study_name, datasets, fields), name=name)
+        return Node(sink_class(study_name, datasets, fields, **kwargs),
+                    name=name)
 
 
 class BaseArchiveNode(BaseInterface):

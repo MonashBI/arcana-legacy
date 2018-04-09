@@ -51,18 +51,18 @@ class LocalNodeMixin(object):
 
     def _get_data_dir(self, multiplicity):
         if multiplicity == 'per_project':
-            data_dir = os.path.join(self.inputs.base_dir, SUMMARY_NAME,
+            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
                                     SUMMARY_NAME)
         elif multiplicity.startswith('per_subject'):
             data_dir = os.path.join(
-                self.inputs.base_dir, str(self.inputs.subject_id),
+                self.base_dir, str(self.inputs.subject_id),
                 SUMMARY_NAME)
         elif multiplicity.startswith('per_visit'):
-            data_dir = os.path.join(self.inputs.base_dir, SUMMARY_NAME,
+            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
                                     str(self.inputs.visit_id))
         elif multiplicity.startswith('per_session'):
             data_dir = os.path.join(
-                self.inputs.base_dir, str(self.inputs.subject_id),
+                self.base_dir, str(self.inputs.subject_id),
                 str(self.inputs.visit_id))
         else:
             assert False, "Unrecognised multiplicity '{}'".format(
@@ -73,10 +73,18 @@ class LocalNodeMixin(object):
         return os.path.join(self._get_data_dir(multiplicity),
                             FIELDS_FNAME)
 
+    @property
+    def base_dir(self):
+        return self._base_dir
+
 
 class LocalSource(ArchiveSource, LocalNodeMixin):
 
     input_spec = LocalSourceInputSpec
+
+    def __init__(self, *args, **kwargs):
+        self._base_dir = kwargs.pop('base_dir')
+        super(LocalSource, self).__init__(*args, **kwargs)
 
     def _list_outputs(self):
         # Directory that holds session-specific
@@ -113,39 +121,12 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
         return outputs
 
 
-class LocalSinkInputSpecMixin(object):
-
-    base_dir = Directory(
-        exists=True, desc=("Path to the base directory where the datasets will"
-                           " be cached before uploading"))
-
-
-class LocalSinkInputSpec(ArchiveSinkInputSpec, LocalSinkInputSpecMixin):
-
-    pass
-
-
-class LocalSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
-                                LocalSinkInputSpecMixin):
-    pass
-
-
-class LocalVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
-                                  LocalSinkInputSpecMixin):
-    pass
-
-
-class LocalProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
-                                LocalSinkInputSpecMixin):
-    pass
-
-
 class LocalSinkMixin(LocalNodeMixin):
 
     __metaclass = ABCMeta
-    input_spec = LocalSinkInputSpec
 
     def __init__(self, *args, **kwargs):
+        self._base_dir = kwargs.pop('base_dir')
         super(LocalSinkMixin, self).__init__(*args, **kwargs)
         LocalNodeMixin.__init__(self)
 
@@ -240,39 +221,39 @@ class LocalSinkMixin(LocalNodeMixin):
 
 class LocalSink(LocalSinkMixin, ArchiveSink):
 
-    input_spec = LocalSinkInputSpec
+    input_spec = ArchiveSinkInputSpec
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.subject_id,
+            self.base_dir, self.inputs.subject_id,
             self.inputs.visit_id]
 
 
 class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
 
-    input_spec = LocalSubjectSinkInputSpec
+    input_spec = ArchiveSubjectSinkInputSpec
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, self.inputs.subject_id, SUMMARY_NAME]
+            self.base_dir, self.inputs.subject_id, SUMMARY_NAME]
 
 
 class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
 
-    input_spec = LocalVisitSinkInputSpec
+    input_spec = ArchiveVisitSinkInputSpec
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, SUMMARY_NAME, self.inputs.visit_id]
+            self.base_dir, SUMMARY_NAME, self.inputs.visit_id]
 
 
 class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
-    input_spec = LocalProjectSinkInputSpec
+    input_spec = ArchiveProjectSinkInputSpec
 
     def _get_output_path(self):
         return [
-            self.inputs.base_dir, SUMMARY_NAME, SUMMARY_NAME]
+            self.base_dir, SUMMARY_NAME, SUMMARY_NAME]
 
 
 class LocalArchive(Archive):
@@ -300,13 +281,13 @@ class LocalArchive(Archive):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
 
     def source(self, *args, **kwargs):
-        source = super(LocalArchive, self).source(*args, **kwargs)
-        source.inputs.base_dir = self.base_dir
+        source = super(LocalArchive, self).source(
+            *args, base_dir=self.base_dir, **kwargs)
         return source
 
     def sink(self, *args, **kwargs):
-        sink = super(LocalArchive, self).sink(*args, **kwargs)
-        sink.inputs.base_dir = self.base_dir
+        sink = super(LocalArchive, self).sink(
+            *args, base_dir=self.base_dir, **kwargs)
         return sink
 
     def _retrieve_tree(self, subject_ids=None, visit_ids=None):
