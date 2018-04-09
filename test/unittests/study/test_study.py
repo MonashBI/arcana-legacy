@@ -426,7 +426,7 @@ class ExistingPrereqStudy(Study):
         return pipeline
 
     def tens_pipeline(self, **options):  # @UnusedVariable
-        return self.pipeline_factory(10, 'ones', 'tens')
+        return self.pipeline_factory(10, 'start', 'tens')
 
     def hundreds_pipeline(self, **options):  # @UnusedVariable
         return self.pipeline_factory(100, 'tens', 'hundreds')
@@ -435,7 +435,7 @@ class ExistingPrereqStudy(Study):
         return self.pipeline_factory(1000, 'hundreds', 'thousands')
 
     _data_specs = set_specs(
-        DatasetSpec('ones', mrtrix_format),
+        DatasetSpec('start', mrtrix_format),
         DatasetSpec('tens', mrtrix_format, tens_pipeline),
         DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
         DatasetSpec('thousands', mrtrix_format, thousands_pipeline))
@@ -535,7 +535,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs=[
-                DatasetMatch('ones', 'ones', mrtrix_format)])
+                DatasetMatch('start', 'ones', mrtrix_format)])
         study.thousands_pipeline().run(work_dir=self.work_dir)
         targets = {
             'subject1': {
