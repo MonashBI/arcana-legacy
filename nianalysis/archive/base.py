@@ -52,15 +52,11 @@ class Archive(object):
         """
         if name is None:
             name = "{}_source".format(self.type)
-        source = Node(self.Source(self._tree), name=name)
         inputs = list(inputs)  # protected against iterators
-        source.inputs.datasets = [i.to_tuple() for i in inputs
-                                  if isinstance(i, BaseDataset)]
-        source.inputs.fields = [i.to_tuple() for i in inputs
-                                if isinstance(i, BaseField)]
-        if study_name is not None:
-            source.inputs.study_name = study_name
-        return source
+        datasets = [i for i in inputs if isinstance(i, BaseDataset)]
+        fields = [i for i in inputs if isinstance(i, BaseField)]
+        return Node(self.Source(study_name, datasets, fields),
+                    name=name)
 
     @abstractmethod
     def sink(self, outputs, multiplicity='per_session', name=None,
@@ -102,20 +98,7 @@ class Archive(object):
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
-        sink = Node(sink_class(datasets, fields), name=name)
-        sink.inputs.datasets = [s.to_tuple() for s in datasets]
-        sink.inputs.fields = [f.to_tuple() for f in fields]
-        if study_name is not None:
-            sink.inputs.study_name = study_name
-        return sink
-
-    @abstractmethod
-    def _retrieve_tree(self, *args, **kwargs):
-        """
-        Returns a nianalysis.archive.Project tree for the given project id,
-        which holds information on all available subjects, sessions and
-        datasets in the project.
-        """
+        return Node(sink_class(study_name, datasets, fields), name=name)
 
 
 class BaseArchiveNode(BaseInterface):
@@ -134,8 +117,26 @@ class BaseArchiveNode(BaseInterface):
 
     __metaclass__ = ABCMeta
 
+    def __init__(self, study_name, datasets, fields):
+        super(BaseArchiveNode, self).__init__()
+        self._study_name = study_name
+        self._datasets = datasets
+        self._fields = fields
+
     def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
         return runtime
+
+    @property
+    def study_name(self):
+        return self._study_name
+
+    @property
+    def datasets(self):
+        return self._datasets
+
+    @property
+    def fields(self):
+        return self._fields
 
     @abstractmethod
     def _list_outputs(self):
@@ -151,8 +152,8 @@ class BaseArchiveNode(BaseInterface):
 
     def prefix_study_name(self, name, is_spec=True):
         """Prepend study name if defined"""
-        if is_spec and isdefined(self.inputs.study_name):
-            name = self.inputs.study_name + '_' + name
+        if is_spec:
+            name = self.study_name + '_' + name
         return name
 
 
@@ -165,103 +166,56 @@ class ArchiveSourceInputSpec(DynamicTraitedSpec):
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
                             desc="The visit or processed group ID")
-    datasets = traits.List(
-        DatasetSpec.traits_spec(),
-        desc="List of all datasets to be extracted from the archive")
-    fields = traits.List(
-        FieldSpec.traits_spec(),
-        desc=("List of all the fields that are to be extracted from the"
-              "archive"))
-    study_name = traits.Str(desc=("Prefix prepended onto processed dataset "
-                                  "names"))
 
 
 class ArchiveSource(BaseArchiveNode):
+    """
+    Parameters
+    ----------
+    datasets: list
+        List of all datasets to be extracted from the archive
+    fields: list
+        List of all the fields that are to be extracted from the archive
+    study_name: str
+        Prefix prepended onto processed dataset "names"
+    """
 
-    output_spec = DynamicTraitedSpec
+    output_spec = TraitedSpec
     _always_run = True
 
-    def __init__(self, tree):
-        super(ArchiveSource, self).__init__()
-        self._tree = tree
-
     def _outputs(self):
-        return self._add_dataset_and_field_traits(
-            super(ArchiveSource, self)._outputs())
-
-    def _add_dataset_and_field_traits(self, base):
-        for dataset in self.inputs.datasets:
-            self._add_trait(base, dataset[0] + PATH_SUFFIX, PATH_TRAIT)
+        outputs = super(ArchiveSource, self)._outputs()
+        # Add output datasets
+        for dataset in self.datasets:
+            assert isinstance(dataset, BaseDataset)
+            self._add_trait(outputs, dataset.name + PATH_SUFFIX,
+                            PATH_TRAIT)
         # Add output fields
-        for name, dtype, _, _, _ in self.inputs.fields:
-            self._add_trait(base, name + FIELD_SUFFIX, dtype)
-        return base
+        for field in self.fields:
+            assert isinstance(dataset, BaseField)
+            self._add_trait(outputs, field.name + FIELD_SUFFIX,
+                            field.dtype)
+        return outputs
 
 
-class BaseArchiveSinkInputSpec(DynamicTraitedSpec):
-    """
-    Base class for archive sink input specifications. Provides a common
-    interface for 'run_pipeline' when using the archive save
-    processed datasets in the archive system
-    """
-
-    name = traits.Str(  # @UndefinedVariable @IgnorePep8
-        mandatory=True, desc=("The name of the processed data group, e.g. "
-                              "'tractography'"))
-    description = traits.Str(mandatory=True,  # @UndefinedVariable
-                             desc="Description of the study")
-
-    datasets = traits.List(
-        DatasetSpec.traits_spec(),
-        desc="Lists the datasets to be retrieved from the archive")
-
-    fields = traits.List(
-        FieldSpec.traits_spec(),
-        desc=("List of all the fields to be retrieved from the archive"))
-
-    # TODO: Not implemented yet
-    overwrite = traits.Bool(  # @UndefinedVariable
-        False, mandatory=True, usedefault=True,
-        desc=("Whether or not to overwrite previously created sessions of the "
-              "same name"))
-    study_name = traits.Str(desc=("Study name to partition processed datasets "
-                                  "by"))
-
-    def __setattr__(self, name, val):
-        # Need to check whether datasets is not empty, as it can be when
-        # unpickling
-        if (isdefined(self.datasets) and self.datasets and
-            isdefined(self.fields) and self.fields and
-                not hasattr(self, name)):
-            accepted = set(chain(
-                (s[0] + PATH_SUFFIX for s in self.datasets),
-                (f[0] + FIELD_SUFFIX for f in self.fields)))
-            if name not in accepted:
-                raise NiAnalysisError(
-                    "'{}' is not a valid input filename for '{}' archive sink "
-                    "(accepts '{}')".format(name, self.name,
-                                            "', '".join(accepted)))
-        super(BaseArchiveSinkInputSpec, self).__setattr__(name, val)
-
-
-class ArchiveSinkInputSpec(BaseArchiveSinkInputSpec):
+class ArchiveSinkInputSpec(TraitedSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
     visit_id = traits.Str(mandatory=False,
                             desc="The session or processed group ID")
 
 
-class ArchiveSubjectSinkInputSpec(BaseArchiveSinkInputSpec):
+class ArchiveSubjectSinkInputSpec(TraitedSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
 
 
-class ArchiveVisitSinkInputSpec(BaseArchiveSinkInputSpec):
+class ArchiveVisitSinkInputSpec(TraitedSpec):
 
     visit_id = traits.Str(mandatory=True, desc="The visit ID")
 
 
-class ArchiveProjectSinkInputSpec(BaseArchiveSinkInputSpec):
+class ArchiveProjectSinkInputSpec(TraitedSpec):
     pass
 
 
@@ -296,21 +250,19 @@ class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
 
 class BaseArchiveSink(BaseArchiveNode):
 
-    def __init__(self, output_datasets, output_fields, **kwargs):
-        super(BaseArchiveSink, self).__init__(**kwargs)
-        # Add output datasets
-        for dataset in output_datasets:
+    def __init__(self, study_name, datasets, fields):
+        super(BaseArchiveSink, self).__init__(study_name, datasets,
+                                              fields)
+        # Add input datasets
+        for dataset in datasets:
+            assert isinstance(dataset, DatasetSpec)
             self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
                             PATH_TRAIT)
-        # Add output fields
-        for field in output_fields:
+        # Add input fields
+        for field in fields:
+            assert isinstance(dataset, FieldSpec)
             self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
                             field.dtype)
-
-    @abstractmethod
-    def _base_outputs(self):
-        "List the base outputs of the sink interface, which relate to the "
-        "session/subject/project that is being sunk"
 
 
 class ArchiveSink(BaseArchiveSink):
@@ -414,6 +366,9 @@ class Project(object):
                 self._fields == other._fields)
 
     def find_mismatch(self, other, indent=''):
+        """
+        Used in debugging unittests
+        """
         if self != other:
             mismatch = "\n{}Project".format(indent)
         else:

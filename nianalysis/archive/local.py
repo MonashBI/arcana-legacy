@@ -2,7 +2,7 @@ from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
 from itertools import chain, groupby
-from operator import itemgetter
+from operator import attrgetter
 import errno
 from .base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
@@ -82,17 +82,16 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
         # Directory that holds session-specific
         outputs = {}
         # Source datasets
-        for (name, dataset_format,
-             multiplicity, _, is_spec) in self.inputs.datasets:
-            ext = data_formats[dataset_format].extension
-            fname = name + (ext if ext is not None else '')
-            fname = self.prefix_study_name(fname, is_spec)
-            outputs[name + PATH_SUFFIX] = os.path.join(
-                self._get_data_dir(multiplicity), fname)
+        for dataset in self.datasets:
+            ext = dataset.format.extension
+            fname = dataset.name + (ext if ext is not None else '')
+            fname = self.prefix_study_name(fname, dataset.is_spec)
+            outputs[dataset.name + PATH_SUFFIX] = os.path.join(
+                self._get_data_dir(dataset.multiplicity), fname)
         # Source fields from JSON file
-        for mult, spec_grp in groupby(sorted(self.inputs.fields,
-                                             key=itemgetter(2)),
-                                      key=itemgetter(2)):
+        for mult, spec_grp in groupby(
+            sorted(self.fields, key=attrgetter('multiplicity')),
+                key=attrgetter('multiplicity')):
             # Load fields JSON, locking to prevent read/write conflicts
             # Would be better if only checked if locked to allow
             # concurrent reads but not possible with multi-process
@@ -107,9 +106,10 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
                     fields = {}
                 else:
                     raise
-            for name, dtype, _, _, is_spec in spec_grp:
-                outputs[name + FIELD_SUFFIX] = dtype(
-                    fields[self.prefix_study_name(name, is_spec)])
+            for field in spec_grp:
+                outputs[field.name + FIELD_SUFFIX] = field.dtype(
+                    fields[self.prefix_study_name(field.name,
+                                                  field.is_spec)])
         return outputs
 
 

@@ -6,7 +6,7 @@ from copy import copy
 from nipype.interfaces.base import traits
 import subprocess as sp
 from nianalysis.data_formats import (
-    data_formats, data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
+    data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
 from nianalysis.exceptions import NiAnalysisError, NiAnalysisUsageError
@@ -129,22 +129,6 @@ class BaseDataset(BaseDatum):
         return (self.name, self.format.name, self.multiplicity, self.processed,
                 self.is_spec)
 
-#     @classmethod
-#     def from_tuple(cls, tple):
-#         name, format_name, multiplicity, processed, is_spec = tple
-#         assert (is_spec and issubclass(DatasetSpec, cls) or
-#                 not is_spec and issubclass(Dataset, cls))
-#         data_format = data_formats[format_name]
-#         return cls(name, data_format, pipeline=processed,
-#                    multiplicity=multiplicity)
-
-    @property
-    def filename(self, format=None):  # @ReservedAssignment
-        if format is None:
-            assert self.format is not None, "Dataset format is undefined"
-            format = self.format  # @ReservedAssignment
-        return self.name + format.extension
-
     def match(self, filename):
         base, ext = os.path.splitext(filename)
         return base == self.name and (ext == self.format.extension or
@@ -235,6 +219,9 @@ class Dataset(BaseDataset):
     @path.setter
     def path(self, path):
         self._path = path
+
+    def basename(self, **kwargs):  # @UnusedVariable
+        return split_extension(os.path.basename(self.path))
 
     @property
     def processed(self):
@@ -370,6 +357,9 @@ class DatasetMatch(BaseDataset):
                 self.id == other.id and
                 self.order == other.order)
 
+    def basename(self, subject_id=None, visit_id=None):
+        return self.pattern
+
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()
         dct['processed'] = self.processed
@@ -443,9 +433,8 @@ class DatasetSpec(BaseDataset):
     def description(self):
         return self._description
 
-    @property
-    def filename(self):
-        return self._prefix + super(DatasetSpec, self).filename
+    def basename(self, **kwargs):  # @UnusedVariable
+        return self._prefix + self.name
 
     def apply_prefix(self, prefix):
         """
@@ -454,29 +443,6 @@ class DatasetSpec(BaseDataset):
         duplicate = copy(self)
         duplicate._prefix = prefix
         return duplicate
-
-    @classmethod
-    def traits_spec(self):
-        """
-        Return the specification for a Dataset as a tuple
-        """
-        return traits.Tuple(  # @UndefinedVariable
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of file"),
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of the dataset format"),
-            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                       desc="multiplicity of the dataset (one of '{}')".format(
-                            "', '".join(self.MULTIPLICITY_OPTIONS))),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the dataset is stored in the processed "
-                              "dataset location")),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the dataset was explicitly provided to "
-                              "the study, or whether it is to be implicitly "
-                              "generated")))
 
     def __repr__(self):
         return ("DatasetSpec(name='{}', format={}, pipeline={}, "
@@ -535,22 +501,6 @@ class BaseField(BaseDatum):
     @property
     def dtype(self):
         return self._dtype
-
-    def to_tuple(self):
-        return (self.name, self.dtype, self.multiplicity,
-                self.processed, self.is_spec)
-# 
-#     @classmethod
-#     def from_tuple(cls, tple):
-#         name, dtype, multiplicity, processed, is_spec = tple
-#         assert (is_spec and issubclass(FieldSpec, cls) or
-#                 not is_spec and issubclass(Field, cls))
-#         if dtype not in cls.dtypes:
-#             raise NiAnalysisError(
-#                 "Invalid dtype {}, can be one of {}".format(
-#                     dtype.__name__, ', '.join(cls._dtype_names())))
-#         return cls(name, dtype, pipeline=processed,
-#                    multiplicity=multiplicity)
 
     @classmethod
     def _dtype_names(cls):
@@ -627,6 +577,9 @@ class Field(BaseField):
     def processed(self):
         return self._processed
 
+    def basename(self, **kwargs):  # @UnusedVariable
+        return self.name
+
     @property
     def value(self):
         return self._value
@@ -685,6 +638,9 @@ class FieldMatch(BaseField):
     @property
     def processed(self):
         return self._processed
+
+    def basename(self, subject_id=None, visit_id=None):
+        return self.name
 
     def matches(self, names):
         return [n for n in names if re.match(self.pattern, n)]
@@ -755,6 +711,9 @@ class FieldSpec(BaseField):
     def prefixed_name(self):
         return self._prefix + self.name
 
+    def basename(self, **kwargs):  # @UnusedVariable
+        return self._prefix + self.name
+
     @property
     def dtype(self):
         return self._dtype
@@ -773,34 +732,11 @@ class FieldSpec(BaseField):
 
     def apply_prefix(self, prefix):
         """
-        Duplicate the dataset and provide a prefix to apply to the filename
+        Duplicate the field and provide a prefix to apply to the name
         """
         duplicate = copy(self)
         duplicate._prefix = prefix
         return duplicate
-
-    @classmethod
-    def traits_spec(self):
-        """
-        Return the specification for a Dataset as a tuple
-        """
-        return traits.Tuple(  # @UndefinedVariable
-            traits.Str(  # @UndefinedVariable
-                mandatory=True,
-                desc="name of file"),
-            traits.Any(  # Should really be of type type but not sure how
-                mandatory=True,
-                desc="The datatype of the field"),
-            traits.Str(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                       desc="multiplicity of the dataset (one of '{}')".format(
-                            "', '".join(self.MULTIPLICITY_OPTIONS))),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the field is stored in the processed "
-                              "dataset location")),
-            traits.Bool(mandatory=True,  # @UndefinedVariable @IgnorePep8
-                        desc=("whether the field was explicitly provided to "
-                              "the study, or whether it is to be implicitly "
-                              "generated")))
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, pipeline={}, "
