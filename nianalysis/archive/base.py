@@ -122,6 +122,22 @@ class BaseArchiveNode(BaseInterface):
         self._datasets = datasets
         self._fields = fields
 
+    def __eq__(self, other):
+        try:
+            return (self.study_name == other.study_name and
+                    self.datasets == other.datasets and
+                    self.fields == other.fields)
+        except AttributeError:
+            return False
+
+    def __repr__(self):
+        return "{}(study_name='{}', datasets={}, fields={})".format(
+            type(self).__name__, self.study_name, self.datasets,
+            self.fields)
+
+    def __ne__(self, other):
+        return not self == other
+
     def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
         return runtime
 

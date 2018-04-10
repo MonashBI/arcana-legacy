@@ -70,14 +70,18 @@ class LocalNodeMixin(object):
     def base_dir(self):
         return self._base_dir
 
+    def __eq__(self, other):
+        return (super(LocalNodeMixin, self).__eq__(other) and
+                self.base_dir == other.base_dir)
+
 
 class LocalSource(ArchiveSource, LocalNodeMixin):
 
     input_spec = ArchiveSourceInputSpec
 
-    def __init__(self, *args, **kwargs):
-        self._base_dir = kwargs.pop('base_dir')
-        super(LocalSource, self).__init__(*args, **kwargs)
+    def __init__(self, study_name, datasets, fields, base_dir):
+        self._base_dir = base_dir
+        super(LocalSource, self).__init__(study_name, datasets, fields)
 
     def _list_outputs(self):
         # Directory that holds session-specific
@@ -121,9 +125,10 @@ class LocalSinkMixin(LocalNodeMixin):
 
     __metaclass = ABCMeta
 
-    def __init__(self, *args, **kwargs):
-        self._base_dir = kwargs.pop('base_dir')
-        super(LocalSinkMixin, self).__init__(*args, **kwargs)
+    def __init__(self, study_name, datasets, fields, base_dir):
+        self._base_dir = base_dir
+        super(LocalSinkMixin, self).__init__(study_name, datasets,
+                                             fields)
         LocalNodeMixin.__init__(self)
 
     def _list_outputs(self):

@@ -1,8 +1,13 @@
 import os
+from unittest import TestCase
+import tempfile
+import cPickle as pkl
+import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
-    LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
+    LocalSource, LocalSink, LocalSubjectSink, LocalVisitSink,
+    LocalProjectSink, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.dataset import (
     DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
@@ -440,3 +445,27 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(self.ref_tree())))
+
+
+class TestLocalInterfacePickle(TestCase):
+
+    datasets = [DatasetSpec('a', nifti_gz_format)]
+    fields = [FieldSpec('b', int)]
+
+    def setUp(self):
+        self.tmp_dir = tempfile.mkdtemp()
+        self.pkl_dir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        shutil.rmtree(self.tmp_dir)
+        shutil.rmtree(self.pkl_dir)
+
+    def test_source(self):
+        source = LocalSource('a_study', self.datasets, self.fields,
+                             base_dir=self.tmp_dir)
+        fname = os.path.join(self.pkl_dir, 'source.pkl')
+        with open(fname, 'w') as f:
+            pkl.dump(source, f)
+        with open(fname) as f:
+            re_source = pkl.load(f)
+        self.assertEqual(source, re_source)

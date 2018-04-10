@@ -27,6 +27,21 @@ class DataFormat(object):
         self._mrinfo = mrinfo
         self._directory = directory
 
+    def __eq__(self, other):
+        try:
+            return (
+                self._name == other._name and
+                self._extension == other._extension and
+                self._lctype == other._lctype and
+                self._description == other._description and
+                self._mrinfo == other._mrinfo and
+                self._directory == other._directory)
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self == other
+
     def __repr__(self):
         return ("DataFormat(name='{}', extension='{}')"
                 .format(self.name, self.extension))
