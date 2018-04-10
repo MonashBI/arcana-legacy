@@ -1,8 +1,8 @@
 from abc import ABCMeta, abstractmethod
 from itertools import chain
 from nipype.interfaces.base import (
-    DynamicTraitedSpec, traits, TraitedSpec, Undefined, isdefined, File,
-    Directory, BaseInterface)
+    traits, TraitedSpec, DynamicTraitedSpec, Undefined, File, Directory,
+    BaseInterface)
 from nianalysis.nodes import Node
 from nianalysis.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
@@ -116,8 +116,6 @@ class BaseArchiveNode(BaseInterface):
 
     """
 
-    __metaclass__ = ABCMeta
-
     def __init__(self, study_name, datasets, fields):
         super(BaseArchiveNode, self).__init__()
         self._study_name = study_name
@@ -138,10 +136,6 @@ class BaseArchiveNode(BaseInterface):
     @property
     def fields(self):
         return self._fields
-
-    @abstractmethod
-    def _list_outputs(self):
-        pass
 
     @classmethod
     def _add_trait(cls, spec, name, trait_type):
@@ -181,7 +175,7 @@ class ArchiveSource(BaseArchiveNode):
         Prefix prepended onto processed dataset "names"
     """
 
-    output_spec = TraitedSpec
+    output_spec = DynamicTraitedSpec
     _always_run = True
 
     def _outputs(self):
@@ -199,28 +193,32 @@ class ArchiveSource(BaseArchiveNode):
         return outputs
 
 
-class ArchiveSinkInputSpec(TraitedSpec):
+class BaseArchiveSinkSpec(DynamicTraitedSpec):
+    pass
+
+
+class ArchiveSinkInputSpec(BaseArchiveSinkSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
     visit_id = traits.Str(mandatory=False,
                             desc="The session or processed group ID")
 
 
-class ArchiveSubjectSinkInputSpec(TraitedSpec):
+class ArchiveSubjectSinkInputSpec(BaseArchiveSinkSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
 
 
-class ArchiveVisitSinkInputSpec(TraitedSpec):
+class ArchiveVisitSinkInputSpec(BaseArchiveSinkSpec):
 
     visit_id = traits.Str(mandatory=True, desc="The visit ID")
 
 
-class ArchiveProjectSinkInputSpec(TraitedSpec):
+class ArchiveProjectSinkInputSpec(BaseArchiveSinkSpec):
     pass
 
 
-class BaseArchiveSinkOutputSpec(TraitedSpec):
+class BaseArchiveSinkOutputSpec(DynamicTraitedSpec):
 
     out_files = traits.List(PATH_TRAIT, desc='Output datasets')
 

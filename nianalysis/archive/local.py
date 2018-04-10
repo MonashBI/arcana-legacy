@@ -40,13 +40,6 @@ def lower(s):
     return s.lower()
 
 
-class LocalSourceInputSpec(ArchiveSourceInputSpec):
-
-    base_dir = Directory(
-        exists=True, desc=("Path to the base directory where the datasets will"
-                           " be cached before uploading"))
-
-
 class LocalNodeMixin(object):
 
     def _get_data_dir(self, multiplicity):
@@ -80,7 +73,7 @@ class LocalNodeMixin(object):
 
 class LocalSource(ArchiveSource, LocalNodeMixin):
 
-    input_spec = LocalSourceInputSpec
+    input_spec = ArchiveSourceInputSpec
 
     def __init__(self, *args, **kwargs):
         self._base_dir = kwargs.pop('base_dir')
@@ -92,8 +85,11 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
         # Source datasets
         for dataset in self.datasets:
             ext = dataset.format.extension
-            fname = dataset.name + (ext if ext is not None else '')
-            fname = self.prefix_study_name(fname, dataset.is_spec)
+            fname = self.prefix_study_name(
+                dataset.basename(
+                    subject_id=self.inputs.subject_id,
+                    visit_id=self.inputs.visit_id) +
+                (ext if ext is not None else ''), dataset.is_spec)
             outputs[dataset.name + PATH_SUFFIX] = os.path.join(
                 self._get_data_dir(dataset.multiplicity), fname)
         # Source fields from JSON file
