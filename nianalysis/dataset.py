@@ -332,7 +332,6 @@ class DatasetMatch(BaseDataset):
         self._order = order
         self._id = id
         self._pattern = pattern
-        self._pattern_re = re.compile(pattern)
         self._study = None
         self._matches = None
 
@@ -370,8 +369,8 @@ class DatasetMatch(BaseDataset):
 
     def _match_node(self, node):
         # Get names matching pattern
-        matches = [d for d in node.datasets
-                   if self._pattern_re.match(d.name)]
+        pattern_re = re.compile(self.pattern)
+        matches = [d for d in node.datasets if pattern_re.match(d.name)]
         if not matches:
             raise NiAnalysisDatasetMatchError(
                 "No dataset names in {} match '{}' pattern"
@@ -535,7 +534,10 @@ class DatasetSpec(BaseDataset):
 
     def __eq__(self, other):
         return (super(DatasetSpec, self).__eq__(other) and
-                self.pipeline == other.pipeline)
+                self.pipeline_name == other.pipeline_name and
+                self._pipeline == other._pipeline and
+                self.description == other.description and
+                self._study == other._study)
 
     def bind(self, study):
         """
@@ -549,7 +551,8 @@ class DatasetSpec(BaseDataset):
         """
         cpy = copy(self)
         cpy._study = study
-        self.pipeline  # Test to see if pipeline name is present
+        if self.pipeline_name is not None:
+            cpy.pipeline  # Test to see if pipeline name is present
         return cpy
 
     def find_mismatch(self, other, indent=''):
@@ -563,7 +566,7 @@ class DatasetSpec(BaseDataset):
 
     @property
     def prefixed_name(self):
-        return self._prefix + self.name
+        return self.study.prefix + self.name
 
     @property
     def pipeline_name(self):
@@ -580,7 +583,7 @@ class DatasetSpec(BaseDataset):
 
     @property
     def processed(self):
-        return self._pipeline is not None
+        return self.pipeline_name is not None
 
     @property
     def study(self):
@@ -605,9 +608,10 @@ class DatasetSpec(BaseDataset):
         return duplicate
 
     def __repr__(self):
-        return ("DatasetSpec(name='{}', format={}, pipeline={}, "
+        return ("DatasetSpec(name='{}', format={}, pipeline_name={}, "
                 "multiplicity={})".format(
-                    self.name, self.format, self.pipeline, self.multiplicity))
+                    self.name, self.format, self.pipeline_name,
+                    self.multiplicity))
 
     def initkwargs(self):
         dct = super(DatasetSpec, self).initkwargs()

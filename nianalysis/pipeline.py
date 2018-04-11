@@ -568,7 +568,7 @@ class Pipeline(object):
         # Call pipeline-getter instance method on study with provided options
         # to generate pipeline to run
         for getter in pipeline_getters:
-            pipeline = getter(self._study, **dict(self.all_options))
+            pipeline = getter(**dict(self.all_options))
             # Check that the required outputs are created with the given
             # options
             missing_outputs = required_outputs[getter] - set(
@@ -610,7 +610,7 @@ class Pipeline(object):
                 s for s in sessions
                 if ((visit_ids is None or s.visit_id in visit_ids) and
                     (subject_ids is None or s.subject_id in subject_ids)))
-        tree = self._study.archive.tree
+        tree = self._study.tree
         subjects = ([s for s in tree.subjects if s.id in subject_ids]
                     if subject_ids is not None else list(tree.subjects))
         visits = ([v for v in tree.visits if s.id in visit_ids]

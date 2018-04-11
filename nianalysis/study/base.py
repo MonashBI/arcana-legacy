@@ -73,7 +73,7 @@ class Study(object):
                         "', '".join(self._data_specs)))
             self._inputs[inpt.name] = inpt.bind(self)
         for spec in self.data_specs():
-            if spec.processed:
+            if not spec.processed:
                 # Emit a warning if an acquired dataset has not been
                 # provided for an "acquired dataset"
                 if (check_inputs and spec.name not in self._inputs):
