@@ -146,6 +146,10 @@ class BaseDataset(BaseDatum):
         dct['format'] = self.format
         return dct
 
+    def fname(self, **kwargs):
+        ext = self.format.extension
+        return self.basename(**kwargs) + ext if ext is not None else ''
+
 
 class Dataset(BaseDataset):
     """

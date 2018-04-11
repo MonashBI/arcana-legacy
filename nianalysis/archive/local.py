@@ -89,12 +89,8 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
         outputs = {}
         # Source datasets
         for dataset in self.datasets:
-            ext = dataset.format.extension
-            fname = self.prefix_study_name(
-                dataset.basename(
-                    subject_id=self.inputs.subject_id,
-                    visit_id=self.inputs.visit_id) +
-                (ext if ext is not None else ''), dataset.is_spec)
+            fname = dataset.fname(subject_id=self.inputs.subject_id,
+                                  visit_id=self.inputs.visit_id)
             outputs[dataset.name + PATH_SUFFIX] = os.path.join(
                 self._get_data_dir(dataset.multiplicity), fname)
         # Source fields from JSON file
@@ -165,8 +161,7 @@ class LocalSinkMixin(LocalNodeMixin):
             assert spec.multiplicity == self.multiplicity
             # Copy to local system
             src_path = os.path.abspath(filename)
-            out_fname = self.prefix_study_name(
-                spec.name + (ext if ext is not None else ''))
+            out_fname = spec.fname()
             dst_path = os.path.join(out_dir, out_fname)
             out_files.append(dst_path)
             if os.path.isfile(src_path):
