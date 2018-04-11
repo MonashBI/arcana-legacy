@@ -134,8 +134,8 @@ class MultiStudy(Study):
             name = pipeline_getter.translated_name
         except AttributeError:
             name = pipeline_getter.__name__
-        translated_getter.translated_name = sub_study_name + '_' + name
-        return translated_getter
+        translated_name = sub_study_name + '_' + name
+        return translated_getter, translated_name
 
 
 class SubStudySpec(object):
@@ -394,15 +394,14 @@ class MultiStudyMetaClass(type):
                 initkwargs['name'] = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if data_spec.pipeline is not None:
-                    pipe_getter = MultiStudy.translate(
+                    getter, translated_name = MultiStudy.translate(
                         sub_study_spec.name, data_spec.pipeline)
-                    # Check to see whether pipeline has already been translated
-                    # or always existed in the class (when overriding default
-                    # options for example)
-                    if pipe_getter.translated_name not in dct:
-                        dct[pipe_getter.translated_name] = pipe_getter
-                    initkwargs['pipeline'] = dct[
-                        pipe_getter.translated_name]
+                    # Check to see whether pipeline has already been
+                    # translated or always existed in the class (when
+                    # overriding default options for example)
+                    if translated_name not in dct:
+                        dct[translated_name] = getter
+                    initkwargs['pipeline_name'] = dct[translated_name]
                 new_data_spec = type(data_spec)(**initkwargs)
                 data_specs[new_data_spec.name] = new_data_spec
         return type(name, bases, dct)

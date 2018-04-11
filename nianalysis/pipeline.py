@@ -188,9 +188,12 @@ class Pipeline(object):
         """
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         self.connect_to_archive(complete_workflow, **kwargs)
+        # Reset tree as it should change after the run
+        self.study._tree_cache = None
         # Run the workflow
-        return complete_workflow.run(plugin=plugin, plugin_args=plugin_args,
-                                     updatehash=updatehash)
+        return complete_workflow.run(
+            plugin=plugin, plugin_args=plugin_args,
+            updatehash=updatehash)
 
     def submit(self, work_dir, scheduler='slurm', email=None,
                mail_on=('FAIL',), **kwargs):
@@ -221,6 +224,8 @@ class Pipeline(object):
                 "Unsupported scheduler '{}'".format(scheduler))
         complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
         self.connect_to_archive(complete_workflow, **kwargs)
+        # Reset tree as it should change after the run
+        self.study._tree_cache = None
         return complete_workflow.run(plugin=plugin)
 
     def write_graph(self, fname, style='flat', complete=False):
@@ -358,7 +363,7 @@ class Pipeline(object):
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
-                (self.study.dataset(i) for i in self.inputs),
+                (self.study.bound_data_spec(i) for i in self.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(self.name))
         except NiAnalysisMissingDatasetError as e:
@@ -378,7 +383,7 @@ class Pipeline(object):
                                   source, 'visit_id')
         for input_spec in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            input = self.study.dataset(input_spec.name)  # @ReservedAssignment
+            input = self.study.bound_data_spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
             if isinstance(input, BaseDataset):
                 if input.format != input_spec.format:
                     # Insert a format converter node into the workflow if the
@@ -409,7 +414,7 @@ class Pipeline(object):
             # Create a new sink for each multiplicity level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
-                (self.study.dataset(o) for o in outputs),
+                (self.study.bound_data_spec(o) for o in outputs),
                 multiplicity=mult,
                 study_name=self.study.name,
                 name='{}_{}_sink'.format(self.name, mult))
@@ -423,7 +428,7 @@ class Pipeline(object):
                                           sink, 'visit_id')
             for output_spec in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
-                output = self.study.dataset(output_spec.name)
+                output = self.study.bound_data_spec(output_spec.name)
                 # Skip datasets which are already input datasets
                 if output.is_spec:
                     if isinstance(output, BaseDataset):
@@ -542,7 +547,7 @@ class Pipeline(object):
 
     @property
     def has_prerequisites(self):
-        return any(self._study.dataset(i).is_spec for i in self.inputs)
+        return any(self._study.bound_data_spec(i).is_spec for i in self.inputs)
 
     @property
     def prerequisities(self):
@@ -556,7 +561,7 @@ class Pipeline(object):
         pipeline_getters = set()
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
-            comp = self._study.dataset(input)
+            comp = self._study.bound_data_spec(input)
             if comp.is_spec:
                 pipeline_getters.add(comp.pipeline)
                 required_outputs[comp.pipeline].add(input.name)
@@ -617,7 +622,7 @@ class Pipeline(object):
             return all_sessions
         sessions_to_process = set()
         for output_spec in self.outputs:
-            output = self.study.dataset(output_spec)
+            output = self.study.bound_data_spec(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
             if output.multiplicity == 'per_project':

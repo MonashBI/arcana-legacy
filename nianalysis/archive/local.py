@@ -1,5 +1,6 @@
 from abc import ABCMeta, abstractmethod
 import os.path
+import pydicom
 from collections import defaultdict
 from itertools import chain, groupby
 from operator import attrgetter
@@ -270,13 +271,12 @@ class LocalArchive(Archive):
     VisitSink = LocalVisitSink
     ProjectSink = LocalProjectSink
 
-    def __init__(self, base_dir, subject_ids=None, visit_ids=None):
+    def __init__(self, base_dir):
         if not os.path.exists(base_dir):
             raise NiAnalysisError(
                 "Base directory for LocalArchive '{}' does not exist"
                 .format(base_dir))
         self._base_dir = os.path.abspath(base_dir)
-        super(LocalArchive, self).__init__(subject_ids, visit_ids)
 
     def __repr__(self):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
@@ -291,7 +291,7 @@ class LocalArchive(Archive):
             *args, base_dir=self.base_dir, **kwargs)
         return sink
 
-    def _retrieve_tree(self, subject_ids=None, visit_ids=None):
+    def get_tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         archive
@@ -397,6 +397,10 @@ class LocalArchive(Archive):
             fields = []
         return Project(sorted(subjects), sorted(visits), datasets,
                        fields)
+
+    def retrieve_dicom_tags(self, dataset):
+        with open(dataset.path) as f:
+            return pydicom.dcmread(f)
 
     @classmethod
     def _check_only_dirs(cls, dirs, path):

@@ -29,6 +29,10 @@ class NiAnalysisMissingDatasetError(NiAnalysisError):
     pass
 
 
+class NiAnalysisDatasetMatchError(NiAnalysisUsageError):
+    pass
+
+
 class AcquiredComponentException(NiAnalysisException):
     pass
 

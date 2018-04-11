@@ -563,9 +563,7 @@ class XNATArchive(Archive):
     def __init__(self, project_id, user=None, password=None,
                  cache_dir=None,
                  server='https://mbi-xnat.erc.monash.edu.au',
-                 check_md5=True,
-                 subject_ids=None,
-                 visit_ids=None):
+                 check_md5=True):
         self._project_id = project_id
         self._server = server
         self._user = user
@@ -581,7 +579,6 @@ class XNATArchive(Archive):
             if e.errno != errno.EEXIST:
                 raise
         self._check_md5 = check_md5
-        super(XNATArchive, self).__init__(subject_ids, visit_ids)
 
     def source(self, *args, **kwargs):
         source = super(XNATArchive, self).source(*args, **kwargs)
@@ -664,7 +661,7 @@ class XNATArchive(Archive):
                 s.label for s in xnat_login.projects[
                     project_id].experiments.itervalues()]
 
-    def _retrieve_tree(self, subject_ids=None, visit_ids=None):
+    def get_tree(self, subject_ids=None, visit_ids=None):
         """
         Return the tree of subject and sessions information within a
         project in the XNAT archive
@@ -843,13 +840,10 @@ class XNATArchive(Archive):
         for dataset in xsession.scans.itervalues():
             data_format = data_formats[
                 guess_data_format(dataset).lower()]
-#             if dicom_keys is not None:
-#                 # /REST/services/dicomdump?src=/archive/projects/MMH010/experiments/MBI_XNAT_E14786/scans/1&format=json
-#                 full_dicom_dict = xnat_login.get('/REST/services/dicomdump?src={}&format=json'.format(dataset.address))
-#                 dicom_dct = {k: full_dicom_dict[k] for k in dicom_keys}
             datasets.append(Dataset(
                 dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
-                multiplicity=mult, path=None, id=dataset.id))
+                multiplicity=mult, path=None, id=dataset.id,
+                uri=dataset.uri))
         return sorted(datasets)
 
     def _get_fields(self, xsession, mult, processed=False):
@@ -875,6 +869,13 @@ class XNATArchive(Archive):
                 name=name, value=value, processed=processed,
                 multiplicity=mult))
         return sorted(fields)
+
+    def retrieve_dicom_tags(self, dataset):
+        # /REST/services/dicomdump?src=/archive/projects/MMH010/experiments/MBI_XNAT_E14786/scans/1&format=json
+        with self._login() as xnat_login:
+            return xnat_login.get(
+                '/REST/services/dicomdump?src={}&format=json'
+                .format(dataset.uri))
 
     @property
     def local_dir(self):

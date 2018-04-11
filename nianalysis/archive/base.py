@@ -22,13 +22,6 @@ class Archive(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, *args, **kwargs):
-        self._tree = self._retrieve_tree(*args, **kwargs)
-
-    @property
-    def tree(self):
-        return self._tree
-
     @abstractmethod
     def source(self, inputs, name=None, study_name=None, **kwargs):
         """

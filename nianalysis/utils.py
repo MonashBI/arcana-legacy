@@ -1,11 +1,30 @@
 import os.path
 from nianalysis.exceptions import NiAnalysisError
+import re
 
 
 PATH_SUFFIX = '_path'
 FIELD_SUFFIX = '_field'
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
+
+
+def is_regex(s):
+    "Checks to see if string contains special characters"
+    return bool(re.match(r'^\w+$', s))
+
+
+def nth(i):
+    "Returns 1st, 2nd, 3rd, 4th, etc for a given number"
+    if i == 1:
+        s = '1st'
+    elif i == 2:
+        s = '2nd'
+    elif i == 3:
+        s = '3rd'
+    else:
+        s = '{}th'.format(i)
+    return s
 
 
 def dir_modtime(dpath):

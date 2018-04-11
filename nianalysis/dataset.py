@@ -3,13 +3,15 @@ import re
 from abc import ABCMeta
 from nianalysis.data_formats import DataFormat
 from copy import copy
-from nipype.interfaces.base import traits
+from collections import defaultdict
 import subprocess as sp
 from nianalysis.data_formats import (
     data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import NiAnalysisError, NiAnalysisUsageError
+from nianalysis.exceptions import (
+    NiAnalysisError, NiAnalysisUsageError,
+    NiAnalysisDatasetMatchError)
 
 logger = getLogger('NiAnalysis')
 
@@ -177,17 +179,19 @@ class Dataset(BaseDataset):
 
     def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', path=None,
-                 id=None):  # @ReservedAssignment
+                 id=None, uri=None):  # @ReservedAssignment
         super(Dataset, self).__init__(name, format, multiplicity)
         self._processed = processed
         self._path = path
         self._id = id
+        self._uri = uri
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
                 self._path == other._path and
-                self.id == other.id)
+                self.id == other.id and
+                self.uri == other.uri)
 
     def __lt__(self, other):
         return self.id < other.id
@@ -234,6 +238,10 @@ class Dataset(BaseDataset):
         else:
             return self._id
 
+    @property
+    def uri(self):
+        return self._uri
+
     @classmethod
     def from_path(cls, path, multiplicity='per_session'):
         filename = os.path.basename(path)
@@ -259,6 +267,9 @@ class Dataset(BaseDataset):
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
         dct['processed'] = self.processed
+        dct['path'] = self.path
+        dct['id'] = self.id
+        dct['uri'] = self.uri
         return dct
 
 
@@ -296,7 +307,7 @@ class DatasetMatch(BaseDataset):
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
-    dicom_values : dct(str | str)
+    dicom_tags : dct(str | str)
         To be used to distinguish multiple datasets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
@@ -306,10 +317,14 @@ class DatasetMatch(BaseDataset):
 
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
-                 order=None, dicom_values=None):
+                 order=None, dicom_tags=None):
         super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
-        self._dicom_values = dicom_values
+        if dicom_tags is not None and format != dicom_format:
+            raise NiAnalysisUsageError(
+                "Cannot use 'dicom_tags' kwarg with non-DICOM "
+                "format ({})".format(format))
+        self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
@@ -317,6 +332,90 @@ class DatasetMatch(BaseDataset):
         self._order = order
         self._id = id
         self._pattern = pattern
+        self._pattern_re = re.compile(pattern)
+        self._study = None
+        self._matches = None
+
+    def bind(self, study):
+        cpy = copy(self)
+        cpy._study = study
+        cpy._match_tree(study.tree)
+        return cpy
+
+    def _match_tree(self, tree):
+        # Run the match against the tree
+        if self.multiplicity == 'per_session':
+            self._matches = defaultdict(dict)
+            for subject in tree.subjects:
+                for sess in subject.sessions:
+                    if self.processed and sess.processed is not None:
+                        node = sess.processed
+                    else:
+                        node = sess
+                    self._matches[sess.subject_id][
+                        sess.visit_id] = self._match_node(node)
+        elif self.multiplicity == 'per_subject':
+            self._matches = {}
+            for subject in tree.subjects:
+                self._matches[subject.id] = self._match_node(subject)
+        elif self.multiplicity == 'per_visit':
+            self._matches = {}
+            for visit in tree.visits:
+                self._matches[visit.id] = self._match_node(visit)
+        elif self.multiplicity == 'per_project':
+            self._matches = self._match_node(tree)
+        else:
+            assert False, "Unrecognised multiplicity '{}'".format(
+                self.multiplicity)
+
+    def _match_node(self, node):
+        # Get names matching pattern
+        matches = [d for d in node.datasets
+                   if self._pattern_re.match(d.name)]
+        if not matches:
+            raise NiAnalysisDatasetMatchError(
+                "No dataset names in {} match '{}' pattern"
+                .format(node, self.pattern))
+        # Filter matches by dicom tags
+        if len(matches) > 1 and self.dicom_tags is not None:
+            filtered = []
+            for dataset in matches:
+                tags = self.study.archive.retrieve_dicom_tags(dataset)
+                if all(tags[k] == v for k, v in self.dicom_tags):
+                    filtered.append(dataset)
+            matches = filtered
+        # Select the dataset from the matches
+        if self.order is not None:
+            try:
+                match = matches[self.order]
+            except IndexError:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find {} datasets names matching pattern {}"
+                    " (found {}) in {}".format(self.order, self.pattern,
+                                               len(matches), node))
+        elif self.id is not None:
+            try:
+                match = next(d for d in matches if d.id == self.id)
+            except StopIteration:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find datasets names matching pattern {}"
+                    "with an id of {} (found {}) in {}".format(
+                        self.pattern, self.id,
+                        ', '.join(str(m) for m in matches), node))
+        elif len(matches) == 1:
+            match = matches[0]
+        elif matches:
+            raise NiAnalysisDatasetMatchError(
+                "Found multiple matches for {} pattern in {} ({})"
+                .format(self.pattern, node,
+                        ', '.join(str(m) for m in matches)))
+        else:
+            raise NiAnalysisDatasetMatchError(
+                "Did not find any matches for {} pattern in {} "
+                "(found {})"
+                .format(self.pattern, node,
+                        ', '.join(str(d) for d in node.datasets)))
+        return match
 
     @property
     def pattern(self):
@@ -342,8 +441,8 @@ class DatasetMatch(BaseDataset):
         return self._order
 
     @property
-    def dicom_values(self):
-        return self._dicom_values
+    def dicom_tags(self):
+        return self._dicom_tags
 
     def to_tuple(self):
         return (self.pattern, self.format.name, self.multiplicity,
@@ -353,18 +452,47 @@ class DatasetMatch(BaseDataset):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
                 self.pattern == other.pattern and
-                self.dicom_values == other.dicom_values and
+                self.dicom_tags == other.dicom_tags and
                 self.id == other.id and
                 self.order == other.order)
 
-    def basename(self, subject_id=None, visit_id=None):
-        return self.pattern
+    def match(self, subject_id=None, visit_id=None):
+        if self._matches is None:
+            raise NiAnalysisError(
+                "{} has not been bound to study".format(self))
+        if self.multiplicity == 'per_session':
+            if subject_id is None or visit_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' and 'visit_id' must be provided "
+                    "to get the match for a 'per_session' DatasetMatch "
+                    "({})".format(self))
+            dataset = self._matches[subject_id][visit_id]
+        elif self.multiplicity == 'per_subject':
+            if subject_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' arg must be provided to get "
+                    "the match for a 'per_subject' DatasetMatch ({})"
+                    .format(self))
+            dataset = self._matches[subject_id]
+        elif self.multiplicity == 'per_visit':
+            if visit_id is None:
+                raise NiAnalysisError(
+                    "The 'visit_id' arg must be provided to get "
+                    "the match for a 'per_visit' DatasetMatch ({})"
+                    .format(self))
+            dataset = self._matches[visit_id]
+        elif self.multiplicity == 'per_project':
+            dataset = self._matches
+        return dataset
+
+    def basename(self, **kwargs):
+        return self.match(**kwargs).name
 
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()
         dct['processed'] = self.processed
         dct['pattern'] = self.pattern
-        dct['dicom_values'] = self.dicom_values
+        dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
         dct['order'] = self.order
         return dct
@@ -384,9 +512,9 @@ class DatasetSpec(BaseDataset):
     format : FileFormat
         The file format used to store the dataset. Can be one of the
         recognised formats
-    pipeline : Study.method
-        The method of the study that is used to generate the dataset. If None
-        the dataset is assumed to be primary external
+    pipeline_name : str
+        Name of the method in the study that is used to generate the
+        dataset. If None the dataset is assumed to be acq
     multiplicity : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
@@ -397,16 +525,32 @@ class DatasetSpec(BaseDataset):
 
     is_spec = True
 
-    def __init__(self, name, format=None, pipeline=None,  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', description=None):
         super(DatasetSpec, self).__init__(name, format, multiplicity)
-        self._pipeline = pipeline
+        self._pipeline_name = pipeline_name
+        self._pipeline = None
         self._description = description
-        self._prefix = ''
+        self._study = None
 
     def __eq__(self, other):
         return (super(DatasetSpec, self).__eq__(other) and
                 self.pipeline == other.pipeline)
+
+    def bind(self, study):
+        """
+        Returns a copy of the DatasetSpec bound to the given study
+
+        Parameters
+        ----------
+        study : Study
+            A study to bind the dataset spec to (should happen in the
+            study constructor)
+        """
+        cpy = copy(self)
+        cpy._study = study
+        self.pipeline  # Test to see if pipeline name is present
+        return cpy
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(DatasetSpec, self).find_mismatch(other, indent)
@@ -422,12 +566,28 @@ class DatasetSpec(BaseDataset):
         return self._prefix + self.name
 
     @property
+    def pipeline_name(self):
+        return self._pipeline_name
+
+    @property
     def pipeline(self):
-        return self._pipeline
+        try:
+            return getattr(self.study, self.pipeline_name)
+        except AttributeError:
+            raise NiAnalysisError(
+                "'{}' is not a pipeline method in present in '{}' "
+                "study".format(self.pipeline_name, self.study))
 
     @property
     def processed(self):
         return self._pipeline is not None
+
+    @property
+    def study(self):
+        if self._study is None:
+            raise NiAnalysisError(
+                "{} is not bound to a study".format(self))
+        return self._study
 
     @property
     def description(self):
@@ -451,7 +611,7 @@ class DatasetSpec(BaseDataset):
 
     def initkwargs(self):
         dct = super(DatasetSpec, self).initkwargs()
-        dct['pipeline'] = self.pipeline
+        dct['pipeline_name'] = self.pipeline_name
         dct['description'] = self.description
         return dct
 
