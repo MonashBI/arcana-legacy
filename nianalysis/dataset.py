@@ -597,7 +597,7 @@ class DatasetSpec(BaseDataset):
         return self._description
 
     def basename(self, **kwargs):  # @UnusedVariable
-        return self._prefix + self.name
+        return self.prefixed_name
 
     def apply_prefix(self, prefix):
         """

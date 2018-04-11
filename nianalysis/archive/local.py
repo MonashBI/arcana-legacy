@@ -148,25 +148,25 @@ class LocalSinkMixin(LocalNodeMixin):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
         # Loop through datasets connected to the sink and copy them to archive
         # directory
-        for (name, dataset_format, mult, processed, _) in self.inputs.datasets:
-            assert processed, (
+        for spec in self.datasets:
+            assert spec.processed, (
                 "Should only be sinking processed datasets, not '{}'"
-                .format(name))
-            filename = getattr(self.inputs, name + PATH_SUFFIX)
-            ext = data_formats[dataset_format].extension
+                .format(spec.name))
+            filename = getattr(self.inputs, spec.name + PATH_SUFFIX)
+            ext = spec.format.extension
             if not isdefined(filename):
-                missing_files.append(name)
+                missing_files.append(spec.name)
                 continue  # skip the upload for this file
             if lower(split_extension(filename)[1]) != lower(ext):
                 raise NiAnalysisError(
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
-                            data_formats[dataset_format].name, ext))
-            assert mult == self.multiplicity
+                            spec.format, ext))
+            assert spec.multiplicity == self.multiplicity
             # Copy to local system
             src_path = os.path.abspath(filename)
             out_fname = self.prefix_study_name(
-                name + (ext if ext is not None else ''))
+                spec.name + (ext if ext is not None else ''))
             dst_path = os.path.join(out_dir, out_fname)
             out_files.append(dst_path)
             if os.path.isfile(src_path):
@@ -190,7 +190,7 @@ class LocalSinkMixin(LocalNodeMixin):
         fpath = self.fields_path(self.multiplicity)
         # Open fields JSON, locking to prevent other processes
         # reading or writing
-        if self.inputs.fields:
+        if self.fields:
             with InterProcessLock(fpath + LOCK, logger=logger):
                 try:
                     with open(fpath, 'rb') as f:
@@ -201,7 +201,7 @@ class LocalSinkMixin(LocalNodeMixin):
                     else:
                         raise
                 # Update fields JSON and write back to file.
-                for spec in self.inputs.fields:
+                for spec in self.fields:
                     name, dtype = spec[:2]
                     value = getattr(self.inputs, name + FIELD_SUFFIX)
                     qual_name = self.prefix_study_name(name)
