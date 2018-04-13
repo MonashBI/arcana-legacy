@@ -244,6 +244,8 @@ class TranslatedPipeline(Pipeline):
         Sub-study pipeline to translate
     combined_study : MultiStudy
         Study to translate the pipeline to
+    name_prefix : str
+        Prefix to prepend to the pipeline name to avoid name clashes
     add_inputs : list[str]
         List of additional inputs to add to the translated pipeline
         to be connected manually in combined-study getter (i.e. not
@@ -255,7 +257,7 @@ class TranslatedPipeline(Pipeline):
     """
 
     def __init__(self, combined_study, sub_study, pipeline_name,
-                 add_inputs=None, add_outputs=None, name_prefix=''):
+                  name_prefix='', add_inputs=None, add_outputs=None):
         # Get the relative name of the sub-study (i.e. without the
         # combined study name prefixed)
         ss_name = sub_study.name[(len(combined_study.name) + 1):]
