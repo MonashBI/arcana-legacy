@@ -835,52 +835,52 @@ class TestOnXnatMixin(object):
         else:
             path = proc_path
         return path
-# 
-# 
-# class TestExistingPrereqsOnXnat(TestOnXnatMixin,
-#                                 test_study.TestExistingPrereqs):
-# 
-#     PROJECT = 'TEST007'
-#     BASE_CLASS = test_study.TestExistingPrereqs
-# 
-#     def test_per_session_prereqs(self):
-#         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
-# 
-# 
-# class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
-# 
-#     PROJECT = 'TEST011'
-#     BASE_CLASS = BaseMultiSubjectTestCase
-# 
-#     def test_cache_download(self):
-#         archive = self.archive
-#         archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
-#                                                mrtrix_format),
-#                                 DatasetMatch('dataset2', 'dataset2',
-#                                                mrtrix_format),
-#                                 DatasetMatch('dataset3', 'dataset3',
-#                                                mrtrix_format),
-#                                 DatasetMatch('dataset5', 'dataset5',
-#                                                mrtrix_format)],
-#                       subject_ids=['subject1', 'subject3', 'subject4'],
-#                       visit_ids=['visit1'],
-#                       work_dir=self.work_dir)
-# 
-#     @property
-#     def base_name(self):
-#         return self.name
-# 
-# 
-# class TestProjectInfo(TestOnXnatMixin,
-#                       test_local.TestProjectInfo):
-# 
-#     PROJECT = 'TEST013'
-#     BASE_CLASS = test_local.TestProjectInfo
-# 
-#     def test_project_info(self):
-#         tree = self.archive.get_tree()
-#         ref_tree = self.ref_tree(set_ids=True)
-#         self.assertEqual(
-#             tree, ref_tree,
-#             "Generated project doesn't match reference:{}"
-#             .format(tree.find_mismatch(ref_tree)))
+
+
+class TestExistingPrereqsOnXnat(TestOnXnatMixin,
+                                test_study.TestExistingPrereqs):
+
+    PROJECT = 'TEST007'
+    BASE_CLASS = test_study.TestExistingPrereqs
+
+    def test_per_session_prereqs(self):
+        super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
+
+
+class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
+
+    PROJECT = 'TEST011'
+    BASE_CLASS = BaseMultiSubjectTestCase
+
+    def test_cache_download(self):
+        archive = self.archive
+        archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
+                                               mrtrix_format),
+                                DatasetMatch('dataset2', 'dataset2',
+                                               mrtrix_format),
+                                DatasetMatch('dataset3', 'dataset3',
+                                               mrtrix_format),
+                                DatasetMatch('dataset5', 'dataset5',
+                                               mrtrix_format)],
+                      subject_ids=['subject1', 'subject3', 'subject4'],
+                      visit_ids=['visit1'],
+                      work_dir=self.work_dir)
+
+    @property
+    def base_name(self):
+        return self.name
+
+
+class TestProjectInfo(TestOnXnatMixin,
+                      test_local.TestProjectInfo):
+
+    PROJECT = 'TEST013'
+    BASE_CLASS = test_local.TestProjectInfo
+
+    def test_project_info(self):
+        tree = self.archive.get_tree()
+        ref_tree = self.ref_tree(set_ids=True)
+        self.assertEqual(
+            tree, ref_tree,
+            "Generated project doesn't match reference:{}"
+            .format(tree.find_mismatch(ref_tree)))
