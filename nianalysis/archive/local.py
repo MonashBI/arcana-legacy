@@ -309,19 +309,20 @@ class LocalArchive(Archive):
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
         all_visit_ids = set()
-        for session_path, _, all_fnames in os.walk(self.base_dir):
-            fnames = [f for f in all_fnames if not f.startswith('.')]
+        for session_path, dirs, files in os.walk(self.base_dir):
+            dnames = [d for d in chain(dirs, files)
+                      if not d.startswith('.')]
             relpath = os.path.relpath(session_path, self.base_dir)
             path_parts = relpath.split(os.path.sep)
             depth = len(path_parts)
             if depth > 2:
                 continue
             if depth < 2:
-                if fnames:
+                if any(not f.startswith('.') for f in files):
                     raise NiAnalysisBadlyFormattedLocalArchiveError(
                         "Files ('{}') not permitted at {} level in "
                         "local archive".format(
-                            "', '".join(fnames),
+                            "', '".join(dnames),
                             ('subject' if depth else 'project')))
                 continue  # Not a session directory
             subj_id, visit_id = path_parts
@@ -345,14 +346,14 @@ class LocalArchive(Archive):
                 all_visit_ids.add(visit_id)
             datasets = []
             fields = {}
-            for fname in sorted(fnames):
-                if fname.startswith(FIELDS_FNAME):
+            for dname in sorted(dnames):
+                if dname.startswith(FIELDS_FNAME):
                     continue
                 datasets.append(
                     Dataset.from_path(
-                        os.path.join(session_path, fname),
+                        os.path.join(session_path, dname),
                         multiplicity=multiplicity))
-            if FIELDS_FNAME in fnames:
+            if FIELDS_FNAME in dname:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
                     multiplicity=multiplicity)
