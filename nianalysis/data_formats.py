@@ -58,6 +58,10 @@ class DataFormat(object):
         return self._extension
 
     @property
+    def ext_str(self):
+        return self.extension if self.extension is not None else ''
+
+    @property
     def lctype(self):
         return self._lctype
 

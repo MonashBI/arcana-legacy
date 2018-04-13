@@ -196,7 +196,7 @@ class ArchiveSource(BaseArchiveNode):
                             PATH_TRAIT)
         # Add output fields
         for field in self.fields:
-            assert isinstance(dataset, BaseField)
+            assert isinstance(field, BaseField)
             self._add_trait(outputs, field.name + FIELD_SUFFIX,
                             field.dtype)
         return outputs

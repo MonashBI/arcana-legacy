@@ -102,6 +102,7 @@ class Study(object):
                             self.name, "', '".join(self._inputs)))
             else:
                 self._bound_specs[spec.name] = spec.bind(self)
+            self._reprocess = reprocess
 
     def __repr__(self):
         """String representation of the study"""
@@ -120,6 +121,15 @@ class Study(object):
     def inputs(self):
         return self._inputs.values()
 
+    def input(self, name):
+        try:
+            return self._inputs[name]
+        except KeyError:
+            raise NiAnalysisNameError(
+                name,
+                "{} doesn't have an input named '{}'"
+                .format(self, name))
+
     @property
     def prefix(self):
         """The study name as a prefix for dataset names"""
@@ -129,6 +139,10 @@ class Study(object):
     def name(self):
         """Accessor for the unique study name"""
         return self._name
+
+    @property
+    def reprocess(self):
+        return self._reprocess
 
     @property
     def archive(self):

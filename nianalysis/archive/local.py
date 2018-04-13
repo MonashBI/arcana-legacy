@@ -197,13 +197,13 @@ class LocalSinkMixin(LocalNodeMixin):
                         raise
                 # Update fields JSON and write back to file.
                 for spec in self.fields:
-                    name, dtype = spec[:2]
-                    value = getattr(self.inputs, name + FIELD_SUFFIX)
-                    qual_name = self.prefix_study_name(name)
-                    if dtype is str:
+                    value = getattr(self.inputs,
+                                    spec.name + FIELD_SUFFIX)
+                    qual_name = self.prefix_study_name(spec.name)
+                    if spec.dtype is str:
                         assert isinstance(value, basestring)
                     else:
-                        assert isinstance(value, dtype)
+                        assert isinstance(value, spec.dtype)
                     fields[qual_name] = value
                     out_fields.append((qual_name, value))
                 with open(fpath, 'wb') as f:
