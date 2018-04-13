@@ -22,9 +22,9 @@ class StudyA(Study):
                     DatasetSpec('y', mrtrix_format)],
             outputs=[DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            alterations=kwargs,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge = pipeline.create_node(Merge(2), name="merge")
         mrmath = pipeline.create_node(MRMath(), name="mrmath",
                                       requirements=[mrtrix3_req])
@@ -36,8 +36,6 @@ class StudyA(Study):
         pipeline.connect(merge, 'out', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('z', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     _data_specs = set_specs(
@@ -58,9 +56,9 @@ class StudyB(Study):
             outputs=[DatasetSpec('y', mrtrix_format),
                      DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            alterations=kwargs,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge1 = pipeline.create_node(Merge(2), name='merge1')
         merge2 = pipeline.create_node(Merge(2), name='merge2')
         merge3 = pipeline.create_node(Merge(2), name='merge3')
@@ -87,8 +85,6 @@ class StudyB(Study):
         # Connect outputs
         pipeline.connect_output('y', mrsum2, 'out_file')
         pipeline.connect_output('z', mrproduct, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     _data_specs = set_specs(
@@ -154,9 +150,9 @@ class MultiMultiStudy(MultiStudy):
             outputs=[DatasetSpec('g', mrtrix_format)],
             description=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
-            alterations=kwargs,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge = pipeline.create_node(Merge(3), name="merge")
         mrmath = pipeline.create_node(MRMath(), name="mrmath",
                                       requirements=[mrtrix3_req])
@@ -169,8 +165,6 @@ class MultiMultiStudy(MultiStudy):
         pipeline.connect(merge, 'out', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('g', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     _sub_study_specs = set_specs(

@@ -51,8 +51,6 @@ class DummyStudy(Study):
         pipeline.connect_input('input', identity, 'field')
         # Connect outputs
         pipeline.connect_output('output', identity, 'field')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     _data_specs = set_specs(

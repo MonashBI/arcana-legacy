@@ -52,7 +52,7 @@ class TestStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline1")
@@ -66,8 +66,6 @@ class TestStudy(Study):
         # Connect outputs
         pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
         pipeline.connect_output('pipeline1_2', mrconvert2, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def pipeline2(self, **kwargs):
@@ -79,7 +77,7 @@ class TestStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline2")
@@ -91,8 +89,6 @@ class TestStudy(Study):
         pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline2', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def pipeline3(self, **kwargs):
@@ -103,15 +99,13 @@ class TestStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         mrconvert = pipeline.create_node(MRConvert(), name="convert",
                                          requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
         pipeline.connect_output('pipeline3', mrconvert, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def pipeline4(self, **kwargs):
@@ -123,7 +117,7 @@ class TestStudy(Study):
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -132,8 +126,6 @@ class TestStudy(Study):
         pipeline.connect_input('pipeline3', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline4', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def visit_ids_access_pipeline(self, **kwargs):
@@ -145,13 +137,11 @@ class TestStudy(Study):
                 "A dummy pipeline used to test access to 'session' IDs"),
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         sessions_to_file = pipeline.create_join_visits_node(
             IteratorToFile(), name='sess_to_file', joinfield='ids')
         pipeline.connect_visit_id(sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def subject_ids_access_pipeline(self, **kwargs):
@@ -163,13 +153,11 @@ class TestStudy(Study):
                 "A dummy pipeline used to test access to 'subject' IDs"),
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         subjects_to_file = pipeline.create_join_subjects_node(
             IteratorToFile(), name='subjects_to_file', joinfield='ids')
         pipeline.connect_subject_id(subjects_to_file, 'ids')
         pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def subject_summary_pipeline(self, **kwargs):
@@ -180,7 +168,7 @@ class TestStudy(Study):
             description=("Test of project summary variables"),
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
@@ -199,7 +187,7 @@ class TestStudy(Study):
             description=("Test of project summary variables"),
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
@@ -218,7 +206,7 @@ class TestStudy(Study):
             description=("Test of project summary variables"),
             version=1,
             citations=[],
-            alterations=kwargs)
+            **kwargs)
         mrmath1 = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
         mrmath2 = pipeline.create_join_subjects_node(
@@ -425,8 +413,6 @@ class ExistingPrereqStudy(Study):
         pipeline.connect(operands, 'out', mult, 'operands')
         # Connect outputs
         pipeline.connect_output(output, mult, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
     def tens_pipeline(self, **kwargs):  # @UnusedVariable
