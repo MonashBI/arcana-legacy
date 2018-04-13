@@ -54,14 +54,6 @@ class Pipeline(object):
     version : int
         A version number for the pipeline to be incremented whenever the output
         of the pipeline
-    approx_runtime : float
-        Approximate run time in minutes. Should be conservative so that
-        it can be used to set time limits on HPC schedulers
-    min_nthreads : int
-        The minimum number of threads the pipeline requires to run
-    max_nthreads : int
-        The maximum number of threads the pipeline can use effectively.
-        Use None if there is no effective limit
     name_prefix : str
         Prefix prepended to the name of the pipeline. Typically passed
         in from a kwarg of the pipeline constructor method to allow
