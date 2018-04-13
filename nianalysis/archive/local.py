@@ -353,7 +353,7 @@ class LocalArchive(Archive):
                     Dataset.from_path(
                         os.path.join(session_path, dname),
                         multiplicity=multiplicity))
-            if FIELDS_FNAME in dname:
+            if FIELDS_FNAME in dnames:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
                     multiplicity=multiplicity)
