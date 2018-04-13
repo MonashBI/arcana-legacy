@@ -24,7 +24,6 @@ class ConversionStudy(Study):
                      DatasetSpec('zip_from_directory', directory_format)],
             description=("A pipeline that tests out various data format "
                          "conversions"),
-            default_options={},
             version=1,
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input

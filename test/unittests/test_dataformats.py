@@ -43,7 +43,6 @@ class DummyStudy(Study):
             outputs=[DatasetSpec('output', nifti_gz_format)],
             description=("A dummy pipeline used to test dicom-to-nifti "
                          "conversion method"),
-            default_options={},
             version=1,
             citations=[])
         identity = pipeline.create_node(IdentityInterface(['field']),

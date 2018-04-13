@@ -108,8 +108,7 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name, self.study.name)
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_getter,
-                           **kwargs):
+    def translate(cls, sub_study_spec, pipeline_name, **kwargs):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -124,18 +123,13 @@ class MultiStudy(Study):
         pipeline_getter : Study.method
             Unbound method used to create the pipeline in the sub-study
         """
-        def translated_getter(self, **options):
+        def translated_getter(self):
             trans_pipeline = TranslatedPipeline(
-                self, self.sub_study(sub_study_name),
-                pipeline_getter, options, **kwargs)
+                self, self.sub_study(sub_study_spec.name),
+                pipeline_name, **kwargs)
             trans_pipeline.assert_connected()
             return trans_pipeline
-        try:
-            name = pipeline_getter.translated_name
-        except AttributeError:
-            name = pipeline_getter.__name__
-        translated_name = sub_study_name + '_' + name
-        return translated_getter, translated_name
+        return translated_getter
 
 
 class SubStudySpec(object):
@@ -260,26 +254,17 @@ class TranslatedPipeline(Pipeline):
         using translate_getter decorator).
     """
 
-    def __init__(self, combined_study, sub_study, pipeline_getter,
-                 options, add_inputs=None, add_outputs=None,
-                 override_default_options=None):
+    def __init__(self, combined_study, sub_study, pipeline_name,
+                 add_inputs=None, add_outputs=None, name_prefix=''):
         # Get the relative name of the sub-study (i.e. without the
         # combined study name prefixed)
         ss_name = sub_study.name[(len(combined_study.name) + 1):]
-        name_prefix = ss_name + '_'
-        if '__name_prefix__' in options:
-            name_prefix = (
-                options.pop('__name_prefix__') + name_prefix)
-        # Override default options
-        if override_default_options is not None:
-            for n, val in override_default_options.items():
-                if n not in options:
-                    options[n] = val
+        name_prefix += ss_name + '_'
         # Create pipeline and overriding its name to include prefix
         # Copy across default options and override with extra
         # provided
-        pipeline = pipeline_getter(
-            sub_study, __name_prefix__=name_prefix, **options)
+        pipeline_getter = getattr(sub_study, pipeline_name)
+        pipeline = pipeline_getter(name_prefix=name_prefix)
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:
@@ -389,19 +374,24 @@ class MultiStudyMetaClass(type):
                 "'_data_specs' class attribute"
                 .format(name))
         for sub_study_spec in sub_study_specs.values():
+            # Loop through all data specs that haven't been explicitly
+            # mapped and add a data spec in the multi class.
             for data_spec in sub_study_spec.auto_specs:
                 initkwargs = data_spec.initkwargs()
                 initkwargs['name'] = sub_study_spec.apply_prefix(
                     data_spec.name)
-                if data_spec.pipeline is not None:
-                    getter, translated_name = MultiStudy.translate(
-                        sub_study_spec.name, data_spec.pipeline)
+                if data_spec.pipeline_name is not None:
+                    trans_pipeline_name = (
+                        sub_study_spec.name + '_' +
+                        data_spec.pipeline_name)
+                    pipe_getter = MultiStudy.translate(
+                        sub_study_spec, data_spec)
                     # Check to see whether pipeline has already been
                     # translated or always existed in the class (when
                     # overriding default options for example)
-                    if translated_name not in dct:
-                        dct[translated_name] = getter
-                    initkwargs['pipeline_name'] = dct[translated_name]
+                    if trans_pipeline_name not in dct:
+                        dct[trans_pipeline_name] = pipe_getter
+                    initkwargs['pipeline_name'] = trans_pipeline_name
                 new_data_spec = type(data_spec)(**initkwargs)
                 data_specs[new_data_spec.name] = new_data_spec
         return type(name, bases, dct)

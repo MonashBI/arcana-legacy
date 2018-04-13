@@ -17,205 +17,6 @@ from nipype.interfaces.base import (  # @IgnorePep8
 
 class TestStudy(Study):
 
-    def pipeline1(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline1',
-            inputs=[DatasetSpec('start', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
-                     DatasetSpec('pipeline1_2', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={'pipeline_option': False},
-            version=1,
-            citations=[],
-            options=options)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
-                            "pipeline1")
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
-                                         requirements=[mrtrix3_req])
-        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
-                                          requirements=[mrtrix3_req])
-        # Connect inputs
-        pipeline.connect_input('start', mrconvert, 'in_file')
-        pipeline.connect_input('start', mrconvert2, 'in_file')
-        # Connect outputs
-        pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
-        pipeline.connect_output('pipeline1_2', mrconvert2, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def pipeline2(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline2',
-            inputs=[DatasetSpec('start', nifti_gz_format),
-                    DatasetSpec('pipeline1_1', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={'pipeline_option': False},
-            version=1,
-            citations=[],
-            options=options)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
-                            "pipeline2")
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
-        mrmath.inputs.axis = 0
-        # Connect inputs
-        pipeline.connect_input('start', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
-        # Connect outputs
-        pipeline.connect_output('pipeline2', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def pipeline3(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline3',
-            inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline3', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert",
-                                         requirements=[mrtrix3_req])
-        # Connect inputs
-        pipeline.connect_input('pipeline2', mrconvert, 'in_file')
-        # Connect outputs
-        pipeline.connect_output('pipeline3', mrconvert, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def pipeline4(self, **options):
-        pipeline = self.create_pipeline(
-            name='pipeline4',
-            inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
-                    DatasetSpec('pipeline3', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
-        mrmath.inputs.axis = 0
-        # Connect inputs
-        pipeline.connect_input('pipeline1_2', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline3', mrmath, 'second_scan')
-        # Connect outputs
-        pipeline.connect_output('pipeline4', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def visit_ids_access_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name='visit_ids_access',
-            inputs=[],
-            outputs=[DatasetSpec('visit_ids', text_format)],
-            description=(
-                "A dummy pipeline used to test access to 'session' IDs"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        sessions_to_file = pipeline.create_join_visits_node(
-            IteratorToFile(), name='sess_to_file', joinfield='ids')
-        pipeline.connect_visit_id(sessions_to_file, 'ids')
-        pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def subject_ids_access_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name='subject_ids_access',
-            inputs=[],
-            outputs=[DatasetSpec('subject_ids', text_format)],
-            description=(
-                "A dummy pipeline used to test access to 'subject' IDs"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        subjects_to_file = pipeline.create_join_subjects_node(
-            IteratorToFile(), name='subjects_to_file', joinfield='ids')
-        pipeline.connect_subject_id(subjects_to_file, 'ids')
-        pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
-        return pipeline
-
-    def subject_summary_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name="subject_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('subject_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
-        mrmath.inputs.operation = 'sum'
-        # Connect inputs
-        pipeline.connect_input('ones_slice', mrmath, 'in_files')
-        # Connect outputs
-        pipeline.connect_output('subject_summary', mrmath, 'out_file')
-        pipeline.assert_connected()
-        return pipeline
-
-    def visit_summary_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name="visit_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('visit_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
-        mrmath.inputs.operation = 'sum'
-        # Connect inputs
-        pipeline.connect_input('ones_slice', mrmath, 'in_files')
-        # Connect outputs
-        pipeline.connect_output('visit_summary', mrmath, 'out_file')
-        pipeline.assert_connected()
-        return pipeline
-
-    def project_summary_pipeline(self, **options):
-        pipeline = self.create_pipeline(
-            name="project_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('project_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
-            default_options={},
-            version=1,
-            citations=[],
-            options=options)
-        mrmath1 = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
-        mrmath2 = pipeline.create_join_subjects_node(
-            MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
-        mrmath1.inputs.operation = 'sum'
-        mrmath2.inputs.operation = 'sum'
-        # Connect inputs
-        pipeline.connect_input('ones_slice', mrmath1, 'in_files')
-        pipeline.connect(mrmath1, 'out_file', mrmath2, 'in_files')
-        # Connect outputs
-        pipeline.connect_output('project_summary', mrmath2, 'out_file')
-        pipeline.assert_connected()
-        return pipeline
-
     _data_specs = set_specs(
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
@@ -239,6 +40,198 @@ class TestStudy(Study):
         DatasetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
                     multiplicity='per_subject'))
+
+    default_options = {'pipeline_option': False},
+
+    def pipeline1(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='pipeline1',
+            inputs=[DatasetSpec('start', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
+                     DatasetSpec('pipeline1_2', nifti_gz_format)],
+            description="A dummy pipeline used to test 'run_pipeline' method",
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        if not pipeline.option('pipeline_option'):
+            raise Exception("Pipeline option was not cascaded down to "
+                            "pipeline1")
+        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
+                                         requirements=[mrtrix3_req])
+        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
+                                          requirements=[mrtrix3_req])
+        # Connect inputs
+        pipeline.connect_input('start', mrconvert, 'in_file')
+        pipeline.connect_input('start', mrconvert2, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
+        pipeline.connect_output('pipeline1_2', mrconvert2, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def pipeline2(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='pipeline2',
+            inputs=[DatasetSpec('start', nifti_gz_format),
+                    DatasetSpec('pipeline1_1', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
+            description="A dummy pipeline used to test 'run_pipeline' method",
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        if not pipeline.option('pipeline_option'):
+            raise Exception("Pipeline option was not cascaded down to "
+                            "pipeline2")
+        mrmath = pipeline.create_node(MRCat(), name="mrcat",
+                                      requirements=[mrtrix3_req])
+        mrmath.inputs.axis = 0
+        # Connect inputs
+        pipeline.connect_input('start', mrmath, 'first_scan')
+        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
+        # Connect outputs
+        pipeline.connect_output('pipeline2', mrmath, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def pipeline3(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='pipeline3',
+            inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline3', nifti_gz_format)],
+            description="A dummy pipeline used to test 'run_pipeline' method",
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        mrconvert = pipeline.create_node(MRConvert(), name="convert",
+                                         requirements=[mrtrix3_req])
+        # Connect inputs
+        pipeline.connect_input('pipeline2', mrconvert, 'in_file')
+        # Connect outputs
+        pipeline.connect_output('pipeline3', mrconvert, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def pipeline4(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='pipeline4',
+            inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
+                    DatasetSpec('pipeline3', nifti_gz_format)],
+            outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
+            description="A dummy pipeline used to test 'run_pipeline' method",
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        mrmath = pipeline.create_node(MRCat(), name="mrcat",
+                                      requirements=[mrtrix3_req])
+        mrmath.inputs.axis = 0
+        # Connect inputs
+        pipeline.connect_input('pipeline1_2', mrmath, 'first_scan')
+        pipeline.connect_input('pipeline3', mrmath, 'second_scan')
+        # Connect outputs
+        pipeline.connect_output('pipeline4', mrmath, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def visit_ids_access_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='visit_ids_access',
+            inputs=[],
+            outputs=[DatasetSpec('visit_ids', text_format)],
+            description=(
+                "A dummy pipeline used to test access to 'session' IDs"),
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        sessions_to_file = pipeline.create_join_visits_node(
+            IteratorToFile(), name='sess_to_file', joinfield='ids')
+        pipeline.connect_visit_id(sessions_to_file, 'ids')
+        pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def subject_ids_access_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='subject_ids_access',
+            inputs=[],
+            outputs=[DatasetSpec('subject_ids', text_format)],
+            description=(
+                "A dummy pipeline used to test access to 'subject' IDs"),
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        subjects_to_file = pipeline.create_join_subjects_node(
+            IteratorToFile(), name='subjects_to_file', joinfield='ids')
+        pipeline.connect_subject_id(subjects_to_file, 'ids')
+        pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
+        # Check inputs/outputs are connected
+        pipeline.assert_connected()
+        return pipeline
+
+    def subject_summary_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name="subject_summary",
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('subject_summary', mrtrix_format)],
+            description=("Test of project summary variables"),
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        mrmath = pipeline.create_join_visits_node(
+            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
+        mrmath.inputs.operation = 'sum'
+        # Connect inputs
+        pipeline.connect_input('ones_slice', mrmath, 'in_files')
+        # Connect outputs
+        pipeline.connect_output('subject_summary', mrmath, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
+
+    def visit_summary_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name="visit_summary",
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('visit_summary', mrtrix_format)],
+            description=("Test of project summary variables"),
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        mrmath = pipeline.create_join_visits_node(
+            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
+        mrmath.inputs.operation = 'sum'
+        # Connect inputs
+        pipeline.connect_input('ones_slice', mrmath, 'in_files')
+        # Connect outputs
+        pipeline.connect_output('visit_summary', mrmath, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
+
+    def project_summary_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name="project_summary",
+            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
+            outputs=[DatasetSpec('project_summary', mrtrix_format)],
+            description=("Test of project summary variables"),
+            version=1,
+            citations=[],
+            alterations=kwargs)
+        mrmath1 = pipeline.create_join_visits_node(
+            MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
+        mrmath2 = pipeline.create_join_subjects_node(
+            MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
+        mrmath1.inputs.operation = 'sum'
+        mrmath2.inputs.operation = 'sum'
+        # Connect inputs
+        pipeline.connect_input('ones_slice', mrmath1, 'in_files')
+        pipeline.connect(mrmath1, 'out_file', mrmath2, 'in_files')
+        # Connect outputs
+        pipeline.connect_output('project_summary', mrmath2, 'out_file')
+        pipeline.assert_connected()
+        return pipeline
 
 
 class IteratorToFileInputSpec(TraitedSpec):
@@ -402,6 +395,14 @@ class TestRunPipeline(BaseTestCase):
 
 class ExistingPrereqStudy(Study):
 
+    _data_specs = set_specs(
+        DatasetSpec('start', mrtrix_format),
+        DatasetSpec('tens', mrtrix_format, 'tens_pipeline'),
+        DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),
+        DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline'))
+
+    default_options = {'pipeline1_option': False},
+
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
             name=output,
@@ -409,7 +410,6 @@ class ExistingPrereqStudy(Study):
             outputs=[DatasetSpec(output, mrtrix_format)],
             description=(
                 "A dummy pipeline used to test 'partial-complete' method"),
-            default_options={'pipeline1_option': False},
             version=1,
             citations=[],
             options={})
@@ -429,20 +429,14 @@ class ExistingPrereqStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def tens_pipeline(self, **options):  # @UnusedVariable
+    def tens_pipeline(self, **kwargs):  # @UnusedVariable
         return self.pipeline_factory(10, 'start', 'tens')
 
-    def hundreds_pipeline(self, **options):  # @UnusedVariable
+    def hundreds_pipeline(self, **kwargs):  # @UnusedVariable
         return self.pipeline_factory(100, 'tens', 'hundreds')
 
-    def thousands_pipeline(self, **options):  # @UnusedVariable
+    def thousands_pipeline(self, **kwargs):  # @UnusedVariable
         return self.pipeline_factory(1000, 'hundreds', 'thousands')
-
-    _data_specs = set_specs(
-        DatasetSpec('start', mrtrix_format),
-        DatasetSpec('tens', mrtrix_format, tens_pipeline),
-        DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
-        DatasetSpec('thousands', mrtrix_format, thousands_pipeline))
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):

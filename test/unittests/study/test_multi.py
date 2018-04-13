@@ -15,15 +15,14 @@ from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @Ign
 
 class StudyA(Study):
 
-    def pipeline_alpha(self, **options):  # @UnusedVariable
+    def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_alpha',
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
             outputs=[DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            default_options={},
-            options=options,
+            alterations=kwargs,
             version=1,
             citations=[])
         merge = pipeline.create_node(Merge(2), name="merge")
@@ -44,12 +43,14 @@ class StudyA(Study):
     _data_specs = set_specs(
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format),
-        DatasetSpec('z', mrtrix_format, pipeline_alpha))
+        DatasetSpec('z', mrtrix_format, 'pipeline_alpha'))
+
+    default_options = {}
 
 
 class StudyB(Study):
 
-    def pipeline_beta(self, **options):  # @UnusedVariable
+    def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_beta',
             inputs=[DatasetSpec('w', mrtrix_format),
@@ -57,8 +58,7 @@ class StudyB(Study):
             outputs=[DatasetSpec('y', mrtrix_format),
                      DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            default_options={},
-            options=options,
+            alterations=kwargs,
             version=1,
             citations=[])
         merge1 = pipeline.create_node(Merge(2), name='merge1')
@@ -94,8 +94,8 @@ class StudyB(Study):
     _data_specs = set_specs(
         DatasetSpec('w', mrtrix_format),
         DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format, pipeline_beta),
-        DatasetSpec('z', mrtrix_format, pipeline_beta))
+        DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
+        DatasetSpec('z', mrtrix_format, 'pipeline_beta'))
 
 
 class FullMultiStudy(MultiStudy):
@@ -117,9 +117,9 @@ class FullMultiStudy(MultiStudy):
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format),
-        DatasetSpec('d', mrtrix_format, pipeline_alpha_trans),
-        DatasetSpec('e', mrtrix_format, pipeline_beta_trans),
-        DatasetSpec('f', mrtrix_format, pipeline_beta_trans))
+        DatasetSpec('d', mrtrix_format, 'pipeline_alpha_trans'),
+        DatasetSpec('e', mrtrix_format, 'pipeline_beta_trans'),
+        DatasetSpec('f', mrtrix_format, 'pipeline_beta_trans'))
 
 
 class PartialMultiStudy(MultiStudy):
@@ -145,7 +145,7 @@ class MultiMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    def combined_pipeline(self, **options):
+    def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='combined',
             inputs=[DatasetSpec('ss1_z', mrtrix_format),
@@ -154,8 +154,7 @@ class MultiMultiStudy(MultiStudy):
             outputs=[DatasetSpec('g', mrtrix_format)],
             description=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
-            default_options={},
-            options=options,
+            alterations=kwargs,
             version=1,
             citations=[])
         merge = pipeline.create_node(Merge(3), name="merge")
@@ -179,7 +178,7 @@ class MultiMultiStudy(MultiStudy):
         SubStudySpec('full', FullMultiStudy),
         SubStudySpec('partial', PartialMultiStudy))
     _data_specs = set_specs(
-        DatasetSpec('g', mrtrix_format, combined_pipeline))
+        DatasetSpec('g', mrtrix_format, 'combined_pipeline'))
 
 
 class TestMulti(TestCase):

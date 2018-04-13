@@ -531,6 +531,11 @@ class DatasetSpec(BaseDataset):
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', description=None):
         super(DatasetSpec, self).__init__(name, format, multiplicity)
+        if not (pipeline_name is None or
+                isinstance(pipeline_name, basestring)):
+            raise NiAnalysisError(
+                "Pipeline name for DatasetSpec '{}' is not a string "
+                "'{}'".format(name, pipeline_name))
         self._pipeline_name = pipeline_name
         self._pipeline = None
         self._description = description

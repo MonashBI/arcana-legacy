@@ -24,7 +24,7 @@ from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
 from rdflib import plugin
 
 
-logger = getLogger('NIAnalysis')
+logger = getLogger('NiAnalysis')
 
 
 class Pipeline(object):
@@ -39,15 +39,12 @@ class Pipeline(object):
         The name of the pipeline
     study : Study
         The study from which the pipeline was created
-    inputs : List[BaseFile]
+    inputs : List[DatasetSpec|FieldSpec]
         The list of input datasets required for the pipeline
         un/processed datasets, and the options used to generate them for
         unprocessed datasets
-    outputs : List[ProcessedFile]
+    outputs : List[DatasetSpec|FieldSpec]
         The list of outputs (hard-coded names for un/processed datasets)
-    default_options : Dict[str, *]
-        Default options that are used to construct the pipeline. They can
-        be overriden by values provided to they 'options' keyword arg
     citations : List[Citation]
         List of citations that describe the workflow and should be cited in
         publications
@@ -65,24 +62,36 @@ class Pipeline(object):
     max_nthreads : int
         The maximum number of threads the pipeline can use effectively.
         Use None if there is no effective limit
-    options : Dict[str, *]
-        Options that effect the output of the pipeline that override the
-        default options. Extra options that are not in the default_options
-        dictionary are ignored
+    name_prefix : str
+        Prefix prepended to the name of the pipeline. Typically passed
+        in from a kwarg of the pipeline constructor method to allow
+        multi-classes to alter the name of the pipeline to avoid name
+        clashes
+    add_inputs : List[DatasetSpec|FieldSpec]
+        Additional inputs to append to the inputs argument. Typically
+        passed in from a kwarg of the pipeline constructor method to
+        allow sub-classes to add additional inputs
+    add_outputs : List[DatasetSpec|FieldSpec]
+        Additional outputs to append to the outputs argument. Typically
+        passed in from a kwarg of the pipeline constructor method to
+        allow sub-classes to add additional outputs
     """
 
     iterfields = ('subject_id', 'visit_id')
 
     def __init__(self, study, name, inputs, outputs, description,
-                 default_options, citations, version, options={}):
-        self._name = options.pop('__name_prefix__', '') + name
+                 citations, version, name_prefix='',
+                 add_inputs=[], add_outputs=[]):
+        self._name = name_prefix + name
+        inputs = list(inputs) + list(add_inputs)
+        outputs = list(outputs) + list(add_outputs)
         self._study = study
         self._workflow = pe.Workflow(name=self.name)
         self._version = int(version)
         self._description = description
         # Set up inputs
-        self._check_spec_names(inputs, 'input')
-        if any(i.name in self.iterfields for i in inputs):
+        self._check_spec_names(self.inputs, 'input')
+        if any(i.name in self.iterfields for i in self.inputs):
             raise NiAnalysisError(
                 "Cannot have a dataset spec named '{}' as it clashes with "
                 "iterable field of that name".format(i.name))
@@ -114,16 +123,7 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'"
             .format("', '".join(self.output_names)))
         self._citations = citations
-        self._default_options = default_options
-        # Copy default options to options and then update it with specific
-        # options passed to this pipeline
-        self._options = copy(default_options)
-        self._prereq_options = {}
-        for k, v in options.iteritems():
-            if k in self._options:
-                self._options[k] = v
-            else:
-                self._prereq_options[k] = v  # Pass on to prereqs
+        self._used_options = {}
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs

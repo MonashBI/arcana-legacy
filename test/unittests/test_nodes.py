@@ -22,7 +22,6 @@ class RequirementsStudy(Study):
             inputs=[DatasetSpec('ones', nifti_gz_format)],
             outputs=[DatasetSpec('twos', nifti_gz_format)],
             description=("A pipeline that tests loading of requirements"),
-            default_options={},
             version=1,
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
