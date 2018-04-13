@@ -37,6 +37,11 @@ class Study(object):
     check_inputs : bool
         Whether to check the inputs to see if any acquired datasets
         are missing
+    reprocess : bool
+        Whether to reprocess dataset|fields that have been created with
+        different parameters and/or pipeline-versions. If False then
+        and exception will be thrown if the archive already contains
+        matching datasets|fields created with different parameters.
 
 
     Required Sub-Class attributes
@@ -51,12 +56,24 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, archive, inputs, options={},
-                 subject_ids=None, visit_ids=None, check_inputs=True):
+    def __init__(self, name, archive, inputs, options=None,
+                 subject_ids=None, visit_ids=None, check_inputs=True,
+                 reprocess=False):
+        options = {} if options is None else options
         self._name = name
         self._archive = archive
         self._inputs = {}
+        # "Bind" data specs in the class to the current study object
+        # this will allow them to prepend the study name to the name
+        # of the dataset
         self._bound_specs = {}
+        for option_name in options:
+            if option_name not in self.default_options:
+                raise NiAnalysisNameError(
+                    "Provided option '{}' is not present in the "
+                    "allowable options for {} classes ('{}')"
+                    .format(option_name, type(self).__name__,
+                            "', '".join(self.default_options)))
         self._options = options
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
@@ -118,12 +135,12 @@ class Study(object):
         "Accessor for the archive member (e.g. Daris, XNAT, MyTardis)"
         return self._archive
 
-    def create_pipeline(self, *args, **options):
+    def create_pipeline(self, *args, **kwargs):
         """
         Creates a Pipeline object, passing the study (self) as the first
         argument
         """
-        return Pipeline(self, *args, **options)
+        return Pipeline(self, *args, **kwargs)
 
     @classmethod
     def data_spec(cls, name):

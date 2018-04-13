@@ -3,11 +3,9 @@ import tempfile
 import shutil
 from itertools import chain
 from collections import defaultdict
-from copy import copy
 from nipype.pipeline import engine as pe
 import errno
-from .nodes import (
-    Node, JoinNode, MapNode, DEFAULT_MEMORY, DEFAULT_WALL_TIME)
+from .nodes import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
@@ -82,8 +80,8 @@ class Pipeline(object):
         self._version = int(version)
         self._description = description
         # Set up inputs
-        self._check_spec_names(self.inputs, 'input')
-        if any(i.name in self.iterfields for i in self.inputs):
+        self._check_spec_names(inputs, 'input')
+        if any(i.name in self.iterfields for i in inputs):
             raise NiAnalysisError(
                 "Cannot have a dataset spec named '{}' as it clashes with "
                 "iterable field of that name".format(i.name))
@@ -115,7 +113,9 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'"
             .format("', '".join(self.output_names)))
         self._citations = citations
-        self._used_options = {}
+        # Keep record of all options used in the pipeline construction
+        # so that they can be saved with the provenence.
+        self._used_options = set()
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -131,18 +131,18 @@ class Pipeline(object):
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
                                       self.name)
-
-    @property
-    def requires_gpu(self):
-        return False  # FIXME: Need to implement this
-
-    @property
-    def max_memory(self):
-        return 4000  # FIXME: This shouldn't be hard-coded here
-
-    @property
-    def wall_time(self):
-        return '7-00:00:00'  # Max amount FIXME: this shouldn't be HCed
+# 
+#     @property
+#     def requires_gpu(self):
+#         return False  # FIXME: Need to implement this
+# 
+#     @property
+#     def max_memory(self):
+#         return 4000  # FIXME: This shouldn't be hard-coded here
+# 
+#     @property
+#     def wall_time(self):
+#         return '7-00:00:00'  # Max amount FIXME: this shouldn't be HCed
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -150,9 +150,10 @@ class Pipeline(object):
         return (
             self._name == other._name and
             self._study == other._study and
+            self._description == other._description and
+            self._version == other.version and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
-            self._options == other._options and
             self._citations == other._citations)
 
     def __ne__(self, other):
@@ -560,7 +561,7 @@ class Pipeline(object):
         # Call pipeline-getter instance method on study with provided options
         # to generate pipeline to run
         for getter in pipeline_getters:
-            pipeline = getter(**dict(self.all_options))
+            pipeline = getter()
             # Check that the required outputs are created with the given
             # options
             missing_outputs = required_outputs[getter] - set(
@@ -911,20 +912,24 @@ class Pipeline(object):
     def output_names(self):
         return (o.name for o in self.outputs)
 
-    @property
-    def default_options(self):
-        return self._default_options
-
-    @property
-    def options(self):
-        return self._options.iteritems()
-
-    @property
-    def prereq_options(self):
-        return self._prereq_options.iteritems()
-
     def option(self, name):
-        return self._options[name]
+        try:
+            value = self.study._options[name]
+        except KeyError:
+            try:
+                value = self.study.default_options[name]
+            except KeyError:
+                raise NiAnalysisNameError(
+                    name,
+                    "{} does not have an option named '{}'".format(
+                        self.study, name))
+        # Register option as being used by the pipeline
+        self._used_options.add(name)
+        return value
+
+    @property
+    def used_options(self):
+        return iter(self._used_options)
 
     @property
     def all_options(self):

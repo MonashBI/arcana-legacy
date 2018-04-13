@@ -41,7 +41,7 @@ class TestStudy(Study):
                     'visit_ids_access_pipeline',
                     multiplicity='per_subject'))
 
-    default_options = {'pipeline_option': False},
+    default_options = {'pipeline_option': False}
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -271,7 +271,8 @@ class TestRunPipeline(BaseTestCase):
             TestStudy, 'dummy', inputs=[
                 DatasetMatch('start', 'start', nifti_gz_format),
                 DatasetMatch('ones_slice', 'ones_slice',
-                             mrtrix_format)])
+                             mrtrix_format)],
+            options={'pipeline_option': True})
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
@@ -287,7 +288,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        pipeline = self.study.pipeline4(pipeline_option=True)
+        pipeline = self.study.pipeline4()
         pipeline.run(work_dir=self.work_dir)
         for dataset in TestStudy.data_specs():
             if dataset.multiplicity == 'per_session' and dataset.processed:
@@ -389,7 +390,7 @@ class ExistingPrereqStudy(Study):
         DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),
         DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline'))
 
-    default_options = {'pipeline1_option': False},
+    default_options = {}
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
@@ -399,8 +400,7 @@ class ExistingPrereqStudy(Study):
             description=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             version=1,
-            citations=[],
-            options={})
+            citations=[])
         # Nodes
         operands = pipeline.create_node(Merge(2), name='merge')
         mult = pipeline.create_node(MRCalc(), name="convert1",

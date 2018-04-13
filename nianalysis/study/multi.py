@@ -345,10 +345,6 @@ class TranslatedPipeline(Pipeline):
                     self._outputnodes[mult],
                     sub_study_spec.inverse_map(output_name))
         # Copy additional info fields
-        self._default_options = copy(pipeline._default_options)
-        if override_default_options is not None:
-            self._default_options.update(override_default_options)
-        self._prereq_options = pipeline._prereq_options
         self._citations = pipeline._citations
         self._description = pipeline._description
 
