@@ -268,7 +268,7 @@ class BaseArchiveSink(BaseArchiveNode):
                             PATH_TRAIT)
         # Add input fields
         for field in fields:
-            assert isinstance(dataset, FieldSpec)
+            assert isinstance(field, FieldSpec)
             self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
                             field.dtype)
 

@@ -32,8 +32,8 @@ class TestDatasetSpecPickle(TestCase):
 
     def test_dataset_and_field(self):
         objs = [DatasetSpec('a', nifti_gz_format,
-                            DummyStudy.dummy_pipeline1),
-                FieldSpec('b', int, DummyStudy.dummy_pipeline2)]
+                            'dummy_pipeline1'),
+                FieldSpec('b', int, 'dummy_pipeline2')]
         for i, obj in enumerate(objs):
             fname = os.path.join(self.pkl_dir, '{}.pkl'.format(i))
             with open(fname, 'w') as f:

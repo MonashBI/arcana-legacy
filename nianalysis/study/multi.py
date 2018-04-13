@@ -108,7 +108,8 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name, self.study.name)
 
     @classmethod
-    def translate(cls, sub_study_spec, pipeline_name, **kwargs):
+    def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
+                  add_outputs=None):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -120,13 +121,29 @@ class MultiStudy(Study):
         ----------
         sub_study_name : str
             Name of the sub-study
-        pipeline_getter : Study.method
+        pipeline_name : str
             Unbound method used to create the pipeline in the sub-study
+        add_inputs : list[str]
+            List of additional inputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
+        add_outputs : list[str]
+            List of additional outputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
         """
-        def translated_getter(self):
+        try:
+            assert isinstance(sub_study_name, basestring)
+            assert isinstance(pipeline_name, basestring)
+        except:
+            raise
+        def translated_getter(self, name_prefix='',  # @IgnorePep8
+                              add_inputs=add_inputs,
+                              add_outputs=add_outputs):
             trans_pipeline = TranslatedPipeline(
-                self, self.sub_study(sub_study_spec.name),
-                pipeline_name, **kwargs)
+                self, self.sub_study(sub_study_name),
+                pipeline_name, name_prefix=name_prefix,
+                add_inputs=add_inputs, add_outputs=add_outputs)
             trans_pipeline.assert_connected()
             return trans_pipeline
         return translated_getter
@@ -271,7 +288,6 @@ class TranslatedPipeline(Pipeline):
             assert isinstance(pipeline, Pipeline)
         except Exception:
             raise
-        self._options = pipeline._options
         self._name = pipeline.name
         self._study = combined_study
         self._workflow = pipeline.workflow
@@ -347,6 +363,7 @@ class TranslatedPipeline(Pipeline):
         # Copy additional info fields
         self._citations = pipeline._citations
         self._description = pipeline._description
+        self._used_options = set()
 
 
 class MultiStudyMetaClass(type):
@@ -383,7 +400,7 @@ class MultiStudyMetaClass(type):
                         sub_study_spec.name + '_' +
                         data_spec.pipeline_name)
                     pipe_getter = MultiStudy.translate(
-                        sub_study_spec, data_spec)
+                        sub_study_spec.name, data_spec.pipeline_name)
                     # Check to see whether pipeline has already been
                     # translated or always existed in the class (when
                     # overriding default options for example)

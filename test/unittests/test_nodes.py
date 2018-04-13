@@ -40,7 +40,7 @@ class RequirementsStudy(Study):
 
     _data_specs = set_specs(
         DatasetSpec('ones', nifti_gz_format),
-        DatasetSpec('twos', nifti_gz_format, pipeline))
+        DatasetSpec('twos', nifti_gz_format, 'pipeline'))
 
 
 class TestModuleLoad(BaseTestCase):

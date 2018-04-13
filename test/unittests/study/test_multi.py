@@ -99,9 +99,9 @@ class FullMultiStudy(MultiStudy):
     __metaclass__ = MultiStudyMetaClass
 
     pipeline_alpha_trans = MultiStudy.translate(
-        'ss1', StudyA.pipeline_alpha)
+        'ss1', 'pipeline_alpha')
     pipeline_beta_trans = MultiStudy.translate(
-        'ss2', StudyB.pipeline_beta)
+        'ss2', 'pipeline_beta')
 
     _sub_study_specs = set_specs(
         SubStudySpec('ss1', StudyA,
@@ -123,7 +123,7 @@ class PartialMultiStudy(MultiStudy):
     __metaclass__ = MultiStudyMetaClass
 
     pipeline_alpha_trans = MultiStudy.translate(
-        'ss1', StudyA.pipeline_alpha)
+        'ss1', 'pipeline_alpha')
 
     _sub_study_specs = set_specs(
         SubStudySpec('ss1', StudyA,

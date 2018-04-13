@@ -40,11 +40,11 @@ class TestLocalArchive(BaseTestCase):
                         DatasetMatch('source4', 'source4',
                                        nifti_gz_format)]
         sink_files = [DatasetSpec('sink1', nifti_gz_format,
-                                  pipeline=dummy_pipeline),
+                                  'dummy_pipeline'),
                       DatasetSpec('sink3', nifti_gz_format,
-                                  pipeline=dummy_pipeline),
+                                  'dummy_pipeline'),
                       DatasetSpec('sink4', nifti_gz_format,
-                                  pipeline=dummy_pipeline)]
+                                  'dummy_pipeline')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
@@ -100,9 +100,9 @@ class TestLocalArchive(BaseTestCase):
         sink.run()
         source = archive.source(
             inputs=[
-                FieldSpec('field1', int, pipeline=dummy_pipeline),
-                FieldSpec('field2', float, pipeline=dummy_pipeline),
-                FieldSpec('field3', str, pipeline=dummy_pipeline)],
+                FieldSpec('field1', int, 'dummy_pipeline'),
+                FieldSpec('field2', float, 'dummy_pipeline'),
+                FieldSpec('field3', str, 'dummy_pipeline')],
             name='fields_source',
             study_name='test')
         source.inputs.visit_id = self.VISIT
@@ -133,7 +133,7 @@ class TestLocalArchive(BaseTestCase):
         # Test subject sink
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                           multiplicity='per_subject',
-                                          pipeline=dummy_pipeline)]
+                                          'dummy_pipeline')]
         subject_sink = archive.sink(subject_sink_files,
                                     multiplicity='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -143,7 +143,7 @@ class TestLocalArchive(BaseTestCase):
         # Test visit sink
         visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
                                         multiplicity='per_visit',
-                                        pipeline=dummy_pipeline)]
+                                        'dummy_pipeline')]
         visit_sink = archive.sink(visit_sink_files,
                                   multiplicity='per_visit',
                                   study_name=self.SUMMARY_STUDY_NAME)
@@ -153,7 +153,7 @@ class TestLocalArchive(BaseTestCase):
         # Test project sink
         project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
                                           multiplicity='per_project',
-                                          pipeline=dummy_pipeline)]
+                                          'dummy_pipeline')]
         project_sink = archive.sink(project_sink_files,
                                     multiplicity='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -202,11 +202,11 @@ class TestLocalArchive(BaseTestCase):
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(
             [DatasetSpec('resink1', nifti_gz_format,
-                         pipeline=dummy_pipeline),
+                         'dummy_pipeline'),
              DatasetSpec('resink2', nifti_gz_format,
-                         pipeline=dummy_pipeline),
+                         'dummy_pipeline'),
              DatasetSpec('resink3', nifti_gz_format,
-                         pipeline=dummy_pipeline)],
+                         'dummy_pipeline')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
@@ -439,7 +439,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
              'w').close()
         open(os.path.join(os.path.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
-        tree = archive.tree
+        tree = archive.get_tree()
         ref_tree = self.ref_tree(self.project_dir)
         self.assertEqual(
             tree, ref_tree,

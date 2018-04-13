@@ -70,11 +70,11 @@ class ConversionStudy(Study):
         DatasetSpec('dicom', dicom_format),
         DatasetSpec('directory', directory_format),
         DatasetSpec('zip', zip_format),
-        DatasetSpec('nifti_gz_from_dicom', nifti_gz_format, pipeline),
-        DatasetSpec('mrtrix_from_nifti_gz', mrtrix_format, pipeline),
-        DatasetSpec('nifti_from_mrtrix', nifti_format, pipeline),
-        DatasetSpec('directory_from_zip', directory_format, pipeline),
-        DatasetSpec('zip_from_directory', zip_format, pipeline))
+        DatasetSpec('nifti_gz_from_dicom', nifti_gz_format, 'pipeline'),
+        DatasetSpec('mrtrix_from_nifti_gz', mrtrix_format, 'pipeline'),
+        DatasetSpec('nifti_from_mrtrix', nifti_format, 'pipeline'),
+        DatasetSpec('directory_from_zip', directory_format, 'pipeline'),
+        DatasetSpec('zip_from_directory', zip_format, 'pipeline'))
 
 
 class TestFormatConversions(BaseTestCase):

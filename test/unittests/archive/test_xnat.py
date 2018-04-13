@@ -166,11 +166,11 @@ class TestXnatArchive(BaseTestCase):
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
         sink_files = [DatasetSpec('sink1', nifti_gz_format,
-                                  pipeline=dummy_pipeline),
+                                  'dummy_pipeline'),
                       DatasetSpec('sink3', nifti_gz_format,
-                                  pipeline=dummy_pipeline),
+                                  'dummy_pipeline'),
                       DatasetSpec('sink4', nifti_gz_format,
-                                  pipeline=dummy_pipeline)]
+                                  'dummy_pipeline')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
@@ -235,9 +235,9 @@ class TestXnatArchive(BaseTestCase):
         sink.run()
         source = archive.source(
             inputs=[
-                FieldSpec('field1', int, pipeline=dummy_pipeline),
-                FieldSpec('field2', float, pipeline=dummy_pipeline),
-                FieldSpec('field3', str, pipeline=dummy_pipeline)],
+                FieldSpec('field1', int, 'dummy_pipeline'),
+                FieldSpec('field2', float, 'dummy_pipeline'),
+                FieldSpec('field3', str, 'dummy_pipeline')],
             name='fields_source',
             study_name='test')
         source.inputs.visit_id = self.VISIT
@@ -269,7 +269,7 @@ class TestXnatArchive(BaseTestCase):
         source = archive.source(source_files)
         subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
                                           multiplicity='per_subject',
-                                          pipeline=dummy_pipeline)]
+                                          'dummy_pipeline')]
         subject_sink = archive.sink(subject_sink_files,
                                     multiplicity='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -279,7 +279,7 @@ class TestXnatArchive(BaseTestCase):
         # Test visit sink
         visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
                                         multiplicity='per_visit',
-                                        pipeline=dummy_pipeline)]
+                                        'dummy_pipeline')]
         visit_sink = archive.sink(visit_sink_files,
                                   multiplicity='per_visit',
                                   study_name=self.SUMMARY_STUDY_NAME)
@@ -289,7 +289,7 @@ class TestXnatArchive(BaseTestCase):
         # Test project sink
         project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
                                           multiplicity='per_project',
-                                          pipeline=dummy_pipeline)]
+                                          'dummy_pipeline')]
         project_sink = archive.sink(project_sink_files,
                                     multiplicity='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -381,11 +381,11 @@ class TestXnatArchive(BaseTestCase):
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(
             [DatasetSpec('resink1', nifti_gz_format,
-                         pipeline=dummy_pipeline),
+                         'dummy_pipeline'),
              DatasetSpec('resink2', nifti_gz_format,
-                         pipeline=dummy_pipeline),
+                         'dummy_pipeline'),
              DatasetSpec('resink3', nifti_gz_format,
-                         pipeline=dummy_pipeline)],
+                         'dummy_pipeline')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
@@ -833,7 +833,7 @@ class TestProjectInfo(TestOnXnatMixin,
     BASE_CLASS = test_local.TestProjectInfo
 
     def test_project_info(self):
-        tree = self.archive.tree
+        tree = self.archive.get_tree()
         self.assertEqual(
             tree, self.ref_tree(),
             "Generated project doesn't match reference:{}"

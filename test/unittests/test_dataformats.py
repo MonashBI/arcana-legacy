@@ -55,7 +55,7 @@ class DummyStudy(Study):
 
     _data_specs = set_specs(
         DatasetSpec('input', dicom_format),
-        DatasetSpec('output', nifti_gz_format, pipeline))
+        DatasetSpec('output', nifti_gz_format, 'pipeline'))
 
 
 class TestConverterAvailability(TestCase):
