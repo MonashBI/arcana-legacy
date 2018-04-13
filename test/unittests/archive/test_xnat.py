@@ -12,6 +12,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
 from nianalysis.archive.local import FIELDS_FNAME
+from nianalysis.study import Study, set_specs
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec, FieldMatch)
 from nianalysis.data_formats import (
@@ -36,8 +37,28 @@ sys.path.pop(0)
 logger = logging.getLogger('NiAnalysis')
 
 
-def dummy_pipeline():
-    pass
+class DummyStudy(Study):
+
+    _data_specs = set_specs(
+        DatasetSpec('source1', nifti_gz_format),
+        DatasetSpec('source2', nifti_gz_format),
+        DatasetSpec('source3', nifti_gz_format),
+        DatasetSpec('source4', nifti_gz_format),
+        DatasetSpec('sink1', nifti_gz_format, 'dummy_pipeline'),
+        DatasetSpec('sink3', nifti_gz_format, 'dummy_pipeline'),
+        DatasetSpec('sink4', nifti_gz_format, 'dummy_pipeline'),
+        DatasetSpec('subject_sink', nifti_gz_format, 'dummy_pipeline',
+                    multiplicity='per_subject'),
+        DatasetSpec('visit_sink', nifti_gz_format, 'dummy_pipeline',
+                    multiplicity='per_visit'),
+        DatasetSpec('project_sink', nifti_gz_format, 'dummy_pipeline',
+                    multiplicity='per_project'),
+        DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
+        DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
+        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline'))
+
+    def dummy_pipeline(self):
+        pass
 
 
 def filter_md5_fnames(fnames):
@@ -154,23 +175,38 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=self.archive_cache_dir)
-        source_files = [DatasetMatch('source1', 'source1',
-                                     nifti_gz_format),
-                        DatasetMatch('source2', 'source2',
-                                     nifti_gz_format),
-                        DatasetMatch('source3', 'source3',
-                                     nifti_gz_format),
-                        DatasetMatch('source4', 'source4',
-                                     nifti_gz_format)]
+        study = DummyStudy(self.STUDY_NAME, archive, inputs=[
+            DatasetMatch('source1', 'source1',
+                         nifti_gz_format),
+            DatasetMatch('source2', 'source2',
+                         nifti_gz_format),
+            DatasetMatch('source3', 'source3',
+                         nifti_gz_format),
+            DatasetMatch('source4', 'source4',
+                         nifti_gz_format)])
+        # TODO: Should test out other file formats as well.
+        source_files = [study.input(n)
+                        for n in ('source1', 'source2', 'source3',
+                                  'source4')]
+#         source_files = [DatasetMatch('source1', 'source1',
+#                                      nifti_gz_format),
+#                         DatasetMatch('source2', 'source2',
+#                                      nifti_gz_format),
+#                         DatasetMatch('source3', 'source3',
+#                                      nifti_gz_format),
+#                         DatasetMatch('source4', 'source4',
+#                                      nifti_gz_format)]
         # Sink datasets need to be considered to be processed so we set their
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
-        sink_files = [DatasetSpec('sink1', nifti_gz_format,
-                                  'dummy_pipeline'),
-                      DatasetSpec('sink3', nifti_gz_format,
-                                  'dummy_pipeline'),
-                      DatasetSpec('sink4', nifti_gz_format,
-                                  'dummy_pipeline')]
+        sink_files = [study.bound_data_spec(n)
+                      for n in ('sink1', 'sink3', 'sink4')]
+#         sink_files = [DatasetSpec('sink1', nifti_gz_format,
+#                                   'dummy_pipeline'),
+#                       DatasetSpec('sink3', nifti_gz_format,
+#                                   'dummy_pipeline'),
+#                       DatasetSpec('sink4', nifti_gz_format,
+#                                   'dummy_pipeline')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
@@ -220,9 +256,9 @@ class TestXnatArchive(BaseTestCase):
             project_id=self.PROJECT)
         sink = archive.sink(
             outputs=[
-                FieldMatch('field1', 'field1', int, processed=True),
-                FieldMatch('field2', 'field2', float, processed=True),
-                FieldMatch('field3', 'field3', str, processed=True)],
+                FieldSpec('field1', int, 'pipeline'),
+                FieldSpec('field2', float, 'pipeline'),
+                FieldSpec('field3', str, 'pipeline')],
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -255,21 +291,24 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
+        study = DummyStudy(
+            self.SUMMARY_STUDY_NAME, archive, inputs=[
+                DatasetMatch('source1', 'source1',
+                             nifti_gz_format),
+                DatasetMatch('source2', 'source2',
+                             nifti_gz_format),
+                DatasetMatch('source3', 'source3',
+                             nifti_gz_format)])
         # TODO: Should test out other file formats as well.
-        source_files = [DatasetMatch('source1', 'source1',
-                                       nifti_gz_format),
-                        DatasetMatch('source2', 'source2',
-                                       nifti_gz_format),
-                        DatasetMatch('source3', 'source3',
-                                       nifti_gz_format)]
+        source_files = [study.input(n)
+                        for n in ('source1', 'source2', 'source3')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
         source = archive.source(source_files)
-        subject_sink_files = [DatasetSpec('sink1', nifti_gz_format,
-                                          multiplicity='per_subject',
-                                          'dummy_pipeline')]
+        subject_sink_files = [
+            study.bound_data_spec('subject_sink')]
         subject_sink = archive.sink(subject_sink_files,
                                     multiplicity='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -277,9 +316,7 @@ class TestXnatArchive(BaseTestCase):
         subject_sink.inputs.description = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [DatasetSpec('sink2', nifti_gz_format,
-                                        multiplicity='per_visit',
-                                        'dummy_pipeline')]
+        visit_sink_files = [study.bound_data_spec('visit_sink')]
         visit_sink = archive.sink(visit_sink_files,
                                   multiplicity='per_visit',
                                   study_name=self.SUMMARY_STUDY_NAME)
@@ -287,9 +324,8 @@ class TestXnatArchive(BaseTestCase):
         visit_sink.inputs.description = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
-        project_sink_files = [DatasetSpec('sink3', nifti_gz_format,
-                                          multiplicity='per_project',
-                                          'dummy_pipeline')]
+        project_sink_files = [
+            study.bound_data_spec('project_sink')]
         project_sink = archive.sink(project_sink_files,
                                     multiplicity='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -308,17 +344,18 @@ class TestXnatArchive(BaseTestCase):
         workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
         workflow.connect(
             source, 'source1' + PATH_SUFFIX,
-            subject_sink, 'sink1' + PATH_SUFFIX)
+            subject_sink, 'subject_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source2' + PATH_SUFFIX,
-            visit_sink, 'sink2' + PATH_SUFFIX)
+            visit_sink, 'visit_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source3' + PATH_SUFFIX,
-            project_sink, 'sink3' + PATH_SUFFIX)
+            project_sink, 'project_sink' + PATH_SUFFIX)
         workflow.run()
         with self._connect() as mbi_xnat:
             # Check subject summary directories were created properly in cache
-            expected_subj_datasets = [self.SUMMARY_STUDY_NAME + '_sink1']
+            expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
+                                      '_subject_sink']
             subject_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
                 '_'.join((self.PROJECT, self.SUBJECT)),
@@ -335,7 +372,8 @@ class TestXnatArchive(BaseTestCase):
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check visit summary directories were created properly in
             # cache
-            expected_visit_datasets = [self.SUMMARY_STUDY_NAME + '_sink2']
+            expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
+                                       '_visit_sink']
             visit_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
@@ -352,7 +390,8 @@ class TestXnatArchive(BaseTestCase):
                         self.VISIT)].scans.keys()
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
-            expected_proj_datasets = [self.SUMMARY_STUDY_NAME + '_sink3']
+            expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
+                                      '_project_sink']
             project_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
@@ -380,12 +419,8 @@ class TestXnatArchive(BaseTestCase):
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(
-            [DatasetSpec('resink1', nifti_gz_format,
-                         'dummy_pipeline'),
-             DatasetSpec('resink2', nifti_gz_format,
-                         'dummy_pipeline'),
-             DatasetSpec('resink3', nifti_gz_format,
-                         'dummy_pipeline')],
+            [study.bound_data_spec(n)
+             for n in ('resink1', 'resink2', 'resink3')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.description = (
@@ -400,12 +435,18 @@ class TestXnatArchive(BaseTestCase):
                                reloadsink, 'subject_id')
         reloadworkflow.connect(reloadinputnode, 'visit_id',
                                reloadsink, 'visit_id')
-        reloadworkflow.connect(reloadsource, 'sink1' + PATH_SUFFIX,
-                               reloadsink, 'resink1' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource, 'sink2' + PATH_SUFFIX,
-                               reloadsink, 'resink2' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource, 'sink3' + PATH_SUFFIX,
-                               reloadsink, 'resink3' + PATH_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'subject_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink1' + PATH_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'visit_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink2' + PATH_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'project_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         # Check that the datasets
         self.assertEqual(
@@ -424,20 +465,20 @@ class TestXnatArchive(BaseTestCase):
                               self.SUMMARY_STUDY_NAME + '_resink2',
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
-    def test_project_info(self):
-        archive = XNATArchive(
-            project_id=self.PROJECT,
-            server=self.SERVER, cache_dir=self.archive_cache_dir)
-        tree = archive.tree
-        self.assertEqual(sorted(s.id for s in tree.subjects),
-                         [self.SUBJECT])
-        subject = list(tree.subjects)[0]
-        self.assertEqual([s.visit_id for s in subject.sessions],
-                         [self.VISIT])
-        session = list(subject.sessions)[0]
-        self.assertEqual(
-            sorted(d.name for d in sorted(session.datasets)),
-            ['source1', 'source2', 'source3', 'source4'])
+#     def test_project_info(self):
+#         archive = XNATArchive(
+#             project_id=self.PROJECT,
+#             server=self.SERVER, cache_dir=self.archive_cache_dir)
+#         tree = archive.tree
+#         self.assertEqual(sorted(s.id for s in tree.subjects),
+#                          [self.SUBJECT])
+#         subject = list(tree.subjects)[0]
+#         self.assertEqual([s.visit_id for s in subject.sessions],
+#                          [self.VISIT])
+#         session = list(subject.sessions)[0]
+#         self.assertEqual(
+#             sorted(d.name for d in sorted(session.datasets)),
+#             ['source1', 'source2', 'source3', 'source4'])
 
     def test_delayed_download(self):
         """
@@ -454,9 +495,10 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir,
                               project_id=self.PROJECT)
-        source = archive.source([DatasetMatch(DATASET_NAME,
-                                                DATASET_NAME,
-                                                nifti_gz_format)],
+        study = DummyStudy(self.STUDY_NAME, archive, inputs=[
+            DatasetMatch(DATASET_NAME, DATASET_NAME,
+                         nifti_gz_format)])
+        source = archive.source([study.input(DATASET_NAME)],
                                 name='delayed_source',
                                 study_name='delayed_study')
         source.inputs.subject_id = self.SUBJECT
@@ -532,9 +574,10 @@ class TestXnatArchive(BaseTestCase):
         archive = XNATArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=cache_dir)
-        source = archive.source([DatasetMatch(DATASET_NAME,
-                                                DATASET_NAME,
-                                                nifti_gz_format)],
+        study = DummyStudy(STUDY_NAME, archive, inputs=[
+            DatasetMatch(DATASET_NAME, DATASET_NAME,
+                         nifti_gz_format)])
+        source = archive.source([study.input(DATASET_NAME)],
                                 name='digest_check_source',
                                 study_name=STUDY_NAME)
         source.inputs.subject_id = self.SUBJECT
@@ -574,17 +617,16 @@ class TestXnatArchive(BaseTestCase):
         sink_archive = XNATArchive(
             project_id=self.DIGEST_SINK_PROJECT, server=self.SERVER,
             cache_dir=cache_dir)
-        DATASET_NAME = 'sink'
+        DATASET_NAME = 'sink1'
         sink = sink_archive.sink(
-            [DatasetMatch(DATASET_NAME, DATASET_NAME,
-                            nifti_gz_format, processed=True)],
+            [study.bound_data_spec(DATASET_NAME)],
             name='digest_check_sink',
             study_name=STUDY_NAME)
         sink.inputs.name = 'digest_check_sink'
         sink.inputs.description = "Tests the generation of MD5 digests"
         sink.inputs.subject_id = self.DIGEST_SINK_SUBJECT
         sink.inputs.visit_id = self.VISIT
-        sink.inputs.sink_path = source_target_path
+        sink.inputs.sink1_path = source_target_path
         sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
                       nifti_gz_format.extension)
         sink_target_path = os.path.join(
@@ -627,9 +669,12 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         archive = XNATArchive(
             server=self.SERVER, cache_dir=cache_dir,
             project_id=self.PROJECT)
+        study = DummyStudy('study', archive, inputs=[
+            DatasetMatch('source{}'.format(i), d, dicom_format)
+            for i, d in enumerate(self.DATASETS, start=1)])
         source = archive.source(
-            [DatasetMatch(d, d, dicom_format)
-                           for d in self.DATASETS])
+            [study.input('source{}'.format(i))
+             for i in range(1, len(self.DATASETS) + 1)])
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         workflow = pe.Workflow(self.TEST_NAME, base_dir=self.work_path)
@@ -790,51 +835,52 @@ class TestOnXnatMixin(object):
         else:
             path = proc_path
         return path
-
-
-class TestExistingPrereqsOnXnat(TestOnXnatMixin,
-                                test_study.TestExistingPrereqs):
-
-    PROJECT = 'TEST007'
-    BASE_CLASS = test_study.TestExistingPrereqs
-
-    def test_per_session_prereqs(self):
-        super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
-
-
-class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
-
-    PROJECT = 'TEST011'
-    BASE_CLASS = BaseMultiSubjectTestCase
-
-    def test_cache_download(self):
-        archive = self.archive
-        archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
-                                               mrtrix_format),
-                                DatasetMatch('dataset2', 'dataset2',
-                                               mrtrix_format),
-                                DatasetMatch('dataset3', 'dataset3',
-                                               mrtrix_format),
-                                DatasetMatch('dataset5', 'dataset5',
-                                               mrtrix_format)],
-                      subject_ids=['subject1', 'subject3', 'subject4'],
-                      visit_ids=['visit1'],
-                      work_dir=self.work_dir)
-
-    @property
-    def base_name(self):
-        return self.name
-
-
-class TestProjectInfo(TestOnXnatMixin,
-                      test_local.TestProjectInfo):
-
-    PROJECT = 'TEST013'
-    BASE_CLASS = test_local.TestProjectInfo
-
-    def test_project_info(self):
-        tree = self.archive.get_tree()
-        self.assertEqual(
-            tree, self.ref_tree(),
-            "Generated project doesn't match reference:{}"
-            .format(tree.find_mismatch(self.ref_tree())))
+# 
+# 
+# class TestExistingPrereqsOnXnat(TestOnXnatMixin,
+#                                 test_study.TestExistingPrereqs):
+# 
+#     PROJECT = 'TEST007'
+#     BASE_CLASS = test_study.TestExistingPrereqs
+# 
+#     def test_per_session_prereqs(self):
+#         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
+# 
+# 
+# class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
+# 
+#     PROJECT = 'TEST011'
+#     BASE_CLASS = BaseMultiSubjectTestCase
+# 
+#     def test_cache_download(self):
+#         archive = self.archive
+#         archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
+#                                                mrtrix_format),
+#                                 DatasetMatch('dataset2', 'dataset2',
+#                                                mrtrix_format),
+#                                 DatasetMatch('dataset3', 'dataset3',
+#                                                mrtrix_format),
+#                                 DatasetMatch('dataset5', 'dataset5',
+#                                                mrtrix_format)],
+#                       subject_ids=['subject1', 'subject3', 'subject4'],
+#                       visit_ids=['visit1'],
+#                       work_dir=self.work_dir)
+# 
+#     @property
+#     def base_name(self):
+#         return self.name
+# 
+# 
+# class TestProjectInfo(TestOnXnatMixin,
+#                       test_local.TestProjectInfo):
+# 
+#     PROJECT = 'TEST013'
+#     BASE_CLASS = test_local.TestProjectInfo
+# 
+#     def test_project_info(self):
+#         tree = self.archive.get_tree()
+#         ref_tree = self.ref_tree(set_ids=True)
+#         self.assertEqual(
+#             tree, ref_tree,
+#             "Generated project doesn't match reference:{}"
+#             .format(tree.find_mismatch(ref_tree)))

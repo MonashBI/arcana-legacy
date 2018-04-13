@@ -136,33 +136,34 @@ class XNATSource(ArchiveSource, XNATMixin):
                     continue
             outputs = {}
             for dataset in self.datasets:
-                # Prepend study name if defined and processed input
-                prefixed_name = dataset.prefixed_name
-                session = sessions[(mult, processed)]
-                cache_dir = cache_dirs[(mult, processed)]
+                session = sessions[(dataset.multiplicity,
+                                    dataset.processed)]
+                cache_dir = cache_dirs[(dataset.multiplicity,
+                                        dataset.processed)]
                 try:
-                    dataset = session.scans[prefixed_name]
+                    xdataset = session.scans[
+                        dataset.basename(subject_id=subject_id,
+                                         visit_id=visit_id)]
                 except KeyError:
                     raise NiAnalysisError(
                         "Could not find '{}' dataset in session '{}' "
                         "(found {})".format(
-                            prefixed_name, session.label,
+                            dataset.prefixed_name, session.label,
                             "', '".join(session.scans.keys())))
                 # Get filename
-                fname = prefixed_name
-                if dataset.data_format.extension is not None:
-                    fname += dataset.data_format.extension
+                fname = dataset.fname(subject_id=subject_id,
+                                      visit_id=visit_id)
                 # Get resource to check its MD5 digest
                 try:
-                    resource = dataset.resources[
-                        dataset.data_format.xnat_resource_name]
+                    xresource = xdataset.resources[
+                        dataset.format.xnat_resource_name]
                 except KeyError:
                     raise NiAnalysisError(
                         "'{}' dataset is not available in '{}' format, "
                         "available resources are '{}'"
                         .format(
                             dataset.name,
-                            dataset.data_format.xnat_resource_name,
+                            dataset.format.xnat_resource_name,
                             "', '".join(
                                 r.label
                                 for r in dataset.resources.values())))
@@ -177,7 +178,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                             with open(cache_path +
                                       XNATArchive.MD5_SUFFIX) as f:
                                 cached_digests = json.load(f)
-                            digests = self._get_digests(resource)
+                            digests = self._get_digests(xresource)
                             if cached_digests == digests:
                                 need_to_download = False
                         except IOError:
@@ -203,19 +204,20 @@ class XNATSource(ArchiveSource, XNATMixin):
                             # has been completed or assume interrupted and
                             # redownload.
                             self._delayed_download(
-                                tmp_dir, resource, dataset,
+                                tmp_dir, xresource, xdataset, dataset,
                                 session.label, cache_path,
                                 delay=self.inputs.race_cond_delay)
                         else:
                             raise
                     else:
                         self._download_dataset(
-                            tmp_dir, resource, dataset,
+                            tmp_dir, xresource, xdataset, dataset,
                             session.label, cache_path)
                 outputs[dataset.name + PATH_SUFFIX] = cache_path
             for field in self.fields:
                 prefixed_name = field.prefixed_name
-                session = sessions[(mult, processed)]
+                session = sessions[(field.multiplicity,
+                                    field.processed)]
                 outputs[field.name + FIELD_SUFFIX] = field.dtype(
                     session.fields[prefixed_name])
         return outputs
@@ -234,14 +236,14 @@ class XNATSource(ArchiveSource, XNATMixin):
         return dict((r['Name'], r['digest'])
                     for r in result.json()['ResultSet']['Result'])
 
-    def _download_dataset(self, tmp_dir, resource, dataset,
+    def _download_dataset(self, tmp_dir, xresource, xdataset, dataset,
                           session_label, cache_path):
         # Download resource to zip file
         zip_path = os.path.join(tmp_dir, 'download.zip')
         with open(zip_path, 'w') as f:
-            resource.xnat_session.download_stream(
-                resource.uri + '/files', f, format='zip', verbose=True)
-        digests = self._get_digests(resource)
+            xresource.xnat_session.download_stream(
+                xresource.uri + '/files', f, format='zip', verbose=True)
+        digests = self._get_digests(xresource)
         # Extract downloaded zip file
         expanded_dir = os.path.join(tmp_dir, 'expanded')
         try:
@@ -250,12 +252,12 @@ class XNATSource(ArchiveSource, XNATMixin):
         except BadZipfile as e:
             raise NiAnalysisError(
                 "Could not unzip file '{}' ({})"
-                .format(resource.id, e))
+                .format(xresource.id, e))
         data_path = os.path.join(
             expanded_dir, session_label, 'scans',
-            (dataset.id + '-' + special_char_re.sub('_', dataset.type)),
-            'resources', dataset.data_format.xnat_resource_name, 'files')
-        if not dataset.data_format.directory:
+            (xdataset.id + '-' + special_char_re.sub('_', xdataset.type)),
+            'resources', dataset.format.xnat_resource_name, 'files')
+        if not dataset.format.directory:
             # If the dataformat is not a directory (e.g. DICOM),
             # attempt to locate a single file within the resource
             # directory with the appropriate filename and add that
@@ -264,21 +266,21 @@ class XNATSource(ArchiveSource, XNATMixin):
             match_fnames = [
                 f for f in fnames
                 if (lower(split_extension(f)[-1]) ==
-                    lower(dataset.data_format.extension))]
+                    lower(dataset.format.extension))]
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
                 raise NiAnalysisXnatArchiveMissingDatasetException(
                     "Did not find single file with extension '{}' "
                     "(found '{}') in resource '{}'"
-                    .format(dataset.data_format.extension,
+                    .format(dataset.format.extension,
                             "', '".join(fnames), data_path))
         shutil.move(data_path, cache_path)
         with open(cache_path + XNATArchive.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
-    def _delayed_download(self, tmp_dir, resource, dataset,
+    def _delayed_download(self, tmp_dir, xresource, xdataset, dataset,
                           session_label, cache_path, delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
                     "initiated another process to finish"
@@ -295,7 +297,8 @@ class XNATSource(ArchiveSource, XNATMixin):
                 "The download of '{}' hasn't completed yet, but it has"
                 " been updated.  Waiting another {} seconds before "
                 "checking again.".format(cache_path, delay))
-            self._delayed_download(tmp_dir, resource, dataset,
+            self._delayed_download(tmp_dir, xresource, xdataset,
+                                   dataset,
                                    session_label, cache_path, delay)
         else:
             logger.warning(
@@ -305,7 +308,8 @@ class XNATSource(ArchiveSource, XNATMixin):
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
             self._download_dataset(
-                tmp_dir, resource, dataset, session_label, cache_path)
+                tmp_dir, xresource, xdataset, dataset, session_label,
+                cache_path)
 
 
 class XNATSinkInputSpecMixin(object):
@@ -390,13 +394,12 @@ class XNATSinkMixin(XNATMixin):
                 if not isdefined(filename):
                     missing_files.append(dataset.name)
                     continue  # skip the upload for this file
-                dataset_format = data_formats[dataset.format_name]
-                ext = dataset_format.extension
+                ext = dataset.format.extension
                 assert split_extension(filename)[1] == ext, (
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
-                            data_formats[dataset.format_name].name,
-                            dataset_format.extension))
+                            dataset.format.name,
+                            dataset.format.extension))
                 src_path = os.path.abspath(filename)
                 out_fname = dataset.fname()
                 # Copy to local cache
@@ -409,21 +412,21 @@ class XNATSinkMixin(XNATMixin):
                 with open(dst_path + XNATArchive.MD5_SUFFIX, 'w') as f:
                     json.dump(digests, f)
                 # Upload to XNAT
-                dataset = xnat_login.classes.MrScanData(
+                xdataset = xnat_login.classes.MrScanData(
                     type=dataset.basename(), parent=session)
                 # Delete existing resource
                 # TODO: probably should have check to see if we want to
                 #       override it
                 try:
-                    resource = dataset.resources[
+                    xresource = xdataset.resources[
                         dataset.format.name.upper()]
-                    resource.delete()
+                    xresource.delete()
                 except KeyError:
                     pass
-                resource = dataset.create_resource(
+                xresource = xdataset.create_resource(
                     dataset.format.name.upper())
-                resource.upload(dst_path, out_fname)
-            for field in self.inputs.fields:
+                xresource.upload(dst_path, out_fname)
+            for field in self.fields:
                 assert field.multiplicity == self.multiplicity
                 assert field.processed, ("{} isn't processed".format(
                     field))

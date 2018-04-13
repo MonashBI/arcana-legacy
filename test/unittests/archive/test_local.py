@@ -262,7 +262,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     fields in a project returned in a Project object.
     """
 
-    def ref_tree(self, base_dir=None):
+    def ref_tree(self, base_dir=None, set_ids=False):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
@@ -419,27 +419,39 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
             fields=[
                 Field('g', value=100,
                       multiplicity='per_project')])
-        if base_dir is not None:
+        if base_dir is not None or set_ids:
             for dataset in project.datasets:
-                dataset.path = os.path.join(
-                    base_dir, SUMMARY_NAME, SUMMARY_NAME,
-                    dataset.name + dataset.format.ext_str)
+                if base_dir is not None:
+                    dataset.path = os.path.join(
+                        base_dir, SUMMARY_NAME, SUMMARY_NAME,
+                        dataset.name + dataset.format.ext_str)
+                if set_ids:
+                    dataset._id = dataset.name
             for visit in project.visits:
                 for dataset in visit.datasets:
-                    dataset.path = os.path.join(
-                        base_dir, SUMMARY_NAME, visit.id,
-                        dataset.name + dataset.format.ext_str)
+                    if base_dir is not None:
+                        dataset.path = os.path.join(
+                            base_dir, SUMMARY_NAME, visit.id,
+                            dataset.name + dataset.format.ext_str)
+                    if set_ids:
+                        dataset._id = dataset.name
             for subject in project.subjects:
                 for dataset in subject.datasets:
-                    dataset.path = os.path.join(
-                        base_dir, subject.id, SUMMARY_NAME,
-                        dataset.name + dataset.format.ext_str)
+                    if base_dir is not None:
+                        dataset.path = os.path.join(
+                            base_dir, subject.id, SUMMARY_NAME,
+                            dataset.name + dataset.format.ext_str)
+                    if set_ids:
+                        dataset._id = dataset.name
                 for session in subject.sessions:
                     for dataset in session.datasets:
-                        dataset.path = os.path.join(
-                            base_dir, session.subject_id,
-                            session.visit_id,
-                            dataset.name + dataset.format.ext_str)
+                        if base_dir is not None:
+                            dataset.path = os.path.join(
+                                base_dir, session.subject_id,
+                                session.visit_id,
+                                dataset.name + dataset.format.ext_str)
+                        if set_ids:
+                            dataset._id = dataset.name
         return project
 
     def test_project_info(self):

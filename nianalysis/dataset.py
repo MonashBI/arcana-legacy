@@ -193,8 +193,7 @@ class Dataset(BaseDataset):
         return (super(Dataset, self).__eq__(other) and
                 self.processed == other.processed and
                 self._path == other._path and
-                self.id == other.id and
-                self.uri == other.uri)
+                self.id == other.id)
 
     def __lt__(self, other):
         return self.id < other.id
@@ -320,7 +319,7 @@ class DatasetMatch(BaseDataset):
 
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
-                 order=None, dicom_tags=None):
+                 order=None, dicom_tags=None, regex=False):
         super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
         if dicom_tags is not None and format != dicom_format:
@@ -337,6 +336,7 @@ class DatasetMatch(BaseDataset):
         self._pattern = pattern
         self._study = None
         self._matches = None
+        self._regex = regex
 
     def bind(self, study):
         cpy = copy(self)
@@ -372,8 +372,13 @@ class DatasetMatch(BaseDataset):
 
     def _match_node(self, node):
         # Get names matching pattern
-        pattern_re = re.compile(self.pattern)
-        matches = [d for d in node.datasets if pattern_re.match(d.name)]
+        if self.regex:
+            pattern_re = re.compile(self.pattern)
+            matches = [d for d in node.datasets
+                       if pattern_re.match(d.name)]
+        else:
+            matches = [d for d in node.datasets
+                       if d.name == self.pattern]
         if not matches:
             raise NiAnalysisDatasetMatchError(
                 "No dataset names in {} match '{}' pattern"
@@ -437,6 +442,10 @@ class DatasetMatch(BaseDataset):
     @property
     def id(self):
         return self._id
+
+    @property
+    def regex(self):
+        return self._regex
 
     @property
     def order(self):
