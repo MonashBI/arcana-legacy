@@ -319,7 +319,7 @@ class DatasetMatch(BaseDataset):
 
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
-                 order=None, dicom_tags=None, regex=False):
+                 order=None, dicom_tags=None, is_regex=False):
         super(DatasetMatch, self).__init__(name, format, multiplicity)
         self._processed = processed
         if dicom_tags is not None and format != dicom_format:
@@ -336,7 +336,7 @@ class DatasetMatch(BaseDataset):
         self._pattern = pattern
         self._study = None
         self._matches = None
-        self._regex = regex
+        self._is_regex = is_regex
 
     def bind(self, study):
         cpy = copy(self)
@@ -372,7 +372,7 @@ class DatasetMatch(BaseDataset):
 
     def _match_node(self, node):
         # Get names matching pattern
-        if self.regex:
+        if self.is_regex:
             pattern_re = re.compile(self.pattern)
             matches = [d for d in node.datasets
                        if pattern_re.match(d.name)]
@@ -424,6 +424,41 @@ class DatasetMatch(BaseDataset):
                         ', '.join(str(d) for d in node.datasets)))
         return match
 
+    def basename(self, **kwargs):
+        if not self.is_regex:
+            basename = self.pattern
+        else:
+            basename = self.match(**kwargs).name
+        return basename
+
+    def match(self, subject_id=None, visit_id=None):
+        if self._matches is None:
+            raise NiAnalysisError(
+                "{} has not been bound to study".format(self))
+        if self.multiplicity == 'per_session':
+            if subject_id is None or visit_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' and 'visit_id' must be provided "
+                    "to get the match from {}".format(self))
+            dataset = self._matches[subject_id][visit_id]
+        elif self.multiplicity == 'per_subject':
+            if subject_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' arg must be provided to get "
+                    "the match from {}"
+                    .format(self))
+            dataset = self._matches[subject_id]
+        elif self.multiplicity == 'per_visit':
+            if visit_id is None:
+                raise NiAnalysisError(
+                    "The 'visit_id' arg must be provided to get "
+                    "the match from {}"
+                    .format(self))
+            dataset = self._matches[visit_id]
+        elif self.multiplicity == 'per_project':
+            dataset = self._matches
+        return dataset
+
     @property
     def pattern(self):
         return self._pattern
@@ -444,8 +479,8 @@ class DatasetMatch(BaseDataset):
         return self._id
 
     @property
-    def regex(self):
-        return self._regex
+    def is_regex(self):
+        return self._is_regex
 
     @property
     def order(self):
@@ -467,37 +502,6 @@ class DatasetMatch(BaseDataset):
                 self.id == other.id and
                 self.order == other.order)
 
-    def match(self, subject_id=None, visit_id=None):
-        if self._matches is None:
-            raise NiAnalysisError(
-                "{} has not been bound to study".format(self))
-        if self.multiplicity == 'per_session':
-            if subject_id is None or visit_id is None:
-                raise NiAnalysisError(
-                    "The 'subject_id' and 'visit_id' must be provided "
-                    "to get the match for a 'per_session' DatasetMatch "
-                    "({})".format(self))
-            dataset = self._matches[subject_id][visit_id]
-        elif self.multiplicity == 'per_subject':
-            if subject_id is None:
-                raise NiAnalysisError(
-                    "The 'subject_id' arg must be provided to get "
-                    "the match for a 'per_subject' DatasetMatch ({})"
-                    .format(self))
-            dataset = self._matches[subject_id]
-        elif self.multiplicity == 'per_visit':
-            if visit_id is None:
-                raise NiAnalysisError(
-                    "The 'visit_id' arg must be provided to get "
-                    "the match for a 'per_visit' DatasetMatch ({})"
-                    .format(self))
-            dataset = self._matches[visit_id]
-        elif self.multiplicity == 'per_project':
-            dataset = self._matches
-        return dataset
-
-    def basename(self, **kwargs):
-        return self.match(**kwargs).name
 
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()

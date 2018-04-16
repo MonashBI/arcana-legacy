@@ -671,7 +671,8 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             project_id=self.PROJECT)
         study = DummyStudy('study', archive, inputs=[
             DatasetMatch('source{}'.format(i), d, dicom_format)
-            for i, d in enumerate(self.DATASETS, start=1)])
+            for i, d in enumerate(self.DATASETS, start=1)],
+            subject_ids=[self.SUBJECT], visit_ids=[self.VISIT])
         source = archive.source(
             [study.input('source{}'.format(i))
              for i in range(1, len(self.DATASETS) + 1)])
@@ -681,8 +682,9 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         workflow.add_nodes([source])
         graph = workflow.run()
         result = next(n.result for n in graph.nodes() if n.name == source.name)
-        for dname in self.DATASETS:
-            path = getattr(result.outputs, dname + PATH_SUFFIX)
+        for i, dname in enumerate(self.DATASETS, start=1):
+            path = getattr(result.outputs,
+                           'source{}{}'.format(i, PATH_SUFFIX))
             self.assertEqual(os.path.basename(path), dname)
             self.assertTrue(os.path.exists(path))
 
@@ -847,24 +849,46 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin,
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
 
+class TestStudy(Study):
+
+    _data_specs = set_specs(
+        DatasetSpec('dataset1', nifti_gz_format),
+        DatasetSpec('dataset2', nifti_gz_format),
+        DatasetSpec('dataset3', nifti_gz_format),
+        DatasetSpec('dataset5', nifti_gz_format))
+
+
 class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     PROJECT = 'TEST011'
     BASE_CLASS = BaseMultiSubjectTestCase
+    SUBJECTS = ['subject1', 'subject3', 'subject4']
+    VISITS = ['visit1']
 
     def test_cache_download(self):
         archive = self.archive
-        archive.cache(datasets=[DatasetMatch('dataset1', 'dataset1',
-                                               mrtrix_format),
-                                DatasetMatch('dataset2', 'dataset2',
-                                               mrtrix_format),
-                                DatasetMatch('dataset3', 'dataset3',
-                                               mrtrix_format),
-                                DatasetMatch('dataset5', 'dataset5',
-                                               mrtrix_format)],
-                      subject_ids=['subject1', 'subject3', 'subject4'],
-                      visit_ids=['visit1'],
+        study = TestStudy('a_study', archive, inputs=[
+            DatasetMatch('dataset1', 'dataset1',
+                         mrtrix_format),
+            DatasetMatch('dataset2', 'dataset2',
+                         mrtrix_format),
+            DatasetMatch('dataset3', 'dataset3',
+                         mrtrix_format),
+            DatasetMatch('dataset5', 'dataset5',
+                         mrtrix_format)])
+        archive.cache(datasets=study.inputs,
+                      subject_ids=self.SUBJECTS,
+                      visit_ids=self.VISITS,
                       work_dir=self.work_dir)
+        for subject_id in self.SUBJECTS:
+            for inpt in study.inputs:
+                self.assertTrue(
+                    os.path.exists(os.path.join(
+                        archive._cache_dir, self.PROJECT,
+                        '{}_{}'.format(self.PROJECT, subject_id),
+                        '{}_{}_{}'.format(self.PROJECT, subject_id,
+                                          self.VISITS[0]),
+                        inpt.fname())))
 
     @property
     def base_name(self):
