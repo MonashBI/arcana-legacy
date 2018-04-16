@@ -122,10 +122,10 @@ class XNATSource(ArchiveSource, XNATMixin):
             cache_dirs = {}
             for mult, processed in ([('per_session', False)] +
                                     zip(MULTIPLICITIES, repeat(True))):
-                subj_label, sess_label = XNATArchive.get_labels(
+                subj_label, sess_label = XnatArchive.get_labels(
                     mult, self.inputs.project_id, subject_id, visit_id)
                 if mult == 'per_session' and processed:
-                    sess_label += XNATArchive.PROCESSED_SUFFIX
+                    sess_label += XnatArchive.PROCESSED_SUFFIX
                 cache_dirs[(mult, processed)] = os.path.join(
                     base_cache_dir, subj_label, sess_label)
                 try:
@@ -176,7 +176,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                     if self.check_md5:
                         try:
                             with open(cache_path +
-                                      XNATArchive.MD5_SUFFIX) as f:
+                                      XnatArchive.MD5_SUFFIX) as f:
                                 cached_digests = json.load(f)
                             digests = self._get_digests(xresource)
                             if cached_digests == digests:
@@ -276,7 +276,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                     .format(dataset.format.extension,
                             "', '".join(fnames), data_path))
         shutil.move(data_path, cache_path)
-        with open(cache_path + XNATArchive.MD5_SUFFIX, 'w') as f:
+        with open(cache_path + XnatArchive.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
@@ -409,7 +409,7 @@ class XNATSinkMixin(XNATMixin):
                 # Create md5 digest
                 with open(dst_path) as f:
                     digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
-                with open(dst_path + XNATArchive.MD5_SUFFIX, 'w') as f:
+                with open(dst_path + XnatArchive.MD5_SUFFIX, 'w') as f:
                     json.dump(digests, f)
                 # Upload to XNAT
                 xdataset = xnat_login.classes.MrScanData(
@@ -454,12 +454,12 @@ class XNATSinkMixin(XNATMixin):
             visit_id = self.inputs.visit_id
         except AttributeError:
             visit_id = None
-        subj_label, sess_label = XNATArchive.get_labels(
+        subj_label, sess_label = XnatArchive.get_labels(
             self.multiplicity, self.inputs.project_id, subject_id, visit_id)
         if self.multiplicity == 'per_session':
-            sess_label += XNATArchive.PROCESSED_SUFFIX
+            sess_label += XnatArchive.PROCESSED_SUFFIX
             if visit_id is not None:
-                visit_id += XNATArchive.PROCESSED_SUFFIX
+                visit_id += XnatArchive.PROCESSED_SUFFIX
         try:
             subject = project.subjects[subj_label]
         except KeyError:
@@ -521,7 +521,7 @@ class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
     input_spec = XNATProjectSinkInputSpec
 
 
-class XNATArchive(Archive):
+class XnatArchive(Archive):
     """
     An 'Archive' class for the DaRIS research management system.
 
@@ -582,7 +582,7 @@ class XNATArchive(Archive):
         self._check_md5 = check_md5
 
     def source(self, *args, **kwargs):
-        source = super(XNATArchive, self).source(*args, **kwargs)
+        source = super(XnatArchive, self).source(*args, **kwargs)
         source.inputs.project_id = str(self.project_id)
         source.inputs.server = self._server
         if self._user is not None:
@@ -593,7 +593,7 @@ class XNATArchive(Archive):
         return source
 
     def sink(self, *args, **kwargs):
-        sink = super(XNATArchive, self).sink(*args, **kwargs)
+        sink = super(XnatArchive, self).sink(*args, **kwargs)
         sink.inputs.project_id = str(self.project_id)
         sink.inputs.server = self._server
         if self._user is not None:
@@ -701,7 +701,7 @@ class XNATArchive(Archive):
                 # This assumes that the subject ID is prepended with
                 # the project ID
                 subj_id = xsubject.label[(len(self.project_id) + 1):]
-                if subj_id == XNATArchive.SUMMARY_NAME:
+                if subj_id == XnatArchive.SUMMARY_NAME:
                     continue
                 if not (subject_ids is None or subj_id in subject_ids):
                     continue
@@ -712,7 +712,7 @@ class XNATArchive(Archive):
                 # Get per_session datasets
                 for xsession in xsubject.experiments.itervalues():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
-                    if visit_id == XNATArchive.SUMMARY_NAME:
+                    if visit_id == XnatArchive.SUMMARY_NAME:
                         continue
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue

@@ -10,11 +10,11 @@ from nianalysis.testing import (
     BaseTestCase, BaseMultiSubjectTestCase)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import (XNATArchive, download_all_datasets)
+from nianalysis.archive.xnat import (XnatArchive, download_all_datasets)
 from nianalysis.archive.local import FIELDS_FNAME
 from nianalysis.study import Study, set_specs
 from nianalysis.dataset import (
-    DatasetMatch, DatasetSpec, FieldSpec, FieldMatch)
+    DatasetMatch, DatasetSpec, FieldSpec)
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
@@ -63,7 +63,7 @@ class DummyStudy(Study):
 
 def filter_md5_fnames(fnames):
     return [f for f in sorted(fnames)
-            if not f.endswith(XNATArchive.MD5_SUFFIX)]
+            if not f.endswith(XnatArchive.MD5_SUFFIX)]
 
 
 class LockXnatProjectTestCase(BaseTestCase):
@@ -114,7 +114,7 @@ class TestXnatArchive(BaseTestCase):
 
     def proc_session_cache(self, *args, **kwargs):
         return self.session_cache(
-            *args, **kwargs) + XNATArchive.PROCESSED_SUFFIX
+            *args, **kwargs) + XnatArchive.PROCESSED_SUFFIX
 
     def setUp(self):
         self.reset_dirs()
@@ -161,7 +161,7 @@ class TestXnatArchive(BaseTestCase):
             if subject in project.subjects:
                 project.subjects[subject].delete()
             project_summary_name = (self.PROJECT + '_' +
-                                    XNATArchive.SUMMARY_NAME)
+                                    XnatArchive.SUMMARY_NAME)
             if project_summary_name in project.subjects:
                 project.subjects[project_summary_name].delete()
 
@@ -172,7 +172,7 @@ class TestXnatArchive(BaseTestCase):
 
         # Create working dirs
         # Create DarisSource node
-        archive = XNATArchive(
+        archive = XnatArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=self.archive_cache_dir)
         study = DummyStudy(self.STUDY_NAME, archive, inputs=[
@@ -247,11 +247,11 @@ class TestXnatArchive(BaseTestCase):
         with self._connect() as mbi_xnat:
             dataset_names = mbi_xnat.experiments[
                 self.session_label() +
-                XNATArchive.PROCESSED_SUFFIX].scans.keys()
+                XnatArchive.PROCESSED_SUFFIX].scans.keys()
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
     def test_fields_roundtrip(self):
-        archive = XNATArchive(
+        archive = XnatArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         sink = archive.sink(
@@ -288,7 +288,7 @@ class TestXnatArchive(BaseTestCase):
     def test_summary(self):
         # Create working dirs
         # Create XNATSource node
-        archive = XNATArchive(
+        archive = XnatArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy(
@@ -360,7 +360,7 @@ class TestXnatArchive(BaseTestCase):
                 self.archive_cache_dir, self.PROJECT,
                 '_'.join((self.PROJECT, self.SUBJECT)),
                 '_'.join((self.PROJECT, self.SUBJECT,
-                         XNATArchive.SUMMARY_NAME)))
+                         XnatArchive.SUMMARY_NAME)))
             self.assertEqual(filter_md5_fnames(os.listdir(subject_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_subj_datasets])
@@ -368,7 +368,7 @@ class TestXnatArchive(BaseTestCase):
             subject_dataset_names = mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '_'.join((self.PROJECT, self.SUBJECT,
-                              XNATArchive.SUMMARY_NAME))].scans.keys()
+                              XnatArchive.SUMMARY_NAME))].scans.keys()
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check visit summary directories were created properly in
             # cache
@@ -376,8 +376,8 @@ class TestXnatArchive(BaseTestCase):
                                        '_visit_sink']
             visit_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
-                self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
-                (self.PROJECT + '_' + XNATArchive.SUMMARY_NAME +
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
+                (self.PROJECT + '_' + XnatArchive.SUMMARY_NAME +
                  '_' + self.VISIT))
             self.assertEqual(filter_md5_fnames(os.listdir(visit_dir)),
                              [d + nifti_gz_format.extension
@@ -386,7 +386,7 @@ class TestXnatArchive(BaseTestCase):
             visit_dataset_names = mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '{}_{}_{}'.format(
-                        self.PROJECT, XNATArchive.SUMMARY_NAME,
+                        self.PROJECT, XnatArchive.SUMMARY_NAME,
                         self.VISIT)].scans.keys()
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
@@ -394,9 +394,9 @@ class TestXnatArchive(BaseTestCase):
                                       '_project_sink']
             project_dir = os.path.join(
                 self.archive_cache_dir, self.PROJECT,
-                self.PROJECT + '_' + XNATArchive.SUMMARY_NAME,
-                self.PROJECT + '_' + XNATArchive.SUMMARY_NAME + '_' +
-                XNATArchive.SUMMARY_NAME)
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME + '_' +
+                XnatArchive.SUMMARY_NAME)
             self.assertEqual(filter_md5_fnames(os.listdir(project_dir)),
                              [d + nifti_gz_format.extension
                               for d in expected_proj_datasets])
@@ -405,7 +405,7 @@ class TestXnatArchive(BaseTestCase):
                 self.PROJECT].experiments[
                     '{}_{sum}_{sum}'.format(
                         self.PROJECT,
-                        sum=XNATArchive.SUMMARY_NAME)].scans.keys()
+                        sum=XnatArchive.SUMMARY_NAME)].scans.keys()
             self.assertEqual(expected_proj_datasets, project_dataset_names)
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
@@ -459,14 +459,14 @@ class TestXnatArchive(BaseTestCase):
             resinked_dataset_names = mbi_xnat.projects[
                 self.PROJECT].experiments[
                     self.session_label() +
-                    XNATArchive.PROCESSED_SUFFIX].scans.keys()
+                    XnatArchive.PROCESSED_SUFFIX].scans.keys()
             self.assertEqual(sorted(resinked_dataset_names),
                              [self.SUMMARY_STUDY_NAME + '_resink1',
                               self.SUMMARY_STUDY_NAME + '_resink2',
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
 #     def test_project_info(self):
-#         archive = XNATArchive(
+#         archive = XnatArchive(
 #             project_id=self.PROJECT,
 #             server=self.SERVER, cache_dir=self.archive_cache_dir)
 #         tree = archive.tree
@@ -493,7 +493,7 @@ class TestXnatArchive(BaseTestCase):
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        archive = XNATArchive(server=self.SERVER, cache_dir=cache_dir,
+        archive = XnatArchive(server=self.SERVER, cache_dir=cache_dir,
                               project_id=self.PROJECT)
         study = DummyStudy(self.STUDY_NAME, archive, inputs=[
             DatasetMatch(DATASET_NAME, DATASET_NAME,
@@ -568,10 +568,10 @@ class TestXnatArchive(BaseTestCase):
         dataset_fpath = DATASET_NAME + nifti_gz_format.extension
         source_target_path = os.path.join(self.session_cache(cache_dir),
                                           dataset_fpath)
-        md5_path = source_target_path + XNATArchive.MD5_SUFFIX
+        md5_path = source_target_path + XnatArchive.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        archive = XNATArchive(
+        archive = XnatArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=cache_dir)
         study = DummyStudy(STUDY_NAME, archive, inputs=[
@@ -614,7 +614,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(d, e)
         # Resink the source file and check that the generated MD5 digest is
         # stored in identical format
-        sink_archive = XNATArchive(
+        sink_archive = XnatArchive(
             project_id=self.DIGEST_SINK_PROJECT, server=self.SERVER,
             cache_dir=cache_dir)
         DATASET_NAME = 'sink1'
@@ -633,9 +633,9 @@ class TestXnatArchive(BaseTestCase):
             (self.session_cache(
                 cache_dir, project=self.DIGEST_SINK_PROJECT,
                 subject=(self.DIGEST_SINK_SUBJECT)) +
-             XNATArchive.PROCESSED_SUFFIX),
+             XnatArchive.PROCESSED_SUFFIX),
             sink_fpath)
-        sink_md5_path = sink_target_path + XNATArchive.MD5_SUFFIX
+        sink_md5_path = sink_target_path + XnatArchive.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
             source_digests = json.load(f)
@@ -666,7 +666,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         Tests whether XNAT source can download files with spaces in their names
         """
         cache_dir = tempfile.mkdtemp()
-        archive = XNATArchive(
+        archive = XnatArchive(
             server=self.SERVER, cache_dir=cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy('study', archive, inputs=[
@@ -712,7 +712,7 @@ class TestOnXnatMixin(object):
                         parent=xsubject)
                     if any('_' in f for f in fnames):
                         xsession_proc = mbi_xnat.classes.MrSessionData(
-                            label=sess_id + XNATArchive.PROCESSED_SUFFIX,
+                            label=sess_id + XnatArchive.PROCESSED_SUFFIX,
                             parent=xsubject)
                     for scan_fname in fnames:
                         if scan_fname == FIELDS_FNAME:
@@ -735,7 +735,7 @@ class TestOnXnatMixin(object):
                         resource.upload(os.path.join(sess_dir, scan_fname),
                                         scan_fname)
         self._output_cache_dir = tempfile.mkdtemp()
-        self._archive = XNATArchive(self.project_id, server=self.SERVER,
+        self._archive = XnatArchive(self.project_id, server=self.SERVER,
                                     cache_dir=self.cache_dir)
 
     def tearDown(self):
@@ -778,7 +778,7 @@ class TestOnXnatMixin(object):
         return self.PROJECT + '_' + subject
 
     def _proc_sess_id(self, session):
-        return session + XNATArchive.PROCESSED_SUFFIX
+        return session + XnatArchive.PROCESSED_SUFFIX
 
     def get_session_dir(self, subject=None, visit=None,
                         multiplicity='per_session', processed=False):
@@ -793,21 +793,21 @@ class TestOnXnatMixin(object):
         elif multiplicity == 'per_subject':
             assert subject is not None
             assert visit is None
-            parts = [self.PROJECT, subject, XNATArchive.SUMMARY_NAME]
+            parts = [self.PROJECT, subject, XnatArchive.SUMMARY_NAME]
         elif multiplicity == 'per_visit':
             assert visit is not None
             assert subject is None
-            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME, visit]
+            parts = [self.PROJECT, XnatArchive.SUMMARY_NAME, visit]
         elif multiplicity == 'per_project':
             assert subject is None
             assert visit is None
-            parts = [self.PROJECT, XNATArchive.SUMMARY_NAME,
-                     XNATArchive.SUMMARY_NAME]
+            parts = [self.PROJECT, XnatArchive.SUMMARY_NAME,
+                     XnatArchive.SUMMARY_NAME]
         else:
             assert False
         session_id = '_'.join(parts)
         if processed:
-            session_id += XNATArchive.PROCESSED_SUFFIX
+            session_id += XnatArchive.PROCESSED_SUFFIX
         session_path = os.path.join(self.output_cache_dir, session_id)
         if not os.path.exists(session_path):
             download_all_datasets(session_path, self.SERVER, session_id)
