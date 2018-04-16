@@ -1,6 +1,7 @@
 from .base import BaseRunner
+from nipype.pipeline.plugins import LinearPlugin
 
 
 class LinearRunner(BaseRunner):
 
-    pass
+    nipype_plugin_cls = LinearPlugin

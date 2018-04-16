@@ -18,4 +18,7 @@ class SlurmGraphPlugin(SLURMGraphPlugin):
 
 class SlurmRunner(BaseRunner):
 
-    pass
+    nipype_plugin_cls = SlurmGraphPlugin
+
+    def __init__(self, email=None, mail_on=('FAIL',)):
+        pass
