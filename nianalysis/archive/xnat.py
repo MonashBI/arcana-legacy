@@ -29,7 +29,7 @@ from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisXnatArchiveMissingDatasetException)
 from nianalysis.utils import dir_modtime
 import re
-import xnat  # NB: XNATPy not PyXNAT
+import xnat  # NB: XnatPy not PyXNAT
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 from .local import FIELDS_FNAME
 
@@ -46,14 +46,14 @@ def lower(s):
     return s.lower()
 
 
-class XNATMixin(object):
+class XnatMixin(object):
 
     @property
     def session_id(self):
         return self.inputs.subject_id + '_' + self.inputs.visit_id
 
 
-class XNATSourceInputSpec(ArchiveSourceInputSpec):
+class XnatSourceInputSpec(ArchiveSourceInputSpec):
     project_id = traits.Str(mandatory=True, desc='The project ID')
     server = traits.Str(mandatory=True,
                         desc="The address of the XNAT server")
@@ -86,17 +86,17 @@ class XNATSourceInputSpec(ArchiveSourceInputSpec):
               "concurrent requests to XNAT"))
 
 
-class XNATSource(ArchiveSource, XNATMixin):
+class XnatSource(ArchiveSource, XnatMixin):
     """
     A NiPype IO interface for grabbing datasets off DaRIS (analogous to
     DataGrabber)
     """
 
-    input_spec = XNATSourceInputSpec
+    input_spec = XnatSourceInputSpec
 
     def __init__(self, *args, **kwargs):
         self._check_md5 = kwargs.pop('check_md5', True)
-        super(XNATSource, self).__init__(*args, **kwargs)
+        super(XnatSource, self).__init__(*args, **kwargs)
 
     @property
     def check_md5(self):
@@ -312,7 +312,7 @@ class XNATSource(ArchiveSource, XNATMixin):
                 cache_path)
 
 
-class XNATSinkInputSpecMixin(object):
+class XnatSinkInputSpecMixin(object):
     project_id = traits.Str(mandatory=True, desc='The project ID')
     server = traits.Str('https://mf-erc.its.monash.edu.au', mandatory=True,
                         usedefault=True, desc="The address of the MF server")
@@ -333,26 +333,26 @@ class XNATSinkInputSpecMixin(object):
                            "datasets will be cached"))
 
 
-class XNATSinkInputSpec(ArchiveSinkInputSpec, XNATSinkInputSpecMixin):
+class XnatSinkInputSpec(ArchiveSinkInputSpec, XnatSinkInputSpecMixin):
     pass
 
 
-class XNATSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
-                               XNATSinkInputSpecMixin):
+class XnatSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
+                               XnatSinkInputSpecMixin):
     pass
 
 
-class XNATVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
-                                 XNATSinkInputSpecMixin):
+class XnatVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
+                                 XnatSinkInputSpecMixin):
     pass
 
 
-class XNATProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
-                               XNATSinkInputSpecMixin):
+class XnatProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
+                               XnatSinkInputSpecMixin):
     pass
 
 
-class XNATSinkMixin(XNATMixin):
+class XnatSinkMixin(XnatMixin):
     """
     A NiPype IO interface for putting processed datasets onto DaRIS (analogous
     to DataSink)
@@ -437,7 +437,7 @@ class XNATSinkMixin(XNATMixin):
             #        indicates a problem but stopping now would throw
             #        away the datasets that were created
             logger.warning(
-                "Missing output datasets '{}' in XNATSink".format(
+                "Missing output datasets '{}' in XnatSink".format(
                     "', '".join(str(f) for f in missing_files)))
         # Return cache file paths
         outputs['out_files'] = out_files
@@ -501,24 +501,24 @@ class XNATSinkMixin(XNATMixin):
                                                 xnat_session=xnat_login)
 
 
-class XNATSink(XNATSinkMixin, ArchiveSink):
+class XnatSink(XnatSinkMixin, ArchiveSink):
 
-    input_spec = XNATSinkInputSpec
-
-
-class XNATSubjectSink(XNATSinkMixin, ArchiveSubjectSink):
-
-    input_spec = XNATSubjectSinkInputSpec
+    input_spec = XnatSinkInputSpec
 
 
-class XNATVisitSink(XNATSinkMixin, ArchiveVisitSink):
+class XnatSubjectSink(XnatSinkMixin, ArchiveSubjectSink):
 
-    input_spec = XNATVisitSinkInputSpec
+    input_spec = XnatSubjectSinkInputSpec
 
 
-class XNATProjectSink(XNATSinkMixin, ArchiveProjectSink):
+class XnatVisitSink(XnatSinkMixin, ArchiveVisitSink):
 
-    input_spec = XNATProjectSinkInputSpec
+    input_spec = XnatVisitSinkInputSpec
+
+
+class XnatProjectSink(XnatSinkMixin, ArchiveProjectSink):
+
+    input_spec = XnatProjectSinkInputSpec
 
 
 class XnatArchive(Archive):
@@ -551,11 +551,11 @@ class XnatArchive(Archive):
     """
 
     type = 'xnat'
-    Sink = XNATSink
-    Source = XNATSource
-    SubjectSink = XNATSubjectSink
-    VisitSink = XNATVisitSink
-    ProjectSink = XNATProjectSink
+    Sink = XnatSink
+    Source = XnatSource
+    SubjectSink = XnatSubjectSink
+    VisitSink = XnatVisitSink
+    ProjectSink = XnatProjectSink
 
     SUMMARY_NAME = 'ALL'
     PROCESSED_SUFFIX = '_PROC'

@@ -3,7 +3,7 @@ import subprocess as sp
 import shutil
 from unittest import TestCase
 import errno
-from xnat.exceptions import XNATError
+from xnat.exceptions import XnatError
 import sys
 import json
 from collections import defaultdict
@@ -331,7 +331,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
             download_all_datasets(
                 cache_dir, self.SERVER, self.xnat_session_name,
                 overwrite=False)
-        except XNATError as e:
+        except XnatError as e:
             if os.path.exists(cache_dir):
                 warnings.warn(
                     "Could not download datasets from '{}_{}' session on "

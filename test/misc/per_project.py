@@ -1,6 +1,6 @@
-from nianalysis.archive.xnat import XNATSource
+from nianalysis.archive.xnat import XnatSource
 
-source = XNATSource()
+source = XnatSource()
 
 source.inputs.server = 'https://mbi-xnat.erc.monash.edu.au'
 source.inputs.user = 'tclose'

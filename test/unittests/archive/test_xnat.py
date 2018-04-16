@@ -287,7 +287,7 @@ class TestXnatArchive(BaseTestCase):
 
     def test_summary(self):
         # Create working dirs
-        # Create XNATSource node
+        # Create XnatSource node
         archive = XnatArchive(
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
