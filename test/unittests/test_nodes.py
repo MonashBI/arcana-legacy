@@ -49,7 +49,7 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', 'ones', nifti_gz_format)])
-        study.pipeline().run(work_dir=self.work_dir)
+        study.data('twos')
         self.assertDatasetCreated('twos.nii.gz', study.name)
 
 

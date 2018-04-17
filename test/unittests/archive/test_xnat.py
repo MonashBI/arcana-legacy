@@ -13,6 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XnatArchive, download_all_datasets)
 from nianalysis.archive.local import FIELDS_FNAME
 from nianalysis.study import Study, set_specs
+from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
 from nianalysis.data_formats import (
@@ -175,15 +176,16 @@ class TestXnatArchive(BaseTestCase):
         archive = XnatArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=self.archive_cache_dir)
-        study = DummyStudy(self.STUDY_NAME, archive, inputs=[
-            DatasetMatch('source1', 'source1',
-                         nifti_gz_format),
-            DatasetMatch('source2', 'source2',
-                         nifti_gz_format),
-            DatasetMatch('source3', 'source3',
-                         nifti_gz_format),
-            DatasetMatch('source4', 'source4',
-                         nifti_gz_format)])
+        study = DummyStudy(
+            self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
+            inputs=[DatasetMatch('source1', 'source1',
+                                 nifti_gz_format),
+                    DatasetMatch('source2', 'source2',
+                                 nifti_gz_format),
+                    DatasetMatch('source3', 'source3',
+                                 nifti_gz_format),
+                    DatasetMatch('source4', 'source4',
+                                 nifti_gz_format)])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
@@ -292,7 +294,8 @@ class TestXnatArchive(BaseTestCase):
             server=self.SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, archive, inputs=[
+            self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
+            inputs=[
                 DatasetMatch('source1', 'source1',
                              nifti_gz_format),
                 DatasetMatch('source2', 'source2',
@@ -495,9 +498,10 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XnatArchive(server=self.SERVER, cache_dir=cache_dir,
                               project_id=self.PROJECT)
-        study = DummyStudy(self.STUDY_NAME, archive, inputs=[
-            DatasetMatch(DATASET_NAME, DATASET_NAME,
-                         nifti_gz_format)])
+        study = DummyStudy(
+            self.STUDY_NAME, archive, LinearRunner('ad'),
+            inputs=[DatasetMatch(DATASET_NAME, DATASET_NAME,
+                                 nifti_gz_format)])
         source = archive.source([study.input(DATASET_NAME)],
                                 name='delayed_source',
                                 study_name='delayed_study')
@@ -574,9 +578,10 @@ class TestXnatArchive(BaseTestCase):
         archive = XnatArchive(
             project_id=self.PROJECT,
             server=self.SERVER, cache_dir=cache_dir)
-        study = DummyStudy(STUDY_NAME, archive, inputs=[
-            DatasetMatch(DATASET_NAME, DATASET_NAME,
-                         nifti_gz_format)])
+        study = DummyStudy(
+            STUDY_NAME, archive, LinearRunner('ad'),
+            inputs=[DatasetMatch(DATASET_NAME, DATASET_NAME,
+                                 nifti_gz_format)])
         source = archive.source([study.input(DATASET_NAME)],
                                 name='digest_check_source',
                                 study_name=STUDY_NAME)
@@ -669,9 +674,10 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         archive = XnatArchive(
             server=self.SERVER, cache_dir=cache_dir,
             project_id=self.PROJECT)
-        study = DummyStudy('study', archive, inputs=[
-            DatasetMatch('source{}'.format(i), d, dicom_format)
-            for i, d in enumerate(self.DATASETS, start=1)],
+        study = DummyStudy(
+            'study', archive, LinearRunner('ad'),
+            inputs=[DatasetMatch('source{}'.format(i), d, dicom_format)
+                    for i, d in enumerate(self.DATASETS, start=1)],
             subject_ids=[self.SUBJECT], visit_ids=[self.VISIT])
         source = archive.source(
             [study.input('source{}'.format(i))
@@ -867,15 +873,16 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     def test_cache_download(self):
         archive = self.archive
-        study = TestStudy('a_study', archive, inputs=[
-            DatasetMatch('dataset1', 'dataset1',
-                         mrtrix_format),
-            DatasetMatch('dataset2', 'dataset2',
-                         mrtrix_format),
-            DatasetMatch('dataset3', 'dataset3',
-                         mrtrix_format),
-            DatasetMatch('dataset5', 'dataset5',
-                         mrtrix_format)])
+        study = TestStudy(
+            'a_study', archive, LinearRunner('ad'),
+            inputs=[DatasetMatch('dataset1', 'dataset1',
+                                 mrtrix_format),
+                    DatasetMatch('dataset2', 'dataset2',
+                                 mrtrix_format),
+                    DatasetMatch('dataset3', 'dataset3',
+                                 mrtrix_format),
+                    DatasetMatch('dataset5', 'dataset5',
+                                 mrtrix_format)])
         archive.cache(datasets=study.inputs,
                       subject_ids=self.SUBJECTS,
                       visit_ids=self.VISITS,

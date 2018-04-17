@@ -6,12 +6,12 @@ import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
-    LocalSource, LocalSink, LocalSubjectSink, LocalVisitSink,
-    LocalProjectSink, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
+    LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study import Study, set_specs
+from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
-    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec, FieldMatch)
+    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session, Visit
@@ -48,15 +48,16 @@ class TestLocalArchive(BaseTestCase):
     SUMMARY_STUDY_NAME = 'asummary'
 
     def test_archive_roundtrip(self):
-        study = DummyStudy(self.STUDY_NAME, self.archive, inputs=[
-            DatasetMatch('source1', 'source1',
-                         nifti_gz_format),
-            DatasetMatch('source2', 'source2',
-                         nifti_gz_format),
-            DatasetMatch('source3', 'source3',
-                         nifti_gz_format),
-            DatasetMatch('source4', 'source4',
-                         nifti_gz_format)])
+        study = DummyStudy(
+            self.STUDY_NAME, self.archive, runner=LinearRunner('a_dir'),
+            inputs=[DatasetMatch('source1', 'source1',
+                                 nifti_gz_format),
+                    DatasetMatch('source2', 'source2',
+                                 nifti_gz_format),
+                    DatasetMatch('source3', 'source3',
+                                 nifti_gz_format),
+                    DatasetMatch('source4', 'source4',
+                                 nifti_gz_format)])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
@@ -134,13 +135,13 @@ class TestLocalArchive(BaseTestCase):
 
     def test_summary(self):
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, self.archive, inputs=[
-                DatasetMatch('source1', 'source1',
-                             nifti_gz_format),
-                DatasetMatch('source2', 'source2',
-                             nifti_gz_format),
-                DatasetMatch('source3', 'source3',
-                             nifti_gz_format)])
+            self.SUMMARY_STUDY_NAME, self.archive, LinearRunner('ad'),
+            inputs=[DatasetMatch('source1', 'source1',
+                                 nifti_gz_format),
+                    DatasetMatch('source2', 'source2',
+                                 nifti_gz_format),
+                    DatasetMatch('source3', 'source3',
+                                 nifti_gz_format)])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3')]

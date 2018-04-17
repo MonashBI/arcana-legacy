@@ -1,7 +1,7 @@
 from abc import ABCMeta, abstractmethod
 from itertools import chain
 from nipype.interfaces.base import (
-    traits, TraitedSpec, DynamicTraitedSpec, Undefined, File, Directory,
+    traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface)
 from nianalysis.nodes import Node
 from nianalysis.dataset import (

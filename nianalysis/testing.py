@@ -12,11 +12,13 @@ import logging
 import nianalysis
 from nianalysis.utils import classproperty
 from nianalysis.archive.local import (
-    LocalArchive, SUMMARY_NAME, FIELDS_FNAME)
+    LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
+from nianalysis.runner import LinearRunner
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from nianalysis.nodes import NiAnalysisNodeMixin
+from nianalysis.exceptions import (
+    NiAnalysisModulesNotInstalledException)
 from traceback import format_exc
 from nianalysis.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
@@ -135,6 +137,10 @@ class BaseTestCase(TestCase):
         return LocalArchive(self.project_dir)
 
     @property
+    def runner(self):
+        return LinearRunner(self.work_dir)
+
+    @property
     def project_dir(self):
         return os.path.join(self.archive_path, self.name)
 
@@ -168,6 +174,7 @@ class BaseTestCase(TestCase):
         return study_cls(
             name=name,
             archive=self.archive,
+            runner=self.runner,
             inputs=inputs,
             options=options)
 

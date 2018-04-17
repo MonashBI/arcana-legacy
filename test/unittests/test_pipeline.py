@@ -89,7 +89,11 @@ class TestFormatConversions(BaseTestCase):
                 DatasetMatch('directory', 't1_mprage_sag_p2_iso_1_ADNI',
                                           directory_format),
                 DatasetMatch('zip', 'zip', zip_format)])
-        study.pipeline().run(work_dir=self.work_dir)
+        study.data('nifti_gz_from_dicom')
+        study.data('mrtrix_from_nifti_gz')
+        study.data('nifti_from_mrtrix')
+        study.data('directory_from_zip')
+        study.data('zip_from_directory')
         self.assertDatasetCreated('nifti_gz_from_dicom.nii.gz', study.name)
         self.assertDatasetCreated('mrtrix_from_nifti_gz.mif', study.name)
         self.assertDatasetCreated('nifti_from_mrtrix.nii', study.name)

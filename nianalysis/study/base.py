@@ -125,6 +125,10 @@ class Study(object):
         self._tree_cache = None
 
     @property
+    def runner(self):
+        return self._runner
+
+    @property
     def inputs(self):
         return self._inputs.values()
 
@@ -190,15 +194,17 @@ class Study(object):
                 pass
             if isinstance(spec, BaseDataset):
                 data = chain(*(
-                    (d for d in n.datasets if d.name == name)
+                    (d for d in n.datasets
+                     if d.name == spec.prefixed_name)
                     for n in self.tree.nodes(spec.multiplicity)))
             elif isinstance(spec, BaseField):
                 data = chain(*(
-                    (f for f in n.fields if f.name == name)
+                    (f for f in n.fields
+                     if f.name == spec.prefixed_name)
                     for n in self.tree.nodes(spec.multiplicity)))
             else:
                 assert False
-        return data
+        return list(data)
 
     @classmethod
     def data_spec(cls, name):

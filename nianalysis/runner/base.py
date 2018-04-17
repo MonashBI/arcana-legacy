@@ -33,5 +33,13 @@ class BaseRunner(object):
         pipeline.connect_to_archive(workflow, **kwargs)
         # Reset the cached tree of datasets in the archive as it will
         # change after the pipeline has run.
-        pipeline.reset_tree()
+        pipeline.study.reset_tree()
         return workflow.run(plugin=self._plugin)
+
+    def __repr__(self):
+        return "{}(work_dir={})".format(
+            type(self).__name__, self._work_dir)
+
+    @property
+    def work_dir(self):
+        return self._work_dir

@@ -4,7 +4,9 @@ import os.path
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirements import Requirement, mrtrix3_req
 from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
+from nianalysis.data_formats import (
+    nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
+from nianalysis.runner import LinearRunner
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, set_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
@@ -264,6 +266,7 @@ class TestRunPipeline(BaseTestCase):
 
     def setUp(self):
         self.reset_dirs()
+        self.runner = LinearRunner(self.work_dir)
         for subject_id in self.SUBJECT_IDS:
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
@@ -288,8 +291,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        pipeline = self.study.pipeline4()
-        pipeline.run(work_dir=self.work_dir)
+        self.study.data('pipeline4')[0]
         for dataset in TestStudy.data_specs():
             if dataset.multiplicity == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
@@ -300,7 +302,7 @@ class TestRunPipeline(BaseTestCase):
                             visit=visit_id)
 
     def test_subject_summary(self):
-        self.study.subject_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('subject_summary')
         for subject_id in self.SUBJECT_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
@@ -321,7 +323,7 @@ class TestRunPipeline(BaseTestCase):
                     NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_visit_summary(self):
-        self.study.visit_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('visit_summary')
         for visit_id in self.SESSION_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
@@ -341,7 +343,7 @@ class TestRunPipeline(BaseTestCase):
                     NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_project_summary(self):
-        self.study.project_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('project_summary')
         # Get mean value from resultant image (should be the same as the
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
@@ -360,9 +362,7 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        pipeline = self.study.subject_ids_access_pipeline()
-        pipeline.run(
-            work_dir=self.work_dir)
+        self.study.data('subject_ids')
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
@@ -372,7 +372,7 @@ class TestRunPipeline(BaseTestCase):
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        self.study.visit_ids_access_pipeline().run(work_dir=self.work_dir)
+        self.study.data('visit_ids')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', self.study.name,
@@ -520,7 +520,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs=[
                 DatasetMatch('start', 'ones', mrtrix_format)])
-        study.thousands_pipeline().run(work_dir=self.work_dir)
+        study.data('thousands')
         targets = {
             'subject1': {
                 'visit1': 1100,
@@ -550,7 +550,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.study_name, inputs=[
 #                 DatasetMatch('ones', 'ones', mrtrix_format)])
-#         study.thousands_pipeline().run(work_dir=self.work_dir)
+#         study.data('thousands')
 #         targets = {
 #             'subject1': {
 #                 'visit1': 1100,

@@ -193,24 +193,22 @@ class TestMulti(TestCase):
                 DatasetMatch('a', 'ones', mrtrix_format),
                 DatasetMatch('b', 'ones', mrtrix_format),
                 DatasetMatch('c', 'ones', mrtrix_format)])
-        study.pipeline_alpha_trans().run(work_dir=self.work_dir)
-        study.pipeline_beta_trans().run(work_dir=self.work_dir)
+        d = study.data('d')[0]
+        e = study.data('e')[0]
+        f = study.data('f')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             d_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'd.mif', study.name)),
+                'mrstats {} -output mean'.format(d.path),
                 shell=True))
             self.assertEqual(d_mean, 2.0)
             e_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'e.mif', study.name)),
+                'mrstats {} -output mean'.format(e.path),
                 shell=True))
             self.assertEqual(e_mean, 3.0)
             f_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'f.mif', study.name)),
+                'mrstats {} -output mean'.format(f.path),
                 shell=True))
             self.assertEqual(f_mean, 6.0)
         finally:
@@ -223,24 +221,22 @@ class TestMulti(TestCase):
                 DatasetMatch('a', 'ones', mrtrix_format),
                 DatasetMatch('b', 'ones', mrtrix_format),
                 DatasetMatch('c', 'ones', mrtrix_format)])
-        study.pipeline_alpha_trans().run(work_dir=self.work_dir)
-        study.ss2_pipeline_beta().run(work_dir=self.work_dir)
+        ss1_z = study.data('ss1_z')[0]
+        ss2_y = study.data('ss2_y')[0]
+        ss2_z = study.data('ss2_z')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             ss1_z_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss1_z.mif', study.name)),
+                'mrstats {} -output mean'.format(ss1_z.path),
                 shell=True))
             self.assertEqual(ss1_z_mean, 2.0)
             ss2_y_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss2_y.mif', study.name)),
+                'mrstats {} -output mean'.format(ss2_y.path),
                 shell=True))
             self.assertEqual(ss2_y_mean, 3.0)
             ss2_z_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss2_z.mif', study.name)),
+                'mrstats {} -output mean'.format(ss2_z.path),
                 shell=True))
             self.assertEqual(ss2_z_mean, 6.0)
         finally:
@@ -258,13 +254,12 @@ class TestMulti(TestCase):
                 DatasetMatch('partial_a', 'ones', mrtrix_format),
                 DatasetMatch('partial_b', 'ones', mrtrix_format),
                 DatasetMatch('partial_c', 'ones', mrtrix_format)])
-        study.combined_pipeline().run(work_dir=self.work_dir)
+        g = study.data('g')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             g_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'g.mif', study.name)),
+                'mrstats {} -output mean'.format(g.path),
                 shell=True))
             self.assertEqual(g_mean, 11.0)
         finally:

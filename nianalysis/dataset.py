@@ -351,7 +351,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
                  order=None, dicom_tags=None, is_regex=False,
                  study=None):
         BaseDataset.__init__(self, name, format, multiplicity)
-        BaseMatch.__init__(pattern, derived, order, study, is_regex)
+        BaseMatch.__init__(self, pattern, derived, order, study,
+                           is_regex)
         if dicom_tags is not None and format != dicom_format:
             raise NiAnalysisUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -621,7 +622,7 @@ class Dataset(BaseDataset):
         self._path = path
 
     def basename(self, **kwargs):  # @UnusedVariable
-        return split_extension(os.path.basename(self.path))
+        return self.name
 
     @property
     def derived(self):
@@ -847,7 +848,8 @@ class FieldMatch(BaseField, BaseMatch):
     def __init__(self, name, pattern, dtype, multiplicity='per_session',
                  derived=False, order=None, is_regex=False, study=None):
         FieldMatch.__init__(self, name, format, multiplicity)
-        BaseMatch.__init__(pattern, derived, order, study, is_regex)
+        BaseMatch.__init__(self, pattern, derived, order, study,
+                           is_regex)
         super(FieldMatch, self).__init__(name, dtype, multiplicity)
 
     def __eq__(self, other):
