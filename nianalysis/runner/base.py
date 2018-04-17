@@ -1,3 +1,5 @@
+from copy import copy
+from nipype.pipeline import engine as pe
 
 
 class BaseRunner(object):
@@ -16,12 +18,21 @@ class BaseRunner(object):
         reprocessed.
     """
 
-    plugin_args = {}
+    default_plugin_args = {}
 
-    def __init__(self, work_dir, max_process_time):
+    def __init__(self, work_dir, max_process_time=None, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
-        self._plugin = self.nipype_plugin_cls(**self.plugin_args)
+        self._plugin_args = copy(self.default_plugin_args)
+        self._plugin_args.update(kwargs)
+        self._plugin = self.nipype_plugin_cls()
 
-    def run(self):
-        pass
+    def run(self, pipeline, **kwargs):
+        workflow = pe.Workflow(name=pipeline.name,
+                               base_dir=self.work_dir)
+        pipeline.connect_to_archive(workflow, **kwargs)
+        # Reset the cached tree of datasets in the archive as it will
+        # change after the pipeline has run.
+        pipeline.reset_tree()
+        return workflow.run(plugin=self._plugin,
+                            plugin_args=self._plugin_args)

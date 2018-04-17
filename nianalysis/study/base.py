@@ -117,6 +117,9 @@ class Study(object):
                 visit_ids=self._visit_ids)
         return self._tree_cache
 
+    def reset_tree(self):
+        self._tree_cache = None
+
     @property
     def inputs(self):
         return self._inputs.values()

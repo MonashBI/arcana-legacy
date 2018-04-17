@@ -10,16 +10,14 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDatasetError)
+    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDatasetError,
+    NiAnalysisNoRunRequiredException)
 from nianalysis.dataset import BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
-from nianalysis.exceptions import NiAnalysisUsageError
-from nianalysis.plugins.slurmgraph import SLURMGraphPlugin
-from rdflib import plugin
 
 
 logger = getLogger('NiAnalysis')
@@ -131,18 +129,6 @@ class Pipeline(object):
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
                                       self.name)
-# 
-#     @property
-#     def requires_gpu(self):
-#         return False  # FIXME: Need to implement this
-# 
-#     @property
-#     def max_memory(self):
-#         return 4000  # FIXME: This shouldn't be hard-coded here
-# 
-#     @property
-#     def wall_time(self):
-#         return '7-00:00:00'  # Max amount FIXME: this shouldn't be HCed
 
     def __eq__(self, other):
         if not isinstance(other, self.__class__):
@@ -158,108 +144,6 @@ class Pipeline(object):
 
     def __ne__(self, other):
         return not (self == other)
-
-    def run(self, work_dir=None, plugin='Linear', plugin_args=None,
-            updatehash=False, **kwargs):
-        """
-        Connects pipeline to archive and runs it on the local workstation
-
-        Parameters
-        ----------
-        subject_ids : List[str]
-            The subset of subject IDs to process. If None all available will be
-            reprocessed
-        visit_ids: List[str]
-            The subset of visit IDs to process. If None all available will be
-            reprocessed
-        work_dir : str
-            A directory in which to run the nipype workflows
-        reprocess: True|False|'all'
-            A flag which determines whether to rerun the processing for this
-            step. If set to 'all' then pre-requisite pipelines will also be
-            reprocessed.
-        """
-        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
-        self.connect_to_archive(complete_workflow, **kwargs)
-        # Reset tree as it should change after the run
-        self.study._tree_cache = None
-        # Run the workflow
-        return complete_workflow.run(
-            plugin=plugin, plugin_args=plugin_args,
-            updatehash=updatehash)
-
-    def submit(self, work_dir, scheduler='slurm', email=None,
-               mail_on=('FAIL',), **kwargs):
-        """
-        Submits a pipeline to a scheduler que for processing
-
-        Parameters
-        ----------
-        scheduler : str
-            Name of the scheduler to submit the pipeline to
-        """
-        if email is None:
-            try:
-                email = os.environ['EMAIL']
-            except KeyError:
-                raise NiAnalysisError(
-                    "'email' needs to be provided if 'EMAIL' environment "
-                    "variable not set")
-        if scheduler == 'slurm':
-            args = [('mail-user', email)]
-            for mo in mail_on:
-                args.append(('mail-type', mo))
-            plugin_args = {
-                'sbatch_args': ' '.join('--{}={}'.format(*a) for a in args)}
-            plugin = SLURMGraphPlugin(plugin_args=plugin_args)
-        else:
-            raise NiAnalysisUsageError(
-                "Unsupported scheduler '{}'".format(scheduler))
-        complete_workflow = pe.Workflow(name=self.name, base_dir=work_dir)
-        self.connect_to_archive(complete_workflow, **kwargs)
-        # Reset tree as it should change after the run
-        self.study._tree_cache = None
-        return complete_workflow.run(plugin=plugin)
-
-    def write_graph(self, fname, style='flat', complete=False):
-        """
-        Writes a graph of the pipeline to file
-
-        Parameters
-        ----------
-        fname : str
-            The filename for the saved graph
-        style : str
-            The style of the graph, can be one of can be one of
-            'orig', 'flat', 'exec', 'hierarchical'
-        complete : bool
-            Whether to plot the complete graph including sources, sinks and
-            prerequisite pipelines or just the current pipeline
-        plot : bool
-            Whether to load and plot the graph after it has been written
-        """
-        fname = os.path.expanduser(fname)
-        orig_dir = os.getcwd()
-        tmpdir = tempfile.mkdtemp()
-        os.chdir(tmpdir)
-        if complete:
-            workflow = pe.Workflow(name=self.name, base_dir=tmpdir)
-            self.connect_to_archive(workflow)
-            out_dir = os.path.join(tmpdir, self.name)
-        else:
-            workflow = self._workflow
-            out_dir = tmpdir
-        workflow.write_graph(graph2use=style)
-        os.chdir(orig_dir)
-        try:
-            shutil.move(os.path.join(out_dir, 'graph_detailed.png'),
-                        fname)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                shutil.move(os.path.join(out_dir, 'graph.png'), fname)
-            else:
-                raise
-        shutil.rmtree(tmpdir)
 
     def connect_to_archive(self, complete_workflow, subject_ids=None,
                            visit_ids=None, reprocess=False,
@@ -303,10 +187,9 @@ class Pipeline(object):
             subject_ids=subject_ids, visit_ids=visit_ids,
             reprocess=reprocess)
         if not sessions_to_process:
-            logger.info(
+            raise NiAnalysisNoRunRequiredException(
                 "All outputs of '{}' are already present in project archive, "
                 "skipping".format(self.name))
-            return None
         # Set up workflow to run the pipeline, loading and saving from the
         # archive
         complete_workflow.add_nodes([self._workflow])
@@ -644,6 +527,46 @@ class Pipeline(object):
         Performs the connection in the wrapped NiPype workflow
         """
         self._workflow.connect(*args, **kwargs)
+
+    def save_graph(self, fname, style='flat', complete=False):
+        """
+        Saves a graph of the pipeline to file
+
+        Parameters
+        ----------
+        fname : str
+            The filename for the saved graph
+        style : str
+            The style of the graph, can be one of can be one of
+            'orig', 'flat', 'exec', 'hierarchical'
+        complete : bool
+            Whether to plot the complete graph including sources, sinks and
+            prerequisite pipelines or just the current pipeline
+        plot : bool
+            Whether to load and plot the graph after it has been written
+        """
+        fname = os.path.expanduser(fname)
+        orig_dir = os.getcwd()
+        tmpdir = tempfile.mkdtemp()
+        os.chdir(tmpdir)
+        if complete:
+            workflow = pe.Workflow(name=self.name, base_dir=tmpdir)
+            self.connect_to_archive(workflow)
+            out_dir = os.path.join(tmpdir, self.name)
+        else:
+            workflow = self._workflow
+            out_dir = tmpdir
+        workflow.write_graph(graph2use=style)
+        os.chdir(orig_dir)
+        try:
+            shutil.move(os.path.join(out_dir, 'graph_detailed.png'),
+                        fname)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                shutil.move(os.path.join(out_dir, 'graph.png'), fname)
+            else:
+                raise
+        shutil.rmtree(tmpdir)
 
     def connect_input(self, spec_name, node, node_input):
         """

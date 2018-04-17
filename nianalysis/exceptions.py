@@ -52,3 +52,17 @@ class NiAnalysisXnatArchiveMissingDatasetException(
 
 class NiAnalysisModulesNotInstalledException(NiAnalysisException):
     pass
+
+
+class NiAnalysisJobSubmittedException(NiAnalysisException):
+    """
+    Signifies that a pipeline has been submitted to a scheduler and
+    a return value won't be returned.
+    """
+
+
+class NiAnalysisNoRunRequiredException(NiAnalysisException):
+    """
+    Used to signify when a pipeline doesn't need to be run as all
+    required outputs are already present in the archive
+    """
