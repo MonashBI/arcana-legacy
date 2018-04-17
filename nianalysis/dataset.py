@@ -88,7 +88,7 @@ class BaseDatum(object):
 class BaseDataset(BaseDatum):
     """
     An abstract base class representing either an acquired dataset or the
-    specification for a processed dataset.
+    specification for a derived dataset.
 
     Parameters
     ----------
@@ -128,7 +128,7 @@ class BaseDataset(BaseDatum):
         return self._format
 
     def to_tuple(self):
-        return (self.name, self.format.name, self.multiplicity, self.processed,
+        return (self.name, self.format.name, self.multiplicity, self.derived,
                 self.is_spec)
 
     def match(self, filename):
@@ -152,8 +152,8 @@ class BaseDataset(BaseDatum):
 
 class BaseMatch(object):
 
-    def __init__(self, pattern, processed, order, is_regex):
-        self._processed = processed
+    def __init__(self, pattern, derived, order, is_regex):
+        self._derived = derived
         self._order = order
         self._pattern = pattern
         self._study = None
@@ -175,7 +175,7 @@ class Dataset(BaseDataset):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    processed : bool
+    derived : bool
         Whether the scan was generated or acquired. Depending on the archive
         used to store the dataset this is used to determine the location of the
         dataset.
@@ -190,18 +190,18 @@ class Dataset(BaseDataset):
 
     is_spec = False
 
-    def __init__(self, name, format=None, processed=False,  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', path=None,
                  id=None, uri=None):  # @ReservedAssignment
         super(Dataset, self).__init__(name, format, multiplicity)
-        self._processed = processed
+        self._derived = derived
         self._path = path
         self._id = id
         self._uri = uri
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
-                self.processed == other.processed and
+                self.derived == other.derived and
                 self._path == other._path and
                 self.id == other.id)
 
@@ -211,10 +211,10 @@ class Dataset(BaseDataset):
     def find_mismatch(self, other, indent=''):
         mismatch = super(Dataset, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
-        if self.processed != other.processed:
-            mismatch += ('\n{}processed: self={} v other={}'
-                         .format(sub_indent, self.processed,
-                                 other.processed))
+        if self.derived != other.derived:
+            mismatch += ('\n{}derived: self={} v other={}'
+                         .format(sub_indent, self.derived,
+                                 other.derived))
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
                          .format(sub_indent, self._path,
@@ -240,8 +240,8 @@ class Dataset(BaseDataset):
         return split_extension(os.path.basename(self.path))
 
     @property
-    def processed(self):
-        return self._processed
+    def derived(self):
+        return self._derived
 
     @property
     def id(self):
@@ -274,11 +274,11 @@ class Dataset(BaseDataset):
                                                                path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   path=path, processed=False)
+                   path=path, derived=False)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
-        dct['processed'] = self.processed
+        dct['derived'] = self.derived
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
@@ -305,7 +305,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    processed : bool
+    derived : bool
         Whether the scan was generated or acquired. Depending on the archive
         used to store the dataset this is used to determine the location of the
         dataset.
@@ -328,7 +328,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
     is_spec = False
 
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
+                 multiplicity='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False):
         BaseDataset.__init__(self, name, format, multiplicity)
         if dicom_tags is not None and format != dicom_format:
@@ -340,8 +340,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
-        BaseMatch.__init__(self.pattern, processed)
-        self._processed = processed
+        BaseMatch.__init__(self.pattern, derived)
+        self._derived = derived
         self._order = order
         self._id = id
         self._pattern = pattern
@@ -361,8 +361,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
             self._matches = defaultdict(dict)
             for subject in tree.subjects:
                 for sess in subject.sessions:
-                    if self.processed and sess.processed is not None:
-                        node = sess.processed
+                    if self.derived and sess.derived is not None:
+                        node = sess.derived
                     else:
                         node = sess
                     self._matches[sess.subject_id][
@@ -475,8 +475,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return self._pattern
 
     @property
-    def processed(self):
-        return self._processed
+    def derived(self):
+        return self._derived
 
     def matches(self, names):
         return [n for n in names if re.match(self.pattern, n)]
@@ -503,11 +503,11 @@ class DatasetMatch(BaseDataset, BaseMatch):
 
     def to_tuple(self):
         return (self.pattern, self.format.name, self.multiplicity,
-                self.processed, self.is_spec)
+                self.derived, self.is_spec)
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
-                self.processed == other.processed and
+                self.derived == other.derived and
                 self.pattern == other.pattern and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id and
@@ -515,7 +515,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
 
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()
-        dct['processed'] = self.processed
+        dct['derived'] = self.derived
         dct['pattern'] = self.pattern
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
@@ -613,7 +613,7 @@ class DatasetSpec(BaseDataset):
                 "'{}' study".format(self.pipeline_name, self.study))
 
     @property
-    def processed(self):
+    def derived(self):
         return self.pipeline_name is not None
 
     @property
@@ -654,7 +654,7 @@ class DatasetSpec(BaseDataset):
 class BaseField(BaseDatum):
     """
     An abstract base class representing either an acquired value or the
-    specification for a processed value.
+    specification for a derived value.
 
     Parameters
     ----------
@@ -721,12 +721,12 @@ class Field(BaseField):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    processed : bool
-        Whether or not the value belongs in the processed session or not
+    derived : bool
+        Whether or not the value belongs in the derived session or not
     """
 
     def __init__(self, name, value, multiplicity='per_session',
-                 processed=False):
+                 derived=False):
         if isinstance(value, int):
             dtype = int
         elif isinstance(value, float):
@@ -746,22 +746,22 @@ class Field(BaseField):
             raise NiAnalysisError(
                 "Unrecognised field dtype {}".format(value))
         self._value = value
-        self._processed = processed
+        self._derived = derived
         super(Field, self).__init__(
             name, dtype, multiplicity=multiplicity)
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
-                self.processed == other.processed and
+                self.derived == other.derived and
                 self.value == other.value)
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
-        if self.processed != other.processed:
-            mismatch += ('\n{}processed: self={} v other={}'
-                         .format(sub_indent, self.processed,
-                                 other.processed))
+        if self.derived != other.derived:
+            mismatch += ('\n{}derived: self={} v other={}'
+                         .format(sub_indent, self.derived,
+                                 other.derived))
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
                          .format(sub_indent, self.value,
@@ -769,8 +769,8 @@ class Field(BaseField):
         return mismatch
 
     @property
-    def processed(self):
-        return self._processed
+    def derived(self):
+        return self._derived
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
@@ -781,17 +781,17 @@ class Field(BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
-                "processed={})"
+                "derived={})"
                 .format(self.__class__.__name__, self.name,
                         self.value, self.dtype, self.multiplicity,
-                        self.processed))
+                        self.derived))
 
     def initkwargs(self):
         dct = {}
         dct['name'] = self.name
         dct['value'] = self.value
         dct['multiplicity'] = self.multiplicity
-        dct['processed'] = self.processed
+        dct['derived'] = self.derived
         return dct
 
 
@@ -814,16 +814,16 @@ class FieldMatch(BaseField):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    processed : bool
-        Whether or not the value belongs in the processed session or not
+    derived : bool
+        Whether or not the value belongs in the derived session or not
     """
 
     is_spec = False
 
     def __init__(self, name, pattern, dtype, multiplicity='per_session',
-                 processed=False):
+                 derived=False):
         super(FieldMatch, self).__init__(name, dtype, multiplicity)
-        self._processed = processed
+        self._derived = derived
         self._pattern = pattern
 
     @property
@@ -831,8 +831,8 @@ class FieldMatch(BaseField):
         return self._pattern
 
     @property
-    def processed(self):
-        return self._processed
+    def derived(self):
+        return self._derived
 
     def basename(self, subject_id=None, visit_id=None):
         return self.name
@@ -843,26 +843,26 @@ class FieldMatch(BaseField):
     def __eq__(self, other):
         return (super(FieldMatch, self).__eq__(other) and
                 self._pattern == other._pattern and
-                self.processed == other.processed)
+                self.derived == other.derived)
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={}, processed={},"
+        return ("{}(name='{}', dtype={}, multiplicity={}, derived={},"
                 " pattern={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self.processed,
+                        self.multiplicity, self.derived,
                         self._pattern))
 
     def initkwargs(self):
         dct = super(FieldMatch, self).initkwargs()
         dct['pattern'] = self._pattern
-        dct['processed'] = self.processed
+        dct['derived'] = self.derived
         return dct
 
 
 class FieldSpec(BaseField):
     """
     An abstract base class representing either an acquired value or the
-    specification for a processed dataset.
+    specification for a derived dataset.
 
     Parameters
     ----------
@@ -918,7 +918,7 @@ class FieldSpec(BaseField):
         return self._pipeline
 
     @property
-    def processed(self):
+    def derived(self):
         return self._pipeline is not None
 
     @property

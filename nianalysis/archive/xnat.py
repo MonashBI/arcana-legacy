@@ -116,30 +116,30 @@ class XnatSource(ArchiveSource, XnatMixin):
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
             project = xnat_login.projects[self.inputs.project_id]
-            # Get primary session, processed and summary sessions and cache
+            # Get primary session, derived and summary sessions and cache
             # dirs
             sessions = {}
             cache_dirs = {}
-            for mult, processed in ([('per_session', False)] +
+            for mult, derived in ([('per_session', False)] +
                                     zip(MULTIPLICITIES, repeat(True))):
                 subj_label, sess_label = XnatArchive.get_labels(
                     mult, self.inputs.project_id, subject_id, visit_id)
-                if mult == 'per_session' and processed:
+                if mult == 'per_session' and derived:
                     sess_label += XnatArchive.PROCESSED_SUFFIX
-                cache_dirs[(mult, processed)] = os.path.join(
+                cache_dirs[(mult, derived)] = os.path.join(
                     base_cache_dir, subj_label, sess_label)
                 try:
                     subject = project.subjects[subj_label]
-                    sessions[(mult, processed)] = subject.experiments[
+                    sessions[(mult, derived)] = subject.experiments[
                         sess_label]
                 except KeyError:
                     continue
             outputs = {}
             for dataset in self.datasets:
                 session = sessions[(dataset.multiplicity,
-                                    dataset.processed)]
+                                    dataset.derived)]
                 cache_dir = cache_dirs[(dataset.multiplicity,
-                                        dataset.processed)]
+                                        dataset.derived)]
                 try:
                     xdataset = session.scans[
                         dataset.basename(subject_id=subject_id,
@@ -217,7 +217,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             for field in self.fields:
                 prefixed_name = field.prefixed_name
                 session = sessions[(field.multiplicity,
-                                    field.processed)]
+                                    field.derived)]
                 outputs[field.name + FIELD_SUFFIX] = field.dtype(
                     session.fields[prefixed_name])
         return outputs
@@ -354,7 +354,7 @@ class XnatProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
 
 class XnatSinkMixin(XnatMixin):
     """
-    A NiPype IO interface for putting processed datasets onto DaRIS (analogous
+    A NiPype IO interface for putting derived datasets onto DaRIS (analogous
     to DataSink)
     """
 
@@ -376,7 +376,7 @@ class XnatSinkMixin(XnatMixin):
         logger.debug("Session kwargs: {}".format(sess_kwargs))
         with xnat.connect(server=self.inputs.server,
                           **sess_kwargs) as xnat_login:
-            # Add session for processed scans if not present
+            # Add session for derived scans if not present
             session, cache_dir = self._get_session(xnat_login)
             # Make session cache dir
             if not os.path.exists(cache_dir):
@@ -385,8 +385,8 @@ class XnatSinkMixin(XnatMixin):
             # cache directory and upload to daris.
             for dataset in self.datasets:
                 assert dataset.multiplicity == self.multiplicity
-                assert dataset.processed, (
-                    "{} (format: {}, mult: {}) isn't processed"
+                assert dataset.derived, (
+                    "{} (format: {}, mult: {}) isn't derived"
                     .format(dataset.name, dataset.format_name,
                             dataset.multiplicity))
                 filename = getattr(self.inputs,
@@ -428,7 +428,7 @@ class XnatSinkMixin(XnatMixin):
                 xresource.upload(dst_path, out_fname)
             for field in self.fields:
                 assert field.multiplicity == self.multiplicity
-                assert field.processed, ("{} isn't processed".format(
+                assert field.derived, ("{} isn't derived".format(
                     field))
                 session.fields[field.prefixed_name] = getattr(
                     self.inputs, field.name + FIELD_SUFFIX)
@@ -478,7 +478,7 @@ class XnatSinkMixin(XnatMixin):
 
     def _create_session(self, xnat_login, subject_id, visit_id):
         """
-        This creates a processed session in a way that respects whether
+        This creates a derived session in a way that respects whether
         the acquired session has been shared into another project or not.
 
         If we weren't worried about this we could just use
@@ -687,7 +687,7 @@ class XnatArchive(Archive):
             subject_ids = [
                 ('{}_{:03d}'.format(self.project_id, s)
                  if isinstance(s, int) else s) for s in subject_ids]
-        # Add processed visit IDs to list of visit ids to filter
+        # Add derived visit IDs to list of visit ids to filter
         if visit_ids is not None:
             visit_ids = visit_ids + [i + self.PROCESSED_SUFFIX
                                      for i in visit_ids]
@@ -716,17 +716,17 @@ class XnatArchive(Archive):
                         continue
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
-                    processed = xsession.label.endswith(
+                    derived = xsession.label.endswith(
                         self.PROCESSED_SUFFIX)
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
                                           xsession, 'per_session',
-                                          processed=processed),
+                                          derived=derived),
                                       fields=self._get_fields(
                                           xsession, 'per_session',
-                                          processed=processed),
-                                      processed=None)
-                    if processed:
+                                          derived=derived),
+                                      derived=None)
+                    if derived:
                         proc_sessions.append(session)
                     else:
                         sessions[visit_id] = session
@@ -735,10 +735,10 @@ class XnatArchive(Archive):
                     visit_id = proc_session.visit_id[:-len(
                         self.PROCESSED_SUFFIX)]
                     try:
-                        sessions[visit_id].processed = proc_session
+                        sessions[visit_id].derived = proc_session
                     except KeyError:
                         raise NiAnalysisError(
-                            "No matching acquired session for processed "
+                            "No matching acquired session for derived "
                             "session '{}_{}_{}'".format(
                                 self.project_id,
                                 proc_session.subject_id,
@@ -818,7 +818,7 @@ class XnatArchive(Archive):
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult, processed=False):  #,  dicom_keys=None): @IgnorePep8
+    def _get_datasets(self, xsession, mult, derived=False):  #,  dicom_keys=None): @IgnorePep8
         """
         Returns a list of datasets within an XNAT session
 
@@ -829,8 +829,8 @@ class XnatArchive(Archive):
         mult : str
             The multiplicity of the returned datasets (either 'per_session',
             'per_subject', 'per_visit', or 'per_project')
-        processed : bool
-            Whether the session is processed or not
+        derived : bool
+            Whether the session is derived or not
 
         Returns
         -------
@@ -842,12 +842,12 @@ class XnatArchive(Archive):
             data_format = data_formats[
                 guess_data_format(dataset).lower()]
             datasets.append(Dataset(
-                dataset.type, format=data_format, processed=processed,  # @ReservedAssignment @IgnorePep8
+                dataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, path=None, id=dataset.id,
                 uri=dataset.uri))
         return sorted(datasets)
 
-    def _get_fields(self, xsession, mult, processed=False):
+    def _get_fields(self, xsession, mult, derived=False):
         """
         Returns a list of fields within an XNAT session
 
@@ -867,7 +867,7 @@ class XnatArchive(Archive):
         fields = []
         for name, value in xsession.fields.items():
             fields.append(Field(
-                name=name, value=value, processed=processed,
+                name=name, value=value, derived=derived,
                 multiplicity=mult))
         return sorted(fields)
 

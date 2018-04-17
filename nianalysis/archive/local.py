@@ -145,8 +145,8 @@ class LocalSinkMixin(LocalNodeMixin):
         # Loop through datasets connected to the sink and copy them to archive
         # directory
         for spec in self.datasets:
-            assert spec.processed, (
-                "Should only be sinking processed datasets, not '{}'"
+            assert spec.derived, (
+                "Should only be sinking derived datasets, not '{}'"
                 .format(spec.name))
             filename = getattr(self.inputs, spec.name + PATH_SUFFIX)
             ext = spec.format.extension

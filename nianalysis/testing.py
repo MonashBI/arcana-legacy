@@ -298,7 +298,7 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def remove_generated_files(cls, study=None):
-        # Remove processed datasets
+        # Remove derived datasets
         for fname in os.listdir(cls.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
                 os.remove(os.path.join(cls.get_session_dir(), fname))

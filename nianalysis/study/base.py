@@ -92,7 +92,7 @@ class Study(object):
                         "', '".join(self._data_specs)))
             self._inputs[inpt.name] = inpt.bind(self)
         for spec in self.data_specs():
-            if not spec.processed:
+            if not spec.derived:
                 # Emit a warning if an acquired dataset has not been
                 # provided for an "acquired dataset"
                 if (check_inputs and spec.name not in self._inputs):
@@ -227,7 +227,7 @@ class Study(object):
     def bound_data_spec(self, name):
         """
         Returns either the dataset/field that has been passed to the study
-        __init__ matching the dataset/field name provided or the processed
+        __init__ matching the dataset/field name provided or the derived
         dataset that is to be generated using the pipeline associated
         with the generated data_spec
 
@@ -235,7 +235,7 @@ class Study(object):
         ----------
         name : Str
             Name of the data spec to the find the corresponding primary
-            dataset or processed dataset to be generated
+            dataset or derived dataset to be generated
         """
         if isinstance(name, BaseDatum):
             name = name.name
@@ -250,7 +250,7 @@ class Study(object):
                     "'{}' is not a recognised dataset_spec name for {} "
                     "studies."
                     .format(name, self.__class__.__name__))
-            if not data.processed:
+            if not data.derived:
                 raise NiAnalysisMissingDatasetError(
                     "Acquired (i.e. non-generated) dataset '{}' "
                     "was not supplied when the study '{}' was initiated"
@@ -273,7 +273,7 @@ class Study(object):
         Lists all data_specs defined in the study class that are
         provided as inputs to the study
         """
-        return (c for c in cls.data_specs() if not c.processed)
+        return (c for c in cls.data_specs() if not c.derived)
 
     @classmethod
     def generated_data_specs(cls):
@@ -282,7 +282,7 @@ class Study(object):
         generated from other data_specs (but can be overridden by input
         datasets)
         """
-        return (c for c in cls.data_specs() if c.processed)
+        return (c for c in cls.data_specs() if c.derived)
 
     @classmethod
     def generated_data_spec_names(cls):

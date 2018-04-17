@@ -196,7 +196,7 @@ class TestXnatArchive(BaseTestCase):
 #                                      nifti_gz_format),
 #                         DatasetMatch('source4', 'source4',
 #                                      nifti_gz_format)]
-        # Sink datasets need to be considered to be processed so we set their
+        # Sink datasets need to be considered to be derived so we set their
         # 'pipeline' attribute to be not None. May need to update this if
         # checks on valid pipelines are included in Dataset __init__ method
         sink_files = [study.bound_data_spec(n)
@@ -781,7 +781,7 @@ class TestOnXnatMixin(object):
         return session + XnatArchive.PROCESSED_SUFFIX
 
     def get_session_dir(self, subject=None, visit=None,
-                        multiplicity='per_session', processed=False):
+                        multiplicity='per_session', derived=False):
         if subject is None and multiplicity in ('per_session', 'per_subject'):
             subject = self.SUBJECT
         if visit is None and multiplicity in ('per_session', 'per_visit'):
@@ -806,7 +806,7 @@ class TestOnXnatMixin(object):
         else:
             assert False
         session_id = '_'.join(parts)
-        if processed:
+        if derived:
             session_id += XnatArchive.PROCESSED_SUFFIX
         session_path = os.path.join(self.output_cache_dir, session_id)
         if not os.path.exists(session_path):
@@ -818,19 +818,19 @@ class TestOnXnatMixin(object):
         try:
             acq_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
-                multiplicity=multiplicity, processed=False)
+                multiplicity=multiplicity, derived=False)
         except KeyError:
             acq_path = None
         try:
             proc_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
-                multiplicity=multiplicity, processed=True)
+                multiplicity=multiplicity, derived=True)
         except KeyError:
             proc_path = None
         if acq_path is not None and os.path.exists(acq_path):
             if os.path.exists(proc_path):
                 raise NiAnalysisError(
-                    "Both acquired and processed paths were found for "
+                    "Both acquired and derived paths were found for "
                     "'{}_{}' ({} and {})".format(study_name, fname, acq_path,
                                                  proc_path))
             path = acq_path
