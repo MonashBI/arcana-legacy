@@ -171,24 +171,36 @@ class Study(object):
         name : str
             The name of the DatasetSpec|FieldSpec to retried the
             datasets for
-        subject_id : str | List[str] | None
+        subject_ids : str | List[str] | None
             The subject ID or list of subject IDs to return the
             data for. If None all set in the Study object are returned
-        visit_id : int | List[int] | None
+        visit_ids : int | List[int] | None
             The visit ID or list of visit IDs to return the
             data for. If None all set in the Study object are returned
         """
         if isinstance(subject_id, (basestring, int)):
-            subject_id = [subject_id]
+            subject_ids = [subject_id]
+        else:
+            subject_ids = subject_id
         if isinstance(visit_id, (basestring, int)):
-            visit_id = [visit_id]
+            visit_ids = [visit_id]
+        else:
+            visit_ids = visit_id
         spec = self.data_spec(name)
+        if 
         try:
-            self.runner.run(spec.pipeline, subject_ids=subject_id,
-                            visit_ids=visit_id)
+            self.runner.run(spec.pipeline(), subject_ids=subject_ids,
+                            visit_ids=visit_ids)
         except NiAnalysisNoRunRequiredException:
             pass
-        
+        if subject_ids is None:
+            subject_ids = [s.id for s in self.tree.subjects]
+        if visit_ids is None:
+            visit_ids = [v.id for v in self.tree.visits]
+        for sid in subject_ids:
+            for vid in visit_ids:
+                
+            
 
     @classmethod
     def data_spec(cls, name):

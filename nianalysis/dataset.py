@@ -150,6 +150,16 @@ class BaseDataset(BaseDatum):
         return self.basename(**kwargs) + self.format.ext_str
 
 
+class BaseMatch(object):
+
+    def __init__(self, pattern, processed, order, is_regex):
+        self._processed = processed
+        self._order = order
+        self._pattern = pattern
+        self._study = None
+        self._is_regex = is_regex
+
+
 class Dataset(BaseDataset):
     """
     A representation of a dataset within the archive.
@@ -275,7 +285,7 @@ class Dataset(BaseDataset):
         return dct
 
 
-class DatasetMatch(BaseDataset):
+class DatasetMatch(BaseDataset, BaseMatch):
     """
     A pattern that describes a single dataset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -320,8 +330,7 @@ class DatasetMatch(BaseDataset):
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', processed=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False):
-        super(DatasetMatch, self).__init__(name, format, multiplicity)
-        self._processed = processed
+        BaseDataset.__init__(self, name, format, multiplicity)
         if dicom_tags is not None and format != dicom_format:
             raise NiAnalysisUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -331,6 +340,8 @@ class DatasetMatch(BaseDataset):
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
+        BaseMatch.__init__(self.pattern, processed)
+        self._processed = processed
         self._order = order
         self._id = id
         self._pattern = pattern
@@ -502,7 +513,6 @@ class DatasetMatch(BaseDataset):
                 self.id == other.id and
                 self.order == other.order)
 
-
     def initkwargs(self):
         dct = super(DatasetMatch, self).initkwargs()
         dct['processed'] = self.processed
@@ -599,8 +609,8 @@ class DatasetSpec(BaseDataset):
             return getattr(self.study, self.pipeline_name)
         except AttributeError:
             raise NiAnalysisError(
-                "'{}' is not a pipeline method in present in '{}' "
-                "study".format(self.pipeline_name, self.study))
+                "There is no pipeline method named '{}' in present in "
+                "'{}' study".format(self.pipeline_name, self.study))
 
     @property
     def processed(self):
