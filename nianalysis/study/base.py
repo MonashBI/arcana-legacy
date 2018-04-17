@@ -1,7 +1,8 @@
 from abc import ABCMeta
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisNameError)
+    NiAnalysisMissingDatasetError, NiAnalysisNameError,
+    NiAnalysisNoRunRequiredException)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import BaseDatum
 
@@ -56,12 +57,13 @@ class Study(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, archive, inputs, options=None,
+    def __init__(self, name, archive, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None, check_inputs=True,
                  reprocess=False):
         options = {} if options is None else options
         self._name = name
         self._archive = archive
+        self._runner = runner
         self._inputs = {}
         # "Bind" data specs in the class to the current study object
         # this will allow them to prepend the study name to the name
@@ -158,6 +160,35 @@ class Study(object):
         argument
         """
         return Pipeline(self, *args, **kwargs)
+
+    def data(self, name, subject_id=None, visit_id=None):
+        """
+        Returns the Dataset or Field associated with the name, running
+        generating derived datasets as required
+
+        Parameters
+        ----------
+        name : str
+            The name of the DatasetSpec|FieldSpec to retried the
+            datasets for
+        subject_id : str | List[str] | None
+            The subject ID or list of subject IDs to return the
+            data for. If None all set in the Study object are returned
+        visit_id : int | List[int] | None
+            The visit ID or list of visit IDs to return the
+            data for. If None all set in the Study object are returned
+        """
+        if isinstance(subject_id, (basestring, int)):
+            subject_id = [subject_id]
+        if isinstance(visit_id, (basestring, int)):
+            visit_id = [visit_id]
+        spec = self.data_spec(name)
+        try:
+            self.runner.run(spec.pipeline, subject_ids=subject_id,
+                            visit_ids=visit_id)
+        except NiAnalysisNoRunRequiredException:
+            pass
+        
 
     @classmethod
     def data_spec(cls, name):

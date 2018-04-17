@@ -25,7 +25,7 @@ class BaseRunner(object):
         self._max_process_time = max_process_time
         self._plugin_args = copy(self.default_plugin_args)
         self._plugin_args.update(kwargs)
-        self._plugin = self.nipype_plugin_cls()
+        self._plugin = self.nipype_plugin_cls(**self._plugin_args)
 
     def run(self, pipeline, **kwargs):
         workflow = pe.Workflow(name=pipeline.name,
@@ -34,5 +34,4 @@ class BaseRunner(object):
         # Reset the cached tree of datasets in the archive as it will
         # change after the pipeline has run.
         pipeline.reset_tree()
-        return workflow.run(plugin=self._plugin,
-                            plugin_args=self._plugin_args)
+        return workflow.run(plugin=self._plugin)
