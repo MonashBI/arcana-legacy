@@ -361,6 +361,19 @@ class Project(object):
     def data(self):
         return chain(self.datasets, self.fields)
 
+    def nodes(self, multiplicity):
+        if multiplicity == 'per_session':
+            nodes = chain(*(s.sessions for s in self.subjects))
+        elif multiplicity == 'per_subject':
+            nodes = self.tree.subjects
+        elif multiplicity == 'per_visit':
+            nodes = self.tree.visits
+        elif multiplicity == 'per_project':
+            nodes = [self.tree]
+        else:
+            assert False
+        return nodes
+
     @property
     def data_names(self):
         return (d.name for d in self.data)

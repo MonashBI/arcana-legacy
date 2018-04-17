@@ -1,10 +1,12 @@
 from abc import ABCMeta
+from itertools import chain
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisMissingDatasetError, NiAnalysisNameError,
     NiAnalysisNoRunRequiredException)
 from nianalysis.pipeline import Pipeline
-from nianalysis.dataset import BaseDatum
+from nianalysis.dataset import (
+    BaseDatum, BaseMatch, BaseDataset, BaseField)
 
 
 logger = getLogger('NiAnalysis')
@@ -161,7 +163,7 @@ class Study(object):
         """
         return Pipeline(self, *args, **kwargs)
 
-    def data(self, name, subject_id=None, visit_id=None):
+    def data(self, name):
         """
         Returns the Dataset or Field associated with the name, running
         generating derived datasets as required
@@ -171,36 +173,32 @@ class Study(object):
         name : str
             The name of the DatasetSpec|FieldSpec to retried the
             datasets for
-        subject_ids : str | List[str] | None
-            The subject ID or list of subject IDs to return the
-            data for. If None all set in the Study object are returned
-        visit_ids : int | List[int] | None
-            The visit ID or list of visit IDs to return the
-            data for. If None all set in the Study object are returned
+
+        Returns
+        -------
+        data : List[Dataset|Field]
+            The list of datasets or fields corresponding the given name
         """
-        if isinstance(subject_id, (basestring, int)):
-            subject_ids = [subject_id]
+        spec = self.bound_data_spec(name)
+        if isinstance(spec, BaseMatch):
+            data = spec.matches
         else:
-            subject_ids = subject_id
-        if isinstance(visit_id, (basestring, int)):
-            visit_ids = [visit_id]
-        else:
-            visit_ids = visit_id
-        spec = self.data_spec(name)
-        if 
-        try:
-            self.runner.run(spec.pipeline(), subject_ids=subject_ids,
-                            visit_ids=visit_ids)
-        except NiAnalysisNoRunRequiredException:
-            pass
-        if subject_ids is None:
-            subject_ids = [s.id for s in self.tree.subjects]
-        if visit_ids is None:
-            visit_ids = [v.id for v in self.tree.visits]
-        for sid in subject_ids:
-            for vid in visit_ids:
-                
-            
+            try:
+                self.runner.run(
+                    spec.pipeline())
+            except NiAnalysisNoRunRequiredException:
+                pass
+            if isinstance(spec, BaseDataset):
+                data = chain(*(
+                    (d for d in n.datasets if d.name == name)
+                    for n in self.tree.nodes(spec.multiplicity)))
+            elif isinstance(spec, BaseField):
+                data = chain(*(
+                    (f for f in n.fields if f.name == name)
+                    for n in self.tree.nodes(spec.multiplicity)))
+            else:
+                assert False
+        return data
 
     @classmethod
     def data_spec(cls, name):

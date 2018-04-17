@@ -151,137 +151,156 @@ class BaseDataset(BaseDatum):
 
 
 class BaseMatch(object):
+    """
+    Base class for Dataset and Field Match classes
+    """
 
-    def __init__(self, pattern, derived, order, is_regex):
+    def __init__(self, pattern, derived, order, study, is_regex):
         self._derived = derived
         self._order = order
         self._pattern = pattern
-        self._study = None
+        self._study = study
         self._is_regex = is_regex
-
-
-class Dataset(BaseDataset):
-    """
-    A representation of a dataset within the archive.
-
-    Parameters
-    ----------
-    name : str
-        The name of the dataset
-    format : FileFormat
-        The file format used to store the dataset. Can be one of the
-        recognised formats
-    multiplicity : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
-        specifying whether the dataset is present for each session, subject,
-        visit or project.
-    derived : bool
-        Whether the scan was generated or acquired. Depending on the archive
-        used to store the dataset this is used to determine the location of the
-        dataset.
-    path : str | None
-        The path to the dataset (for archives on the local system)
-    id : int | None
-        The ID of the dataset in the session. To be used to
-        distinguish multiple datasets with the same scan type in the
-        same session, e.g. scans taken before and after a task. For
-        archives where this isn't stored (i.e. Local), id can be None
-    """
-
-    is_spec = False
-
-    def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', path=None,
-                 id=None, uri=None):  # @ReservedAssignment
-        super(Dataset, self).__init__(name, format, multiplicity)
-        self._derived = derived
-        self._path = path
-        self._id = id
-        self._uri = uri
+        self._matches = None
 
     def __eq__(self, other):
-        return (super(Dataset, self).__eq__(other) and
-                self.derived == other.derived and
-                self._path == other._path and
-                self.id == other.id)
-
-    def __lt__(self, other):
-        return self.id < other.id
-
-    def find_mismatch(self, other, indent=''):
-        mismatch = super(Dataset, self).find_mismatch(other, indent)
-        sub_indent = indent + '  '
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
-        if self._path != other._path:
-            mismatch += ('\n{}path: self={} v other={}'
-                         .format(sub_indent, self._path,
-                                 other._path))
-        if self._id != other._id:
-            mismatch += ('\n{}id: self={} v other={}'
-                         .format(sub_indent, self._id,
-                                 other._id))
-        return mismatch
+        return (self.derived == other.derived and
+                self.pattern == other.pattern and
+                self.order == other.order and
+                self._study == other._study)
 
     @property
-    def path(self):
-        if self._path is None:
-            raise NiAnalysisError(
-                "Dataset '{}' path has not been set".format(self.name))
-        return self._path
-
-    @path.setter
-    def path(self, path):
-        self._path = path
-
-    def basename(self, **kwargs):  # @UnusedVariable
-        return split_extension(os.path.basename(self.path))
+    def pattern(self):
+        return self._pattern
 
     @property
     def derived(self):
         return self._derived
 
+    def matches(self, names):
+        return [n for n in names if re.match(self.pattern, n)]
+
     @property
-    def id(self):
-        if self._id is None:
-            return self.name
+    def is_regex(self):
+        return self._is_regex
+
+    @property
+    def order(self):
+        return self._order
+
+    def bind(self, study):
+        cpy = copy(self)
+        cpy._study = study
+        cpy._match_tree(study.tree)
+        return cpy
+
+    @property
+    def prefixed_name(self):
+        return self.name
+
+    def basename(self, **kwargs):
+        if not self.is_regex:
+            basename = self.pattern
         else:
-            return self._id
+            basename = self.match(**kwargs).name
+        return basename
 
-    @property
-    def uri(self):
-        return self._uri
+    def _match_tree(self, tree):
+        # Run the match against the tree
+        if self.multiplicity == 'per_session':
+            self._matches = defaultdict(dict)
+            for subject in tree.subjects:
+                for sess in subject.sessions:
+                    if self.derived and sess.derived is not None:
+                        node = sess.derived
+                    else:
+                        node = sess
+                    self._matches[sess.subject_id][
+                        sess.visit_id] = self._match_node(node)
+        elif self.multiplicity == 'per_subject':
+            self._matches = {}
+            for subject in tree.subjects:
+                self._matches[subject.id] = self._match_node(subject)
+        elif self.multiplicity == 'per_visit':
+            self._matches = {}
+            for visit in tree.visits:
+                self._matches[visit.id] = self._match_node(visit)
+        elif self.multiplicity == 'per_project':
+            self._matches = self._match_node(tree)
+        else:
+            assert False, "Unrecognised multiplicity '{}'".format(
+                self.multiplicity)
 
-    @classmethod
-    def from_path(cls, path, multiplicity='per_session'):
-        filename = os.path.basename(path)
-        name, ext = split_extension(filename)
-        try:
-            data_format = data_formats_by_ext[ext]
-        except KeyError:
-            # FIXME: Should handle DICOMs in different way. Maybe try to load
-            #        with pydicom??
-            cmd = ("mrinfo \"{}\" 2>/dev/null | grep Format | "
-                   "awk '{{print $2}}'".format(path))
-            abbrev = sp.check_output(cmd, shell=True).strip()
+    def _match_node(self, node):
+        # Get names matching pattern
+        matches = self._filtered_matches(node)
+        # Select the dataset from the matches
+        if self.order is not None:
             try:
-                data_format = data_formats_by_mrinfo[abbrev]
-            except KeyError:
-                logger.warning("Unrecognised format '{}' of path '{}'"
-                               "assuming it is a dicom".format(abbrev,
-                                                               path))
-                data_format = dicom_format
-        return cls(name, data_format, multiplicity=multiplicity,
-                   path=path, derived=False)
+                match = matches[self.order]
+            except IndexError:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find {} datasets names matching pattern {}"
+                    " (found {}) in {}".format(self.order, self.pattern,
+                                               len(matches), node))
+        elif self.id is not None:
+            try:
+                match = next(d for d in matches if d.id == self.id)
+            except StopIteration:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find datasets names matching pattern {}"
+                    "with an id of {} (found {}) in {}".format(
+                        self.pattern, self.id,
+                        ', '.join(str(m) for m in matches), node))
+        elif len(matches) == 1:
+            match = matches[0]
+        elif matches:
+            raise NiAnalysisDatasetMatchError(
+                "Found multiple matches for {} pattern in {} ({})"
+                .format(self.pattern, node,
+                        ', '.join(str(m) for m in matches)))
+        else:
+            raise NiAnalysisDatasetMatchError(
+                "Did not find any matches for {} pattern in {} "
+                "(found {})"
+                .format(self.pattern, node,
+                        ', '.join(str(d) for d in node.datasets)))
+        return match
+
+    def match(self, subject_id=None, visit_id=None):
+        if self._matches is None:
+            raise NiAnalysisError(
+                "{} has not been bound to study".format(self))
+        if self.multiplicity == 'per_session':
+            if subject_id is None or visit_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' and 'visit_id' must be provided "
+                    "to get the match from {}".format(self))
+            dataset = self._matches[subject_id][visit_id]
+        elif self.multiplicity == 'per_subject':
+            if subject_id is None:
+                raise NiAnalysisError(
+                    "The 'subject_id' arg must be provided to get "
+                    "the match from {}"
+                    .format(self))
+            dataset = self._matches[subject_id]
+        elif self.multiplicity == 'per_visit':
+            if visit_id is None:
+                raise NiAnalysisError(
+                    "The 'visit_id' arg must be provided to get "
+                    "the match from {}"
+                    .format(self))
+            dataset = self._matches[visit_id]
+        elif self.multiplicity == 'per_project':
+            dataset = self._matches
+        return dataset
 
     def initkwargs(self):
-        dct = super(Dataset, self).initkwargs()
+        dct = {}
         dct['derived'] = self.derived
-        dct['path'] = self.path
-        dct['id'] = self.id
-        dct['uri'] = self.uri
+        dct['study'] = self._study
+        dct['pattern'] = self.pattern
+        dct['order'] = self.order
         return dct
 
 
@@ -329,8 +348,10 @@ class DatasetMatch(BaseDataset, BaseMatch):
 
     def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
-                 order=None, dicom_tags=None, is_regex=False):
+                 order=None, dicom_tags=None, is_regex=False,
+                 study=None):
         BaseDataset.__init__(self, name, format, multiplicity)
+        BaseMatch.__init__(pattern, derived, order, study, is_regex)
         if dicom_tags is not None and format != dicom_format:
             raise NiAnalysisUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -340,49 +361,39 @@ class DatasetMatch(BaseDataset, BaseMatch):
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
-        BaseMatch.__init__(self.pattern, derived)
-        self._derived = derived
-        self._order = order
         self._id = id
-        self._pattern = pattern
-        self._study = None
-        self._matches = None
-        self._is_regex = is_regex
 
-    def bind(self, study):
-        cpy = copy(self)
-        cpy._study = study
-        cpy._match_tree(study.tree)
-        return cpy
+    def __eq__(self, other):
+        return (BaseDataset.__eq__(self, other) and
+                BaseMatch.__eq__(self, other) and
+                self.dicom_tags == other.dicom_tags and
+                self.id == other.id)
 
-    def _match_tree(self, tree):
-        # Run the match against the tree
-        if self.multiplicity == 'per_session':
-            self._matches = defaultdict(dict)
-            for subject in tree.subjects:
-                for sess in subject.sessions:
-                    if self.derived and sess.derived is not None:
-                        node = sess.derived
-                    else:
-                        node = sess
-                    self._matches[sess.subject_id][
-                        sess.visit_id] = self._match_node(node)
-        elif self.multiplicity == 'per_subject':
-            self._matches = {}
-            for subject in tree.subjects:
-                self._matches[subject.id] = self._match_node(subject)
-        elif self.multiplicity == 'per_visit':
-            self._matches = {}
-            for visit in tree.visits:
-                self._matches[visit.id] = self._match_node(visit)
-        elif self.multiplicity == 'per_project':
-            self._matches = self._match_node(tree)
-        else:
-            assert False, "Unrecognised multiplicity '{}'".format(
-                self.multiplicity)
+    def initkwargs(self):
+        dct = BaseDataset.initkwargs(self)
+        dct.update(BaseMatch.initkwargs(self))
+        dct['dicom_tags'] = self.dicom_tags
+        dct['id'] = self.id
+        return dct
 
-    def _match_node(self, node):
-        # Get names matching pattern
+    def __repr__(self):
+        return ("{}(name='{}', format={}, multiplicity={}, derived={},"
+                " pattern={}, order={}, id={}, dicom_tags={}, "
+                "is_regex={}, study={})"
+                .format(self.__class__.__name__, self.name, self.format,
+                        self.multiplicity, self.derived, self._pattern,
+                        self.order, self.id, self.dicom_tags,
+                        self.is_regex, self._study))
+
+    @property
+    def id(self):
+        return self._id
+
+    @property
+    def dicom_tags(self):
+        return self._dicom_tags
+
+    def _filtered_matches(self, node):
         if self.is_regex:
             pattern_re = re.compile(self.pattern)
             matches = [d for d in node.datasets
@@ -402,125 +413,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
                 if all(tags[k] == v for k, v in self.dicom_tags):
                     filtered.append(dataset)
             matches = filtered
-        # Select the dataset from the matches
-        if self.order is not None:
-            try:
-                match = matches[self.order]
-            except IndexError:
-                raise NiAnalysisDatasetMatchError(
-                    "Did not find {} datasets names matching pattern {}"
-                    " (found {}) in {}".format(self.order, self.pattern,
-                                               len(matches), node))
-        elif self.id is not None:
-            try:
-                match = next(d for d in matches if d.id == self.id)
-            except StopIteration:
-                raise NiAnalysisDatasetMatchError(
-                    "Did not find datasets names matching pattern {}"
-                    "with an id of {} (found {}) in {}".format(
-                        self.pattern, self.id,
-                        ', '.join(str(m) for m in matches), node))
-        elif len(matches) == 1:
-            match = matches[0]
-        elif matches:
-            raise NiAnalysisDatasetMatchError(
-                "Found multiple matches for {} pattern in {} ({})"
-                .format(self.pattern, node,
-                        ', '.join(str(m) for m in matches)))
-        else:
-            raise NiAnalysisDatasetMatchError(
-                "Did not find any matches for {} pattern in {} "
-                "(found {})"
-                .format(self.pattern, node,
-                        ', '.join(str(d) for d in node.datasets)))
-        return match
-
-    def basename(self, **kwargs):
-        if not self.is_regex:
-            basename = self.pattern
-        else:
-            basename = self.match(**kwargs).name
-        return basename
-
-    def match(self, subject_id=None, visit_id=None):
-        if self._matches is None:
-            raise NiAnalysisError(
-                "{} has not been bound to study".format(self))
-        if self.multiplicity == 'per_session':
-            if subject_id is None or visit_id is None:
-                raise NiAnalysisError(
-                    "The 'subject_id' and 'visit_id' must be provided "
-                    "to get the match from {}".format(self))
-            dataset = self._matches[subject_id][visit_id]
-        elif self.multiplicity == 'per_subject':
-            if subject_id is None:
-                raise NiAnalysisError(
-                    "The 'subject_id' arg must be provided to get "
-                    "the match from {}"
-                    .format(self))
-            dataset = self._matches[subject_id]
-        elif self.multiplicity == 'per_visit':
-            if visit_id is None:
-                raise NiAnalysisError(
-                    "The 'visit_id' arg must be provided to get "
-                    "the match from {}"
-                    .format(self))
-            dataset = self._matches[visit_id]
-        elif self.multiplicity == 'per_project':
-            dataset = self._matches
-        return dataset
-
-    @property
-    def pattern(self):
-        return self._pattern
-
-    @property
-    def derived(self):
-        return self._derived
-
-    def matches(self, names):
-        return [n for n in names if re.match(self.pattern, n)]
-
-    @property
-    def prefixed_name(self):
-        return self.name
-
-    @property
-    def id(self):
-        return self._id
-
-    @property
-    def is_regex(self):
-        return self._is_regex
-
-    @property
-    def order(self):
-        return self._order
-
-    @property
-    def dicom_tags(self):
-        return self._dicom_tags
-
-    def to_tuple(self):
-        return (self.pattern, self.format.name, self.multiplicity,
-                self.derived, self.is_spec)
-
-    def __eq__(self, other):
-        return (super(Dataset, self).__eq__(other) and
-                self.derived == other.derived and
-                self.pattern == other.pattern and
-                self.dicom_tags == other.dicom_tags and
-                self.id == other.id and
-                self.order == other.order)
-
-    def initkwargs(self):
-        dct = super(DatasetMatch, self).initkwargs()
-        dct['derived'] = self.derived
-        dct['pattern'] = self.pattern
-        dct['dicom_tags'] = self.dicom_tags
-        dct['id'] = self.id
-        dct['order'] = self.order
-        return dct
+        return matches
 
 
 class DatasetSpec(BaseDataset):
@@ -648,6 +541,131 @@ class DatasetSpec(BaseDataset):
         dct = super(DatasetSpec, self).initkwargs()
         dct['pipeline_name'] = self.pipeline_name
         dct['description'] = self.description
+        return dct
+
+
+class Dataset(BaseDataset):
+    """
+    A representation of a dataset within the archive.
+
+    Parameters
+    ----------
+    name : str
+        The name of the dataset
+    format : FileFormat
+        The file format used to store the dataset. Can be one of the
+        recognised formats
+    multiplicity : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        specifying whether the dataset is present for each session, subject,
+        visit or project.
+    derived : bool
+        Whether the scan was generated or acquired. Depending on the archive
+        used to store the dataset this is used to determine the location of the
+        dataset.
+    path : str | None
+        The path to the dataset (for archives on the local system)
+    id : int | None
+        The ID of the dataset in the session. To be used to
+        distinguish multiple datasets with the same scan type in the
+        same session, e.g. scans taken before and after a task. For
+        archives where this isn't stored (i.e. Local), id can be None
+    """
+
+    is_spec = False
+
+    def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
+                 multiplicity='per_session', path=None,
+                 id=None, uri=None):  # @ReservedAssignment
+        super(Dataset, self).__init__(name, format, multiplicity)
+        self._derived = derived
+        self._path = path
+        self._id = id
+        self._uri = uri
+
+    def __eq__(self, other):
+        return (super(Dataset, self).__eq__(other) and
+                self.derived == other.derived and
+                self._path == other._path and
+                self.id == other.id)
+
+    def __lt__(self, other):
+        return self.id < other.id
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = super(Dataset, self).find_mismatch(other, indent)
+        sub_indent = indent + '  '
+        if self.derived != other.derived:
+            mismatch += ('\n{}derived: self={} v other={}'
+                         .format(sub_indent, self.derived,
+                                 other.derived))
+        if self._path != other._path:
+            mismatch += ('\n{}path: self={} v other={}'
+                         .format(sub_indent, self._path,
+                                 other._path))
+        if self._id != other._id:
+            mismatch += ('\n{}id: self={} v other={}'
+                         .format(sub_indent, self._id,
+                                 other._id))
+        return mismatch
+
+    @property
+    def path(self):
+        if self._path is None:
+            raise NiAnalysisError(
+                "Dataset '{}' path has not been set".format(self.name))
+        return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
+
+    def basename(self, **kwargs):  # @UnusedVariable
+        return split_extension(os.path.basename(self.path))
+
+    @property
+    def derived(self):
+        return self._derived
+
+    @property
+    def id(self):
+        if self._id is None:
+            return self.name
+        else:
+            return self._id
+
+    @property
+    def uri(self):
+        return self._uri
+
+    @classmethod
+    def from_path(cls, path, multiplicity='per_session'):
+        filename = os.path.basename(path)
+        name, ext = split_extension(filename)
+        try:
+            data_format = data_formats_by_ext[ext]
+        except KeyError:
+            # FIXME: Should handle DICOMs in different way. Maybe try to load
+            #        with pydicom??
+            cmd = ("mrinfo \"{}\" 2>/dev/null | grep Format | "
+                   "awk '{{print $2}}'".format(path))
+            abbrev = sp.check_output(cmd, shell=True).strip()
+            try:
+                data_format = data_formats_by_mrinfo[abbrev]
+            except KeyError:
+                logger.warning("Unrecognised format '{}' of path '{}'"
+                               "assuming it is a dicom".format(abbrev,
+                                                               path))
+                data_format = dicom_format
+        return cls(name, data_format, multiplicity=multiplicity,
+                   path=path, derived=False)
+
+    def initkwargs(self):
+        dct = super(Dataset, self).initkwargs()
+        dct['derived'] = self.derived
+        dct['path'] = self.path
+        dct['id'] = self.id
+        dct['uri'] = self.uri
         return dct
 
 
@@ -795,7 +813,7 @@ class Field(BaseField):
         return dct
 
 
-class FieldMatch(BaseField):
+class FieldMatch(BaseField, BaseMatch):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -816,47 +834,52 @@ class FieldMatch(BaseField):
         visit or project.
     derived : bool
         Whether or not the value belongs in the derived session or not
+    order : int | None
+        To be used to distinguish multiple datasets that match the
+        pattern in the same session. The order of the dataset within the
+        session. Based on the scan ID but is more robust to small
+        changes to the IDs within the session if for example there are
+        two scans of the same type taken before and after a task.
     """
 
     is_spec = False
 
     def __init__(self, name, pattern, dtype, multiplicity='per_session',
-                 derived=False):
+                 derived=False, order=None, is_regex=False, study=None):
+        FieldMatch.__init__(self, name, format, multiplicity)
+        BaseMatch.__init__(pattern, derived, order, study, is_regex)
         super(FieldMatch, self).__init__(name, dtype, multiplicity)
-        self._derived = derived
-        self._pattern = pattern
-
-    @property
-    def pattern(self):
-        return self._pattern
-
-    @property
-    def derived(self):
-        return self._derived
-
-    def basename(self, subject_id=None, visit_id=None):
-        return self.name
-
-    def matches(self, names):
-        return [n for n in names if re.match(self.pattern, n)]
 
     def __eq__(self, other):
-        return (super(FieldMatch, self).__eq__(other) and
-                self._pattern == other._pattern and
-                self.derived == other.derived)
+        return (BaseField.__eq__(self, other) and
+                BaseMatch.__eq__(self, other))
+
+    def initkwargs(self):
+        dct = BaseField.initkwargs(self)
+        dct.update(BaseMatch.initkwargs(self))
+        return dct
+
+    def _filtered_matches(self, node):
+        if self.is_regex:
+            pattern_re = re.compile(self.pattern)
+            matches = [f for f in node.fields
+                       if pattern_re.match(f.name)]
+        else:
+            matches = [f for f in node.fields
+                       if f.name == self.pattern]
+        if not matches:
+            raise NiAnalysisDatasetMatchError(
+                "No field names in {} match '{}' pattern"
+                .format(node, self.pattern))
+        return matches
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, multiplicity={}, derived={},"
-                " pattern={})"
+                " pattern={}, order={}, is_regex={}, study={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.multiplicity, self.derived,
-                        self._pattern))
-
-    def initkwargs(self):
-        dct = super(FieldMatch, self).initkwargs()
-        dct['pattern'] = self._pattern
-        dct['derived'] = self.derived
-        return dct
+                        self._pattern, self.order, self.is_regex,
+                        self._study))
 
 
 class FieldSpec(BaseField):
