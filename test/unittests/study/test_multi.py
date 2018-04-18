@@ -196,8 +196,9 @@ class TestMulti(TestCase):
                 DatasetMatch('a', 'ones', mrtrix_format),
                 DatasetMatch('b', 'ones', mrtrix_format),
                 DatasetMatch('c', 'ones', mrtrix_format)])
-        d = study.data('d')[0]
-        e = study.data('e')[0]
+        d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
+        e = study.data('e', subject_id=['SUBJECT'],
+                       visit_id=['VISIT'])[0]
         f = study.data('f')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
