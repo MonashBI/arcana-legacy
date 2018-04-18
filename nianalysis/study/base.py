@@ -27,6 +27,9 @@ class Study(object):
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
+    runner : Runner
+        A Runner to process the pipelines required to generate the
+        requested derived datasets.
     inputs : List[DatasetMatch|FieldMatch]
         A list of DatasetMatch and FieldMatches, which specify the
         names of acquired datasets (typically directly from the
