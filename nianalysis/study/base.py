@@ -27,10 +27,10 @@ class Study(object):
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
-    inputs : Dict[str, base.Dataset]
-        A dict containing the a mapping between names of study data_specs
-        and existing datasets (typically primary from the scanner but can
-        also be replacements for generated data_specs)
+    inputs : List[DatasetMatch|FieldMatch]
+        A list of DatasetMatch and FieldMatches, which specify the
+        names of acquired datasets (typically directly from the
+        instrument, but can also define existing derived datasets
     options : Dict[str, (int|float|str)]
         Options that are passed to pipelines when they are constructed
     subject_ids : List[(int|str)]
@@ -93,11 +93,10 @@ class Study(object):
             if inpt.name not in self._data_specs:
                 raise NiAnalysisNameError(
                     inpt.name,
-                    "Input match name '{}' doesn't match that of any "
-                    "data-spec in {} ('{}')".format(
+                    "Match name '{}' isn't in data specs of {} ('{}')".format(
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
-            self._inputs[inpt.name] = inpt.bind(self)
+            self._acquired[inpt.name] = inpt.bind(self)
         for spec in self.data_specs():
             if not spec.derived:
                 # Emit a warning if an acquired dataset has not been

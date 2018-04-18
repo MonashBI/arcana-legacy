@@ -393,9 +393,9 @@ class MultiStudyMetaClass(StudyMetaClass):
         except AttributeError:
             add_data_specs = dct['add_data_specs'] = []
         explicitly_added = [s.name for s in add_data_specs]
+        # Loop through all data specs that haven't been explicitly
+        # mapped and add a data spec in the multi class.
         for sub_study_spec in sub_study_specs:
-            # Loop through all data specs that haven't been explicitly
-            # mapped and add a data spec in the multi class.
             for data_spec in sub_study_spec.auto_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)

@@ -7,7 +7,7 @@ from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, StudyMetaClass, set_specs  # @IgnorePep8
+from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
