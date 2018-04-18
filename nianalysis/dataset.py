@@ -785,13 +785,14 @@ class Field(BaseField):
                     dtype = str
         else:
             raise NiAnalysisError(
-                "Unrecognised field dtype {}".format(value))
+                "Unrecognised field dtype {} (can be int, float or str)"
+                .format(value))
+        super(Field, self).__init__(
+            name, dtype, multiplicity=multiplicity)
         self._value = value
         self._derived = derived
         self._subject_id = subject_id
         self._visit_id = visit_id
-        super(Field, self).__init__(
-            name, dtype, multiplicity=multiplicity)
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
@@ -821,6 +822,22 @@ class Field(BaseField):
                                  other.visit_id))
         return mismatch
 
+    def __int__(self):
+        return int(self.value)
+
+    def __float__(self):
+        return float(self.value)
+
+    def __str__(self):
+        return str(self.value)
+
+    def __repr__(self):
+        return ("{}(name='{}', value={}, multiplicity='{}', derived={},"
+                " subject_id={}, visit_id={}".format(
+                    type(self).__name__, self.name, self.value,
+                    self.multiplicity, self.derived, self.subject_id,
+                    self.visit_id))
+
     @property
     def derived(self):
         return self._derived
@@ -839,13 +856,6 @@ class Field(BaseField):
     @property
     def visit_id(self):
         return self._visit_id
-
-    def __repr__(self):
-        return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "
-                "derived={})"
-                .format(self.__class__.__name__, self.name,
-                        self.value, self.dtype, self.multiplicity,
-                        self.derived))
 
     def initkwargs(self):
         dct = {}
