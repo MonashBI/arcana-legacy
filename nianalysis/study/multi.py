@@ -53,8 +53,9 @@ class MultiStudy(Study):
         try:
             assert issubclass(self.__metaclass__, MultiStudyMetaClass)
         except AttributeError:
-            assert ("Need to set MultiStudyMetaClass as the metaclass "
-                    "of all classes derived from MultiStudy")
+            assert ("Need to set MultiStudyMetaClass (or sub-class) as "
+                    "the metaclass of all classes derived from "
+                    "MultiStudy")
         super(MultiStudy, self).__init__(name, archive, runner, inputs,
                                          **kwargs)
         self._sub_studies = {}
