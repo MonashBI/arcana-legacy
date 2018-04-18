@@ -577,18 +577,22 @@ class Dataset(BaseDataset):
 
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', path=None,
-                 id=None, uri=None):  # @ReservedAssignment
+                 id=None, uri=None, subject_id=None, visit_id=None):  # @ReservedAssignment @IgnorePep8
         super(Dataset, self).__init__(name, format, multiplicity)
         self._derived = derived
         self._path = path
         self._id = id
         self._uri = uri
+        self._subject_id = subject_id
+        self._visit_id = visit_id
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
                 self.derived == other.derived and
                 self._path == other._path and
-                self.id == other.id)
+                self.id == other.id and
+                self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id)
 
     def __lt__(self, other):
         return self.id < other.id
@@ -608,6 +612,14 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
+        if self.subject_id != other.subject_id:
+            mismatch += ('\n{}subject_id: self={} v other={}'
+                         .format(sub_indent, self.subject_id,
+                                 other.subject_id))
+        if self.visit_id != other.visit_id:
+            mismatch += ('\n{}visit_id: self={} v other={}'
+                         .format(sub_indent, self.visit_id,
+                                 other.visit_id))
         return mismatch
 
     @property
@@ -639,8 +651,17 @@ class Dataset(BaseDataset):
     def uri(self):
         return self._uri
 
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
+
     @classmethod
-    def from_path(cls, path, multiplicity='per_session'):
+    def from_path(cls, path, multiplicity='per_session',
+                  subject_id=None, visit_id=None):
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
         try:
@@ -659,7 +680,8 @@ class Dataset(BaseDataset):
                                                                path))
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
-                   path=path, derived=False)
+                   path=path, derived=False, subject_id=subject_id,
+                   visit_id=visit_id)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
@@ -745,7 +767,7 @@ class Field(BaseField):
     """
 
     def __init__(self, name, value, multiplicity='per_session',
-                 derived=False):
+                 derived=False, subject_id=None, visit_id=None):
         if isinstance(value, int):
             dtype = int
         elif isinstance(value, float):
@@ -766,13 +788,17 @@ class Field(BaseField):
                 "Unrecognised field dtype {}".format(value))
         self._value = value
         self._derived = derived
+        self._subject_id = subject_id
+        self._visit_id = visit_id
         super(Field, self).__init__(
             name, dtype, multiplicity=multiplicity)
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
                 self.derived == other.derived and
-                self.value == other.value)
+                self.value == other.value and
+                self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id)
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)
@@ -785,6 +811,14 @@ class Field(BaseField):
             mismatch += ('\n{}value: self={} v other={}'
                          .format(sub_indent, self.value,
                                  other.value))
+        if self.subject_id != other.subject_id:
+            mismatch += ('\n{}subject_id: self={} v other={}'
+                         .format(sub_indent, self.subject_id,
+                                 other.subject_id))
+        if self.visit_id != other.visit_id:
+            mismatch += ('\n{}visit_id: self={} v other={}'
+                         .format(sub_indent, self.visit_id,
+                                 other.visit_id))
         return mismatch
 
     @property
@@ -797,6 +831,14 @@ class Field(BaseField):
     @property
     def value(self):
         return self._value
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
 
     def __repr__(self):
         return ("{}(name='{}', value={}, dtype={}, multiplicity={}, "

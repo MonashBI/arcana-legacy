@@ -99,7 +99,7 @@ class Study(object):
                     "Match name '{}' isn't in data specs of {} ('{}')".format(
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
-            self._acquired[inpt.name] = inpt.bind(self)
+            self._inputs[inpt.name] = inpt.bind(self)
         for spec in self.data_specs():
             if not spec.derived:
                 # Emit a warning if an acquired dataset has not been
@@ -174,7 +174,7 @@ class Study(object):
         """
         return Pipeline(self, *args, **kwargs)
 
-    def data(self, name):
+    def data(self, name, subject_id=None, visit_id=None):
         """
         Returns the Dataset or Field associated with the name, running
         generating derived datasets as required
@@ -184,19 +184,33 @@ class Study(object):
         name : str
             The name of the DatasetSpec|FieldSpec to retried the
             datasets for
+        subject_id : int | str | List[int|str] | None
+            The subject ID or subject IDs to return. If None all are
+            returned
+        visit_id : int | str | List[int|str] | None
+            The visit ID or visit IDs to return. If None all are
+            returned
 
         Returns
         -------
-        data : List[Dataset|Field]
-            The list of datasets or fields corresponding the given name
+        data : Dataset | Field | List[Dataset|Field]
+            Either a single Dataset or field if a single subject_id
+            and visit_id are provided, otherwise a list of datasets or
+            fields corresponding to the given name
         """
+        def is_single(id_):
+            return isinstance(id_, (str, int))
+        subject_ids = ([subject_id]
+                       if is_single(subject_id) else subject_id)
+        visit_ids = ([visit_id] if is_single(visit_id) else visit_id)
         spec = self.bound_data_spec(name)
         if isinstance(spec, BaseMatch):
             data = spec.matches
         else:
             try:
                 self.runner.run(
-                    spec.pipeline())
+                    spec.pipeline(), subject_ids=subject_ids,
+                    visit_ids=visit_ids)
             except NiAnalysisNoRunRequiredException:
                 pass
             if isinstance(spec, BaseDataset):
@@ -211,7 +225,22 @@ class Study(object):
                     for n in self.tree.nodes(spec.multiplicity)))
             else:
                 assert False
-        return list(data)
+        if subject_ids is not None and spec.multiplicity in (
+                'per_session', 'per_subject'):
+            data = [d for d in data if d.subject_id in subject_ids]
+        if visit_ids is not None and spec.multiplicity in (
+                'per_session', 'per_visit'):
+            data = [d for d in data if d.visit_id in visit_ids]
+        if not data:
+            raise NiAnalysisUsageError(
+                "No matching data found (subject_id={}, visit_id={})"
+                .format(subject_id, visit_id))
+        if is_single(subject_id) and is_single(visit_id):
+            assert len(data) == 1
+            data = data[0]
+        else:
+            data = list(data)
+        return data
 
     def bound_data_spec(self, name):
         """

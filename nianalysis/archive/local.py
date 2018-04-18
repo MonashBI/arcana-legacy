@@ -326,20 +326,20 @@ class LocalArchive(Archive):
                             ('subject' if depth else 'project')))
                 continue  # Not a session directory
             subj_id, visit_id = path_parts
-            if (subject_ids is not None and
-                subj_id is not SUMMARY_NAME and
+            subj_id = subj_id if subj_id != SUMMARY_NAME else None
+            visit_id = visit_id if visit_id != SUMMARY_NAME else None
+            if (subject_ids is not None and subj_id is not None and
                     subj_id not in subject_ids):
                 continue
-            if (visit_ids is not None and
-                visit_id is not SUMMARY_NAME and
+            if (visit_ids is not None and visit_id is not None and
                     visit_id not in visit_ids):
                 continue
-            if subj_id == SUMMARY_NAME and visit_id == SUMMARY_NAME:
+            if (subj_id, visit_id) == (None, None):
                 multiplicity = 'per_project'
-            elif subj_id == SUMMARY_NAME:
+            elif subj_id is None:
                 multiplicity = 'per_visit'
                 all_visit_ids.add(visit_id)
-            elif visit_id == SUMMARY_NAME:
+            elif visit_id is None:
                 multiplicity = 'per_subject'
             else:
                 multiplicity = 'per_session'
@@ -352,11 +352,13 @@ class LocalArchive(Archive):
                 datasets.append(
                     Dataset.from_path(
                         os.path.join(session_path, dname),
-                        multiplicity=multiplicity))
+                        multiplicity=multiplicity,
+                        subject_id=subj_id, visit_id=visit_id))
             if FIELDS_FNAME in dnames:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
-                    multiplicity=multiplicity)
+                    multiplicity=multiplicity,
+                    subject_id=subj_id, visit_id=visit_id)
             datasets = sorted(datasets)
             fields = sorted(fields)
             if multiplicity == 'per_session':
@@ -368,7 +370,7 @@ class LocalArchive(Archive):
         subjects = []
         for subj_id, subj_sessions in all_sessions.items():
             try:
-                datasets, fields = summaries[subj_id][SUMMARY_NAME]
+                datasets, fields = summaries[subj_id][None]
             except KeyError:
                 datasets = []
                 fields = []
@@ -380,14 +382,14 @@ class LocalArchive(Archive):
             visit_sessions = list(chain(
                 sess[visit_id] for sess in all_sessions.values()))
             try:
-                datasets, fields = summaries[SUMMARY_NAME][visit_id]
+                datasets, fields = summaries[None][visit_id]
             except KeyError:
                 datasets = []
                 fields = []
             visits.append(Visit(visit_id, sorted(visit_sessions),
                                 datasets, fields))
         try:
-            datasets, fields = summaries[SUMMARY_NAME][SUMMARY_NAME]
+            datasets, fields = summaries[None][None]
         except KeyError:
             datasets = []
             fields = []
@@ -428,8 +430,10 @@ class LocalArchive(Archive):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
 
-    def fields_from_json(self, fname, multiplicity):
+    def fields_from_json(self, fname, multiplicity,
+                         subject_id=None, visit_id=None):
         with open(fname) as f:
             dct = json.load(f)
-        return [Field(name=k, value=v, multiplicity=multiplicity)
+        return [Field(name=k, value=v, multiplicity=multiplicity,
+                      subject_id=subject_id, visit_id=visit_id)
                 for k, v in dct.items()]

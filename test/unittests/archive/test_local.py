@@ -269,86 +269,133 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('hundreds', mrtrix_format,
+                            subject_id='subject1', visit_id='visit1'),
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject1', visit_id='visit1'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject1', visit_id='visit1')],
                 fields=[
-                    Field('a', value=1),
-                    Field('b', value=10),
-                    Field('d', value=42.42)]),
+                    Field('a', value=1,
+                          subject_id='subject1', visit_id='visit1'),
+                    Field('b', value=10,
+                          subject_id='subject1', visit_id='visit1'),
+                    Field('d', value=42.42,
+                          subject_id='subject1', visit_id='visit1')]),
             Session(
                 'subject1', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject1', visit_id='visit2'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject1', visit_id='visit2')],
                 fields=[
-                    Field('a', value=2),
-                    Field('c', value='van')]),
+                    Field('a', value=2,
+                          subject_id='subject1', visit_id='visit2'),
+                    Field('c', value='van',
+                          subject_id='subject1', visit_id='visit2')]),
             Session(
                 'subject1', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    Dataset('hundreds', mrtrix_format,
+                            subject_id='subject1', visit_id='visit3'),
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject1', visit_id='visit3'),
+                    Dataset('thousands', mrtrix_format,
+                            subject_id='subject1', visit_id='visit3')],
                 fields=[
-                    Field('a', value=3),
-                    Field('b', value=30)]),
+                    Field('a', value=3,
+                          subject_id='subject1', visit_id='visit3'),
+                    Field('b', value=30,
+                          subject_id='subject1', visit_id='visit3')]),
             Session(
                 'subject2', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject2', visit_id='visit1'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject2', visit_id='visit1')],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject2', visit_id='visit2'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject2', visit_id='visit2')],
                 fields=[
-                    Field('a', value=22),
-                    Field('b', value=220),
-                    Field('c', value='buggy')]),
+                    Field('a', value=22,
+                          subject_id='subject2', visit_id='visit2'),
+                    Field('b', value=220,
+                          subject_id='subject2', visit_id='visit2'),
+                    Field('c', value='buggy',
+                          subject_id='subject2', visit_id='visit2')]),
             Session(
                 'subject2', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    Dataset('hundreds', mrtrix_format,
+                            subject_id='subject2', visit_id='visit3'),
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject2', visit_id='visit3'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject2', visit_id='visit3'),
+                    Dataset('thousands', mrtrix_format,
+                            subject_id='subject2', visit_id='visit3')],
                 fields=[
-                    Field('a', value=33)]),
+                    Field('a', value=33,
+                            subject_id='subject2', visit_id='visit3')]),
             Session(
                 'subject3', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject3', visit_id='visit1')],
                 fields=[]),
             Session(
                 'subject3', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject3', visit_id='visit2'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject3', visit_id='visit2')],
                 fields=[]),
             Session(
                 'subject3', 'visit3', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject3', visit_id='visit3'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject3', visit_id='visit3'),
+                    Dataset('thousands', mrtrix_format,
+                            subject_id='subject3', visit_id='visit3')],
                 fields=[
-                    Field('a', value=333),
-                    Field('b', value=3330)]),
+                    Field('a', value=333,
+                          subject_id='subject3', visit_id='visit3'),
+                    Field('b', value=3330,
+                          subject_id='subject3', visit_id='visit3')]),
             Session(
                 'subject4', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject4', visit_id='visit1')],
                 fields=[
-                    Field('a', value=1111),
-                    Field('d', value=0.9999999999)]),
+                    Field('a', value=1111,
+                          subject_id='subject4', visit_id='visit1'),
+                    Field('d', value=0.9999999999,
+                          subject_id='subject4', visit_id='visit1')]),
             Session(
                 'subject4', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format)],
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject4', visit_id='visit2'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject4', visit_id='visit2')],
                 fields=[
-                    Field('a', value=2222),
-                    Field('b', value=22220),
-                    Field('c', value='bus')]),
+                    Field('a', value=2222,
+                          subject_id='subject4', visit_id='visit2'),
+                    Field('b', value=22220,
+                          subject_id='subject4', visit_id='visit2'),
+                    Field('c', value='bus',
+                          subject_id='subject4', visit_id='visit2')]),
             Session(
                 'subject4', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format),
-                    Dataset('ones', mrtrix_format),
-                    Dataset('tens', mrtrix_format),
-                    Dataset('thousands', mrtrix_format)],
+                    Dataset('hundreds', mrtrix_format,
+                            subject_id='subject4', visit_id='visit3'),
+                    Dataset('ones', mrtrix_format,
+                            subject_id='subject4', visit_id='visit3'),
+                    Dataset('tens', mrtrix_format,
+                            subject_id='subject4', visit_id='visit3'),
+                    Dataset('thousands', mrtrix_format,
+                            subject_id='subject4', visit_id='visit3')],
                 fields=[])]
         project = Project(
             subjects=[
@@ -357,65 +404,79 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject1'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_subject'),
+                                multiplicity='per_subject',
+                                subject_id='subject1'),
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                multiplicity='per_subject',
+                                subject_id='subject1')],
                     fields=[
                         Field('e', value=4.44444,
-                              multiplicity='per_subject')]),
+                              multiplicity='per_subject',
+                              subject_id='subject1')]),
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_subject'),
+                                multiplicity='per_subject',
+                                subject_id='subject2'),
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                multiplicity='per_subject',
+                                subject_id='subject2')],
                     fields=[
                         Field('e', value=3.33333,
-                              multiplicity='per_subject')]),
+                              multiplicity='per_subject',
+                              subject_id='subject2')]),
                 Subject(
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                multiplicity='per_subject',
+                                subject_id='subject3')],
                     fields=[
                         Field('e', value=2.22222,
-                              multiplicity='per_subject')]),
+                              multiplicity='per_subject',
+                              subject_id='subject3')]),
                 Subject(
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject')],
+                                multiplicity='per_subject',
+                                subject_id='subject4')],
                     fields=[
                         Field('e', value=1.11111,
-                              multiplicity='per_subject')])],
+                              multiplicity='per_subject',
+                              subject_id='subject4')])],
             visits=[
                 Visit(
                     'visit1', sessions=[s for s in sessions
                                         if s.visit_id == 'visit1'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_visit')],
+                                multiplicity='per_visit',
+                                visit_id='visit1')],
                     fields=[
                         Field('f', value='dog',
-                              multiplicity='per_visit')]),
+                              multiplicity='per_visit',
+                              visit_id='visit1')]),
                 Visit(
                     'visit2', sessions=[s for s in sessions
                                         if s.visit_id == 'visit2'],
                     datasets=[],
                     fields=[
                         Field('f', value='cat',
-                              multiplicity='per_visit')]),
+                              multiplicity='per_visit',
+                              visit_id='visit2')]),
                 Visit(
                     'visit3', sessions=[s for s in sessions
                                         if s.visit_id == 'visit3'],
                     datasets=[],
                     fields=[
                         Field('f', value='hippopotamus',
-                              multiplicity='per_visit')])],
+                              multiplicity='per_visit',
+                              visit_id='visit3')])],
             datasets=[
                 Dataset('ones', mrtrix_format,
                         multiplicity='per_project')],

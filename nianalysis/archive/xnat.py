@@ -721,9 +721,13 @@ class XnatArchive(Archive):
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
                                           xsession, 'per_session',
+                                          subject_id=subj_id,
+                                          visit_id=visit_id,
                                           derived=derived),
                                       fields=self._get_fields(
                                           xsession, 'per_session',
+                                          subject_id=subj_id,
+                                          visit_id=visit_id,
                                           derived=derived),
                                       derived=None)
                     if derived:
@@ -753,9 +757,11 @@ class XnatArchive(Archive):
                     subj_fields = []
                 else:
                     subj_datasets = self._get_datasets(
-                        xsubj_summary, 'per_subject')
+                        xsubj_summary, 'per_subject',
+                        subject_id=subj_id)
                     subj_fields = self._get_fields(
-                        xsubj_summary, 'per_subject')
+                        xsubj_summary, 'per_subject',
+                        subject_id=subj_id)
                 subjects.append(Subject(subj_id,
                                         sorted(sessions.values()),
                                         datasets=subj_datasets,
@@ -773,10 +779,10 @@ class XnatArchive(Archive):
                     visit_datasets = []
                     visit_fields = {}
                 else:
-                    visit_datasets = self._get_datasets(xvisit_summary,
-                                                        'per_visit')
-                    visit_fields = self._get_fields(xvisit_summary,
-                                                    'per_visit')
+                    visit_datasets = self._get_datasets(
+                        xvisit_summary, 'per_visit', visit_id=visit_id)
+                    visit_fields = self._get_fields(
+                        xvisit_summary, 'per_visit', visit_id=visit_id)
                 visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
@@ -818,7 +824,8 @@ class XnatArchive(Archive):
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult, derived=False):  #,  dicom_keys=None): @IgnorePep8
+    def _get_datasets(self, xsession, mult, subject_id=None,
+                      visit_id=None, derived=False):
         """
         Returns a list of datasets within an XNAT session
 
@@ -836,7 +843,7 @@ class XnatArchive(Archive):
         -------
         datasets : list(nianalysis.dataset.Dataset)
             List of datasets within an XNAT session
-        """
+        """ 
         datasets = []
         for dataset in xsession.scans.itervalues():
             data_format = data_formats[
@@ -844,10 +851,12 @@ class XnatArchive(Archive):
             datasets.append(Dataset(
                 dataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, path=None, id=dataset.id,
-                uri=dataset.uri))
+                uri=dataset.uri, subject_id=subject_id,
+                visit_id=visit_id))
         return sorted(datasets)
 
-    def _get_fields(self, xsession, mult, derived=False):
+    def _get_fields(self, xsession, mult, subject_id=None,
+                    visit_id=None, derived=False):
         """
         Returns a list of fields within an XNAT session
 
@@ -868,7 +877,8 @@ class XnatArchive(Archive):
         for name, value in xsession.fields.items():
             fields.append(Field(
                 name=name, value=value, derived=derived,
-                multiplicity=mult))
+                multiplicity=mult, subject_id=subject_id,
+                visit_id=visit_id))
         return sorted(fields)
 
     def retrieve_dicom_tags(self, dataset):
