@@ -10,7 +10,7 @@ from nianalysis.data_formats import (
     get_converter_node, nifti_gz_format)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.dataset import DatasetMatch, DatasetSpec
 
 
@@ -36,6 +36,12 @@ class DummyConverter(Converter):
 
 class DummyStudy(Study):
 
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('input', dicom_format),
+        DatasetSpec('output', nifti_gz_format, 'pipeline')]
+
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
@@ -52,10 +58,6 @@ class DummyStudy(Study):
         # Connect outputs
         pipeline.connect_output('output', identity, 'field')
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('input', dicom_format),
-        DatasetSpec('output', nifti_gz_format, 'pipeline'))
 
 
 class TestConverterAvailability(TestCase):

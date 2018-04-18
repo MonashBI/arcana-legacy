@@ -8,7 +8,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
     LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.study import Study, set_specs
+from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
@@ -20,7 +20,9 @@ from nianalysis.data_formats import mrtrix_format
 
 class DummyStudy(Study):
 
-    _data_specs = set_specs(
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
         DatasetSpec('source1', nifti_gz_format),
         DatasetSpec('source2', nifti_gz_format),
         DatasetSpec('source3', nifti_gz_format),
@@ -36,7 +38,7 @@ class DummyStudy(Study):
                     multiplicity='per_project'),
         DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline'))
+        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass

@@ -6,9 +6,8 @@ from nianalysis.requirements import Requirement, mrtrix3_req
 from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
-from nianalysis.runner import LinearRunner
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, set_specs  # @IgnorePep8
+from nianalysis.study.base import Study, StudyMetaClass, set_specs  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -19,7 +18,9 @@ from nipype.interfaces.base import (  # @IgnorePep8
 
 class TestStudy(Study):
 
-    _data_specs = set_specs(
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
         DatasetSpec('pipeline1_1', nifti_gz_format, 'pipeline1'),
@@ -41,9 +42,9 @@ class TestStudy(Study):
                     multiplicity='per_visit'),
         DatasetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
-                    multiplicity='per_subject'))
+                    multiplicity='per_subject')]
 
-    default_options = {'pipeline_option': False}
+    add_default_options = {'pipeline_option': False}
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -266,7 +267,6 @@ class TestRunPipeline(BaseTestCase):
 
     def setUp(self):
         self.reset_dirs()
-        self.runner = LinearRunner(self.work_dir)
         for subject_id in self.SUBJECT_IDS:
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
@@ -384,13 +384,13 @@ class TestRunPipeline(BaseTestCase):
 
 class ExistingPrereqStudy(Study):
 
-    _data_specs = set_specs(
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
         DatasetSpec('start', mrtrix_format),
         DatasetSpec('tens', mrtrix_format, 'tens_pipeline'),
         DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),
-        DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline'))
-
-    default_options = {}
+        DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(

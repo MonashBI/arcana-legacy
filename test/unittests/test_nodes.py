@@ -2,7 +2,7 @@ from nianalysis.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
 from nianalysis.dataset import DatasetSpec, DatasetMatch
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
 from nianalysis.requirements import dcm2niix1_req, mrtrix3_req
@@ -15,6 +15,12 @@ dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
 
 
 class RequirementsStudy(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('ones', nifti_gz_format),
+        DatasetSpec('twos', nifti_gz_format, 'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
@@ -37,10 +43,6 @@ class RequirementsStudy(Study):
         pipeline.connect_output('twos', maths, 'out_file')
         pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('ones', nifti_gz_format),
-        DatasetSpec('twos', nifti_gz_format, 'pipeline'))
 
 
 class TestModuleLoad(BaseTestCase):

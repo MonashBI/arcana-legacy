@@ -3,7 +3,7 @@ from itertools import chain
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisMissingDatasetError, NiAnalysisNameError,
-    NiAnalysisNoRunRequiredException)
+    NiAnalysisNoRunRequiredException, NiAnalysisUsageError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
@@ -62,6 +62,11 @@ class Study(object):
     def __init__(self, name, archive, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None, check_inputs=True,
                  reprocess=False):
+        try:
+            assert issubclass(self.__metaclass__, StudyMetaClass)
+        except AttributeError:
+            assert ("Need to set StudyMetaClass as the metaclass of "
+                    "all classes derived from Study")
         options = {} if options is None else options
         self._name = name
         self._archive = archive
@@ -206,28 +211,6 @@ class Study(object):
                 assert False
         return list(data)
 
-    @classmethod
-    def data_spec(cls, name):
-        """
-        Return the dataset_spec, i.e. the template of the dataset expected to
-        be supplied or generated corresponding to the dataset_spec name.
-
-        Parameters
-        ----------
-        name : Str
-            Name of the dataset_spec to return
-        """
-        if isinstance(name, BaseDatum):
-            name = name.name
-        try:
-            return cls._data_specs[name]
-        except KeyError:
-            raise NiAnalysisNameError(
-                name,
-                "No dataset spec named '{}' in {} (available: "
-                "'{}')".format(name, cls.__name__,
-                               "', '".join(cls._data_specs.keys())))
-
     def bound_data_spec(self, name):
         """
         Returns either the dataset/field that has been passed to the study
@@ -262,14 +245,36 @@ class Study(object):
         return data
 
     @classmethod
-    def data_spec_names(cls):
-        """Lists the names of all data_specs defined in the study"""
-        return cls._data_specs.iterkeys()
+    def data_spec(cls, name):
+        """
+        Return the dataset_spec, i.e. the template of the dataset expected to
+        be supplied or generated corresponding to the dataset_spec name.
+
+        Parameters
+        ----------
+        name : Str
+            Name of the dataset_spec to return
+        """
+        if isinstance(name, BaseDatum):
+            name = name.name
+        try:
+            return cls._data_specs[name]
+        except KeyError:
+            raise NiAnalysisNameError(
+                name,
+                "No dataset spec named '{}' in {} (available: "
+                "'{}')".format(name, cls.__name__,
+                               "', '".join(cls._data_specs.keys())))
 
     @classmethod
     def data_specs(cls):
         """Lists all data_specs defined in the study class"""
         return cls._data_specs.itervalues()
+
+    @classmethod
+    def data_spec_names(cls):
+        """Lists the names of all data_specs defined in the study"""
+        return cls._data_specs.iterkeys()
 
     @classmethod
     def acquired_data_specs(cls):
@@ -280,7 +285,7 @@ class Study(object):
         return (c for c in cls.data_specs() if not c.derived)
 
     @classmethod
-    def generated_data_specs(cls):
+    def derived_data_specs(cls):
         """
         Lists all data_specs defined in the study class that are typically
         generated from other data_specs (but can be overridden by input
@@ -289,14 +294,62 @@ class Study(object):
         return (c for c in cls.data_specs() if c.derived)
 
     @classmethod
-    def generated_data_spec_names(cls):
+    def derived_data_spec_names(cls):
         """Lists the names of generated data_specs defined in the study"""
-        return (c.name for c in cls.generated_data_specs())
+        return (c.name for c in cls.derived_data_specs())
 
     @classmethod
     def acquired_data_spec_names(cls):
         "Lists the names of acquired data_specs defined in the study"
         return (c.name for c in cls.acquired_data_specs())
+
+
+class StudyMetaClass(type):
+    """
+    Metaclass for all study classes that collates data specs from
+    bases and checks pipeline method names.
+    """
+
+    def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
+        if not any(issubclass(b, Study) for b in bases):
+            raise NiAnalysisUsageError(
+                "StudyMetaClass can only be used for classes that "
+                "have Study as a base class")
+        try:
+            add_data_specs = dct['add_data_specs']
+        except KeyError:
+            add_data_specs = []
+        try:
+            add_default_options = dct['add_default_options']
+        except KeyError:
+            add_default_options = {}
+        # Check that the pipeline names in data specs correspond to a
+        # pipeline method in the class
+        for spec in add_data_specs:
+            if (spec.pipeline_name is not None and
+                    spec.pipeline_name not in dct):
+                raise NiAnalysisUsageError(
+                    "Generating pipeline for '{}', '{}', is not present"
+                    " in '{}' class".format(
+                        spec.name, spec.pipeline_name, name))
+        combined_data_specs = {}
+        combined_default_options = {}
+        for base in reversed(bases):
+            try:
+                combined_data_specs.update(
+                    (d.name, d) for d in base.add_data_specs)
+            except AttributeError:
+                pass
+            try:
+                combined_default_options.update(
+                    (d.name, d) for d in base.add_default_options)
+            except AttributeError:
+                pass
+        combined_data_specs.update((d.name, d) for d in add_data_specs)
+        combined_default_options.update(add_default_options)
+        dct['_data_specs'] = combined_data_specs
+        dct['default_options'] = combined_default_options
+        return type(name, bases, dct)
 
 
 def set_specs(*comps, **kwargs):

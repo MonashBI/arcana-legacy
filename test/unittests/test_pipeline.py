@@ -2,12 +2,26 @@ from nianalysis.dataset import DatasetSpec, DatasetMatch
 from nianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 
 
 class ConversionStudy(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('mrtrix', nifti_gz_format),
+        DatasetSpec('nifti_gz', mrtrix_format),
+        DatasetSpec('dicom', dicom_format),
+        DatasetSpec('directory', directory_format),
+        DatasetSpec('zip', zip_format),
+        DatasetSpec('nifti_gz_from_dicom', nifti_gz_format, 'pipeline'),
+        DatasetSpec('mrtrix_from_nifti_gz', mrtrix_format, 'pipeline'),
+        DatasetSpec('nifti_from_mrtrix', nifti_format, 'pipeline'),
+        DatasetSpec('directory_from_zip', directory_format, 'pipeline'),
+        DatasetSpec('zip_from_directory', zip_format, 'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
@@ -63,18 +77,6 @@ class ConversionStudy(Study):
                                 'file')
         pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('mrtrix', nifti_gz_format),
-        DatasetSpec('nifti_gz', mrtrix_format),
-        DatasetSpec('dicom', dicom_format),
-        DatasetSpec('directory', directory_format),
-        DatasetSpec('zip', zip_format),
-        DatasetSpec('nifti_gz_from_dicom', nifti_gz_format, 'pipeline'),
-        DatasetSpec('mrtrix_from_nifti_gz', mrtrix_format, 'pipeline'),
-        DatasetSpec('nifti_from_mrtrix', nifti_format, 'pipeline'),
-        DatasetSpec('directory_from_zip', directory_format, 'pipeline'),
-        DatasetSpec('zip_from_directory', zip_format, 'pipeline'))
 
 
 class TestFormatConversions(BaseTestCase):

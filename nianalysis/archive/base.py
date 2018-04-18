@@ -365,11 +365,11 @@ class Project(object):
         if multiplicity == 'per_session':
             nodes = chain(*(s.sessions for s in self.subjects))
         elif multiplicity == 'per_subject':
-            nodes = self.tree.subjects
+            nodes = self.subjects
         elif multiplicity == 'per_visit':
-            nodes = self.tree.visits
+            nodes = self.visits
         elif multiplicity == 'per_project':
-            nodes = [self.tree]
+            nodes = [self]
         else:
             assert False
         return nodes

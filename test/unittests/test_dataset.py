@@ -3,12 +3,14 @@ import shutil
 import os.path
 import cPickle as pkl
 from unittest import TestCase
-from nianalysis.study.base import Study
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.dataset import DatasetSpec, FieldSpec
 from nianalysis.data_formats import nifti_gz_format
 
 
 class DummyStudy(Study):
+
+    __metaclass__ = StudyMetaClass
 
     def dummy_pipeline1(self):
         pass

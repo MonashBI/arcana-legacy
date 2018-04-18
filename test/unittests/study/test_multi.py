@@ -5,15 +5,22 @@ from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import DatasetMatch, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.study.multi import (
-    MultiStudy, SubStudySpec, MultiStudyMetaClass)
+    MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from nianalysis.interfaces.mrtrix import MRMath
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 
 
 class StudyA(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('x', mrtrix_format),
+        DatasetSpec('y', mrtrix_format),
+        DatasetSpec('z', mrtrix_format, 'pipeline_alpha')]
 
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -38,15 +45,16 @@ class StudyA(Study):
         pipeline.connect_output('z', mrmath, 'out_file')
         return pipeline
 
-    _data_specs = set_specs(
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format),
-        DatasetSpec('z', mrtrix_format, 'pipeline_alpha'))
-
-    default_options = {}
-
 
 class StudyB(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('w', mrtrix_format),
+        DatasetSpec('x', mrtrix_format),
+        DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
+        DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
 
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -87,59 +95,61 @@ class StudyB(Study):
         pipeline.connect_output('z', mrproduct, 'out_file')
         return pipeline
 
-    _data_specs = set_specs(
-        DatasetSpec('w', mrtrix_format),
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
-        DatasetSpec('z', mrtrix_format, 'pipeline_beta'))
-
 
 class FullMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
+
+    sub_study_specs = [
+        SubStudySpec('ss1', StudyA,
+                     {'a': 'x', 'b': 'y', 'd': 'z'}),
+        SubStudySpec('ss2', StudyB,
+                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'})]
+
+    add_data_specs = [
+        DatasetSpec('a', mrtrix_format),
+        DatasetSpec('b', mrtrix_format),
+        DatasetSpec('c', mrtrix_format),
+        DatasetSpec('d', mrtrix_format, 'pipeline_alpha_trans'),
+        DatasetSpec('e', mrtrix_format, 'pipeline_beta_trans'),
+        DatasetSpec('f', mrtrix_format, 'pipeline_beta_trans')]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
     pipeline_beta_trans = MultiStudy.translate(
         'ss2', 'pipeline_beta')
 
-    _sub_study_specs = set_specs(
-        SubStudySpec('ss1', StudyA,
-                     {'a': 'x', 'b': 'y', 'd': 'z'}),
-        SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'}))
-
-    _data_specs = set_specs(
-        DatasetSpec('a', mrtrix_format),
-        DatasetSpec('b', mrtrix_format),
-        DatasetSpec('c', mrtrix_format),
-        DatasetSpec('d', mrtrix_format, 'pipeline_alpha_trans'),
-        DatasetSpec('e', mrtrix_format, 'pipeline_beta_trans'),
-        DatasetSpec('f', mrtrix_format, 'pipeline_beta_trans'))
-
 
 class PartialMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    pipeline_alpha_trans = MultiStudy.translate(
-        'ss1', 'pipeline_alpha')
-
-    _sub_study_specs = set_specs(
+    sub_study_specs = [
         SubStudySpec('ss1', StudyA,
                      {'a': 'x', 'b': 'y'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x'}))
+                     {'b': 'w', 'c': 'x'})]
 
-    _data_specs = set_specs(
+    add_data_specs = [
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
-        DatasetSpec('c', mrtrix_format))
+        DatasetSpec('c', mrtrix_format)]
+
+    pipeline_alpha_trans = MultiStudy.translate(
+        'ss1', 'pipeline_alpha')
 
 
 class MultiMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
+
+    sub_study_specs = [
+        SubStudySpec('ss1', StudyA, {}),
+        SubStudySpec('full', FullMultiStudy),
+        SubStudySpec('partial', PartialMultiStudy)]
+
+    add_data_specs = [
+        DatasetSpec('g', mrtrix_format, 'combined_pipeline')]
 
     def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -166,13 +176,6 @@ class MultiMultiStudy(MultiStudy):
         # Connect outputs
         pipeline.connect_output('g', mrmath, 'out_file')
         return pipeline
-
-    _sub_study_specs = set_specs(
-        SubStudySpec('ss1', StudyA, {}),
-        SubStudySpec('full', FullMultiStudy),
-        SubStudySpec('partial', PartialMultiStudy))
-    _data_specs = set_specs(
-        DatasetSpec('g', mrtrix_format, 'combined_pipeline'))
 
 
 class TestMulti(TestCase):

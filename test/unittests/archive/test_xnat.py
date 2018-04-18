@@ -12,7 +12,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.xnat import (XnatArchive, download_all_datasets)
 from nianalysis.archive.local import FIELDS_FNAME
-from nianalysis.study import Study, set_specs
+from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
@@ -40,7 +40,9 @@ logger = logging.getLogger('NiAnalysis')
 
 class DummyStudy(Study):
 
-    _data_specs = set_specs(
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
         DatasetSpec('source1', nifti_gz_format),
         DatasetSpec('source2', nifti_gz_format),
         DatasetSpec('source3', nifti_gz_format),
@@ -56,7 +58,7 @@ class DummyStudy(Study):
                     multiplicity='per_project'),
         DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline'))
+        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -857,11 +859,13 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin,
 
 class TestStudy(Study):
 
-    _data_specs = set_specs(
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
         DatasetSpec('dataset1', nifti_gz_format),
         DatasetSpec('dataset2', nifti_gz_format),
         DatasetSpec('dataset3', nifti_gz_format),
-        DatasetSpec('dataset5', nifti_gz_format))
+        DatasetSpec('dataset5', nifti_gz_format)]
 
 
 class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
