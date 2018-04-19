@@ -414,6 +414,11 @@ class LocalArchive(Archive):
         return chain(*[
             (s.id for s in subj.sessions) for subj in project.subjects])
 
+    def cache(self, dataset):
+        # Don't need to cache dataset as it is already local
+        assert dataset._path is not None
+        return dataset.path
+
     @property
     def base_dir(self):
         return self._base_dir

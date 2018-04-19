@@ -1,6 +1,7 @@
 import os.path
 import re
 from abc import ABCMeta
+from itertools import chain
 from nianalysis.data_formats import DataFormat
 from copy import copy
 from collections import defaultdict
@@ -177,8 +178,20 @@ class BaseMatch(object):
     def derived(self):
         return self._derived
 
-    def matches(self, names):
-        return [n for n in names if re.match(self.pattern, n)]
+    @property
+    def matches(self):
+        if self.multiplicity == 'per_session':
+            matches = chain(*(d.itervalues()
+                              for d in self._matches.itervalues()))
+        elif self.multiplicity == 'per_subject':
+            matches = self._matches.itervalues()
+        elif self.multiplicity == 'per_visit':
+            matches = self._matches.itervalues()
+        elif self.multiplicity == 'per_project':
+            self._matches = iter([self._matches])
+        else:
+            assert False
+        return matches
 
     @property
     def is_regex(self):
@@ -571,13 +584,20 @@ class Dataset(BaseDataset):
         distinguish multiple datasets with the same scan type in the
         same session, e.g. scans taken before and after a task. For
         archives where this isn't stored (i.e. Local), id can be None
+    subject_id : int | str | None
+        The id of the subject which the dataset belongs to
+    visit_id : int | str | None
+        The id of the visit which the dataset belongs to
+    archive : BaseArchive
+        The archive which the dataset is stored
     """
 
     is_spec = False
 
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', path=None,
-                 id=None, uri=None, subject_id=None, visit_id=None):  # @ReservedAssignment @IgnorePep8
+                 id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
+                 archive=None):
         super(Dataset, self).__init__(name, format, multiplicity)
         self._derived = derived
         self._path = path
@@ -585,6 +605,7 @@ class Dataset(BaseDataset):
         self._uri = uri
         self._subject_id = subject_id
         self._visit_id = visit_id
+        self._archive = archive
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
@@ -592,7 +613,8 @@ class Dataset(BaseDataset):
                 self._path == other._path and
                 self.id == other.id and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+                self.visit_id == other.visit_id and
+                self._archive == other._archive)
 
     def __lt__(self, other):
         return self.id < other.id
@@ -620,13 +642,21 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
+        if self.archive != other.archive:
+            mismatch += ('\n{}archive: self={} v other={}'
+                         .format(sub_indent, self.archive,
+                                 other.archive))
         return mismatch
 
     @property
     def path(self):
         if self._path is None:
-            raise NiAnalysisError(
-                "Dataset '{}' path has not been set".format(self.name))
+            if self.archive is not None:
+                self._path = self.archive.cache(self)
+            else:
+                raise NiAnalysisError(
+                    "Neither path nor archive has been set for Dataset "
+                    "{}".format(self.name))
         return self._path
 
     @path.setter
@@ -652,6 +682,10 @@ class Dataset(BaseDataset):
         return self._uri
 
     @property
+    def archive(self):
+        return self._archive
+
+    @property
     def subject_id(self):
         return self._subject_id
 
@@ -661,7 +695,7 @@ class Dataset(BaseDataset):
 
     @classmethod
     def from_path(cls, path, multiplicity='per_session',
-                  subject_id=None, visit_id=None):
+                  subject_id=None, visit_id=None, archive=None):
         filename = os.path.basename(path)
         name, ext = split_extension(filename)
         try:
@@ -681,7 +715,7 @@ class Dataset(BaseDataset):
                 data_format = dicom_format
         return cls(name, data_format, multiplicity=multiplicity,
                    path=path, derived=False, subject_id=subject_id,
-                   visit_id=visit_id)
+                   visit_id=visit_id, archive=archive)
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
@@ -689,6 +723,7 @@ class Dataset(BaseDataset):
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
+        dct['archive'] = self.archive
         return dct
 
 
@@ -764,10 +799,17 @@ class Field(BaseField):
         visit or project.
     derived : bool
         Whether or not the value belongs in the derived session or not
+    subject_id : int | str | None
+        The id of the subject which the field belongs to
+    visit_id : int | str | None
+        The id of the visit which the field belongs to
+    archive : BaseArchive
+        The archive which the field is stored
     """
 
     def __init__(self, name, value, multiplicity='per_session',
-                 derived=False, subject_id=None, visit_id=None):
+                 derived=False, subject_id=None, visit_id=None,
+                 archive=None):
         if isinstance(value, int):
             dtype = int
         elif isinstance(value, float):
@@ -793,13 +835,15 @@ class Field(BaseField):
         self._derived = derived
         self._subject_id = subject_id
         self._visit_id = visit_id
+        self._archive = archive
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
                 self.derived == other.derived and
                 self.value == other.value and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+                self.visit_id == other.visit_id and
+                self._archive == other._archive)
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)
@@ -820,6 +864,10 @@ class Field(BaseField):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
+        if self.archive != other.archive:
+            mismatch += ('\n{}archive: self={} v other={}'
+                         .format(sub_indent, self.archive,
+                                 other.archive))
         return mismatch
 
     def __int__(self):
@@ -833,10 +881,10 @@ class Field(BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', value={}, multiplicity='{}', derived={},"
-                " subject_id={}, visit_id={}".format(
+                " subject_id={}, visit_id={}, archive={})".format(
                     type(self).__name__, self.name, self.value,
                     self.multiplicity, self.derived, self.subject_id,
-                    self.visit_id))
+                    self.visit_id, self.archive))
 
     @property
     def derived(self):
@@ -844,6 +892,10 @@ class Field(BaseField):
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
+
+    @property
+    def archive(self):
+        return self._archive
 
     @property
     def value(self):
@@ -863,6 +915,7 @@ class Field(BaseField):
         dct['value'] = self.value
         dct['multiplicity'] = self.multiplicity
         dct['derived'] = self.derived
+        dct['archive'] = self.archive
         return dct
 
 

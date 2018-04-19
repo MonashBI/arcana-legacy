@@ -124,3 +124,22 @@ def split_extension(path):
 class classproperty(property):
     def __get__(self, cls, owner):
         return self.fget.__get__(None, owner)()
+
+
+class NoExitWrapper(object):
+    """
+    Wraps an object, passing all calls through to the wrapped object
+    except the __exit__ method, which does nothing. Used in cases
+    where you want to use a file|connection handle within a "with"
+    statement, except when it passed to the method from the calling
+    code (presumably nested in another "with" statement).
+    """
+
+    def __init__(self, to_wrap):
+        self._to_wrap = to_wrap
+
+    def __getattr__(self, name):
+        return getattr(self._to_wrap, name)
+
+    def __exit__(self):
+        pass

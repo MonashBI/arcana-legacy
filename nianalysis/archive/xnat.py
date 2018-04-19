@@ -27,7 +27,7 @@ from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisXnatArchiveMissingDatasetException)
-from nianalysis.utils import dir_modtime
+from nianalysis.utils import dir_modtime, NoExitWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
@@ -603,7 +603,18 @@ class XnatArchive(Archive):
         sink.inputs.cache_dir = self._cache_dir
         return sink
 
-    def _login(self):
+    def _login(self, login=None):
+        """
+        Parameters
+        ----------
+        login : xnat.XNATSession
+            An XNAT login that has been opened in the code that calls
+            the method that calls _login. It is wrapped in a
+            NoExitWrapper so the returned connection can be used
+            in a "with" statement in the method.
+        """
+        if login is not None:
+            return NoExitWrapper(login)
         sess_kwargs = {}
         if self._user is not None:
             sess_kwargs['user'] = self._user
@@ -611,8 +622,8 @@ class XnatArchive(Archive):
             sess_kwargs['password'] = self._password
         return xnat.connect(server=self._server, **sess_kwargs)
 
-    def cache(self, datasets, subject_ids=None, visit_ids=None,
-              work_dir=None):
+    def batch_cache(self, datasets, subject_ids=None, visit_ids=None,
+                    work_dir=None):
         """
         Creates the local cache of datasets. Useful when launching many
         parallel jobs that will all try to pull the data through tomcat
@@ -639,6 +650,14 @@ class XnatArchive(Archive):
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
         workflow.run()
+
+    def cache(self, dataset, login=None):
+        if dataset.archive is not self:
+            raise NiAnalysisError(
+                "{} is not from {}".format(dataset, self))
+        assert dataset.uri is not None
+        with self._login(login=login) as xnat_login:
+            xnat_login.get(dataset.uri)
 
     def all_session_ids(self, project_id):
         """
@@ -843,7 +862,7 @@ class XnatArchive(Archive):
         -------
         datasets : list(nianalysis.dataset.Dataset)
             List of datasets within an XNAT session
-        """ 
+        """
         datasets = []
         for dataset in xsession.scans.itervalues():
             data_format = data_formats[

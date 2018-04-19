@@ -1,6 +1,7 @@
 import os.path
 import shutil
 import tempfile
+import re
 import json
 import time
 from multiprocessing import Process
@@ -25,6 +26,11 @@ from nianalysis.exceptions import NiAnalysisError
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+import test_dataset  # @UnresolvedImport @IgnorePep8
+sys.path.pop(0)
+
+# Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
 import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
@@ -36,6 +42,8 @@ sys.path.pop(0)
 
 
 logger = logging.getLogger('NiAnalysis')
+
+SERVER = 'https://mbi-xnat.erc.monash.edu.au'
 
 
 class DummyStudy(Study):
@@ -125,7 +133,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(self.archive_cache_dir)
         self._delete_test_subjects()
         download_all_datasets(
-            self.cache_dir, self.SERVER,
+            self.cache_dir, SERVER,
             '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
             overwrite=False)
         with self._connect() as mbi_xnat:
@@ -169,7 +177,7 @@ class TestXnatArchive(BaseTestCase):
                 project.subjects[project_summary_name].delete()
 
     def _connect(self):
-        return xnat.connect(self.SERVER)
+        return xnat.connect(SERVER)
 
     def test_archive_roundtrip(self):
 
@@ -177,7 +185,7 @@ class TestXnatArchive(BaseTestCase):
         # Create DarisSource node
         archive = XnatArchive(
             project_id=self.PROJECT,
-            server=self.SERVER, cache_dir=self.archive_cache_dir)
+            server=SERVER, cache_dir=self.archive_cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
             inputs=[DatasetMatch('source1', 'source1',
@@ -256,7 +264,7 @@ class TestXnatArchive(BaseTestCase):
 
     def test_fields_roundtrip(self):
         archive = XnatArchive(
-            server=self.SERVER, cache_dir=self.archive_cache_dir,
+            server=SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         sink = archive.sink(
             outputs=[
@@ -293,7 +301,7 @@ class TestXnatArchive(BaseTestCase):
         # Create working dirs
         # Create XnatSource node
         archive = XnatArchive(
-            server=self.SERVER, cache_dir=self.archive_cache_dir,
+            server=SERVER, cache_dir=self.archive_cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
@@ -473,7 +481,7 @@ class TestXnatArchive(BaseTestCase):
 #     def test_project_info(self):
 #         archive = XnatArchive(
 #             project_id=self.PROJECT,
-#             server=self.SERVER, cache_dir=self.archive_cache_dir)
+#             server=SERVER, cache_dir=self.archive_cache_dir)
 #         tree = archive.tree
 #         self.assertEqual(sorted(s.id for s in tree.subjects),
 #                          [self.SUBJECT])
@@ -498,7 +506,7 @@ class TestXnatArchive(BaseTestCase):
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        archive = XnatArchive(server=self.SERVER, cache_dir=cache_dir,
+        archive = XnatArchive(server=SERVER, cache_dir=cache_dir,
                               project_id=self.PROJECT)
         study = DummyStudy(
             self.STUDY_NAME, archive, LinearRunner('ad'),
@@ -579,7 +587,7 @@ class TestXnatArchive(BaseTestCase):
         os.makedirs(cache_dir)
         archive = XnatArchive(
             project_id=self.PROJECT,
-            server=self.SERVER, cache_dir=cache_dir)
+            server=SERVER, cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, archive, LinearRunner('ad'),
             inputs=[DatasetMatch(DATASET_NAME, DATASET_NAME,
@@ -622,7 +630,7 @@ class TestXnatArchive(BaseTestCase):
         # Resink the source file and check that the generated MD5 digest is
         # stored in identical format
         sink_archive = XnatArchive(
-            project_id=self.DIGEST_SINK_PROJECT, server=self.SERVER,
+            project_id=self.DIGEST_SINK_PROJECT, server=SERVER,
             cache_dir=cache_dir)
         DATASET_NAME = 'sink1'
         sink = sink_archive.sink(
@@ -674,7 +682,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
         """
         cache_dir = tempfile.mkdtemp()
         archive = XnatArchive(
-            server=self.SERVER, cache_dir=cache_dir,
+            server=SERVER, cache_dir=cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy(
             'study', archive, LinearRunner('ad'),
@@ -699,11 +707,13 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
 
 class TestOnXnatMixin(object):
 
+    sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
+
     def setUp(self):
         self._clean_up()
         cache_dir = os.path.join(self.base_cache_path, self.base_name)
         self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
-        with xnat.connect(self.SERVER) as mbi_xnat:
+        with xnat.connect(SERVER) as mbi_xnat:
             # Copy local archive to XNAT
             xproject = mbi_xnat.projects[self.PROJECT]
             for subj in os.listdir(self.project_dir):
@@ -743,7 +753,7 @@ class TestOnXnatMixin(object):
                         resource.upload(os.path.join(sess_dir, scan_fname),
                                         scan_fname)
         self._output_cache_dir = tempfile.mkdtemp()
-        self._archive = XnatArchive(self.project_id, server=self.SERVER,
+        self._archive = XnatArchive(self.project_id, server=SERVER,
                                     cache_dir=self.cache_dir)
 
     def tearDown(self):
@@ -753,7 +763,7 @@ class TestOnXnatMixin(object):
         # Clean up working dirs
         shutil.rmtree(self.cache_dir, ignore_errors=True)
         # Clean up session created for unit-test
-        with xnat.connect(self.SERVER) as mbi_xnat:
+        with xnat.connect(SERVER) as mbi_xnat:
             xproject = mbi_xnat.projects[self.PROJECT]
             for xsubject in list(xproject.subjects.itervalues()):
                 xsubject.delete()
@@ -818,7 +828,7 @@ class TestOnXnatMixin(object):
             session_id += XnatArchive.PROCESSED_SUFFIX
         session_path = os.path.join(self.output_cache_dir, session_id)
         if not os.path.exists(session_path):
-            download_all_datasets(session_path, self.SERVER, session_id)
+            download_all_datasets(session_path, SERVER, session_id)
         return session_path
 
     def output_file_path(self, fname, study_name, subject=None, visit=None,
@@ -919,3 +929,19 @@ class TestProjectInfo(TestOnXnatMixin,
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(ref_tree)))
+
+
+class TestDicomTagMatchOnXnat(test_dataset.TestDicomTagMatch,
+                              BaseMultiSubjectTestCase):
+
+    PROJECT_ID = 'TEST001'
+
+    def test_dicom_match(self):
+        archive = XnatArchive(self.PROJECT_ID, server=SERVER,
+                              cache_dir=self.cache_dir)
+        study = test_dataset.TestMatchStudy(
+            name='xnat_test_dicom',
+            archive=archive,
+            runner=LinearRunner(self.work_dir),
+            inputs=self.INPUTS)
+        self._test_dicom_match(study)
