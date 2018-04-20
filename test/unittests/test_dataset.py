@@ -60,7 +60,7 @@ class TestDicomTagMatch(BaseTestCase):
     GRE_PATTERN = 'gre_field_mapping_3mm.*'
     PHASE_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'P', 'ND']
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
-    INPUTS = [
+    DICOM_MATCH = [
         DatasetMatch('gre_phase', dicom_format, GRE_PATTERN,
                      dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
                      is_regex=True),
@@ -71,7 +71,22 @@ class TestDicomTagMatch(BaseTestCase):
     def test_dicom_match(self):
         study = self.create_study(
             TestMatchStudy, 'test_dicom',
-            inputs=self.INPUTS)
+            inputs=self.DICOM_MATCH)
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+    def test_order_match(self):
+        study = self.create_study(
+            TestMatchStudy, 'test_dicom',
+            inputs=[
+                DatasetMatch('gre_phase', dicom_format,
+                             pattern=self.GRE_PATTERN, order=1,
+                             is_regex=True),
+                DatasetMatch('gre_mag', dicom_format,
+                             pattern=self.GRE_PATTERN, order=0,
+                             is_regex=True)])
         phase = study.data('gre_phase')[0]
         mag = study.data('gre_mag')[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')

@@ -999,7 +999,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
                 project_id='TEST001',
                 server=SERVER, cache_dir='unused'),
             runner=LinearRunner(self.work_dir),
-            inputs=test_dataset.TestDicomTagMatch.INPUTS,
+            inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH,
             subject_ids=['DATASET'], visit_ids=['DICOMTAGMATCH'])
         phase = study.data('gre_phase')[0]
         mag = study.data('gre_mag')[0]
