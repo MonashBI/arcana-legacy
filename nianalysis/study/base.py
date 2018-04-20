@@ -1,4 +1,3 @@
-from abc import ABCMeta
 from itertools import chain
 from logging import getLogger
 from nianalysis.exceptions import (
@@ -59,8 +58,6 @@ class Study(object):
     add_default_options : Dict[str, int|float|str]
         Default options for the class
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, name, archive, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None, check_inputs=True,

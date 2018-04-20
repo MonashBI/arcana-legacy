@@ -36,6 +36,10 @@ from .local import FIELDS_FNAME
 logger = logging.getLogger('NiAnalysis')
 
 special_char_re = re.compile(r'[^a-zA-Z_0-9]')
+tag_parse_re = re.compile(r'\((\d+),(\d+)\)')
+
+RELEVANT_DICOM_TAG_TYPES = set(('UI', 'CS', 'DA', 'TM', 'SH', 'LO',
+                                'PN', 'ST', 'AS'))
 
 BUILTIN_XNAT_FIELDS = []
 
@@ -767,10 +771,11 @@ class XnatArchive(Archive):
                                 proc_session.subject_id,
                                 proc_session.visit_id))
                 # Get per_subject datasets
-                _, subj_summary_name = self.get_labels(
-                    'per_subject', self.project_id, subj_id)
+                subj_summary_name = self.get_labels(
+                    'per_subject', self.project_id, subj_id)[1]
                 try:
-                    xsubj_summary = xsubject.experiments[subj_summary_name]
+                    xsubj_summary = xsubject.experiments[
+                        subj_summary_name]
                 except KeyError:
                     subj_datasets = []
                     subj_fields = []
@@ -871,7 +876,7 @@ class XnatArchive(Archive):
                 xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 multiplicity=mult, path=None, id=xdataset.id,
                 uri=xdataset.uri, subject_id=subject_id,
-                visit_id=visit_id))
+                visit_id=visit_id, archive=self))
         return sorted(datasets)
 
     def _get_fields(self, xsession, mult, subject_id=None,
@@ -901,11 +906,19 @@ class XnatArchive(Archive):
         return sorted(fields)
 
     def dicom_header(self, dataset):
-        # /REST/services/dicomdump?src=/archive/projects/MMH010/experiments/MBI_XNAT_E14786/scans/1&format=json
         with self._login() as xnat_login:
-            return xnat_login.get(
-                '/REST/services/dicomdump?src={}&format=json'
-                .format(dataset.uri))
+            response = xnat_login.get(
+                '/REST/services/dicomdump?src=/archive/projects/{}'
+                '{}&format=json'
+                .format(self.project_id, dataset.uri[len('/data'):]))
+        hdr = {tag_parse_re.match(t['tag1']).groups():
+               (float(t['value']) if t['vr'] == 'TM' else (
+                   t['value'].split('\\') if t['vr'] == 'CS'
+                   else t['value']))
+               for t in response.json()['ResultSet']['Result']
+               if (tag_parse_re.match(t['tag1']) and
+                   t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
+        return hdr
 
     @property
     def local_dir(self):
@@ -918,6 +931,10 @@ class XnatArchive(Archive):
     @classmethod
     def get_labels(cls, multiplicity, project_id, subject_id=None,
                    visit_id=None):
+        """
+        Returns the labels for the XNAT subject and sessions given
+        the multiplicity and provided IDs.
+        """
         if multiplicity == 'per_session':
             assert visit_id is not None
             assert subject_id is not None

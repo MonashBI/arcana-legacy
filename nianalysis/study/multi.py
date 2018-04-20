@@ -1,4 +1,3 @@
-from abc import ABCMeta
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import (
     NiAnalysisMissingDatasetError, NiAnalysisNameError)
@@ -46,8 +45,6 @@ class MultiStudy(Study):
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format'))
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, name, archive, runner, inputs, **kwargs):
         try:

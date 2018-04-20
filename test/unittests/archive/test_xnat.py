@@ -11,8 +11,9 @@ from nianalysis.testing import (
     BaseTestCase, BaseMultiSubjectTestCase)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import (XnatArchive, download_all_datasets)
-from nianalysis.archive.local import FIELDS_FNAME
+from nianalysis.archive.xnat import (
+    XnatArchive, download_all_datasets)
+from nianalysis.archive.local import LocalArchive, FIELDS_FNAME
 from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
@@ -708,53 +709,101 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
 class TestOnXnatMixin(object):
 
     sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
+    # Used to specify datasets that should be put in the derived
+    # session
+    DERIVED_SUFFIX = '_derived'
 
     def setUp(self):
         self._clean_up()
         cache_dir = os.path.join(self.base_cache_path, self.base_name)
         self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
-        with xnat.connect(SERVER) as mbi_xnat:
+        local_archive = LocalArchive(self.project_dir)
+        project = local_archive.get_tree()
+        with xnat.connect(SERVER) as xnat_login:
             # Copy local archive to XNAT
-            xproject = mbi_xnat.projects[self.PROJECT]
-            for subj in os.listdir(self.project_dir):
-                subj_dir = os.path.join(self.project_dir, subj)
-                subj_id = self.PROJECT + '_' + subj
-                xsubject = mbi_xnat.classes.SubjectData(label=subj_id,
-                                                        parent=xproject)
-                for visit in os.listdir(subj_dir):
-                    sess_dir = os.path.join(subj_dir, visit)
-                    sess_id = subj_id + '_' + visit
-                    fnames = os.listdir(sess_dir)
-                    xsession = mbi_xnat.classes.MrSessionData(
+            xproject = xnat_login.projects[self.PROJECT]
+            for subject in project.subjects:
+                subj_id = self.PROJECT + '_' + subject.id
+                xsubject = xnat_login.classes.SubjectData(
+                    label=subj_id, parent=xproject)
+                for session in subject.sessions:
+                    sess_id = subj_id + '_' + session.visit_id
+                    xsession = xnat_login.classes.MrSessionData(
                         label=sess_id,
                         parent=xsubject)
-                    if any('_' in f for f in fnames):
-                        xsession_proc = mbi_xnat.classes.MrSessionData(
+                    if any(d.name.endswith(self.DERIVED_SUFFIX)
+                           for d in session.datasets):
+                        xsession_proc = xnat_login.classes.MrSessionData(
                             label=sess_id + XnatArchive.PROCESSED_SUFFIX,
                             parent=xsubject)
-                    for scan_fname in fnames:
-                        if scan_fname == FIELDS_FNAME:
-                            with open(
-                                os.path.join(sess_dir, scan_fname),
-                                    'rb') as f:
-                                fields = json.load(f)
-                            for field_name, value in fields.items():
-                                xsession.fields[field_name] = value
-                            continue
-                        scan_name, ext = split_extension(scan_fname)
-                        if '_' in scan_name:
+                    for dataset in session.datasets:
+                        if dataset.name.endswith(self.DERIVED_SUFFIX):
                             xsess = xsession_proc
                         else:
                             xsess = xsession
-                        dataset = mbi_xnat.classes.MrScanData(
-                            type=scan_name, parent=xsess)
-                        resource = dataset.create_resource(
-                            data_formats_by_ext[ext].name.upper())
-                        resource.upload(os.path.join(sess_dir, scan_fname),
-                                        scan_fname)
+                        self._upload_datset(xnat_login, dataset, xsess)
+                    for field in session.fields:
+                        xsession.fields[field.name] = field.value
+                if subject.datasets or subject.fields:
+                    xsubj_summary = xnat_login.classes.MrSessionData(
+                        label=XnatArchive.get_labels(
+                            'per_subject', self.PROJECT,
+                            subject_id=subject.id)[1],
+                        parent=xsubject)
+                    for dataset in subject.datasets:
+                        self._upload_datset(xnat_login, dataset,
+                                            xsubj_summary)
+                    for field in session.fields:
+                        xsession.fields[field.name] = field.value
+            for visit in project.visits:
+                if visit.datasets or visit.fields:
+                    (summ_subj_name,
+                     summ_sess_name) = XnatArchive.get_labels(
+                        'per_visit', self.PROJECT,
+                        visit_id=visit.id)
+                    xvisit_summary = xnat_login.classes.MrSessionData(
+                        label=summ_sess_name,
+                        parent=xnat_login.classes.SubjectData(
+                            label=summ_subj_name, parent=xproject))
+                    for dataset in visit.datasets:
+                        self._upload_datset(xnat_login, dataset,
+                                            xvisit_summary)
+                    for field in visit.fields:
+                        xvisit_summary.fields[field.name] = field.value
+            if project.datasets or project.fields:
+                (summ_subj_name,
+                 summ_sess_name) = XnatArchive.get_labels(
+                    'per_project', self.PROJECT)
+                xproj_summary = xnat_login.classes.MrSessionData(
+                    label=summ_sess_name,
+                    parent=xnat_login.classes.SubjectData(
+                        label=summ_subj_name, parent=xproject))
+                for dataset in project.datasets:
+                    self._upload_datset(xnat_login, dataset,
+                                        xproj_summary)
+                for field in project.fields:
+                    xproj_summary.fields[field.name] = field.value
         self._output_cache_dir = tempfile.mkdtemp()
         self._archive = XnatArchive(self.project_id, server=SERVER,
                                     cache_dir=self.cache_dir)
+
+    def _upload_datset(self, xnat_login, dataset, xsession):
+        if dataset.name.endswith(self.DERIVED_SUFFIX):
+            type_name = dataset.name[:-len(self.DERIVED_SUFFIX)]
+        else:
+            type_name = dataset.name
+        xdataset = xnat_login.classes.MrScanData(
+            type=type_name, parent=xsession)
+        xresource = xdataset.create_resource(
+            dataset.format.name.upper())
+        if dataset.format.directory:
+            for fname in os.listdir(dataset.path):
+                fpath = os.path.join(dataset.path, fname)
+                xresource.upload(fpath, fname)
+        else:
+            xresource.upload(
+                dataset.path,
+                os.path.basename(dataset.path))
 
     def tearDown(self):
         self._clean_up()
@@ -771,6 +820,10 @@ class TestOnXnatMixin(object):
     @property
     def archive(self):
         return self._archive
+
+    @property
+    def local_archive(self):
+        return self._local_archive
 
     @property
     def xnat_session_name(self):
@@ -931,11 +984,18 @@ class TestProjectInfo(TestOnXnatMixin,
             .format(tree.find_mismatch(ref_tree)))
 
 
-class TestDicomTagMatchOnXnat(TestOnXnatMixin,
-                              test_dataset.TestDicomTagMatch):
-
-    PROJECT = 'TEST014'
-    BASE_CLASS = test_dataset.TestDicomTagMatch
+class TestDicomTagMatchOnXnat(BaseTestCase):
 
     def test_dicom_match(self):
-        super(TestDicomTagMatchOnXnat, self).test_dicom_match()
+        study = test_dataset.TestMatchStudy(
+            name='test_dicom',
+            archive=XnatArchive(
+                project_id='TEST001',
+                server=SERVER, cache_dir='unused'),
+            runner=LinearRunner(self.work_dir),
+            inputs=test_dataset.TestDicomTagMatch.INPUTS,
+            subject_ids=['DATASET'], visit_ids=['DICOMTAGMATCH'])
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')

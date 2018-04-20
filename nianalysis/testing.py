@@ -170,13 +170,13 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, inputs, options=None):
+    def create_study(self, study_cls, name, inputs, **kwargs):
         return study_cls(
             name=name,
             archive=self.archive,
             runner=self.runner,
             inputs=inputs,
-            options=options)
+            **kwargs)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
                              visit=None, multiplicity='per_session'):

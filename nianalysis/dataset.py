@@ -6,9 +6,9 @@ import pydicom
 from nianalysis.data_formats import DataFormat
 from copy import copy
 from collections import defaultdict
-import subprocess as sp
 from nianalysis.data_formats import (
-    data_formats_by_ext, data_formats_by_mrinfo, dicom_format)
+    data_formats_by_ext, data_formats_by_within_exts, dicom_format,
+    directory_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
 from nianalysis.exceptions import (
@@ -414,30 +414,32 @@ class DatasetMatch(BaseDataset, BaseMatch):
                        if d.name == self.pattern]
         if not matches:
             raise NiAnalysisDatasetMatchError(
-                "No dataset names in {} match '{}' pattern"
-                .format(node, self.pattern))
+                "No dataset names in {} match '{}' pattern:{}"
+                .format(node, self.pattern,
+                        '\n'.join(d.name for d in node.datasets)))
         if self.id is not None:
-            matches = [d for d in matches if d.id == self.id]
+            filtered = [d for d in matches if d.id == self.id]
             if not matches:
                 raise NiAnalysisDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
+            matches = filtered
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
             filtered = []
             for dataset in matches:
-                if self.dicom_tags == dataset.dicom_values(
-                        self.dicom_tags.keys()):
+                values = dataset.dicom_values(self.dicom_tags.keys())
+                if self.dicom_tags == values:
                     filtered.append(dataset)
-            matches = filtered
             if not matches:
                 raise NiAnalysisDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
                             ', '.join(str(m) for m in matches), node))
+            matches = filtered
         return matches
 
 
@@ -707,23 +709,19 @@ class Dataset(BaseDataset):
     @classmethod
     def from_path(cls, path, multiplicity='per_session',
                   subject_id=None, visit_id=None, archive=None):
-        filename = os.path.basename(path)
-        name, ext = split_extension(filename)
-        try:
-            data_format = data_formats_by_ext[ext]
-        except KeyError:
-            # FIXME: Should handle DICOMs in different way. Maybe try to load
-            #        with pydicom??
-            cmd = ("mrinfo \"{}\" 2>/dev/null | grep Format | "
-                   "awk '{{print $2}}'".format(path))
-            abbrev = sp.check_output(cmd, shell=True).strip()
+        if os.path.isdir(path):
+            within_exts = frozenset(
+                split_extension(f)[1] for f in os.listdir(path))
             try:
-                data_format = data_formats_by_mrinfo[abbrev]
+                data_format = data_formats_by_within_exts[within_exts]
             except KeyError:
-                logger.warning("Unrecognised format '{}' of path '{}'"
-                               "assuming it is a dicom".format(abbrev,
-                                                               path))
-                data_format = dicom_format
+                # Fall back to general directory format
+                data_format = directory_format
+            name = os.path.basename(path)
+        else:
+            filename = os.path.basename(path)
+            name, ext = split_extension(filename)
+            data_format = data_formats_by_ext[ext]
         return cls(name, data_format, multiplicity=multiplicity,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)
@@ -768,9 +766,9 @@ class Dataset(BaseDataset):
         -------
         dct : Dict[Tuple[str, str], str|int|float]
         """
-        if (self._path is None and self._study is not None and
-                hasattr(self.study.archive, 'dicom_header')):
-            hdr = self.study.archive.dicom_header(self)
+        if (self._path is None and self._archive is not None and
+                hasattr(self.archive, 'dicom_header')):
+            hdr = self.archive.dicom_header(self)
             dct = {t: hdr[t] for t in tags}
         else:
             # Get the DICOM object for the first file in the dataset
