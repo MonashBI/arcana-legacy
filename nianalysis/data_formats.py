@@ -288,7 +288,8 @@ data_formats = dict(
 
 
 data_formats_by_ext = dict(
-    (f.extension, f) for f in data_formats.itervalues())
+    (f.extension, f) for f in data_formats.itervalues()
+    if f.extension is not None)
 
 data_formats_by_mrinfo = dict(
     (f.mrinfo, f) for f in data_formats.itervalues())

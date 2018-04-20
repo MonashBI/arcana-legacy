@@ -2,6 +2,7 @@ import os.path
 import re
 from abc import ABCMeta
 from itertools import chain
+import pydicom
 from nianalysis.data_formats import DataFormat
 from copy import copy
 from collections import defaultdict
@@ -12,7 +13,8 @@ from nianalysis.utils import split_extension
 from logging import getLogger
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisUsageError,
-    NiAnalysisDatasetMatchError)
+    NiAnalysisDatasetMatchError,
+    NiAnalysisDataFormatError)
 
 logger = getLogger('NiAnalysis')
 
@@ -179,6 +181,10 @@ class BaseMatch(object):
         return self._derived
 
     @property
+    def study(self):
+        return self._study
+
+    @property
     def matches(self):
         if self.multiplicity == 'per_session':
             matches = chain(*(d.itervalues()
@@ -256,15 +262,6 @@ class BaseMatch(object):
                     "Did not find {} datasets names matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
-        elif self.id is not None:
-            try:
-                match = next(d for d in matches if d.id == self.id)
-            except StopIteration:
-                raise NiAnalysisDatasetMatchError(
-                    "Did not find datasets names matching pattern {}"
-                    "with an id of {} (found {}) in {}".format(
-                        self.pattern, self.id,
-                        ', '.join(str(m) for m in matches), node))
         elif len(matches) == 1:
             match = matches[0]
         elif matches:
@@ -419,14 +416,28 @@ class DatasetMatch(BaseDataset, BaseMatch):
             raise NiAnalysisDatasetMatchError(
                 "No dataset names in {} match '{}' pattern"
                 .format(node, self.pattern))
+        if self.id is not None:
+            matches = [d for d in matches if d.id == self.id]
+            if not matches:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find datasets names matching pattern {}"
+                    "with an id of {} (found {}) in {}".format(
+                        self.pattern, self.id,
+                        ', '.join(str(m) for m in matches), node))
         # Filter matches by dicom tags
-        if len(matches) > 1 and self.dicom_tags is not None:
+        if self.dicom_tags is not None:
             filtered = []
             for dataset in matches:
-                tags = self.study.archive.retrieve_dicom_tags(dataset)
-                if all(tags[k] == v for k, v in self.dicom_tags):
+                if self.dicom_tags == dataset.dicom_values(
+                        self.dicom_tags.keys()):
                     filtered.append(dataset)
             matches = filtered
+            if not matches:
+                raise NiAnalysisDatasetMatchError(
+                    "Did not find datasets names matching pattern {}"
+                    "that matched DICOM tags {} (found {}) in {}"
+                    .format(self.pattern, self.dicom_tags,
+                            ', '.join(str(m) for m in matches), node))
         return matches
 
 
@@ -716,6 +727,56 @@ class Dataset(BaseDataset):
         return cls(name, data_format, multiplicity=multiplicity,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)
+
+    def dicom(self, index):
+        """
+        Returns a PyDicom object for the DICOM file at index 'index'
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to read a DICOM file from
+        index : int
+            The index of the DICOM file in the dataset to read
+
+        Returns
+        -------
+        dcm : pydicom.DICOM
+            A PyDicom file object
+        """
+        if self.format != dicom_format:
+            raise NiAnalysisDataFormatError(
+                "Can not read DICOM header as {} is not in DICOM format"
+                .format(self))
+        fnames = sorted(os.listdir(self.path))
+        with open(os.path.join(self.path, fnames[index])) as f:
+            dcm = pydicom.dcmread(f)
+        return dcm
+
+    def dicom_values(self, tags):
+        """
+        Returns a dictionary with the DICOM header fields corresponding
+        to the given tag names
+
+        Parameters
+        ----------
+        tags : List[Tuple[str, str]]
+            List of DICOM tag values as 2-tuple of strings, e.g.
+            [('0080', '0020')]
+
+        Returns
+        -------
+        dct : Dict[Tuple[str, str], str|int|float]
+        """
+        if (self._path is None and self._study is not None and
+                hasattr(self.study.archive, 'dicom_header')):
+            hdr = self.study.archive.dicom_header(self)
+            dct = {t: hdr[t] for t in tags}
+        else:
+            # Get the DICOM object for the first file in the dataset
+            dcm = self.dicom(0)
+            dct = {t: dcm[t].value for t in tags}
+        return dct
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()

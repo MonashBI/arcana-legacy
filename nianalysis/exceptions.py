@@ -33,6 +33,14 @@ class NiAnalysisDatasetMatchError(NiAnalysisUsageError):
     pass
 
 
+class NiAnalysisDataFormatError(NiAnalysisUsageError):
+    pass
+
+
+class NiAnalysisDatasetNotCachedException(NiAnalysisException):
+    pass
+
+
 class AcquiredComponentException(NiAnalysisException):
     pass
 

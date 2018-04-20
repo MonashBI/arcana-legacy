@@ -864,13 +864,13 @@ class XnatArchive(Archive):
             List of datasets within an XNAT session
         """
         datasets = []
-        for dataset in xsession.scans.itervalues():
+        for xdataset in xsession.scans.itervalues():
             data_format = data_formats[
-                guess_data_format(dataset).lower()]
+                guess_data_format(xdataset).lower()]
             datasets.append(Dataset(
-                dataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
-                multiplicity=mult, path=None, id=dataset.id,
-                uri=dataset.uri, subject_id=subject_id,
+                xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
+                multiplicity=mult, path=None, id=xdataset.id,
+                uri=xdataset.uri, subject_id=subject_id,
                 visit_id=visit_id))
         return sorted(datasets)
 
@@ -900,7 +900,7 @@ class XnatArchive(Archive):
                 visit_id=visit_id))
         return sorted(fields)
 
-    def retrieve_dicom_tags(self, dataset):
+    def dicom_header(self, dataset):
         # /REST/services/dicomdump?src=/archive/projects/MMH010/experiments/MBI_XNAT_E14786/scans/1&format=json
         with self._login() as xnat_login:
             return xnat_login.get(

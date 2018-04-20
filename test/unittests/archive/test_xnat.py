@@ -931,17 +931,11 @@ class TestProjectInfo(TestOnXnatMixin,
             .format(tree.find_mismatch(ref_tree)))
 
 
-class TestDicomTagMatchOnXnat(test_dataset.TestDicomTagMatch,
-                              BaseMultiSubjectTestCase):
+class TestDicomTagMatchOnXnat(TestOnXnatMixin,
+                              test_dataset.TestDicomTagMatch):
 
-    PROJECT_ID = 'TEST001'
+    PROJECT = 'TEST014'
+    BASE_CLASS = test_dataset.TestDicomTagMatch
 
     def test_dicom_match(self):
-        archive = XnatArchive(self.PROJECT_ID, server=SERVER,
-                              cache_dir=self.cache_dir)
-        study = test_dataset.TestMatchStudy(
-            name='xnat_test_dicom',
-            archive=archive,
-            runner=LinearRunner(self.work_dir),
-            inputs=self.INPUTS)
-        self._test_dicom_match(study)
+        super(TestDicomTagMatchOnXnat, self).test_dicom_match()

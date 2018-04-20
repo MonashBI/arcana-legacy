@@ -396,10 +396,6 @@ class LocalArchive(Archive):
         return Project(sorted(subjects), sorted(visits), datasets,
                        fields)
 
-    def retrieve_dicom_tags(self, dataset):
-        with open(dataset.path) as f:
-            return pydicom.dcmread(f)
-
     @classmethod
     def _check_only_dirs(cls, dirs, path):
         if any(not os.path.isdir(os.path.join(path, d))
