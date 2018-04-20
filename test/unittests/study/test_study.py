@@ -272,9 +272,8 @@ class TestRunPipeline(BaseTestCase):
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
             TestStudy, 'dummy', inputs=[
-                DatasetMatch('start', 'start', nifti_gz_format),
-                DatasetMatch('ones_slice', 'ones_slice',
-                             mrtrix_format)],
+                DatasetMatch('start', nifti_gz_format, 'start'),
+                DatasetMatch('ones_slice', mrtrix_format, 'ones_slice')],
             options={'pipeline_option': True})
         # Calculate MRtrix module required for 'mrstats' commands
         try:
@@ -519,7 +518,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs=[
-                DatasetMatch('start', 'ones', mrtrix_format)])
+                DatasetMatch('start', mrtrix_format, 'ones')])
         study.data('thousands')
         targets = {
             'subject1': {
@@ -549,7 +548,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.study_name, inputs=[
-#                 DatasetMatch('ones', 'ones', mrtrix_format)])
+#                 DatasetMatch('ones', mrtrix_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
 #             'subject1': {

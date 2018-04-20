@@ -16,15 +16,13 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from nipype.interfaces.base import (
-    Directory, isdefined)
+from nipype.interfaces.base import isdefined
 from .base import Project, Subject, Session, Visit
 from nianalysis.dataset import Dataset, Field
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
-from nianalysis.data_formats import data_formats
-from nianalysis.utils import split_extension
-from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+from nianalysis.utils import (
+    split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
 
 logger = logging.getLogger('NiAnalysis')
@@ -285,6 +283,9 @@ class LocalArchive(Archive):
         sink = super(LocalArchive, self).sink(
             *args, base_dir=self.base_dir, **kwargs)
         return sink
+
+    def login(self):
+        return NoContextWrapper(None)
 
     def get_tree(self, subject_ids=None, visit_ids=None):
         """

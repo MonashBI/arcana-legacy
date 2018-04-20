@@ -86,7 +86,6 @@ class TestDicom2Niix(BaseTestCase):
     def test_dcm2niix(self):
         study = self.create_study(
             DummyStudy, 'concatenate', inputs=[
-                DatasetMatch('input', 't2_tse_tra_p2_448',
-                             dicom_format)])
+                DatasetMatch('input', dicom_format, 't2_tse_tra_p2_448')])
         study.data('output')[0]
         self.assertDatasetCreated('output.nii.gz', study.name)

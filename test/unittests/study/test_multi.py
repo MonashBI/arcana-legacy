@@ -193,9 +193,9 @@ class TestMulti(TestCase):
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full', [
-                DatasetMatch('a', 'ones', mrtrix_format),
-                DatasetMatch('b', 'ones', mrtrix_format),
-                DatasetMatch('c', 'ones', mrtrix_format)])
+                DatasetMatch('a', mrtrix_format, 'ones'),
+                DatasetMatch('b', mrtrix_format, 'ones'),
+                DatasetMatch('c', mrtrix_format, 'ones')])
         d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
         e = study.data('e', subject_id=['SUBJECT'],
                        visit_id=['VISIT'])[0]
@@ -222,9 +222,9 @@ class TestMulti(TestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial', [
-                DatasetMatch('a', 'ones', mrtrix_format),
-                DatasetMatch('b', 'ones', mrtrix_format),
-                DatasetMatch('c', 'ones', mrtrix_format)])
+                DatasetMatch('a', mrtrix_format, 'ones'),
+                DatasetMatch('b', mrtrix_format, 'ones'),
+                DatasetMatch('c', mrtrix_format, 'ones')])
         ss1_z = study.data('ss1_z')[0]
         ss2_y = study.data('ss2_y')[0]
         ss2_z = study.data('ss2_z')[0]
@@ -250,14 +250,14 @@ class TestMulti(TestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'partial', [
-                DatasetMatch('ss1_x', 'ones', mrtrix_format),
-                DatasetMatch('ss1_y', 'ones', mrtrix_format),
-                DatasetMatch('full_a', 'ones', mrtrix_format),
-                DatasetMatch('full_b', 'ones', mrtrix_format),
-                DatasetMatch('full_c', 'ones', mrtrix_format),
-                DatasetMatch('partial_a', 'ones', mrtrix_format),
-                DatasetMatch('partial_b', 'ones', mrtrix_format),
-                DatasetMatch('partial_c', 'ones', mrtrix_format)])
+                DatasetMatch('ss1_x', mrtrix_format, 'ones'),
+                DatasetMatch('ss1_y', mrtrix_format, 'ones'),
+                DatasetMatch('full_a', mrtrix_format, 'ones'),
+                DatasetMatch('full_b', mrtrix_format, 'ones'),
+                DatasetMatch('full_c', mrtrix_format, 'ones'),
+                DatasetMatch('partial_a', mrtrix_format, 'ones'),
+                DatasetMatch('partial_b', mrtrix_format, 'ones'),
+                DatasetMatch('partial_c', mrtrix_format, 'ones')])
         g = study.data('g')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)

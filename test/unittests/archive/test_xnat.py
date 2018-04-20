@@ -189,14 +189,10 @@ class TestXnatArchive(BaseTestCase):
             server=SERVER, cache_dir=self.archive_cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
-            inputs=[DatasetMatch('source1', 'source1',
-                                 nifti_gz_format),
-                    DatasetMatch('source2', 'source2',
-                                 nifti_gz_format),
-                    DatasetMatch('source3', 'source3',
-                                 nifti_gz_format),
-                    DatasetMatch('source4', 'source4',
-                                 nifti_gz_format)])
+            inputs=[DatasetMatch('source1', nifti_gz_format, 'source1'),
+                    DatasetMatch('source2', nifti_gz_format, 'source2'),
+                    DatasetMatch('source3', nifti_gz_format, 'source3'),
+                    DatasetMatch('source4', nifti_gz_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
@@ -290,12 +286,9 @@ class TestXnatArchive(BaseTestCase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
             inputs=[
-                DatasetMatch('source1', 'source1',
-                             nifti_gz_format),
-                DatasetMatch('source2', 'source2',
-                             nifti_gz_format),
-                DatasetMatch('source3', 'source3',
-                             nifti_gz_format)])
+                DatasetMatch('source1', nifti_gz_format, 'source1'),
+                DatasetMatch('source2', nifti_gz_format, 'source2'),
+                DatasetMatch('source3', nifti_gz_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3')]
@@ -925,14 +918,10 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
         archive = self.archive
         study = TestStudy(
             'a_study', archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('dataset1', 'dataset1',
-                                 mrtrix_format),
-                    DatasetMatch('dataset2', 'dataset2',
-                                 mrtrix_format),
-                    DatasetMatch('dataset3', 'dataset3',
-                                 mrtrix_format),
-                    DatasetMatch('dataset5', 'dataset5',
-                                 mrtrix_format)])
+            inputs=[DatasetMatch('dataset1', mrtrix_format, 'dataset1'),
+                    DatasetMatch('dataset2', mrtrix_format, 'dataset2'),
+                    DatasetMatch('dataset3', mrtrix_format, 'dataset3'),
+                    DatasetMatch('dataset5', mrtrix_format, 'dataset5')])
         archive.cache(datasets=study.inputs,
                       subject_ids=self.SUBJECTS,
                       visit_ids=self.VISITS,

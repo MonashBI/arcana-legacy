@@ -52,14 +52,10 @@ class TestLocalArchive(BaseTestCase):
     def test_archive_roundtrip(self):
         study = DummyStudy(
             self.STUDY_NAME, self.archive, runner=LinearRunner('a_dir'),
-            inputs=[DatasetMatch('source1', 'source1',
-                                 nifti_gz_format),
-                    DatasetMatch('source2', 'source2',
-                                 nifti_gz_format),
-                    DatasetMatch('source3', 'source3',
-                                 nifti_gz_format),
-                    DatasetMatch('source4', 'source4',
-                                 nifti_gz_format)])
+            inputs=[DatasetMatch('source1', nifti_gz_format, 'source1'),
+                    DatasetMatch('source2', nifti_gz_format, 'source2'),
+                    DatasetMatch('source3', nifti_gz_format, 'source3'),
+                    DatasetMatch('source4', nifti_gz_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
@@ -138,12 +134,9 @@ class TestLocalArchive(BaseTestCase):
     def test_summary(self):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, self.archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('source1', 'source1',
-                                 nifti_gz_format),
-                    DatasetMatch('source2', 'source2',
-                                 nifti_gz_format),
-                    DatasetMatch('source3', 'source3',
-                                 nifti_gz_format)])
+            inputs=[DatasetMatch('source1', nifti_gz_format, 'source1'),
+                    DatasetMatch('source2', nifti_gz_format, 'source2'),
+                    DatasetMatch('source3', nifti_gz_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3')]
