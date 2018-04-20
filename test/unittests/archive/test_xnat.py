@@ -201,25 +201,8 @@ class TestXnatArchive(BaseTestCase):
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
                                   'source4')]
-#         source_files = [DatasetMatch('source1', 'source1',
-#                                      nifti_gz_format),
-#                         DatasetMatch('source2', 'source2',
-#                                      nifti_gz_format),
-#                         DatasetMatch('source3', 'source3',
-#                                      nifti_gz_format),
-#                         DatasetMatch('source4', 'source4',
-#                                      nifti_gz_format)]
-        # Sink datasets need to be considered to be derived so we set their
-        # 'pipeline' attribute to be not None. May need to update this if
-        # checks on valid pipelines are included in Dataset __init__ method
         sink_files = [study.bound_data_spec(n)
                       for n in ('sink1', 'sink3', 'sink4')]
-#         sink_files = [DatasetSpec('sink1', nifti_gz_format,
-#                                   'dummy_pipeline'),
-#                       DatasetSpec('sink3', nifti_gz_format,
-#                                   'dummy_pipeline'),
-#                       DatasetSpec('sink4', nifti_gz_format,
-#                                   'dummy_pipeline')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
@@ -1021,3 +1004,30 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
         mag = study.data('gre_mag')[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+
+class TestDatasetCacheOnPathAccess(TestCase):
+
+    PROJECT = 'TEST001'
+    DATASET_NAME = 'localizer'
+    SUBJECT = 'ARCHIVEXNAT'
+    VISIT = 'DATASETCACHEONPATHACCESS'
+
+    def test_cache_on_path_access(self):
+        tmp_dir = tempfile.mkdtemp()
+        archive = XnatArchive(
+            project_id=self.PROJECT,
+            server=SERVER, cache_dir=tmp_dir)
+        tree = archive.get_tree(
+            subject_ids=[self.SUBJECT],
+            visit_ids=[self.VISIT])
+        dataset = next(next(tree.subjects).sessions).datasets[0]
+        self.assertEqual(dataset._path, None)
+        target_path = os.path.join(
+            tmp_dir, self.PROJECT,
+            '{}_{}'.format(self.PROJECT, self.SUBJECT),
+            '{}_{}_{}'.format(self.PROJECT, self.SUBJECT, self.VISIT),
+            self.DATASET_NAME)
+        # This should implicitly download the dataset
+        self.assertEqual(dataset.path, target_path)
+        self.assertTrue(os.path.exists(target_path))

@@ -224,7 +224,7 @@ class BaseMatch(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def _match_tree(self, tree):
+    def _match_tree(self, tree, **kwargs):
         # Run the match against the tree
         if self.multiplicity == 'per_session':
             self._matches = defaultdict(dict)
@@ -235,24 +235,27 @@ class BaseMatch(object):
                     else:
                         node = sess
                     self._matches[sess.subject_id][
-                        sess.visit_id] = self._match_node(node)
+                        sess.visit_id] = self._match_node(node,
+                                                          **kwargs)
         elif self.multiplicity == 'per_subject':
             self._matches = {}
             for subject in tree.subjects:
-                self._matches[subject.id] = self._match_node(subject)
+                self._matches[subject.id] = self._match_node(subject,
+                                                             **kwargs)
         elif self.multiplicity == 'per_visit':
             self._matches = {}
             for visit in tree.visits:
-                self._matches[visit.id] = self._match_node(visit)
+                self._matches[visit.id] = self._match_node(visit,
+                                                           **kwargs)
         elif self.multiplicity == 'per_project':
-            self._matches = self._match_node(tree)
+            self._matches = self._match_node(tree, **kwargs)
         else:
             assert False, "Unrecognised multiplicity '{}'".format(
                 self.multiplicity)
 
-    def _match_node(self, node):
+    def _match_node(self, node, **kwargs):
         # Get names matching pattern
-        matches = self._filtered_matches(node)
+        matches = self._filtered_matches(node, **kwargs)
         # Select the dataset from the matches
         if self.order is not None:
             try:
@@ -408,7 +411,12 @@ class DatasetMatch(BaseDataset, BaseMatch):
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _filtered_matches(self, node):
+    def _match_tree(self, tree, **kwargs):
+        with self.study.archive.login() as archive_login:
+            super(DatasetMatch, self)._match_tree(
+                tree, archive_login=archive_login, **kwargs)
+
+    def _filtered_matches(self, node, archive_login=None):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -437,7 +445,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
         if self.dicom_tags is not None:
             filtered = []
             for dataset in matches:
-                values = dataset.dicom_values(self.dicom_tags.keys())
+                values = dataset.dicom_values(
+                    self.dicom_tags.keys(), archive_login=archive_login)
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:
@@ -679,10 +688,6 @@ class Dataset(BaseDataset):
                     "{}".format(self.name))
         return self._path
 
-    @path.setter
-    def path(self, path):
-        self._path = path
-
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
 
@@ -758,7 +763,7 @@ class Dataset(BaseDataset):
             dcm = pydicom.dcmread(f)
         return dcm
 
-    def dicom_values(self, tags):
+    def dicom_values(self, tags, archive_login=None):
         """
         Returns a dictionary with the DICOM header fields corresponding
         to the given tag names
@@ -768,6 +773,9 @@ class Dataset(BaseDataset):
         tags : List[Tuple[str, str]]
             List of DICOM tag values as 2-tuple of strings, e.g.
             [('0080', '0020')]
+        archive_login : <archive-login-object>
+            A login object for the archive to avoid having to relogin
+            for every dicom_header call.
 
         Returns
         -------
@@ -775,7 +783,8 @@ class Dataset(BaseDataset):
         """
         if (self._path is None and self._archive is not None and
                 hasattr(self.archive, 'dicom_header')):
-            hdr = self.archive.dicom_header(self)
+            hdr = self.archive.dicom_header(self,
+                                            prev_login=archive_login)
             dct = {t: hdr[t] for t in tags}
         else:
             # Get the DICOM object for the first file in the dataset

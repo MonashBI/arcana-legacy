@@ -1,6 +1,7 @@
 from __future__ import absolute_import
 from abc import ABCMeta
 import os.path
+import tempfile
 from itertools import repeat
 import shutil
 import hashlib
@@ -27,7 +28,7 @@ from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisXnatArchiveMissingDatasetException)
-from nianalysis.utils import dir_modtime, NoExitWrapper
+from nianalysis.utils import dir_modtime, NoContextWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
@@ -158,19 +159,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                 fname = dataset.fname(subject_id=subject_id,
                                       visit_id=visit_id)
                 # Get resource to check its MD5 digest
-                try:
-                    xresource = xdataset.resources[
-                        dataset.format.xnat_resource_name]
-                except KeyError:
-                    raise NiAnalysisError(
-                        "'{}' dataset is not available in '{}' format, "
-                        "available resources are '{}'"
-                        .format(
-                            dataset.name,
-                            dataset.format.xnat_resource_name,
-                            "', '".join(
-                                r.label
-                                for r in dataset.resources.values())))
+                xresource = self.get_resource(xdataset, dataset)
                 need_to_download = True
                 # FIXME: Should do a check to see if versions match
                 if not os.path.exists(cache_dir):
@@ -182,7 +171,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                             with open(cache_path +
                                       XnatArchive.MD5_SUFFIX) as f:
                                 cached_digests = json.load(f)
-                            digests = self._get_digests(xresource)
+                            digests = self.get_digests(xresource)
                             if cached_digests == digests:
                                 need_to_download = False
                         except IOError:
@@ -207,14 +196,14 @@ class XnatSource(ArchiveSource, XnatMixin):
                             # 'race_cond_delay' seconds and then check that it
                             # has been completed or assume interrupted and
                             # redownload.
-                            self._delayed_download(
+                            self.delayed_download(
                                 tmp_dir, xresource, xdataset, dataset,
                                 session.label, cache_path,
                                 delay=self.inputs.race_cond_delay)
                         else:
                             raise
                     else:
-                        self._download_dataset(
+                        self.download_dataset(
                             tmp_dir, xresource, xdataset, dataset,
                             session.label, cache_path)
                 outputs[dataset.name + PATH_SUFFIX] = cache_path
@@ -226,7 +215,23 @@ class XnatSource(ArchiveSource, XnatMixin):
                     session.fields[prefixed_name])
         return outputs
 
-    def _get_digests(self, resource):
+    @classmethod
+    def get_resource(cls, xdataset, dataset):
+        try:
+            xresource = xdataset.resources[
+                dataset.format.xnat_resource_name]
+        except KeyError:
+            raise NiAnalysisError(
+                "'{}' dataset is not available in '{}' format, "
+                "available resources are '{}'"
+                .format(
+                    dataset.name, dataset.format.xnat_resource_name,
+                    "', '".join(r.label
+                                 for r in dataset.resources.values())))
+        return xresource
+
+    @classmethod
+    def get_digests(cls, resource):
         """
         Downloads the MD5 digests associated with the files in a resource.
         These are saved with the downloaded files in the cache and used to
@@ -240,14 +245,15 @@ class XnatSource(ArchiveSource, XnatMixin):
         return dict((r['Name'], r['digest'])
                     for r in result.json()['ResultSet']['Result'])
 
-    def _download_dataset(self, tmp_dir, xresource, xdataset, dataset,
-                          session_label, cache_path):
+    @classmethod
+    def download_dataset(cls, tmp_dir, xresource, xdataset, dataset,
+                         session_label, cache_path):
         # Download resource to zip file
         zip_path = os.path.join(tmp_dir, 'download.zip')
         with open(zip_path, 'w') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
-        digests = self._get_digests(xresource)
+        digests = cls.get_digests(xresource)
         # Extract downloaded zip file
         expanded_dir = os.path.join(tmp_dir, 'expanded')
         try:
@@ -284,8 +290,9 @@ class XnatSource(ArchiveSource, XnatMixin):
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
-    def _delayed_download(self, tmp_dir, xresource, xdataset, dataset,
-                          session_label, cache_path, delay):
+    @classmethod
+    def delayed_download(cls, tmp_dir, xresource, xdataset, dataset,
+                         session_label, cache_path, delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
                     "initiated another process to finish"
                     .format(delay, cache_path))
@@ -301,7 +308,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                 "The download of '{}' hasn't completed yet, but it has"
                 " been updated.  Waiting another {} seconds before "
                 "checking again.".format(cache_path, delay))
-            self._delayed_download(tmp_dir, xresource, xdataset,
+            cls.delayed_download(tmp_dir, xresource, xdataset,
                                    dataset,
                                    session_label, cache_path, delay)
         else:
@@ -311,7 +318,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                 "restarting download".format(cache_path, delay))
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
-            self._download_dataset(
+            cls.download_dataset(
                 tmp_dir, xresource, xdataset, dataset, session_label,
                 cache_path)
 
@@ -607,18 +614,18 @@ class XnatArchive(Archive):
         sink.inputs.cache_dir = self._cache_dir
         return sink
 
-    def _login(self, login=None):
+    def login(self, prev_login=None):
         """
         Parameters
         ----------
-        login : xnat.XNATSession
+        prev_login : xnat.XNATSession
             An XNAT login that has been opened in the code that calls
-            the method that calls _login. It is wrapped in a
+            the method that calls login. It is wrapped in a
             NoExitWrapper so the returned connection can be used
             in a "with" statement in the method.
         """
-        if login is not None:
-            return NoExitWrapper(login)
+        if prev_login is not None:
+            return NoContextWrapper(prev_login)
         sess_kwargs = {}
         if self._user is not None:
             sess_kwargs['user'] = self._user
@@ -626,8 +633,8 @@ class XnatArchive(Archive):
             sess_kwargs['password'] = self._password
         return xnat.connect(server=self._server, **sess_kwargs)
 
-    def batch_cache(self, datasets, subject_ids=None, visit_ids=None,
-                    work_dir=None):
+    def batch_cache(self, dataset_matches, subject_ids=None,
+                    visit_ids=None, work_dir=None):
         """
         Creates the local cache of datasets. Useful when launching many
         parallel jobs that will all try to pull the data through tomcat
@@ -635,8 +642,9 @@ class XnatArchive(Archive):
 
         Parameters
         ----------
-        datasets : list(Dataset)
-            List of datasets to download to the cache
+        dataset_matches : list(DatasetMatch)
+            List of dataset matches to select datasets to download to
+            the cache from each session
         subject_ids : list(str | int) | None
             List of subjects to download the datasets for. If None the datasets
             will be downloaded for all subjects
@@ -649,19 +657,48 @@ class XnatArchive(Archive):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(subject_ids))
         sessions.iterables = ('visit_id', tuple(visit_ids))
-        source = self.source(datasets, study_name='cache')
+        source = self.source(dataset_matches, study_name='cache')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
         workflow.run()
 
-    def cache(self, dataset, login=None):
+    def cache(self, dataset, prev_login=None):
+        """
+        Caches a single dataset (if the 'path' attribute is accessed
+        and it has not been previously cached for example
+
+        Parameters
+        ----------
+        dataset : Dataset
+            The dataset to cache
+        prev_login : xnat.XNATSession
+            An XNATSession object to use for the connection. A new
+            one is created if one isn't provided
+        """
         if dataset.archive is not self:
             raise NiAnalysisError(
                 "{} is not from {}".format(dataset, self))
         assert dataset.uri is not None
-        with self._login(login=login) as xnat_login:
-            xnat_login.get(dataset.uri)
+        with self.login(prev_login=prev_login) as xnat_login:
+            sess_id, scan_id = re.match(
+                r'/data/experiments/(\w+)/scans/(.*)',
+                dataset.uri).groups()
+            xsession = xnat_login.experiments[sess_id]
+            xdataset = xsession.scans[scan_id]
+            xresource = XnatSource.get_resource(xdataset, dataset)
+            cache_path = self.cache_path(dataset)
+            XnatSource.download_dataset(
+                tempfile.mkdtemp(), xresource, xdataset, dataset,
+                xsession.label, cache_path)
+        return cache_path
+
+    def cache_path(self, dataset):
+        subj_dir, sess_dir = self.get_labels(
+            dataset.multiplicity, self.project_id,
+            dataset.subject_id, dataset.visit_id)
+        return os.path.join(self._cache_dir, self.project_id,
+                            subj_dir, sess_dir, dataset.fname())
 
     def all_session_ids(self, project_id):
         """
@@ -716,7 +753,7 @@ class XnatArchive(Archive):
                                      for i in visit_ids]
         subjects = []
         sessions = defaultdict(list)
-        with self._login() as xnat_login:
+        with self.login() as xnat_login:
             xproject = xnat_login.projects[self.project_id]
             visit_sessions = defaultdict(list)
             # Create list of subjects
@@ -905,16 +942,20 @@ class XnatArchive(Archive):
                 visit_id=visit_id))
         return sorted(fields)
 
-    def dicom_header(self, dataset):
-        with self._login() as xnat_login:
+    def dicom_header(self, dataset, prev_login=None):
+        with self.login(prev_login) as xnat_login:
             response = xnat_login.get(
                 '/REST/services/dicomdump?src=/archive/projects/{}'
                 '{}&format=json'
                 .format(self.project_id, dataset.uri[len('/data'):]))
+        def convert(val, code):  # @IgnorePep8
+            if code == 'TM':
+                val = float(val)
+            elif code == 'CS':
+                val = val.split('\\')
+            return val
         hdr = {tag_parse_re.match(t['tag1']).groups():
-               (float(t['value']) if t['vr'] == 'TM' else (
-                   t['value'].split('\\') if t['vr'] == 'CS'
-                   else t['value']))
+               convert(t['value'], t['vr'])
                for t in response.json()['ResultSet']['Result']
                if (tag_parse_re.match(t['tag1']) and
                    t['vr'] in RELEVANT_DICOM_TAG_TYPES)}

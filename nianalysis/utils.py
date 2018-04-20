@@ -126,13 +126,13 @@ class classproperty(property):
         return self.fget.__get__(None, owner)()
 
 
-class NoExitWrapper(object):
+class NoContextWrapper(object):
     """
     Wraps an object, passing all calls through to the wrapped object
-    except the __exit__ method, which does nothing. Used in cases
-    where you want to use a file|connection handle within a "with"
-    statement, except when it passed to the method from the calling
-    code (presumably nested in another "with" statement).
+    except the __enter__ and __exit__ method, which do nothing. Used
+    in cases where you want to use a file|connection handle within a
+    "with" statement, except when it passed to the method from the
+    calling code (presumably nested in another "with" statement).
     """
 
     def __init__(self, to_wrap):
@@ -141,5 +141,8 @@ class NoExitWrapper(object):
     def __getattr__(self, name):
         return getattr(self._to_wrap, name)
 
-    def __exit__(self):
+    def __enter__(self, *args, **kwargs):  # @UnusedVariable
+        return self
+
+    def __exit__(self, *args, **kwargs):
         pass
