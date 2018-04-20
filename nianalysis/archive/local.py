@@ -1,6 +1,5 @@
 from abc import ABCMeta, abstractmethod
 import os.path
-import pydicom
 from collections import defaultdict
 from itertools import chain, groupby
 from operator import attrgetter
