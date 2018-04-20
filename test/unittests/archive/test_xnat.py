@@ -984,7 +984,13 @@ class TestProjectInfo(TestOnXnatMixin,
             .format(tree.find_mismatch(ref_tree)))
 
 
-class TestDicomTagMatchOnXnat(BaseTestCase):
+class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
 
     def test_dicom_match(self):
         study = test_dataset.TestMatchStudy(
@@ -994,6 +1000,22 @@ class TestDicomTagMatchOnXnat(BaseTestCase):
                 server=SERVER, cache_dir='unused'),
             runner=LinearRunner(self.work_dir),
             inputs=test_dataset.TestDicomTagMatch.INPUTS,
+            subject_ids=['DATASET'], visit_ids=['DICOMTAGMATCH'])
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+    def test_id_match(self):
+        study = test_dataset.TestMatchStudy(
+            name='test_dicom',
+            archive=XnatArchive(
+                project_id='TEST001',
+                server=SERVER, cache_dir='unused'),
+            runner=LinearRunner(self.work_dir),
+            inputs=[
+                DatasetMatch('gre_phase', dicom_format, id=8),
+                DatasetMatch('gre_mag', dicom_format, id=7)],
             subject_ids=['DATASET'], visit_ids=['DICOMTAGMATCH'])
         phase = study.data('gre_phase')[0]
         mag = study.data('gre_mag')[0]

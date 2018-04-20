@@ -356,10 +356,14 @@ class DatasetMatch(BaseDataset, BaseMatch):
 
     is_spec = False
 
-    def __init__(self, name, pattern, format, # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  multiplicity='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
                  study=None):
+        if pattern is None and id is None:
+            raise NiAnalysisUsageError(
+                "Either 'pattern' or 'id' need to be provided to "
+                "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, multiplicity)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
@@ -372,7 +376,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             raise NiAnalysisUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
-        self._id = id
+        self._id = str(id) if id is not None else id
 
     def __eq__(self, other):
         return (BaseDataset.__eq__(self, other) and
@@ -405,13 +409,16 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return self._dicom_tags
 
     def _filtered_matches(self, node):
-        if self.is_regex:
-            pattern_re = re.compile(self.pattern)
-            matches = [d for d in node.datasets
-                       if pattern_re.match(d.name)]
+        if self.pattern is not None:
+            if self.is_regex:
+                pattern_re = re.compile(self.pattern)
+                matches = [d for d in node.datasets
+                           if pattern_re.match(d.name)]
+            else:
+                matches = [d for d in node.datasets
+                           if d.name == self.pattern]
         else:
-            matches = [d for d in node.datasets
-                       if d.name == self.pattern]
+            matches = list(node.datasets)
         if not matches:
             raise NiAnalysisDatasetMatchError(
                 "No dataset names in {} match '{}' pattern:{}"
@@ -419,7 +426,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
                         '\n'.join(d.name for d in node.datasets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
-            if not matches:
+            if not filtered:
                 raise NiAnalysisDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "with an id of {} (found {}) in {}".format(
@@ -433,7 +440,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
                 values = dataset.dicom_values(self.dicom_tags.keys())
                 if self.dicom_tags == values:
                     filtered.append(dataset)
-            if not matches:
+            if not filtered:
                 raise NiAnalysisDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
