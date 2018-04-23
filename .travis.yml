@@ -23,6 +23,7 @@ install:
   - export MODULEPATH=$HOME/modules
   - install/dcm2niix.sh
   - install/netrc.sh
+  - cat $HOME/.netrc
   - export NUMBER_OF_PROCESSORS=4
   - install/mrtrix.sh
   - pip install .
