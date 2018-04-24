@@ -479,7 +479,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         if base_dir is not None or set_ids:
             for dataset in project.datasets:
                 if base_dir is not None:
-                    dataset.path = os.path.join(
+                    dataset._path = os.path.join(
                         base_dir, SUMMARY_NAME, SUMMARY_NAME,
                         dataset.name + dataset.format.ext_str)
                 if set_ids:
@@ -487,7 +487,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
             for visit in project.visits:
                 for dataset in visit.datasets:
                     if base_dir is not None:
-                        dataset.path = os.path.join(
+                        dataset._path = os.path.join(
                             base_dir, SUMMARY_NAME, visit.id,
                             dataset.name + dataset.format.ext_str)
                     if set_ids:
@@ -495,7 +495,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
             for subject in project.subjects:
                 for dataset in subject.datasets:
                     if base_dir is not None:
-                        dataset.path = os.path.join(
+                        dataset._path = os.path.join(
                             base_dir, subject.id, SUMMARY_NAME,
                             dataset.name + dataset.format.ext_str)
                     if set_ids:
@@ -503,7 +503,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                 for session in subject.sessions:
                     for dataset in session.datasets:
                         if base_dir is not None:
-                            dataset.path = os.path.join(
+                            dataset._path = os.path.join(
                                 base_dir, session.subject_id,
                                 session.visit_id,
                                 dataset.name + dataset.format.ext_str)
