@@ -31,11 +31,11 @@ class DummyStudy(Study):
         DatasetSpec('sink3', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('sink4', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('subject_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_subject'),
+                    frequency='per_subject'),
         DatasetSpec('visit_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_visit'),
+                    frequency='per_visit'),
         DatasetSpec('project_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_project'),
+                    frequency='per_project'),
         DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline')]
@@ -149,7 +149,7 @@ class TestLocalArchive(BaseTestCase):
         subject_sink_files = [
             study.bound_data_spec('subject_sink')]
         subject_sink = self.archive.sink(subject_sink_files,
-                                         multiplicity='per_subject',
+                                         frequency='per_subject',
                                          study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
@@ -157,7 +157,7 @@ class TestLocalArchive(BaseTestCase):
         # Test visit sink
         visit_sink_files = [study.bound_data_spec('visit_sink')]
         visit_sink = self.archive.sink(visit_sink_files,
-                                       multiplicity='per_visit',
+                                       frequency='per_visit',
                                        study_name=self.SUMMARY_STUDY_NAME)
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.description = (
@@ -166,7 +166,7 @@ class TestLocalArchive(BaseTestCase):
         project_sink_files = [
             study.bound_data_spec('project_sink')]
         project_sink = self.archive.sink(project_sink_files,
-                                         multiplicity='per_project',
+                                         frequency='per_project',
                                          study_name=self.SUMMARY_STUDY_NAME)
 
         project_sink.inputs.name = 'project_summary'
@@ -191,13 +191,13 @@ class TestLocalArchive(BaseTestCase):
             project_sink, 'project_sink' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
-        subject_dir = self.get_session_dir(multiplicity='per_subject')
+        subject_dir = self.get_session_dir(frequency='per_subject')
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          [self.SUMMARY_STUDY_NAME + '_subject_sink.nii.gz'])
-        visit_dir = self.get_session_dir(multiplicity='per_visit')
+        visit_dir = self.get_session_dir(frequency='per_visit')
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          [self.SUMMARY_STUDY_NAME + '_visit_sink.nii.gz'])
-        project_dir = self.get_session_dir(multiplicity='per_project')
+        project_dir = self.get_session_dir(frequency='per_project')
         self.assertEqual(sorted(os.listdir(project_dir)),
                          [self.SUMMARY_STUDY_NAME + '_project_sink.nii.gz'])
         # Reload the data from the summary directories
@@ -444,50 +444,50 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                           if s.subject_id == 'subject1'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject1'),
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject1')],
                     fields=[
                         Field('e', value=4.44444,
-                              multiplicity='per_subject',
+                              frequency='per_subject',
                               subject_id='subject1')]),
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject2'),
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject2')],
                     fields=[
                         Field('e', value=3.33333,
-                              multiplicity='per_subject',
+                              frequency='per_subject',
                               subject_id='subject2')]),
                 Subject(
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject3')],
                     fields=[
                         Field('e', value=2.22222,
-                              multiplicity='per_subject',
+                              frequency='per_subject',
                               subject_id='subject3')]),
                 Subject(
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
-                                multiplicity='per_subject',
+                                frequency='per_subject',
                                 subject_id='subject4')],
                     fields=[
                         Field('e', value=1.11111,
-                              multiplicity='per_subject',
+                              frequency='per_subject',
                               subject_id='subject4')])],
             visits=[
                 Visit(
@@ -495,11 +495,11 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                                         if s.visit_id == 'visit1'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
-                                multiplicity='per_visit',
+                                frequency='per_visit',
                                 visit_id='visit1')],
                     fields=[
                         Field('f', value='dog',
-                              multiplicity='per_visit',
+                              frequency='per_visit',
                               visit_id='visit1')]),
                 Visit(
                     'visit2', sessions=[s for s in sessions
@@ -507,7 +507,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     datasets=[],
                     fields=[
                         Field('f', value='cat',
-                              multiplicity='per_visit',
+                              frequency='per_visit',
                               visit_id='visit2')]),
                 Visit(
                     'visit3', sessions=[s for s in sessions
@@ -515,14 +515,14 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     datasets=[],
                     fields=[
                         Field('f', value='hippopotamus',
-                              multiplicity='per_visit',
+                              frequency='per_visit',
                               visit_id='visit3')])],
             datasets=[
                 Dataset('ones', mrtrix_format,
-                        multiplicity='per_project')],
+                        frequency='per_project')],
             fields=[
                 Field('g', value=100,
-                      multiplicity='per_project')])
+                      frequency='per_project')])
         if base_dir is not None or set_ids:
             for dataset in project.datasets:
                 if base_dir is not None:

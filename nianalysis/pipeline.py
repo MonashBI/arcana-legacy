@@ -92,14 +92,14 @@ class Pipeline(object):
         self._check_spec_names(outputs, 'output')
         self._outputs = defaultdict(list)
         for output in outputs:
-            mult = self._study.data_spec(output).multiplicity
-            self._outputs[mult].append(output)
+            freq = self._study.data_spec(output).frequency
+            self._outputs[freq].append(output)
         self._outputnodes = {}
-        for mult in self._outputs:
-            self._outputnodes[mult] = self.create_node(
+        for freq in self._outputs:
+            self._outputnodes[freq] = self.create_node(
                 IdentityInterface(
-                    fields=[o.name for o in self._outputs[mult]]),
-                name="{}_outputnode".format(mult), wall_time=10,
+                    fields=[o.name for o in self._outputs[freq]]),
+                name="{}_outputnode".format(freq), wall_time=10,
                 memory=1000)
         # Create sets of unconnected inputs/outputs
         self._unconnected_inputs = set(self.input_names)
@@ -286,20 +286,20 @@ class Pipeline(object):
         # pipelines into one large connected pipeline.
         report = self.create_node(PipelineReport(), 'report')
         # Connect all outputs to the archive sink
-        for mult, outputs in self._outputs.iteritems():
-            # Create a new sink for each multiplicity level (i.e 'per_session',
+        for freq, outputs in self._outputs.iteritems():
+            # Create a new sink for each frequency level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
                 (self.study.bound_data_spec(o) for o in outputs),
-                multiplicity=mult,
+                frequency=freq,
                 study_name=self.study.name,
-                name='{}_{}_sink'.format(self.name, mult))
+                name='{}_{}_sink'.format(self.name, freq))
 #             sink.inputs.description = self.description
 #             sink.inputs.name = self._study.name
-            if mult in ('per_session', 'per_subject'):
+            if freq in ('per_session', 'per_subject'):
                 complete_workflow.connect(sessions, 'subject_id',
                                           sink, 'subject_id')
-            if mult in ('per_session', 'per_visit'):
+            if freq in ('per_session', 'per_visit'):
                 complete_workflow.connect(sessions, 'visit_id',
                                           sink, 'visit_id')
             for output_spec in outputs:
@@ -315,10 +315,10 @@ class Pipeline(object):
                             (output_node,
                              node_dataset_name) = get_converter_node(
                                 output_spec, output_spec.name, output.format,
-                                self._outputnodes[mult], complete_workflow,
+                                self._outputnodes[freq], complete_workflow,
                                 conv_node_name)
                         else:
-                            output_node = self._outputnodes[mult]
+                            output_node = self._outputnodes[freq]
                             node_dataset_name = output.name
                         complete_workflow.connect(
                             output_node, node_dataset_name,
@@ -326,10 +326,10 @@ class Pipeline(object):
                     else:
                         assert isinstance(output, BaseField)
                         complete_workflow.connect(
-                            self._outputnodes[mult], output.name, sink,
+                            self._outputnodes[freq], output.name, sink,
                             output.name + FIELD_SUFFIX)
             self._connect_to_reports(
-                sink, report, mult, subjects, sessions, complete_workflow)
+                sink, report, freq, subjects, sessions, complete_workflow)
         return report
 
     def _subject_and_session_iterators(self, sessions_to_process, workflow):
@@ -373,7 +373,7 @@ class Pipeline(object):
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         return subjects, sessions
 
-    def _connect_to_reports(self, sink, output_summary, mult, subjects,
+    def _connect_to_reports(self, sink, output_summary, freq, subjects,
                             sessions, workflow):
         """
         Connects the sink of the pipeline to an "Output Summary", which lists
@@ -382,7 +382,7 @@ class Pipeline(object):
         used to feed into the input of subsequent pipelines to ensure that
         they are executed afterwards.
         """
-        if mult == 'per_session':
+        if freq == 'per_session':
             session_outputs = JoinNode(
                 SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
@@ -400,7 +400,7 @@ class Pipeline(object):
             workflow.connect(
                 subject_session_outputs, 'subject_session_pairs',
                 output_summary, 'subject_session_pairs')
-        elif mult == 'per_subject':
+        elif freq == 'per_subject':
             subject_output_summary = JoinNode(
                 SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=self.name + '_subject_summary_outputs', wall_time=20,
@@ -409,7 +409,7 @@ class Pipeline(object):
                              subject_output_summary, 'subjects')
             workflow.connect(subject_output_summary, 'subjects',
                              output_summary, 'subjects')
-        elif mult == 'per_visit':
+        elif freq == 'per_visit':
             visit_output_summary = JoinNode(
                 VisitReport(), joinsource=sessions, joinfield='sessions',
                 name=self.name + '_visit_summary_outputs', wall_time=20,
@@ -418,7 +418,7 @@ class Pipeline(object):
                              visit_output_summary, 'sessions')
             workflow.connect(visit_output_summary, 'sessions',
                              output_summary, 'visits')
-        elif mult == 'per_project':
+        elif freq == 'per_project':
             workflow.connect(sink, 'project_id', output_summary, 'project')
 
     @property
@@ -501,24 +501,24 @@ class Pipeline(object):
             output = self.study.bound_data_spec(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
-            if output.multiplicity == 'per_project':
+            if output.frequency == 'per_project':
                 if output.prefixed_name not in tree.data_names:
                     # Return all filtered sessions
                     return all_sessions
-            elif output.multiplicity == 'per_subject':
+            elif output.frequency == 'per_subject':
                 sessions_to_process.update(chain(*(
                     filter_sessions(s.sessions) for s in subjects
                     if output.prefixed_name not in s.data_names)))
-            elif output.multiplicity == 'per_visit':
+            elif output.frequency == 'per_visit':
                 sessions_to_process.update(chain(*(
                     filter_sessions(v.sessions) for v in visits
                     if (output.prefixed_name not in v.data_names))))
-            elif output.multiplicity == 'per_session':
+            elif output.frequency == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
                     if output.prefixed_name not in s.all_data_names))
             else:
-                assert False, ("Unrecognised multiplicity of {}"
+                assert False, ("Unrecognised frequency of {}"
                                .format(output))
         return list(sessions_to_process)
 
@@ -608,7 +608,7 @@ class Pipeline(object):
         assert spec_name in self._unconnected_outputs, (
             "'{}' output has been connected already")
         outputnode = self._outputnodes[
-            self._study.data_spec(spec_name).multiplicity]
+            self._study.data_spec(spec_name).frequency]
         self._workflow.connect(node, node_output, outputnode, spec_name)
         self._unconnected_outputs.remove(spec_name)
 
@@ -872,41 +872,41 @@ class Pipeline(object):
     def inputnode(self):
         return self._inputnode
 
-    def outputnode(self, multiplicity):
+    def outputnode(self, frequency):
         """
-        Returns the output node for the given multiplicity
+        Returns the output node for the given frequency
 
         Parameters
         ----------
-        multiplicity : str
+        frequency : str
             One of 'per_session', 'per_subject', 'per_visit' and
             'per_project', specifying whether the dataset is present for each
             session, subject, visit or project.
         """
-        return self._outputnodes[multiplicity]
+        return self._outputnodes[frequency]
 
     @property
-    def mutliplicities(self):
-        "The multiplicities present in the pipeline outputs"
+    def frequencies(self):
+        "The frequencies present in the pipeline outputs"
         return self._outputs.iterkeys()
 
-    def multiplicity_outputs(self, mult):
-        return iter(self._outputs[mult])
+    def frequency_outputs(self, freq):
+        return iter(self._outputs[freq])
 
-    def multiplicity_output_names(self, mult):
-        return (o.name for o in self.multiplicity_outputs(mult))
+    def frequency_output_names(self, freq):
+        return (o.name for o in self.frequency_outputs(freq))
 
-    def multiplicity(self, output):
-        mults = [m for m, outputs in self._outputs.itervalues()
+    def frequency(self, output):
+        freqs = [m for m, outputs in self._outputs.itervalues()
                  if output in outputs]
-        if not mults:
+        if not freqs:
             raise KeyError(
                 "'{}' is not an output of pipeline '{}'".format(output,
                                                                 self.name))
         else:
-            assert len(mults) == 1
-            mult = mults[0]
-        return mult
+            assert len(freqs) == 1
+            freq = freqs[0]
+        return freq
 
     @property
     def citations(self):

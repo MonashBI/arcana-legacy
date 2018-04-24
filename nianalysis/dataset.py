@@ -26,16 +26,16 @@ class BaseDatum(object):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         assert name is None or isinstance(name, basestring)
-        assert multiplicity in self.MULTIPLICITY_OPTIONS
+        assert frequency in self.MULTIPLICITY_OPTIONS
         self._name = name
-        self._multiplicity = multiplicity
+        self._frequency = frequency
 
     def __eq__(self, other):
         try:
             return (self.name == other.name and
-                    self.multiplicity == other.multiplicity)
+                    self.frequency == other.frequency)
         except AttributeError as e:
             assert not e.message.startswith(
                 "'{}'".format(self.__class__.__name__))
@@ -52,10 +52,10 @@ class BaseDatum(object):
         if self.name != other.name:
             mismatch += ('\n{}name: self={} v other={}'
                          .format(sub_indent, self.name, other.name))
-        if self.multiplicity != other.multiplicity:
-            mismatch += ('\n{}multiplicity: self={} v other={}'
-                         .format(sub_indent, self.multiplicity,
-                                 other.multiplicity))
+        if self.frequency != other.frequency:
+            mismatch += ('\n{}frequency: self={} v other={}'
+                         .format(sub_indent, self.frequency,
+                                 other.frequency))
         return mismatch
 
     def __lt__(self, other):
@@ -72,8 +72,8 @@ class BaseDatum(object):
         return self._name
 
     @property
-    def multiplicity(self):
-        return self._multiplicity
+    def frequency(self):
+        return self._frequency
 
     def renamed(self, name):
         """
@@ -85,7 +85,7 @@ class BaseDatum(object):
 
     def initkwargs(self):
         return {'name': self.name,
-                'multiplicity': self.multiplicity}
+                'frequency': self.frequency}
 
 
 class BaseDataset(BaseDatum):
@@ -100,7 +100,7 @@ class BaseDataset(BaseDatum):
     format : FileFormat
         The file format used to store the dataset. Can be one of the
         recognised formats
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -108,8 +108,8 @@ class BaseDataset(BaseDatum):
 
     __metaclass__ = ABCMeta
 
-    def __init__(self, name, format=None, multiplicity='per_session'):  # @ReservedAssignment @IgnorePep8
-        super(BaseDataset, self).__init__(name=name, multiplicity=multiplicity)
+    def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
+        super(BaseDataset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, DataFormat)
         self._format = format
 
@@ -131,7 +131,7 @@ class BaseDataset(BaseDatum):
         return self._format
 
     def to_tuple(self):
-        return (self.name, self.format.name, self.multiplicity, self.derived,
+        return (self.name, self.format.name, self.frequency, self.derived,
                 self.is_spec)
 
     def match(self, filename):
@@ -140,9 +140,9 @@ class BaseDataset(BaseDatum):
                                       self.format is None)
 
     def __repr__(self):
-        return ("{}(name='{}', format={}, multiplicity={})"
+        return ("{}(name='{}', format={}, frequency={})"
                 .format(self.__class__.__name__, self.name, self.format,
-                        self.multiplicity))
+                        self.frequency))
 
     def initkwargs(self):
         dct = super(BaseDataset, self).initkwargs()
@@ -186,14 +186,14 @@ class BaseMatch(object):
 
     @property
     def matches(self):
-        if self.multiplicity == 'per_session':
+        if self.frequency == 'per_session':
             matches = chain(*(d.itervalues()
                               for d in self._matches.itervalues()))
-        elif self.multiplicity == 'per_subject':
+        elif self.frequency == 'per_subject':
             matches = self._matches.itervalues()
-        elif self.multiplicity == 'per_visit':
+        elif self.frequency == 'per_visit':
             matches = self._matches.itervalues()
-        elif self.multiplicity == 'per_project':
+        elif self.frequency == 'per_project':
             self._matches = iter([self._matches])
         else:
             assert False
@@ -226,7 +226,7 @@ class BaseMatch(object):
 
     def _match_tree(self, tree, **kwargs):
         # Run the match against the tree
-        if self.multiplicity == 'per_session':
+        if self.frequency == 'per_session':
             self._matches = defaultdict(dict)
             for subject in tree.subjects:
                 for sess in subject.sessions:
@@ -237,21 +237,21 @@ class BaseMatch(object):
                     self._matches[sess.subject_id][
                         sess.visit_id] = self._match_node(node,
                                                           **kwargs)
-        elif self.multiplicity == 'per_subject':
+        elif self.frequency == 'per_subject':
             self._matches = {}
             for subject in tree.subjects:
                 self._matches[subject.id] = self._match_node(subject,
                                                              **kwargs)
-        elif self.multiplicity == 'per_visit':
+        elif self.frequency == 'per_visit':
             self._matches = {}
             for visit in tree.visits:
                 self._matches[visit.id] = self._match_node(visit,
                                                            **kwargs)
-        elif self.multiplicity == 'per_project':
+        elif self.frequency == 'per_project':
             self._matches = self._match_node(tree, **kwargs)
         else:
-            assert False, "Unrecognised multiplicity '{}'".format(
-                self.multiplicity)
+            assert False, "Unrecognised frequency '{}'".format(
+                self.frequency)
 
     def _match_node(self, node, **kwargs):
         # Get names matching pattern
@@ -284,27 +284,27 @@ class BaseMatch(object):
         if self._matches is None:
             raise NiAnalysisError(
                 "{} has not been bound to study".format(self))
-        if self.multiplicity == 'per_session':
+        if self.frequency == 'per_session':
             if subject_id is None or visit_id is None:
                 raise NiAnalysisError(
                     "The 'subject_id' and 'visit_id' must be provided "
                     "to get the match from {}".format(self))
             dataset = self._matches[subject_id][visit_id]
-        elif self.multiplicity == 'per_subject':
+        elif self.frequency == 'per_subject':
             if subject_id is None:
                 raise NiAnalysisError(
                     "The 'subject_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
             dataset = self._matches[subject_id]
-        elif self.multiplicity == 'per_visit':
+        elif self.frequency == 'per_visit':
             if visit_id is None:
                 raise NiAnalysisError(
                     "The 'visit_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
             dataset = self._matches[visit_id]
-        elif self.multiplicity == 'per_project':
+        elif self.frequency == 'per_project':
             dataset = self._matches
         return dataset
 
@@ -328,12 +328,12 @@ class DatasetMatch(BaseDataset, BaseMatch):
         The name of the dataset, typically left None and set in Study
     pattern : str
         A regex pattern to match the dataset names with. Must match
-        one and only one dataset per <multiplicity>. If None, the name
+        one and only one dataset per <frequency>. If None, the name
         is used instead.
     format : FileFormat
         The file format used to store the dataset. Can be one of the
         recognised formats
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -360,14 +360,14 @@ class DatasetMatch(BaseDataset, BaseMatch):
     is_spec = False
 
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
+                 frequency='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
                  study=None):
         if pattern is None and id is None:
             raise NiAnalysisUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
-        BaseDataset.__init__(self, name, format, multiplicity)
+        BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
         if dicom_tags is not None and format != dicom_format:
@@ -395,11 +395,11 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return dct
 
     def __repr__(self):
-        return ("{}(name='{}', format={}, multiplicity={}, derived={},"
+        return ("{}(name='{}', format={}, frequency={}, derived={},"
                 " pattern={}, order={}, id={}, dicom_tags={}, "
                 "is_regex={}, study={})"
                 .format(self.__class__.__name__, self.name, self.format,
-                        self.multiplicity, self.derived, self._pattern,
+                        self.frequency, self.derived, self._pattern,
                         self.order, self.id, self.dicom_tags,
                         self.is_regex, self._study))
 
@@ -476,7 +476,7 @@ class DatasetSpec(BaseDataset):
     pipeline_name : str
         Name of the method in the study that is used to generate the
         dataset. If None the dataset is assumed to be acq
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -487,8 +487,8 @@ class DatasetSpec(BaseDataset):
     is_spec = True
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', description=None):
-        super(DatasetSpec, self).__init__(name, format, multiplicity)
+                 frequency='per_session', description=None):
+        super(DatasetSpec, self).__init__(name, format, frequency)
         if not (pipeline_name is None or
                 isinstance(pipeline_name, basestring)):
             raise NiAnalysisError(
@@ -576,9 +576,9 @@ class DatasetSpec(BaseDataset):
 
     def __repr__(self):
         return ("DatasetSpec(name='{}', format={}, pipeline_name={}, "
-                "multiplicity={})".format(
+                "frequency={})".format(
                     self.name, self.format, self.pipeline_name,
-                    self.multiplicity))
+                    self.frequency))
 
     def initkwargs(self):
         dct = super(DatasetSpec, self).initkwargs()
@@ -598,7 +598,7 @@ class Dataset(BaseDataset):
     format : FileFormat
         The file format used to store the dataset. Can be one of the
         recognised formats
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -624,10 +624,10 @@ class Dataset(BaseDataset):
     is_spec = False
 
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
-                 multiplicity='per_session', path=None,
+                 frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
                  archive=None):
-        super(Dataset, self).__init__(name, format, multiplicity)
+        super(Dataset, self).__init__(name, format, frequency)
         self._derived = derived
         self._path = path
         self._id = id
@@ -719,7 +719,7 @@ class Dataset(BaseDataset):
         return self._visit_id
 
     @classmethod
-    def from_path(cls, path, multiplicity='per_session',
+    def from_path(cls, path, frequency='per_session',
                   subject_id=None, visit_id=None, archive=None):
         if os.path.isdir(path):
             within_exts = frozenset(
@@ -734,7 +734,7 @@ class Dataset(BaseDataset):
             filename = os.path.basename(path)
             name, ext = split_extension(filename)
             data_format = data_formats_by_ext[ext]
-        return cls(name, data_format, multiplicity=multiplicity,
+        return cls(name, data_format, frequency=frequency,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)
 
@@ -813,7 +813,7 @@ class BaseField(BaseDatum):
         The name of the dataset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -823,8 +823,8 @@ class BaseField(BaseDatum):
 
     dtypes = (int, float, str)
 
-    def __init__(self, name, dtype, multiplicity):
-        super(BaseField, self).__init__(name, multiplicity)
+    def __init__(self, name, dtype, frequency):
+        super(BaseField, self).__init__(name, frequency)
         if dtype not in self.dtypes:
             raise NiAnalysisError(
                 "Invalid dtype {}, can be one of {}".format(
@@ -868,7 +868,7 @@ class Field(BaseField):
         The name of the dataset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -882,7 +882,7 @@ class Field(BaseField):
         The archive which the field is stored
     """
 
-    def __init__(self, name, value, multiplicity='per_session',
+    def __init__(self, name, value, frequency='per_session',
                  derived=False, subject_id=None, visit_id=None,
                  archive=None):
         if isinstance(value, int):
@@ -905,7 +905,7 @@ class Field(BaseField):
                 "Unrecognised field dtype {} (can be int, float or str)"
                 .format(value))
         super(Field, self).__init__(
-            name, dtype, multiplicity=multiplicity)
+            name, dtype, frequency=frequency)
         self._value = value
         self._derived = derived
         self._subject_id = subject_id
@@ -955,10 +955,10 @@ class Field(BaseField):
         return str(self.value)
 
     def __repr__(self):
-        return ("{}(name='{}', value={}, multiplicity='{}', derived={},"
+        return ("{}(name='{}', value={}, frequency='{}', derived={},"
                 " subject_id={}, visit_id={}, archive={})".format(
                     type(self).__name__, self.name, self.value,
-                    self.multiplicity, self.derived, self.subject_id,
+                    self.frequency, self.derived, self.subject_id,
                     self.visit_id, self.archive))
 
     @property
@@ -988,7 +988,7 @@ class Field(BaseField):
         dct = {}
         dct['name'] = self.name
         dct['value'] = self.value
-        dct['multiplicity'] = self.multiplicity
+        dct['frequency'] = self.frequency
         dct['derived'] = self.derived
         dct['archive'] = self.archive
         return dct
@@ -1005,11 +1005,11 @@ class FieldMatch(BaseField, BaseMatch):
         The name of the dataset
     pattern : str
         A regex pattern to match the field names with. Must match
-        one and only one dataset per <multiplicity>. If None, the name
+        one and only one dataset per <frequency>. If None, the name
         is used instead.
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -1025,12 +1025,12 @@ class FieldMatch(BaseField, BaseMatch):
 
     is_spec = False
 
-    def __init__(self, name, pattern, dtype, multiplicity='per_session',
+    def __init__(self, name, pattern, dtype, frequency='per_session',
                  derived=False, order=None, is_regex=False, study=None):
-        FieldMatch.__init__(self, name, format, multiplicity)
+        FieldMatch.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
-        super(FieldMatch, self).__init__(name, dtype, multiplicity)
+        super(FieldMatch, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
@@ -1056,10 +1056,10 @@ class FieldMatch(BaseField, BaseMatch):
         return matches
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, multiplicity={}, derived={},"
+        return ("{}(name='{}', dtype={}, frequency={}, derived={},"
                 " pattern={}, order={}, is_regex={}, study={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.multiplicity, self.derived,
+                        self.frequency, self.derived,
                         self._pattern, self.order, self.is_regex,
                         self._study))
 
@@ -1077,7 +1077,7 @@ class FieldSpec(BaseField):
         The datatype of the value. Can be one of (float, int, str)
     pipeline : method
         Method that generates values for the specified field.
-    multiplicity : str
+    frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
@@ -1088,8 +1088,8 @@ class FieldSpec(BaseField):
     is_spec = True
 
     def __init__(self, name, dtype, pipeline=None,
-                 multiplicity='per_session', description=None):
-        super(FieldSpec, self).__init__(name, dtype, multiplicity)
+                 frequency='per_session', description=None):
+        super(FieldSpec, self).__init__(name, dtype, frequency)
         self._pipeline = pipeline
         self._description = description
         self._prefix = ''
@@ -1140,9 +1140,9 @@ class FieldSpec(BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, pipeline={}, "
-                "multiplicity={})".format(
+                "frequency={})".format(
                     self.__class__.__name__, self.name, self.dtype,
-                    self.pipeline, self.multiplicity))
+                    self.pipeline, self.frequency))
 
     def initkwargs(self):
         dct = super(FieldSpec, self).initkwargs()

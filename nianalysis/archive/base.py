@@ -52,7 +52,7 @@ class Archive(object):
                     name=name)
 
     @abstractmethod
-    def sink(self, outputs, multiplicity='per_session', name=None,
+    def sink(self, outputs, frequency='per_session', name=None,
              study_name=None, **kwargs):
         """
         Returns a NiPype node that puts the output data back to the archive
@@ -74,20 +74,20 @@ class Archive(object):
 
         """
         if name is None:
-            name = "{}_{}_sink".format(self.type, multiplicity)
+            name = "{}_{}_sink".format(self.type, frequency)
         outputs = list(outputs)  # protected against iterators
-        if multiplicity.startswith('per_session'):
+        if frequency.startswith('per_session'):
             sink_class = self.Sink
-        elif multiplicity.startswith('per_subject'):
+        elif frequency.startswith('per_subject'):
             sink_class = self.SubjectSink
-        elif multiplicity.startswith('per_visit'):
+        elif frequency.startswith('per_visit'):
             sink_class = self.VisitSink
-        elif multiplicity.startswith('per_project'):
+        elif frequency.startswith('per_project'):
             sink_class = self.ProjectSink
         else:
             raise NiAnalysisError(
-                "Unrecognised multiplicity '{}' can be one of '{}'"
-                .format(multiplicity,
+                "Unrecognised frequency '{}' can be one of '{}'"
+                .format(frequency,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
@@ -281,7 +281,7 @@ class ArchiveSink(BaseArchiveSink):
     input_spec = ArchiveSinkInputSpec
     output_spec = ArchiveSinkOutputSpec
 
-    multiplicity = 'per_session'
+    frequency = 'per_session'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -295,7 +295,7 @@ class ArchiveSubjectSink(BaseArchiveSink):
     input_spec = ArchiveSubjectSinkInputSpec
     output_spec = ArchiveSubjectSinkOutputSpec
 
-    multiplicity = 'per_subject'
+    frequency = 'per_subject'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -308,7 +308,7 @@ class ArchiveVisitSink(BaseArchiveSink):
     input_spec = ArchiveVisitSinkInputSpec
     output_spec = ArchiveVisitSinkOutputSpec
 
-    multiplicity = 'per_visit'
+    frequency = 'per_visit'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -321,7 +321,7 @@ class ArchiveProjectSink(BaseArchiveSink):
     input_spec = ArchiveProjectSinkInputSpec
     output_spec = ArchiveProjectSinkOutputSpec
 
-    multiplicity = 'per_project'
+    frequency = 'per_project'
 
     def _base_outputs(self):
         outputs = self.output_spec().get()
@@ -364,14 +364,14 @@ class Project(object):
     def data(self):
         return chain(self.datasets, self.fields)
 
-    def nodes(self, multiplicity):
-        if multiplicity == 'per_session':
+    def nodes(self, frequency):
+        if frequency == 'per_session':
             nodes = chain(*(s.sessions for s in self.subjects))
-        elif multiplicity == 'per_subject':
+        elif frequency == 'per_subject':
             nodes = self.subjects
-        elif multiplicity == 'per_visit':
+        elif frequency == 'per_visit':
             nodes = self.visits
-        elif multiplicity == 'per_project':
+        elif frequency == 'per_project':
             nodes = [self]
         else:
             assert False

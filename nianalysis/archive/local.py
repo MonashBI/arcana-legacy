@@ -40,28 +40,28 @@ def lower(s):
 
 class LocalNodeMixin(object):
 
-    def _get_data_dir(self, multiplicity):
-        if multiplicity == 'per_project':
+    def _get_data_dir(self, frequency):
+        if frequency == 'per_project':
             data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
                                     SUMMARY_NAME)
-        elif multiplicity.startswith('per_subject'):
+        elif frequency.startswith('per_subject'):
             data_dir = os.path.join(
                 self.base_dir, str(self.inputs.subject_id),
                 SUMMARY_NAME)
-        elif multiplicity.startswith('per_visit'):
+        elif frequency.startswith('per_visit'):
             data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
                                     str(self.inputs.visit_id))
-        elif multiplicity.startswith('per_session'):
+        elif frequency.startswith('per_session'):
             data_dir = os.path.join(
                 self.base_dir, str(self.inputs.subject_id),
                 str(self.inputs.visit_id))
         else:
-            assert False, "Unrecognised multiplicity '{}'".format(
-                multiplicity)
+            assert False, "Unrecognised frequency '{}'".format(
+                frequency)
         return data_dir
 
-    def fields_path(self, multiplicity):
-        return os.path.join(self._get_data_dir(multiplicity),
+    def fields_path(self, frequency):
+        return os.path.join(self._get_data_dir(frequency),
                             FIELDS_FNAME)
 
     @property
@@ -89,16 +89,16 @@ class LocalSource(ArchiveSource, LocalNodeMixin):
             fname = dataset.fname(subject_id=self.inputs.subject_id,
                                   visit_id=self.inputs.visit_id)
             outputs[dataset.name + PATH_SUFFIX] = os.path.join(
-                self._get_data_dir(dataset.multiplicity), fname)
+                self._get_data_dir(dataset.frequency), fname)
         # Source fields from JSON file
-        for mult, spec_grp in groupby(
-            sorted(self.fields, key=attrgetter('multiplicity')),
-                key=attrgetter('multiplicity')):
+        for freq, spec_grp in groupby(
+            sorted(self.fields, key=attrgetter('frequency')),
+                key=attrgetter('frequency')):
             # Load fields JSON, locking to prevent read/write conflicts
             # Would be better if only checked if locked to allow
-            # concurrent reads but not possible with multi-process
+            # concurrent reads but not possible with freqi-process
             # locks I believe.
-            fpath = self.fields_path(mult)
+            fpath = self.fields_path(freq)
             try:
                 with InterProcessLock(
                         fpath + LOCK, logger=logger), open(fpath) as f:
@@ -155,7 +155,7 @@ class LocalSinkMixin(LocalNodeMixin):
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
                             spec.format, ext))
-            assert spec.multiplicity == self.multiplicity
+            assert spec.frequency == self.frequency
             # Copy to local system
             src_path = os.path.abspath(filename)
             out_fname = spec.fname()
@@ -179,7 +179,7 @@ class LocalSinkMixin(LocalNodeMixin):
         # Loop through fields connected to the sink and save them in the
         # fields JSON file
         out_fields = []
-        fpath = self.fields_path(self.multiplicity)
+        fpath = self.fields_path(self.frequency)
         # Open fields JSON, locking to prevent other processes
         # reading or writing
         if self.fields:
@@ -338,14 +338,14 @@ class LocalArchive(Archive):
                     visit_id not in visit_ids):
                 continue
             if (subj_id, visit_id) == (None, None):
-                multiplicity = 'per_project'
+                frequency = 'per_project'
             elif subj_id is None:
-                multiplicity = 'per_visit'
+                frequency = 'per_visit'
                 all_visit_ids.add(visit_id)
             elif visit_id is None:
-                multiplicity = 'per_subject'
+                frequency = 'per_subject'
             else:
-                multiplicity = 'per_session'
+                frequency = 'per_session'
                 all_visit_ids.add(visit_id)
             datasets = []
             fields = {}
@@ -355,16 +355,16 @@ class LocalArchive(Archive):
                 datasets.append(
                     Dataset.from_path(
                         os.path.join(session_path, dname),
-                        multiplicity=multiplicity,
+                        frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id))
             if FIELDS_FNAME in dnames:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
-                    multiplicity=multiplicity,
+                    frequency=frequency,
                     subject_id=subj_id, visit_id=visit_id)
             datasets = sorted(datasets)
             fields = sorted(fields)
-            if multiplicity == 'per_session':
+            if frequency == 'per_session':
                 all_sessions[subj_id][visit_id] = Session(
                     subject_id=subj_id, visit_id=visit_id,
                     datasets=datasets, fields=fields)
@@ -434,10 +434,10 @@ class LocalArchive(Archive):
         return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
                             SUMMARY_NAME)
 
-    def fields_from_json(self, fname, multiplicity,
+    def fields_from_json(self, fname, frequency,
                          subject_id=None, visit_id=None):
         with open(fname) as f:
             dct = json.load(f)
-        return [Field(name=k, value=v, multiplicity=multiplicity,
+        return [Field(name=k, value=v, frequency=frequency,
                       subject_id=subject_id, visit_id=visit_id)
                 for k, v in dct.items()]

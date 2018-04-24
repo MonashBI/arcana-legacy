@@ -30,19 +30,19 @@ class TestStudy(Study):
         DatasetSpec('pipeline4', nifti_gz_format, 'pipeline4'),
         DatasetSpec('subject_summary', mrtrix_format,
                     'subject_summary_pipeline',
-                    multiplicity='per_subject'),
+                    frequency='per_subject'),
         DatasetSpec('visit_summary', mrtrix_format,
                     'visit_summary_pipeline',
-                    multiplicity='per_visit'),
+                    frequency='per_visit'),
         DatasetSpec('project_summary', mrtrix_format,
                     'project_summary_pipeline',
-                    multiplicity='per_project'),
+                    frequency='per_project'),
         DatasetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
-                    multiplicity='per_visit'),
+                    frequency='per_visit'),
         DatasetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
-                    multiplicity='per_subject')]
+                    frequency='per_subject')]
 
     add_default_options = {'pipeline_option': False}
 
@@ -292,7 +292,7 @@ class TestRunPipeline(BaseTestCase):
     def test_pipeline_prerequisites(self):
         self.study.data('pipeline4')[0]
         for dataset in TestStudy.data_specs():
-            if dataset.multiplicity == 'per_session' and dataset.derived:
+            if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:
                         self.assertDatasetCreated(
@@ -314,7 +314,7 @@ class TestRunPipeline(BaseTestCase):
                         self.output_file_path(
                             'subject_summary.mif', self.study.name,
                             subject=subject_id,
-                            multiplicity='per_subject')),
+                            frequency='per_subject')),
                     shell=True))
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
@@ -334,7 +334,7 @@ class TestRunPipeline(BaseTestCase):
                     'mrstats {} -output mean'.format(
                         self.output_file_path(
                             'visit_summary.mif', self.study.name,
-                            visit=visit_id, multiplicity='per_visit')),
+                            visit=visit_id, frequency='per_visit')),
                     shell=True))
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
@@ -352,7 +352,7 @@ class TestRunPipeline(BaseTestCase):
             mean_val = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
                     'project_summary.mif', self.study.name,
-                    multiplicity='per_project')),
+                    frequency='per_project')),
                 shell=True))
             self.assertEqual(mean_val,
                              len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
@@ -365,7 +365,7 @@ class TestRunPipeline(BaseTestCase):
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
-                visit=visit_id, multiplicity='per_visit')
+                visit=visit_id, frequency='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
@@ -375,7 +375,7 @@ class TestRunPipeline(BaseTestCase):
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', self.study.name,
-                subject=subject_id, multiplicity='per_subject')
+                subject=subject_id, frequency='per_subject')
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
@@ -543,7 +543,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                                      targets[subj_id][visit_id],
                                      self.study_name,
                                      subject=subj_id, visit=visit_id,
-                                     multiplicity='per_session')
+                                     frequency='per_session')
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
@@ -573,4 +573,4 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #                                      targets[subj_id][visit_id],
 #                                      self.study_name,
 #                                      subject=subj_id, session=visit_id,
-#                                      multiplicity='per_session')
+#                                      frequency='per_session')

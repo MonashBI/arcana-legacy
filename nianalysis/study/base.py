@@ -214,18 +214,18 @@ class Study(object):
                 data = chain(*(
                     (d for d in n.datasets
                      if d.name == spec.prefixed_name)
-                    for n in self.tree.nodes(spec.multiplicity)))
+                    for n in self.tree.nodes(spec.frequency)))
             elif isinstance(spec, BaseField):
                 data = chain(*(
                     (f for f in n.fields
                      if f.name == spec.prefixed_name)
-                    for n in self.tree.nodes(spec.multiplicity)))
+                    for n in self.tree.nodes(spec.frequency)))
             else:
                 assert False
-        if subject_ids is not None and spec.multiplicity in (
+        if subject_ids is not None and spec.frequency in (
                 'per_session', 'per_subject'):
             data = [d for d in data if d.subject_id in subject_ids]
-        if visit_ids is not None and spec.multiplicity in (
+        if visit_ids is not None and spec.frequency in (
                 'per_session', 'per_visit'):
             data = [d for d in data if d.visit_id in visit_ids]
         if not data:

@@ -60,11 +60,11 @@ class DummyStudy(Study):
         DatasetSpec('sink3', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('sink4', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('subject_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_subject'),
+                    frequency='per_subject'),
         DatasetSpec('visit_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_visit'),
+                    frequency='per_visit'),
         DatasetSpec('project_sink', nifti_gz_format, 'dummy_pipeline',
-                    multiplicity='per_project'),
+                    frequency='per_project'),
         DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
         DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline')]
@@ -300,7 +300,7 @@ class TestXnatArchive(BaseTestCase):
         subject_sink_files = [
             study.bound_data_spec('subject_sink')]
         subject_sink = archive.sink(subject_sink_files,
-                                    multiplicity='per_subject',
+                                    frequency='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.description = (
@@ -308,7 +308,7 @@ class TestXnatArchive(BaseTestCase):
         # Test visit sink
         visit_sink_files = [study.bound_data_spec('visit_sink')]
         visit_sink = archive.sink(visit_sink_files,
-                                  multiplicity='per_visit',
+                                  frequency='per_visit',
                                   study_name=self.SUMMARY_STUDY_NAME)
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.description = (
@@ -317,7 +317,7 @@ class TestXnatArchive(BaseTestCase):
         project_sink_files = [
             study.bound_data_spec('project_sink')]
         project_sink = archive.sink(project_sink_files,
-                                    multiplicity='per_project',
+                                    frequency='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
 
         project_sink.inputs.name = 'project_summary'
@@ -838,24 +838,24 @@ class TestOnXnatMixin(object):
         return session + XnatArchive.PROCESSED_SUFFIX
 
     def get_session_dir(self, subject=None, visit=None,
-                        multiplicity='per_session', derived=False):
-        if subject is None and multiplicity in ('per_session', 'per_subject'):
+                        frequency='per_session', derived=False):
+        if subject is None and frequency in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if visit is None and multiplicity in ('per_session', 'per_visit'):
+        if visit is None and frequency in ('per_session', 'per_visit'):
             visit = self.VISIT
-        if multiplicity == 'per_session':
+        if frequency == 'per_session':
             assert subject is not None
             assert visit is not None
             parts = [self.PROJECT, subject, visit]
-        elif multiplicity == 'per_subject':
+        elif frequency == 'per_subject':
             assert subject is not None
             assert visit is None
             parts = [self.PROJECT, subject, XnatArchive.SUMMARY_NAME]
-        elif multiplicity == 'per_visit':
+        elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
             parts = [self.PROJECT, XnatArchive.SUMMARY_NAME, visit]
-        elif multiplicity == 'per_project':
+        elif frequency == 'per_project':
             assert subject is None
             assert visit is None
             parts = [self.PROJECT, XnatArchive.SUMMARY_NAME,
@@ -871,17 +871,17 @@ class TestOnXnatMixin(object):
         return session_path
 
     def output_file_path(self, fname, study_name, subject=None, visit=None,
-                         multiplicity='per_session'):
+                         frequency='per_session'):
         try:
             acq_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
-                multiplicity=multiplicity, derived=False)
+                frequency=frequency, derived=False)
         except KeyError:
             acq_path = None
         try:
             proc_path = self.BASE_CLASS.output_file_path(
                 self, fname, study_name, subject=subject, visit=visit,
-                multiplicity=multiplicity, derived=True)
+                frequency=frequency, derived=True)
         except KeyError:
             proc_path = None
         if acq_path is not None and os.path.exists(acq_path):

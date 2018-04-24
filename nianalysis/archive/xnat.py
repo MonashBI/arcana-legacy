@@ -125,33 +125,33 @@ class XnatSource(ArchiveSource, XnatMixin):
             # dirs
             sessions = {}
             cache_dirs = {}
-            for mult, derived in ([('per_session', False)] +
+            for freq, derived in ([('per_session', False)] +
                                     zip(MULTIPLICITIES, repeat(True))):
                 subj_label, sess_label = XnatArchive.get_labels(
-                    mult, self.inputs.project_id, subject_id, visit_id)
-                if mult == 'per_session' and derived:
+                    freq, self.inputs.project_id, subject_id, visit_id)
+                if freq == 'per_session' and derived:
                     sess_label += XnatArchive.PROCESSED_SUFFIX
-                cache_dirs[(mult, derived)] = os.path.join(
+                cache_dirs[(freq, derived)] = os.path.join(
                     base_cache_dir, subj_label, sess_label)
                 try:
                     subject = project.subjects[subj_label]
-                    sessions[(mult, derived)] = subject.experiments[
+                    sessions[(freq, derived)] = subject.experiments[
                         sess_label]
                 except KeyError:
                     continue
             outputs = {}
             for dataset in self.datasets:
                 try:
-                    session = sessions[(dataset.multiplicity,
+                    session = sessions[(dataset.frequency,
                                         dataset.derived)]
                 except KeyError:
                     raise NiAnalysisXnatArchiveMissingDatasetException(
-                        "Did not find{} session for multiplicity '{}', "
+                        "Did not find{} session for frequency '{}', "
                         "it was expected to find {} in"
                         .format(
-                            (' derived' if dataset.multiplicity else ''),
-                            self.multiplicity, dataset))
-                cache_dir = cache_dirs[(dataset.multiplicity,
+                            (' derived' if dataset.frequency else ''),
+                            self.frequency, dataset))
+                cache_dir = cache_dirs[(dataset.frequency,
                                         dataset.derived)]
                 try:
                     xdataset = session.scans[
@@ -217,7 +217,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                 outputs[dataset.name + PATH_SUFFIX] = cache_path
             for field in self.fields:
                 prefixed_name = field.prefixed_name
-                session = sessions[(field.multiplicity,
+                session = sessions[(field.frequency,
                                     field.derived)]
                 outputs[field.name + FIELD_SUFFIX] = field.dtype(
                     session.fields[prefixed_name])
@@ -403,11 +403,11 @@ class XnatSinkMixin(XnatMixin):
             # Loop through datasets connected to the sink and copy them to the
             # cache directory and upload to daris.
             for dataset in self.datasets:
-                assert dataset.multiplicity == self.multiplicity
+                assert dataset.frequency == self.frequency
                 assert dataset.derived, (
-                    "{} (format: {}, mult: {}) isn't derived"
+                    "{} (format: {}, freq: {}) isn't derived"
                     .format(dataset.name, dataset.format_name,
-                            dataset.multiplicity))
+                            dataset.frequency))
                 filename = getattr(self.inputs,
                                    dataset.name + PATH_SUFFIX)
                 if not isdefined(filename):
@@ -446,7 +446,7 @@ class XnatSinkMixin(XnatMixin):
                     dataset.format.name.upper())
                 xresource.upload(dst_path, out_fname)
             for field in self.fields:
-                assert field.multiplicity == self.multiplicity
+                assert field.frequency == self.frequency
                 assert field.derived, ("{} isn't derived".format(
                     field))
                 session.fields[field.prefixed_name] = getattr(
@@ -474,8 +474,8 @@ class XnatSinkMixin(XnatMixin):
         except AttributeError:
             visit_id = None
         subj_label, sess_label = XnatArchive.get_labels(
-            self.multiplicity, self.inputs.project_id, subject_id, visit_id)
-        if self.multiplicity == 'per_session':
+            self.frequency, self.inputs.project_id, subject_id, visit_id)
+        if self.frequency == 'per_session':
             sess_label += XnatArchive.PROCESSED_SUFFIX
             if visit_id is not None:
                 visit_id += XnatArchive.PROCESSED_SUFFIX
@@ -712,7 +712,7 @@ class XnatArchive(Archive):
 
     def cache_path(self, dataset):
         subj_dir, sess_dir = self.get_labels(
-            dataset.multiplicity, self.project_id,
+            dataset.frequency, self.project_id,
             dataset.subject_id, dataset.visit_id)
         return os.path.join(self._cache_dir, self.project_id,
                             subj_dir, sess_dir, dataset.fname())
@@ -902,7 +902,7 @@ class XnatArchive(Archive):
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, mult, subject_id=None,
+    def _get_datasets(self, xsession, freq, subject_id=None,
                       visit_id=None, derived=False):
         """
         Returns a list of datasets within an XNAT session
@@ -911,8 +911,8 @@ class XnatArchive(Archive):
         ----------
         xsession : xnat.classes.MrSessionData
             The XNAT session to extract the datasets from
-        mult : str
-            The multiplicity of the returned datasets (either 'per_session',
+        freq : str
+            The frequency of the returned datasets (either 'per_session',
             'per_subject', 'per_visit', or 'per_project')
         derived : bool
             Whether the session is derived or not
@@ -928,12 +928,12 @@ class XnatArchive(Archive):
                 guess_data_format(xdataset).lower()]
             datasets.append(Dataset(
                 xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
-                multiplicity=mult, path=None, id=xdataset.id,
+                frequency=freq, path=None, id=xdataset.id,
                 uri=xdataset.uri, subject_id=subject_id,
                 visit_id=visit_id, archive=self))
         return sorted(datasets)
 
-    def _get_fields(self, xsession, mult, subject_id=None,
+    def _get_fields(self, xsession, freq, subject_id=None,
                     visit_id=None, derived=False):
         """
         Returns a list of fields within an XNAT session
@@ -942,8 +942,8 @@ class XnatArchive(Archive):
         ----------
         xsession : xnat.classes.MrSessionData
             The XNAT session to extract the fields from
-        mult : str
-            The multiplicity of the returned fields (either 'per_session',
+        freq : str
+            The frequency of the returned fields (either 'per_session',
             'per_subject', 'per_visit', or 'per_project')
 
         Returns
@@ -955,7 +955,7 @@ class XnatArchive(Archive):
         for name, value in xsession.fields.items():
             fields.append(Field(
                 name=name, value=value, derived=derived,
-                multiplicity=mult, subject_id=subject_id,
+                frequency=freq, subject_id=subject_id,
                 visit_id=visit_id))
         return sorted(fields)
 
@@ -987,35 +987,35 @@ class XnatArchive(Archive):
         return self._project_id
 
     @classmethod
-    def get_labels(cls, multiplicity, project_id, subject_id=None,
+    def get_labels(cls, frequency, project_id, subject_id=None,
                    visit_id=None):
         """
         Returns the labels for the XNAT subject and sessions given
-        the multiplicity and provided IDs.
+        the frequency and provided IDs.
         """
-        if multiplicity == 'per_session':
+        if frequency == 'per_session':
             assert visit_id is not None
             assert subject_id is not None
             subj_label = '{}_{}'.format(project_id, subject_id)
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            visit_id)
-        elif multiplicity == 'per_subject':
+        elif frequency == 'per_subject':
             assert subject_id is not None
             subj_label = '{}_{}'.format(project_id, subject_id)
             sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            cls.SUMMARY_NAME)
-        elif multiplicity == 'per_visit':
+        elif frequency == 'per_visit':
             assert visit_id is not None
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            visit_id)
-        elif multiplicity == 'per_project':
+        elif frequency == 'per_project':
             subj_label = '{}_{}'.format(project_id, cls.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            cls.SUMMARY_NAME)
         else:
             raise NiAnalysisError(
-                "Unrecognised multiplicity '{}'".format(multiplicity))
+                "Unrecognised frequency '{}'".format(frequency))
         return (subj_label, sess_label)
 
 

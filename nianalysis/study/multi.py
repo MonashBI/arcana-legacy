@@ -324,11 +324,11 @@ class TranslatedPipeline(Pipeline):
                 pipeline.inputnode, input_name)
         # Translate outputs from sub-study pipeline
         self._outputs = {}
-        for mult in pipeline.mutliplicities:
+        for freq in pipeline.frequencies:
             try:
-                self._outputs[mult] = [
+                self._outputs[freq] = [
                     o.renamed(sub_study_spec.inverse_map(o.name))
-                    for o in pipeline.multiplicity_outputs(mult)]
+                    for o in pipeline.frequency_outputs(freq)]
             except NiAnalysisNameError as e:
                 raise NiAnalysisMissingDatasetError(
                     "'{}' output required for pipeline '{}' in '{}' "
@@ -341,25 +341,25 @@ class TranslatedPipeline(Pipeline):
         if add_outputs is not None:
             self._check_spec_names(add_outputs, 'additional outputs')
             for output in add_outputs:
-                combined_study.data_spec(output).multiplicity
-                self._outputs[mult].append(output)
+                combined_study.data_spec(output).frequency
+                self._outputs[freq].append(output)
             self._unconnected_outputs.update(o.name
                                              for o in add_outputs)
-        # Create output nodes for each multiplicity
+        # Create output nodes for each frequency
         self._outputnodes = {}
-        for mult in pipeline.mutliplicities:
-            self._outputnodes[mult] = self.create_node(
+        for freq in pipeline.frequencies:
+            self._outputnodes[freq] = self.create_node(
                 IdentityInterface(
                     fields=list(
-                        self.multiplicity_output_names(mult))),
+                        self.frequency_output_names(freq))),
                 name="{}_{}_outputnode_wrapper".format(ss_name,
-                                                       mult))
+                                                       freq))
             # Connect sub-study outputs
-            for output_name in pipeline.multiplicity_output_names(mult):
+            for output_name in pipeline.frequency_output_names(freq):
                 self.workflow.connect(
-                    pipeline.outputnode(mult),
+                    pipeline.outputnode(freq),
                     output_name,
-                    self._outputnodes[mult],
+                    self._outputnodes[freq],
                     sub_study_spec.inverse_map(output_name))
         # Copy additional info fields
         self._citations = pipeline._citations
