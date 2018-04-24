@@ -94,6 +94,9 @@ class Archive(object):
         return Node(sink_class(study_name, datasets, fields, **kwargs),
                     name=name)
 
+    def __ne__(self, other):
+        return not (self == other)
+
 
 class BaseArchiveNode(BaseInterface):
     """

@@ -273,6 +273,9 @@ class LocalArchive(Archive):
     def __repr__(self):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
 
+    def __eq__(self, other):
+        return self.base_dir == other.base_dir
+
     def source(self, *args, **kwargs):
         source = super(LocalArchive, self).source(
             *args, base_dir=self.base_dir, **kwargs)

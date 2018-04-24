@@ -141,8 +141,16 @@ class XnatSource(ArchiveSource, XnatMixin):
                     continue
             outputs = {}
             for dataset in self.datasets:
-                session = sessions[(dataset.multiplicity,
-                                    dataset.derived)]
+                try:
+                    session = sessions[(dataset.multiplicity,
+                                        dataset.derived)]
+                except KeyError:
+                    raise NiAnalysisXnatArchiveMissingDatasetException(
+                        "Did not find{} session for multiplicity '{}', "
+                        "it was expected to find {} in"
+                        .format(
+                            (' derived' if dataset.multiplicity else ''),
+                            self.multiplicity, dataset))
                 cache_dir = cache_dirs[(dataset.multiplicity,
                                         dataset.derived)]
                 try:
@@ -572,10 +580,8 @@ class XnatArchive(Archive):
     PROCESSED_SUFFIX = '_PROC'
     MD5_SUFFIX = '.md5.json'
 
-    def __init__(self, project_id, user=None, password=None,
-                 cache_dir=None,
-                 server='https://mbi-xnat.erc.monash.edu.au',
-                 check_md5=True):
+    def __init__(self, server, project_id, user=None, password=None,
+                 cache_dir=None, check_md5=True):
         self._project_id = project_id
         self._server = server
         self._user = user
@@ -591,6 +597,17 @@ class XnatArchive(Archive):
             if e.errno != errno.EEXIST:
                 raise
         self._check_md5 = check_md5
+
+    def __repr__(self):
+        return ("{}(server={}, project_id={}, cache_dir={})"
+                .format(type(self).__name__, self.project_id,
+                        self.cache_dir))
+
+    def __eq__(self, other):
+        return (self.server == other.server and
+                self.project_id == other.project_id and
+                self.subject_ids == other.subject_ids and
+                self.visit_ids == other.visit_ids)
 
     def source(self, *args, **kwargs):
         source = super(XnatArchive, self).source(*args, **kwargs)

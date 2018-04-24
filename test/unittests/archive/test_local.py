@@ -258,137 +258,184 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     fields in a project returned in a Project object.
     """
 
-    def ref_tree(self, base_dir=None, set_ids=False):
+    def ref_tree(self, archive, base_dir=None, set_ids=False):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
                     Dataset('hundreds', mrtrix_format,
-                            subject_id='subject1', visit_id='visit1'),
+                            subject_id='subject1', visit_id='visit1',
+                            archive=archive),
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject1', visit_id='visit1'),
+                            subject_id='subject1', visit_id='visit1',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject1', visit_id='visit1')],
+                            subject_id='subject1', visit_id='visit1',
+                            archive=archive)],
                 fields=[
                     Field('a', value=1,
-                          subject_id='subject1', visit_id='visit1'),
+                          subject_id='subject1', visit_id='visit1',
+                          archive=archive),
                     Field('b', value=10,
-                          subject_id='subject1', visit_id='visit1'),
+                          subject_id='subject1', visit_id='visit1',
+                          archive=archive),
                     Field('d', value=42.42,
-                          subject_id='subject1', visit_id='visit1')]),
+                          subject_id='subject1', visit_id='visit1',
+                          archive=archive)]),
             Session(
                 'subject1', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject1', visit_id='visit2'),
+                            subject_id='subject1', visit_id='visit2',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject1', visit_id='visit2')],
+                            subject_id='subject1', visit_id='visit2',
+                            archive=archive)],
                 fields=[
                     Field('a', value=2,
-                          subject_id='subject1', visit_id='visit2'),
+                          subject_id='subject1', visit_id='visit2',
+                          archive=archive),
                     Field('c', value='van',
-                          subject_id='subject1', visit_id='visit2')]),
+                          subject_id='subject1', visit_id='visit2',
+                          archive=archive)]),
             Session(
                 'subject1', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format,
-                            subject_id='subject1', visit_id='visit3'),
+                            subject_id='subject1', visit_id='visit3',
+                            archive=archive),
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject1', visit_id='visit3'),
+                            subject_id='subject1', visit_id='visit3',
+                            archive=archive),
                     Dataset('thousands', mrtrix_format,
-                            subject_id='subject1', visit_id='visit3')],
+                            subject_id='subject1', visit_id='visit3',
+                            archive=archive)],
                 fields=[
                     Field('a', value=3,
-                          subject_id='subject1', visit_id='visit3'),
+                          subject_id='subject1', visit_id='visit3',
+                          archive=archive),
                     Field('b', value=30,
-                          subject_id='subject1', visit_id='visit3')]),
+                          subject_id='subject1', visit_id='visit3',
+                          archive=archive)]),
             Session(
                 'subject2', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject2', visit_id='visit1'),
+                            subject_id='subject2', visit_id='visit1',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject2', visit_id='visit1')],
+                            subject_id='subject2', visit_id='visit1',
+                            archive=archive)],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject2', visit_id='visit2'),
+                            subject_id='subject2', visit_id='visit2',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject2', visit_id='visit2')],
+                            subject_id='subject2', visit_id='visit2',
+                            archive=archive)],
                 fields=[
                     Field('a', value=22,
-                          subject_id='subject2', visit_id='visit2'),
+                          subject_id='subject2', visit_id='visit2',
+                          archive=archive),
                     Field('b', value=220,
-                          subject_id='subject2', visit_id='visit2'),
+                          subject_id='subject2', visit_id='visit2',
+                          archive=archive),
                     Field('c', value='buggy',
-                          subject_id='subject2', visit_id='visit2')]),
+                          subject_id='subject2', visit_id='visit2',
+                          archive=archive)]),
             Session(
                 'subject2', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format,
-                            subject_id='subject2', visit_id='visit3'),
+                            subject_id='subject2', visit_id='visit3',
+                            archive=archive),
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject2', visit_id='visit3'),
+                            subject_id='subject2', visit_id='visit3',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject2', visit_id='visit3'),
+                            subject_id='subject2', visit_id='visit3',
+                            archive=archive),
                     Dataset('thousands', mrtrix_format,
-                            subject_id='subject2', visit_id='visit3')],
+                            subject_id='subject2', visit_id='visit3',
+                            archive=archive)],
                 fields=[
                     Field('a', value=33,
-                            subject_id='subject2', visit_id='visit3')]),
+                            subject_id='subject2', visit_id='visit3',
+                            archive=archive)]),
             Session(
                 'subject3', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject3', visit_id='visit1')],
+                            subject_id='subject3', visit_id='visit1',
+                            archive=archive)],
                 fields=[]),
             Session(
                 'subject3', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject3', visit_id='visit2'),
+                            subject_id='subject3', visit_id='visit2',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject3', visit_id='visit2')],
+                            subject_id='subject3', visit_id='visit2',
+                            archive=archive)],
                 fields=[]),
             Session(
                 'subject3', 'visit3', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject3', visit_id='visit3'),
+                            subject_id='subject3', visit_id='visit3',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject3', visit_id='visit3'),
+                            subject_id='subject3', visit_id='visit3',
+                            archive=archive),
                     Dataset('thousands', mrtrix_format,
-                            subject_id='subject3', visit_id='visit3')],
+                            subject_id='subject3', visit_id='visit3',
+                            archive=archive)],
                 fields=[
                     Field('a', value=333,
-                          subject_id='subject3', visit_id='visit3'),
+                          subject_id='subject3', visit_id='visit3',
+                          archive=archive),
                     Field('b', value=3330,
-                          subject_id='subject3', visit_id='visit3')]),
+                          subject_id='subject3', visit_id='visit3',
+                          archive=archive)]),
             Session(
                 'subject4', 'visit1', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject4', visit_id='visit1')],
+                            subject_id='subject4', visit_id='visit1',
+                            archive=archive)],
                 fields=[
                     Field('a', value=1111,
-                          subject_id='subject4', visit_id='visit1'),
+                          subject_id='subject4', visit_id='visit1',
+                          archive=archive),
                     Field('d', value=0.9999999999,
-                          subject_id='subject4', visit_id='visit1')]),
+                          subject_id='subject4', visit_id='visit1',
+                          archive=archive)]),
             Session(
                 'subject4', 'visit2', datasets=[
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject4', visit_id='visit2'),
+                            subject_id='subject4', visit_id='visit2',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject4', visit_id='visit2')],
+                            subject_id='subject4', visit_id='visit2',
+                            archive=archive)],
                 fields=[
                     Field('a', value=2222,
-                          subject_id='subject4', visit_id='visit2'),
+                          subject_id='subject4', visit_id='visit2',
+                          archive=archive),
                     Field('b', value=22220,
-                          subject_id='subject4', visit_id='visit2'),
+                          subject_id='subject4', visit_id='visit2',
+                          archive=archive),
                     Field('c', value='bus',
-                          subject_id='subject4', visit_id='visit2')]),
+                          subject_id='subject4', visit_id='visit2',
+                          archive=archive)]),
             Session(
                 'subject4', 'visit3', datasets=[
                     Dataset('hundreds', mrtrix_format,
-                            subject_id='subject4', visit_id='visit3'),
+                            subject_id='subject4', visit_id='visit3',
+                            archive=archive),
                     Dataset('ones', mrtrix_format,
-                            subject_id='subject4', visit_id='visit3'),
+                            subject_id='subject4', visit_id='visit3',
+                            archive=archive),
                     Dataset('tens', mrtrix_format,
-                            subject_id='subject4', visit_id='visit3'),
+                            subject_id='subject4', visit_id='visit3',
+                            archive=archive),
                     Dataset('thousands', mrtrix_format,
-                            subject_id='subject4', visit_id='visit3')],
+                            subject_id='subject4', visit_id='visit3',
+                            archive=archive)],
                 fields=[])]
         project = Project(
             subjects=[
@@ -521,7 +568,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         open(os.path.join(os.path.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
         tree = archive.get_tree()
-        ref_tree = self.ref_tree(self.project_dir)
+        ref_tree = self.ref_tree(archive, self.project_dir)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

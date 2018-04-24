@@ -487,8 +487,8 @@ class TestXnatArchive(BaseTestCase):
                               project_id=self.PROJECT)
         study = DummyStudy(
             self.STUDY_NAME, archive, LinearRunner('ad'),
-            inputs=[DatasetMatch(DATASET_NAME, DATASET_NAME,
-                                 nifti_gz_format)])
+            inputs=[DatasetMatch(DATASET_NAME, nifti_gz_format,
+                                 DATASET_NAME)])
         source = archive.source([study.input(DATASET_NAME)],
                                 name='delayed_source',
                                 study_name='delayed_study')
@@ -567,8 +567,8 @@ class TestXnatArchive(BaseTestCase):
             server=SERVER, cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, archive, LinearRunner('ad'),
-            inputs=[DatasetMatch(DATASET_NAME, DATASET_NAME,
-                                 nifti_gz_format)])
+            inputs=[DatasetMatch(DATASET_NAME, nifti_gz_format,
+                                 DATASET_NAME)])
         source = archive.source([study.input(DATASET_NAME)],
                                 name='digest_check_source',
                                 study_name=STUDY_NAME)
@@ -663,7 +663,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             project_id=self.PROJECT)
         study = DummyStudy(
             'study', archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('source{}'.format(i), d, dicom_format)
+            inputs=[DatasetMatch('source{}'.format(i), dicom_format, d)
                     for i, d in enumerate(self.DATASETS, start=1)],
             subject_ids=[self.SUBJECT], visit_ids=[self.VISIT])
         source = archive.source(
@@ -687,7 +687,7 @@ class TestOnXnatMixin(object):
     sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
     # Used to specify datasets that should be put in the derived
     # session
-    DERIVED_SUFFIX = '_derived'
+#     DERIVED_SUFFIX = '_derived'
 
     def setUp(self):
         self._clean_up()
@@ -707,13 +707,12 @@ class TestOnXnatMixin(object):
                     xsession = xnat_login.classes.MrSessionData(
                         label=sess_id,
                         parent=xsubject)
-                    if any(d.name.endswith(self.DERIVED_SUFFIX)
-                           for d in session.datasets):
+                    if any(self._is_derived(d) for d in session.datasets):
                         xsession_proc = xnat_login.classes.MrSessionData(
                             label=sess_id + XnatArchive.PROCESSED_SUFFIX,
                             parent=xsubject)
                     for dataset in session.datasets:
-                        if dataset.name.endswith(self.DERIVED_SUFFIX):
+                        if self._is_derived(dataset):
                             xsess = xsession_proc
                         else:
                             xsess = xsession
@@ -760,12 +759,13 @@ class TestOnXnatMixin(object):
                 for field in project.fields:
                     xproj_summary.fields[field.name] = field.value
         self._output_cache_dir = tempfile.mkdtemp()
-        self._archive = XnatArchive(self.project_id, server=SERVER,
+        self._archive = XnatArchive(project_id=self.project_id,
+                                    server=SERVER,
                                     cache_dir=self.cache_dir)
 
     def _upload_datset(self, xnat_login, dataset, xsession):
-        if dataset.name.endswith(self.DERIVED_SUFFIX):
-            type_name = dataset.name[:-len(self.DERIVED_SUFFIX)]
+        if self._is_derived(dataset):
+            type_name = self._derived_name(dataset)
         else:
             type_name = dataset.name
         xdataset = xnat_login.classes.MrScanData(
@@ -780,6 +780,16 @@ class TestOnXnatMixin(object):
             xresource.upload(
                 dataset.path,
                 os.path.basename(dataset.path))
+
+    @classmethod
+    def _is_derived(cls, dataset):
+        # return dataset.name.endswith(self.DERIVED_SUFFIX
+        return '_' in dataset.name
+
+    @classmethod
+    def _derived_name(cls, dataset):
+        # return name[:-len(self.DERIVED_SUFFIX)]
+        return dataset.name
 
     def tearDown(self):
         self._clean_up()
@@ -922,10 +932,10 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
                     DatasetMatch('dataset2', mrtrix_format, 'dataset2'),
                     DatasetMatch('dataset3', mrtrix_format, 'dataset3'),
                     DatasetMatch('dataset5', mrtrix_format, 'dataset5')])
-        archive.cache(datasets=study.inputs,
-                      subject_ids=self.SUBJECTS,
-                      visit_ids=self.VISITS,
-                      work_dir=self.work_dir)
+        archive.batch_cache(datasets=study.inputs,
+                            subject_ids=self.SUBJECTS,
+                            visit_ids=self.VISITS,
+                            work_dir=self.work_dir)
         for subject_id in self.SUBJECTS:
             for inpt in study.inputs:
                 self.assertTrue(
@@ -949,7 +959,7 @@ class TestProjectInfo(TestOnXnatMixin,
 
     def test_project_info(self):
         tree = self.archive.get_tree()
-        ref_tree = self.ref_tree(set_ids=True)
+        ref_tree = self.ref_tree(self.archive, set_ids=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
