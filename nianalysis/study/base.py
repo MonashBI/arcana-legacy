@@ -1,7 +1,7 @@
 from itertools import chain
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisNameError,
+    NiAnalysisMissingDataException, NiAnalysisNameError,
     NiAnalysisNoRunRequiredException, NiAnalysisUsageError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import (
@@ -280,7 +280,7 @@ class Study(object):
                     "studies."
                     .format(name, self.__class__.__name__))
             if not data.derived:
-                raise NiAnalysisMissingDatasetError(
+                raise NiAnalysisMissingDataException(
                     "Acquired (i.e. non-generated) dataset '{}' "
                     "was not supplied when the study '{}' was initiated"
                     .format(name, self.name))

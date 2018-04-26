@@ -25,7 +25,7 @@ class NiAnalysisNameError(NiAnalysisError):
         self.name = name
 
 
-class NiAnalysisMissingDatasetError(NiAnalysisError):
+class NiAnalysisMissingDataException(NiAnalysisError):
     pass
 
 
@@ -46,15 +46,6 @@ class AcquiredComponentException(NiAnalysisException):
 
 
 class NoMatchingPipelineException(NiAnalysisException):
-    pass
-
-
-class NiAnalysisXnatArchiveException(Exception):
-    pass
-
-
-class NiAnalysisXnatArchiveMissingDatasetException(
-        NiAnalysisXnatArchiveException):
     pass
 
 

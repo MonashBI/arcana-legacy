@@ -980,7 +980,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
             name='test_dicom',
             archive=XnatArchive(
                 project_id='TEST001',
-                server=SERVER, cache_dir='unused'),
+                server=SERVER, cache_dir=tempfile.mkdtemp()),
             runner=LinearRunner(self.work_dir),
             inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH,
             subject_ids=['DATASET'], visit_ids=['DICOMTAGMATCH'])
@@ -994,7 +994,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
             name='test_dicom',
             archive=XnatArchive(
                 project_id='TEST001',
-                server=SERVER, cache_dir='unused'),
+                server=SERVER, cache_dir=tempfile.mkdtemp()),
             runner=LinearRunner(self.work_dir),
             inputs=[
                 DatasetMatch('gre_phase', dicom_format, id=8),

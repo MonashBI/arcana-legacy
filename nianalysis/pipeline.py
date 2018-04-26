@@ -10,7 +10,7 @@ from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exceptions import (
-    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDatasetError,
+    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException)
 from nianalysis.dataset import BaseDataset, BaseField
 from nianalysis.data_formats import get_converter_node
@@ -242,8 +242,8 @@ class Pipeline(object):
                 (self.study.bound_data_spec(i) for i in self.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(self.name))
-        except NiAnalysisMissingDatasetError as e:
-            raise NiAnalysisMissingDatasetError(
+        except NiAnalysisMissingDataException as e:
+            raise NiAnalysisMissingDataException(
                 str(e) + ", which is required for pipeline '{}'".format(
                     self.name))
         # Map the subject and visit IDs to the input node of the pipeline

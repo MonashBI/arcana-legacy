@@ -1,6 +1,6 @@
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisNameError)
+    NiAnalysisMissingDataException, NiAnalysisNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.exceptions import NiAnalysisUsageError
 from .base import Study, StudyMetaClass
@@ -300,7 +300,7 @@ class TranslatedPipeline(Pipeline):
                 i.renamed(sub_study_spec.inverse_map(i.name))
                 for i in pipeline.inputs]
         except NiAnalysisNameError as e:
-            raise NiAnalysisMissingDatasetError(
+            raise NiAnalysisMissingDataException(
                 "'{}' input required for pipeline '{}' in '{}' study "
                 " is not present in inverse dataset map:\n{}".format(
                     e.name, pipeline.name, ss_name,
@@ -330,7 +330,7 @@ class TranslatedPipeline(Pipeline):
                     o.renamed(sub_study_spec.inverse_map(o.name))
                     for o in pipeline.frequency_outputs(freq)]
             except NiAnalysisNameError as e:
-                raise NiAnalysisMissingDatasetError(
+                raise NiAnalysisMissingDataException(
                     "'{}' output required for pipeline '{}' in '{}' "
                     "study is not present in inverse dataset map:\n{}"
                     .format(

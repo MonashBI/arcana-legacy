@@ -24,7 +24,8 @@ from nianalysis.archive.base import (
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import (
-    NiAnalysisError, NiAnalysisXnatArchiveMissingDatasetException)
+    NiAnalysisError, NiAnalysisMissingDataException,
+    NiAnalysisMissingDataException)
 from nianalysis.utils import dir_modtime, NoContextWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
@@ -142,12 +143,12 @@ class XnatSource(ArchiveSource, XnatMixin):
                     session = sessions[(dataset.frequency,
                                         dataset.derived)]
                 except KeyError:
-                    raise NiAnalysisXnatArchiveMissingDatasetException(
+                    raise NiAnalysisMissingDataException(
                         "Did not find{} session for frequency '{}', "
                         "it was expected to find {} in"
                         .format(
                             (' derived' if dataset.frequency else ''),
-                            self.frequency, dataset))
+                            dataset.frequency, dataset))
                 cache_dir = cache_dirs[(dataset.frequency,
                                         dataset.derived)]
                 try:
@@ -285,7 +286,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
-                raise NiAnalysisXnatArchiveMissingDatasetException(
+                raise NiAnalysisMissingDataException(
                     "Did not find single file with extension '{}' "
                     "(found '{}') in resource '{}'"
                     .format(dataset.format.extension,
@@ -999,9 +1000,9 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
         try:
             session = xnat_login.experiments[session_id]
         except KeyError:
-            raise NiAnalysisError(
-                "Didn't find session matching '{}' on {}".format(session_id,
-                                                                 server))
+            raise NiAnalysisMissingDataException(
+                "Didn't find session matching '{}' on {}"
+                .format(session_id, server))
         try:
             os.makedirs(download_dir)
         except OSError as e:
@@ -1091,7 +1092,7 @@ def download_resource(download_path, dataset, data_format_name,
         if len(match_fnames) == 1:
             src_path = os.path.join(src_path, match_fnames[0])
         else:
-            raise NiAnalysisXnatArchiveMissingDatasetException(
+            raise NiAnalysisMissingDataException(
                 "Did not find single file with extension '{}' "
                 "(found '{}') in resource '{}'"
                 .format(data_format.extension,
