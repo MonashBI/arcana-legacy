@@ -10,8 +10,8 @@ from nianalysis.data_formats import (
     get_converter_node, nifti_gz_format)
 from nianalysis.requirements import Requirement
 from nianalysis.nodes import Node
-from nianalysis.study.base import Study, set_specs
-from nianalysis.dataset import DatasetSpec
+from nianalysis.study.base import Study, StudyMetaClass
+from nianalysis.dataset import DatasetMatch, DatasetSpec
 
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',
@@ -36,6 +36,12 @@ class DummyConverter(Converter):
 
 class DummyStudy(Study):
 
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('input', dicom_format),
+        DatasetSpec('output', nifti_gz_format, 'pipeline')]
+
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
@@ -43,7 +49,6 @@ class DummyStudy(Study):
             outputs=[DatasetSpec('output', nifti_gz_format)],
             description=("A dummy pipeline used to test dicom-to-nifti "
                          "conversion method"),
-            default_options={},
             version=1,
             citations=[])
         identity = pipeline.create_node(IdentityInterface(['field']),
@@ -52,13 +57,7 @@ class DummyStudy(Study):
         pipeline.connect_input('input', identity, 'field')
         # Connect outputs
         pipeline.connect_output('output', identity, 'field')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('input', dicom_format),
-        DatasetSpec('output', nifti_gz_format, pipeline))
 
 
 class TestConverterAvailability(TestCase):
@@ -86,7 +85,7 @@ class TestDicom2Niix(BaseTestCase):
 
     def test_dcm2niix(self):
         study = self.create_study(
-            DummyStudy, 'concatenate', inputs={
-                'input': Dataset('t2_tse_tra_p2_448', dicom_format)})
-        study.pipeline().run(work_dir=self.work_dir)
+            DummyStudy, 'concatenate', inputs=[
+                DatasetMatch('input', dicom_format, 't2_tse_tra_p2_448')])
+        study.data('output')[0]
         self.assertDatasetCreated('output.nii.gz', study.name)

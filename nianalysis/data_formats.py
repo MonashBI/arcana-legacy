@@ -6,7 +6,8 @@ from nianalysis.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException,
-    NiAnalysisModulesNotInstalledException)
+    NiAnalysisModulesNotInstalledException,
+    NiAnalysisUsageError)
 from nianalysis.requirements import (
     mrtrix3_req, dcm2niix_req, mricrogl_req, Requirement)
 from nianalysis.interfaces.converters import Dcm2niix
@@ -17,19 +18,61 @@ logger = logging.getLogger('NiAnalysis')
 
 
 class DataFormat(object):
+    """
+    Defines a format for a dataset (e.g. DICOM, NIfTI, Matlab file)
 
-    def __init__(self, name, extension, lctype=None, description='',
-                 mrinfo='None', directory=False):
+    Parameters
+    ----------
+    name : str
+        A name for the data format
+    extension : str
+        The extension of the format
+    description : str
+        A description of what the format is and ideally a link to its
+        documentation
+    directory : bool
+        Whether the format is a directory or a file
+    within_dir_exts : List[str]
+        A list of extensions that are found within the top level of
+        the directory (for directory formats). Used to identify
+        formats from paths.
+    """
+
+    def __init__(self, name, extension, description='',
+                 directory=False, within_dir_exts=None):
         self._name = name
         self._extension = extension
-        self._lctype = lctype
         self._description = description
-        self._mrinfo = mrinfo
         self._directory = directory
+        if within_dir_exts is not None:
+            if not directory:
+                raise NiAnalysisUsageError(
+                    "'within_dir_exts' keyword arg is only valid "
+                    "for directory data formats, not '{}'".format(name))
+            within_dir_exts = frozenset(within_dir_exts)
+        self._within_dir_exts = within_dir_exts
+
+    def __eq__(self, other):
+        try:
+            return (
+                self._name == other._name and
+                self._extension == other._extension and
+                self._description == other._description and
+                self._directory == other._directory and
+                self._within_dir_exts ==
+                other._within_dir_exts)
+        except AttributeError:
+            return False
+
+    def __ne__(self, other):
+        return not self == other
 
     def __repr__(self):
-        return ("DataFormat(name='{}', extension='{}')"
-                .format(self.name, self.extension))
+        return ("DataFormat(name='{}', extension='{}', directory={}{})"
+                .format(self.name, self.extension, self.directory,
+                        ('within_dir_extension={}'.format(
+                            self.within_dir_exts)
+                         if self.directory else '')))
 
     def __str__(self):
         return self.name
@@ -43,34 +86,32 @@ class DataFormat(object):
         return self._extension
 
     @property
-    def lctype(self):
-        return self._lctype
+    def ext_str(self):
+        return self.extension if self.extension is not None else ''
 
     @property
     def description(self):
         return self._description
 
     @property
-    def mrinfo(self):
-        return self._mrinfo
-
-    @property
     def directory(self):
         return self._directory
+
+    @property
+    def within_dir_exts(self):
+        return self._within_dir_exts
 
     @property
     def xnat_resource_name(self):
         return self.name.upper()
 
 
-nifti_format = DataFormat(name='nifti', extension='.nii',
-                          lctype='nifti/series', mrinfo='NIfTI-1.1')
-nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz',
-                             lctype='nifti/gz', mrinfo='NIfTI-1.1')
-mrtrix_format = DataFormat(name='mrtrix', extension='.mif', mrinfo='MRtrix')
+nifti_format = DataFormat(name='nifti', extension='.nii')
+nifti_gz_format = DataFormat(name='nifti_gz', extension='.nii.gz')
+mrtrix_format = DataFormat(name='mrtrix', extension='.mif')
 analyze_format = DataFormat(name='analyze', extension='.img')
-dicom_format = DataFormat(name='dicom', extension=None, lctype='dicom/series',
-                          mrinfo='DICOM', directory=True)
+dicom_format = DataFormat(name='dicom', extension=None,
+                          directory=True, within_dir_exts=['.dcm'])
 fsl_bvecs_format = DataFormat(name='fsl_bvecs', extension='.bvec')
 fsl_bvals_format = DataFormat(name='fsl_bvals', extension='.bval')
 mrtrix_grad_format = DataFormat(name='mrtrix_grad', extension='.b')
@@ -269,10 +310,13 @@ data_formats = dict(
 
 
 data_formats_by_ext = dict(
-    (f.extension, f) for f in data_formats.itervalues())
+    (f.extension, f) for f in data_formats.itervalues()
+    if f.extension is not None)
 
-data_formats_by_mrinfo = dict(
-    (f.mrinfo, f) for f in data_formats.itervalues())
+
+data_formats_by_within_exts = dict(
+    (f.within_dir_exts, f) for f in data_formats.itervalues()
+    if f.within_dir_exts is not None)
 
 
 def get_converter_node(dataset, dataset_name, output_format, source, workflow,

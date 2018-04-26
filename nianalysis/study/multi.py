@@ -1,10 +1,9 @@
-from copy import copy
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import (
-    NiAnalysisMissingDatasetError, NiAnalysisNameError)
+    NiAnalysisMissingDataException, NiAnalysisNameError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.exceptions import NiAnalysisUsageError
-from .base import Study
+from .base import Study, StudyMetaClass
 
 
 class MultiStudy(Study):
@@ -38,31 +37,39 @@ class MultiStudy(Study):
         consisting of the class of the sub-study and a map of dataset names
         from the combined study to the sub-study e.g.
 
-            sub_study_specs = {'t1_study': (MRIStudy, {'t1': 'mr_scan'}),
-                               't2_study': (MRIStudy, {'t2': 'mr_scan'})}
+            _sub_study_specs = set_specs(
+                SubStudySpec('t1_study', MRIStudy, {'t1': 'mr_scan'}),
+                SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'}))
 
             _data_specs = set_specs(
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format'))
     """
 
-    def __init__(self, name, project_id, archive, inputs, **kwargs):
-        super(MultiStudy, self).__init__(name, project_id, archive,
-                                            inputs, **kwargs)
+    def __init__(self, name, archive, runner, inputs, **kwargs):
+        try:
+            assert issubclass(self.__metaclass__, MultiStudyMetaClass)
+        except AttributeError:
+            assert ("Need to set MultiStudyMetaClass (or sub-class) as "
+                    "the metaclass of all classes derived from "
+                    "MultiStudy")
+        super(MultiStudy, self).__init__(name, archive, runner, inputs,
+                                         **kwargs)
         self._sub_studies = {}
-        for sub_study_spec in self.sub_study_specs():
+        for sub_study_spec in self.sub_study_specs:
             # Create copies of the input datasets to pass to the
             # __init__ method of the generated sub-studies
-            mapped_inputs = {}
-            for n, inpt in inputs.iteritems():
+            mapped_inputs = []
+            for inpt in inputs:
                 try:
-                    mapped_inputs[sub_study_spec.map(n)] = inpt
+                    mapped_inputs.append(
+                        inpt.renamed(sub_study_spec.map(inpt.name)))
                 except NiAnalysisNameError:
                     pass  # Ignore datasets not required for sub-study
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
-                project_id, archive, mapped_inputs,
+                archive, runner, mapped_inputs,
                 check_inputs=False)
             # Set sub-study as attribute
             setattr(self, sub_study_spec.name, sub_study)
@@ -88,10 +95,6 @@ class MultiStudy(Study):
                 .format(name, "', '".join(self._sub_studies)))
 
     @classmethod
-    def sub_study_specs(cls):
-        return cls._sub_study_specs.itervalues()
-
-    @classmethod
     def sub_study_spec(cls, name):
         try:
             return cls._sub_study_specs[name]
@@ -106,8 +109,8 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name, self.study.name)
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_getter,
-                           **kwargs):
+    def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
+                  add_outputs=None):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -119,20 +122,31 @@ class MultiStudy(Study):
         ----------
         sub_study_name : str
             Name of the sub-study
-        pipeline_getter : Study.method
+        pipeline_name : str
             Unbound method used to create the pipeline in the sub-study
+        add_inputs : list[str]
+            List of additional inputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
+        add_outputs : list[str]
+            List of additional outputs to add to the translated pipeline
+            to be connected manually in combined-study getter (i.e. not
+            using translate_getter decorator).
         """
-        def translated_getter(self, **options):
+        try:
+            assert isinstance(sub_study_name, basestring)
+            assert isinstance(pipeline_name, basestring)
+        except:
+            raise
+        def translated_getter(self, name_prefix='',  # @IgnorePep8
+                              add_inputs=add_inputs,
+                              add_outputs=add_outputs):
             trans_pipeline = TranslatedPipeline(
                 self, self.sub_study(sub_study_name),
-                pipeline_getter, options, **kwargs)
+                pipeline_name, name_prefix=name_prefix,
+                add_inputs=add_inputs, add_outputs=add_outputs)
             trans_pipeline.assert_connected()
             return trans_pipeline
-        try:
-            name = pipeline_getter.translated_name
-        except AttributeError:
-            name = pipeline_getter.__name__
-        translated_getter.translated_name = sub_study_name + '_' + name
         return translated_getter
 
 
@@ -248,6 +262,8 @@ class TranslatedPipeline(Pipeline):
         Sub-study pipeline to translate
     combined_study : MultiStudy
         Study to translate the pipeline to
+    name_prefix : str
+        Prefix to prepend to the pipeline name to avoid name clashes
     add_inputs : list[str]
         List of additional inputs to add to the translated pipeline
         to be connected manually in combined-study getter (i.e. not
@@ -258,31 +274,21 @@ class TranslatedPipeline(Pipeline):
         using translate_getter decorator).
     """
 
-    def __init__(self, combined_study, sub_study, pipeline_getter,
-                 options, add_inputs=None, add_outputs=None,
-                 override_default_options=None):
+    def __init__(self, combined_study, sub_study, pipeline_name,
+                  name_prefix='', add_inputs=None, add_outputs=None):
         # Get the relative name of the sub-study (i.e. without the
         # combined study name prefixed)
         ss_name = sub_study.name[(len(combined_study.name) + 1):]
-        name_prefix = ss_name + '_'
-        if '__name_prefix__' in options:
-            name_prefix = (
-                options.pop('__name_prefix__') + name_prefix)
-        # Override default options
-        if override_default_options is not None:
-            for n, val in override_default_options.items():
-                if n not in options:
-                    options[n] = val
+        name_prefix += ss_name + '_'
         # Create pipeline and overriding its name to include prefix
         # Copy across default options and override with extra
         # provided
-        pipeline = pipeline_getter(
-            sub_study, __name_prefix__=name_prefix, **options)
+        pipeline_getter = getattr(sub_study, pipeline_name)
+        pipeline = pipeline_getter(name_prefix=name_prefix)
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:
             raise
-        self._options = pipeline._options
         self._name = pipeline.name
         self._study = combined_study
         self._workflow = pipeline.workflow
@@ -294,7 +300,7 @@ class TranslatedPipeline(Pipeline):
                 i.renamed(sub_study_spec.inverse_map(i.name))
                 for i in pipeline.inputs]
         except NiAnalysisNameError as e:
-            raise NiAnalysisMissingDatasetError(
+            raise NiAnalysisMissingDataException(
                 "'{}' input required for pipeline '{}' in '{}' study "
                 " is not present in inverse dataset map:\n{}".format(
                     e.name, pipeline.name, ss_name,
@@ -318,13 +324,13 @@ class TranslatedPipeline(Pipeline):
                 pipeline.inputnode, input_name)
         # Translate outputs from sub-study pipeline
         self._outputs = {}
-        for mult in pipeline.mutliplicities:
+        for freq in pipeline.frequencies:
             try:
-                self._outputs[mult] = [
+                self._outputs[freq] = [
                     o.renamed(sub_study_spec.inverse_map(o.name))
-                    for o in pipeline.multiplicity_outputs(mult)]
+                    for o in pipeline.frequency_outputs(freq)]
             except NiAnalysisNameError as e:
-                raise NiAnalysisMissingDatasetError(
+                raise NiAnalysisMissingDataException(
                     "'{}' output required for pipeline '{}' in '{}' "
                     "study is not present in inverse dataset map:\n{}"
                     .format(
@@ -335,72 +341,77 @@ class TranslatedPipeline(Pipeline):
         if add_outputs is not None:
             self._check_spec_names(add_outputs, 'additional outputs')
             for output in add_outputs:
-                combined_study.data_spec(output).multiplicity
-                self._outputs[mult].append(output)
+                combined_study.data_spec(output).frequency
+                self._outputs[freq].append(output)
             self._unconnected_outputs.update(o.name
                                              for o in add_outputs)
-        # Create output nodes for each multiplicity
+        # Create output nodes for each frequency
         self._outputnodes = {}
-        for mult in pipeline.mutliplicities:
-            self._outputnodes[mult] = self.create_node(
+        for freq in pipeline.frequencies:
+            self._outputnodes[freq] = self.create_node(
                 IdentityInterface(
                     fields=list(
-                        self.multiplicity_output_names(mult))),
+                        self.frequency_output_names(freq))),
                 name="{}_{}_outputnode_wrapper".format(ss_name,
-                                                       mult))
+                                                       freq))
             # Connect sub-study outputs
-            for output_name in pipeline.multiplicity_output_names(mult):
+            for output_name in pipeline.frequency_output_names(freq):
                 self.workflow.connect(
-                    pipeline.outputnode(mult),
+                    pipeline.outputnode(freq),
                     output_name,
-                    self._outputnodes[mult],
+                    self._outputnodes[freq],
                     sub_study_spec.inverse_map(output_name))
         # Copy additional info fields
-        self._default_options = copy(pipeline._default_options)
-        if override_default_options is not None:
-            self._default_options.update(override_default_options)
-        self._prereq_options = pipeline._prereq_options
         self._citations = pipeline._citations
         self._description = pipeline._description
+        self._used_options = set()
 
 
-class MultiStudyMetaClass(type):
+class MultiStudyMetaClass(StudyMetaClass):
     """
     Metaclass for "multi" study classes that automatically adds
     translated data specs and pipelines from sub-study specs if they
     are not explicitly mapped in the spec.
     """
 
-    def __new__(self, name, bases, dct):
+    def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
+        if not any(issubclass(b, MultiStudy) for b in bases):
+            raise NiAnalysisUsageError(
+                "MultiStudyMetaClass can only be used for classes that "
+                "have MultiStudy as a base class")
         try:
-            sub_study_specs = dct['_sub_study_specs']
+            sub_study_specs = dct['sub_study_specs']
         except KeyError:
             raise NiAnalysisUsageError(
-                "Multi-study class '{}' doesn't not have required "
-                "'_sub_study_specs' class attribute"
+                "MultiStudy class '{}' doesn't not have required "
+                "'sub_study_specs' class attribute"
                 .format(name))
         try:
-            data_specs = dct['_data_specs']
-        except KeyError:
-            raise NiAnalysisUsageError(
-                "Multi-study class '{}' doesn't not have required "
-                "'_data_specs' class attribute"
-                .format(name))
-        for sub_study_spec in sub_study_specs.values():
+            add_data_specs = dct['add_data_specs']
+        except AttributeError:
+            add_data_specs = dct['add_data_specs'] = []
+        explicitly_added = [s.name for s in add_data_specs]
+        # Loop through all data specs that haven't been explicitly
+        # mapped and add a data spec in the multi class.
+        for sub_study_spec in sub_study_specs:
             for data_spec in sub_study_spec.auto_specs:
-                initkwargs = data_spec.initkwargs()
-                initkwargs['name'] = sub_study_spec.apply_prefix(
+                trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
-                if data_spec.pipeline is not None:
-                    pipe_getter = MultiStudy.translate(
-                        sub_study_spec.name, data_spec.pipeline)
-                    # Check to see whether pipeline has already been translated
-                    # or always existed in the class (when overriding default
-                    # options for example)
-                    if pipe_getter.translated_name not in dct:
-                        dct[pipe_getter.translated_name] = pipe_getter
-                    initkwargs['pipeline'] = dct[
-                        pipe_getter.translated_name]
-                new_data_spec = type(data_spec)(**initkwargs)
-                data_specs[new_data_spec.name] = new_data_spec
-        return type(name, bases, dct)
+                if trans_sname not in explicitly_added:
+                    initkwargs = data_spec.initkwargs()
+                    initkwargs['name'] = trans_sname
+                    if data_spec.pipeline_name is not None:
+                        trans_pname = sub_study_spec.apply_prefix(
+                            data_spec.pipeline_name)
+                        initkwargs['pipeline_name'] = trans_pname
+                        # Check to see whether pipeline has already been
+                        # translated or always existed in the class (when
+                        # overriding default options for example)
+                        if trans_pname not in dct:
+                            dct[trans_pname] = MultiStudy.translate(
+                                sub_study_spec.name,
+                                data_spec.pipeline_name)
+                    add_data_specs.append(type(data_spec)(**initkwargs))
+        dct['_sub_study_specs'] = dict(
+            (s.name, s) for s in sub_study_specs)
+        return StudyMetaClass(name, bases, dct)

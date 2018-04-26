@@ -1,11 +1,30 @@
 import os.path
 from nianalysis.exceptions import NiAnalysisError
+import re
 
 
 PATH_SUFFIX = '_path'
 FIELD_SUFFIX = '_field'
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
+
+
+def is_regex(s):
+    "Checks to see if string contains special characters"
+    return bool(re.match(r'^\w+$', s))
+
+
+def nth(i):
+    "Returns 1st, 2nd, 3rd, 4th, etc for a given number"
+    if i == 1:
+        s = '1st'
+    elif i == 2:
+        s = '2nd'
+    elif i == 3:
+        s = '3rd'
+    else:
+        s = '{}th'.format(i)
+    return s
 
 
 def dir_modtime(dpath):
@@ -105,3 +124,25 @@ def split_extension(path):
 class classproperty(property):
     def __get__(self, cls, owner):
         return self.fget.__get__(None, owner)()
+
+
+class NoContextWrapper(object):
+    """
+    Wraps an object, passing all calls through to the wrapped object
+    except the __enter__ and __exit__ method, which do nothing. Used
+    in cases where you want to use a file|connection handle within a
+    "with" statement, except when it passed to the method from the
+    calling code (presumably nested in another "with" statement).
+    """
+
+    def __init__(self, to_wrap):
+        self._to_wrap = to_wrap
+
+    def __getattr__(self, name):
+        return getattr(self._to_wrap, name)
+
+    def __enter__(self, *args, **kwargs):  # @UnusedVariable
+        return self
+
+    def __exit__(self, *args, **kwargs):
+        pass

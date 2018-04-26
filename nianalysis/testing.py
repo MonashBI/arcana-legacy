@@ -12,11 +12,13 @@ import logging
 import nianalysis
 from nianalysis.utils import classproperty
 from nianalysis.archive.local import (
-    LocalArchive, SUMMARY_NAME, FIELDS_FNAME)
+    LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
+from nianalysis.runner import LinearRunner
 from nianalysis.exceptions import NiAnalysisError
-from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from nianalysis.nodes import NiAnalysisNodeMixin
+from nianalysis.exceptions import (
+    NiAnalysisModulesNotInstalledException)
 from traceback import format_exc
 from nianalysis.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
@@ -132,7 +134,11 @@ class BaseTestCase(TestCase):
 
     @property
     def archive(self):
-        return LocalArchive(self.archive_path)
+        return LocalArchive(self.project_dir)
+
+    @property
+    def runner(self):
+        return LinearRunner(self.work_dir)
 
     @property
     def project_dir(self):
@@ -164,18 +170,24 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, inputs):
+    def create_study(self, study_cls, name, inputs, archive=None,
+                     runner=None, **kwargs):
+        if archive is None:
+            archive = self.archive
+        if runner is None:
+            runner = self.runner
         return study_cls(
             name=name,
-            project_id=self.project_id,
-            archive=self.archive,
-            inputs=inputs)
+            archive=archive,
+            runner=runner,
+            inputs=inputs,
+            **kwargs)
 
     def assertDatasetCreated(self, dataset_name, study_name, subject=None,
-                             visit=None, multiplicity='per_session'):
-        output_dir = self.get_session_dir(subject, visit, multiplicity)
+                             visit=None, frequency='per_session'):
+        output_dir = self.get_session_dir(subject, visit, frequency)
         out_path = self.output_file_path(
-            dataset_name, study_name, subject, visit, multiplicity)
+            dataset_name, study_name, subject, visit, frequency)
         self.assertTrue(
             os.path.exists(out_path),
             ("Dataset '{}' (expected at '{}') was not created by unittest"
@@ -184,10 +196,10 @@ class BaseTestCase(TestCase):
                  output_dir)))
 
     def assertField(self, name, ref_value, study_name, subject=None,
-                    visit=None, multiplicity='per_session',
+                    visit=None, frequency='per_session',
                     to_places=None):
         esc_name = study_name + '_' + name
-        output_dir = self.get_session_dir(subject, visit, multiplicity)
+        output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(os.path.join(output_dir, FIELDS_FNAME)) as f:
                 fields = json.load(f)
@@ -231,7 +243,7 @@ class BaseTestCase(TestCase):
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
                         subject=None, visit=None,
-                        multiplicity='per_session'):
+                        frequency='per_session'):
             try:
                 NiAnalysisNodeMixin.load_module('mrtrix')
             except NiAnalysisModulesNotInstalledException:
@@ -241,7 +253,7 @@ class BaseTestCase(TestCase):
                     self.output_file_path(
                         dataset_name, study_name,
                         subject=subject, visit=visit,
-                        multiplicity=multiplicity),
+                        frequency=frequency),
                     stat),
                 shell=True))
             self.assertEqual(
@@ -270,25 +282,25 @@ class BaseTestCase(TestCase):
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
     def get_session_dir(self, subject=None, visit=None,
-                        multiplicity='per_session'):
-        if subject is None and multiplicity in ('per_session', 'per_subject'):
+                        frequency='per_session'):
+        if subject is None and frequency in ('per_session', 'per_subject'):
             subject = self.SUBJECT
-        if visit is None and multiplicity in ('per_session', 'per_visit'):
+        if visit is None and frequency in ('per_session', 'per_visit'):
             visit = self.VISIT
-        if multiplicity == 'per_session':
+        if frequency == 'per_session':
             assert subject is not None
             assert visit is not None
             path = os.path.join(self.project_dir, subject, visit)
-        elif multiplicity == 'per_subject':
+        elif frequency == 'per_subject':
             assert subject is not None
             assert visit is None
             path = os.path.join(
                 self.project_dir, subject, SUMMARY_NAME)
-        elif multiplicity == 'per_visit':
+        elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
             path = os.path.join(self.project_dir, SUMMARY_NAME, visit)
-        elif multiplicity == 'per_project':
+        elif frequency == 'per_project':
             assert subject is None
             assert visit is None
             path = os.path.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
@@ -298,16 +310,16 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def remove_generated_files(cls, study=None):
-        # Remove processed datasets
+        # Remove derived datasets
         for fname in os.listdir(cls.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
                 os.remove(os.path.join(cls.get_session_dir(), fname))
 
     def output_file_path(self, fname, study_name, subject=None, visit=None,
-                         multiplicity='per_session', **kwargs):
+                         frequency='per_session', **kwargs):
         return os.path.join(
             self.get_session_dir(subject=subject, visit=visit,
-                                 multiplicity=multiplicity, **kwargs),
+                                 frequency=frequency, **kwargs),
             '{}_{}'.format(study_name, fname))
 
     def ref_file_path(self, fname, subject=None, session=None):
@@ -401,9 +413,9 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def session_dir(self, subject, visit):
         return self.get_session_dir(subject, visit)
 
-    def get_session_dir(self, subject, visit, multiplicity='per_session'):
+    def get_session_dir(self, subject, visit, frequency='per_session'):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
-            subject=subject, visit=visit, multiplicity=multiplicity)
+            subject=subject, visit=visit, frequency=frequency)
 
     @classmethod
     def make_session_dir(cls, project_dir, subj_id, visit_id):

@@ -3,10 +3,11 @@ import os.path
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirements import Requirement, mrtrix3_req
-from nianalysis.dataset import Dataset, DatasetSpec  # @IgnorePep8
-from nianalysis.data_formats import nifti_gz_format, mrtrix_format, text_format  # @IgnorePep8
+from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
+from nianalysis.data_formats import (
+    nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, set_specs  # @IgnorePep8
+from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
@@ -15,19 +16,46 @@ from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 
 
-class DummyStudy(Study):
+class TestStudy(Study):
 
-    def pipeline1(self, **options):
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('start', nifti_gz_format),
+        DatasetSpec('ones_slice', mrtrix_format),
+        DatasetSpec('pipeline1_1', nifti_gz_format, 'pipeline1'),
+        DatasetSpec('pipeline1_2', nifti_gz_format, 'pipeline1'),
+        DatasetSpec('pipeline2', nifti_gz_format, 'pipeline2'),
+        DatasetSpec('pipeline3', nifti_gz_format, 'pipeline3'),
+        DatasetSpec('pipeline4', nifti_gz_format, 'pipeline4'),
+        DatasetSpec('subject_summary', mrtrix_format,
+                    'subject_summary_pipeline',
+                    frequency='per_subject'),
+        DatasetSpec('visit_summary', mrtrix_format,
+                    'visit_summary_pipeline',
+                    frequency='per_visit'),
+        DatasetSpec('project_summary', mrtrix_format,
+                    'project_summary_pipeline',
+                    frequency='per_project'),
+        DatasetSpec('subject_ids', text_format,
+                    'subject_ids_access_pipeline',
+                    frequency='per_visit'),
+        DatasetSpec('visit_ids', text_format,
+                    'visit_ids_access_pipeline',
+                    frequency='per_subject')]
+
+    add_default_options = {'pipeline_option': False}
+
+    def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('start', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
                      DatasetSpec('pipeline1_2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={'pipeline_option': False},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline1")
@@ -41,21 +69,18 @@ class DummyStudy(Study):
         # Connect outputs
         pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
         pipeline.connect_output('pipeline1_2', mrconvert2, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def pipeline2(self, **options):
+    def pipeline2(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline2',
             inputs=[DatasetSpec('start', nifti_gz_format),
                     DatasetSpec('pipeline1_1', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={'pipeline_option': False},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline2")
@@ -67,41 +92,35 @@ class DummyStudy(Study):
         pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline2', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def pipeline3(self, **options):
+    def pipeline3(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline3',
             inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline3', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         mrconvert = pipeline.create_node(MRConvert(), name="convert",
                                          requirements=[mrtrix3_req])
         # Connect inputs
         pipeline.connect_input('pipeline2', mrconvert, 'in_file')
         # Connect outputs
         pipeline.connect_output('pipeline3', mrconvert, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def pipeline4(self, **options):
+    def pipeline4(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline4',
             inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
                     DatasetSpec('pipeline3', nifti_gz_format)],
             outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         mrmath = pipeline.create_node(MRCat(), name="mrcat",
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
@@ -110,58 +129,49 @@ class DummyStudy(Study):
         pipeline.connect_input('pipeline3', mrmath, 'second_scan')
         # Connect outputs
         pipeline.connect_output('pipeline4', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def visit_ids_access_pipeline(self, **options):
+    def visit_ids_access_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='visit_ids_access',
             inputs=[],
             outputs=[DatasetSpec('visit_ids', text_format)],
             description=(
                 "A dummy pipeline used to test access to 'session' IDs"),
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         sessions_to_file = pipeline.create_join_visits_node(
             IteratorToFile(), name='sess_to_file', joinfield='ids')
         pipeline.connect_visit_id(sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def subject_ids_access_pipeline(self, **options):
+    def subject_ids_access_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='subject_ids_access',
             inputs=[],
             outputs=[DatasetSpec('subject_ids', text_format)],
             description=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         subjects_to_file = pipeline.create_join_subjects_node(
             IteratorToFile(), name='subjects_to_file', joinfield='ids')
         pipeline.connect_subject_id(subjects_to_file, 'ids')
         pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def subject_summary_pipeline(self, **options):
+    def subject_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="subject_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('subject_summary', mrtrix_format)],
             description=("Test of project summary variables"),
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
@@ -172,16 +182,15 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def visit_summary_pipeline(self, **options):
+    def visit_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="visit_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('visit_summary', mrtrix_format)],
             description=("Test of project summary variables"),
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         mrmath = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
         mrmath.inputs.operation = 'sum'
@@ -192,16 +201,15 @@ class DummyStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    def project_summary_pipeline(self, **options):
+    def project_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="project_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('project_summary', mrtrix_format)],
             description=("Test of project summary variables"),
-            default_options={},
             version=1,
             citations=[],
-            options=options)
+            **kwargs)
         mrmath1 = pipeline.create_join_visits_node(
             MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
         mrmath2 = pipeline.create_join_subjects_node(
@@ -215,26 +223,6 @@ class DummyStudy(Study):
         pipeline.connect_output('project_summary', mrmath2, 'out_file')
         pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('start', nifti_gz_format),
-        DatasetSpec('ones_slice', mrtrix_format),
-        DatasetSpec('pipeline1_1', nifti_gz_format, pipeline1),
-        DatasetSpec('pipeline1_2', nifti_gz_format, pipeline1),
-        DatasetSpec('pipeline2', nifti_gz_format, pipeline2),
-        DatasetSpec('pipeline3', nifti_gz_format, pipeline3),
-        DatasetSpec('pipeline4', nifti_gz_format, pipeline4),
-        DatasetSpec('subject_summary', mrtrix_format, subject_summary_pipeline,
-                    multiplicity='per_subject'),
-        DatasetSpec('visit_summary', mrtrix_format,
-                    visit_summary_pipeline,
-                    multiplicity='per_visit'),
-        DatasetSpec('project_summary', mrtrix_format, project_summary_pipeline,
-                    multiplicity='per_project'),
-        DatasetSpec('subject_ids', text_format, subject_ids_access_pipeline,
-                    multiplicity='per_visit'),
-        DatasetSpec('visit_ids', text_format, visit_ids_access_pipeline,
-                    multiplicity='per_subject'))
 
 
 class IteratorToFileInputSpec(TraitedSpec):
@@ -283,9 +271,10 @@ class TestRunPipeline(BaseTestCase):
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
-            DummyStudy, 'dummy', inputs={
-                'start': Dataset('start', nifti_gz_format),
-                'ones_slice': Dataset('ones_slice', mrtrix_format)})
+            TestStudy, 'dummy', inputs=[
+                DatasetMatch('start', nifti_gz_format, 'start'),
+                DatasetMatch('ones_slice', mrtrix_format, 'ones_slice')],
+            options={'pipeline_option': True})
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
@@ -301,10 +290,9 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        pipeline = self.study.pipeline4(pipeline_option=True)
-        pipeline.run(work_dir=self.work_dir)
-        for dataset in DummyStudy.data_specs():
-            if dataset.multiplicity == 'per_session' and dataset.processed:
+        self.study.data('pipeline4')[0]
+        for dataset in TestStudy.data_specs():
+            if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:
                         self.assertDatasetCreated(
@@ -313,7 +301,7 @@ class TestRunPipeline(BaseTestCase):
                             visit=visit_id)
 
     def test_subject_summary(self):
-        self.study.subject_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('subject_summary')
         for subject_id in self.SUBJECT_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
@@ -326,7 +314,7 @@ class TestRunPipeline(BaseTestCase):
                         self.output_file_path(
                             'subject_summary.mif', self.study.name,
                             subject=subject_id,
-                            multiplicity='per_subject')),
+                            frequency='per_subject')),
                     shell=True))
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
@@ -334,7 +322,7 @@ class TestRunPipeline(BaseTestCase):
                     NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_visit_summary(self):
-        self.study.visit_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('visit_summary')
         for visit_id in self.SESSION_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
@@ -346,7 +334,7 @@ class TestRunPipeline(BaseTestCase):
                     'mrstats {} -output mean'.format(
                         self.output_file_path(
                             'visit_summary.mif', self.study.name,
-                            visit=visit_id, multiplicity='per_visit')),
+                            visit=visit_id, frequency='per_visit')),
                     shell=True))
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
@@ -354,7 +342,7 @@ class TestRunPipeline(BaseTestCase):
                     NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_project_summary(self):
-        self.study.project_summary_pipeline().run(work_dir=self.work_dir)
+        self.study.data('project_summary')
         # Get mean value from resultant image (should be the same as the
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
@@ -364,7 +352,7 @@ class TestRunPipeline(BaseTestCase):
             mean_val = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
                     'project_summary.mif', self.study.name,
-                    multiplicity='per_project')),
+                    frequency='per_project')),
                 shell=True))
             self.assertEqual(mean_val,
                              len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
@@ -373,27 +361,35 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.subject_ids_access_pipeline().run(work_dir=self.work_dir)
+        self.study.data('subject_ids')
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
-                visit=visit_id, multiplicity='per_visit')
+                visit=visit_id, frequency='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        self.study.visit_ids_access_pipeline().run(work_dir=self.work_dir)
+        self.study.data('visit_ids')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', self.study.name,
-                subject=subject_id, multiplicity='per_subject')
+                subject=subject_id, frequency='per_subject')
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
 
 
 class ExistingPrereqStudy(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('start', mrtrix_format),
+        DatasetSpec('tens', mrtrix_format, 'tens_pipeline'),
+        DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),
+        DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
@@ -402,10 +398,8 @@ class ExistingPrereqStudy(Study):
             outputs=[DatasetSpec(output, mrtrix_format)],
             description=(
                 "A dummy pipeline used to test 'partial-complete' method"),
-            default_options={'pipeline1_option': False},
             version=1,
-            citations=[],
-            options={})
+            citations=[])
         # Nodes
         operands = pipeline.create_node(Merge(2), name='merge')
         mult = pipeline.create_node(MRCalc(), name="convert1",
@@ -418,24 +412,16 @@ class ExistingPrereqStudy(Study):
         pipeline.connect(operands, 'out', mult, 'operands')
         # Connect outputs
         pipeline.connect_output(output, mult, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
 
-    def tens_pipeline(self, **options):  # @UnusedVariable
-        return self.pipeline_factory(10, 'ones', 'tens')
+    def tens_pipeline(self, **kwargs):  # @UnusedVariable
+        return self.pipeline_factory(10, 'start', 'tens')
 
-    def hundreds_pipeline(self, **options):  # @UnusedVariable
+    def hundreds_pipeline(self, **kwargs):  # @UnusedVariable
         return self.pipeline_factory(100, 'tens', 'hundreds')
 
-    def thousands_pipeline(self, **options):  # @UnusedVariable
+    def thousands_pipeline(self, **kwargs):  # @UnusedVariable
         return self.pipeline_factory(1000, 'hundreds', 'thousands')
-
-    _data_specs = set_specs(
-        DatasetSpec('ones', mrtrix_format),
-        DatasetSpec('tens', mrtrix_format, tens_pipeline),
-        DatasetSpec('hundreds', mrtrix_format, hundreds_pipeline),
-        DatasetSpec('thousands', mrtrix_format, thousands_pipeline))
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):
@@ -531,9 +517,9 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
     def test_per_session_prereqs(self):
         study = self.create_study(
-            ExistingPrereqStudy, self.study_name, inputs={
-                'ones': Dataset('ones', mrtrix_format)})
-        study.thousands_pipeline().run(work_dir=self.work_dir)
+            ExistingPrereqStudy, self.study_name, inputs=[
+                DatasetMatch('start', mrtrix_format, 'ones')])
+        study.data('thousands')
         targets = {
             'subject1': {
                 'visit1': 1100,
@@ -557,13 +543,13 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                                      targets[subj_id][visit_id],
                                      self.study_name,
                                      subject=subj_id, visit=visit_id,
-                                     multiplicity='per_session')
+                                     frequency='per_session')
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
-#             ExistingPrereqStudy, self.study_name, inputs={
-#                 'ones': Dataset('ones', mrtrix_format)})
-#         study.thousands_pipeline().run(work_dir=self.work_dir)
+#             ExistingPrereqStudy, self.study_name, inputs=[
+#                 DatasetMatch('ones', mrtrix_format, 'ones')])
+#         study.data('thousands')
 #         targets = {
 #             'subject1': {
 #                 'visit1': 1100,
@@ -587,4 +573,4 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 #                                      targets[subj_id][visit_id],
 #                                      self.study_name,
 #                                      subject=subj_id, session=visit_id,
-#                                      multiplicity='per_session')
+#                                      frequency='per_session')

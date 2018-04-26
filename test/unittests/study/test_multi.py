@@ -2,12 +2,12 @@ from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
 from nianalysis.requirements import Requirement
 from nianalysis.interfaces.utils import Merge
-from nianalysis.dataset import Dataset, DatasetSpec
+from nianalysis.dataset import DatasetMatch, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.study.multi import (
-    MultiStudy, translate_pipeline, SubStudySpec, MultiStudyMetaClass)
+    MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from nianalysis.interfaces.mrtrix import MRMath
 from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
@@ -15,17 +15,23 @@ from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @Ign
 
 class StudyA(Study):
 
-    def pipeline_alpha(self, **options):  # @UnusedVariable
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('x', mrtrix_format),
+        DatasetSpec('y', mrtrix_format),
+        DatasetSpec('z', mrtrix_format, 'pipeline_alpha')]
+
+    def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_alpha',
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
             outputs=[DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            default_options={},
-            options=options,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge = pipeline.create_node(Merge(2), name="merge")
         mrmath = pipeline.create_node(MRMath(), name="mrmath",
                                       requirements=[mrtrix3_req])
@@ -37,19 +43,20 @@ class StudyA(Study):
         pipeline.connect(merge, 'out', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('z', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format),
-        DatasetSpec('z', mrtrix_format, pipeline_alpha))
 
 
 class StudyB(Study):
 
-    def pipeline_beta(self, **options):  # @UnusedVariable
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('w', mrtrix_format),
+        DatasetSpec('x', mrtrix_format),
+        DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
+        DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
+
+    def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_beta',
             inputs=[DatasetSpec('w', mrtrix_format),
@@ -57,10 +64,9 @@ class StudyB(Study):
             outputs=[DatasetSpec('y', mrtrix_format),
                      DatasetSpec('z', mrtrix_format)],
             description="A dummy pipeline used to test MultiStudy class",
-            default_options={},
-            options=options,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge1 = pipeline.create_node(Merge(2), name='merge1')
         merge2 = pipeline.create_node(Merge(2), name='merge2')
         merge3 = pipeline.create_node(Merge(2), name='merge3')
@@ -87,62 +93,65 @@ class StudyB(Study):
         # Connect outputs
         pipeline.connect_output('y', mrsum2, 'out_file')
         pipeline.connect_output('z', mrproduct, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
-
-    _data_specs = set_specs(
-        DatasetSpec('w', mrtrix_format),
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format, pipeline_beta),
-        DatasetSpec('z', mrtrix_format, pipeline_beta))
 
 
 class FullMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    pipeline_alpha_trans = translate_pipeline('ss1', StudyA.pipeline_alpha)
-    pipeline_beta_trans = translate_pipeline('ss2', StudyB.pipeline_beta)
-
-    _sub_study_specs = set_specs(
+    sub_study_specs = [
         SubStudySpec('ss1', StudyA,
                      {'a': 'x', 'b': 'y', 'd': 'z'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'}))
+                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'})]
 
-    _data_specs = set_specs(
+    add_data_specs = [
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format),
-        DatasetSpec('d', mrtrix_format, pipeline_alpha_trans),
-        DatasetSpec('e', mrtrix_format, pipeline_beta_trans),
-        DatasetSpec('f', mrtrix_format, pipeline_beta_trans))
+        DatasetSpec('d', mrtrix_format, 'pipeline_alpha_trans'),
+        DatasetSpec('e', mrtrix_format, 'pipeline_beta_trans'),
+        DatasetSpec('f', mrtrix_format, 'pipeline_beta_trans')]
+
+    pipeline_alpha_trans = MultiStudy.translate(
+        'ss1', 'pipeline_alpha')
+    pipeline_beta_trans = MultiStudy.translate(
+        'ss2', 'pipeline_beta')
 
 
 class PartialMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    pipeline_alpha_trans = translate_pipeline('ss1', StudyA.pipeline_alpha)
-
-    _sub_study_specs = set_specs(
+    sub_study_specs = [
         SubStudySpec('ss1', StudyA,
                      {'a': 'x', 'b': 'y'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x'}))
+                     {'b': 'w', 'c': 'x'})]
 
-    _data_specs = set_specs(
+    add_data_specs = [
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
-        DatasetSpec('c', mrtrix_format))
+        DatasetSpec('c', mrtrix_format)]
+
+    pipeline_alpha_trans = MultiStudy.translate(
+        'ss1', 'pipeline_alpha')
 
 
 class MultiMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    def combined_pipeline(self, **options):
+    sub_study_specs = [
+        SubStudySpec('ss1', StudyA, {}),
+        SubStudySpec('full', FullMultiStudy),
+        SubStudySpec('partial', PartialMultiStudy)]
+
+    add_data_specs = [
+        DatasetSpec('g', mrtrix_format, 'combined_pipeline')]
+
+    def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='combined',
             inputs=[DatasetSpec('ss1_z', mrtrix_format),
@@ -151,10 +160,9 @@ class MultiMultiStudy(MultiStudy):
             outputs=[DatasetSpec('g', mrtrix_format)],
             description=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
-            default_options={},
-            options=options,
             version=1,
-            citations=[])
+            citations=[],
+            **kwargs)
         merge = pipeline.create_node(Merge(3), name="merge")
         mrmath = pipeline.create_node(MRMath(), name="mrmath",
                                       requirements=[mrtrix3_req])
@@ -167,16 +175,7 @@ class MultiMultiStudy(MultiStudy):
         pipeline.connect(merge, 'out', mrmath, 'in_files')
         # Connect outputs
         pipeline.connect_output('g', mrmath, 'out_file')
-        # Check inputs/outputs are connected
-        pipeline.assert_connected()
         return pipeline
-
-    _sub_study_specs = set_specs(
-        SubStudySpec('ss1', StudyA, {}),
-        SubStudySpec('full', FullMultiStudy),
-        SubStudySpec('partial', PartialMultiStudy))
-    _data_specs = set_specs(
-        DatasetSpec('g', mrtrix_format, combined_pipeline))
 
 
 class TestMulti(TestCase):
@@ -193,28 +192,27 @@ class TestMulti(TestCase):
 
     def test_full_multi_study(self):
         study = self.create_study(
-            FullMultiStudy, 'full', {
-                'a': Dataset('ones', mrtrix_format),
-                'b': Dataset('ones', mrtrix_format),
-                'c': Dataset('ones', mrtrix_format)})
-        study.pipeline_alpha_trans().run(work_dir=self.work_dir)
-        study.pipeline_beta_trans().run(work_dir=self.work_dir)
+            FullMultiStudy, 'full', [
+                DatasetMatch('a', mrtrix_format, 'ones'),
+                DatasetMatch('b', mrtrix_format, 'ones'),
+                DatasetMatch('c', mrtrix_format, 'ones')])
+        d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
+        e = study.data('e', subject_id=['SUBJECT'],
+                       visit_id=['VISIT'])[0]
+        f = study.data('f')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             d_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'd.mif', study.name)),
+                'mrstats {} -output mean'.format(d.path),
                 shell=True))
             self.assertEqual(d_mean, 2.0)
             e_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'e.mif', study.name)),
+                'mrstats {} -output mean'.format(e.path),
                 shell=True))
             self.assertEqual(e_mean, 3.0)
             f_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'f.mif', study.name)),
+                'mrstats {} -output mean'.format(f.path),
                 shell=True))
             self.assertEqual(f_mean, 6.0)
         finally:
@@ -223,28 +221,26 @@ class TestMulti(TestCase):
 
     def test_partial_multi_study(self):
         study = self.create_study(
-            PartialMultiStudy, 'partial', {
-                'a': Dataset('ones', mrtrix_format),
-                'b': Dataset('ones', mrtrix_format),
-                'c': Dataset('ones', mrtrix_format)})
-        study.pipeline_alpha_trans().run(work_dir=self.work_dir)
-        study.ss2_pipeline_beta().run(work_dir=self.work_dir)
+            PartialMultiStudy, 'partial', [
+                DatasetMatch('a', mrtrix_format, 'ones'),
+                DatasetMatch('b', mrtrix_format, 'ones'),
+                DatasetMatch('c', mrtrix_format, 'ones')])
+        ss1_z = study.data('ss1_z')[0]
+        ss2_y = study.data('ss2_y')[0]
+        ss2_z = study.data('ss2_z')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             ss1_z_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss1_z.mif', study.name)),
+                'mrstats {} -output mean'.format(ss1_z.path),
                 shell=True))
             self.assertEqual(ss1_z_mean, 2.0)
             ss2_y_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss2_y.mif', study.name)),
+                'mrstats {} -output mean'.format(ss2_y.path),
                 shell=True))
             self.assertEqual(ss2_y_mean, 3.0)
             ss2_z_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'ss2_z.mif', study.name)),
+                'mrstats {} -output mean'.format(ss2_z.path),
                 shell=True))
             self.assertEqual(ss2_z_mean, 6.0)
         finally:
@@ -253,22 +249,21 @@ class TestMulti(TestCase):
 
     def test_multi_multi_study(self):
         study = self.create_study(
-            MultiMultiStudy, 'partial', {
-                'ss1_x': Dataset('ones', mrtrix_format),
-                'ss1_y': Dataset('ones', mrtrix_format),
-                'full_a': Dataset('ones', mrtrix_format),
-                'full_b': Dataset('ones', mrtrix_format),
-                'full_c': Dataset('ones', mrtrix_format),
-                'partial_a': Dataset('ones', mrtrix_format),
-                'partial_b': Dataset('ones', mrtrix_format),
-                'partial_c': Dataset('ones', mrtrix_format)})
-        study.combined_pipeline().run(work_dir=self.work_dir)
+            MultiMultiStudy, 'partial', [
+                DatasetMatch('ss1_x', mrtrix_format, 'ones'),
+                DatasetMatch('ss1_y', mrtrix_format, 'ones'),
+                DatasetMatch('full_a', mrtrix_format, 'ones'),
+                DatasetMatch('full_b', mrtrix_format, 'ones'),
+                DatasetMatch('full_c', mrtrix_format, 'ones'),
+                DatasetMatch('partial_a', mrtrix_format, 'ones'),
+                DatasetMatch('partial_b', mrtrix_format, 'ones'),
+                DatasetMatch('partial_c', mrtrix_format, 'ones')])
+        g = study.data('g')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
             g_mean = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'g.mif', study.name)),
+                'mrstats {} -output mean'.format(g.path),
                 shell=True))
             self.assertEqual(g_mean, 11.0)
         finally:

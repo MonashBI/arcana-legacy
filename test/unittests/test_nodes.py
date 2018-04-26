@@ -1,8 +1,8 @@
 from nianalysis.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
-from nianalysis.dataset import DatasetSpec, Dataset
+from nianalysis.dataset import DatasetSpec, DatasetMatch
 from nianalysis.data_formats import nifti_gz_format
-from nianalysis.study.base import Study, set_specs
+from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
 from nianalysis.requirements import dcm2niix1_req, mrtrix3_req
@@ -16,13 +16,18 @@ dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
 
 class RequirementsStudy(Study):
 
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('ones', nifti_gz_format),
+        DatasetSpec('twos', nifti_gz_format, 'pipeline')]
+
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
             inputs=[DatasetSpec('ones', nifti_gz_format)],
             outputs=[DatasetSpec('twos', nifti_gz_format)],
             description=("A pipeline that tests loading of requirements"),
-            default_options={},
             version=1,
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
@@ -39,18 +44,14 @@ class RequirementsStudy(Study):
         pipeline.assert_connected()
         return pipeline
 
-    _data_specs = set_specs(
-        DatasetSpec('ones', nifti_gz_format),
-        DatasetSpec('twos', nifti_gz_format, pipeline))
-
 
 class TestModuleLoad(BaseTestCase):
 
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            {'ones': Dataset('ones', nifti_gz_format)})
-        study.pipeline().run(work_dir=self.work_dir)
+            [DatasetMatch('ones', nifti_gz_format, 'ones')])
+        study.data('twos')
         self.assertDatasetCreated('twos.nii.gz', study.name)
 
 
