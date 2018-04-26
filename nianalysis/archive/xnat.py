@@ -24,8 +24,7 @@ from nianalysis.archive.base import (
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import (
-    NiAnalysisError, NiAnalysisMissingDataException,
-    NiAnalysisMissingDataException)
+    NiAnalysisError, NiAnalysisMissingDataException)
 from nianalysis.utils import dir_modtime, NoContextWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
