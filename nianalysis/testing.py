@@ -170,11 +170,16 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, inputs, **kwargs):
+    def create_study(self, study_cls, name, inputs, archive=None,
+                     runner=None, **kwargs):
+        if archive is None:
+            archive = self.archive
+        if runner is None:
+            runner = self.runner
         return study_cls(
             name=name,
-            archive=self.archive,
-            runner=self.runner,
+            archive=archive,
+            runner=runner,
             inputs=inputs,
             **kwargs)
 

@@ -12,7 +12,6 @@ import errno
 import json
 from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
-from nipype.pipeline import engine as pe
 from nipype.interfaces.base import Directory, traits, isdefined
 from nianalysis.dataset import Dataset, Field
 from nianalysis.archive.base import (
@@ -22,8 +21,6 @@ from nianalysis.archive.base import (
     ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
     MULTIPLICITIES)
-from nianalysis.interfaces.iterators import (
-    InputSessions, InputSubjects)
 from nianalysis.data_formats import data_formats
 from nianalysis.utils import split_extension
 from nianalysis.exceptions import (
@@ -600,14 +597,17 @@ class XnatArchive(Archive):
 
     def __repr__(self):
         return ("{}(server={}, project_id={}, cache_dir={})"
-                .format(type(self).__name__, self.project_id,
-                        self.cache_dir))
+                .format(type(self).__name__,
+                        self.server, self.project_id,
+                        self._cache_dir))
 
     def __eq__(self, other):
-        return (self.server == other.server and
-                self.project_id == other.project_id and
-                self.subject_ids == other.subject_ids and
-                self.visit_ids == other.visit_ids)
+        try:
+            return (self.server == other.server and
+                    self._cache_dir == other._cache_dir and
+                    self.project_id == other.project_id)
+        except AttributeError:
+            return False  # For comparison with other types
 
     def source(self, *args, **kwargs):
         source = super(XnatArchive, self).source(*args, **kwargs)
@@ -649,36 +649,6 @@ class XnatArchive(Archive):
         if self._password is not None:
             sess_kwargs['password'] = self._password
         return xnat.connect(server=self._server, **sess_kwargs)
-
-    def batch_cache(self, dataset_matches, subject_ids=None,
-                    visit_ids=None, work_dir=None):
-        """
-        Creates the local cache of datasets. Useful when launching many
-        parallel jobs that will all try to pull the data through tomcat
-        server at the same time, and probably lead to timeout errors.
-
-        Parameters
-        ----------
-        dataset_matches : list(DatasetMatch)
-            List of dataset matches to select datasets to download to
-            the cache from each session
-        subject_ids : list(str | int) | None
-            List of subjects to download the datasets for. If None the datasets
-            will be downloaded for all subjects
-        filter_session_ids : list(str) | None
-            List of sessions to download the datasets for. If None all sessions
-            will be downloaded.
-        """
-        workflow = pe.Workflow(name='cache_download', base_dir=work_dir)
-        subjects = pe.Node(InputSubjects(), name='subjects')
-        sessions = pe.Node(InputSessions(), name='sessions')
-        subjects.iterables = ('subject_id', tuple(subject_ids))
-        sessions.iterables = ('visit_id', tuple(visit_ids))
-        source = self.source(dataset_matches, study_name='cache')
-        workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
-        workflow.connect(sessions, 'subject_id', source, 'subject_id')
-        workflow.connect(sessions, 'visit_id', source, 'visit_id')
-        workflow.run()
 
     def cache(self, dataset, prev_login=None):
         """
@@ -956,7 +926,7 @@ class XnatArchive(Archive):
             fields.append(Field(
                 name=name, value=value, derived=derived,
                 frequency=freq, subject_id=subject_id,
-                visit_id=visit_id))
+                visit_id=visit_id, archive=self))
         return sorted(fields)
 
     def dicom_header(self, dataset, prev_login=None):
@@ -979,12 +949,16 @@ class XnatArchive(Archive):
         return hdr
 
     @property
-    def local_dir(self):
-        return self._cache_dir
-
-    @property
     def project_id(self):
         return self._project_id
+
+    @property
+    def server(self):
+        return self._server
+
+    @property
+    def cache_dir(self):
+        return self._cache_dir
 
     @classmethod
     def get_labels(cls, frequency, project_id, subject_id=None,

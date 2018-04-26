@@ -6,7 +6,9 @@ from nianalysis.exceptions import (
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
-
+from nipype.pipeline import engine as pe
+from nianalysis.interfaces.iterators import (
+    InputSessions, InputSubjects)
 
 logger = getLogger('NiAnalysis')
 
@@ -144,6 +146,18 @@ class Study(object):
                 name,
                 "{} doesn't have an input named '{}'"
                 .format(self, name))
+
+    @property
+    def subject_ids(self):
+        if self._subject_ids is None:
+            return [s.id for s in self.tree.subjects]
+        return self._subject_ids
+
+    @property
+    def visit_ids(self):
+        if self._visit_ids is None:
+            return [v.id for v in self.tree.visits]
+        return self._visit_ids
 
     @property
     def prefix(self):
@@ -330,6 +344,26 @@ class Study(object):
     def acquired_data_spec_names(cls):
         "Lists the names of acquired data_specs defined in the study"
         return (c.name for c in cls.acquired_data_specs())
+
+    def cache_inputs(self):
+        """
+        Runs the Study's archive source node for each of the inputs
+        of the study, thereby caching any data required from remote
+        archives. Useful when launching many parallel jobs that will
+        all try to concurrently access the remote archive, and probably
+        lead to timeout errors.
+        """
+        workflow = pe.Workflow(name='cache_download',
+                               base_dir=self.runner.work_dir)
+        subjects = pe.Node(InputSubjects(), name='subjects')
+        sessions = pe.Node(InputSessions(), name='sessions')
+        subjects.iterables = ('subject_id', tuple(self.subject_ids))
+        sessions.iterables = ('visit_id', tuple(self.visit_ids))
+        source = self.archive.source(self.inputs, study_name='cache')
+        workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
+        workflow.connect(sessions, 'subject_id', source, 'subject_id')
+        workflow.connect(sessions, 'visit_id', source, 'visit_id')
+        workflow.run()
 
 
 class StudyMetaClass(type):

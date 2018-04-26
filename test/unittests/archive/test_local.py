@@ -445,50 +445,60 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     datasets=[
                         Dataset('ones', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject1'),
+                                subject_id='subject1',
+                                archive=archive),
                         Dataset('tens', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject1')],
+                                subject_id='subject1',
+                                archive=archive)],
                     fields=[
                         Field('e', value=4.44444,
                               frequency='per_subject',
-                              subject_id='subject1')]),
+                              subject_id='subject1',
+                              archive=archive)]),
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
                         Dataset('ones', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject2'),
+                                subject_id='subject2',
+                                archive=archive),
                         Dataset('tens', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject2')],
+                                subject_id='subject2',
+                                archive=archive)],
                     fields=[
                         Field('e', value=3.33333,
                               frequency='per_subject',
-                              subject_id='subject2')]),
+                              subject_id='subject2',
+                              archive=archive)]),
                 Subject(
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject3')],
+                                subject_id='subject3',
+                                archive=archive)],
                     fields=[
                         Field('e', value=2.22222,
                               frequency='per_subject',
-                              subject_id='subject3')]),
+                              subject_id='subject3',
+                              archive=archive)]),
                 Subject(
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
                     datasets=[
                         Dataset('tens', mrtrix_format,
                                 frequency='per_subject',
-                                subject_id='subject4')],
+                                subject_id='subject4',
+                                archive=archive)],
                     fields=[
                         Field('e', value=1.11111,
                               frequency='per_subject',
-                              subject_id='subject4')])],
+                              subject_id='subject4',
+                              archive=archive)])],
             visits=[
                 Visit(
                     'visit1', sessions=[s for s in sessions
@@ -496,11 +506,13 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     datasets=[
                         Dataset('ones', mrtrix_format,
                                 frequency='per_visit',
-                                visit_id='visit1')],
+                                visit_id='visit1',
+                                archive=archive)],
                     fields=[
                         Field('f', value='dog',
                               frequency='per_visit',
-                              visit_id='visit1')]),
+                              visit_id='visit1',
+                              archive=archive)]),
                 Visit(
                     'visit2', sessions=[s for s in sessions
                                         if s.visit_id == 'visit2'],
@@ -508,7 +520,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     fields=[
                         Field('f', value='cat',
                               frequency='per_visit',
-                              visit_id='visit2')]),
+                              visit_id='visit2',
+                              archive=archive)]),
                 Visit(
                     'visit3', sessions=[s for s in sessions
                                         if s.visit_id == 'visit3'],
@@ -516,13 +529,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     fields=[
                         Field('f', value='hippopotamus',
                               frequency='per_visit',
-                              visit_id='visit3')])],
+                              visit_id='visit3',
+                              archive=archive)])],
             datasets=[
                 Dataset('ones', mrtrix_format,
-                        frequency='per_project')],
+                        frequency='per_project',
+                        archive=archive)],
             fields=[
                 Field('g', value=100,
-                      frequency='per_project')])
+                      frequency='per_project',
+                      archive=archive)])
         if base_dir is not None or set_ids:
             for dataset in project.datasets:
                 if base_dir is not None:

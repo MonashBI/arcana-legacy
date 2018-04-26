@@ -274,7 +274,10 @@ class LocalArchive(Archive):
         return "LocalArchive(base_dir='{}')".format(self.base_dir)
 
     def __eq__(self, other):
-        return self.base_dir == other.base_dir
+        try:
+            return self.base_dir == other.base_dir
+        except AttributeError:
+            return False
 
     def source(self, *args, **kwargs):
         source = super(LocalArchive, self).source(
@@ -356,7 +359,8 @@ class LocalArchive(Archive):
                     Dataset.from_path(
                         os.path.join(session_path, dname),
                         frequency=frequency,
-                        subject_id=subj_id, visit_id=visit_id))
+                        subject_id=subj_id, visit_id=visit_id,
+                        archive=self))
             if FIELDS_FNAME in dnames:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
@@ -439,5 +443,6 @@ class LocalArchive(Archive):
         with open(fname) as f:
             dct = json.load(f)
         return [Field(name=k, value=v, frequency=frequency,
-                      subject_id=subject_id, visit_id=visit_id)
+                      subject_id=subject_id, visit_id=visit_id,
+                      archive=self)
                 for k, v in dct.items()]

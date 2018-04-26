@@ -728,8 +728,8 @@ class TestOnXnatMixin(object):
                     for dataset in subject.datasets:
                         self._upload_datset(xnat_login, dataset,
                                             xsubj_summary)
-                    for field in session.fields:
-                        xsession.fields[field.name] = field.value
+                    for field in subject.fields:
+                        xsubj_summary.fields[field.name] = field.value
             for visit in project.visits:
                 if visit.datasets or visit.fields:
                     (summ_subj_name,
@@ -925,22 +925,23 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     VISITS = ['visit1']
 
     def test_cache_download(self):
-        archive = self.archive
-        study = TestStudy(
-            'a_study', archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('dataset1', mrtrix_format, 'dataset1'),
-                    DatasetMatch('dataset2', mrtrix_format, 'dataset2'),
-                    DatasetMatch('dataset3', mrtrix_format, 'dataset3'),
-                    DatasetMatch('dataset5', mrtrix_format, 'dataset5')])
-        archive.batch_cache(datasets=study.inputs,
-                            subject_ids=self.SUBJECTS,
-                            visit_ids=self.VISITS,
-                            work_dir=self.work_dir)
+        archive = XnatArchive(project_id=self.project_id,
+                              server=SERVER,
+                              cache_dir=tempfile.mkdtemp())
+        study = self.create_study(
+            TestStudy, 'cache_download',
+            inputs=[
+                DatasetMatch('dataset1', mrtrix_format, 'dataset1'),
+                DatasetMatch('dataset2', mrtrix_format, 'dataset2'),
+                DatasetMatch('dataset3', mrtrix_format, 'dataset3'),
+                DatasetMatch('dataset5', mrtrix_format, 'dataset5')],
+            archive=archive)
+        study.cache_inputs()
         for subject_id in self.SUBJECTS:
             for inpt in study.inputs:
                 self.assertTrue(
                     os.path.exists(os.path.join(
-                        archive._cache_dir, self.PROJECT,
+                        archive.cache_dir, self.PROJECT,
                         '{}_{}'.format(self.PROJECT, subject_id),
                         '{}_{}_{}'.format(self.PROJECT, subject_id,
                                           self.VISITS[0]),
