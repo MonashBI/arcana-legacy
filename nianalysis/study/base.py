@@ -400,7 +400,7 @@ class StudyMetaClass(type):
         try:
             add_option_specs = dct['add_option_specs']
         except KeyError:
-            add_option_specs = {}
+            add_option_specs = []
         # Check that the pipeline names in data specs correspond to a
         # pipeline method in the class
         for spec in add_data_specs:
@@ -429,30 +429,3 @@ class StudyMetaClass(type):
         dct['_data_specs'] = combined_data_specs
         dct['_option_specs'] = combined_option_specs
         return type(name, bases, dct)
-
-
-def set_specs(*comps, **kwargs):
-    """
-    Used to set the dataset specs in every Study class.
-
-    Parameters
-    ----------
-    specs : list(DatasetSpec)
-        List of dataset specs to set into the class
-    inherit_from : list(
-        The dataset specs from which to inherit *before* the explicitly added
-        specs. Used to include dataset specs from base classes and then
-        selectively override them.
-    """
-    dct = {}
-    for comp in comps:
-        if comp.name in dct:
-            assert False, ("Multiple values for '{}' found in component list"
-                           .format(comp.name))
-        dct[comp.name] = comp
-    if 'inherit_from' in kwargs:
-        combined = set_specs(*set(kwargs['inherit_from']))
-        # Allow the current components to override the inherited ones
-        combined.update(dct)
-        dct = combined
-    return dct

@@ -14,6 +14,7 @@ from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
 from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
+from nianalysis.options import OptionSpec
 
 
 class TestStudy(Study):
@@ -44,7 +45,8 @@ class TestStudy(Study):
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    add_option_specs = {'pipeline_option': False}
+    add_option_specs = [
+        OptionSpec('pipeline_option', False)]
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
