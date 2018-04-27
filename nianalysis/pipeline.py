@@ -846,16 +846,7 @@ class Pipeline(object):
         name : str
             The name of the option to retrieve
         """
-        try:
-            value = self.study._options[name]
-        except KeyError:
-            try:
-                value = self.study._option_specs[name].default
-            except KeyError:
-                raise NiAnalysisNameError(
-                    name,
-                    "{} does not have an option named '{}'".format(
-                        self.study, name))
+        value = self.study._get_option(name)
         # Register option as being used by the pipeline
         self._used_options.add(name)
         return value

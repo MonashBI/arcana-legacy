@@ -1,2 +1,2 @@
-from .base import Study, StudyMetaClass, set_specs
+from .base import Study, StudyMetaClass
 from .multi import MultiStudy, MultiStudyMetaClass

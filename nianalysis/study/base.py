@@ -1,5 +1,6 @@
 from itertools import chain
 from logging import getLogger
+from collections import defaultdict
 from nianalysis.exceptions import (
     NiAnalysisMissingDataException, NiAnalysisNameError,
     NiAnalysisNoRunRequiredException, NiAnalysisUsageError)
@@ -129,6 +130,9 @@ class Study(object):
             else:
                 self._bound_specs[spec.name] = spec.bind(self)
             self._reprocess = reprocess
+            # Record options accessed before a pipeline is created
+            # so they can be attributed to the pipeline after creation
+            self._pre_options = defaultdict(list)
 
     def __repr__(self):
         """String representation of the study"""
@@ -199,7 +203,49 @@ class Study(object):
         Creates a Pipeline object, passing the study (self) as the first
         argument
         """
-        return Pipeline(self, *args, **kwargs)
+        pipeline = Pipeline(self, *args, **kwargs)
+        # Register options used before the pipeline was created
+        pipeline._used_options.extend(
+            self._pre_options.pop(pipeline.name))
+        if pipeline._used_options:
+            raise NiAnalysisUsageError(
+                "Orphanned options for '{}' pipeline(s) remain in '{}' "
+                "{} after creating '{}' pipeline. Please check pipeline"
+                " generation code".format(
+                    "', '".join(self._pre_options.keys()),
+                    self.name, type(self).__name__, pipeline.name))
+        return pipeline
+
+    def _get_option(self, name):
+        try:
+            value = self._options[name]
+        except KeyError:
+            try:
+                value = self._option_specs[name].default
+            except KeyError:
+                raise NiAnalysisNameError(
+                    name,
+                    "{} does not have an option named '{}'".format(
+                        self.study, name))
+        return value
+
+    def option(self, name, pipeline_name):
+        """
+        Retrieves the value of the option provided to the pipeline's
+        study and registers the option as being used by this pipeline
+        for use in provenance capture
+
+        Parameters
+        ----------
+        name : str
+            The name of the option to retrieve
+        pipeline_name : str
+            The name of the pipeline to attribute the option to
+        """
+        value = self._get_option(name)
+        # Register option as being used by the pipeline
+        self._pre_options[pipeline_name].append(name)
+        return value
 
     def data(self, name, subject_id=None, visit_id=None):
         """
