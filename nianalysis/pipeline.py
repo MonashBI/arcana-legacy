@@ -836,11 +836,21 @@ class Pipeline(object):
         return (o.name for o in self.outputs)
 
     def option(self, name):
+        """
+        Retrieves the value of the option provided to the pipeline's
+        study and registers the option as being used by this pipeline
+        for use in provenance capture
+
+        Parameters
+        ----------
+        name : str
+            The name of the option to retrieve
+        """
         try:
             value = self.study._options[name]
         except KeyError:
             try:
-                value = self.study.default_options[name]
+                value = self.study._option_specs[name].default
             except KeyError:
                 raise NiAnalysisNameError(
                     name,
