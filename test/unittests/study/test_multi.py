@@ -5,7 +5,8 @@ from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import DatasetMatch, DatasetSpec
 from nianalysis.data_formats import mrtrix_format
 from nianalysis.requirements import mrtrix3_req
-from nianalysis.study.base import Study, StudyMetaClass
+from nianalysis.options import OptionSpec
+from nianalysis.study.base import Study
 from nianalysis.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from nianalysis.interfaces.mrtrix import MRMath
@@ -21,6 +22,11 @@ class StudyA(Study):
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format),
         DatasetSpec('z', mrtrix_format, 'pipeline_alpha')]
+
+    add_option_specs = [
+        OptionSpec('o1', 1),
+        OptionSpec('o2', '2'),
+        OptionSpec('o3', 3.0)]
 
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -55,6 +61,11 @@ class StudyB(Study):
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
         DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
+
+    add_option_specs = [
+        OptionSpec('o1', 1),
+        OptionSpec('o2', '2'),
+        OptionSpec('o3', 3.0)]
 
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(

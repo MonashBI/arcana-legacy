@@ -1,3 +1,4 @@
+from copy import copy
 from nianalysis.exceptions import NiAnalysisUsageError
 
 
@@ -35,3 +36,11 @@ class OptionSpec(object):
     @property
     def description(self):
         return self._description
+
+    def renamed(self, name):
+        """
+        Duplicate the OptionSpec and rename it
+        """
+        duplicate = copy(self)
+        duplicate._name = name
+        return duplicate

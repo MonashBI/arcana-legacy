@@ -205,8 +205,11 @@ class Study(object):
         """
         pipeline = Pipeline(self, *args, **kwargs)
         # Register options used before the pipeline was created
-        pipeline._used_options.extend(
-            self._pre_options.pop(pipeline.name))
+        try:
+            pipeline._used_options.update(
+                self._pre_options.pop(pipeline.name))
+        except KeyError:
+            pass
         if pipeline._used_options:
             raise NiAnalysisUsageError(
                 "Orphanned options for '{}' pipeline(s) remain in '{}' "
@@ -371,14 +374,34 @@ class Study(object):
                                "', '".join(cls._data_specs.keys())))
 
     @classmethod
+    def option_spec(cls, name):
+        try:
+            return cls._option_specs[name]
+        except KeyError:
+            raise NiAnalysisNameError(
+                name,
+                "No option spec named '{}' in {} (available: "
+                "'{}')".format(name, cls.__name__,
+                               "', '".join(cls._option_specs.keys())))
+
+    @classmethod
     def data_specs(cls):
         """Lists all data_specs defined in the study class"""
         return cls._data_specs.itervalues()
 
     @classmethod
+    def option_specs(cls):
+        return cls._option_specs.itervalues()
+
+    @classmethod
     def data_spec_names(cls):
         """Lists the names of all data_specs defined in the study"""
         return cls._data_specs.iterkeys()
+
+    @classmethod
+    def option_spec_names(cls):
+        """Lists the names of all option_specs defined in the study"""
+        return cls._option_specs.iterkeys()
 
     @classmethod
     def acquired_data_specs(cls):

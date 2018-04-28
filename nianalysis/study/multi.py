@@ -1,3 +1,4 @@
+from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.exceptions import (
     NiAnalysisMissingDataException, NiAnalysisNameError)
@@ -15,38 +16,52 @@ class MultiStudy(Study):
     ----------
     name : str
         The name of the combined study.
-    project_id: str
-        The ID of the archive project from which to access the data from. For
-        DaRIS it is the project id minus the proceeding 1008.2. For XNAT it
-        will be the project code. For local archives name of the directory.
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
-    inputs : Dict[str, base.Dataset]
+    runner : Runner
+        The runner the processes the derived data when demanded
+    inputs : Dict[str, Dataset|Field]
         A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
         also be replacements for generated data_specs)
+    options : Dict[str, (int|float|str)]
+        Options that are passed to pipelines when they are constructed
+    subject_ids : List[(int|str)]
+        List of subject IDs to restrict the analysis to
+    visit_ids : List[(int|str)]
+        List of visit IDs to restrict the analysis to
+    check_inputs : bool
+        Whether to check the inputs to see if any acquired datasets
+        are missing
+    reprocess : bool
+        Whether to reprocess dataset|fields that have been created with
+        different parameters and/or pipeline-versions. If False then
+        and exception will be thrown if the archive already contains
+        matching datasets|fields created with different parameters.
 
     Required Sub-Class attributes
     -----------------------------
     sub_study_specs : list[SubStudySpec]
         Subclasses of MultiStudy are expected to have a 'sub_study_specs'
-        class member, which defines the sub-studies that make up the combined
-        study and the mapping of their dataset names. The key of the outer
-        dictionary will be the name of the sub-study, and the value is a tuple
-        consisting of the class of the sub-study and a map of dataset names
-        from the combined study to the sub-study e.g.
+        class member, which defines the sub-studies that make up the
+        combined study and the mapping of their dataset names. The key
+        of the outer dictionary will be the name of the sub-study, and
+        the value is a tuple consisting of the class of the sub-study
+        and a map of dataset names from the combined study to the
+        sub-study e.g.
 
-            _sub_study_specs = set_specs(
+            sub_study_specs = [
                 SubStudySpec('t1_study', MRIStudy, {'t1': 'mr_scan'}),
-                SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'}))
+                SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'})]
 
-            _data_specs = set_specs(
+            add_data_specs = [
                 DatasetSpec('t1', nifti_gz_format'),
-                DatasetSpec('t2', nifti_gz_format'))
+                DatasetSpec('t2', nifti_gz_format')]
     """
 
-    def __init__(self, name, archive, runner, inputs, **kwargs):
+    def __init__(self, name, archive, runner, inputs, options=None,
+                 **kwargs):
         try:
             assert issubclass(self.__metaclass__, MultiStudyMetaClass)
         except AttributeError:
@@ -54,7 +69,7 @@ class MultiStudy(Study):
                     "the metaclass of all classes derived from "
                     "MultiStudy")
         super(MultiStudy, self).__init__(name, archive, runner, inputs,
-                                         **kwargs)
+                                         options=options, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs:
             # Create copies of the input datasets to pass to the
@@ -66,10 +81,18 @@ class MultiStudy(Study):
                         inpt.renamed(sub_study_spec.map(inpt.name)))
                 except NiAnalysisNameError:
                     pass  # Ignore datasets not required for sub-study
+            mapped_options = []
+            for opt in options:
+                try:
+                    mapped_options.append(
+                        opt.renamed(sub_study_spec.map(opt.name)))
+                except NiAnalysisNameError:
+                    pass  # Ignore options not required for sub-study
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
                 archive, runner, mapped_inputs,
+                options=mapped_options,
                 check_inputs=False)
             # Set sub-study as attribute
             setattr(self, sub_study_spec.name, sub_study)
@@ -133,11 +156,8 @@ class MultiStudy(Study):
             to be connected manually in combined-study getter (i.e. not
             using translate_getter decorator).
         """
-        try:
-            assert isinstance(sub_study_name, basestring)
-            assert isinstance(pipeline_name, basestring)
-        except:
-            raise
+        assert isinstance(sub_study_name, basestring)
+        assert isinstance(pipeline_name, basestring)
         def translated_getter(self, name_prefix='',  # @IgnorePep8
                               add_inputs=add_inputs,
                               add_outputs=add_outputs):
@@ -161,11 +181,11 @@ class SubStudySpec(object):
     study_class : type (sub-classed from Study)
         The class of the sub-study
     name_map : dict[str, str]
-        A mapping of dataset/field names from the MultiStudy scope to
-        the scopy of the sub-study (i.e. the _data_specs dict in the
-        class of the sub-study). All data-specs that are not explicitly
-        provided in this mapping are auto-translated using the sub-study
-        prefix.
+        A mapping of dataset/field/option names from the MultiStudy
+        scope to the scopy of the sub-study (i.e. the _data_specs dict
+        in the class of the sub-study). All data-specs that are not
+        explicitly provided in this mapping are auto-translated using
+        the sub-study prefix.
     """
 
     def __init__(self, name, study_class, name_map=None):
@@ -192,7 +212,7 @@ class SubStudySpec(object):
     @property
     def name_map(self):
         nmap = dict((self.apply_prefix(s.name), s.name)
-                    for s in self.auto_specs)
+                    for s in self.auto_data_specs)
         nmap.update(self._name_map)
         return nmap
 
@@ -201,11 +221,13 @@ class SubStudySpec(object):
             return self._name_map[name]
         except KeyError:
             mapped = self.strip_prefix(name)
-            if mapped not in self.study_class.data_spec_names():
+            if mapped not in chain(self.study_class.data_spec_names(),
+                                   self.study_class.option_spec_names()):
                 raise NiAnalysisNameError(
                     name,
                     "'{}' has a matching prefix '{}_' but '{}' doesn't"
-                    " match any data_sets in the study class {} ('{}')"
+                    " match any datasets, fields or options in the "
+                    "study class {} ('{}')"
                     .format(name, self.name, mapped,
                             self.study_class.__name__,
                             "', '".join(
@@ -216,11 +238,12 @@ class SubStudySpec(object):
         try:
             return self._inv_map[name]
         except KeyError:
-            if name not in self.study_class.data_spec_names():
+            if name not in chain(self.study_class.data_spec_names(),
+                                 self.study_class.option_spec_names()):
                 raise NiAnalysisNameError(
                     name,
-                    "'{}' doesn't match any data_sets in the study "
-                    "class {} ('{}')"
+                    "'{}' doesn't match any datasets, fields or options"
+                    " in the study class {} ('{}')"
                     .format(name, self.study_class.__name__,
                             "', '".join(
                                 self.study_class.data_spec_names())))
@@ -239,12 +262,22 @@ class SubStudySpec(object):
         return name[len(self.name) + 1:]
 
     @property
-    def auto_specs(self):
+    def auto_data_specs(self):
         """
-        Specs in the sub-study class that are not explicitly provided
+        Data specs in the sub-study class that are not explicitly provided
         in the name map
         """
         for spec in self.study_class.data_specs():
+            if spec.name not in self._inv_map:
+                yield spec
+
+    @property
+    def auto_option_specs(self):
+        """
+        Option pecs in the sub-study class that are not explicitly provided
+        in the name map
+        """
+        for spec in self.study_class.option_specs():
             if spec.name not in self._inv_map:
                 yield spec
 
@@ -380,24 +413,36 @@ class MultiStudyMetaClass(StudyMetaClass):
                 "MultiStudyMetaClass can only be used for classes that "
                 "have MultiStudy as a base class")
         try:
-            sub_study_specs = dct['sub_study_specs']
+            add_sub_study_specs = dct['add_sub_study_specs']
         except KeyError:
-            raise NiAnalysisUsageError(
-                "MultiStudy class '{}' doesn't not have required "
-                "'sub_study_specs' class attribute"
-                .format(name))
+            add_sub_study_specs = dct['add_sub_study_specs'] = []
         try:
             add_data_specs = dct['add_data_specs']
         except AttributeError:
             add_data_specs = dct['add_data_specs'] = []
-        explicitly_added = [s.name for s in add_data_specs]
+        try:
+            add_option_specs = dct['add_option_specs']
+        except AttributeError:
+            add_option_specs = dct['add_option_specs'] = []
+        dct['_sub_study_specs'] = sub_study_specs = {}
+        for base in reversed(bases):
+            try:
+                sub_study_specs.update(
+                    (d.name, d) for d in base.add_sub_study_specs)
+            except AttributeError:
+                pass
+        sub_study_specs.update(
+            (s.name, s) for s in add_sub_study_specs)
+        explicitly_added_data_specs = [s.name for s in add_data_specs]
+        explicitly_added_option_specs = [
+            s.name for s in add_option_specs]
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
-        for sub_study_spec in sub_study_specs:
-            for data_spec in sub_study_spec.auto_specs:
+        for sub_study_spec in sub_study_specs.values():
+            for data_spec in sub_study_spec.auto_data_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
-                if trans_sname not in explicitly_added:
+                if trans_sname not in explicitly_added_data_specs:
                     initkwargs = data_spec.initkwargs()
                     initkwargs['name'] = trans_sname
                     if data_spec.pipeline_name is not None:
@@ -412,6 +457,10 @@ class MultiStudyMetaClass(StudyMetaClass):
                                 sub_study_spec.name,
                                 data_spec.pipeline_name)
                     add_data_specs.append(type(data_spec)(**initkwargs))
-        dct['_sub_study_specs'] = dict(
-            (s.name, s) for s in sub_study_specs)
+            for opt_spec in sub_study_spec.auto_option_specs():
+                trans_sname = sub_study_spec.apply_prefix(
+                    data_spec.name)
+                if trans_sname not in explicitly_added_option_specs:
+                    add_option_specs.append(
+                        opt_spec.renamed(trans_sname))
         return StudyMetaClass(name, bases, dct)
