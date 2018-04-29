@@ -22,7 +22,7 @@ class DummyStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    add_data_specs = [
+    adds_data_specs = [
         DatasetSpec('source1', nifti_gz_format),
         DatasetSpec('source2', nifti_gz_format),
         DatasetSpec('source3', nifti_gz_format),

@@ -39,7 +39,7 @@ class TestMatchStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    add_data_specs = [
+    adds_data_specs = [
         DatasetSpec('gre_phase', dicom_format),
         DatasetSpec('gre_mag', dicom_format)]
 

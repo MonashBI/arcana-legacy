@@ -38,7 +38,7 @@ class DummyStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    add_data_specs = [
+    adds_data_specs = [
         DatasetSpec('input', dicom_format),
         DatasetSpec('output', nifti_gz_format, 'pipeline')]
 

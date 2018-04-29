@@ -11,7 +11,7 @@ class ConversionStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    add_data_specs = [
+    adds_data_specs = [
         DatasetSpec('mrtrix', nifti_gz_format),
         DatasetSpec('nifti_gz', mrtrix_format),
         DatasetSpec('dicom', dicom_format),
