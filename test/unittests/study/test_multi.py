@@ -18,12 +18,12 @@ class StudyA(Study):
 
     __metaclass__ = StudyMetaClass
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format),
         DatasetSpec('z', mrtrix_format, 'pipeline_alpha')]
 
-    adds_option_specs = [
+    add_option_specs = [
         OptionSpec('o1', 1),
         OptionSpec('o2', '2'),
         OptionSpec('o3', 3.0)]
@@ -56,13 +56,13 @@ class StudyB(Study):
 
     __metaclass__ = StudyMetaClass
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('w', mrtrix_format),
         DatasetSpec('x', mrtrix_format),
         DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
         DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
 
-    adds_option_specs = [
+    add_option_specs = [
         OptionSpec('o1', 1),
         OptionSpec('o2', '2'),
         OptionSpec('o3', 3.0)]
@@ -111,13 +111,13 @@ class FullMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    sub_study_specs = [
+    add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
                      {'a': 'x', 'b': 'y', 'd': 'z'}),
         SubStudySpec('ss2', StudyB,
                      {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'})]
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format),
@@ -135,13 +135,13 @@ class PartialMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    sub_study_specs = [
+    add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
                      {'a': 'x', 'b': 'y'}),
         SubStudySpec('ss2', StudyB,
                      {'b': 'w', 'c': 'x'})]
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('a', mrtrix_format),
         DatasetSpec('b', mrtrix_format),
         DatasetSpec('c', mrtrix_format)]
@@ -154,12 +154,12 @@ class MultiMultiStudy(MultiStudy):
 
     __metaclass__ = MultiStudyMetaClass
 
-    sub_study_specs = [
+    add_sub_study_specs = [
         SubStudySpec('ss1', StudyA, {}),
         SubStudySpec('full', FullMultiStudy),
         SubStudySpec('partial', PartialMultiStudy)]
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('g', mrtrix_format, 'combined_pipeline')]
 
     def combined_pipeline(self, **kwargs):

@@ -21,7 +21,7 @@ class TestStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
         DatasetSpec('pipeline1_1', nifti_gz_format, 'pipeline1'),
@@ -45,7 +45,7 @@ class TestStudy(Study):
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    adds_option_specs = [
+    add_option_specs = [
         OptionSpec('pipeline_option', False)]
 
     def pipeline1(self, **kwargs):
@@ -387,7 +387,7 @@ class ExistingPrereqStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('start', mrtrix_format),
         DatasetSpec('tens', mrtrix_format, 'tens_pipeline'),
         DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),

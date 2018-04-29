@@ -18,7 +18,7 @@ class RequirementsStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
-    adds_data_specs = [
+    add_data_specs = [
         DatasetSpec('ones', nifti_gz_format),
         DatasetSpec('twos', nifti_gz_format, 'pipeline')]
 

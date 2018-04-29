@@ -42,7 +42,7 @@ class MultiStudy(Study):
 
     Required Sub-Class attributes
     -----------------------------
-    sub_study_specs : list[SubStudySpec]
+    add_sub_study_specs : list[SubStudySpec]
         Subclasses of MultiStudy are expected to have a 'sub_study_specs'
         class member, which defines the sub-studies that make up the
         combined study and the mapping of their dataset names. The key
@@ -51,11 +51,11 @@ class MultiStudy(Study):
         and a map of dataset names from the combined study to the
         sub-study e.g.
 
-            sub_study_specs = [
+            add_sub_study_specs = [
                 SubStudySpec('t1_study', MRIStudy, {'t1': 'mr_scan'}),
                 SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'})]
 
-            adds_data_specs = [
+            add_data_specs = [
                 DatasetSpec('t1', nifti_gz_format'),
                 DatasetSpec('t2', nifti_gz_format')]
     """
@@ -413,29 +413,29 @@ class MultiStudyMetaClass(StudyMetaClass):
                 "MultiStudyMetaClass can only be used for classes that "
                 "have MultiStudy as a base class")
         try:
-            adds_sub_study_specs = dct['adds_sub_study_specs']
+            add_sub_study_specs = dct['add_sub_study_specs']
         except KeyError:
-            adds_sub_study_specs = dct['adds_sub_study_specs'] = []
+            add_sub_study_specs = dct['add_sub_study_specs'] = []
         try:
-            adds_data_specs = dct['adds_data_specs']
+            add_data_specs = dct['add_data_specs']
         except AttributeError:
-            adds_data_specs = dct['adds_data_specs'] = []
+            add_data_specs = dct['add_data_specs'] = []
         try:
-            adds_option_specs = dct['adds_option_specs']
+            add_option_specs = dct['add_option_specs']
         except AttributeError:
-            adds_option_specs = dct['adds_option_specs'] = []
+            add_option_specs = dct['add_option_specs'] = []
         dct['_sub_study_specs'] = sub_study_specs = {}
         for base in reversed(bases):
             try:
-                sub_study_specs.update(
-                    (d.name, d) for d in base.adds_sub_study_specs)
+                add_sub_study_specs.update(
+                    (d.name, d) for d in base.add_sub_study_specs)
             except AttributeError:
                 pass
-        sub_study_specs.update(
-            (s.name, s) for s in adds_sub_study_specs)
-        explicitly_added_data_specs = [s.name for s in adds_data_specs]
+        add_sub_study_specs.update(
+            (s.name, s) for s in add_sub_study_specs)
+        explicitly_added_data_specs = [s.name for s in add_data_specs]
         explicitly_added_option_specs = [
-            s.name for s in adds_option_specs]
+            s.name for s in add_option_specs]
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
         for sub_study_spec in sub_study_specs.values():
@@ -456,11 +456,11 @@ class MultiStudyMetaClass(StudyMetaClass):
                             dct[trans_pname] = MultiStudy.translate(
                                 sub_study_spec.name,
                                 data_spec.pipeline_name)
-                    adds_data_specs.append(type(data_spec)(**initkwargs))
+                    add_data_specs.append(type(data_spec)(**initkwargs))
             for opt_spec in sub_study_spec.auto_option_specs():
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if trans_sname not in explicitly_added_option_specs:
-                    adds_option_specs.append(
+                    add_option_specs.append(
                         opt_spec.renamed(trans_sname))
         return StudyMetaClass(name, bases, dct)
