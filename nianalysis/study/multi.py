@@ -62,6 +62,7 @@ class MultiStudy(Study):
 
     def __init__(self, name, archive, runner, inputs, options=None,
                  **kwargs):
+        options = [] if options is None else options
         try:
             assert issubclass(self.__metaclass__, MultiStudyMetaClass)
         except AttributeError:
@@ -71,7 +72,7 @@ class MultiStudy(Study):
         super(MultiStudy, self).__init__(name, archive, runner, inputs,
                                          options=options, **kwargs)
         self._sub_studies = {}
-        for sub_study_spec in self.sub_study_specs:
+        for sub_study_spec in self.sub_study_specs():
             # Create copies of the input datasets to pass to the
             # __init__ method of the generated sub-studies
             mapped_inputs = []
@@ -127,9 +128,13 @@ class MultiStudy(Study):
                 "'{}' not found in sub-studes ('{}')"
                 .format(name, "', '".join(cls._sub_study_specs)))
 
+    @classmethod
+    def sub_study_specs(cls):
+        return cls._sub_study_specs.itervalues()
+
     def __repr__(self):
-        return "{}(name='{}', study='{}')".format(
-            self.__class__.__name__, self.name, self.study.name)
+        return "{}(name='{}')".format(
+            self.__class__.__name__, self.name)
 
     @classmethod
     def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
@@ -418,11 +423,11 @@ class MultiStudyMetaClass(StudyMetaClass):
             add_sub_study_specs = dct['add_sub_study_specs'] = []
         try:
             add_data_specs = dct['add_data_specs']
-        except AttributeError:
+        except KeyError:
             add_data_specs = dct['add_data_specs'] = []
         try:
             add_option_specs = dct['add_option_specs']
-        except AttributeError:
+        except KeyError:
             add_option_specs = dct['add_option_specs'] = []
         dct['_sub_study_specs'] = sub_study_specs = {}
         for base in reversed(bases):
@@ -431,7 +436,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                     (d.name, d) for d in base.add_sub_study_specs)
             except AttributeError:
                 pass
-        add_sub_study_specs.update(
+        sub_study_specs.update(
             (s.name, s) for s in add_sub_study_specs)
         explicitly_added_data_specs = [s.name for s in add_data_specs]
         explicitly_added_option_specs = [
@@ -457,7 +462,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                                 sub_study_spec.name,
                                 data_spec.pipeline_name)
                     add_data_specs.append(type(data_spec)(**initkwargs))
-            for opt_spec in sub_study_spec.auto_option_specs():
+            for opt_spec in sub_study_spec.auto_option_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
                 if trans_sname not in explicitly_added_option_specs:

@@ -70,7 +70,7 @@ class Study(object):
         except AttributeError:
             assert ("Need to have StudyMetaClass (or a sub-class) as "
                     "the metaclass of all classes derived from Study")
-        options = {} if options is None else options
+        options = [] if options is None else options
         self._name = name
         self._archive = archive
         self._runner = runner
@@ -79,29 +79,29 @@ class Study(object):
         # this will allow them to prepend the study name to the name
         # of the dataset
         self._bound_specs = {}
-        for opt_name, opt_value in options.iteritems():
+        for opt in options:
             try:
-                opt_spec = self._option_specs[opt_name]
+                opt_spec = self._option_specs[opt.name]
             except KeyError:
                 raise NiAnalysisNameError(
                     "Provided option '{}' is not present in the "
                     "allowable options for {} classes ('{}')"
-                    .format(opt_name, type(self).__name__,
+                    .format(opt.name, type(self).__name__,
                             "', '".join(self.default_options)))
-            if not isinstance(opt_value, opt_spec.dtype):
+            if not isinstance(opt.value, opt_spec.dtype):
                 raise NiAnalysisUsageError(
                     "Incorrect datatype for '{}' option provided "
                     "to '{}' {}, {} ({}). Should be {}"
-                    .format(opt_name, name, type(self).__name__,
-                            type(opt_value), opt_spec.dtype))
+                    .format(opt.name, name, type(self).__name__,
+                            type(opt.value), opt_spec.dtype))
             if (opt_spec.choices is not None and
-                    opt_value not in opt_spec.choices):
+                    opt.value not in opt_spec.choices):
                 raise NiAnalysisUsageError(
                     "Provided value for '{}' option in '{}' {}, {}, is "
                     "not a valid choice. Can be one of {}"
-                    .format(opt_name, name, type(self).__name__,
-                            opt_value, ','.join(opt_spec.dtype)))
-        self._options = options
+                    .format(opt.name, name, type(self).__name__,
+                            opt.value, ','.join(opt_spec.dtype)))
+        self._options = dict((o.name, o) for o in options)
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
         self._tree_cache = None
@@ -129,10 +129,10 @@ class Study(object):
                             self.name, "', '".join(self._inputs)))
             else:
                 self._bound_specs[spec.name] = spec.bind(self)
-            self._reprocess = reprocess
-            # Record options accessed before a pipeline is created
-            # so they can be attributed to the pipeline after creation
-            self._pre_options = defaultdict(list)
+        self._reprocess = reprocess
+        # Record options accessed before a pipeline is created
+        # so they can be attributed to the pipeline after creation
+        self._pre_options = defaultdict(list)
 
     def __repr__(self):
         """String representation of the study"""
@@ -229,7 +229,7 @@ class Study(object):
                 raise NiAnalysisNameError(
                     name,
                     "{} does not have an option named '{}'".format(
-                        self.study, name))
+                        self, name))
         return value
 
     def option(self, name, pipeline_name):
@@ -249,6 +249,11 @@ class Study(object):
         # Register option as being used by the pipeline
         self._pre_options[pipeline_name].append(name)
         return value
+
+    @property
+    def options(self):
+        for opt_name in self._option_specs:
+            yield self._get_option(opt_name)
 
     def data(self, name, subject_id=None, visit_id=None):
         """

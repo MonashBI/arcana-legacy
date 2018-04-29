@@ -63,9 +63,9 @@ class StudyB(Study):
         DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
 
     add_option_specs = [
-        OptionSpec('o1', 1),
-        OptionSpec('o2', '2'),
-        OptionSpec('o3', 3.0)]
+        OptionSpec('o1', 10),
+        OptionSpec('o2', '20'),
+        OptionSpec('o3', 30.0)]
 
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -113,9 +113,20 @@ class FullMultiStudy(MultiStudy):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
-                     {'a': 'x', 'b': 'y', 'd': 'z'}),
+                     {'a': 'x',
+                      'b': 'y',
+                      'd': 'z',
+                      'p1': 'o1',
+                      'p2': 'o2',
+                      'p3': 'o3'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x', 'e': 'y', 'f': 'z'})]
+                     {'b': 'w',
+                      'c': 'x',
+                      'e': 'y',
+                      'f': 'z',
+                      'q1': 'o1',
+                      'q2': 'o2',
+                      'q3': 'o3'})]
 
     add_data_specs = [
         DatasetSpec('a', mrtrix_format),
@@ -229,6 +240,13 @@ class TestMulti(TestCase):
         finally:
             if self.mrtrix_req is not None:
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+        pipe = study.pipeline_alpha_trans()
+        self.assertEqual(pipe.option('p1'), 1)
+        self.assertEqual(pipe.option('p2'), '2')
+        self.assertEqual(pipe.option('p3'), 3.0)
+        self.assertEqual(pipe.option('q1'), 10)
+        self.assertEqual(pipe.option('q2'), '20')
+        self.assertEqual(pipe.option('q3'), 30.0)
 
     def test_partial_multi_study(self):
         study = self.create_study(
