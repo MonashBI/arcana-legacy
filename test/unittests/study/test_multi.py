@@ -237,8 +237,7 @@ class TestMulti(TestCase):
              DatasetMatch('c', mrtrix_format, 'ones')],
             options=[Option('required_op', 'product')])
         d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
-        e = study.data('e', subject_id=['SUBJECT'],
-                       visit_id=['VISIT'])[0]
+        e = study.e[0]
         f = study.data('f')[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
@@ -259,7 +258,7 @@ class TestMulti(TestCase):
             if self.mrtrix_req is not None:
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
-        self.assertEqual(study.option('p1', 'dummy'), 100)
+        self.assertEqual(study.p1, 100)
         self.assertEqual(study.option('p2', 'dummy'), '200')
         self.assertEqual(study.option('p3', 'dummy'), 300.0)
         self.assertEqual(study.option('q1', 'dummy'), 150)
