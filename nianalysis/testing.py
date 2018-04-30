@@ -6,6 +6,7 @@ import errno
 from xnat.exceptions import XNATError
 import sys
 import json
+import filecmp
 from collections import defaultdict
 import warnings
 import logging
@@ -39,6 +40,7 @@ class BaseTestCase(TestCase):
     VISIT = 'VISIT'
     SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     XNAT_TEST_PROJECT = 'TEST001'
+    REF_SUFFIX = '_REF'
 
     # The path to the test directory, which should sit along side the
     # the package directory. Note this will not work when NiAnalysis
@@ -95,6 +97,17 @@ class BaseTestCase(TestCase):
                     .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
             else:
                 raise
+        try:
+            download_all_datasets(
+                cache_dir, self.SERVER,
+                self.xnat_session_name + self.REF_SUFFIX,
+                overwrite=False)
+        except Exception:
+            warnings.warn(
+                "Did not download any reference datasets from '{}_{}' "
+                " session on MBI-XNAT, attempting with what has already"
+                " been downloaded:\n\n{}"
+                .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 src_path = os.path.join(cache_dir, f)
@@ -225,21 +238,28 @@ class BaseTestCase(TestCase):
         else:
             self.assertEqual(value, ref_value, msg)
 
-    def assertImagesMatch(self, output, ref, study_name):
-        out_path = self.output_file_path(output, study_name)
-        ref_path = self.ref_file_path(ref)
-        try:
-            sp.check_output('diff {}.nii {}.nii'
-                            .format(out_path, ref_path), shell=True)
-        except sp.CalledProcessError as e:
-            if e.output == "Binary files {} and {} differ\n".format(
-                    out_path, ref_path):
-                self.assert_(
-                    False,
-                    "Images {} and {} do not match exactly".format(out_path,
-                                                                   ref_path))
-            else:
-                raise
+    def assertDatasetsMatch(self, dataset1, dataset2, error_msg=None):
+        msg = "{} does not match {}".format(dataset1, dataset2)
+        if msg is not None:
+            msg += ':\n' + error_msg
+        self.assertTrue(filecmp.cmp(dataset1.path, dataset2.path,
+                                    shallow=False), msg=msg)
+
+#     def assertImagesMatch(self, output, ref, study_name):
+#         out_path = self.output_file_path(output, study_name)
+#         ref_path = self.ref_file_path(ref)
+#         try:
+#             sp.check_output('diff {}.nii {}.nii'
+#                             .format(out_path, ref_path), shell=True)
+#         except sp.CalledProcessError as e:
+#             if e.output == "Binary files {} and {} differ\n".format(
+#                     out_path, ref_path):
+#                 self.assert_(
+#                     False,
+#                     "Images {} and {} do not match exactly".format(out_path,
+#                                                                    ref_path))
+#             else:
+#                 raise
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
                         subject=None, visit=None,
