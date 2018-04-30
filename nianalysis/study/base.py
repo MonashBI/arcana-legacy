@@ -513,6 +513,12 @@ class StudyMetaClass(type):
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_option_specs.update(
             (o.name, o) for o in add_option_specs)
+        spec_name_clashes = (set(combined_data_specs) &
+                             set(combined_option_specs))
+        if spec_name_clashes:
+            raise NiAnalysisUsageError(
+                "'{}' name both data and option specs in '{}' class"
+                .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_option_specs'] = combined_option_specs
         return type(name, bases, dct)
