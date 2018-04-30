@@ -259,22 +259,21 @@ class TestMulti(TestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
         self.assertEqual(study.p1, 100)
-        self.assertEqual(study.option('p2', 'dummy'), '200')
-        self.assertEqual(study.option('p3', 'dummy'), 300.0)
-        self.assertEqual(study.option('q1', 'dummy'), 150)
-        self.assertEqual(study.option('q2', 'dummy'), '250')
-        self.assertEqual(study.option('required_op', 'dummy'),
-                         'product')
+        self.assertEqual(study.p2, '200')
+        self.assertEqual(study.p3, 300.0)
+        self.assertEqual(study.q1, 150)
+        self.assertEqual(study.q2, '250')
+        self.assertEqual(study.required_op, 'product')
         # Test option values in SubStudy
         ss1 = study.sub_study('ss1')
-        self.assertEqual(ss1.option('o1', 'dummy'), 100)
-        self.assertEqual(ss1.option('o2', 'dummy'), '200')
-        self.assertEqual(ss1.option('o3', 'dummy'), 300.0)
+        self.assertEqual(ss1.o1, 100)
+        self.assertEqual(ss1.o2, '200')
+        self.assertEqual(ss1.o3, 300.0)
         ss2 = study.sub_study('ss2')
-        self.assertEqual(ss2.option('o1', 'dummy'), 150)
-        self.assertEqual(ss2.option('o2', 'dummy'), '250')
-        self.assertEqual(ss2.option('o3', 'dummy'), 300.0)
-        self.assertEqual(ss2.option('product_op', 'dummy'), 'product')
+        self.assertEqual(ss2.o1, 150)
+        self.assertEqual(ss2.o2, '250')
+        self.assertEqual(ss2.o3, 300.0)
+        self.assertEqual(ss2.product_op, 'product')
 
     def test_partial_multi_study(self):
         study = self.create_study(
@@ -283,9 +282,9 @@ class TestMulti(TestCase):
              DatasetMatch('b', mrtrix_format, 'ones'),
              DatasetMatch('c', mrtrix_format, 'ones')],
             options=[Option('ss2_product_op', 'product')])
-        ss1_z = study.data('ss1_z')[0]
-        ss2_y = study.data('ss2_y')[0]
-        ss2_z = study.data('ss2_z')[0]
+        ss1_z = study.ss1_z[0]
+        ss2_y = study.ss2_y[0]
+        ss2_z = study.ss2_z[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
@@ -305,23 +304,22 @@ class TestMulti(TestCase):
             if self.mrtrix_req is not None:
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
-        self.assertEqual(study.option('p1', 'dummy'), 1000)
-        self.assertEqual(study.option('ss1_o2', 'dummy'), '2')
-        self.assertEqual(study.option('ss1_o3', 'dummy'), 3.0)
-        self.assertEqual(study.option('ss2_o2', 'dummy'), '20')
-        self.assertEqual(study.option('ss2_o3', 'dummy'), 30.0)
-        self.assertEqual(study.option('ss2_product_op', 'dummy'),
-                         'product')
+        self.assertEqual(study.p1, 1000)
+        self.assertEqual(study.ss1_o2, '2')
+        self.assertEqual(study.ss1_o3, 3.0)
+        self.assertEqual(study.ss2_o2, '20')
+        self.assertEqual(study.ss2_o3, 30.0)
+        self.assertEqual(study.ss2_product_op, 'product')
         # Test option values in SubStudy
         ss1 = study.sub_study('ss1')
-        self.assertEqual(ss1.option('o1', 'dummy'), 1000)
-        self.assertEqual(ss1.option('o2', 'dummy'), '2')
-        self.assertEqual(ss1.option('o3', 'dummy'), 3.0)
+        self.assertEqual(ss1.o1, 1000)
+        self.assertEqual(ss1.o2, '2')
+        self.assertEqual(ss1.o3, 3.0)
         ss2 = study.sub_study('ss2')
-        self.assertEqual(ss2.option('o1', 'dummy'), 1000)
-        self.assertEqual(ss2.option('o2', 'dummy'), '20')
-        self.assertEqual(ss2.option('o3', 'dummy'), 30.0)
-        self.assertEqual(ss2.option('product_op', 'dummy'), 'product')
+        self.assertEqual(ss2.o1, 1000)
+        self.assertEqual(ss2.o2, '20')
+        self.assertEqual(ss2.o3, 30.0)
+        self.assertEqual(ss2.product_op, 'product')
 
     def test_multi_multi_study(self):
         study = self.create_study(
@@ -336,7 +334,7 @@ class TestMulti(TestCase):
              DatasetMatch('partial_c', mrtrix_format, 'ones')],
             options=[Option('full_required_op', 'product'),
                      Option('partial_ss2_product_op', 'product')])
-        g = study.data('g')[0]
+        g = study.g[0]
         if self.mrtrix_req is not None:
             NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
         try:
@@ -348,41 +346,41 @@ class TestMulti(TestCase):
             if self.mrtrix_req is not None:
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
-        self.assertEqual(study.option('full_p1', 'dummy'), 100)
-        self.assertEqual(study.option('full_p2', 'dummy'), '200')
-        self.assertEqual(study.option('full_p3', 'dummy'), 300.0)
-        self.assertEqual(study.option('full_q1', 'dummy'), 150)
-        self.assertEqual(study.option('full_q2', 'dummy'), '250')
-        self.assertEqual(study.option('full_required_op', 'dummy'),
+        self.assertEqual(study.full_p1, 100)
+        self.assertEqual(study.full_p2, '200')
+        self.assertEqual(study.full_p3, 300.0)
+        self.assertEqual(study.full_q1, 150)
+        self.assertEqual(study.full_q2, '250')
+        self.assertEqual(study.full_required_op,
                          'product')
         # Test option values in SubStudy
         ss1 = study.sub_study('full').sub_study('ss1')
-        self.assertEqual(ss1.option('o1', 'dummy'), 100)
-        self.assertEqual(ss1.option('o2', 'dummy'), '200')
-        self.assertEqual(ss1.option('o3', 'dummy'), 300.0)
+        self.assertEqual(ss1.o1, 100)
+        self.assertEqual(ss1.o2, '200')
+        self.assertEqual(ss1.o3, 300.0)
         ss2 = study.sub_study('full').sub_study('ss2')
-        self.assertEqual(ss2.option('o1', 'dummy'), 150)
-        self.assertEqual(ss2.option('o2', 'dummy'), '250')
-        self.assertEqual(ss2.option('o3', 'dummy'), 300.0)
-        self.assertEqual(ss2.option('product_op', 'dummy'), 'product')
+        self.assertEqual(ss2.o1, 150)
+        self.assertEqual(ss2.o2, '250')
+        self.assertEqual(ss2.o3, 300.0)
+        self.assertEqual(ss2.product_op, 'product')
         # Test option values in MultiStudy
-        self.assertEqual(study.option('partial_p1', 'dummy'), 1000)
-        self.assertEqual(study.option('partial_ss1_o2', 'dummy'), '2')
-        self.assertEqual(study.option('partial_ss1_o3', 'dummy'), 3.0)
-        self.assertEqual(study.option('partial_ss2_o2', 'dummy'), '20')
-        self.assertEqual(study.option('partial_ss2_o3', 'dummy'), 30.0)
+        self.assertEqual(study.partial_p1, 1000)
+        self.assertEqual(study.partial_ss1_o2, '2')
+        self.assertEqual(study.partial_ss1_o3, 3.0)
+        self.assertEqual(study.partial_ss2_o2, '20')
+        self.assertEqual(study.partial_ss2_o3, 30.0)
         self.assertEqual(
-            study.option('partial_ss2_product_op', 'dummy'), 'product')
+            study.partial_ss2_product_op, 'product')
         # Test option values in SubStudy
         ss1 = study.sub_study('partial').sub_study('ss1')
-        self.assertEqual(ss1.option('o1', 'dummy'), 1000)
-        self.assertEqual(ss1.option('o2', 'dummy'), '2')
-        self.assertEqual(ss1.option('o3', 'dummy'), 3.0)
+        self.assertEqual(ss1.o1, 1000)
+        self.assertEqual(ss1.o2, '2')
+        self.assertEqual(ss1.o3, 3.0)
         ss2 = study.sub_study('partial').sub_study('ss2')
-        self.assertEqual(ss2.option('o1', 'dummy'), 1000)
-        self.assertEqual(ss2.option('o2', 'dummy'), '20')
-        self.assertEqual(ss2.option('o3', 'dummy'), 30.0)
-        self.assertEqual(ss2.option('product_op', 'dummy'), 'product')
+        self.assertEqual(ss2.o1, 1000)
+        self.assertEqual(ss2.o2, '20')
+        self.assertEqual(ss2.o3, 30.0)
+        self.assertEqual(ss2.product_op, 'product')
 
     def test_missing_option(self):
         # Misses the required 'full_required_op' option, which sets
