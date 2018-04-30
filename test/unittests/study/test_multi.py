@@ -384,3 +384,23 @@ class TestMulti(TestCase):
         self.assertEqual(ss2.option('o2', 'dummy'), '20')
         self.assertEqual(ss2.option('o3', 'dummy'), 30.0)
         self.assertEqual(ss2.option('product_op', 'dummy'), 'product')
+
+    def test_missing_option(self):
+        # Misses the required 'full_required_op' option, which sets
+        # the operation of the second node in StudyB's pipeline to
+        # 'product'
+        missing_option_study = self.create_study(
+            MultiMultiStudy, 'multi_multi',
+            [DatasetMatch('ss1_x', mrtrix_format, 'ones'),
+             DatasetMatch('ss1_y', mrtrix_format, 'ones'),
+             DatasetMatch('full_a', mrtrix_format, 'ones'),
+             DatasetMatch('full_b', mrtrix_format, 'ones'),
+             DatasetMatch('full_c', mrtrix_format, 'ones'),
+             DatasetMatch('partial_a', mrtrix_format, 'ones'),
+             DatasetMatch('partial_b', mrtrix_format, 'ones'),
+             DatasetMatch('partial_c', mrtrix_format, 'ones')],
+            options=[Option('partial_ss2_product_op', 'product')])
+        self.assertRaises(
+            RuntimeError,
+            missing_option_study.data,
+            'g')
