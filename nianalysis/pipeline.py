@@ -846,10 +846,10 @@ class Pipeline(object):
         name : str
             The name of the option to retrieve
         """
-        value = self.study._get_option(name)
+        option = self.study._get_option(name)
         # Register option as being used by the pipeline
-        self._used_options.add(name)
-        return value
+        self._used_options.add(option)
+        return option.value
 
     @property
     def used_options(self):
