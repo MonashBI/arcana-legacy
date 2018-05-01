@@ -449,32 +449,11 @@ class MultiStudyMetaClass(StudyMetaClass):
         sub_study_specs.update(
             (s.name, s) for s in add_sub_study_specs)
         explicitly_added_data_specs = [s.name for s in add_data_specs]
-        explicitly_added_option_specs = [
-            s.name for s in add_option_specs]
-        explicitly_added_specs = (explicitly_added_data_specs +
-                                  explicitly_added_option_specs)
+        explicitly_added_option_specs = [s.name
+                                         for s in add_option_specs]
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
         for sub_study_spec in sub_study_specs.values():
-            # Check all names in name-map correspond to data or option
-            # specs
-            local_spec_names = list(
-                sub_study_spec.study_class.spec_names())
-            for global_name, local_name in sub_study_spec._name_map.items():
-                if local_name not in local_spec_names:
-                    raise NiAnalysisUsageError(
-                        "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name a data or "
-                        "option spec in {} class"
-                        .format(local_name, sub_study_spec.name,
-                                name, sub_study_spec.study_class))
-                if global_name not in explicitly_added_specs:
-                    raise NiAnalysisUsageError(
-                        "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name an explicitly "
-                        "added data or option spec"
-                        .format(global_name, sub_study_spec.name,
-                                name))
             for data_spec in sub_study_spec.auto_data_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
@@ -499,4 +478,25 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if trans_sname not in explicitly_added_option_specs:
                     add_option_specs.append(
                         opt_spec.renamed(trans_sname))
-        return StudyMetaClass(name, bases, dct)
+        cls = StudyMetaClass(name, bases, dct)
+        # Check all names in name-map correspond to data or option
+        # specs
+        for sub_study_spec in sub_study_specs.values():
+            local_spec_names = list(
+                sub_study_spec.study_class.spec_names())
+            for global_name, local_name in sub_study_spec._name_map.items():
+                if local_name not in local_spec_names:
+                    raise NiAnalysisUsageError(
+                        "'{}' in name-map for '{}' sub study spec in {}"
+                        "MultiStudy class does not name a data or "
+                        "option spec in {} class"
+                        .format(local_name, sub_study_spec.name,
+                                name, sub_study_spec.study_class))
+                if global_name not in cls.spec_names():
+                    raise NiAnalysisUsageError(
+                        "'{}' in name-map for '{}' sub study spec in {}"
+                        "MultiStudy class does not name an explicitly "
+                        "added data or option spec"
+                        .format(global_name, sub_study_spec.name,
+                                name))
+        return cls
