@@ -495,8 +495,6 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if global_name not in cls.spec_names():
                     raise NiAnalysisUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name an explicitly "
-                        "added data or option spec"
-                        .format(global_name, sub_study_spec.name,
-                                name))
+                        "MultiStudy class does not name data or option spec"
+                        .format(global_name, sub_study_spec.name, name))
         return cls
