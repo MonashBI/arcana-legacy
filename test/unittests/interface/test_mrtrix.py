@@ -3,7 +3,7 @@ from nianalysis.testing import BaseTestCase
 import tempfile
 from nianalysis.node import Node
 from nianalysis.interfaces.mrtrix import MRCalc
-from mbianalysis.requirements import mrtrix3_req
+from mbianalysis.requirement import mrtrix3_req
 
 
 class TestMRCalcInterface(BaseTestCase):

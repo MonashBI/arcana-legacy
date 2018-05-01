@@ -6,7 +6,7 @@ from unittest import TestCase
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from mbianalysis.data_formats import nifti_gz_format, dicom_format
+from mbianalysis.data_format import nifti_gz_format, dicom_format
 
 
 class TestDatasetSpecPickle(TestCase):

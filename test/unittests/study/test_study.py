@@ -2,9 +2,9 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
-from mbianalysis.requirements import Requirement, mrtrix3_req
+from mbianalysis.requirement import Requirement, mrtrix3_req
 from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from mbianalysis.data_formats import (
+from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8

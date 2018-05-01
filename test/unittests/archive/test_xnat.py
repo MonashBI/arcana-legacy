@@ -18,7 +18,7 @@ from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from mbianalysis.data_formats import (
+from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
 from nianalysis.data_format import DataFormat

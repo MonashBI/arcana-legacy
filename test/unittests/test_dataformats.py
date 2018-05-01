@@ -5,7 +5,7 @@ from nianalysis.interfaces.mrtrix import MRConvert
 from nianalysis.exception import NiAnalysisModulesNotInstalledException
 from nianalysis.data_format import (
     Converter)
-from mbianalysis.data_formats import (dicom_format, mrtrix_format,
+from mbianalysis.data_format import (dicom_format, mrtrix_format,
                                       nifti_gz_format)
 from nianalysis.requirement import Requirement
 from nianalysis.node import Node

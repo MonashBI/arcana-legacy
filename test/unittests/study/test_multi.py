@@ -3,8 +3,8 @@ import subprocess as sp
 from nianalysis.requirement import Requirement
 from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import DatasetMatch, DatasetSpec
-from mbianalysis.data_formats import mrtrix_format
-from mbianalysis.requirements import mrtrix3_req
+from mbianalysis.data_format import mrtrix_format
+from mbianalysis.requirement import mrtrix3_req
 from nianalysis.option import OptionSpec
 from nianalysis.study.base import Study
 from nianalysis.study.multi import (
