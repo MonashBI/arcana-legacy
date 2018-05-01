@@ -443,7 +443,7 @@ class MultiStudyMetaClass(StudyMetaClass):
         for base in reversed(bases):
             try:
                 add_sub_study_specs.update(
-                    (d.name, d) for d in base.add_sub_study_specs)
+                    (d.name, d) for d in base.sub_study_specs())
             except AttributeError:
                 pass
         sub_study_specs.update(

@@ -1121,10 +1121,10 @@ class FieldSpec(BaseField, BaseSpec):
         return mismatch
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, pipeline={}, "
+        return ("{}(name='{}', dtype={}, pipeline_name={}, "
                 "frequency={})".format(
                     self.__class__.__name__, self.name, self.dtype,
-                    self.pipeline, self.frequency))
+                    self.pipeline_name, self.frequency))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
