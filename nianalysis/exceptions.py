@@ -65,3 +65,23 @@ class NiAnalysisNoRunRequiredException(NiAnalysisException):
     Used to signify when a pipeline doesn't need to be run as all
     required outputs are already present in the archive
     """
+
+
+class NiAnalysisDataFormatClashError(NiAnalysisError):
+    """
+    Used when two mismatching data formats are registered with the same
+    name or extention
+    """
+
+
+class NiAnalysisNoConverterError(NiAnalysisError):
+    "No converters exist between formats"
+
+
+class NiAnalysisConverterNotAvailableError(NiAnalysisError):
+    "The converter required to convert between formats is not "
+    "available"
+
+
+class NiAnalysisDataFormatNotRegisteredError(NiAnalysisError):
+    pass

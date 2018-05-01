@@ -1,9 +1,15 @@
 from abc import ABCMeta, abstractmethod
+from copy import copy
 from nianalysis.nodes import Node
+from nianalysis.interfaces.utils import (
+    ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from nianalysis.exceptions import (
     NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException,
-    NiAnalysisUsageError)
+    NiAnalysisUsageError, NiAnalysisDataFormatClashError,
+    NiAnalysisNoConverterError,
+    NiAnalysisConverterNotAvailableError,
+    NiAnalysisDataFormatNotRegisteredError)
 from nianalysis.requirements import Requirement
 import logging
 
@@ -32,8 +38,22 @@ class DataFormat(object):
         formats from paths.
     """
 
-    def __init__(self, name, extension, description='',
-                 directory=False, within_dir_exts=None):
+    # To hold registered data formats
+    by_names = {}
+    by_exts = {}
+    by_within_exts = {}
+
+    def __init__(self, name, extension=None, description='',
+                 directory=False, within_dir_exts=None,
+                 converters=None):
+        if not name.islower():
+            raise NiAnalysisUsageError(
+                "All data format names must be lower case ('{}')"
+                .format(name))
+        if extension is None and not directory:
+            raise NiAnalysisUsageError(
+                "Extension for '{}' format can only be None if it is a "
+                "directory".format(name))
         self._name = name
         self._extension = extension
         self._description = description
@@ -45,6 +65,7 @@ class DataFormat(object):
                     "for directory data formats, not '{}'".format(name))
             within_dir_exts = frozenset(within_dir_exts)
         self._within_dir_exts = within_dir_exts
+        self._converters = converters if converters is not None else {}
 
     def __eq__(self, other):
         try:
@@ -54,7 +75,8 @@ class DataFormat(object):
                 self._description == other._description and
                 self._directory == other._directory and
                 self._within_dir_exts ==
-                other._within_dir_exts)
+                other._within_dir_exts and
+                self._converters == other._converters)
         except AttributeError:
             return False
 
@@ -80,6 +102,10 @@ class DataFormat(object):
         return self._extension
 
     @property
+    def ext(self):
+        return self._extension
+
+    @property
     def ext_str(self):
         return self.extension if self.extension is not None else ''
 
@@ -99,66 +125,197 @@ class DataFormat(object):
     def xnat_resource_name(self):
         return self.name.upper()
 
+    def converter(self, data_format):
+        try:
+            converter_cls = self._converters[data_format.name]
+        except KeyError:
+            raise NiAnalysisNoConverterError(
+                "There is no converter to convert {} to {}"
+                .format(self, data_format))
+        return converter_cls(self, data_format)
+
+    @classmethod
+    def register(cls, data_format):
+        """
+        Registers a data format so they can be recognised by extension
+        and by resource type on XNAT
+
+        Parameters
+        ----------
+        data_format : DataFormat
+            The data format to register
+        """
+        try:
+            saved_format = cls.by_names[data_format.name]
+            if saved_format != data_format:
+                raise NiAnalysisDataFormatClashError(
+                    "Cannot register {} due to name clash with previously "
+                    "registered {}".format(data_format, saved_format))
+        except KeyError:
+            if data_format.directory and data_format.extension is None:
+                if data_format.within_dir_exts in cls.by_within_exts:
+                    raise NiAnalysisDataFormatClashError(
+                        "Cannot register {} due to within-directory "
+                        "extension clash with previously registered {}"
+                        .format(data_format,
+                                cls.by_within_exts[
+                                    data_format.within_dir_exts]))
+            else:
+                if data_format.extension in cls.by_exts:
+                    raise NiAnalysisDataFormatClashError(
+                        "Cannot register {} due to extension clash with "
+                        "previously registered {}".format(
+                            data_format,
+                            cls.by_exts[data_format.ext]))
+            cls.by_names[data_format.name] = data_format
+            if data_format.ext is not None:
+                cls.by_exts[data_format.ext] = data_format
+            if data_format.within_dir_exts is not None:
+                cls.by_within_exts[
+                    data_format.within_dir_exts] = data_format
+
+    @classmethod
+    def by_name(cls, name):
+        try:
+            return cls.by_names[name.lower()]
+        except KeyError:
+            raise NiAnalysisDataFormatNotRegisteredError(
+                "No data format named '{}' has been registered"
+                .format(name,
+                        ', '.format(repr(f)
+                                    for f in cls.by_names.values())))
+
+    @classmethod
+    def by_ext(cls, ext):
+        try:
+            return cls.by_exts[ext]
+        except KeyError:
+            raise NiAnalysisDataFormatNotRegisteredError(
+                "No data format with extension '{}' has been registered"
+                .format(
+                    ext, ', '.format(repr(f)
+                                     for f in cls.by_exts.values())))
+
+    @classmethod
+    def by_within_dir_exts(cls, within_exts):
+        try:
+            return cls.by_within_exts[within_exts]
+        except KeyError:
+            raise NiAnalysisDataFormatNotRegisteredError(
+                "No data format with within-directory extension '{}' "
+                "has been registered ({})".format(
+                    within_exts,
+                    ', '.format(repr(f)
+                                for f in cls.by_within_exts.values())))
+
 
 class Converter(object):
     """
     Base class for all NiAnalysis data format converters
+
+    Parameters
+    ----------
+    input_format : DataFormat
+        The input format to convert from
+    output_format : DataFormat
+        The output format to convert to
     """
 
     __metaclass__ = ABCMeta
 
-    def convert(self, workflow, source, dataset, dataset_name, node_name,
-                output_format):
+    def __init__(self, input_format, output_format):
+        self._input_format = input_format
+        self._output_format = output_format
+        try:
+            available_modules = Node.available_modules()
+            for possible_reqs in self.requirements:
+                Requirement.best_requirement(possible_reqs,
+                                             available_modules)
+        except NiAnalysisRequirementVersionException:
+            raise NiAnalysisConverterNotAvailableError(
+                "Module(s) required for converter {} ({}) are not "
+                "available".format(
+                    self,
+                    ', '.join(r.name for r in self.requirements)))
+        except NiAnalysisModulesNotInstalledException:
+            pass
+
+    @property
+    def input_format(self):
+        return self._input_format
+
+    @property
+    def output_format(self):
+        return self._output_format
+
+    @abstractmethod
+    def get_node(self, name):
         """
-        Inserts a format converter node into a complete workflow.
+        Returns a NiPype node that converts a dataset from the input
+        format to the output format
 
         Parameters
         ----------
-        workflow : nipype.Workflow
-            The workflow to add the converter node to
-        source : nipype.Node
-            The source node to draw the data from
-        dataset : Dataset
-            The dataset to convert
-        node_name : str
-            (Unique) name for the conversion node
-        output_format : DataFormat
-            The format to convert the node to
+        name : str
+            Name for the node
         """
-        convert_node, in_field, out_field = self._get_convert_node(
-            node_name, dataset.format, output_format)
-        workflow.connect(
-            source, dataset_name, convert_node, in_field)
-        return convert_node, out_field
 
-    @abstractmethod
-    def _get_convert_node(self):
-        pass
+    def __repr__(self):
+        return "{}(input_format={}, output_format={})".format(
+            type(self).__name__, self.input_format, self.output_format)
 
-    @abstractmethod
-    def input_formats(self):
-        "Lists all data formats that the converter tool can read"
-        pass
 
-    @abstractmethod
-    def output_formats(self):
-        "Lists all data formats that the converter tool can write"
-        pass
+class UnzipConverter(Converter):
 
-    @property
-    def is_available(self):
-        """
-        Check to see if the required modules to run the conversion are
-        available. Defaults to True if modules are not used on the system.
-        """
-        try:
-            available_modules = Node.available_modules()
-        except NiAnalysisModulesNotInstalledException:
-            # Assume that it is installed but not as a module
-            return True
-        try:
-            for possible_reqs in self.requirements:
-                Requirement.best_requirement(possible_reqs, available_modules)
-            return True
-        except NiAnalysisRequirementVersionException:
-            return False
+    requirements = []
+
+    def get_node(self, name):
+        convert_node = Node(UnzipDir(), name=name, memory=12000)
+        return convert_node, 'zipped', 'unzipped'
+
+
+class ZipConverter(Converter):
+
+    requirements = []
+
+    def get_node(self, name):
+        convert_node = Node(ZipDir(), name=name, memory=12000)
+        return convert_node, 'dirname', 'zipped'
+
+
+class TarGzConverter(Converter):
+
+    requirements = []
+
+    def get_node(self, name):
+        convert_node = Node(TarGzDir(), name=name, memory=12000)
+        return convert_node, 'dirname', 'zipped'
+
+
+class UnTarGzConverter(Converter):
+
+    requirements = []
+
+    def get_node(self, name):
+        convert_node = Node(UnTarGzDir(), name=name, memory=12000)
+        return convert_node, 'gzipped', 'gunzipped'
+
+
+# General formats
+directory_format = DataFormat(name='directory', extension=None,
+                              directory=True,
+                              converters={'zip': ZipConverter,
+                                          'targz': TarGzConverter})
+text_format = DataFormat(name='text', extension='.txt')
+
+
+# Compressed formats
+zip_format = DataFormat(name='zip', extension='.zip',
+                        converters={'directory': UnzipConverter})
+targz_format = DataFormat(name='targz', extension='.tar.gz',
+                          converters={'directory': UnTarGzConverter})
+
+# Register all data formats in module
+for data_format in copy(globals()).itervalues():
+    if isinstance(data_format, DataFormat):
+        DataFormat.register(data_format)
