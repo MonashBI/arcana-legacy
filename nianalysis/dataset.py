@@ -3,15 +3,12 @@ import re
 from abc import ABCMeta
 from itertools import chain
 import pydicom
-from nianalysis.data_formats import DataFormat
+from nianalysis.data_format import DataFormat, directory_format
 from copy import copy
 from collections import defaultdict
-from nianalysis.data_formats import (
-    data_formats_by_ext, data_formats_by_within_exts, dicom_format,
-    directory_format)
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisUsageError,
     NiAnalysisDatasetMatchError,
     NiAnalysisDataFormatError)
@@ -370,7 +367,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
-        if dicom_tags is not None and format != dicom_format:
+        if dicom_tags is not None and format.name != 'dicom':
             raise NiAnalysisUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
                 "format ({})".format(format))
@@ -725,7 +722,7 @@ class Dataset(BaseDataset):
             within_exts = frozenset(
                 split_extension(f)[1] for f in os.listdir(path))
             try:
-                data_format = data_formats_by_within_exts[within_exts]
+                data_format = DataFormat.by_within_dir_exts(within_exts)
             except KeyError:
                 # Fall back to general directory format
                 data_format = directory_format
@@ -733,7 +730,7 @@ class Dataset(BaseDataset):
         else:
             filename = os.path.basename(path)
             name, ext = split_extension(filename)
-            data_format = data_formats_by_ext[ext]
+            data_format = DataFormat.by_ext(ext)
         return cls(name, data_format, frequency=frequency,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)
@@ -754,7 +751,7 @@ class Dataset(BaseDataset):
         dcm : pydicom.DICOM
             A PyDicom file object
         """
-        if self.format != dicom_format:
+        if self.format.name != 'dicom':
             raise NiAnalysisDataFormatError(
                 "Can not read DICOM header as {} is not in DICOM format"
                 .format(self))

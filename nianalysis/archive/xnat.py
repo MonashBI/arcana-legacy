@@ -21,9 +21,9 @@ from nianalysis.archive.base import (
     ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
     MULTIPLICITIES)
-from nianalysis.data_formats import data_formats
+from nianalysis.data_format import DataFormat
 from nianalysis.utils import split_extension
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisMissingDataException)
 from nianalysis.utils import dir_modtime, NoContextWrapper
 import re
@@ -894,8 +894,8 @@ class XnatArchive(Archive):
         """
         datasets = []
         for xdataset in xsession.scans.itervalues():
-            data_format = data_formats[
-                guess_data_format(xdataset).lower()]
+            data_format = DataFormat.by_name(
+                guess_data_format(xdataset))
             datasets.append(Dataset(
                 xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 frequency=freq, path=None, id=xdataset.id,
@@ -1009,7 +1009,7 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
                 raise
         for dataset in session.scans.itervalues():
             data_format_name = guess_data_format(dataset)
-            ext = data_formats[data_format_name.lower()].extension
+            ext = DataFormat.by_name(data_format_name).extension
             if ext is None:
                 ext = ''
             download_path = os.path.join(download_dir, dataset.type + ext)
@@ -1051,7 +1051,7 @@ def download_dataset(download_path, server, user, password, session_id,
 
 def guess_data_format(dataset):
     dataset_formats = [r for r in dataset.resources.itervalues()
-                       if r.label.lower() in data_formats]
+                       if r.label.lower() in DataFormat.by_names]
     if len(dataset_formats) > 1:
         raise NiAnalysisError(
             "Multiple valid resources '{}' for '{}' dataset, please pass "
@@ -1069,7 +1069,7 @@ def guess_data_format(dataset):
 def download_resource(download_path, dataset, data_format_name,
                       session_label):
 
-    data_format = data_formats[data_format_name.lower()]
+    data_format = DataFormat.by_name(data_format_name)
     try:
         resource = dataset.resources[data_format.xnat_resource_name]
     except KeyError:

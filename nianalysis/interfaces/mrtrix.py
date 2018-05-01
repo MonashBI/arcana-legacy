@@ -424,7 +424,7 @@ class MRCalc(CommandLine):
             for op in self.inputs.operands:
                 try:
                     op_str = split_extension(os.path.basename(op))[0]
-                except:
+                except Exception:
                     op_str = str(float(op))
                 filename += '_' + op_str
             filename += '_' + self.inputs.operation + ext

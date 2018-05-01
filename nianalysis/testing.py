@@ -16,9 +16,9 @@ from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
 from nianalysis.runner import LinearRunner
-from nianalysis.exceptions import NiAnalysisError
-from nianalysis.nodes import NiAnalysisNodeMixin
-from nianalysis.exceptions import (
+from nianalysis.exception import NiAnalysisError
+from nianalysis.node import NiAnalysisNodeMixin
+from nianalysis.exception import (
     NiAnalysisModulesNotInstalledException)
 from traceback import format_exc
 from nianalysis.archive.local import (
@@ -103,11 +103,12 @@ class BaseTestCase(TestCase):
                 self.xnat_session_name + self.REF_SUFFIX,
                 overwrite=False)
         except Exception:
-            warnings.warn(
-                "Did not download any reference datasets from '{}_{}' "
-                " session on MBI-XNAT, attempting with what has already"
-                " been downloaded:\n\n{}"
-                .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
+            pass
+#             warnings.warn(
+#                 "Did not download any reference datasets from '{}_{}' "
+#                 " session on MBI-XNAT, attempting with what has already"
+#                 " been downloaded:\n\n{}"
+#                 .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 src_path = os.path.join(cache_dir, f)

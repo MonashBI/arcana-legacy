@@ -7,7 +7,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.archive.local import (
     LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
-from nianalysis.data_formats import nifti_gz_format
+from mbianalysis.data_format import nifti_gz_format
 from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
@@ -15,7 +15,7 @@ from nianalysis.dataset import (
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.archive.base import Project, Subject, Session, Visit
-from nianalysis.data_formats import mrtrix_format
+from mbianalysis.data_format import mrtrix_format
 
 
 class DummyStudy(Study):

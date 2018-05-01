@@ -1,6 +1,6 @@
 import re
 from itertools import izip_longest
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
 import logging
 
@@ -19,14 +19,6 @@ def split_version(version_str):
         raise NiAnalysisRequirementVersionException(
             "Could not parse version string '{}': {}".format(
                 version_str, e))
-
-
-def matlab_version_split(version_str):
-    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
-    if match is None:
-        raise NiAnalysisRequirementVersionException(
-            "Do not understand Matlab version '{}'".format(version_str))
-    return int(match.group(1)), match.group(2).lower()
 
 
 def date_split(version_str):
@@ -53,7 +45,7 @@ class Requirement(object):
     """
 
     def __init__(self, name, min_version, max_version=None,
-                 version_split=split_version):
+                 version_split=split_version, citations=None):
         self._name = name.lower()
         self._min_ver = tuple(min_version)
         if max_version is not None:
@@ -65,6 +57,7 @@ class Requirement(object):
         else:
             self._max_ver = None
         self._version_split = version_split
+        self._citations = citations if citations is not None else []
 
     @property
     def name(self):
@@ -79,6 +72,10 @@ class Requirement(object):
     @property
     def min_version(self):
         return self._min_ver
+
+    @property
+    def citations(self):
+        return iter(self._citations)
 
     @property
     def max_version(self):
@@ -185,29 +182,3 @@ class Requirement(object):
         # combined messages from all options.
         raise NiAnalysisRequirementVersionException(
             ' and '.join(str(e) for e in ver_exceptions))
-
-
-mrtrix0_3_req = Requirement('mrtrix', min_version=(0, 3, 12),
-                            max_version=(0, 3, 15))
-mrtrix3_req = Requirement('mrtrix', min_version=(3, 0, 0))
-fsl5_req = Requirement('fsl', min_version=(5, 0, 8))
-fsl509_req = Requirement('fsl', min_version=(5, 0, 9),
-                         max_version=(5, 0, 9))
-fsl510_req = Requirement('fsl', min_version=(5, 0, 10),
-                         max_version=(5, 0, 10))
-ants2_req = Requirement('ants', min_version=(2, 0))
-ants19_req = Requirement('ants', min_version=(1, 9))
-spm12_req = Requirement('spm', min_version=(12, 0))
-freesurfer_req = Requirement('freesurfer', min_version=(5, 3))
-matlab2014_req = Requirement('matlab', min_version=(2014, 'a'),
-                             version_split=matlab_version_split)
-matlab2015_req = Requirement('matlab', min_version=(2015, 'a'),
-                             version_split=matlab_version_split)
-noddi_req = Requirement('noddi', min_version=(0, 9)),
-niftimatlab_req = Requirement('niftimatlib', (1, 2))
-dcm2niix1_req = Requirement('dcm2niix', min_version=(1, 0, 2))
-dcm2niix_req = Requirement('dcm2niix', min_version=(2017, 2, 7),
-                           version_split=date_split)
-fix_req = Requirement('fix', min_version=(1, 0))
-afni_req = Requirement('afni', min_version=(16, 2, 10))
-mricrogl_req = Requirement('mricrogl', min_version=(1, 0, 20170207))

@@ -18,7 +18,7 @@ from fasteners import InterProcessLock
 from nipype.interfaces.base import isdefined
 from .base import Project, Subject, Session, Visit
 from nianalysis.dataset import Dataset, Field
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
 from nianalysis.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)

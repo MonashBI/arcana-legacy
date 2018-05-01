@@ -1,18 +1,18 @@
 from nianalysis.testing import BaseTestCase as TestCase
 import subprocess as sp
-from nianalysis.requirements import Requirement
+from nianalysis.requirement import Requirement
 from nianalysis.interfaces.utils import Merge
 from nianalysis.dataset import DatasetMatch, DatasetSpec
-from nianalysis.data_formats import mrtrix_format
-from nianalysis.requirements import mrtrix3_req
-from nianalysis.options import OptionSpec
+from mbianalysis.data_format import mrtrix_format
+from mbianalysis.requirement import mrtrix3_req
+from nianalysis.option import OptionSpec
 from nianalysis.study.base import Study
 from nianalysis.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from nianalysis.interfaces.mrtrix import MRMath
-from nianalysis.options import Option
-from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from nianalysis.option import Option
+from nianalysis.node import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 
 
 class StudyA(Study):

@@ -9,11 +9,10 @@ from .nodes import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException)
 from nianalysis.dataset import BaseDataset, BaseField
-from nianalysis.data_formats import get_converter_node
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
@@ -265,11 +264,14 @@ class Pipeline(object):
                     # Insert a format converter node into the workflow if the
                     # format of the dataset if it is not in the required format
                     # for the study
+                    converter = input.format.converter(input_spec.format)
                     conv_node_name = '{}_{}_input_conversion'.format(
                         self.name, input_spec.name)
-                    dataset_source, dataset_name = get_converter_node(
-                        input, input.name + PATH_SUFFIX, input_spec.format,
-                        source, complete_workflow, conv_node_name)
+                    (dataset_source, conv_in_field,
+                     dataset_name) = converter.get_node(conv_node_name)
+                    complete_workflow.connect(
+                        source, input.name + PATH_SUFFIX,
+                        dataset_source, conv_in_field)
                 else:
                     dataset_source = source
                     dataset_name = input.name + PATH_SUFFIX
@@ -310,13 +312,17 @@ class Pipeline(object):
                     if isinstance(output, BaseDataset):
                         # Convert the format of the node if it doesn't match
                         if output.format != output_spec.format:
+                            converter = output_spec.format.converter(
+                                output.format)
                             conv_node_name = (output_spec.name +
                                               '_output_conversion')
-                            (output_node,
-                             node_dataset_name) = get_converter_node(
-                                output_spec, output_spec.name, output.format,
-                                self._outputnodes[freq], complete_workflow,
-                                conv_node_name)
+                            (output_node, conv_in_field,
+                             node_dataset_name) = converter.get_node(
+                                 conv_node_name)
+                            complete_workflow.connect(
+                                self._outputnodes[freq],
+                                output_spec.name,
+                                output_node, conv_in_field)
                         else:
                             output_node = self._outputnodes[freq]
                             node_dataset_name = output.name

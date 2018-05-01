@@ -2,19 +2,19 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
-from nianalysis.requirements import Requirement, mrtrix3_req
+from mbianalysis.requirement import Requirement, mrtrix3_req
 from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from nianalysis.data_formats import (
+from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
-from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from nianalysis.node import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from nianalysis.options import OptionSpec
+from nianalysis.option import OptionSpec
 
 
 class TestStudy(Study):
@@ -24,11 +24,11 @@ class TestStudy(Study):
     add_data_specs = [
         DatasetSpec('start', nifti_gz_format),
         DatasetSpec('ones_slice', mrtrix_format),
-        DatasetSpec('pipeline1_1', nifti_gz_format, 'pipeline1'),
-        DatasetSpec('pipeline1_2', nifti_gz_format, 'pipeline1'),
-        DatasetSpec('pipeline2', nifti_gz_format, 'pipeline2'),
-        DatasetSpec('pipeline3', nifti_gz_format, 'pipeline3'),
-        DatasetSpec('pipeline4', nifti_gz_format, 'pipeline4'),
+        DatasetSpec('derived1_1', nifti_gz_format, 'pipeline1'),
+        DatasetSpec('derived1_2', nifti_gz_format, 'pipeline1'),
+        DatasetSpec('derived2', nifti_gz_format, 'pipeline2'),
+        DatasetSpec('derived3', nifti_gz_format, 'pipeline3'),
+        DatasetSpec('derived4', nifti_gz_format, 'pipeline4'),
         DatasetSpec('subject_summary', mrtrix_format,
                     'subject_summary_pipeline',
                     frequency='per_subject'),
@@ -52,8 +52,8 @@ class TestStudy(Study):
         pipeline = self.create_pipeline(
             name='pipeline1',
             inputs=[DatasetSpec('start', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline1_1', nifti_gz_format),
-                     DatasetSpec('pipeline1_2', nifti_gz_format)],
+            outputs=[DatasetSpec('derived1_1', nifti_gz_format),
+                     DatasetSpec('derived1_2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -69,16 +69,16 @@ class TestStudy(Study):
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
         # Connect outputs
-        pipeline.connect_output('pipeline1_1', mrconvert, 'out_file')
-        pipeline.connect_output('pipeline1_2', mrconvert2, 'out_file')
+        pipeline.connect_output('derived1_1', mrconvert, 'out_file')
+        pipeline.connect_output('derived1_2', mrconvert2, 'out_file')
         return pipeline
 
     def pipeline2(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline2',
             inputs=[DatasetSpec('start', nifti_gz_format),
-                    DatasetSpec('pipeline1_1', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline2', nifti_gz_format)],
+                    DatasetSpec('derived1_1', nifti_gz_format)],
+            outputs=[DatasetSpec('derived2', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -91,16 +91,16 @@ class TestStudy(Study):
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline1_1', mrmath, 'second_scan')
+        pipeline.connect_input('derived1_1', mrmath, 'second_scan')
         # Connect outputs
-        pipeline.connect_output('pipeline2', mrmath, 'out_file')
+        pipeline.connect_output('derived2', mrmath, 'out_file')
         return pipeline
 
     def pipeline3(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline3',
-            inputs=[DatasetSpec('pipeline2', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline3', nifti_gz_format)],
+            inputs=[DatasetSpec('derived2', nifti_gz_format)],
+            outputs=[DatasetSpec('derived3', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -108,17 +108,17 @@ class TestStudy(Study):
         mrconvert = pipeline.create_node(MRConvert(), name="convert",
                                          requirements=[mrtrix3_req])
         # Connect inputs
-        pipeline.connect_input('pipeline2', mrconvert, 'in_file')
+        pipeline.connect_input('derived2', mrconvert, 'in_file')
         # Connect outputs
-        pipeline.connect_output('pipeline3', mrconvert, 'out_file')
+        pipeline.connect_output('derived3', mrconvert, 'out_file')
         return pipeline
 
     def pipeline4(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline4',
-            inputs=[DatasetSpec('pipeline1_2', nifti_gz_format),
-                    DatasetSpec('pipeline3', nifti_gz_format)],
-            outputs=[DatasetSpec('pipeline4', nifti_gz_format)],
+            inputs=[DatasetSpec('derived1_2', nifti_gz_format),
+                    DatasetSpec('derived3', nifti_gz_format)],
+            outputs=[DatasetSpec('derived4', nifti_gz_format)],
             description="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -127,10 +127,10 @@ class TestStudy(Study):
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
         # Connect inputs
-        pipeline.connect_input('pipeline1_2', mrmath, 'first_scan')
-        pipeline.connect_input('pipeline3', mrmath, 'second_scan')
+        pipeline.connect_input('derived1_2', mrmath, 'first_scan')
+        pipeline.connect_input('derived3', mrmath, 'second_scan')
         # Connect outputs
-        pipeline.connect_output('pipeline4', mrmath, 'out_file')
+        pipeline.connect_output('derived4', mrmath, 'out_file')
         return pipeline
 
     def visit_ids_access_pipeline(self, **kwargs):
@@ -292,7 +292,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        self.study.data('pipeline4')[0]
+        self.study.derived4[0]
         for dataset in TestStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:

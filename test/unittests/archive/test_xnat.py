@@ -4,6 +4,7 @@ import tempfile
 import re
 import json
 import time
+import unittest
 from multiprocessing import Process
 from unittest import TestCase
 import xnat
@@ -18,12 +19,12 @@ from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from nianalysis.data_formats import (
+from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
-from nianalysis.data_formats import data_formats_by_ext
+from nianalysis.data_format import DataFormat
 from nianalysis.utils import PATH_SUFFIX
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
@@ -152,7 +153,7 @@ class TestXnatArchive(BaseTestCase):
                 dataset = mbi_xnat.classes.MrScanData(type=name,
                                                       parent=session)
                 resource = dataset.create_resource(
-                    data_formats_by_ext[ext].name.upper())
+                    DataFormat.by_ext(ext).name.upper())
                 resource.upload(os.path.join(self.cache_dir, fname),
                                 fname)
 
@@ -180,6 +181,7 @@ class TestXnatArchive(BaseTestCase):
     def _connect(self):
         return xnat.connect(SERVER)
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_archive_roundtrip(self):
 
         # Create working dirs
@@ -242,6 +244,7 @@ class TestXnatArchive(BaseTestCase):
                 XnatArchive.PROCESSED_SUFFIX].scans.keys()
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_fields_roundtrip(self):
         archive = XnatArchive(
             server=SERVER, cache_dir=self.archive_cache_dir,
@@ -277,6 +280,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_summary(self):
         # Create working dirs
         # Create XnatSource node
@@ -455,7 +459,8 @@ class TestXnatArchive(BaseTestCase):
                               self.SUMMARY_STUDY_NAME + '_resink2',
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
-#     def test_project_info(self):
+#     @unittest.skip('skipping due to travis time constraints')
+    def test_project_info(self):
 #         archive = XnatArchive(
 #             project_id=self.PROJECT,
 #             server=SERVER, cache_dir=self.archive_cache_dir)
@@ -470,6 +475,7 @@ class TestXnatArchive(BaseTestCase):
 #             sorted(d.name for d in sorted(session.datasets)),
 #             ['source1', 'source2', 'source3', 'source4'])
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_delayed_download(self):
         """
         Tests handling of race conditions where separate processes attempt to
@@ -547,6 +553,7 @@ class TestXnatArchive(BaseTestCase):
             d = f.read()
         self.assertEqual(d, 'simulated')
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_digest_check(self):
         """
         Tests check of downloaded digests to see if file needs to be
@@ -653,6 +660,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
     work_path = os.path.join(BaseTestCase.test_data_dir, 'work',
                              TEST_NAME)
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_special_char_in_scan_name(self):
         """
         Tests whether XNAT source can download files with spaces in their names
@@ -902,6 +910,7 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin,
     PROJECT = 'TEST007'
     BASE_CLASS = test_study.TestExistingPrereqs
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
@@ -924,6 +933,7 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     SUBJECTS = ['subject1', 'subject3', 'subject4']
     VISITS = ['visit1']
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_cache_download(self):
         archive = XnatArchive(project_id=self.project_id,
                               server=SERVER,
@@ -958,6 +968,7 @@ class TestProjectInfo(TestOnXnatMixin,
     PROJECT = 'TEST013'
     BASE_CLASS = test_local.TestProjectInfo
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_project_info(self):
         tree = self.archive.get_tree()
         ref_tree = self.ref_tree(self.archive, set_ids=True)
@@ -975,6 +986,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
     def tearDown(self):
         pass
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_dicom_match(self):
         study = test_dataset.TestMatchStudy(
             name='test_dicom',
@@ -989,6 +1001,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_id_match(self):
         study = test_dataset.TestMatchStudy(
             name='test_dicom',
@@ -1013,6 +1026,7 @@ class TestDatasetCacheOnPathAccess(TestCase):
     SUBJECT = 'ARCHIVEXNAT'
     VISIT = 'DATASETCACHEONPATHACCESS'
 
+    @unittest.skip('skipping due to travis time constraints')
     def test_cache_on_path_access(self):
         tmp_dir = tempfile.mkdtemp()
         archive = XnatArchive(
