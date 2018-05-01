@@ -21,9 +21,9 @@ from nianalysis.dataset import (
 from mbianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
-from nianalysis.data_formats import DataFormat
+from nianalysis.data_format import DataFormat
 from nianalysis.utils import PATH_SUFFIX
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT

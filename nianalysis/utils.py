@@ -1,5 +1,5 @@
 import os.path
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 import re
 
 

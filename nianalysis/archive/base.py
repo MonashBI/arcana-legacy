@@ -3,10 +3,10 @@ from itertools import chain
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface)
-from nianalysis.nodes import Node
+from nianalysis.node import Node
 from nianalysis.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))

@@ -2,13 +2,13 @@ from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.testing import BaseTestCase
 from nianalysis.interfaces.mrtrix import MRConvert
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException
-from nianalysis.data_formats import (
+from nianalysis.exception import NiAnalysisModulesNotInstalledException
+from nianalysis.data_format import (
     Converter)
 from mbianalysis.data_formats import (dicom_format, mrtrix_format,
                                       nifti_gz_format)
-from nianalysis.requirements import Requirement
-from nianalysis.nodes import Node
+from nianalysis.requirement import Requirement
+from nianalysis.node import Node
 from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.dataset import DatasetMatch, DatasetSpec
 

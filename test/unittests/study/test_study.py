@@ -10,11 +10,11 @@ from nipype.interfaces.utility import Merge  # @IgnorePep8
 from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8
 from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
-from nianalysis.nodes import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exceptions import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from nianalysis.node import NiAnalysisNodeMixin  # @IgnorePep8
+from nianalysis.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from nianalysis.options import OptionSpec
+from nianalysis.option import OptionSpec
 
 
 class TestStudy(Study):
@@ -69,8 +69,8 @@ class TestStudy(Study):
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
         # Connect outputs
-        pipeline.connect_out('derived1_1', mrconvert, 'out_file')
-        pipeline.connect_out('derived1_2', mrconvert2, 'out_file')
+        pipeline.connect_output('derived1_1', mrconvert, 'out_file')
+        pipeline.connect_output('derived1_2', mrconvert2, 'out_file')
         return pipeline
 
     def pipeline2(self, **kwargs):
@@ -91,9 +91,9 @@ class TestStudy(Study):
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
-        pipeline.connect_in('derived1_1', mrmath, 'second_scan')
+        pipeline.connect_input('derived1_1', mrmath, 'second_scan')
         # Connect outputs
-        pipeline.connect_out('derived2', mrmath, 'out_file')
+        pipeline.connect_output('derived2', mrmath, 'out_file')
         return pipeline
 
     def pipeline3(self, **kwargs):
@@ -108,9 +108,9 @@ class TestStudy(Study):
         mrconvert = pipeline.create_node(MRConvert(), name="convert",
                                          requirements=[mrtrix3_req])
         # Connect inputs
-        pipeline.connect_in('derived2', mrconvert, 'in_file')
+        pipeline.connect_input('derived2', mrconvert, 'in_file')
         # Connect outputs
-        pipeline.connect_out('derived3', mrconvert, 'out_file')
+        pipeline.connect_output('derived3', mrconvert, 'out_file')
         return pipeline
 
     def pipeline4(self, **kwargs):
@@ -127,10 +127,10 @@ class TestStudy(Study):
                                       requirements=[mrtrix3_req])
         mrmath.inputs.axis = 0
         # Connect inputs
-        pipeline.connect_in('derived1_2', mrmath, 'first_scan')
-        pipeline.connect_in('derived3', mrmath, 'second_scan')
+        pipeline.connect_input('derived1_2', mrmath, 'first_scan')
+        pipeline.connect_input('derived3', mrmath, 'second_scan')
         # Connect outputs
-        pipeline.connect_out('derived4', mrmath, 'out_file')
+        pipeline.connect_output('derived4', mrmath, 'out_file')
         return pipeline
 
     def visit_ids_access_pipeline(self, **kwargs):

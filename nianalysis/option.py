@@ -1,5 +1,5 @@
 from copy import copy
-from nianalysis.exceptions import NiAnalysisUsageError
+from nianalysis.exception import NiAnalysisUsageError
 
 
 class Option(object):

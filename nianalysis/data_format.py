@@ -1,16 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from copy import copy
-from nianalysis.nodes import Node
+from nianalysis.node import Node
 from nianalysis.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException,
     NiAnalysisUsageError, NiAnalysisDataFormatClashError,
     NiAnalysisNoConverterError,
     NiAnalysisConverterNotAvailableError,
     NiAnalysisDataFormatNotRegisteredError)
-from nianalysis.requirements import Requirement
+from nianalysis.requirement import Requirement
 import logging
 
 

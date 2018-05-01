@@ -7,8 +7,8 @@ from unittest import TestCase
 from mbianalysis.data_formats import nifti_gz_format
 from mbianalysis.requirements import (
     dcm2niix1_req, mrtrix3_req)
-from nianalysis.nodes import Node
-from nianalysis.requirements import Requirement
+from nianalysis.node import Node
+from nianalysis.requirement import Requirement
 
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))

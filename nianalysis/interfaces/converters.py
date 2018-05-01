@@ -7,7 +7,7 @@ import pydicom
 import nibabel as nib
 from nianalysis.utils import split_extension
 import re
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 import numpy as np
 
 

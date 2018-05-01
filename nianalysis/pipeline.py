@@ -9,7 +9,7 @@ from .nodes import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException)
 from nianalysis.dataset import BaseDataset, BaseField

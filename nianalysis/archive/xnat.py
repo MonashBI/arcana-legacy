@@ -21,9 +21,9 @@ from nianalysis.archive.base import (
     ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
     MULTIPLICITIES)
-from nianalysis.data_formats import DataFormat
+from nianalysis.data_format import DataFormat
 from nianalysis.utils import split_extension
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisMissingDataException)
 from nianalysis.utils import dir_modtime, NoContextWrapper
 import re

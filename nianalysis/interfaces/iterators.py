@@ -1,6 +1,6 @@
 from itertools import chain
 from nipype.interfaces.base import TraitedSpec, traits, BaseInterface
-from nianalysis.exceptions import NiAnalysisError
+from nianalysis.exception import NiAnalysisError
 
 
 class InputSubjectsInputSpec(TraitedSpec):

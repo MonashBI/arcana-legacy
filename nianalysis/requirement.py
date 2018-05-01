@@ -1,6 +1,6 @@
 import re
 from itertools import izip_longest
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
 import logging
 

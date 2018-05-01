@@ -1,14 +1,14 @@
 from itertools import chain
 from logging import getLogger
 from collections import defaultdict
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisMissingDataException, NiAnalysisNameError,
     NiAnalysisNoRunRequiredException, NiAnalysisUsageError)
 from nianalysis.pipeline import Pipeline
 from nianalysis.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
 from nipype.pipeline import engine as pe
-from nianalysis.options import Option
+from nianalysis.option import Option
 from nianalysis.interfaces.iterators import (
     InputSessions, InputSubjects)
 

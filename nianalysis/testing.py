@@ -16,9 +16,9 @@ from nianalysis.archive.local import (
     LocalArchive, SUMMARY_NAME)
 from nianalysis.archive.xnat import download_all_datasets
 from nianalysis.runner import LinearRunner
-from nianalysis.exceptions import NiAnalysisError
-from nianalysis.nodes import NiAnalysisNodeMixin
-from nianalysis.exceptions import (
+from nianalysis.exception import NiAnalysisError
+from nianalysis.node import NiAnalysisNodeMixin
+from nianalysis.exception import (
     NiAnalysisModulesNotInstalledException)
 from traceback import format_exc
 from nianalysis.archive.local import (

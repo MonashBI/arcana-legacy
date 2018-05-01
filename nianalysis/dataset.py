@@ -3,12 +3,12 @@ import re
 from abc import ABCMeta
 from itertools import chain
 import pydicom
-from nianalysis.data_formats import DataFormat, directory_format
+from nianalysis.data_format import DataFormat, directory_format
 from copy import copy
 from collections import defaultdict
 from nianalysis.utils import split_extension
 from logging import getLogger
-from nianalysis.exceptions import (
+from nianalysis.exception import (
     NiAnalysisError, NiAnalysisUsageError,
     NiAnalysisDatasetMatchError,
     NiAnalysisDataFormatError)
