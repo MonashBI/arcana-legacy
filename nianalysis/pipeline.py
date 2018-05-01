@@ -312,8 +312,8 @@ class Pipeline(object):
                     if isinstance(output, BaseDataset):
                         # Convert the format of the node if it doesn't match
                         if output.format != output_spec.format:
-                            converter = output.format.converter(
-                                output_spec.format)
+                            converter = output_spec.format.converter(
+                                output.format)
                             conv_node_name = (output_spec.name +
                                               '_output_conversion')
                             (output_node, conv_in_field,
