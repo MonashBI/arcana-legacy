@@ -66,6 +66,9 @@ class Study(object):
         Default options for the class
     """
 
+    _data_specs = {}
+    _option_specs = {}
+
     def __init__(self, name, archive, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None, check_inputs=True,
                  reprocess=False):
@@ -488,18 +491,16 @@ class StudyMetaClass(type):
             add_option_specs = dct['add_option_specs']
         except KeyError:
             add_option_specs = []
-        # Check that the pipeline names in data specs correspond to a
-        # pipeline method in the class
-        for spec in add_data_specs:
-            if (spec.pipeline_name is not None and
-                    spec.pipeline_name not in dct):
-                raise NiAnalysisUsageError(
-                    "Generating pipeline for '{}', '{}', is not present"
-                    " in '{}' class".format(
-                        spec.name, spec.pipeline_name, name))
+        combined_dct = {}
         combined_data_specs = {}
         combined_option_specs = {}
         for base in reversed(bases):
+            # Get the combined class dictionary including base dicts
+            # excluding auto-added properties for data and option specs
+            combined_dct.update(
+                {k: v for k, v in base.__dict__.items()
+                 if (not issubclass(base, Study) or
+                     k not in base.spec_names())})
             try:
                 combined_data_specs.update(
                     (d.name, d) for d in base.add_data_specs)
@@ -510,9 +511,20 @@ class StudyMetaClass(type):
                     (o.name, o) for o in base.add_option_specs)
             except AttributeError:
                 pass
+        combined_dct.update(dct)
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_option_specs.update(
             (o.name, o) for o in add_option_specs)
+        # Check that the pipeline names in data specs correspond to a
+        # pipeline method in the class
+        for spec in add_data_specs:
+            pipe_name = spec.pipeline_name
+            if pipe_name is not None and pipe_name not in combined_dct:
+                raise NiAnalysisUsageError(
+                    "Generating pipeline for '{}', '{}', is not present"
+                    " in '{}' class".format(
+                        spec.name, spec.pipeline_name, name))
+        # Check for name clashes between data and option specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_option_specs))
         if spec_name_clashes:
@@ -523,7 +535,7 @@ class StudyMetaClass(type):
         dct['_option_specs'] = combined_option_specs
         # Add properties to the class corresponding to each data spec
         for spec in combined_data_specs.values():
-            if spec.name in dct:
+            if spec.name in combined_dct:
                 raise NiAnalysisUsageError(
                     "'{}' in data_specs clashes with existing class "
                     "member of the same name so cannot add property. "
@@ -531,7 +543,7 @@ class StudyMetaClass(type):
             dct[spec.name] = make_data_property(spec)
         # Add properties to the class corresponding to each option spec
         for spec in combined_option_specs.values():
-            if spec.name in dct:
+            if spec.name in combined_dct:
                 raise NiAnalysisUsageError(
                     "'{}' in option_specs clashes with existing class "
                     "member of the same name so cannot add property. "

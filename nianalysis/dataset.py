@@ -1084,10 +1084,10 @@ class FieldSpec(BaseField):
 
     is_spec = True
 
-    def __init__(self, name, dtype, pipeline=None,
+    def __init__(self, name, dtype, pipeline_name=None,
                  frequency='per_session', description=None):
         super(FieldSpec, self).__init__(name, dtype, frequency)
-        self._pipeline = pipeline
+        self._pipeline_name = pipeline_name
         self._description = description
         self._prefix = ''
 
@@ -1098,7 +1098,7 @@ class FieldSpec(BaseField):
     def find_mismatch(self, other, indent=''):
         mismatch = super(FieldSpec, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
-        if self.pipeline != other.pipeline:
+        if self.pipeline_name != other.pipeline_name:
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, self.pipeline,
                                  other.pipeline))
@@ -1117,7 +1117,16 @@ class FieldSpec(BaseField):
 
     @property
     def pipeline(self):
-        return self._pipeline
+        try:
+            return getattr(self.study, self.pipeline_name)
+        except AttributeError:
+            raise NiAnalysisError(
+                "There is no pipeline method named '{}' in present in "
+                "'{}' study".format(self.pipeline_name, self.study))
+
+    @property
+    def pipeline_name(self):
+        return self._pipeline_name
 
     @property
     def derived(self):
@@ -1143,6 +1152,6 @@ class FieldSpec(BaseField):
 
     def initkwargs(self):
         dct = super(FieldSpec, self).initkwargs()
-        dct['pipeline'] = self.pipeline
+        dct['pipeline_name'] = self.pipeline_name
         dct['description'] = self.description
         return dct

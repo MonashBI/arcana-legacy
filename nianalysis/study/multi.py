@@ -69,6 +69,8 @@ class MultiStudy(Study):
         Default options for the class
     """
 
+    _sub_study_specs = {}
+
     def __init__(self, name, archive, runner, inputs, options=None,
                  **kwargs):
         options = [] if options is None else options

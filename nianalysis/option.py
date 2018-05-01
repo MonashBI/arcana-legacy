@@ -6,13 +6,17 @@ class Option(object):
 
     def __init__(self, name, value):
         self._name = name
-        if not isinstance(value, (int, float, basestring)):
-            raise NiAnalysisUsageError(
-                "Invalid type for '{}' option default ({}), {}, "
-                "can be one of int, float or str"
-                .format(name, value, type(value)))
-        self._dtype = (
-            str if isinstance(value, basestring) else type(value))
+        if value is None:
+            self._dtype = None
+        else:
+            if not isinstance(value, (int, float, basestring,
+                                      tuple, list)):
+                raise NiAnalysisUsageError(
+                    "Invalid type for '{}' option default ({}), {}, "
+                    "can be one of int, float or str"
+                    .format(name, value, type(value)))
+            self._dtype = (
+                str if isinstance(value, basestring) else type(value))
         self._value = value
 
     @property
