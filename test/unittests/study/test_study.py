@@ -292,7 +292,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        self.study.data('pipeline4')[0]
+        self.study.derived4[0]
         for dataset in TestStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
