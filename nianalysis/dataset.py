@@ -150,6 +150,103 @@ class BaseDataset(BaseDatum):
         return self.basename(**kwargs) + self.format.ext_str
 
 
+class BaseSpec(object):
+
+    def __init__(self, name, pipeline_name=None, description=None):
+        if not (pipeline_name is None or
+                isinstance(pipeline_name, basestring)):
+            raise NiAnalysisError(
+                "Pipeline name for {} '{}' is not a string "
+                "'{}'".format(name, pipeline_name))
+        self._pipeline_name = pipeline_name
+        self._description = description
+        self._study = None
+
+    def __eq__(self, other):
+        return (self.pipeline_name == other.pipeline_name and
+                self._pipeline_name == other._pipeline_name and
+                self.description == other.description and
+                self._study == other._study)
+
+    def bind(self, study):
+        """
+        Returns a copy of the DatasetSpec bound to the given study
+
+        Parameters
+        ----------
+        study : Study
+            A study to bind the dataset spec to (should happen in the
+            study constructor)
+        """
+        cpy = copy(self)
+        cpy._study = study
+        if self.pipeline_name is not None:
+            cpy.pipeline  # Test to see if pipeline name is present
+        return cpy
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = ''
+        sub_indent = indent + '  '
+        if self.pipeline_name != other.pipeline_name:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, self.pipeline,
+                                 other.pipeline))
+        if self.description != other.description:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, self.pipeline,
+                                 other.pipeline))
+        return mismatch
+
+    @property
+    def prefixed_name(self):
+        return self.study.prefix + self.name
+
+    @property
+    def pipeline_name(self):
+        return self._pipeline_name
+
+    @property
+    def pipeline(self):
+        try:
+            return getattr(self.study, self.pipeline_name)
+        except AttributeError:
+            raise NiAnalysisError(
+                "There is no pipeline method named '{}' in present in "
+                "'{}' study".format(self.pipeline_name, self.study))
+
+    @property
+    def derived(self):
+        return self.pipeline_name is not None
+
+    @property
+    def study(self):
+        if self._study is None:
+            raise NiAnalysisError(
+                "{} is not bound to a study".format(self))
+        return self._study
+
+    def apply_prefix(self, prefix):
+        """
+        Duplicate the dataset and provide a prefix to apply to the filename
+        """
+        duplicate = copy(self)
+        duplicate._prefix = prefix
+        return duplicate
+
+    @property
+    def description(self):
+        return self._description
+
+    def basename(self, **kwargs):  # @UnusedVariable
+        return self.prefixed_name
+
+    def initkwargs(self):
+        dct = {}
+        dct['pipeline_name'] = self.pipeline_name
+        dct['description'] = self.description
+        return dct
+
+
 class BaseMatch(object):
     """
     Base class for Dataset and Field Match classes
@@ -456,7 +553,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return matches
 
 
-class DatasetSpec(BaseDataset):
+class DatasetSpec(BaseDataset, BaseSpec):
     """
     A specification for a dataset within a study, which
     can either be an "acquired" dataset (e.g from the scanner)
@@ -485,91 +582,12 @@ class DatasetSpec(BaseDataset):
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', description=None):
-        super(DatasetSpec, self).__init__(name, format, frequency)
-        if not (pipeline_name is None or
-                isinstance(pipeline_name, basestring)):
-            raise NiAnalysisError(
-                "Pipeline name for DatasetSpec '{}' is not a string "
-                "'{}'".format(name, pipeline_name))
-        self._pipeline_name = pipeline_name
-        self._pipeline = None
-        self._description = description
-        self._study = None
+        BaseDataset.__init__(self, name, format, frequency)
+        BaseSpec.__init__(self, name, pipeline_name, description)
 
     def __eq__(self, other):
-        return (super(DatasetSpec, self).__eq__(other) and
-                self.pipeline_name == other.pipeline_name and
-                self._pipeline == other._pipeline and
-                self.description == other.description and
-                self._study == other._study)
-
-    def bind(self, study):
-        """
-        Returns a copy of the DatasetSpec bound to the given study
-
-        Parameters
-        ----------
-        study : Study
-            A study to bind the dataset spec to (should happen in the
-            study constructor)
-        """
-        cpy = copy(self)
-        cpy._study = study
-        if self.pipeline_name is not None:
-            cpy.pipeline  # Test to see if pipeline name is present
-        return cpy
-
-    def find_mismatch(self, other, indent=''):
-        mismatch = super(DatasetSpec, self).find_mismatch(other, indent)
-        sub_indent = indent + '  '
-        if self.pipeline != other.pipeline:
-            mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(sub_indent, self.pipeline,
-                                 other.pipeline))
-        return mismatch
-
-    @property
-    def prefixed_name(self):
-        return self.study.prefix + self.name
-
-    @property
-    def pipeline_name(self):
-        return self._pipeline_name
-
-    @property
-    def pipeline(self):
-        try:
-            return getattr(self.study, self.pipeline_name)
-        except AttributeError:
-            raise NiAnalysisError(
-                "There is no pipeline method named '{}' in present in "
-                "'{}' study".format(self.pipeline_name, self.study))
-
-    @property
-    def derived(self):
-        return self.pipeline_name is not None
-
-    @property
-    def study(self):
-        if self._study is None:
-            raise NiAnalysisError(
-                "{} is not bound to a study".format(self))
-        return self._study
-
-    @property
-    def description(self):
-        return self._description
-
-    def basename(self, **kwargs):  # @UnusedVariable
-        return self.prefixed_name
-
-    def apply_prefix(self, prefix):
-        """
-        Duplicate the dataset and provide a prefix to apply to the filename
-        """
-        duplicate = copy(self)
-        duplicate._prefix = prefix
-        return duplicate
+        return (BaseDataset.__eq__(self, other) and
+                BaseSpec.__eq__(self, other))
 
     def __repr__(self):
         return ("DatasetSpec(name='{}', format={}, pipeline_name={}, "
@@ -577,10 +595,14 @@ class DatasetSpec(BaseDataset):
                     self.name, self.format, self.pipeline_name,
                     self.frequency))
 
+    def find_mismatch(self, other, indent=''):
+        mismatch = BaseDataset.find_mismatch(self, other, indent)
+        mismatch += BaseSpec.find_mismatch(self, other, indent)
+        return mismatch
+
     def initkwargs(self):
-        dct = super(DatasetSpec, self).initkwargs()
-        dct['pipeline_name'] = self.pipeline_name
-        dct['description'] = self.description
+        dct = BaseDataset.initkwargs(self)
+        dct.update(BaseSpec.initkwargs(self))
         return dct
 
 
@@ -1061,7 +1083,7 @@ class FieldMatch(BaseField, BaseMatch):
                         self._study))
 
 
-class FieldSpec(BaseField):
+class FieldSpec(BaseField, BaseSpec):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived dataset.
@@ -1072,8 +1094,8 @@ class FieldSpec(BaseField):
         The name of the dataset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    pipeline : method
-        Method that generates values for the specified field.
+    pipeline_name : str
+        Name of the method that generates values for the specified field.
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
@@ -1086,63 +1108,17 @@ class FieldSpec(BaseField):
 
     def __init__(self, name, dtype, pipeline_name=None,
                  frequency='per_session', description=None):
-        super(FieldSpec, self).__init__(name, dtype, frequency)
-        self._pipeline_name = pipeline_name
-        self._description = description
-        self._prefix = ''
+        BaseField.__init__(self, name, dtype, frequency)
+        BaseSpec.__init__(self, name, pipeline_name, description)
 
     def __eq__(self, other):
-        return (super(FieldSpec, self).__eq__(other) and
-                self.pipeline == other.pipeline)
+        return (BaseField.__eq__(self, other) and
+                BaseSpec.__eq__(self, other))
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(FieldSpec, self).find_mismatch(other, indent)
-        sub_indent = indent + '  '
-        if self.pipeline_name != other.pipeline_name:
-            mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(sub_indent, self.pipeline,
-                                 other.pipeline))
+        mismatch = BaseField.find_mismatch(self, other, indent)
+        mismatch += BaseSpec.find_mismatch(self, other, indent)
         return mismatch
-
-    @property
-    def prefixed_name(self):
-        return self._prefix + self.name
-
-    def basename(self, **kwargs):  # @UnusedVariable
-        return self._prefix + self.name
-
-    @property
-    def dtype(self):
-        return self._dtype
-
-    @property
-    def pipeline(self):
-        try:
-            return getattr(self.study, self.pipeline_name)
-        except AttributeError:
-            raise NiAnalysisError(
-                "There is no pipeline method named '{}' in present in "
-                "'{}' study".format(self.pipeline_name, self.study))
-
-    @property
-    def pipeline_name(self):
-        return self._pipeline_name
-
-    @property
-    def derived(self):
-        return self._pipeline is not None
-
-    @property
-    def description(self):
-        return self._description
-
-    def apply_prefix(self, prefix):
-        """
-        Duplicate the field and provide a prefix to apply to the name
-        """
-        duplicate = copy(self)
-        duplicate._prefix = prefix
-        return duplicate
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, pipeline={}, "
@@ -1151,7 +1127,6 @@ class FieldSpec(BaseField):
                     self.pipeline, self.frequency))
 
     def initkwargs(self):
-        dct = super(FieldSpec, self).initkwargs()
-        dct['pipeline_name'] = self.pipeline_name
-        dct['description'] = self.description
+        dct = BaseField.initkwargs(self)
+        dct.update(BaseSpec.initkwargs(self))
         return dct

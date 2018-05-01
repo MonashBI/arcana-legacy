@@ -459,22 +459,6 @@ class TestXnatArchive(BaseTestCase):
                               self.SUMMARY_STUDY_NAME + '_resink2',
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
-#     @unittest.skip('skipping due to travis time constraints')
-    def test_project_info(self):
-#         archive = XnatArchive(
-#             project_id=self.PROJECT,
-#             server=SERVER, cache_dir=self.archive_cache_dir)
-#         tree = archive.tree
-#         self.assertEqual(sorted(s.id for s in tree.subjects),
-#                          [self.SUBJECT])
-#         subject = list(tree.subjects)[0]
-#         self.assertEqual([s.visit_id for s in subject.sessions],
-#                          [self.VISIT])
-#         session = list(subject.sessions)[0]
-#         self.assertEqual(
-#             sorted(d.name for d in sorted(session.datasets)),
-#             ['source1', 'source2', 'source3', 'source4'])
-
     @unittest.skip('skipping due to travis time constraints')
     def test_delayed_download(self):
         """

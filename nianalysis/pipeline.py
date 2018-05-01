@@ -5,7 +5,7 @@ from itertools import chain
 from collections import defaultdict
 from nipype.pipeline import engine as pe
 import errno
-from .nodes import Node, JoinNode, MapNode
+from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from nianalysis.interfaces.utils import Merge
 from logging import getLogger

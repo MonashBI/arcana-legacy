@@ -32,14 +32,14 @@ class DummyStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('input', dicom_format),
-        DatasetSpec('output', nifti_gz_format, 'pipeline')]
+        DatasetSpec('input_dataset', dicom_format),
+        DatasetSpec('output_dataset', nifti_gz_format, 'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('input', nifti_gz_format)],
-            outputs=[DatasetSpec('output', nifti_gz_format)],
+            inputs=[DatasetSpec('input_dataset', nifti_gz_format)],
+            outputs=[DatasetSpec('output_dataset', nifti_gz_format)],
             description=("A dummy pipeline used to test dicom-to-nifti "
                          "conversion method"),
             version=1,
@@ -47,9 +47,9 @@ class DummyStudy(Study):
         identity = pipeline.create_node(IdentityInterface(['field']),
                                         name='identity')
         # Connect inputs
-        pipeline.connect_input('input', identity, 'field')
+        pipeline.connect_input('input_dataset', identity, 'field')
         # Connect outputs
-        pipeline.connect_output('output', identity, 'field')
+        pipeline.connect_output('output_dataset', identity, 'field')
         return pipeline
 
 
@@ -74,6 +74,7 @@ class TestDicom2Niix(BaseTestCase):
     def test_dcm2niix(self):
         study = self.create_study(
             DummyStudy, 'concatenate', inputs=[
-                DatasetMatch('input', dicom_format, 't2_tse_tra_p2_448')])
-        study.data('output')[0]
+                DatasetMatch('input_dataset',
+                             dicom_format, 't2_tse_tra_p2_448')])
+        study.output_dataset[0]
         self.assertDatasetCreated('output.nii.gz', study.name)
