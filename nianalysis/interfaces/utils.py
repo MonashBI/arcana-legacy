@@ -12,6 +12,8 @@ from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.utils.filemanip import filename_to_list
+from nipype.interfaces.base import OutputMultiPath, InputMultiPath
+import numpy as np
 
 
 zip_path = os.path.abspath(
@@ -510,4 +512,44 @@ class UnTarGzDir(CommandLine):
             raise NiAnalysisUsageError(
                 "No files or directories found in unzipped directory")
         outputs['gunzipped'] = os.path.join(os.getcwd(), unzipped)
+        return outputs
+
+
+class SelectOneInputSpec(BaseInterfaceInputSpec):
+    inlist = InputMultiPath(
+        traits.Any, mandatory=True, desc='list of values to choose from')
+    index = traits.Int(mandatory=True, desc='0-based indice of element to extract')
+
+
+class SelectOneOutputSpec(TraitedSpec):
+    out = OutputMultiPath(traits.Any, desc='selected value')
+
+
+class SelectOne(IOBase):
+    """Basic interface class to select specific elements from a list
+
+    Examples
+    --------
+
+    >>> from nipype.interfaces.utility import Select
+    >>> sl = Select()
+    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
+    >>> out = sl.run()
+    >>> out.outputs.out
+    4
+
+    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
+    >>> out = sl.run()
+    >>> out.outputs.out
+    [4, 5]
+
+    """
+
+    input_spec = SelectOneInputSpec
+    output_spec = SelectOneOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        out = np.array(self.inputs.inlist)[self.inputs.index]
+        outputs['out'] = out
         return outputs
