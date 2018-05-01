@@ -1,11 +1,12 @@
 from nianalysis.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
 from nianalysis.dataset import DatasetSpec, DatasetMatch
-from nianalysis.data_formats import nifti_gz_format
 from nianalysis.study.base import Study, StudyMetaClass
 from nianalysis.testing import BaseTestCase
 from unittest import TestCase
-from nianalysis.requirements import dcm2niix1_req, mrtrix3_req
+from mbianalysis.data_formats import nifti_gz_format
+from mbianalysis.requirements import (
+    dcm2niix1_req, mrtrix3_req)
 from nianalysis.nodes import Node
 from nianalysis.requirements import Requirement
 

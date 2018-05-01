@@ -1,5 +1,5 @@
 from nianalysis.dataset import DatasetSpec, DatasetMatch
-from nianalysis.data_formats import (
+from mbianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
 from nianalysis.study.base import Study, StudyMetaClass

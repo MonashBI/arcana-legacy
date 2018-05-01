@@ -2,7 +2,8 @@ from unittest import TestCase
 from nianalysis.exceptions import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
 from nianalysis.requirements import (
-    Requirement, split_version, matlab_version_split, date_split)
+    Requirement, split_version, date_split)
+from mbianalysis.requirements import matlab_version_split
 
 
 a_req = Requirement('a', min_version=(2, 0, 1))

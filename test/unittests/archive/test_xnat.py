@@ -18,10 +18,10 @@ from nianalysis.study import Study, StudyMetaClass
 from nianalysis.runner import LinearRunner
 from nianalysis.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from nianalysis.data_formats import (
+from mbianalysis.data_formats import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from nianalysis.utils import split_extension
-from nianalysis.data_formats import data_formats_by_ext
+from nianalysis.data_formats import DataFormat
 from nianalysis.utils import PATH_SUFFIX
 from nianalysis.exceptions import NiAnalysisError
 import sys
@@ -152,7 +152,7 @@ class TestXnatArchive(BaseTestCase):
                 dataset = mbi_xnat.classes.MrScanData(type=name,
                                                       parent=session)
                 resource = dataset.create_resource(
-                    data_formats_by_ext[ext].name.upper())
+                    DataFormat.by_ext(ext).name.upper())
                 resource.upload(os.path.join(self.cache_dir, fname),
                                 fname)
 
