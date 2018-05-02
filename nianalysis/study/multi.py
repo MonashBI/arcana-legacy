@@ -106,7 +106,10 @@ class MultiStudy(Study):
                 options=mapped_options,
                 check_inputs=False)
             # Set sub-study as attribute
-            setattr(self, sub_study_spec.name, sub_study)
+            try:
+                setattr(self, sub_study_spec.name, sub_study)
+            except:
+                raise
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise NiAnalysisNameError(

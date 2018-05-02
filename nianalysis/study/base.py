@@ -112,7 +112,7 @@ class Study(object):
                     "Provided value for '{}' option in '{}' {}, {}, is "
                     "not a valid choice. Can be one of {}"
                     .format(opt.name, name, type(self).__name__,
-                            opt.value, ','.join(opt_spec.dtype)))
+                            opt.value, ','.join(opt_spec.choices)))
         self._options = dict((o.name, o) for o in options)
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
@@ -533,21 +533,21 @@ class StudyMetaClass(type):
         dct['_data_specs'] = combined_data_specs
         dct['_option_specs'] = combined_option_specs
         # Add properties to the class corresponding to each data spec
-        for spec in combined_data_specs.values():
-            if spec.name in combined_attrs:
-                raise NiAnalysisUsageError(
-                    "'{}' in data_specs clashes with existing class "
-                    "member of the same name so cannot add property. "
-                    "Please rename.".format(spec.name))
-            dct[spec.name] = make_data_property(spec)
-        # Add properties to the class corresponding to each option spec
-        for spec in combined_option_specs.values():
-            if spec.name in combined_attrs:
-                raise NiAnalysisUsageError(
-                    "'{}' in option_specs clashes with existing class "
-                    "member of the same name so cannot add property. "
-                    "Please rename.".format(spec.name))
-            dct[spec.name] = make_option_property(spec)
+#         for spec in combined_data_specs.values():
+#             if spec.name in combined_attrs:
+#                 raise NiAnalysisUsageError(
+#                     "'{}' in data_specs clashes with existing class "
+#                     "member of the same name so cannot add property. "
+#                     "Please rename.".format(spec.name))
+#             dct[spec.name] = make_data_property(spec)
+#         # Add properties to the class corresponding to each option spec
+#         for spec in combined_option_specs.values():
+#             if spec.name in combined_attrs:
+#                 raise NiAnalysisUsageError(
+#                     "'{}' in option_specs clashes with existing class "
+#                     "member of the same name so cannot add property. "
+#                     "Please rename.".format(spec.name))
+#             dct[spec.name] = make_option_property(spec)
         return type(name, bases, dct)
 
 
