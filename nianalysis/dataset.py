@@ -152,21 +152,28 @@ class BaseDataset(BaseDatum):
 
 class BaseSpec(object):
 
-    def __init__(self, name, pipeline_name=None, desc=None):
-        if not (pipeline_name is None or
-                isinstance(pipeline_name, basestring)):
-            raise NiAnalysisError(
-                "Pipeline name for {} '{}' is not a string "
-                "'{}'".format(name, pipeline_name))
+    def __init__(self, name, pipeline_name=None, desc=None,
+                 optional=False):
+        if pipeline_name is not None:
+            if not isinstance(pipeline_name, basestring):
+                raise NiAnalysisUsageError(
+                    "Pipeline name for {} '{}' is not a string "
+                    "'{}'".format(name, pipeline_name))
+            if optional:
+                raise NiAnalysisUsageError(
+                    "Derived datasets cannot be optional ('{}')"
+                    .format(name))
         self._pipeline_name = pipeline_name
         self._desc = desc
         self._study = None
+        self._optional = optional
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
                 self._pipeline_name == other._pipeline_name and
                 self.desc == other.desc and
-                self._study == other._study)
+                self._study == other._study and
+                self.optional == other.optional)
 
     def bind(self, study):
         """
@@ -204,6 +211,10 @@ class BaseSpec(object):
     @property
     def pipeline_name(self):
         return self._pipeline_name
+
+    @property
+    def optional(self):
+        return self._optional
 
     @property
     def pipeline(self):
@@ -576,14 +587,18 @@ class DatasetSpec(BaseDataset, BaseSpec):
         visit or project.
     desc : str
         Description of what the field represents
+    optional : bool
+        Whether the specification is optional or not. Only valid for
+        "acquired" dataset specs.
     """
 
     is_spec = True
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', desc=None):
+                 frequency='per_session', desc=None, optional=False):
         BaseDataset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, desc)
+        BaseSpec.__init__(self, name, pipeline_name, desc,
+                          optional=optional)
 
     def __eq__(self, other):
         return (BaseDataset.__eq__(self, other) and
@@ -1107,9 +1122,10 @@ class FieldSpec(BaseField, BaseSpec):
     is_spec = True
 
     def __init__(self, name, dtype, pipeline_name=None,
-                 frequency='per_session', desc=None):
+                 frequency='per_session', desc=None, optional=False):
         BaseField.__init__(self, name, dtype, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, desc)
+        BaseSpec.__init__(self, name, pipeline_name, desc,
+                          optional=optional)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and

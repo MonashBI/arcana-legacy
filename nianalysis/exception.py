@@ -10,6 +10,10 @@ class NiAnalysisError(NiAnalysisException):
     pass
 
 
+class NiAnalysisMissingInputError(NiAnalysisException):
+    pass
+
+
 class NiAnalysisBadlyFormattedLocalArchiveError(NiAnalysisError):
     pass
 
