@@ -46,10 +46,10 @@ class Option(object):
 
 class OptionSpec(Option):
 
-    def __init__(self, name, default, choices=None, description=None):
+    def __init__(self, name, default, choices=None, desc=None):
         super(OptionSpec, self).__init__(name, default)
         self._choices = tuple(choices) if choices is not None else None
-        self._description = description
+        self._desc = desc
 
     @property
     def name(self):
@@ -64,10 +64,10 @@ class OptionSpec(Option):
         return self._choices
 
     @property
-    def description(self):
-        return self._description
+    def desc(self):
+        return self._desc
 
     def __repr__(self):
-        return ("OptionSpec(name='{}', value={}, description='{}', "
+        return ("OptionSpec(name='{}', value={}, desc='{}', "
                 "choices={})".format(self.name, self.value,
-                                     self.description, self.choices))
+                                     self.desc, self.choices))

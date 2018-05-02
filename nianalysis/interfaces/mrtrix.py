@@ -81,7 +81,7 @@ class MRConvertInputSpec(MRTrix3BaseInputSpec):
               "(bvecs / bvals) format"))
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during conversion")
+        desc="Don't display output during conversion")
 
 
 class MRConvertOutputSpec(TraitedSpec):
@@ -139,7 +139,7 @@ class MRCatInputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during concatenation")
+        desc="Don't display output during concatenation")
 
 
 class MRCatOutputSpec(TraitedSpec):
@@ -202,7 +202,7 @@ class MRCropInputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during operation")
+        desc="Don't display output during operation")
 
 
 class MRCropOutputSpec(TraitedSpec):
@@ -265,7 +265,7 @@ class MRPadInputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during operation")
+        desc="Don't display output during operation")
 
 
 class MRPadOutputSpec(TraitedSpec):
@@ -323,7 +323,7 @@ class MRMathInputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during operation")
+        desc="Don't display output during operation")
 
 
 class MRMathOutputSpec(TraitedSpec):
@@ -387,7 +387,7 @@ class MRCalcInputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during operation")
+        desc="Don't display output during operation")
 
 
 class MRCalcOutputSpec(TraitedSpec):
@@ -498,7 +498,7 @@ class ExtractDWIorB0InputSpec(CommandLineInputSpec):
 
     quiet = traits.Bool(
         mandatory=False, argstr="-quiet",
-        description="Don't display output during operation")
+        desc="Don't display output during operation")
 
     grad = traits.Str(
         mandatory=False, argstr='-grad %s',

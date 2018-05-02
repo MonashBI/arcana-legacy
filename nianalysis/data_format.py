@@ -27,7 +27,7 @@ class DataFormat(object):
         A name for the data format
     extension : str
         The extension of the format
-    description : str
+    desc : str
         A description of what the format is and ideally a link to its
         documentation
     directory : bool
@@ -43,7 +43,7 @@ class DataFormat(object):
     by_exts = {}
     by_within_exts = {}
 
-    def __init__(self, name, extension=None, description='',
+    def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
                  converters=None):
         if not name.islower():
@@ -56,7 +56,7 @@ class DataFormat(object):
                 "directory".format(name))
         self._name = name
         self._extension = extension
-        self._description = description
+        self._desc = desc
         self._directory = directory
         if within_dir_exts is not None:
             if not directory:
@@ -72,7 +72,7 @@ class DataFormat(object):
             return (
                 self._name == other._name and
                 self._extension == other._extension and
-                self._description == other._description and
+                self._desc == other._desc and
                 self._directory == other._directory and
                 self._within_dir_exts ==
                 other._within_dir_exts and
@@ -110,8 +110,8 @@ class DataFormat(object):
         return self.extension if self.extension is not None else ''
 
     @property
-    def description(self):
-        return self._description
+    def desc(self):
+        return self._desc
 
     @property
     def directory(self):

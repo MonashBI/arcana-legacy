@@ -411,7 +411,7 @@ class TranslatedPipeline(Pipeline):
                     sub_study_spec.inverse_map(output_name))
         # Copy additional info fields
         self._citations = pipeline._citations
-        self._description = pipeline._description
+        self._desc = pipeline._desc
         self._used_options = set()
 
 

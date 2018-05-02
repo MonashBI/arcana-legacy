@@ -152,20 +152,20 @@ class BaseDataset(BaseDatum):
 
 class BaseSpec(object):
 
-    def __init__(self, name, pipeline_name=None, description=None):
+    def __init__(self, name, pipeline_name=None, desc=None):
         if not (pipeline_name is None or
                 isinstance(pipeline_name, basestring)):
             raise NiAnalysisError(
                 "Pipeline name for {} '{}' is not a string "
                 "'{}'".format(name, pipeline_name))
         self._pipeline_name = pipeline_name
-        self._description = description
+        self._desc = desc
         self._study = None
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
                 self._pipeline_name == other._pipeline_name and
-                self.description == other.description and
+                self.desc == other.desc and
                 self._study == other._study)
 
     def bind(self, study):
@@ -191,7 +191,7 @@ class BaseSpec(object):
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, self.pipeline,
                                  other.pipeline))
-        if self.description != other.description:
+        if self.desc != other.desc:
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, self.pipeline,
                                  other.pipeline))
@@ -234,8 +234,8 @@ class BaseSpec(object):
         return duplicate
 
     @property
-    def description(self):
-        return self._description
+    def desc(self):
+        return self._desc
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.prefixed_name
@@ -243,7 +243,7 @@ class BaseSpec(object):
     def initkwargs(self):
         dct = {}
         dct['pipeline_name'] = self.pipeline_name
-        dct['description'] = self.description
+        dct['desc'] = self.desc
         return dct
 
 
@@ -574,16 +574,16 @@ class DatasetSpec(BaseDataset, BaseSpec):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    description : str
+    desc : str
         Description of what the field represents
     """
 
     is_spec = True
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', description=None):
+                 frequency='per_session', desc=None):
         BaseDataset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, description)
+        BaseSpec.__init__(self, name, pipeline_name, desc)
 
     def __eq__(self, other):
         return (BaseDataset.__eq__(self, other) and
@@ -1100,16 +1100,16 @@ class FieldSpec(BaseField, BaseSpec):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
-    description : str
+    desc : str
         Description of what the field represents
     """
 
     is_spec = True
 
     def __init__(self, name, dtype, pipeline_name=None,
-                 frequency='per_session', description=None):
+                 frequency='per_session', desc=None):
         BaseField.__init__(self, name, dtype, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, description)
+        BaseSpec.__init__(self, name, pipeline_name, desc)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and

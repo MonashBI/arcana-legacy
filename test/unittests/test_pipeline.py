@@ -36,7 +36,7 @@ class ConversionStudy(Study):
                      DatasetSpec('nifti_from_mrtrix', mrtrix_format),
                      DatasetSpec('directory_from_zip', directory_format),
                      DatasetSpec('zip_from_directory', directory_format)],
-            description=("A pipeline that tests out various data format "
+            desc=("A pipeline that tests out various data format "
                          "conversions"),
             version=1,
             citations=[],)

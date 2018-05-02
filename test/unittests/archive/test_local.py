@@ -70,7 +70,7 @@ class TestLocalArchive(BaseTestCase):
                                      study_name=self.STUDY_NAME)
         sink = self.archive.sink(sink_files, study_name=self.STUDY_NAME)
         sink.inputs.name = 'archive_sink'
-        sink.inputs.description = (
+        sink.inputs.desc = (
             "A test session created by archive roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source_sink_unit_test', base_dir=self.work_dir)
@@ -112,7 +112,7 @@ class TestLocalArchive(BaseTestCase):
         sink.inputs.field3_field = field3 = '3'
         sink.inputs.subject_id = self.SUBJECT
         sink.inputs.visit_id = self.VISIT
-        sink.inputs.description = "Test sink of fields"
+        sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
@@ -124,7 +124,7 @@ class TestLocalArchive(BaseTestCase):
             study_name='test')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
-        source.inputs.description = "Test source of fields"
+        source.inputs.desc = "Test source of fields"
         source.inputs.name = 'test_source'
         results = source.run()
         self.assertEqual(results.outputs.field1_field, field1)
@@ -152,7 +152,7 @@ class TestLocalArchive(BaseTestCase):
                                          frequency='per_subject',
                                          study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
-        subject_sink.inputs.description = (
+        subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
         visit_sink_files = [study.bound_data_spec('visit_sink')]
@@ -160,7 +160,7 @@ class TestLocalArchive(BaseTestCase):
                                        frequency='per_visit',
                                        study_name=self.SUMMARY_STUDY_NAME)
         visit_sink.inputs.name = 'visit_summary'
-        visit_sink.inputs.description = (
+        visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
         project_sink_files = [
@@ -170,7 +170,7 @@ class TestLocalArchive(BaseTestCase):
                                          study_name=self.SUMMARY_STUDY_NAME)
 
         project_sink.inputs.name = 'project_summary'
-        project_sink.inputs.description = (
+        project_sink.inputs.desc = (
             "Tests the sinking of project-wide datasets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
@@ -216,7 +216,7 @@ class TestLocalArchive(BaseTestCase):
              for n in ('resink1', 'resink2', 'resink3')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
-        reloadsink.inputs.description = (
+        reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary datasets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)

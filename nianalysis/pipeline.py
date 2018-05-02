@@ -66,7 +66,7 @@ class Pipeline(object):
 
     iterfields = ('subject_id', 'visit_id')
 
-    def __init__(self, study, name, inputs, outputs, description,
+    def __init__(self, study, name, inputs, outputs, desc,
                  citations, version, name_prefix='',
                  add_inputs=[], add_outputs=[]):
         self._name = name_prefix + name
@@ -75,7 +75,7 @@ class Pipeline(object):
         self._study = study
         self._workflow = pe.Workflow(name=self.name)
         self._version = int(version)
-        self._description = description
+        self._desc = desc
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         if any(i.name in self.iterfields for i in inputs):
@@ -135,7 +135,7 @@ class Pipeline(object):
         return (
             self._name == other._name and
             self._study == other._study and
-            self._description == other._description and
+            self._desc == other._desc and
             self._version == other.version and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
@@ -296,7 +296,7 @@ class Pipeline(object):
                 frequency=freq,
                 study_name=self.study.name,
                 name='{}_{}_sink'.format(self.name, freq))
-#             sink.inputs.description = self.description
+#             sink.inputs.desc = self.desc
 #             sink.inputs.name = self._study.name
             if freq in ('per_session', 'per_subject'):
                 complete_workflow.connect(sessions, 'subject_id',
@@ -872,8 +872,8 @@ class Pipeline(object):
                 if v != self.default_options[k])
 
     @property
-    def description(self):
-        return self._description
+    def desc(self):
+        return self._desc
 
     @property
     def inputnode(self):

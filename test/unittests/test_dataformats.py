@@ -40,7 +40,7 @@ class DummyStudy(Study):
             name='pipeline',
             inputs=[DatasetSpec('input_dataset', nifti_gz_format)],
             outputs=[DatasetSpec('output_dataset', nifti_gz_format)],
-            description=("A dummy pipeline used to test dicom-to-nifti "
+            desc=("A dummy pipeline used to test dicom-to-nifti "
                          "conversion method"),
             version=1,
             citations=[])
@@ -77,4 +77,4 @@ class TestDicom2Niix(BaseTestCase):
                 DatasetMatch('input_dataset',
                              dicom_format, 't2_tse_tra_p2_448')])
         study.output_dataset[0]
-        self.assertDatasetCreated('output.nii.gz', study.name)
+        self.assertDatasetCreated('output_dataset.nii.gz', study.name)

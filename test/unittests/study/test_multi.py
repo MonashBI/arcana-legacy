@@ -35,7 +35,7 @@ class StudyA(Study):
             inputs=[DatasetSpec('x', mrtrix_format),
                     DatasetSpec('y', mrtrix_format)],
             outputs=[DatasetSpec('z', mrtrix_format)],
-            description="A dummy pipeline used to test MultiStudy class",
+            desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
             **kwargs)
@@ -76,7 +76,7 @@ class StudyB(Study):
                     DatasetSpec('x', mrtrix_format)],
             outputs=[DatasetSpec('y', mrtrix_format),
                      DatasetSpec('z', mrtrix_format)],
-            description="A dummy pipeline used to test MultiStudy class",
+            desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
             **kwargs)
@@ -197,7 +197,7 @@ class MultiMultiStudy(MultiStudy):
                     DatasetSpec('full_e', mrtrix_format),
                     DatasetSpec('partial_ss2_z', mrtrix_format)],
             outputs=[DatasetSpec('g', mrtrix_format)],
-            description=(
+            desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             version=1,
             citations=[],

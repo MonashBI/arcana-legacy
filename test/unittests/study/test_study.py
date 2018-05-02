@@ -54,7 +54,7 @@ class TestStudy(Study):
             inputs=[DatasetSpec('start', nifti_gz_format)],
             outputs=[DatasetSpec('derived1_1', nifti_gz_format),
                      DatasetSpec('derived1_2', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
+            desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
             **kwargs)
@@ -79,7 +79,7 @@ class TestStudy(Study):
             inputs=[DatasetSpec('start', nifti_gz_format),
                     DatasetSpec('derived1_1', nifti_gz_format)],
             outputs=[DatasetSpec('derived2', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
+            desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
             **kwargs)
@@ -101,7 +101,7 @@ class TestStudy(Study):
             name='pipeline3',
             inputs=[DatasetSpec('derived2', nifti_gz_format)],
             outputs=[DatasetSpec('derived3', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
+            desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
             **kwargs)
@@ -119,7 +119,7 @@ class TestStudy(Study):
             inputs=[DatasetSpec('derived1_2', nifti_gz_format),
                     DatasetSpec('derived3', nifti_gz_format)],
             outputs=[DatasetSpec('derived4', nifti_gz_format)],
-            description="A dummy pipeline used to test 'run_pipeline' method",
+            desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
             **kwargs)
@@ -138,7 +138,7 @@ class TestStudy(Study):
             name='visit_ids_access',
             inputs=[],
             outputs=[DatasetSpec('visit_ids_list', text_format)],
-            description=(
+            desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
             version=1,
             citations=[],
@@ -155,7 +155,7 @@ class TestStudy(Study):
             name='subject_ids_access',
             inputs=[],
             outputs=[DatasetSpec('subject_ids_list', text_format)],
-            description=(
+            desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
             version=1,
             citations=[],
@@ -172,7 +172,7 @@ class TestStudy(Study):
             name="subject_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('subject_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
+            desc=("Test of project summary variables"),
             version=1,
             citations=[],
             **kwargs)
@@ -191,7 +191,7 @@ class TestStudy(Study):
             name="visit_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('visit_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
+            desc=("Test of project summary variables"),
             version=1,
             citations=[],
             **kwargs)
@@ -210,7 +210,7 @@ class TestStudy(Study):
             name="project_summary",
             inputs=[DatasetSpec('ones_slice', mrtrix_format)],
             outputs=[DatasetSpec('project_summary', mrtrix_format)],
-            description=("Test of project summary variables"),
+            desc=("Test of project summary variables"),
             version=1,
             citations=[],
             **kwargs)
@@ -400,7 +400,7 @@ class ExistingPrereqStudy(Study):
             name=output,
             inputs=[DatasetSpec(input, mrtrix_format)],
             outputs=[DatasetSpec(output, mrtrix_format)],
-            description=(
+            desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             version=1,
             citations=[])
