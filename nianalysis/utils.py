@@ -73,7 +73,7 @@ def get_atlas_path(name, dataset='brain', resolution='1mm'):
             path = os.path.join(get_fsl_reference_path(),
                                 'MNI152_T1_{}_brain_mask_dil.nii.gz'
                                 .format(resolution))
-        elif dataset == 'masked':
+        elif dataset == 'brain':
             path = os.path.join(get_fsl_reference_path(),
                                 'MNI152_T1_{}_brain.nii.gz'
                                 .format(resolution))

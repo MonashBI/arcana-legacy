@@ -224,11 +224,11 @@ class Study(object):
                 self._pre_options.pop(pipeline.name))
         except KeyError:
             pass
-        if pipeline._used_options:
+        if self._pre_options:
             raise NiAnalysisUsageError(
-                "Orphanned options for '{}' pipeline(s) remain in '{}' "
-                "{} after creating '{}' pipeline. Please check pipeline"
-                " generation code".format(
+                "Orphanned pre-options for '{}' pipeline(s) remain in "
+                "'{}' {} after creating '{}' pipeline. Please check "
+                "pipeline generation code".format(
                     "', '".join(self._pre_options.keys()),
                     self.name, type(self).__name__, pipeline.name))
         return pipeline
@@ -246,11 +246,15 @@ class Study(object):
                         self, name))
         return option
 
-    def option(self, name, pipeline_name):
+    def pre_option(self, name, pipeline_name):
         """
-        Retrieves the value of the option provided to the pipeline's
-        study and registers the option as being used by this pipeline
-        for use in provenance capture
+        Retrieves the value of the option provided to the
+        study and "pre-registers" the option as being used by the
+        pipeline matching the name provided.
+
+        It is used to access options that before a pipeline is created
+        that affect how the pipeline is created. An error is thrown if
+        the next pipeline created doesn't match 'pipeline_name'.
 
         Parameters
         ----------
