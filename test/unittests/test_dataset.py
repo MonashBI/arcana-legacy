@@ -105,10 +105,11 @@ class TestDerivableStudy(Study):
         DatasetSpec('optional', text_format, optional=True),
         DatasetSpec('derivable', text_format, 'pipeline1'),
         DatasetSpec('mising_input', text_format, 'pipeline2'),
+        DatasetSpec('another_derivable', text_format, 'pipeline3'),
         DatasetSpec('wrong_option', text_format, 'pipeline3')]
 
     add_option_specs = [
-        OptionSpec()]
+        OptionSpec('switch', 0)]
 
     def pipeline1(self):
         pipeline = self.create_pipeline(
@@ -135,17 +136,52 @@ class TestDerivableStudy(Study):
         pipeline.connect_output('derivable', identity, 'a')
         return pipeline
 
+    def pipeline3(self, **kwargs):
+        outputs = [DatasetSpec('another_derivable', text_format)]
+        switch = self.pre_option('switch', 'pipeline3', **kwargs)
+        if switch:
+            outputs.append(DatasetSpec('wrong_option', text_format))
+        pipeline = self.create_pipeline(
+            'pipeline3',
+            inputs=[DatasetSpec('required', text_format)],
+            outputs=outputs,
+            version=1)
+        identity = pipeline.create_node(IdentityInterface(['a', 'b']))
+        pipeline.connect_input('required', identity, 'a')
+        pipeline.connect_input('required', identity, 'b')
+        pipeline.connect_output('another_derivable', identity, 'a')
+        if switch:
+            pipeline.connect_output('wrong_option', identity, 'b')
+        return pipeline
+
 
 class TestDerivable(BaseTestCase):
 
     def test_derivable(self):
         study = self.create_study(
             TestDerivableStudy,
+            'study',
             inputs=[DatasetMatch('required', text_format, 'required')])
         self.assertTrue(study.bound_data_spec('derivable').derivable)
+        self.assertTrue(
+            study.bound_data_spec('another_derivable').derivable)
         self.assertFalse(
             study.bound_data_spec('mising_input').derivable)
         self.assertFalse(
             study.bound_data_spec('wrong_option').derivable)
+        study_with_switch = self.create_study(
+            TestDerivableStudy,
+            'study_with_switch',
+            inputs=[DatasetMatch('required', text_format, 'required')],
+            options={'switch': 1})
+        self.assertFalse(
+            study_with_switch.bound_data_spec('wrong_option').derivable)
+        study_with_input = self.create_study(
+            TestDerivableStudy,
+            'study_with_inputs',
+            inputs=[DatasetMatch('required', text_format, 'required'),
+                    DatasetMatch('optional', text_format, 'required')])
+        self.assertTrue(
+            study_with_input.bound_data_spec('wrong_option').derivable)
 
     

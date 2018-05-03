@@ -143,7 +143,8 @@ class Dataset(BaseDataset):
                   subject_id=None, visit_id=None, archive=None):
         if os.path.isdir(path):
             within_exts = frozenset(
-                split_extension(f)[1] for f in os.listdir(path))
+                split_extension(f)[1] for f in os.listdir(path)
+                if not f.startswith('.'))
             try:
                 data_format = DataFormat.by_within_dir_exts(within_exts)
             except KeyError:
