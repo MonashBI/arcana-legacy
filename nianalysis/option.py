@@ -7,7 +7,7 @@ class Option(object):
     def __init__(self, name, value):
         self._name = name
         if value is None:
-            self._dtype = None
+            self._dtype = type(None)
         else:
             if not isinstance(value, (int, float, basestring,
                                       tuple, list)):
