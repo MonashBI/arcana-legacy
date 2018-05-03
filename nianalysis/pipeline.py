@@ -13,7 +13,7 @@ from nianalysis.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException,
     NiAnalysisNoConverterError)
-from nianalysis.dataset import BaseDataset, BaseField
+from nianalysis.dataset.base import BaseDataset, BaseField
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
@@ -206,7 +206,6 @@ class Pipeline(object):
                     (connected_prereq,
                      prereq_report) = connected_prereqs[prereq.name]
                     if connected_prereq != prereq:
-                        print(connected_prereq == prereq)
                         raise NiAnalysisError(
                             "Name clash between {} and {} non-matching "
                             "prerequisite pipelines".format(connected_prereq,

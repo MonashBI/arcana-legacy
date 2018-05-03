@@ -410,6 +410,10 @@ class Study(object):
                 "'{}' is not a derived {}".format(name, type(spec)))
         try:
             spec.pipeline
+        except:
+            return False
+        else:
+            return True
 
     @classmethod
     def option_spec(cls, name):
