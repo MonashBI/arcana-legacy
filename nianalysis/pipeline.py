@@ -114,8 +114,11 @@ class Pipeline(object):
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
-        unrecognised = set(s for s in specs
-                           if s.name not in self.study.data_spec_names())
+        try:
+            unrecognised = set(s for s in specs
+                               if s.name not in self.study.data_spec_names())
+        except:
+            raise
         if unrecognised:
             raise NiAnalysisError(
                 "'{}' are not valid {} names for {} study ('{}')"
@@ -475,8 +478,8 @@ class Pipeline(object):
                     "with options: {}".format(
                         "', '".join(missing_outputs), self.name,
                         pipeline.name,
-                        ','.join('{}={}'.format(k, v)
-                                 for k, v in self.options)))
+                        '\n'.join('{}={}'.format(o.name, o.value)
+                                 for o in self.study.options)))
             yield pipeline
 
     @property

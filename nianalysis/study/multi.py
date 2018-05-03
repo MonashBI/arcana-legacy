@@ -151,7 +151,7 @@ class MultiStudy(Study):
 
     @classmethod
     def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
-                  add_outputs=None):
+                  add_outputs=None, **kwargs):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -182,7 +182,7 @@ class MultiStudy(Study):
             trans_pipeline = TranslatedPipeline(
                 self, self.sub_study(sub_study_name),
                 pipeline_name, name_prefix=name_prefix,
-                add_inputs=add_inputs, add_outputs=add_outputs)
+                add_inputs=add_inputs, add_outputs=add_outputs, **kwargs)
             trans_pipeline.assert_connected()
             return trans_pipeline
         return translated_getter
@@ -326,7 +326,8 @@ class TranslatedPipeline(Pipeline):
     """
 
     def __init__(self, combined_study, sub_study, pipeline_name,
-                  name_prefix='', add_inputs=None, add_outputs=None):
+                 name_prefix='', add_inputs=None, add_outputs=None,
+                 **kwargs):
         # Get the relative name of the sub-study (i.e. without the
         # combined study name prefixed)
         ss_name = sub_study.name[(len(combined_study.name) + 1):]
@@ -335,7 +336,10 @@ class TranslatedPipeline(Pipeline):
         # Copy across default options and override with extra
         # provided
         pipeline_getter = getattr(sub_study, pipeline_name)
-        pipeline = pipeline_getter(name_prefix=name_prefix)
+        try:
+            pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
+        except:
+            raise
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:
