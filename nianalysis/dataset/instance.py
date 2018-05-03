@@ -3,7 +3,8 @@ import pydicom
 from nianalysis.data_format import DataFormat, directory_format
 from nianalysis.utils import split_extension
 from nianalysis.exception import (
-    NiAnalysisError, NiAnalysisDataFormatError)
+    NiAnalysisError, NiAnalysisDataFormatError,
+    NiAnalysisDataFormatNotRegisteredError)
 from .base import BaseDataset, BaseField
 
 
@@ -147,7 +148,7 @@ class Dataset(BaseDataset):
                 if not f.startswith('.'))
             try:
                 data_format = DataFormat.by_within_dir_exts(within_exts)
-            except KeyError:
+            except NiAnalysisDataFormatNotRegisteredError:
                 # Fall back to general directory format
                 data_format = directory_format
             name = os.path.basename(path)
