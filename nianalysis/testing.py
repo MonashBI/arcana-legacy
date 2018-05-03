@@ -97,18 +97,6 @@ class BaseTestCase(TestCase):
                     .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
             else:
                 raise
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER,
-                self.xnat_session_name + self.REF_SUFFIX,
-                overwrite=False)
-        except Exception:
-            pass
-#             warnings.warn(
-#                 "Did not download any reference datasets from '{}_{}' "
-#                 " session on MBI-XNAT, attempting with what has already"
-#                 " been downloaded:\n\n{}"
-#                 .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
         for f in os.listdir(cache_dir):
             if required_datasets is None or f in required_datasets:
                 src_path = os.path.join(cache_dir, f)
@@ -119,6 +107,14 @@ class BaseTestCase(TestCase):
                     shutil.copy(src_path, dst_path)
                 else:
                     assert False
+        # Download reference
+        try:
+            download_all_datasets(
+                cache_dir, self.SERVER,
+                self.xnat_session_name + self.REF_SUFFIX,
+                overwrite=False)
+        except Exception:
+            pass
 
     def delete_project(self, project_dir):
         # Clean out any existing archive files
