@@ -1,6 +1,7 @@
 from copy import copy
 from nianalysis.exception import (
-    NiAnalysisError, NiAnalysisUsageError)
+    NiAnalysisError, NiAnalysisUsageError,
+    NiAnalysisOutputNotProducedException)
 from .base import BaseDataset, BaseField
 
 
@@ -57,6 +58,26 @@ class BaseSpec(object):
                          .format(sub_indent, self.pipeline,
                                  other.pipeline))
         return mismatch
+
+    @property
+    def derivable(self):
+        """
+        Whether the spec (only valid for derived specs) can be derived,
+        given the inputs to the study and the options provided.
+        """
+        if not self.derived:
+            raise NiAnalysisUsageError(
+                "'{}' is not a derived {}".format(self.name,
+                                                  type(self)))
+        # Check all inputs to the pipeline
+        try:
+            for inpt in self.pipeline().all_inputs:
+                if (not inpt.derived and
+                        inpt.name not in self.input_names):
+                    return False
+        except NiAnalysisOutputNotProducedException:
+            return False
+        return True
 
     @property
     def prefixed_name(self):

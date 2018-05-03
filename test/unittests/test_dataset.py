@@ -3,10 +3,13 @@ import shutil
 import os.path
 import cPickle as pkl
 from unittest import TestCase
+from nipype.interfaces.utility import IdentityInterface
 from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
 from nianalysis.study.base import Study, StudyMetaClass
+from nianalysis.option import OptionSpec
 from nianalysis.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from mbianalysis.data_format import nifti_gz_format, dicom_format
+from mbianalysis.data_format import (
+    nifti_gz_format, dicom_format, text_format)
 
 
 class TestDatasetSpecPickle(TestCase):
@@ -91,3 +94,58 @@ class TestDicomTagMatch(BaseTestCase):
         mag = study.data('gre_mag')[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+
+class TestDerivableStudy(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('required', text_format),
+        DatasetSpec('optional', text_format, optional=True),
+        DatasetSpec('derivable', text_format, 'pipeline1'),
+        DatasetSpec('mising_input', text_format, 'pipeline2'),
+        DatasetSpec('wrong_option', text_format, 'pipeline3')]
+
+    add_option_specs = [
+        OptionSpec()]
+
+    def pipeline1(self):
+        pipeline = self.create_pipeline(
+            'pipeline1',
+            inputs=[DatasetSpec('required', text_format)],
+            outputs=[DatasetSpec('derivable', text_format)],
+            version=1)
+        identity = pipeline.create_node(IdentityInterface(['a']))
+        pipeline.connect_input('required', identity, 'a')
+        pipeline.connect_output('derivable', identity, 'a')
+        return pipeline
+
+    def pipeline2(self):
+        pipeline = self.create_pipeline(
+            'pipeline2',
+            inputs=[DatasetSpec('required', text_format),
+                    DatasetSpec('mising_input', text_format)],
+            outputs=[DatasetSpec('derivable', text_format)],
+            version=1)
+        identity = pipeline.create_node(
+            IdentityInterface(['a', 'b']))
+        pipeline.connect_input('required', identity, 'a')
+        pipeline.connect_input('mising_input', identity, 'b')
+        pipeline.connect_output('derivable', identity, 'a')
+        return pipeline
+
+
+class TestDerivable(BaseTestCase):
+
+    def test_derivable(self):
+        study = self.create_study(
+            TestDerivableStudy,
+            inputs=[DatasetMatch('required', text_format, 'required')])
+        self.assertTrue(study.bound_data_spec('derivable').derivable)
+        self.assertFalse(
+            study.bound_data_spec('mising_input').derivable)
+        self.assertFalse(
+            study.bound_data_spec('wrong_option').derivable)
+
+    

@@ -399,22 +399,6 @@ class Study(object):
                 "'{}')".format(name, cls.__name__,
                                "', '".join(cls._data_specs.keys())))
 
-    def can_be_produced(self, name):
-        """
-        Determine whether the derived dataset can be produced given the
-        study inputs and the options provided.
-        """
-        spec = self.bound_data_spec(name)
-        if spec.pipeline_name is None:
-            raise NiAnalysisUsageError(
-                "'{}' is not a derived {}".format(name, type(spec)))
-        try:
-            spec.pipeline
-        except:
-            return False
-        else:
-            return True
-
     @classmethod
     def option_spec(cls, name):
         try:

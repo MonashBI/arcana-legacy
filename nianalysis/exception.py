@@ -37,6 +37,13 @@ class NiAnalysisDatasetMatchError(NiAnalysisUsageError):
     pass
 
 
+class NiAnalysisOutputNotProducedException(NiAnalysisException):
+    """
+    Raised when a given spec is not produced due to options provided
+    to the study
+    """
+
+
 class NiAnalysisDataFormatError(NiAnalysisUsageError):
     pass
 

@@ -182,6 +182,24 @@ class BaseTestCase(TestCase):
 
     def create_study(self, study_cls, name, inputs, archive=None,
                      runner=None, **kwargs):
+        """
+        Creates a study using default archive and runners.
+
+        Parameters
+        ----------
+        study_cls : Study
+            The class to initialise
+        name : str
+            Name of the study
+        inputs : List[BaseSpec]
+            List of inputs to the study
+        archive : BaseArchive | None
+            The archive to use (a default local archive is used if one
+            isn't provided
+        runner : Runner | None
+            The runner to use (a default LinearRunner is used if one
+            isn't provided
+        """
         if archive is None:
             archive = self.archive
         if runner is None:

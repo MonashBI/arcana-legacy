@@ -12,7 +12,7 @@ from logging import getLogger
 from nianalysis.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException,
-    NiAnalysisNoConverterError)
+    NiAnalysisNoConverterError, NiAnalysisOutputNotProducedException)
 from nianalysis.dataset.base import BaseDataset, BaseField
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
@@ -44,9 +44,6 @@ class Pipeline(object):
     citations : List[Citation]
         List of citations that describe the workflow and should be cited in
         publications
-    requirements : List[Requirement]
-        List of external package requirements (e.g. FSL, MRtrix) required
-        by the pipeline
     version : int
         A version number for the pipeline to be incremented whenever the output
         of the pipeline
@@ -452,19 +449,17 @@ class Pipeline(object):
     @property
     def prerequisities(self):
         """
-        Recursively append prerequisite pipelines along with their
-        prerequisites onto the list of pipelines if they are not already
-        present
+        Iterate through all prerequisite pipelines
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         pipeline_getters = set()
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
-            comp = self._study.bound_data_spec(input)
-            if comp.is_spec:
-                pipeline_getters.add(comp.pipeline)
-                required_outputs[comp.pipeline].add(input.name)
+            spec = self._study.bound_data_spec(input)
+            if spec.is_spec:  # Could be an input to the study
+                pipeline_getters.add(spec.pipeline)
+                required_outputs[spec.pipeline].add(input.name)
         # Call pipeline-getter instance method on study with provided options
         # to generate pipeline to run
         for getter in pipeline_getters:
@@ -474,7 +469,7 @@ class Pipeline(object):
             missing_outputs = required_outputs[getter] - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
-                raise NiAnalysisError(
+                raise NiAnalysisOutputNotProducedException(
                     "Output(s) '{}', required for '{}' pipeline, will "
                     "not be created by prerequisite pipeline '{}' "
                     "with options: {}".format(
@@ -483,6 +478,15 @@ class Pipeline(object):
                         ','.join('{}={}'.format(k, v)
                                  for k, v in self.options)))
             yield pipeline
+
+    @property
+    def all_inputs(self):
+        """
+        Returns all inputs to the pipeline, including inputs of
+        prerequisites (and their prerequisites recursively)
+        """
+        return chain(self.inputs,
+                     *(p.all_inputs for p in self.prerequisites))
 
     def _sessions_to_process(self, subject_ids=None, visit_ids=None,
                              reprocess=False):
