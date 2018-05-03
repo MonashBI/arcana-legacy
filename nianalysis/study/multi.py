@@ -75,11 +75,14 @@ class MultiStudy(Study):
                  **kwargs):
         options = [] if options is None else options
         try:
-            assert issubclass(self.__metaclass__, MultiStudyMetaClass)
-        except AttributeError:
-            assert ("Need to set MultiStudyMetaClass (or sub-class) as "
-                    "the metaclass of all classes derived from "
-                    "MultiStudy")
+            if not issubclass(type(self).__dict__['__metaclass__'],
+                              MultiStudyMetaClass):
+                raise KeyError
+        except KeyError:
+            raise NiAnalysisUsageError(
+                "Need to set MultiStudyMetaClass (or sub-class) as "
+                "the metaclass of all classes derived from "
+                "MultiStudy")
         super(MultiStudy, self).__init__(name, archive, runner, inputs,
                                          options=options, **kwargs)
         self._sub_studies = {}
@@ -104,12 +107,9 @@ class MultiStudy(Study):
                 name + '_' + sub_study_spec.name,
                 archive, runner, mapped_inputs,
                 options=mapped_options,
-                check_inputs=False)
-            # Set sub-study as attribute
-            try:
-                setattr(self, sub_study_spec.name, sub_study)
-            except:
-                raise
+                enforce_inputs=False)
+#             # Set sub-study as attribute
+#             setattr(self, sub_study_spec.name, sub_study)
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise NiAnalysisNameError(

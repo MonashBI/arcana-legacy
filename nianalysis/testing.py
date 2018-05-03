@@ -239,7 +239,7 @@ class BaseTestCase(TestCase):
         else:
             self.assertEqual(value, ref_value, msg)
 
-    def assertDatasetsMatch(self, dataset1, dataset2, error_msg=None):
+    def assertDatasetsEqual(self, dataset1, dataset2, error_msg=None):
         msg = "{} does not match {}".format(dataset1, dataset2)
         if msg is not None:
             msg += ':\n' + error_msg

@@ -72,10 +72,13 @@ class Study(object):
                  subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False):
         try:
-            assert issubclass(self.__metaclass__, StudyMetaClass)
-        except AttributeError:
-            assert ("Need to have StudyMetaClass (or a sub-class) as "
-                    "the metaclass of all classes derived from Study")
+            if not issubclass(type(self).__dict__['__metaclass__'],
+                              StudyMetaClass):
+                raise KeyError
+        except KeyError:
+            raise NiAnalysisUsageError(
+                "Need to have StudyMetaClass (or a sub-class) as "
+                "the metaclass of all classes derived from Study")
         if isinstance(options, dict):
             # Convert dictionary of key-value pairs into list of Option
             # objects
@@ -246,7 +249,7 @@ class Study(object):
                         self, name))
         return option
 
-    def pre_option(self, name, pipeline_name):
+    def pre_option(self, name, pipeline_name, name_prefix='', **kwargs):  # @UnusedVariable @IgnorePep8
         """
         Retrieves the value of the option provided to the
         study and "pre-registers" the option as being used by the
@@ -265,7 +268,7 @@ class Study(object):
         """
         option = self._get_option(name)
         # Register option as being used by the pipeline
-        self._pre_options[pipeline_name].append(option)
+        self._pre_options[name_prefix + pipeline_name].append(option)
         return option.value
 
     @property

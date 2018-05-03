@@ -255,6 +255,7 @@ class BaseSpec(object):
         dct = {}
         dct['pipeline_name'] = self.pipeline_name
         dct['desc'] = self.desc
+        dct['optional'] = self.optional
         return dct
 
 

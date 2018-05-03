@@ -7,7 +7,7 @@ class Option(object):
     def __init__(self, name, value):
         self._name = name
         if value is None:
-            self._dtype = type(None)
+            self._dtype = None
         else:
             if not isinstance(value, (int, float, basestring,
                                       tuple, list)):
@@ -29,6 +29,8 @@ class Option(object):
 
     @property
     def dtype(self):
+        if self._dtype is None:
+            return type(None)
         return self._dtype
 
     def renamed(self, name):
