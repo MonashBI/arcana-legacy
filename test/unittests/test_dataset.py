@@ -104,9 +104,10 @@ class TestDerivableStudy(Study):
         DatasetSpec('required', text_format),
         DatasetSpec('optional', text_format, optional=True),
         DatasetSpec('derivable', text_format, 'pipeline1'),
-        DatasetSpec('mising_input', text_format, 'pipeline2'),
+        DatasetSpec('missing_input', text_format, 'pipeline2'),
         DatasetSpec('another_derivable', text_format, 'pipeline3'),
-        DatasetSpec('wrong_option', text_format, 'pipeline3')]
+        DatasetSpec('wrong_option', text_format, 'pipeline3'),
+        DatasetSpec('wrong_option2', text_format, 'pipeline4')]
 
     add_option_specs = [
         OptionSpec('switch', 0)]
@@ -116,8 +117,11 @@ class TestDerivableStudy(Study):
             'pipeline1',
             inputs=[DatasetSpec('required', text_format)],
             outputs=[DatasetSpec('derivable', text_format)],
+            desc="",
+            citations=[],
             version=1)
-        identity = pipeline.create_node(IdentityInterface(['a']))
+        identity = pipeline.create_node(IdentityInterface(['a']),
+                                        'identity')
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_output('derivable', identity, 'a')
         return pipeline
@@ -126,14 +130,16 @@ class TestDerivableStudy(Study):
         pipeline = self.create_pipeline(
             'pipeline2',
             inputs=[DatasetSpec('required', text_format),
-                    DatasetSpec('mising_input', text_format)],
-            outputs=[DatasetSpec('derivable', text_format)],
+                    DatasetSpec('optional', text_format)],
+            outputs=[DatasetSpec('missing_input', text_format)],
+            desc="",
+            citations=[],
             version=1)
-        identity = pipeline.create_node(
-            IdentityInterface(['a', 'b']))
+        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
+                                        'identity')
         pipeline.connect_input('required', identity, 'a')
-        pipeline.connect_input('mising_input', identity, 'b')
-        pipeline.connect_output('derivable', identity, 'a')
+        pipeline.connect_input('optional', identity, 'b')
+        pipeline.connect_output('missing_input', identity, 'a')
         return pipeline
 
     def pipeline3(self, **kwargs):
@@ -145,8 +151,11 @@ class TestDerivableStudy(Study):
             'pipeline3',
             inputs=[DatasetSpec('required', text_format)],
             outputs=outputs,
+            desc="",
+            citations=[],
             version=1)
-        identity = pipeline.create_node(IdentityInterface(['a', 'b']))
+        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
+                                        'identity')
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
         pipeline.connect_output('another_derivable', identity, 'a')
@@ -154,10 +163,25 @@ class TestDerivableStudy(Study):
             pipeline.connect_output('wrong_option', identity, 'b')
         return pipeline
 
+    def pipeline4(self, **kwargs):
+        pipeline = self.create_pipeline(
+            'pipeline4',
+            inputs=[DatasetSpec('wrong_option', text_format)],
+            outputs=[DatasetSpec('wrong_option2', text_format)],
+            desc="",
+            citations=[],
+            version=1, **kwargs)
+        identity = pipeline.create_node(IdentityInterface(['a']),
+                                        'identity')
+        pipeline.connect_input('wrong_option', identity, 'a')
+        pipeline.connect_output('wrong_option2', identity, 'a')
+        return pipeline
+
 
 class TestDerivable(BaseTestCase):
 
     def test_derivable(self):
+        # Test vanilla study
         study = self.create_study(
             TestDerivableStudy,
             'study',
@@ -166,22 +190,26 @@ class TestDerivable(BaseTestCase):
         self.assertTrue(
             study.bound_data_spec('another_derivable').derivable)
         self.assertFalse(
-            study.bound_data_spec('mising_input').derivable)
+            study.bound_data_spec('missing_input').derivable)
         self.assertFalse(
             study.bound_data_spec('wrong_option').derivable)
+        self.assertFalse(
+            study.bound_data_spec('wrong_option2').derivable)
+        # Test study with 'switch' enabled
         study_with_switch = self.create_study(
             TestDerivableStudy,
             'study_with_switch',
             inputs=[DatasetMatch('required', text_format, 'required')],
             options={'switch': 1})
-        self.assertFalse(
+        self.assertTrue(
             study_with_switch.bound_data_spec('wrong_option').derivable)
+        self.assertTrue(
+            study_with_switch.bound_data_spec('wrong_option2').derivable)
+        # Test study with optional input
         study_with_input = self.create_study(
             TestDerivableStudy,
             'study_with_inputs',
             inputs=[DatasetMatch('required', text_format, 'required'),
                     DatasetMatch('optional', text_format, 'required')])
         self.assertTrue(
-            study_with_input.bound_data_spec('wrong_option').derivable)
-
-    
+            study_with_input.bound_data_spec('missing_input').derivable)

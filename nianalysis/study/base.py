@@ -175,6 +175,10 @@ class Study(object):
     def inputs(self):
         return self._inputs.values()
 
+    @property
+    def input_names(self):
+        return self._inputs.keys()
+
     def input(self, name):
         try:
             return self._inputs[name]
@@ -365,16 +369,17 @@ class Study(object):
             try:
                 data = self._bound_specs[name]
             except KeyError:
-                raise NiAnalysisNameError(
-                    name,
-                    "'{}' is not a recognised dataset_spec name for {} "
-                    "studies."
-                    .format(name, self.__class__.__name__))
-            if not data.derived:
-                raise NiAnalysisMissingDataException(
-                    "Acquired (i.e. non-generated) dataset '{}' "
-                    "was not supplied when the study '{}' was initiated"
-                    .format(name, self.name))
+                if name in self._data_specs:
+                    raise NiAnalysisMissingDataException(
+                        "Acquired (i.e. non-generated) dataset '{}' "
+                        "was not supplied when the study '{}' was "
+                        "initiated".format(name, self.name))
+                else:
+                    raise NiAnalysisNameError(
+                        name,
+                        "'{}' is not a recognised dataset_spec name "
+                        "for {} studies."
+                        .format(name, self.__class__.__name__))
         return data
 
     @classmethod

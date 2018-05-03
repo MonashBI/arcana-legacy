@@ -198,7 +198,7 @@ class Pipeline(object):
             reports = []
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
-            for prereq in self.prerequisities:
+            for prereq in self.prerequisites:
                 try:
                     (connected_prereq,
                      prereq_report) = connected_prereqs[prereq.name]
@@ -447,7 +447,7 @@ class Pipeline(object):
         return any(self._study.bound_data_spec(i).is_spec for i in self.inputs)
 
     @property
-    def prerequisities(self):
+    def prerequisites(self):
         """
         Iterate through all prerequisite pipelines
         """
@@ -475,8 +475,8 @@ class Pipeline(object):
                     "with options: {}".format(
                         "', '".join(missing_outputs), self.name,
                         pipeline.name,
-                        ','.join('{}={}'.format(k, v)
-                                 for k, v in self.options)))
+                        '\n'.join('{}={}'.format(o.name, o.value)
+                                  for o in self.study.options)))
             yield pipeline
 
     @property
@@ -885,7 +885,7 @@ class Pipeline(object):
 
     @property
     def all_options(self):
-        """Return all options, including options of prerequisities"""
+        """Return all options, including options of prerequisites"""
         return chain(self.options, self._prereq_options.iteritems())
 
     @property
