@@ -11,7 +11,8 @@ from nianalysis.interfaces.utils import Merge
 from logging import getLogger
 from nianalysis.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
-    NiAnalysisNoRunRequiredException)
+    NiAnalysisNoRunRequiredException,
+    NiAnalysisNoConverterError)
 from nianalysis.dataset import BaseDataset, BaseField
 from nianalysis.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
@@ -264,7 +265,16 @@ class Pipeline(object):
                     # Insert a format converter node into the workflow if the
                     # format of the dataset if it is not in the required format
                     # for the study
-                    converter = input.format.converter(input_spec.format)
+                    try:
+                        converter = input.format.converter(
+                            input_spec.format)
+                    except NiAnalysisNoConverterError as e:
+                        raise NiAnalysisNoConverterError(
+                            str(e) + (
+                                " required to convert {} to {} "
+                                " in '{}' pipeline, in study '{}"
+                                .format(input.name, input_spec.name,
+                                        self.name, self.study.name)))
                     conv_node_name = '{}_{}_input_conversion'.format(
                         self.name, input_spec.name)
                     (dataset_source, conv_in_field,
@@ -312,8 +322,17 @@ class Pipeline(object):
                     if isinstance(output, BaseDataset):
                         # Convert the format of the node if it doesn't match
                         if output.format != output_spec.format:
-                            converter = output_spec.format.converter(
-                                output.format)
+                            try:
+                                converter = output_spec.format.converter(
+                                    output.format)
+                            except NiAnalysisNoConverterError as e:
+                                raise NiAnalysisNoConverterError(
+                                    str(e) + (
+                                        " required to convert {} to {} "
+                                        " in '{}' pipeline, in study '{}"
+                                        .format(
+                                            input.name, input_spec.name,
+                                            self.name, self.study.name)))
                             conv_node_name = (output_spec.name +
                                               '_output_conversion')
                             (output_node, conv_in_field,
