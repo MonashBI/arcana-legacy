@@ -64,7 +64,7 @@ class TestConverterAvailability(TestCase):
 
     def test_find_mrtrix(self):
         if self.modules_installed:
-            converter = dicom_format.converter(mrtrix_format)
+            converter = mrtrix_format.converter_from(dicom_format)
             node, _, _ = converter.get_node('dummy')
             self.assertIsInstance(node.interface, MRConvert)
 
@@ -76,5 +76,5 @@ class TestDicom2Niix(BaseTestCase):
             DummyStudy, 'concatenate', inputs=[
                 DatasetMatch('input_dataset',
                              dicom_format, 't2_tse_tra_p2_448')])
-        study.output_dataset[0]
+        study.data('output_dataset')[0]
         self.assertDatasetCreated('output_dataset.nii.gz', study.name)

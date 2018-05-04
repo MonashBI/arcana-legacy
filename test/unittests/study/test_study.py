@@ -294,7 +294,7 @@ class TestRunPipeline(BaseTestCase):
             pass
 
     def test_pipeline_prerequisites(self):
-        self.study.derived4[0]
+        self.study.data('derived4')[0]
         for dataset in TestStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
@@ -365,7 +365,7 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.data('subject_ids')
+        self.study.data('subject_ids_list')
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
@@ -375,7 +375,7 @@ class TestRunPipeline(BaseTestCase):
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        self.study.data('visit_ids')
+        self.study.data('visit_ids_list')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', self.study.name,

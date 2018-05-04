@@ -262,8 +262,8 @@ class Pipeline(object):
                     # format of the dataset if it is not in the required format
                     # for the study
                     try:
-                        converter = input.format.converter(
-                            input_spec.format)
+                        converter = input_spec.format.converter_from(
+                            input.format)
                     except NiAnalysisNoConverterError as e:
                         raise NiAnalysisNoConverterError(
                             str(e) + (
@@ -319,8 +319,8 @@ class Pipeline(object):
                         # Convert the format of the node if it doesn't match
                         if output.format != output_spec.format:
                             try:
-                                converter = output_spec.format.converter(
-                                    output.format)
+                                converter = output.format.converter_from(
+                                    output_spec.format)
                             except NiAnalysisNoConverterError as e:
                                 raise NiAnalysisNoConverterError(
                                     str(e) + (

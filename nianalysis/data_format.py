@@ -36,6 +36,10 @@ class DataFormat(object):
         A list of extensions that are found within the top level of
         the directory (for directory formats). Used to identify
         formats from paths.
+    converters : Dict[str, Converter]
+        A dictionary mapping names of alternative data formats
+        to Converter objects that can convert from the alternative
+        format to this format.
     """
 
     # To hold registered data formats
@@ -125,14 +129,14 @@ class DataFormat(object):
     def xnat_resource_name(self):
         return self.name.upper()
 
-    def converter(self, data_format):
+    def converter_from(self, data_format):
         try:
             converter_cls = self._converters[data_format.name]
         except KeyError:
             raise NiAnalysisNoConverterError(
                 "There is no converter to convert {} to {}"
                 .format(self, data_format))
-        return converter_cls(self, data_format)
+        return converter_cls(data_format, self)
 
     @classmethod
     def register(cls, data_format):
@@ -304,16 +308,16 @@ class UnTarGzConverter(Converter):
 # General formats
 directory_format = DataFormat(name='directory', extension=None,
                               directory=True,
-                              converters={'zip': ZipConverter,
-                                          'targz': TarGzConverter})
+                              converters={'zip': UnzipConverter,
+                                          'targz': UnTarGzConverter})
 text_format = DataFormat(name='text', extension='.txt')
 
 
 # Compressed formats
 zip_format = DataFormat(name='zip', extension='.zip',
-                        converters={'directory': UnzipConverter})
+                        converters={'directory': ZipConverter})
 targz_format = DataFormat(name='targz', extension='.tar.gz',
-                          converters={'directory': UnTarGzConverter})
+                          converters={'direcctory': TarGzConverter})
 
 # Register all data formats in module
 for data_format in copy(globals()).itervalues():
