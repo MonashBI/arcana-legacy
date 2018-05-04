@@ -38,10 +38,10 @@ class TestStudy(Study):
         DatasetSpec('project_summary', mrtrix_format,
                     'project_summary_pipeline',
                     frequency='per_project'),
-        DatasetSpec('subject_ids_list', text_format,
+        DatasetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('visit_ids_list', text_format,
+        DatasetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
@@ -137,7 +137,7 @@ class TestStudy(Study):
         pipeline = self.create_pipeline(
             name='visit_ids_access',
             inputs=[],
-            outputs=[DatasetSpec('visit_ids_list', text_format)],
+            outputs=[DatasetSpec('visit_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
             version=1,
@@ -146,7 +146,7 @@ class TestStudy(Study):
         sessions_to_file = pipeline.create_join_visits_node(
             IteratorToFile(), name='sess_to_file', joinfield='ids')
         pipeline.connect_visit_id(sessions_to_file, 'ids')
-        pipeline.connect_output('visit_ids_list', sessions_to_file,
+        pipeline.connect_output('visit_ids', sessions_to_file,
                                 'out_file')
         return pipeline
 
@@ -154,7 +154,7 @@ class TestStudy(Study):
         pipeline = self.create_pipeline(
             name='subject_ids_access',
             inputs=[],
-            outputs=[DatasetSpec('subject_ids_list', text_format)],
+            outputs=[DatasetSpec('subject_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
             version=1,
@@ -163,7 +163,7 @@ class TestStudy(Study):
         subjects_to_file = pipeline.create_join_subjects_node(
             IteratorToFile(), name='subjects_to_file', joinfield='ids')
         pipeline.connect_subject_id(subjects_to_file, 'ids')
-        pipeline.connect_output('subject_ids_list', subjects_to_file,
+        pipeline.connect_output('subject_ids', subjects_to_file,
                                 'out_file')
         return pipeline
 
@@ -365,7 +365,7 @@ class TestRunPipeline(BaseTestCase):
                 NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.data('subject_ids_list')
+        self.study.data('subject_ids')
         for visit_id in self.SESSION_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', self.study.name,
@@ -375,7 +375,7 @@ class TestRunPipeline(BaseTestCase):
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        self.study.data('visit_ids_list')
+        self.study.data('visit_ids')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', self.study.name,
