@@ -102,11 +102,12 @@ class Study(object):
                     "allowable options for {} classes ('{}')"
                     .format(opt.name, type(self).__name__,
                             "', '".join(self.default_options)))
-            if not isinstance(opt.value, opt_spec.dtype):
+            if opt.value is not None and not isinstance(opt.value,
+                                                        opt_spec.dtype):
                 raise NiAnalysisUsageError(
                     "Incorrect datatype for '{}' option provided "
-                    "to '{}' {}, {} ({}). Should be {}"
-                    .format(opt.name, name, type(self).__name__,
+                    "to {}(name='{}'), ({}). Should be {}"
+                    .format(opt.name, type(self).__name__, name,
                             type(opt.value), opt_spec.dtype))
             if (opt_spec.choices is not None and
                     opt.value not in opt_spec.choices):
