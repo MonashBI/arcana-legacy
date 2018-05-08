@@ -48,10 +48,17 @@ class Option(object):
 
 class OptionSpec(Option):
 
-    def __init__(self, name, default, choices=None, desc=None):
+    def __init__(self, name, default, choices=None, desc=None, dtype=None):
         super(OptionSpec, self).__init__(name, default)
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
+        if dtype is not None:
+            if self.default is not None and not isinstance(self.default,
+                                                           dtype):
+                raise NiAnalysisUsageError(
+                    "Provided default value ({}) does not match explicit "
+                    "dtype ({})".format(self.default, dtype))
+            self._dtype = dtype
 
     @property
     def name(self):
