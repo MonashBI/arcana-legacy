@@ -7,17 +7,17 @@ from collections import defaultdict
 import logging
 from arcana.requirement import Requirement
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisModulesNotInstalledException)
+    ArcanaError, ArcanaModulesNotInstalledException)
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 DEFAULT_MEMORY = 4096
 DEFAULT_WALL_TIME = 20
 
 
-class NiAnalysisNodeMixin(object):
+class ArcanaNodeMixin(object):
     """
     A Mixin class that loads required environment modules
     (http://modules.sourceforge.net) before running the interface.
@@ -83,7 +83,7 @@ class NiAnalysisNodeMixin(object):
                 self.load_module(name=req_name, version=req_ver)
                 # Register best requirement
                 self._loaded_modules.append((req_name, req_ver))
-        except NiAnalysisModulesNotInstalledException as e:
+        except ArcanaModulesNotInstalledException as e:
             logger.debug("Skipping loading modules as '{}' is not set"
                          .format(e))
 
@@ -91,7 +91,7 @@ class NiAnalysisNodeMixin(object):
         try:
             for name, ver in self._loaded_modules:
                 self.unload_module(name, ver)
-        except NiAnalysisModulesNotInstalledException as e:
+        except ArcanaModulesNotInstalledException as e:
             logger.debug("Skipping unloading modules as '{}' is not set"
                          .format(e))
 
@@ -144,7 +144,7 @@ class NiAnalysisNodeMixin(object):
                 modulecmd = '{}/bin/modulecmd'.format(
                     os.environ['MODULESHOME'])
                 if not os.path.exists(modulecmd):
-                    raise NiAnalysisError(
+                    raise ArcanaError(
                         "Cannot find 'modulecmd' on path or in MODULESHOME.")
             logger.debug("Running modules command '{}'".format(' '.join(args)))
             try:
@@ -152,13 +152,13 @@ class NiAnalysisNodeMixin(object):
                     [modulecmd, 'python'] + list(args),
                     stdout=sp.PIPE, stderr=sp.PIPE).communicate()
             except (sp.CalledProcessError, OSError) as e:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Call to subprocess `{}` threw an error: {}".format(
                         ' '.join([modulecmd, 'python'] + list(args)), e))
             exec output
             return error
         else:
-            raise NiAnalysisModulesNotInstalledException('MODULESHOME')
+            raise ArcanaModulesNotInstalledException('MODULESHOME')
 
     @property
     def slurm_template(self):
@@ -185,17 +185,17 @@ class NiAnalysisNodeMixin(object):
         return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
 
 
-class Node(NiAnalysisNodeMixin, NipypeNode):
+class Node(ArcanaNodeMixin, NipypeNode):
 
     nipype_cls = NipypeNode
 
 
-class JoinNode(NiAnalysisNodeMixin, NipypeJoinNode):
+class JoinNode(ArcanaNodeMixin, NipypeJoinNode):
 
     nipype_cls = NipypeJoinNode
 
 
-class MapNode(NiAnalysisNodeMixin, NipypeMapNode):
+class MapNode(ArcanaNodeMixin, NipypeMapNode):
 
     nipype_cls = NipypeMapNode
 

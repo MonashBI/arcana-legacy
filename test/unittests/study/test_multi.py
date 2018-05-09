@@ -11,8 +11,8 @@ from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from arcana.interfaces.mrtrix import MRMath
 from arcana.option import Option
-from arcana.node import NiAnalysisNodeMixin  # @IgnorePep8
-from arcana.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from arcana.node import ArcanaNodeMixin  # @IgnorePep8
+from arcana.exception import ArcanaModulesNotInstalledException  # @IgnorePep8
 
 
 class StudyA(Study):
@@ -224,9 +224,9 @@ class TestMulti(TestCase):
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
-                [mrtrix3_req], NiAnalysisNodeMixin.available_modules(),
-                NiAnalysisNodeMixin.preloaded_modules())
-        except NiAnalysisModulesNotInstalledException:
+                [mrtrix3_req], ArcanaNodeMixin.available_modules(),
+                ArcanaNodeMixin.preloaded_modules())
+        except ArcanaModulesNotInstalledException:
             self.mrtrix_req = None
 
     def test_full_multi_study(self):
@@ -240,7 +240,7 @@ class TestMulti(TestCase):
         e = study.data('e')[0]
         f = study.data('f')[0]
         if self.mrtrix_req is not None:
-            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            ArcanaNodeMixin.load_module(*self.mrtrix_req)
         try:
             d_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(d.path),
@@ -256,7 +256,7 @@ class TestMulti(TestCase):
             self.assertEqual(f_mean, 6.0)
         finally:
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                ArcanaNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
         self.assertEqual(study.data('p1'), 100)
         self.assertEqual(study.data('p2'), '200')
@@ -286,7 +286,7 @@ class TestMulti(TestCase):
         ss2_y = study.data('ss2_y')[0]
         ss2_z = study.data('ss2_z')[0]
         if self.mrtrix_req is not None:
-            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            ArcanaNodeMixin.load_module(*self.mrtrix_req)
         try:
             ss1_z_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(ss1_z.path),
@@ -302,7 +302,7 @@ class TestMulti(TestCase):
             self.assertEqual(ss2_z_mean, 6.0)
         finally:
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                ArcanaNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
         self.assertEqual(study.data('p1'), 1000)
         self.assertEqual(study.data('ss1_o2'), '2')
@@ -336,7 +336,7 @@ class TestMulti(TestCase):
                      Option('partial_ss2_product_op', 'product')])
         g = study.data('g')[0]
         if self.mrtrix_req is not None:
-            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            ArcanaNodeMixin.load_module(*self.mrtrix_req)
         try:
             g_mean = float(sp.check_output(
                 'mrstats {} -output mean'.format(g.path),
@@ -344,7 +344,7 @@ class TestMulti(TestCase):
             self.assertEqual(g_mean, 11.0)
         finally:
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                ArcanaNodeMixin.unload_module(*self.mrtrix_req)
         # Test option values in MultiStudy
         self.assertEqual(study.data('full_p1'), 100)
         self.assertEqual(study.data('full_p2'), '200')

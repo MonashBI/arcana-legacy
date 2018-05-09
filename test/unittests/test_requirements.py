@@ -1,6 +1,6 @@
 from unittest import TestCase
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisRequirementVersionException)
+    ArcanaError, ArcanaRequirementVersionException)
 from arcana.requirement import (
     Requirement, split_version, date_split)
 from nianalysis.requirement import matlab_version_split
@@ -49,16 +49,16 @@ class TestRequirements(TestCase):
 
     def test_exceptions(self):
         self.assertRaises(
-            NiAnalysisError,
+            ArcanaError,
             Requirement,
             'anything',
             min_version=(2, 1, 10),
             max_version=(2, 0, 11))
         self.assertRaises(
-            NiAnalysisRequirementVersionException,
+            ArcanaRequirementVersionException,
             a_req.best_version,
             ['2.0.0', '1.9.1'])
         self.assertRaises(
-            NiAnalysisRequirementVersionException,
+            ArcanaRequirementVersionException,
             b_req.best_version,
             ['2.2.0', '3.4.1'])

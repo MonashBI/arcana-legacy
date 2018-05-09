@@ -1,10 +1,10 @@
 import re
 from itertools import izip_longest
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisRequirementVersionException)
+    ArcanaError, ArcanaRequirementVersionException)
 import logging
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 
 def split_version(version_str):
@@ -16,7 +16,7 @@ def split_version(version_str):
         return tuple(
             int(p) for p in sanitized_ver_str.split('.'))
     except (ValueError, AttributeError) as e:
-        raise NiAnalysisRequirementVersionException(
+        raise ArcanaRequirementVersionException(
             "Could not parse version string '{}': {}".format(
                 version_str, e))
 
@@ -25,7 +25,7 @@ def date_split(version_str):
     try:
         return tuple(int(p) for p in version_str.split('-'))
     except ValueError as e:
-        raise NiAnalysisRequirementVersionException(str(e))
+        raise ArcanaRequirementVersionException(str(e))
 
 
 class Requirement(object):
@@ -51,7 +51,7 @@ class Requirement(object):
         if max_version is not None:
             self._max_ver = tuple(max_version)
             if not self.later_or_equal_version(self._max_ver, self._min_ver):
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Supplied max version ({}) is not greater than min "
                     " version ({})".format(self._min_ver, self._max_ver))
         else:
@@ -97,7 +97,7 @@ class Requirement(object):
         for ver in available_versions:
             try:
                 v_parts = self.split_version(ver)
-            except NiAnalysisRequirementVersionException:
+            except ArcanaRequirementVersionException:
                 continue  # Incompatible version
             if (self.later_or_equal_version(v_parts, self._min_ver) and
                 (self._max_ver is None or
@@ -115,7 +115,7 @@ class Requirement(object):
                     ', '.join(str(v) for v in self._max_ver))
             msg += " from available versions '{}'".format(
                 "', '".join(available_versions))
-            raise NiAnalysisRequirementVersionException(msg)
+            raise ArcanaRequirementVersionException(msg)
         return best[0]
 
     def valid_version(self, version):
@@ -127,7 +127,7 @@ class Requirement(object):
     def later_or_equal_version(cls, version, reference):
         for v_part, r_part in izip_longest(version, reference, fillvalue=0):
             if type(v_part) != type(r_part):
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Type of version part {} (of '{}'), {}, does not match "
                     "type of reference part {}, {}".format(
                         v_part, version, type(v_part), r_part, type(r_part)))
@@ -160,7 +160,7 @@ class Requirement(object):
                 if req.valid_version(req.split_version(version)):
                     return req.name, version
                 else:
-                    raise NiAnalysisError(
+                    raise ArcanaError(
                         "Incompatible module version already loaded {}/{},"
                         " (valid {}->{}) please unload before running "
                         "pipeline"
@@ -176,9 +176,9 @@ class Requirement(object):
                                  " requirement {}".format(best_version,
                                                           req.name, req))
                     return req.name, best_version
-                except NiAnalysisRequirementVersionException as e:
+                except ArcanaRequirementVersionException as e:
                     ver_exceptions.append(e)
         # If no options can be satisfied, otherwise raise exception with
         # combined messages from all options.
-        raise NiAnalysisRequirementVersionException(
+        raise ArcanaRequirementVersionException(
             ' and '.join(str(e) for e in ver_exceptions))

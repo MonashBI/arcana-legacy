@@ -3,8 +3,8 @@ from itertools import chain
 from copy import copy
 from collections import defaultdict
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisUsageError,
-    NiAnalysisDatasetMatchError)
+    ArcanaError, ArcanaUsageError,
+    ArcanaDatasetMatchError)
 from .base import BaseDataset, BaseField
 
 
@@ -116,19 +116,19 @@ class BaseMatch(object):
             try:
                 match = matches[self.order]
             except IndexError:
-                raise NiAnalysisDatasetMatchError(
+                raise ArcanaDatasetMatchError(
                     "Did not find {} datasets names matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
             match = matches[0]
         elif matches:
-            raise NiAnalysisDatasetMatchError(
+            raise ArcanaDatasetMatchError(
                 "Found multiple matches for {} pattern in {} ({})"
                 .format(self.pattern, node,
                         ', '.join(str(m) for m in matches)))
         else:
-            raise NiAnalysisDatasetMatchError(
+            raise ArcanaDatasetMatchError(
                 "Did not find any matches for {} pattern in {} "
                 "(found {})"
                 .format(self.pattern, node,
@@ -137,24 +137,24 @@ class BaseMatch(object):
 
     def match(self, subject_id=None, visit_id=None):
         if self._matches is None:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "{} has not been bound to study".format(self))
         if self.frequency == 'per_session':
             if subject_id is None or visit_id is None:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "The 'subject_id' and 'visit_id' must be provided "
                     "to get the match from {}".format(self))
             dataset = self._matches[subject_id][visit_id]
         elif self.frequency == 'per_subject':
             if subject_id is None:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "The 'subject_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
             dataset = self._matches[subject_id]
         elif self.frequency == 'per_visit':
             if visit_id is None:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "The 'visit_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
@@ -219,19 +219,19 @@ class DatasetMatch(BaseDataset, BaseMatch):
                  order=None, dicom_tags=None, is_regex=False,
                  study=None):
         if pattern is None and id is None:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
         if dicom_tags is not None and format.name != 'dicom':
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
                 "format ({})".format(format))
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Cannot provide both 'order' and 'id' to a dataset"
                 "match")
         self._id = str(id) if id is not None else id
@@ -283,14 +283,14 @@ class DatasetMatch(BaseDataset, BaseMatch):
         else:
             matches = list(node.datasets)
         if not matches:
-            raise NiAnalysisDatasetMatchError(
+            raise ArcanaDatasetMatchError(
                 "No dataset names in {} match '{}' pattern:{}"
                 .format(node, self.pattern,
                         '\n'.join(d.name for d in node.datasets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
-                raise NiAnalysisDatasetMatchError(
+                raise ArcanaDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
@@ -305,7 +305,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:
-                raise NiAnalysisDatasetMatchError(
+                raise ArcanaDatasetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
@@ -370,7 +370,7 @@ class FieldMatch(BaseField, BaseMatch):
             matches = [f for f in node.fields
                        if f.name == self.pattern]
         if not matches:
-            raise NiAnalysisDatasetMatchError(
+            raise ArcanaDatasetMatchError(
                 "No field names in {} match '{}' pattern"
                 .format(node, self.pattern))
         return matches

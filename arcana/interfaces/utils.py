@@ -6,7 +6,7 @@ from nipype.interfaces.base import (
     TraitedSpec, traits, BaseInterface, File, isdefined,
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
     BaseInterfaceInputSpec)
-from arcana.exception import NiAnalysisUsageError
+from arcana.exception import ArcanaUsageError
 from itertools import chain
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface
@@ -357,13 +357,13 @@ class UnzipDir(CommandLine):
         outputs = self._outputs().get()
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Zip archives can only contain a single directory, found '{}'"
                 .format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))
         except StopIteration:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "No files or directories found in unzipped directory")
         outputs['unzipped'] = os.path.join(os.getcwd(), unzipped)
         return outputs
@@ -520,13 +520,13 @@ class UnTarGzDir(CommandLine):
         outputs = self._outputs().get()
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Zip archives can only contain a single directory, found '{}'"
                 .format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))
         except StopIteration:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "No files or directories found in unzipped directory")
         outputs['gunzipped'] = os.path.join(os.getcwd(), unzipped)
         return outputs

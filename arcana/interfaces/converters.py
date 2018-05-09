@@ -7,7 +7,7 @@ import pydicom
 import nibabel as nib
 from arcana.utils import split_extension
 import re
-from arcana.exception import NiAnalysisError
+from arcana.exception import ArcanaError
 import numpy as np
 from nipype.utils.filemanip import split_filename
 
@@ -67,7 +67,7 @@ class Dcm2niix(CommandLine):
         elif len(products) > 1 and not self.inputs.multifile_concat:
             converted = products[-1]
         else:
-            raise NiAnalysisError("No products produced by dcm2niix ({})"
+            raise ArcanaError("No products produced by dcm2niix ({})"
                                   .format(', '.join(os.listdir(out_dir))))
         outputs['converted'] = converted
         return outputs

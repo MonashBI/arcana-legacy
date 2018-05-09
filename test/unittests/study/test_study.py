@@ -10,8 +10,8 @@ from nipype.interfaces.utility import Merge  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.node import NiAnalysisNodeMixin  # @IgnorePep8
-from arcana.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from arcana.node import ArcanaNodeMixin  # @IgnorePep8
+from arcana.exception import ArcanaModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.option import OptionSpec
@@ -282,15 +282,15 @@ class TestRunPipeline(BaseTestCase):
         # Calculate MRtrix module required for 'mrstats' commands
         try:
             self.mrtrix_req = Requirement.best_requirement(
-                [mrtrix3_req], NiAnalysisNodeMixin.available_modules(),
-                NiAnalysisNodeMixin.preloaded_modules())
-        except NiAnalysisModulesNotInstalledException:
+                [mrtrix3_req], ArcanaNodeMixin.available_modules(),
+                ArcanaNodeMixin.preloaded_modules())
+        except ArcanaModulesNotInstalledException:
             self.mrtrix_req = None
 
     def tearDown(self):
         try:
-            NiAnalysisNodeMixin.unload_module('mrtrix')
-        except NiAnalysisModulesNotInstalledException:
+            ArcanaNodeMixin.unload_module('mrtrix')
+        except ArcanaModulesNotInstalledException:
             pass
 
     def test_pipeline_prerequisites(self):
@@ -311,7 +311,7 @@ class TestRunPipeline(BaseTestCase):
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+                ArcanaNodeMixin.load_module(*self.mrtrix_req)
             try:
                 mean_val = float(sp.check_output(
                     'mrstats {} -output mean'.format(
@@ -323,7 +323,7 @@ class TestRunPipeline(BaseTestCase):
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
                 if self.mrtrix_req is not None:
-                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                    ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_visit_summary(self):
         self.study.data('visit_summary')
@@ -332,7 +332,7 @@ class TestRunPipeline(BaseTestCase):
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+                ArcanaNodeMixin.load_module(*self.mrtrix_req)
             try:
                 mean_val = float(sp.check_output(
                     'mrstats {} -output mean'.format(
@@ -343,7 +343,7 @@ class TestRunPipeline(BaseTestCase):
                 self.assertEqual(mean_val, len(self.SESSION_IDS))
             finally:
                 if self.mrtrix_req is not None:
-                    NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                    ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_project_summary(self):
         self.study.data('project_summary')
@@ -351,7 +351,7 @@ class TestRunPipeline(BaseTestCase):
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
         if self.mrtrix_req is not None:
-            NiAnalysisNodeMixin.load_module(*self.mrtrix_req)
+            ArcanaNodeMixin.load_module(*self.mrtrix_req)
         try:
             mean_val = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
@@ -362,7 +362,7 @@ class TestRunPipeline(BaseTestCase):
                              len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
         finally:
             if self.mrtrix_req is not None:
-                NiAnalysisNodeMixin.unload_module(*self.mrtrix_req)
+                ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
         self.study.data('subject_ids')

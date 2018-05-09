@@ -16,15 +16,15 @@ from arcana.archive.local import (
     LocalArchive, SUMMARY_NAME)
 from arcana.archive.xnat import download_all_datasets
 from arcana.runner import LinearRunner
-from arcana.exception import NiAnalysisError
-from arcana.node import NiAnalysisNodeMixin
+from arcana.exception import ArcanaError
+from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
-    NiAnalysisModulesNotInstalledException)
+    ArcanaModulesNotInstalledException)
 from traceback import format_exc
 from arcana.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
@@ -43,7 +43,7 @@ class BaseTestCase(TestCase):
     REF_SUFFIX = '_REF'
 
     # The path to the test directory, which should sit along side the
-    # the package directory. Note this will not work when NiAnalysis
+    # the package directory. Note this will not work when Arcana
     # is installed by a package manager.
     BASE_TEST_DIR = os.path.abspath(os.path.join(
         os.path.dirname(arcana.__file__), '..', 'test'))
@@ -233,13 +233,13 @@ class BaseTestCase(TestCase):
                 fields = json.load(f)
         except OSError as e:
             if e.errno == errno.ENOENT:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "No fields were created by pipeline in study '{}'"
                     .format(study_name))
         try:
             value = fields[esc_name]
         except KeyError:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Field '{}' was not created by pipeline in study '{}'. "
                 "Created fields were ('{}')"
                 .format(esc_name, study_name, "', '".join(fields)))
@@ -280,8 +280,8 @@ class BaseTestCase(TestCase):
                         subject=None, visit=None,
                         frequency='per_session'):
             try:
-                NiAnalysisNodeMixin.load_module('mrtrix')
-            except NiAnalysisModulesNotInstalledException:
+                ArcanaNodeMixin.load_module('mrtrix')
+            except ArcanaModulesNotInstalledException:
                 pass
             val = float(sp.check_output(
                 'mrstats {} -output {}'.format(
@@ -423,7 +423,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def _extract_ids(self, name):
         parts = name.split('_')
         if len(parts) < 3:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "'{}' in multi-subject test session '{}' needs to be "
                 "prepended with subject and session IDs (delimited by "
                 "'_')".format(name, self.xnat_session_name))

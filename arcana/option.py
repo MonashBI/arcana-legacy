@@ -1,5 +1,5 @@
 from copy import copy
-from arcana.exception import NiAnalysisUsageError
+from arcana.exception import ArcanaUsageError
 
 
 class Option(object):
@@ -11,7 +11,7 @@ class Option(object):
         else:
             if not isinstance(value, (int, float, basestring,
                                       tuple, list)):
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Invalid type for '{}' option default ({}), {}, "
                     "can be one of int, float or str"
                     .format(name, value, type(value)))
@@ -55,7 +55,7 @@ class OptionSpec(Option):
         if dtype is not None:
             if self.default is not None and not isinstance(self.default,
                                                            dtype):
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Provided default value ({}) does not match explicit "
                     "dtype ({})".format(self.default, dtype))
             self._dtype = dtype

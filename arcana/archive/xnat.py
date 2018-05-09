@@ -24,14 +24,14 @@ from arcana.archive.base import (
 from arcana.data_format import DataFormat
 from arcana.utils import split_extension
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisMissingDataException)
+    ArcanaError, ArcanaMissingDataException)
 from arcana.utils import dir_modtime, NoContextWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from .local import FIELDS_FNAME
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 special_char_re = re.compile(r'[^a-zA-Z_0-9]')
 tag_parse_re = re.compile(r'\((\d+),(\d+)\)')
@@ -142,7 +142,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                     session = sessions[(dataset.frequency,
                                         dataset.derived)]
                 except KeyError:
-                    raise NiAnalysisMissingDataException(
+                    raise ArcanaMissingDataException(
                         "Did not find{} session for frequency '{}', "
                         "it was expected to find {} in"
                         .format(
@@ -155,7 +155,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                         dataset.basename(subject_id=subject_id,
                                          visit_id=visit_id)]
                 except KeyError:
-                    raise NiAnalysisError(
+                    raise ArcanaError(
                         "Could not find '{}' dataset in session '{}' "
                         "(found {})".format(
                             dataset.prefixed_name, session.label,
@@ -226,7 +226,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             xresource = xdataset.resources[
                 dataset.format.xnat_resource_name]
         except KeyError:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "'{}' dataset is not available in '{}' format, "
                 "available resources are '{}'"
                 .format(
@@ -244,7 +244,7 @@ class XnatSource(ArchiveSource, XnatMixin):
         """
         result = resource.xnat_session.get(resource.uri + '/files')
         if result.status_code != 200:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Could not download metadata for resource {}"
                 .format(resource.id))
         return dict((r['Name'], r['digest'])
@@ -265,7 +265,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             with ZipFile(zip_path) as zip_file:
                 zip_file.extractall(expanded_dir)
         except BadZipfile as e:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Could not unzip file '{}' ({})"
                 .format(xresource.id, e))
         data_path = os.path.join(
@@ -285,7 +285,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             if len(match_fnames) == 1:
                 data_path = os.path.join(data_path, match_fnames[0])
             else:
-                raise NiAnalysisMissingDataException(
+                raise ArcanaMissingDataException(
                     "Did not find single file with extension '{}' "
                     "(found '{}') in resource '{}'"
                     .format(dataset.format.extension,
@@ -508,7 +508,7 @@ class XnatSinkMixin(XnatMixin):
                  'req_format': 'qa'}
         response = xnat_login.put(uri, query=query)
         if response.status_code not in (200, 201):
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Could not create session '{}' in subject '{}' in project '{}'"
                 " response code {}"
                 .format(visit_id, subject_id, self.inputs.project_id,
@@ -664,7 +664,7 @@ class XnatArchive(Archive):
             one is created if one isn't provided
         """
         if dataset.archive is not self:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "{} is not from {}".format(dataset, self))
         assert dataset.uri is not None
         with self.login(prev_login=prev_login) as xnat_login:
@@ -788,7 +788,7 @@ class XnatArchive(Archive):
                     try:
                         sessions[visit_id].derived = proc_session
                     except KeyError:
-                        raise NiAnalysisError(
+                        raise ArcanaError(
                             "No matching acquired session for derived "
                             "session '{}_{}_{}'".format(
                                 self.project_id,
@@ -850,7 +850,7 @@ class XnatArchive(Archive):
                 proj_fields = self._get_fields(xproj_summary,
                                                'per_project')
             if not subjects:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Did not find any subjects matching the IDs '{}' in "
                     "project '{}' (found '{}')"
                     .format(
@@ -860,7 +860,7 @@ class XnatArchive(Archive):
                         "', '".join(
                             s.label for s in xproject.subjects.values())))
             if not sessions:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Did not find any sessions matching the IDs '{}'"
                     "(in subjects '{}') for project '{}'"
                     .format(
@@ -988,7 +988,7 @@ class XnatArchive(Archive):
             sess_label = '{}_{}_{}'.format(project_id, cls.SUMMARY_NAME,
                                            cls.SUMMARY_NAME)
         else:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Unrecognised frequency '{}'".format(frequency))
         return (subj_label, sess_label)
 
@@ -999,7 +999,7 @@ def download_all_datasets(download_dir, server, session_id, overwrite=True,
         try:
             session = xnat_login.experiments[session_id]
         except KeyError:
-            raise NiAnalysisMissingDataException(
+            raise ArcanaMissingDataException(
                 "Didn't find session matching '{}' on {}"
                 .format(session_id, server))
         try:
@@ -1035,13 +1035,13 @@ def download_dataset(download_path, server, user, password, session_id,
         try:
             session = xnat_login.experiments[session_id]
         except KeyError:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Didn't find session matching '{}' on {}".format(session_id,
                                                                  server))
         try:
             dataset = session.scans[dataset_name]
         except KeyError:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Didn't find dataset matching '{}' in {}".format(dataset_name,
                                                                  session_id))
         if data_format is None:
@@ -1053,12 +1053,12 @@ def guess_data_format(dataset):
     dataset_formats = [r for r in dataset.resources.itervalues()
                        if r.label.lower() in DataFormat.by_names]
     if len(dataset_formats) > 1:
-        raise NiAnalysisError(
+        raise ArcanaError(
             "Multiple valid resources '{}' for '{}' dataset, please pass "
             "'data_format' to 'download_dataset' method to speficy resource to"
             "download".format("', '".join(dataset_formats), dataset.type))
     elif not dataset_formats:
-        raise NiAnalysisError(
+        raise ArcanaError(
             "No recognised data formats for '{}' dataset (available resources "
             "are '{}')".format(
                 dataset.type, "', '".join(
@@ -1073,7 +1073,7 @@ def download_resource(download_path, dataset, data_format_name,
     try:
         resource = dataset.resources[data_format.xnat_resource_name]
     except KeyError:
-        raise NiAnalysisError(
+        raise ArcanaError(
             "Didn't find {} resource in {} dataset matching '{}' in {}"
             .format(data_format.xnat_resource_name, dataset.type))
     tmp_dir = download_path + '.download'
@@ -1091,7 +1091,7 @@ def download_resource(download_path, dataset, data_format_name,
         if len(match_fnames) == 1:
             src_path = os.path.join(src_path, match_fnames[0])
         else:
-            raise NiAnalysisMissingDataException(
+            raise ArcanaMissingDataException(
                 "Did not find single file with extension '{}' "
                 "(found '{}') in resource '{}'"
                 .format(data_format.extension,

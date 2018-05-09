@@ -1,6 +1,6 @@
 from itertools import chain
 from nipype.interfaces.base import TraitedSpec, traits, BaseInterface
-from arcana.exception import NiAnalysisError
+from arcana.exception import ArcanaError
 
 
 class InputSubjectsInputSpec(TraitedSpec):
@@ -229,7 +229,7 @@ class SelectSession(BaseInterface):
         session_id = (self.inputs.subject_id, self.inputs.visit_id)
         session_ids = zip(self.inputs.subject_ids, self.inputs.visit_ids)
         if session_ids.count(session_id) != 1:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "More than one indices matched {} in subjects and visits list "
                 "({})".format(session_id, session_ids))
         index = session_ids.index(session_id)

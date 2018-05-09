@@ -3,8 +3,8 @@ import pydicom
 from arcana.data_format import DataFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisDataFormatError,
-    NiAnalysisDataFormatNotRegisteredError)
+    ArcanaError, ArcanaDataFormatError,
+    ArcanaDataFormatNotRegisteredError)
 from .base import BaseDataset, BaseField
 
 
@@ -104,7 +104,7 @@ class Dataset(BaseDataset):
             if self.archive is not None:
                 self._path = self.archive.cache(self)
             else:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Neither path nor archive has been set for Dataset "
                     "{}".format(self.name))
         return self._path
@@ -148,7 +148,7 @@ class Dataset(BaseDataset):
                 if not f.startswith('.'))
             try:
                 data_format = DataFormat.by_within_dir_exts(within_exts)
-            except NiAnalysisDataFormatNotRegisteredError:
+            except ArcanaDataFormatNotRegisteredError:
                 # Fall back to general directory format
                 data_format = directory_format
             name = os.path.basename(path)
@@ -177,7 +177,7 @@ class Dataset(BaseDataset):
             A PyDicom file object
         """
         if self.format.name != 'dicom':
-            raise NiAnalysisDataFormatError(
+            raise ArcanaDataFormatError(
                 "Can not read DICOM header as {} is not in DICOM format"
                 .format(self))
         fnames = sorted(os.listdir(self.path))
@@ -267,7 +267,7 @@ class Field(BaseField):
                 except ValueError:
                     dtype = str
         else:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Unrecognised field dtype {} (can be int, float or str)"
                 .format(value))
         super(Field, self).__init__(

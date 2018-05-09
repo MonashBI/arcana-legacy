@@ -6,7 +6,7 @@ from nipype.interfaces.base import (
 from arcana.node import Node
 from arcana.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
-from arcana.exception import NiAnalysisError
+from arcana.exception import ArcanaError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
@@ -85,7 +85,7 @@ class Archive(object):
         elif frequency.startswith('per_project'):
             sink_class = self.ProjectSink
         else:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Unrecognised frequency '{}' can be one of '{}'"
                 .format(frequency,
                         "', '".join(Dataset.MULTIPLICITY_OPTIONS)))

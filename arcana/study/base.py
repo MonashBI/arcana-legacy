@@ -2,9 +2,9 @@ from itertools import chain
 from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
-    NiAnalysisMissingDataException, NiAnalysisNameError,
-    NiAnalysisNoRunRequiredException, NiAnalysisUsageError,
-    NiAnalysisMissingInputError)
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaNoRunRequiredException, ArcanaUsageError,
+    ArcanaMissingInputError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
@@ -13,7 +13,7 @@ from arcana.option import Option
 from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
 
-logger = getLogger('NiAnalysis')
+logger = getLogger('Arcana')
 
 
 class Study(object):
@@ -76,7 +76,7 @@ class Study(object):
                               StudyMetaClass):
                 raise KeyError
         except KeyError:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
         if isinstance(options, dict):
@@ -97,21 +97,21 @@ class Study(object):
             try:
                 opt_spec = self._option_specs[opt.name]
             except KeyError:
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     "Provided option '{}' is not present in the "
                     "allowable options for {} classes ('{}')"
                     .format(opt.name, type(self).__name__,
                             "', '".join(self.default_options)))
             if opt.value is not None and not isinstance(opt.value,
                                                         opt_spec.dtype):
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Incorrect datatype for '{}' option provided "
                     "to {}(name='{}'), ({}). Should be {}"
                     .format(opt.name, type(self).__name__, name,
                             type(opt.value), opt_spec.dtype))
             if (opt_spec.choices is not None and
                     opt.value not in opt_spec.choices):
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Provided value for '{}' option in '{}' {}, {}, is "
                     "not a valid choice. Can be one of {}"
                     .format(opt.name, name, type(self).__name__,
@@ -124,7 +124,7 @@ class Study(object):
         # dataset_spec name is valid for the study type
         for inpt in inputs:
             if inpt.name not in self._data_specs:
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     inpt.name,
                     "Match name '{}' isn't in data specs of {} ('{}')"
                     .format(
@@ -142,7 +142,7 @@ class Study(object):
                         logger.info('Optional' + msg)
                     else:
                         if enforce_inputs:
-                            raise NiAnalysisMissingInputError(
+                            raise ArcanaMissingInputError(
                                 'Non-optional' + msg + " Pipelines "
                                 "depending on this dataset will not run")
             else:
@@ -184,7 +184,7 @@ class Study(object):
         try:
             return self._inputs[name]
         except KeyError:
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "{} doesn't have an input named '{}'"
                 .format(self, name))
@@ -233,7 +233,7 @@ class Study(object):
         except KeyError:
             pass
         if self._pre_options:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Orphanned pre-options for '{}' pipeline(s) remain in "
                 "'{}' {} after creating '{}' pipeline. Please check "
                 "pipeline generation code".format(
@@ -248,7 +248,7 @@ class Study(object):
             try:
                 option = self._option_specs[name]
             except KeyError:
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     name,
                     "{} does not have an option named '{}'".format(
                         self, name))
@@ -318,7 +318,7 @@ class Study(object):
                 self.runner.run(
                     spec.pipeline(), subject_ids=subject_ids,
                     visit_ids=visit_ids)
-            except NiAnalysisNoRunRequiredException:
+            except ArcanaNoRunRequiredException:
                 pass
             if isinstance(spec, BaseDataset):
                 data = chain(*(
@@ -339,7 +339,7 @@ class Study(object):
                 'per_session', 'per_visit'):
             data = [d for d in data if d.visit_id in visit_ids]
         if not data:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "No matching data found (subject_id={}, visit_id={})"
                 .format(subject_id, visit_id))
         if is_single(subject_id) and is_single(visit_id):
@@ -371,12 +371,12 @@ class Study(object):
                 data = self._bound_specs[name]
             except KeyError:
                 if name in self._data_specs:
-                    raise NiAnalysisMissingDataException(
+                    raise ArcanaMissingDataException(
                         "Acquired (i.e. non-generated) dataset '{}' "
                         "was not supplied when the study '{}' was "
                         "initiated".format(name, self.name))
                 else:
-                    raise NiAnalysisNameError(
+                    raise ArcanaNameError(
                         name,
                         "'{}' is not a recognised dataset_spec name "
                         "for {} studies."
@@ -399,7 +399,7 @@ class Study(object):
         try:
             return cls._data_specs[name]
         except KeyError:
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "No dataset spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
@@ -410,7 +410,7 @@ class Study(object):
         try:
             return cls._option_specs[name]
         except KeyError:
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "No option spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
@@ -495,7 +495,7 @@ class StudyMetaClass(type):
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, Study) for b in bases):
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "StudyMetaClass can only be used for classes that "
                 "have Study as a base class")
         try:
@@ -534,7 +534,7 @@ class StudyMetaClass(type):
         for spec in add_data_specs:
             pipe_name = spec.pipeline_name
             if pipe_name is not None and pipe_name not in combined_attrs:
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Pipeline to generate '{}', '{}', is not present"
                     " in '{}' class".format(
                         spec.name, spec.pipeline_name, name))
@@ -542,7 +542,7 @@ class StudyMetaClass(type):
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_option_specs))
         if spec_name_clashes:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "'{}' name both data and option specs in '{}' class"
                 .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
@@ -550,7 +550,7 @@ class StudyMetaClass(type):
         # Add properties to the class corresponding to each data spec
 #         for spec in combined_data_specs.values():
 #             if spec.name in combined_attrs:
-#                 raise NiAnalysisUsageError(
+#                 raise ArcanaUsageError(
 #                     "'{}' in data_specs clashes with existing class "
 #                     "member of the same name so cannot add property. "
 #                     "Please rename.".format(spec.name))
@@ -558,7 +558,7 @@ class StudyMetaClass(type):
 #         # Add properties to the class corresponding to each option spec
 #         for spec in combined_option_specs.values():
 #             if spec.name in combined_attrs:
-#                 raise NiAnalysisUsageError(
+#                 raise ArcanaUsageError(
 #                     "'{}' in option_specs clashes with existing class "
 #                     "member of the same name so cannot add property. "
 #                     "Please rename.".format(spec.name))

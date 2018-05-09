@@ -10,9 +10,9 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.interfaces.utils import Merge
 from logging import getLogger
 from arcana.exception import (
-    NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
-    NiAnalysisNoRunRequiredException,
-    NiAnalysisNoConverterError, NiAnalysisOutputNotProducedException)
+    ArcanaNameError, ArcanaError, ArcanaMissingDataException,
+    ArcanaNoRunRequiredException,
+    ArcanaNoConverterError, ArcanaOutputNotProducedException)
 from arcana.dataset.base import BaseDataset, BaseField
 from arcana.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
@@ -20,7 +20,7 @@ from arcana.interfaces.iterators import (
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 
-logger = getLogger('NiAnalysis')
+logger = getLogger('Arcana')
 
 
 class Pipeline(object):
@@ -77,7 +77,7 @@ class Pipeline(object):
         # Set up inputs
         self._check_spec_names(inputs, 'input')
         if any(i.name in self.iterfields for i in inputs):
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Cannot have a dataset spec named '{}' as it clashes with "
                 "iterable field of that name".format(i.name))
         self._inputs = inputs
@@ -117,7 +117,7 @@ class Pipeline(object):
         unrecognised = set(s for s in specs
                            if s.name not in self.study.data_spec_names())
         if unrecognised:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "'{}' are not valid {} names for {} study ('{}')"
                 .format("', '".join(u.name for u in unrecognised), spec_type,
                         self.study.__class__.__name__,
@@ -184,7 +184,7 @@ class Pipeline(object):
             subject_ids=subject_ids, visit_ids=visit_ids,
             reprocess=reprocess)
         if not sessions_to_process:
-            raise NiAnalysisNoRunRequiredException(
+            raise ArcanaNoRunRequiredException(
                 "All outputs of '{}' are already present in project archive, "
                 "skipping".format(self.name))
         # Set up workflow to run the pipeline, loading and saving from the
@@ -203,7 +203,7 @@ class Pipeline(object):
                     (connected_prereq,
                      prereq_report) = connected_prereqs[prereq.name]
                     if connected_prereq != prereq:
-                        raise NiAnalysisError(
+                        raise ArcanaError(
                             "Name clash between {} and {} non-matching "
                             "prerequisite pipelines".format(connected_prereq,
                                                             prereq))
@@ -238,8 +238,8 @@ class Pipeline(object):
                 (self.study.bound_data_spec(i) for i in self.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(self.name))
-        except NiAnalysisMissingDataException as e:
-            raise NiAnalysisMissingDataException(
+        except ArcanaMissingDataException as e:
+            raise ArcanaMissingDataException(
                 str(e) + ", which is required for pipeline '{}'".format(
                     self.name))
         # Map the subject and visit IDs to the input node of the pipeline
@@ -264,8 +264,8 @@ class Pipeline(object):
                     try:
                         converter = input_spec.format.converter_from(
                             input.format)
-                    except NiAnalysisNoConverterError as e:
-                        raise NiAnalysisNoConverterError(
+                    except ArcanaNoConverterError as e:
+                        raise ArcanaNoConverterError(
                             str(e) + (
                                 " required to convert {} to {} "
                                 " in '{}' pipeline, in study '{}"
@@ -321,8 +321,8 @@ class Pipeline(object):
                             try:
                                 converter = output.format.converter_from(
                                     output_spec.format)
-                            except NiAnalysisNoConverterError as e:
-                                raise NiAnalysisNoConverterError(
+                            except ArcanaNoConverterError as e:
+                                raise ArcanaNoConverterError(
                                     str(e) + (
                                         " required to convert {} to {} "
                                         " in '{}' pipeline, in study '{}"
@@ -469,7 +469,7 @@ class Pipeline(object):
             missing_outputs = required_outputs[getter] - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
-                raise NiAnalysisOutputNotProducedException(
+                raise ArcanaOutputNotProducedException(
                     "Output(s) '{}', required for '{}' pipeline, will "
                     "not be created by prerequisite pipeline '{}' "
                     "with options: {}".format(
@@ -964,7 +964,7 @@ class Pipeline(object):
             Name of the input to add to the pipeline
         """
         if input_name not in self.study.data_spec_names():
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 input_name,
                 "'{}' is not a name of a specified dataset or field in {} "
                 "Study".format(input_name, self.study.name))

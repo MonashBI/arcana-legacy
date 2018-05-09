@@ -1,9 +1,9 @@
 from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import (
-    NiAnalysisMissingDataException, NiAnalysisNameError)
+    ArcanaMissingDataException, ArcanaNameError)
 from arcana.pipeline import Pipeline
-from arcana.exception import NiAnalysisUsageError
+from arcana.exception import ArcanaUsageError
 from .base import Study, StudyMetaClass
 
 
@@ -79,7 +79,7 @@ class MultiStudy(Study):
                               MultiStudyMetaClass):
                 raise KeyError
         except KeyError:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Need to set MultiStudyMetaClass (or sub-class) as "
                 "the metaclass of all classes derived from "
                 "MultiStudy")
@@ -95,7 +95,7 @@ class MultiStudy(Study):
                 try:
                     mapped_inputs.append(
                         inpt.renamed(sub_study_spec.map(inpt.name)))
-                except NiAnalysisNameError:
+                except ArcanaNameError:
                     pass  # Ignore datasets not required for sub-study
             mapped_options = []
             for opt_name in sub_study_cls.option_spec_names():
@@ -112,7 +112,7 @@ class MultiStudy(Study):
 #             setattr(self, sub_study_spec.name, sub_study)
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     sub_study_spec.name,
                     "Duplicate sub-study names '{}'"
                     .format(sub_study_spec.name))
@@ -126,7 +126,7 @@ class MultiStudy(Study):
         try:
             return self._sub_studies[name]
         except KeyError:
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "'{}' not found in sub-studes ('{}')"
                 .format(name, "', '".join(self._sub_studies)))
@@ -136,7 +136,7 @@ class MultiStudy(Study):
         try:
             return cls._sub_study_specs[name]
         except KeyError:
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "'{}' not found in sub-studes ('{}')"
                 .format(name, "', '".join(cls._sub_study_specs)))
@@ -241,7 +241,7 @@ class SubStudySpec(object):
             mapped = self.strip_prefix(name)
             if mapped not in chain(self.study_class.data_spec_names(),
                                    self.study_class.option_spec_names()):
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     name,
                     "'{}' has a matching prefix '{}_' but '{}' doesn't"
                     " match any datasets, fields or options in the "
@@ -258,7 +258,7 @@ class SubStudySpec(object):
         except KeyError:
             if name not in chain(self.study_class.data_spec_names(),
                                  self.study_class.option_spec_names()):
-                raise NiAnalysisNameError(
+                raise ArcanaNameError(
                     name,
                     "'{}' doesn't match any datasets, fields or options"
                     " in the study class {} ('{}')"
@@ -272,7 +272,7 @@ class SubStudySpec(object):
 
     def strip_prefix(self, name):
         if not name.startswith(self.name + '_'):
-            raise NiAnalysisNameError(
+            raise ArcanaNameError(
                 name,
                 "'{}' is not explicitly provided in SubStudySpec "
                 "name map and doesn't start with the SubStudySpec "
@@ -354,8 +354,8 @@ class TranslatedPipeline(Pipeline):
             self._inputs = [
                 i.renamed(sub_study_spec.inverse_map(i.name))
                 for i in pipeline.inputs]
-        except NiAnalysisNameError as e:
-            raise NiAnalysisMissingDataException(
+        except ArcanaNameError as e:
+            raise ArcanaMissingDataException(
                 "'{}' input required for pipeline '{}' in '{}' study "
                 " is not present in inverse dataset map:\n{}".format(
                     e.name, pipeline.name, ss_name,
@@ -384,8 +384,8 @@ class TranslatedPipeline(Pipeline):
                 self._outputs[freq] = [
                     o.renamed(sub_study_spec.inverse_map(o.name))
                     for o in pipeline.frequency_outputs(freq)]
-            except NiAnalysisNameError as e:
-                raise NiAnalysisMissingDataException(
+            except ArcanaNameError as e:
+                raise ArcanaMissingDataException(
                     "'{}' output required for pipeline '{}' in '{}' "
                     "study is not present in inverse dataset map:\n{}"
                     .format(
@@ -432,7 +432,7 @@ class MultiStudyMetaClass(StudyMetaClass):
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, MultiStudy) for b in bases):
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "MultiStudyMetaClass can only be used for classes that "
                 "have MultiStudy as a base class")
         try:
@@ -494,14 +494,14 @@ class MultiStudyMetaClass(StudyMetaClass):
                 sub_study_spec.study_class.spec_names())
             for global_name, local_name in sub_study_spec._name_map.items():
                 if local_name not in local_spec_names:
-                    raise NiAnalysisUsageError(
+                    raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
                         "MultiStudy class does not name a data or "
                         "option spec in {} class"
                         .format(local_name, sub_study_spec.name,
                                 name, sub_study_spec.study_class))
                 if global_name not in cls.spec_names():
-                    raise NiAnalysisUsageError(
+                    raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
                         "MultiStudy class does not name data or option spec"
                         .format(global_name, sub_study_spec.name, name))

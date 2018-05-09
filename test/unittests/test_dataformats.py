@@ -2,7 +2,7 @@ from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.testing import BaseTestCase
 from arcana.interfaces.mrtrix import MRConvert
-from arcana.exception import NiAnalysisModulesNotInstalledException
+from arcana.exception import ArcanaModulesNotInstalledException
 from arcana.data_format import (
     Converter)
 from nianalysis.data_format import (dicom_format, mrtrix_format,
@@ -59,7 +59,7 @@ class TestConverterAvailability(TestCase):
         try:
             Node.available_modules()
             self.modules_installed = True
-        except NiAnalysisModulesNotInstalledException:
+        except ArcanaModulesNotInstalledException:
             self.modules_installed = False
 
     def test_find_mrtrix(self):

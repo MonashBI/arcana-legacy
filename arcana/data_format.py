@@ -4,17 +4,17 @@ from arcana.node import Node
 from arcana.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from arcana.exception import (
-    NiAnalysisRequirementVersionException,
-    NiAnalysisModulesNotInstalledException,
-    NiAnalysisUsageError, NiAnalysisDataFormatClashError,
-    NiAnalysisNoConverterError,
-    NiAnalysisConverterNotAvailableError,
-    NiAnalysisDataFormatNotRegisteredError)
+    ArcanaRequirementVersionException,
+    ArcanaModulesNotInstalledException,
+    ArcanaUsageError, ArcanaDataFormatClashError,
+    ArcanaNoConverterError,
+    ArcanaConverterNotAvailableError,
+    ArcanaDataFormatNotRegisteredError)
 from arcana.requirement import Requirement
 import logging
 
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 
 class DataFormat(object):
@@ -51,11 +51,11 @@ class DataFormat(object):
                  directory=False, within_dir_exts=None,
                  converters=None):
         if not name.islower():
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
                 .format(name))
         if extension is None and not directory:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "Extension for '{}' format can only be None if it is a "
                 "directory".format(name))
         self._name = name
@@ -64,7 +64,7 @@ class DataFormat(object):
         self._directory = directory
         if within_dir_exts is not None:
             if not directory:
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "'within_dir_exts' keyword arg is only valid "
                     "for directory data formats, not '{}'".format(name))
             within_dir_exts = frozenset(within_dir_exts)
@@ -133,7 +133,7 @@ class DataFormat(object):
         try:
             converter_cls = self._converters[data_format.name]
         except KeyError:
-            raise NiAnalysisNoConverterError(
+            raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}"
                 .format(self, data_format))
         return converter_cls(data_format, self)
@@ -152,13 +152,13 @@ class DataFormat(object):
         try:
             saved_format = cls.by_names[data_format.name]
             if saved_format != data_format:
-                raise NiAnalysisDataFormatClashError(
+                raise ArcanaDataFormatClashError(
                     "Cannot register {} due to name clash with previously "
                     "registered {}".format(data_format, saved_format))
         except KeyError:
             if data_format.directory and data_format.extension is None:
                 if data_format.within_dir_exts in cls.by_within_exts:
-                    raise NiAnalysisDataFormatClashError(
+                    raise ArcanaDataFormatClashError(
                         "Cannot register {} due to within-directory "
                         "extension clash with previously registered {}"
                         .format(data_format,
@@ -166,7 +166,7 @@ class DataFormat(object):
                                     data_format.within_dir_exts]))
             else:
                 if data_format.extension in cls.by_exts:
-                    raise NiAnalysisDataFormatClashError(
+                    raise ArcanaDataFormatClashError(
                         "Cannot register {} due to extension clash with "
                         "previously registered {}".format(
                             data_format,
@@ -183,7 +183,7 @@ class DataFormat(object):
         try:
             return cls.by_names[name.lower()]
         except KeyError:
-            raise NiAnalysisDataFormatNotRegisteredError(
+            raise ArcanaDataFormatNotRegisteredError(
                 "No data format named '{}' has been registered"
                 .format(name,
                         ', '.format(repr(f)
@@ -194,7 +194,7 @@ class DataFormat(object):
         try:
             return cls.by_exts[ext]
         except KeyError:
-            raise NiAnalysisDataFormatNotRegisteredError(
+            raise ArcanaDataFormatNotRegisteredError(
                 "No data format with extension '{}' has been registered"
                 .format(
                     ext, ', '.format(repr(f)
@@ -205,7 +205,7 @@ class DataFormat(object):
         try:
             return cls.by_within_exts[within_exts]
         except KeyError:
-            raise NiAnalysisDataFormatNotRegisteredError(
+            raise ArcanaDataFormatNotRegisteredError(
                 "No data format with within-directory extension '{}' "
                 "has been registered ({})".format(
                     within_exts,
@@ -215,7 +215,7 @@ class DataFormat(object):
 
 class Converter(object):
     """
-    Base class for all NiAnalysis data format converters
+    Base class for all Arcana data format converters
 
     Parameters
     ----------
@@ -235,13 +235,13 @@ class Converter(object):
             for possible_reqs in self.requirements:
                 Requirement.best_requirement(possible_reqs,
                                              available_modules)
-        except NiAnalysisRequirementVersionException:
-            raise NiAnalysisConverterNotAvailableError(
+        except ArcanaRequirementVersionException:
+            raise ArcanaConverterNotAvailableError(
                 "Module(s) required for converter {} ({}) are not "
                 "available".format(
                     self,
                     ', '.join(r.name for r in self.requirements)))
-        except NiAnalysisModulesNotInstalledException:
+        except ArcanaModulesNotInstalledException:
             pass
 
     @property

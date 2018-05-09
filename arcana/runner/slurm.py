@@ -1,18 +1,18 @@
 import os
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisJobSubmittedException)
+    ArcanaError, ArcanaJobSubmittedException)
 from .base import BaseRunner
 from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin
 
 
-class NiAnalysisSlurmGraphPlugin(SLURMGraphPlugin):
+class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
 
     def _get_args(self, node, keywords):
         """
         Intercept calls to get template and return our own node-specific
         template
         """
-        args = super(NiAnalysisSlurmGraphPlugin, self)._get_args(
+        args = super(ArcanaSlurmGraphPlugin, self)._get_args(
             node, keywords)
         # Substitute the template arg with the node-specific one
         args = tuple((node.slurm_template if k == 'template' else a)
@@ -22,7 +22,7 @@ class NiAnalysisSlurmGraphPlugin(SLURMGraphPlugin):
 
 class SlurmRunner(BaseRunner):
 
-    nipype_plugin_cls = NiAnalysisSlurmGraphPlugin
+    nipype_plugin_cls = ArcanaSlurmGraphPlugin
 
     def __init__(self, work_dir, email=None, mail_on=('FAIL',),
                  **kwargs):
@@ -30,7 +30,7 @@ class SlurmRunner(BaseRunner):
             try:
                 email = os.environ['EMAIL']
             except KeyError:
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "'email' kwarg needs to be provided for SlurmRunner"
                     " if 'EMAIL' environment variable not set")
         self._email = email
@@ -52,7 +52,7 @@ class SlurmRunner(BaseRunner):
 
     def run(self, pipeline, **kwargs):
         super(SlurmRunner, self).run(pipeline, **kwargs)
-        raise NiAnalysisJobSubmittedException(
+        raise ArcanaJobSubmittedException(
             "Pipeline '{}' has been submitted to SLURM scheduler "
             "for processing. Please run script again after the jobs "
             "have been successful.")

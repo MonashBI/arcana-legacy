@@ -19,12 +19,12 @@ from nipype.interfaces.base import isdefined
 from .base import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
+    ArcanaError, ArcanaBadlyFormattedLocalArchiveError)
 from arcana.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 SUMMARY_NAME = 'ALL'
 FIELDS_FNAME = 'fields.json'
@@ -151,7 +151,7 @@ class LocalSinkMixin(LocalNodeMixin):
                 missing_files.append(spec.name)
                 continue  # skip the upload for this file
             if lower(split_extension(filename)[1]) != lower(ext):
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Mismatching extension '{}' for format '{}' ('{}')"
                     .format(split_extension(filename)[1],
                             spec.format, ext))
@@ -265,7 +265,7 @@ class LocalArchive(Archive):
 
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Base directory for LocalArchive '{}' does not exist"
                 .format(base_dir))
         self._base_dir = os.path.abspath(base_dir)
@@ -325,7 +325,7 @@ class LocalArchive(Archive):
                 continue
             if depth < 2:
                 if any(not f.startswith('.') for f in files):
-                    raise NiAnalysisBadlyFormattedLocalArchiveError(
+                    raise ArcanaBadlyFormattedLocalArchiveError(
                         "Files ('{}') not permitted at {} level in "
                         "local archive".format(
                             "', '".join(dnames),
@@ -407,7 +407,7 @@ class LocalArchive(Archive):
     def _check_only_dirs(cls, dirs, path):
         if any(not os.path.isdir(os.path.join(path, d))
                for d in dirs):
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Files found in local archive directory '{}' "
                 "('{}') instead of sub-directories".format(
                     path, "', '".join(dirs)))

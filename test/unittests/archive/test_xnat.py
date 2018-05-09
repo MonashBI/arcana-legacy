@@ -24,7 +24,7 @@ from nianalysis.data_format import (
 from arcana.utils import split_extension
 from arcana.data_format import DataFormat
 from arcana.utils import PATH_SUFFIX
-from arcana.exception import NiAnalysisError
+from arcana.exception import ArcanaError
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
@@ -43,7 +43,7 @@ import test_local  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
-logger = logging.getLogger('NiAnalysis')
+logger = logging.getLogger('Arcana')
 
 SERVER = 'https://mbi-xnat.erc.monash.edu.au'
 
@@ -878,7 +878,7 @@ class TestOnXnatMixin(object):
             proc_path = None
         if acq_path is not None and os.path.exists(acq_path):
             if os.path.exists(proc_path):
-                raise NiAnalysisError(
+                raise ArcanaError(
                     "Both acquired and derived paths were found for "
                     "'{}_{}' ({} and {})".format(study_name, fname, acq_path,
                                                  proc_path))

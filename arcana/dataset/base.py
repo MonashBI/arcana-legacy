@@ -3,9 +3,9 @@ from abc import ABCMeta
 from arcana.data_format import DataFormat
 from copy import copy
 from logging import getLogger
-from arcana.exception import NiAnalysisError
+from arcana.exception import ArcanaError
 
-logger = getLogger('NiAnalysis')
+logger = getLogger('Arcana')
 
 
 class BaseDatum(object):
@@ -166,7 +166,7 @@ class BaseField(BaseDatum):
     def __init__(self, name, dtype, frequency):
         super(BaseField, self).__init__(name, frequency)
         if dtype not in self.dtypes:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "Invalid dtype {}, can be one of {}".format(
                     dtype.__name__, ', '.join(self._dtype_names())))
         self._dtype = dtype

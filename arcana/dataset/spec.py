@@ -1,8 +1,8 @@
 from copy import copy
 from arcana.exception import (
-    NiAnalysisError, NiAnalysisUsageError,
-    NiAnalysisOutputNotProducedException,
-    NiAnalysisMissingDataException)
+    ArcanaError, ArcanaUsageError,
+    ArcanaOutputNotProducedException,
+    ArcanaMissingDataException)
 from .base import BaseDataset, BaseField
 
 
@@ -12,11 +12,11 @@ class BaseSpec(object):
                  optional=False):
         if pipeline_name is not None:
             if not isinstance(pipeline_name, basestring):
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Pipeline name for {} '{}' is not a string "
                     "'{}'".format(name, pipeline_name))
             if optional:
-                raise NiAnalysisUsageError(
+                raise ArcanaUsageError(
                     "Derived datasets cannot be optional ('{}')"
                     .format(name))
         self._pipeline_name = pipeline_name
@@ -67,7 +67,7 @@ class BaseSpec(object):
         given the inputs and options provided to the study
         """
         if not self.derived:
-            raise NiAnalysisUsageError(
+            raise ArcanaUsageError(
                 "'{}' is not a derived {}".format(self.name,
                                                   type(self)))
         pipeline = self.pipeline()
@@ -77,8 +77,8 @@ class BaseSpec(object):
         try:
             for inpt in pipeline.all_inputs:
                 self.study.bound_data_spec(inpt.name)
-        except (NiAnalysisOutputNotProducedException,
-                NiAnalysisMissingDataException):
+        except (ArcanaOutputNotProducedException,
+                ArcanaMissingDataException):
             return False
         return True
 
@@ -99,7 +99,7 @@ class BaseSpec(object):
         try:
             return getattr(self.study, self.pipeline_name)
         except AttributeError:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "There is no pipeline method named '{}' in present in "
                 "'{}' study".format(self.pipeline_name, self.study))
 
@@ -110,7 +110,7 @@ class BaseSpec(object):
     @property
     def study(self):
         if self._study is None:
-            raise NiAnalysisError(
+            raise ArcanaError(
                 "{} is not bound to a study".format(self))
         return self._study
 
