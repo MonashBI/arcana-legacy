@@ -37,10 +37,9 @@ used to derive the derived data sets encapsulated within "Study" classes.
 The Arcana package itself only provides the abstract *Study* and
 *CombinedStudy* base classes, which are designed to be sub-classed by
 more specific classes representing the analysis that can be performed
-on different modalities and contrasts (e.g. PetStudy, DiffusionMriStudy,
-FmriStudy). These contrast/modality classes are intended to be sub-classed and
-combined into classes that are specific to the a particular PET|MRI study,
-class (e.g. ASPREE Neuro), and integrate the complete workflow from preprocessing
+on different types of data (e.g. PetStudy, MriStudy). These specific classes
+can then be sub-classed further into classes that are specific to the a particular
+study, and integrate the complete workflow from preprocessing
 to statistic analysis.
 
 Installation
