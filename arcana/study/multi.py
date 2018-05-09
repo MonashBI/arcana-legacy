@@ -122,6 +122,10 @@ class MultiStudy(Study):
     def sub_studies(self):
         return self._sub_studies.itervalues()
 
+    @property
+    def sub_study_names(self):
+        return self._sub_studies.iterkeys()
+
     def sub_study(self, name):
         try:
             return self._sub_studies[name]
