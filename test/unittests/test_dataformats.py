@@ -5,8 +5,8 @@ from arcana.interfaces.mrtrix import MRConvert
 from arcana.exception import NiAnalysisModulesNotInstalledException
 from arcana.data_format import (
     Converter)
-from mbianalysis.data_format import (dicom_format, mrtrix_format,
-                                      nifti_gz_format)
+from nianalysis.data_format import (dicom_format, mrtrix_format,
+                                    nifti_gz_format)
 from arcana.requirement import Requirement
 from arcana.node import Node
 from arcana.study.base import Study, StudyMetaClass

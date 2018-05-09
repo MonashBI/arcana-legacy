@@ -8,7 +8,7 @@ from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.study.base import Study, StudyMetaClass
 from arcana.option import OptionSpec
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from mbianalysis.data_format import (
+from nianalysis.data_format import (
     nifti_gz_format, dicom_format, text_format)
 
 

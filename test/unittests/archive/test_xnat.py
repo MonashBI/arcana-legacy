@@ -19,7 +19,7 @@ from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from mbianalysis.data_format import (
+from nianalysis.data_format import (
     nifti_gz_format, mrtrix_format, dicom_format)
 from arcana.utils import split_extension
 from arcana.data_format import DataFormat

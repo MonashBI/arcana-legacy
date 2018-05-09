@@ -7,7 +7,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.archive.local import (
     LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
-from mbianalysis.data_format import nifti_gz_format
+from nianalysis.data_format import nifti_gz_format
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
@@ -15,7 +15,7 @@ from arcana.dataset import (
 from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.archive.base import Project, Subject, Session, Visit
-from mbianalysis.data_format import mrtrix_format
+from nianalysis.data_format import mrtrix_format
 
 
 class DummyStudy(Study):

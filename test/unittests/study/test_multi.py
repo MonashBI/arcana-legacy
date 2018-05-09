@@ -3,8 +3,8 @@ import subprocess as sp
 from arcana.requirement import Requirement
 from arcana.interfaces.utils import Merge
 from arcana.dataset import DatasetMatch, DatasetSpec
-from mbianalysis.data_format import mrtrix_format
-from mbianalysis.requirement import mrtrix3_req
+from nianalysis.data_format import mrtrix_format
+from nianalysis.requirement import mrtrix3_req
 from arcana.option import OptionSpec
 from arcana.study.base import Study
 from arcana.study.multi import (

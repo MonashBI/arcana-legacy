@@ -4,8 +4,8 @@ from arcana.dataset import DatasetSpec, DatasetMatch
 from arcana.study.base import Study, StudyMetaClass
 from arcana.testing import BaseTestCase
 from unittest import TestCase
-from mbianalysis.data_format import nifti_gz_format
-from mbianalysis.requirement import (
+from nianalysis.data_format import nifti_gz_format
+from nianalysis.requirement import (
     dcm2niix1_req, mrtrix3_req)
 from arcana.node import Node
 from arcana.requirement import Requirement
