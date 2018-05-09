@@ -17,11 +17,10 @@ setup(
     author='Tom G. Close',
     author_email='tom.g.close@gmail.com',
     packages=find_packages(),
-    url='https://github.com/mbi-image/arcana',
-    license='The MIT License (MIT)',
+    url='https://github.com/monashbiomedicalimaging/arcana',
+    license='The Apache Software Licence 2.0',
     description=(
-        'A data-centric NeuroImaging analysis package based on '
-        'NiPype with archive backends for XNAT and local storage'),
+        'Archive-centric analysis workflow architecture based on NiPype'),
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.4',
                       'nipype==1.0',

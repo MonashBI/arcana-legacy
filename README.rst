@@ -1,5 +1,5 @@
 Arcana
-==========
+======
 
 .. image:: https://travis-ci.org/monashbiomedicalimaging/arcana.svg?branch=master
   :target: https://travis-ci.org/monashbiomedicalimaging/arcana
@@ -51,13 +51,7 @@ Arcana can be installed using ``pip``::
     $ pip install git+https://github.com/monashbiomedicalimaging/arcana.git
 
 although for most pipelines you will also need to install the relevant
-neuro-imaging tools that are called on to the the processing (e.g.
-FSL, SPM/Matlab, AFNI, MRtrix, etc...).
-
-For automated file format conversion between common neuroimaging
-formats (e.g. DICOM, NIfTI, MRtrix) the MRtrix (http://mrtrix.org)
-and/or Dicom2niix (http://github.com/rordenlab/dcm2niix) should be
-installed. Please see their documentation for instructions.
+tools that are called on to the the processing 
 
 
 
