@@ -1,7 +1,7 @@
 from unittest import TestCase
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
-from nianalysis.requirement import (
+from arcana.requirement import (
     Requirement, split_version, date_split)
 from mbianalysis.requirement import matlab_version_split
 

@@ -1,16 +1,16 @@
 from itertools import chain
 from logging import getLogger
 from collections import defaultdict
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisMissingDataException, NiAnalysisNameError,
     NiAnalysisNoRunRequiredException, NiAnalysisUsageError,
     NiAnalysisMissingInputError)
-from nianalysis.pipeline import Pipeline
-from nianalysis.dataset import (
+from arcana.pipeline import Pipeline
+from arcana.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
 from nipype.pipeline import engine as pe
-from nianalysis.option import Option
-from nianalysis.interfaces.iterators import (
+from arcana.option import Option
+from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
 
 logger = getLogger('NiAnalysis')

@@ -1,9 +1,9 @@
-from nianalysis.dataset import DatasetSpec, DatasetMatch
+from arcana.dataset import DatasetSpec, DatasetMatch
 from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, dicom_format, directory_format, zip_format,
     nifti_format)
-from nianalysis.study.base import Study, StudyMetaClass
-from nianalysis.testing import BaseTestCase
+from arcana.study.base import Study, StudyMetaClass
+from arcana.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 
 

@@ -5,8 +5,8 @@ import math
 import subprocess as sp
 from collections import defaultdict
 import logging
-from nianalysis.requirement import Requirement
-from nianalysis.exception import (
+from arcana.requirement import Requirement
+from arcana.exception import (
     NiAnalysisError, NiAnalysisModulesNotInstalledException)
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)

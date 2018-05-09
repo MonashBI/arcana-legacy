@@ -1,16 +1,16 @@
 from abc import ABCMeta, abstractmethod
 from copy import copy
-from nianalysis.node import Node
-from nianalysis.interfaces.utils import (
+from arcana.node import Node
+from arcana.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisRequirementVersionException,
     NiAnalysisModulesNotInstalledException,
     NiAnalysisUsageError, NiAnalysisDataFormatClashError,
     NiAnalysisNoConverterError,
     NiAnalysisConverterNotAvailableError,
     NiAnalysisDataFormatNotRegisteredError)
-from nianalysis.requirement import Requirement
+from arcana.requirement import Requirement
 import logging
 
 

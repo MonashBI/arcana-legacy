@@ -6,7 +6,7 @@ from nipype.interfaces.base import (
     TraitedSpec, traits, BaseInterface, File, isdefined,
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
     BaseInterfaceInputSpec)
-from nianalysis.exception import NiAnalysisUsageError
+from arcana.exception import NiAnalysisUsageError
 from itertools import chain
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface

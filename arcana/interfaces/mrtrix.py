@@ -4,7 +4,7 @@ from nipype.interfaces.base import (
     traits, InputMultiPath)
 from nipype.interfaces.mrtrix3.reconst import (
     MRTrix3Base, MRTrix3BaseInputSpec)
-from nianalysis.utils import split_extension
+from arcana.utils import split_extension
 
 
 # =============================================================================

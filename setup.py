@@ -2,7 +2,7 @@ import sys
 import os.path
 from setuptools import setup, find_packages
 
-PACKAGE_NAME = 'nianalysis'
+PACKAGE_NAME = 'arcana'
 
 # Get version from module inside package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),
@@ -17,7 +17,7 @@ setup(
     author='Tom G. Close',
     author_email='tom.g.close@gmail.com',
     packages=find_packages(),
-    url='https://github.com/mbi-image/nianalysis',
+    url='https://github.com/mbi-image/arcana',
     license='The MIT License (MIT)',
     description=(
         'A data-centric NeuroImaging analysis package based on '

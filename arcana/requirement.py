@@ -1,6 +1,6 @@
 import re
 from itertools import izip_longest
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisError, NiAnalysisRequirementVersionException)
 import logging
 

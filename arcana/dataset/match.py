@@ -2,7 +2,7 @@ import re
 from itertools import chain
 from copy import copy
 from collections import defaultdict
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisError, NiAnalysisUsageError,
     NiAnalysisDatasetMatchError)
 from .base import BaseDataset, BaseField

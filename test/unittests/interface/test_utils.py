@@ -1,7 +1,7 @@
 import os.path
-from nianalysis.testing import BaseTestCase
+from arcana.testing import BaseTestCase
 from nipype.pipeline import engine as pe
-from nianalysis.interfaces.utils import ZipDir, UnzipDir
+from arcana.interfaces.utils import ZipDir, UnzipDir
 
 
 class TestUtilsInterface(BaseTestCase):

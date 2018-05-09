@@ -7,17 +7,17 @@ from nipype.pipeline import engine as pe
 import errno
 from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.interfaces.utils import Merge
+from arcana.interfaces.utils import Merge
 from logging import getLogger
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisNameError, NiAnalysisError, NiAnalysisMissingDataException,
     NiAnalysisNoRunRequiredException,
     NiAnalysisNoConverterError, NiAnalysisOutputNotProducedException)
-from nianalysis.dataset.base import BaseDataset, BaseField
-from nianalysis.interfaces.iterators import (
+from arcana.dataset.base import BaseDataset, BaseField
+from arcana.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
-from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 
 logger = getLogger('NiAnalysis')

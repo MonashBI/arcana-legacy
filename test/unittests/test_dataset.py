@@ -4,10 +4,10 @@ import os.path
 import cPickle as pkl
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
-from nianalysis.study.base import Study, StudyMetaClass
-from nianalysis.option import OptionSpec
-from nianalysis.dataset import DatasetSpec, FieldSpec, DatasetMatch
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
+from arcana.study.base import Study, StudyMetaClass
+from arcana.option import OptionSpec
+from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
 from mbianalysis.data_format import (
     nifti_gz_format, dicom_format, text_format)
 

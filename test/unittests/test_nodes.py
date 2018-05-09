@@ -1,14 +1,14 @@
-from nianalysis.interfaces.mrtrix import MRMath
+from arcana.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
-from nianalysis.dataset import DatasetSpec, DatasetMatch
-from nianalysis.study.base import Study, StudyMetaClass
-from nianalysis.testing import BaseTestCase
+from arcana.dataset import DatasetSpec, DatasetMatch
+from arcana.study.base import Study, StudyMetaClass
+from arcana.testing import BaseTestCase
 from unittest import TestCase
 from mbianalysis.data_format import nifti_gz_format
 from mbianalysis.requirement import (
     dcm2niix1_req, mrtrix3_req)
-from nianalysis.node import Node
-from nianalysis.requirement import Requirement
+from arcana.node import Node
+from arcana.requirement import Requirement
 
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))

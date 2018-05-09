@@ -1,5 +1,5 @@
 import os
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisError, NiAnalysisJobSubmittedException)
 from .base import BaseRunner
 from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin

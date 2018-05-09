@@ -10,18 +10,18 @@ import filecmp
 from collections import defaultdict
 import warnings
 import logging
-import nianalysis
-from nianalysis.utils import classproperty
-from nianalysis.archive.local import (
+import arcana
+from arcana.utils import classproperty
+from arcana.archive.local import (
     LocalArchive, SUMMARY_NAME)
-from nianalysis.archive.xnat import download_all_datasets
-from nianalysis.runner import LinearRunner
-from nianalysis.exception import NiAnalysisError
-from nianalysis.node import NiAnalysisNodeMixin
-from nianalysis.exception import (
+from arcana.archive.xnat import download_all_datasets
+from arcana.runner import LinearRunner
+from arcana.exception import NiAnalysisError
+from arcana.node import NiAnalysisNodeMixin
+from arcana.exception import (
     NiAnalysisModulesNotInstalledException)
 from traceback import format_exc
-from nianalysis.archive.local import (
+from arcana.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 
 logger = logging.getLogger('NiAnalysis')
@@ -46,7 +46,7 @@ class BaseTestCase(TestCase):
     # the package directory. Note this will not work when NiAnalysis
     # is installed by a package manager.
     BASE_TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(nianalysis.__file__), '..', 'test'))
+        os.path.dirname(arcana.__file__), '..', 'test'))
 
     @classproperty
     @classmethod

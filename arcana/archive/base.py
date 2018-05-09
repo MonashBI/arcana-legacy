@@ -3,11 +3,11 @@ from itertools import chain
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface)
-from nianalysis.node import Node
-from nianalysis.dataset import (
+from arcana.node import Node
+from arcana.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
-from nianalysis.exception import NiAnalysisError
-from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+from arcana.exception import NiAnalysisError
+from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
 FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
@@ -34,7 +34,7 @@ class Archive(object):
         project_id : str
             The ID of the project to return the sessions for
         inputs : list(Dataset|Field)
-            An iterable of nianalysis.Dataset or nianalysis.Field
+            An iterable of arcana.Dataset or arcana.Field
             objects, which specify the datasets to extract from the
             archive system
         name : str
@@ -64,7 +64,7 @@ class Archive(object):
         project_id : str
             The ID of the project to return the sessions for
         outputs : List(BaseFile|Field) | list(
-            An iterable of nianalysis.Dataset nianalysis.Field objects,
+            An iterable of arcana.Dataset arcana.Field objects,
             which specify the datasets to put into the archive system
         name : str
             Name of the NiPype node

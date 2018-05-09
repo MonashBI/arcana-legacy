@@ -1,5 +1,5 @@
 import os.path
-from nianalysis.exception import NiAnalysisError
+from arcana.exception import NiAnalysisError
 import re
 
 
@@ -41,7 +41,7 @@ def get_fsl_reference_path():
 
 def get_atlas_path(name, dataset='brain', resolution='1mm'):
     """
-    Returns the path to the atlas (or atlas mask) in the nianalysis repository
+    Returns the path to the atlas (or atlas mask) in the arcana repository
 
     Parameters
     ----------

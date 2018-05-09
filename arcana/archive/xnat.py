@@ -13,22 +13,22 @@ import json
 from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
-from nianalysis.dataset import Dataset, Field
-from nianalysis.archive.base import (
+from arcana.dataset import Dataset, Field
+from arcana.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveVisitSinkInputSpec,
     ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
     MULTIPLICITIES)
-from nianalysis.data_format import DataFormat
-from nianalysis.utils import split_extension
-from nianalysis.exception import (
+from arcana.data_format import DataFormat
+from arcana.utils import split_extension
+from arcana.exception import (
     NiAnalysisError, NiAnalysisMissingDataException)
-from nianalysis.utils import dir_modtime, NoContextWrapper
+from arcana.utils import dir_modtime, NoContextWrapper
 import re
 import xnat  # NB: XnatPy not PyXNAT
-from nianalysis.utils import PATH_SUFFIX, FIELD_SUFFIX
+from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from .local import FIELDS_FNAME
 
 logger = logging.getLogger('NiAnalysis')
@@ -725,7 +725,7 @@ class XnatArchive(Archive):
 
         Returns
         -------
-        project : nianalysis.archive.Project
+        project : arcana.archive.Project
             A hierarchical tree of subject, session and dataset
             information for the archive
         """
@@ -889,7 +889,7 @@ class XnatArchive(Archive):
 
         Returns
         -------
-        datasets : list(nianalysis.dataset.Dataset)
+        datasets : list(arcana.dataset.Dataset)
             List of datasets within an XNAT session
         """
         datasets = []
@@ -918,7 +918,7 @@ class XnatArchive(Archive):
 
         Returns
         -------
-        fields : list(nianalysis.dataset.Field)
+        fields : list(arcana.dataset.Field)
             List of fields within an XNAT session
         """
         fields = []

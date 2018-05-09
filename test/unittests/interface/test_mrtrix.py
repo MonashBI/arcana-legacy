@@ -1,8 +1,8 @@
 import os.path
-from nianalysis.testing import BaseTestCase
+from arcana.testing import BaseTestCase
 import tempfile
-from nianalysis.node import Node
-from nianalysis.interfaces.mrtrix import MRCalc
+from arcana.node import Node
+from arcana.interfaces.mrtrix import MRCalc
 from mbianalysis.requirement import mrtrix3_req
 
 

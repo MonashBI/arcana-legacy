@@ -3,18 +3,18 @@ import os.path
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from mbianalysis.requirement import Requirement, mrtrix3_req
-from nianalysis.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
+from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from nianalysis.study.base import Study, StudyMetaClass  # @IgnorePep8
-from nianalysis.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
-from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
-from nianalysis.node import NiAnalysisNodeMixin  # @IgnorePep8
-from nianalysis.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
+from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
+from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
+from arcana.node import NiAnalysisNodeMixin  # @IgnorePep8
+from arcana.exception import NiAnalysisModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from nianalysis.option import OptionSpec
+from arcana.option import OptionSpec
 
 
 class TestStudy(Study):

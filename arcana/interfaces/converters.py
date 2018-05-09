@@ -5,9 +5,9 @@ from nipype.interfaces.base import (
     CommandLineInputSpec, CommandLine)
 import pydicom
 import nibabel as nib
-from nianalysis.utils import split_extension
+from arcana.utils import split_extension
 import re
-from nianalysis.exception import NiAnalysisError
+from arcana.exception import NiAnalysisError
 import numpy as np
 from nipype.utils.filemanip import split_filename
 

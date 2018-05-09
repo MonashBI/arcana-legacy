@@ -5,16 +5,16 @@ import cPickle as pkl
 import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.local import (
+from arcana.archive.local import (
     LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
 from mbianalysis.data_format import nifti_gz_format
-from nianalysis.study import Study, StudyMetaClass
-from nianalysis.runner import LinearRunner
-from nianalysis.dataset import (
+from arcana.study import Study, StudyMetaClass
+from arcana.runner import LinearRunner
+from arcana.dataset import (
     DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
-from nianalysis.utils import PATH_SUFFIX
-from nianalysis.testing import BaseTestCase, BaseMultiSubjectTestCase
-from nianalysis.archive.base import Project, Subject, Session, Visit
+from arcana.utils import PATH_SUFFIX
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
+from arcana.archive.base import Project, Subject, Session, Visit
 from mbianalysis.data_format import mrtrix_format
 
 

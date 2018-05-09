@@ -1,9 +1,9 @@
 import os.path
 from abc import ABCMeta
-from nianalysis.data_format import DataFormat
+from arcana.data_format import DataFormat
 from copy import copy
 from logging import getLogger
-from nianalysis.exception import NiAnalysisError
+from arcana.exception import NiAnalysisError
 
 logger = getLogger('NiAnalysis')
 

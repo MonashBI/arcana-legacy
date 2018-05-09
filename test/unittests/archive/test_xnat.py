@@ -8,23 +8,23 @@ import unittest
 from multiprocessing import Process
 from unittest import TestCase
 import xnat
-from nianalysis.testing import (
+from arcana.testing import (
     BaseTestCase, BaseMultiSubjectTestCase)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.archive.xnat import (
+from arcana.archive.xnat import (
     XnatArchive, download_all_datasets)
-from nianalysis.archive.local import LocalArchive, FIELDS_FNAME
-from nianalysis.study import Study, StudyMetaClass
-from nianalysis.runner import LinearRunner
-from nianalysis.dataset import (
+from arcana.archive.local import LocalArchive, FIELDS_FNAME
+from arcana.study import Study, StudyMetaClass
+from arcana.runner import LinearRunner
+from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
 from mbianalysis.data_format import (
     nifti_gz_format, mrtrix_format, dicom_format)
-from nianalysis.utils import split_extension
-from nianalysis.data_format import DataFormat
-from nianalysis.utils import PATH_SUFFIX
-from nianalysis.exception import NiAnalysisError
+from arcana.utils import split_extension
+from arcana.data_format import DataFormat
+from arcana.utils import PATH_SUFFIX
+from arcana.exception import NiAnalysisError
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT

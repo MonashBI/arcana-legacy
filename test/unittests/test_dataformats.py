@@ -1,16 +1,16 @@
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.testing import BaseTestCase
-from nianalysis.interfaces.mrtrix import MRConvert
-from nianalysis.exception import NiAnalysisModulesNotInstalledException
-from nianalysis.data_format import (
+from arcana.testing import BaseTestCase
+from arcana.interfaces.mrtrix import MRConvert
+from arcana.exception import NiAnalysisModulesNotInstalledException
+from arcana.data_format import (
     Converter)
 from mbianalysis.data_format import (dicom_format, mrtrix_format,
                                       nifti_gz_format)
-from nianalysis.requirement import Requirement
-from nianalysis.node import Node
-from nianalysis.study.base import Study, StudyMetaClass
-from nianalysis.dataset import DatasetMatch, DatasetSpec
+from arcana.requirement import Requirement
+from arcana.node import Node
+from arcana.study.base import Study, StudyMetaClass
+from arcana.dataset import DatasetMatch, DatasetSpec
 
 
 dummy_req = Requirement('name-for-module-that-will-never-exist',

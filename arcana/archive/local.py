@@ -17,10 +17,10 @@ import json
 from fasteners import InterProcessLock
 from nipype.interfaces.base import isdefined
 from .base import Project, Subject, Session, Visit
-from nianalysis.dataset import Dataset, Field
-from nianalysis.exception import (
+from arcana.dataset import Dataset, Field
+from arcana.exception import (
     NiAnalysisError, NiAnalysisBadlyFormattedLocalArchiveError)
-from nianalysis.utils import (
+from arcana.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
 
@@ -308,7 +308,7 @@ class LocalArchive(Archive):
 
         Returns
         -------
-        project : nianalysis.archive.Project
+        project : arcana.archive.Project
             A hierarchical tree of subject, session and dataset information for
             the archive
         """

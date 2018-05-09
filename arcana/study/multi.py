@@ -1,9 +1,9 @@
 from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisMissingDataException, NiAnalysisNameError)
-from nianalysis.pipeline import Pipeline
-from nianalysis.exception import NiAnalysisUsageError
+from arcana.pipeline import Pipeline
+from arcana.exception import NiAnalysisUsageError
 from .base import Study, StudyMetaClass
 
 

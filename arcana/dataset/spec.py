@@ -1,5 +1,5 @@
 from copy import copy
-from nianalysis.exception import (
+from arcana.exception import (
     NiAnalysisError, NiAnalysisUsageError,
     NiAnalysisOutputNotProducedException,
     NiAnalysisMissingDataException)

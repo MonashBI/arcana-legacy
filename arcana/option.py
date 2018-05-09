@@ -1,5 +1,5 @@
 from copy import copy
-from nianalysis.exception import NiAnalysisUsageError
+from arcana.exception import NiAnalysisUsageError
 
 
 class Option(object):

@@ -139,7 +139,7 @@ class ExtractMetrics(BaseInterface):
 
 grep = Grep()
 grep.inputs.match_str = 'height'
-grep.inputs.in_file = '/Users/tclose/Desktop/nianalysis_tutorial/subject1/visit1/metrics.txt'
+grep.inputs.in_file = '/Users/tclose/Desktop/arcana_tutorial/subject1/visit1/metrics.txt'
 grep.inputs.out_file = '/Users/tclose/Desktop/test-out.txt'
 grep.run()
 
@@ -152,9 +152,9 @@ awk.run()
 
 concat_floats = ConcatFloats()
 concat_floats.inputs.in_files = [
-    '/Users/tclose/Desktop/nianalysis_tutorial/subject1/visit1/awk.txt',
-    '/Users/tclose/Desktop/nianalysis_tutorial/subject1/visit2/awk.txt',
-    '/Users/tclose/Desktop/nianalysis_tutorial/subject2/visit1/awk.txt']
+    '/Users/tclose/Desktop/arcana_tutorial/subject1/visit1/awk.txt',
+    '/Users/tclose/Desktop/arcana_tutorial/subject1/visit2/awk.txt',
+    '/Users/tclose/Desktop/arcana_tutorial/subject2/visit1/awk.txt']
 result = concat_floats.run()
 print 'Output list {}'.format(result.outputs.out_list)
 

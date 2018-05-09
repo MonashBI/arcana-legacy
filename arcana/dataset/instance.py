@@ -1,8 +1,8 @@
 import os.path
 import pydicom
-from nianalysis.data_format import DataFormat, directory_format
-from nianalysis.utils import split_extension
-from nianalysis.exception import (
+from arcana.data_format import DataFormat, directory_format
+from arcana.utils import split_extension
+from arcana.exception import (
     NiAnalysisError, NiAnalysisDataFormatError,
     NiAnalysisDataFormatNotRegisteredError)
 from .base import BaseDataset, BaseField
