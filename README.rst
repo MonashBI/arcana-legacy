@@ -23,7 +23,7 @@ facilities using NiPype’s execution plugins. For a requested analysis
 output, Arcana determines the required processing steps by querying
 the archive to check for missing intermediate outputs before
 constructing the workflow graph. When running in an environment
-with ` the modules package <http://modules.sourceforge.net>`__ installed,
+with `the modules package <http://modules.sourceforge.net>`_ installed,
 Arcana manages the loading and unloading of software modules per
 pipeline node.
 
