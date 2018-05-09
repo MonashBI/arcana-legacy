@@ -1,16 +1,16 @@
-NiAnalysis
+Arcana
 ==========
 
-.. image:: https://travis-ci.org/monashbiomedicalimaging/nianalysis.svg?branch=master
-  :target: https://travis-ci.org/monashbiomedicalimaging/nianalysis
-.. image:: https://codecov.io/gh/monashbiomedicalimaging/nianalysis/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/monashbiomedicalimaging/nianalysis
+.. image:: https://travis-ci.org/monashbiomedicalimaging/arcana.svg?branch=master
+  :target: https://travis-ci.org/monashbiomedicalimaging/arcana
+.. image:: https://codecov.io/gh/monashbiomedicalimaging/arcana/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/monashbiomedicalimaging/arcana
 
 
-NeuroImaging Analysis (NiAnalysis) is an archive-centric NeuroImaging
-analysis package.
+ARchive Centric ANAlysis (ARCANA) is Python package for "archive-centric" 
+analysis of study groups (e.g. NeuroImaging studies)
 
-NiAnalysis interacts closely with an archive, storing intermediate
+Arcana interacts closely with an archive, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
 subsequent analyses. Archives can either be XNAT repositories or
 (http://xnat.org) local directories organised by subject and visit,
@@ -20,21 +20,21 @@ work.
 Analysis workflows are constructed and executed using the NiPype
 package, and can either be run locally or submitted to high HPC
 facilities using NiPype’s execution plugins. For a requested analysis
-output, NiAnalysis determines the required processing steps by querying
+output, Arcana determines the required processing steps by querying
 the archive to check for missing intermediate outputs before
 constructing the workflow graph. When running in an environment
 with ` the modules package <http://modules.sourceforge.net>`_ installed,
-NiAnalysis manages the loading and unloading of software modules per
+Arcana manages the loading and unloading of software modules per
 pipeline node.
 
 Design
 ------
 
-NiAnalysis is designed with an object-oriented philosophy, with
+Arcana is designed with an object-oriented philosophy, with
 the acquired and derived data sets along with the analysis pipelines
 used to derive the derived data sets encapsulated within "Study" classes.
 
-The NiAnalysis package itself only provides the abstract *Study* and
+The Arcana package itself only provides the abstract *Study* and
 *CombinedStudy* base classes, which are designed to be sub-classed by
 more specific classes representing the analysis that can be performed
 on different modalities and contrasts (e.g. PetStudy, DiffusionMriStudy,
@@ -46,9 +46,9 @@ to statistic analysis.
 Installation
 ------------
 
-NiAnalysis can be installed using ``pip``::
+Arcana can be installed using ``pip``::
 
-    $ pip install git+https://github.com/mbi-image/nianalysis.git
+    $ pip install git+https://github.com/monashbiomedicalimaging/arcana.git
 
 although for most pipelines you will also need to install the relevant
 neuro-imaging tools that are called on to the the processing (e.g.
