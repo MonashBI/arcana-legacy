@@ -1,5 +1,5 @@
 FROM neurodebian:xenial
-MAINTAINER Tom Close <tom.close@monash.edu>
+MAINTAINER Tom Close <tom.g.close@gmail.com>
 
 RUN apt-get update; apt-get install -y git g++ python python-numpy \
     libeigen3-dev zlib1g-dev libqt4-opengl-dev libgl1-mesa-dev \
@@ -76,4 +76,4 @@ RUN echo 'prepend-path LD_LIBRARY_PATH /packages/mrtrix/lib' >> /modules/mrtrix/
 
 # Install NiAnalysis and prerequisite pipelines
 ENV BUILT_AT 2018-03-12-13:28
-RUN pip install git+https://github.com/mbi-image/nianalysis.git
+RUN pip install git+https://github.com/monashbiomedicalimaging/arcana.git
