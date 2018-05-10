@@ -47,7 +47,7 @@ Installation
 
 Arcana can be installed using ``pip``::
 
-    $ pip install git+https://github.com/monashbiomedicalimaging/arcana.git
+    $ pip install arcana
 
 although for most pipelines you will also need to install the relevant
 tools that are called on to the the processing 
