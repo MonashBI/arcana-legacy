@@ -556,22 +556,6 @@ class StudyMetaClass(type):
                 .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_option_specs'] = combined_option_specs
-        # Add properties to the class corresponding to each data spec
-#         for spec in combined_data_specs.values():
-#             if spec.name in combined_attrs:
-#                 raise ArcanaUsageError(
-#                     "'{}' in data_specs clashes with existing class "
-#                     "member of the same name so cannot add property. "
-#                     "Please rename.".format(spec.name))
-#             dct[spec.name] = make_data_property(spec)
-#         # Add properties to the class corresponding to each option spec
-#         for spec in combined_option_specs.values():
-#             if spec.name in combined_attrs:
-#                 raise ArcanaUsageError(
-#                     "'{}' in option_specs clashes with existing class "
-#                     "member of the same name so cannot add property. "
-#                     "Please rename.".format(spec.name))
-#             dct[spec.name] = make_option_property(spec)
         return type(name, bases, dct)
 
 
