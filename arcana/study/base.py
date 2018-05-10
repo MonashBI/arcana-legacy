@@ -24,10 +24,6 @@ class Study(object):
     ----------
     name : str
         The name of the study.
-    project_id: str
-        The ID of the archive project from which to access the data from. For
-        DaRIS it is the project id minus the proceeding 1008.2. For XNAT it
-        will be the project code. For local archives name of the directory.
     archive : Archive
         An Archive object that provides access to a DaRIS, XNAT or local file
         system
