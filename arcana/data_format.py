@@ -10,6 +10,7 @@ from arcana.exception import (
     ArcanaNoConverterError,
     ArcanaConverterNotAvailableError,
     ArcanaDataFormatNotRegisteredError)
+from nipype.interfaces.utility import IdentityInterface
 from arcana.requirement import Requirement
 import logging
 
@@ -130,6 +131,8 @@ class DataFormat(object):
         return self.name.upper()
 
     def converter_from(self, data_format):
+        if data_format == self:
+            return IdentityConverter(data_format, self)
         try:
             converter_cls = self._converters[data_format.name]
         except KeyError:
@@ -267,6 +270,12 @@ class Converter(object):
     def __repr__(self):
         return "{}(input_format={}, output_format={})".format(
             type(self).__name__, self.input_format, self.output_format)
+
+
+class IdentityConverter(Converter):
+
+    def get_node(self, name):
+        return Node(IdentityInterface(['i']), name=name), 'i', 'i'
 
 
 class UnzipConverter(Converter):

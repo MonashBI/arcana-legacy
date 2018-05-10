@@ -15,6 +15,9 @@ from arcana.exception import ArcanaModulesNotInstalledException  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.option import OptionSpec
+from arcana.data_format import DataFormat, IdentityConverter
+from nipype.interfaces.utility import IdentityInterface
+from arcana.exception import ArcanaNoConverterError
 
 
 class TestStudy(Study):
@@ -548,6 +551,78 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                                      self.study_name,
                                      subject=subj_id, visit=visit_id,
                                      frequency='per_session')
+
+
+test1_format = DataFormat('test1', extension='.t1')
+test2_format = DataFormat('test2', extension='.t2',
+                          converters={'test1': IdentityConverter})
+test3_format = DataFormat('test3', extension='.t3')
+
+DataFormat.register(test1_format)
+DataFormat.register(test2_format)
+DataFormat.register(test3_format)
+
+
+class TestInputValidationStudy(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [
+        DatasetSpec('a', test2_format),
+        DatasetSpec('b', test3_format),
+        DatasetSpec('c', test2_format, 'identity_pipeline'),
+        DatasetSpec('d', test3_format, 'identity_pipeline')]
+
+    def identity_pipeline(self, **kwargs):
+        pipeline = self.create_pipeline(
+            name='pipeline',
+            inputs=[DatasetSpec('a', test2_format),
+                    DatasetSpec('b', test3_format)],
+            outputs=[DatasetSpec('c', test2_format),
+                     DatasetSpec('d', test3_format)],
+            desc="A dummy pipeline used to test study input validation",
+            version=1,
+            citations=[],
+            **kwargs)
+        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
+                                        name='identity')
+        pipeline.connect_input('a', identity, 'a')
+        pipeline.connect_input('b', identity, 'b')
+        pipeline.connect_output('c', identity, 'a')
+        pipeline.connect_output('d', identity, 'b')
+
+
+class TestInputValidation(BaseTestCase):
+
+    def setUp(self):
+        self.reset_dirs()
+        os.makedirs(self.session_dir)
+        for spec in TestInputValidationStudy.data_specs():
+            with open(os.path.join(self.session_dir, spec.name) +
+                      spec.format.ext, 'w') as f:
+                f.write(spec.name)
+
+    def test_input_validation(self):
+        self.create_study(
+            TestInputValidationStudy,
+            'test_input_validation',
+            inputs=[
+                DatasetMatch('a', test1_format, 'a'),
+                DatasetMatch('b', test3_format, 'b'),
+                DatasetMatch('c', test1_format, 'a'),
+                DatasetMatch('d', test3_format, 'd')])
+
+    def test_input_validation_fail(self):
+        self.assertRaises(
+            ArcanaNoConverterError,
+            self.create_study,
+            TestInputValidationStudy,
+            'test_validation_fail',
+            inputs=[
+                DatasetMatch('a', test3_format, 'a'),
+                DatasetMatch('b', test3_format, 'b'),
+                DatasetMatch('c', test3_format, 'a'),
+                DatasetMatch('d', test3_format, 'd')])
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(

@@ -4,7 +4,7 @@ from collections import defaultdict
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaNoRunRequiredException, ArcanaUsageError,
-    ArcanaMissingInputError)
+    ArcanaMissingInputError, ArcanaNoConverterError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
@@ -123,13 +123,22 @@ class Study(object):
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study type
         for inpt in inputs:
-            if inpt.name not in self._data_specs:
+            try:
+                spec = self.data_spec(inpt.name)
+            except ArcanaNameError:
                 raise ArcanaNameError(
                     inpt.name,
-                    "Match name '{}' isn't in data specs of {} ('{}')"
+                    "Input name '{}' isn't in data specs of {} ('{}')"
                     .format(
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
+            else:
+                try:
+                    spec.format.converter_from(inpt.format)
+                except ArcanaNoConverterError as e:
+                    raise ArcanaNoConverterError(
+                        "{}, which is requried to convert:\n{} to\n{}."
+                        .format(e, inpt, spec))
             self._inputs[inpt.name] = inpt.bind(self)
         for spec in self.data_specs():
             if not spec.derived:
