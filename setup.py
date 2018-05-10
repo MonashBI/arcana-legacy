@@ -22,7 +22,7 @@ setup(
     description=(
         'Archive-centric analysis workflow architecture based on NiPype'),
     long_description=open('README.rst').read(),
-    install_requires=['xnat>=0.3.4',
+    install_requires=['xnat>=0.3.7',
                       'nipype==1.0',
                       'pydicom>=1.0.2',
                       'networkx==1.9',
@@ -35,4 +35,5 @@ setup(
         "Natural Language :: English",
         "Programming Language :: Python :: 2.7",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
-        "Topic :: Scientific/Engineering :: Medical Science Apps."])
+        "Topic :: Scientific/Engineering :: Medical Science Apps."],
+    keywords='archive analysis')

@@ -5,9 +5,12 @@ Arcana
   :target: https://travis-ci.org/monashbiomedicalimaging/arcana
 .. image:: https://codecov.io/gh/monashbiomedicalimaging/arcana/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/monashbiomedicalimaging/arcana
+.. image:: https://readthedocs.org/projects/arcana/badge/?version=latest
+  :target: http://arcana.readthedocs.io/en/latest/?badge=latest
+  :alt: Documentation Status
 
 
-ARchive Centric ANAlysis (ARCANA) is Python package for "archive-centric" 
+ARchive Centric ANAlysis (Arcana) is Python package for "archive-centric" 
 analysis of study groups (e.g. NeuroImaging studies)
 
 Arcana interacts closely with an archive, storing intermediate
@@ -45,12 +48,7 @@ to statistic analysis.
 Installation
 ------------
 
-Arcana can be installed using ``pip``::
+Arcana can be installed using *pip*::
 
     $ pip install arcana
-
-although for most pipelines you will also need to install the relevant
-tools that are called on to the the processing 
-
-
 
