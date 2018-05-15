@@ -274,6 +274,8 @@ class Converter(object):
 
 class IdentityConverter(Converter):
 
+    requirements = []
+
     def get_node(self, name):
         return Node(IdentityInterface(['i']), name=name), 'i', 'i'
 
