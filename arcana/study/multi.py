@@ -155,7 +155,7 @@ class MultiStudy(Study):
 
     @classmethod
     def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
-                  add_outputs=None, **kwargs):
+                  add_outputs=None):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -182,13 +182,17 @@ class MultiStudy(Study):
         assert isinstance(pipeline_name, basestring)
         def translated_getter(self, name_prefix='',  # @IgnorePep8
                               add_inputs=add_inputs,
-                              add_outputs=add_outputs):
+                              add_outputs=add_outputs, **kwargs):
             trans_pipeline = TranslatedPipeline(
                 self, self.sub_study(sub_study_name),
                 pipeline_name, name_prefix=name_prefix,
                 add_inputs=add_inputs, add_outputs=add_outputs, **kwargs)
             trans_pipeline.assert_connected()
             return trans_pipeline
+        # Add reduce method to allow it to be pickled
+        translated_getter.__reduce__ = (
+            lambda self: MultiStudy.translate, (
+                sub_study_name, pipeline_name, add_inputs, add_outputs))
         return translated_getter
 
 
@@ -492,6 +496,8 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if trans_sname not in explicitly_added_option_specs:
                     add_option_specs.append(
                         opt_spec.renamed(trans_sname))
+        if '__metaclass__' not in dct:
+            dct['__metaclass__'] = metacls
         cls = StudyMetaClass(name, bases, dct)
         # Check all names in name-map correspond to data or option
         # specs

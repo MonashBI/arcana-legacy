@@ -173,11 +173,8 @@ class Study(object):
                 raise AttributeError
         except AttributeError:
             pkld = (pickle_reconstructor,
-                    (cls.__metaclass__, cls.__name__,
-                     cls.__bases__,
-                     dict((k, v) for k, v in cls.__dict__.items()
-                          if k in cls.__metaclass__.input_attrs)),
-                    self.__dict__)
+                    (cls.__metaclass__, cls.__name__, cls.__bases__,
+                     dict(cls.__dict__)), self.__dict__)
         else:
             # Use standard pickling if not a generated class
             pkld = object.__reduce__(self)
