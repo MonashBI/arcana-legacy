@@ -167,6 +167,8 @@ class Study(object):
         cls = type(self)
         module = sys.modules[cls.__module__]
         try:
+            # Check whether the study class is generated or not by
+            # seeing if it exists in its module
             if cls is not getattr(module, cls.__name__):
                 raise AttributeError
         except AttributeError:
