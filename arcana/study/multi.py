@@ -340,10 +340,7 @@ class TranslatedPipeline(Pipeline):
         # Copy across default options and override with extra
         # provided
         pipeline_getter = getattr(sub_study, pipeline_name)
-        try:
-            pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
-        except:
-            raise
+        pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:
@@ -454,7 +451,7 @@ class MultiStudyMetaClass(StudyMetaClass):
         dct['_sub_study_specs'] = sub_study_specs = {}
         for base in reversed(bases):
             try:
-                add_sub_study_specs.update(
+                sub_study_specs.update(
                     (d.name, d) for d in base.sub_study_specs())
             except AttributeError:
                 pass
