@@ -174,7 +174,10 @@ class Study(object):
         except AttributeError:
             pkld = (pickle_reconstructor,
                     (cls.__metaclass__, cls.__name__,
-                     cls.__bases__, dict(cls.__dict__)), self.__dict__)
+                     cls.__bases__,
+                     dict((k, v) for k, v in cls.__dict__.items()
+                          if k in cls.__metaclass__.input_attrs)),
+                    self.__dict__)
         else:
             # Use standard pickling if not a generated class
             pkld = object.__reduce__(self)
@@ -516,7 +519,7 @@ class StudyMetaClass(type):
     bases and checks pipeline method names.
     """
 
-    parameter_names = ['add_data_specs', 'add_option_specs']
+    input_attrs = ['add_data_specs', 'add_option_specs']
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, Study) for b in bases):

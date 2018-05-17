@@ -434,6 +434,8 @@ class MultiStudyMetaClass(StudyMetaClass):
     are not explicitly mapped in the spec.
     """
 
+    input_attrs = StudyMetaClass.input_attrs + ['add_sub_study_specs']
+
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, MultiStudy) for b in bases):
             raise ArcanaUsageError(
