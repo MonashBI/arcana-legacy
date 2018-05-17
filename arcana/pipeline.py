@@ -41,6 +41,8 @@ class Pipeline(object):
         unprocessed datasets
     outputs : List[DatasetSpec|FieldSpec]
         The list of outputs (hard-coded names for un/processed datasets)
+    desc : str
+        The description of what the pipeline does
     citations : List[Citation]
         List of citations that describe the workflow and should be cited in
         publications
