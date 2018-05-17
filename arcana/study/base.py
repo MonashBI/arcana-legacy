@@ -1,4 +1,5 @@
 from itertools import chain
+import sys
 from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
@@ -161,6 +162,21 @@ class Study(object):
         """String representation of the study"""
         return "{}(name='{}')".format(self.__class__.__name__,
                                       self.name)
+
+    def __reduce__(self):
+        cls = type(self)
+        module = sys.modules[cls.__module__]
+        try:
+            if cls is not getattr(module, cls.__name__):
+                raise AttributeError
+        except AttributeError:
+            pkld = (pickle_reconstructor,
+                    (cls.__metaclass__, cls.__name__,
+                     cls.__bases__, dict(cls.__dict__)), self.__dict__)
+        else:
+            # Use standard pickling if not a generated class
+            pkld = object.__reduce__(self)
+        return pkld
 
     @property
     def tree(self):
@@ -498,6 +514,8 @@ class StudyMetaClass(type):
     bases and checks pipeline method names.
     """
 
+    parameter_names = ['add_data_specs', 'add_option_specs']
+
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, Study) for b in bases):
             raise ArcanaUsageError(
@@ -552,6 +570,8 @@ class StudyMetaClass(type):
                 .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_option_specs'] = combined_option_specs
+        if '__metaclass__' not in dct:
+            dct['__metaclass__'] = metacls
         return type(name, bases, dct)
 
 
@@ -569,3 +589,13 @@ def make_option_property(spec):
     def getter(self):
         return self._get_option(spec.name).value
     return property(getter)
+
+
+def pickle_reconstructor(metacls, name, bases, cls_dict):
+    obj = DummyObject()
+    obj.__class__ = metacls(name, bases, cls_dict)
+    return obj
+
+
+class DummyObject(object):
+    pass
