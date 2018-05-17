@@ -3,6 +3,7 @@ import os.path
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
 from nianalysis.requirement import Requirement, mrtrix3_req
+import cPickle as pkl
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from nianalysis.data_format import (
     nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
@@ -623,6 +624,49 @@ class TestInputValidation(BaseTestCase):
                 DatasetMatch('b', test3_format, 'b'),
                 DatasetMatch('c', test3_format, 'a'),
                 DatasetMatch('d', test3_format, 'd')])
+
+
+class BasicTestClass(Study):
+
+    __metaclass__ = StudyMetaClass
+
+    add_data_specs = [DatasetSpec('dataset', text_format),
+                      DatasetSpec('out_dataset', text_format,
+                                  'pipeline')]
+
+    def pipeline(self):
+        pipeline = self.create_pipeline(
+            'pipeline',
+            inputs=[DatasetSpec('dataset', text_format)],
+            outputs=[DatasetSpec('out_dataset', text_format)],
+            desc='a dummy pipeline',
+            citations=[],
+            version=1)
+        ident = pipeline.create_node(IdentityInterface(['dataset']),
+                                     name='ident')
+        pipeline.connect_input('dataset', ident, 'dataset')
+        pipeline.connect_output('out_dataset', ident, 'dataset')
+        return pipeline
+
+
+class TestGeneratedPickle(BaseTestCase):
+
+    def test_generated_cls_pickle(self):
+        GeneratedClass = StudyMetaClass(
+            'GeneratedClass', (BasicTestClass,), {})
+        study = self.create_study(
+            GeneratedClass,
+            'gen_cls',
+            inputs=[DatasetMatch('dataset', text_format, 'dataset')])
+        pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
+        with open(pkl_path, 'w') as f:
+            pkl.dump(study, f)
+        del GeneratedClass
+        with open(pkl_path) as f:
+            regen = pkl.load(f)
+        regen.data('out_dataset')[0]
+        self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
+
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
