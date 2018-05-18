@@ -26,7 +26,7 @@ class TestRunnerPickle(TestCase):
         self.assertEqual(runner, reread_runner)
 
     def test_multiproc_pickle(self):
-        runner = MultiProcRunner(self.work_dir)
+        runner = MultiProcRunner(self.work_dir, num_processes=1)
         pkl_path = os.path.join(self.pkl_dir, 'multiproc.pkl')
         with open(pkl_path, 'w') as f:
             pkl.dump(runner, f)

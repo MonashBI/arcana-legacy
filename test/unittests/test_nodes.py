@@ -6,7 +6,7 @@ from arcana.testing import BaseTestCase
 from unittest import TestCase
 from nianalysis.data_format import nifti_gz_format
 from nianalysis.requirement import (
-    dcm2niix1_req, mrtrix3_req)
+    dcm2niix_req, mrtrix3_req)
 from arcana.node import Node
 from arcana.requirement import Requirement
 
@@ -36,7 +36,7 @@ class RequirementsStudy(Study):
             Merge(2), "input_merge")
         maths = pipeline.create_node(
             MRMath(), "maths", requirements=[
-                (dummy1_req, dummy2_req, mrtrix3_req), dcm2niix1_req])
+                (dummy1_req, dummy2_req, mrtrix3_req), dcm2niix_req])
         pipeline.connect_input('ones', input_merge, 'in1')
         pipeline.connect_input('ones', input_merge, 'in2')
         pipeline.connect(input_merge, 'out', maths, 'in_files')

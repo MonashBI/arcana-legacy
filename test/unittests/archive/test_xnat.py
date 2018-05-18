@@ -33,7 +33,8 @@ import test_dataset  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import TestExistingPrereqs study to test it on XNAT
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                'study'))
 import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 

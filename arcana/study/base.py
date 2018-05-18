@@ -396,24 +396,22 @@ class Study(object):
 
     def spec(self, name):
         """
-        Returns either the dataset/field that has been passed to the study
-        __init__ matching the dataset/field name provided or the derived
-        dataset that is to be generated using the pipeline associated
-        with the generated data_spec
+        Returns either the input corresponding to a dataset or field
+        field spec or a spec or option that has either
+        been passed to the study as an input or can be derived.
 
         Parameters
         ----------
         name : Str
-            Name of the data spec to the find the corresponding primary
-            dataset or derived dataset to be generated
+            Name of an option, dataset or field
         """
-        if isinstance(name, BaseDatum):
+        if isinstance(name, (BaseDatum, Option)):
             name = name.name
         try:
-            data = self._inputs[name]
+            spec = self._inputs[name]
         except KeyError:
             try:
-                data = self._bound_specs[name]
+                spec = self._bound_specs[name]
             except KeyError:
                 if name in self._data_specs:
                     raise ArcanaMissingDataException(
@@ -421,12 +419,18 @@ class Study(object):
                         "was not supplied when the study '{}' was "
                         "initiated".format(name, self.name))
                 else:
-                    raise ArcanaNameError(
-                        name,
-                        "'{}' is not a recognised dataset_spec name "
-                        "for {} studies."
-                        .format(name, self.__class__.__name__))
-        return data
+                    try:
+                        spec = self._option_specs[name]
+                    except KeyError:
+                        raise ArcanaNameError(
+                            name,
+                            "'{}' is not a recognised spec name "
+                            "for {} studies:\n{}."
+                            .format(name, self.__class__.__name__,
+                                    '\n'.join(chain(
+                                        sorted(self.data_spec_names()),
+                                        sorted(self.option_spec_names())))))
+        return spec
 
     @classmethod
     def data_spec(cls, name):
