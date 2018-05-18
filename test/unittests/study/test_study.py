@@ -637,14 +637,15 @@ class BasicTestClass(Study):
                       DatasetSpec('out_dataset', text_format,
                                   'pipeline')]
 
-    def pipeline(self):
+    def pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             'pipeline',
             inputs=[DatasetSpec('dataset', text_format)],
             outputs=[DatasetSpec('out_dataset', text_format)],
             desc='a dummy pipeline',
             citations=[],
-            version=1)
+            version=1,
+            **kwargs)
         ident = pipeline.create_node(IdentityInterface(['dataset']),
                                      name='ident')
         pipeline.connect_input('dataset', ident, 'dataset')
@@ -689,7 +690,8 @@ class TestGeneratedPickle(BaseTestCase):
         with open(pkl_path) as f:
             regen = pkl.load(f)
         regen.data('ss2_out_dataset')[0]
-        self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
+        self.assertDatasetCreated('ss2_out_dataset.txt',
+                                  'multi_gen_cls')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {

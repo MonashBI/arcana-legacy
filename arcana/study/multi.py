@@ -447,14 +447,6 @@ class MultiStudyMetaClass(StudyMetaClass):
             add_sub_study_specs = dct['add_sub_study_specs']
         except KeyError:
             add_sub_study_specs = dct['add_sub_study_specs'] = []
-        try:
-            add_data_specs = dct['add_data_specs']
-        except KeyError:
-            add_data_specs = dct['add_data_specs'] = []
-        try:
-            add_option_specs = dct['add_option_specs']
-        except KeyError:
-            add_option_specs = dct['add_option_specs'] = []
         dct['_sub_study_specs'] = sub_study_specs = {}
         for base in reversed(bases):
             try:
@@ -464,16 +456,16 @@ class MultiStudyMetaClass(StudyMetaClass):
                 pass
         sub_study_specs.update(
             (s.name, s) for s in add_sub_study_specs)
-        explicitly_added_data_specs = [s.name for s in add_data_specs]
-        explicitly_added_option_specs = [s.name
-                                         for s in add_option_specs]
+        if '__metaclass__' not in dct:
+            dct['__metaclass__'] = metacls
+        cls = StudyMetaClass(name, bases, dct)
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
         for sub_study_spec in sub_study_specs.values():
             for data_spec in sub_study_spec.auto_data_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
-                if trans_sname not in explicitly_added_data_specs:
+                if trans_sname not in cls.data_spec_names():
                     initkwargs = data_spec.initkwargs()
                     initkwargs['name'] = trans_sname
                     if data_spec.pipeline_name is not None:
@@ -483,21 +475,20 @@ class MultiStudyMetaClass(StudyMetaClass):
                         # Check to see whether pipeline has already been
                         # translated or always existed in the class (when
                         # overriding default options for example)
-                        if trans_pname not in dct:
-                            dct[trans_pname] = MultiStudy.translate(
-                                sub_study_spec.name,
-                                data_spec.pipeline_name,
-                                auto_added=True)
-                    add_data_specs.append(type(data_spec)(**initkwargs))
+                        if not hasattr(cls, trans_pname):
+                            setattr(cls, trans_pname,
+                                    MultiStudy.translate(
+                                        sub_study_spec.name,
+                                        data_spec.pipeline_name,
+                                        auto_added=True))
+                    cls._data_specs[trans_sname] = type(data_spec)(
+                        **initkwargs)
             for opt_spec in sub_study_spec.auto_option_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     opt_spec.name)
-                if trans_sname not in explicitly_added_option_specs:
-                    add_option_specs.append(
-                        opt_spec.renamed(trans_sname))
-        if '__metaclass__' not in dct:
-            dct['__metaclass__'] = metacls
-        cls = StudyMetaClass(name, bases, dct)
+                if trans_sname not in cls.option_spec_names():
+                    renamed_spec = opt_spec.renamed(trans_sname)
+                    cls._option_specs[renamed_spec.name] = renamed_spec
         # Check all names in name-map correspond to data or option
         # specs
         for sub_study_spec in sub_study_specs.values():
