@@ -25,6 +25,9 @@ class BaseRunner(object):
         self._max_process_time = max_process_time
         self._plugin_args = copy(self.default_plugin_args)
         self._plugin_args.update(kwargs)
+        self._init_plugin()
+
+    def _init_plugin(self):
         self._plugin = self.nipype_plugin_cls(**self._plugin_args)
 
     def run(self, pipeline, **kwargs):
@@ -40,6 +43,25 @@ class BaseRunner(object):
         return "{}(work_dir={})".format(
             type(self).__name__, self._work_dir)
 
+    def __eq__(self, other):
+        try:
+            return (self._work_dir == other._work_dir and
+                    (self._max_process_time ==
+                     other._max_process_time) and
+                    self._plugin_args == other._plugin_args)
+        except AttributeError:
+            return False
+
     @property
     def work_dir(self):
         return self._work_dir
+
+    def __getstate__(self):
+        dct = copy(self.__dict__)
+        # Delete the NiPype plugin as it can be regenerated
+        del dct['_plugin']
+        return dct
+
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._init_plugin()
