@@ -76,7 +76,7 @@ class BaseSpec(object):
         # Check all study inputs required by the pipeline were provided
         try:
             for inpt in pipeline.all_inputs:
-                self.study.bound_data_spec(inpt.name)
+                self.study.spec(inpt.name)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
             return False

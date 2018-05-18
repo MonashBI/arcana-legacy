@@ -355,7 +355,7 @@ class Study(object):
         subject_ids = ([subject_id]
                        if is_single(subject_id) else subject_id)
         visit_ids = ([visit_id] if is_single(visit_id) else visit_id)
-        spec = self.bound_data_spec(name)
+        spec = self.spec(name)
         if isinstance(spec, BaseMatch):
             data = spec.matches
         else:
@@ -394,7 +394,7 @@ class Study(object):
             data = list(data)
         return data
 
-    def bound_data_spec(self, name):
+    def spec(self, name):
         """
         Returns either the dataset/field that has been passed to the study
         __init__ matching the dataset/field name provided or the derived
