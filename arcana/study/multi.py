@@ -71,6 +71,8 @@ class MultiStudy(Study):
 
     _sub_study_specs = {}
 
+    implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
+
     def __init__(self, name, archive, runner, inputs, options=None,
                  **kwargs):
         options = [] if options is None else options
@@ -108,8 +110,6 @@ class MultiStudy(Study):
                 archive, runner, mapped_inputs,
                 options=mapped_options,
                 enforce_inputs=False)
-#             # Set sub-study as attribute
-#             setattr(self, sub_study_spec.name, sub_study)
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise ArcanaNameError(
@@ -155,7 +155,7 @@ class MultiStudy(Study):
 
     @classmethod
     def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
-                  add_outputs=None):
+                  add_outputs=None, auto_added=False):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -177,6 +177,10 @@ class MultiStudy(Study):
             List of additional outputs to add to the translated pipeline
             to be connected manually in combined-study getter (i.e. not
             using translate_getter decorator).
+        auto_added : bool
+            Signify that a method was automatically added by the
+            MultiStudyMetaClass. Used in checks when pickling Study
+            objects
         """
         assert isinstance(sub_study_name, basestring)
         assert isinstance(pipeline_name, basestring)
@@ -186,13 +190,12 @@ class MultiStudy(Study):
             trans_pipeline = TranslatedPipeline(
                 self, self.sub_study(sub_study_name),
                 pipeline_name, name_prefix=name_prefix,
-                add_inputs=add_inputs, add_outputs=add_outputs, **kwargs)
+                add_inputs=add_inputs, add_outputs=add_outputs,
+                **kwargs)
             trans_pipeline.assert_connected()
             return trans_pipeline
         # Add reduce method to allow it to be pickled
-        translated_getter.__reduce__ = (
-            lambda self: MultiStudy.translate, (
-                sub_study_name, pipeline_name, add_inputs, add_outputs))
+        translated_getter.auto_added = auto_added
         return translated_getter
 
 
@@ -344,10 +347,7 @@ class TranslatedPipeline(Pipeline):
         # Copy across default options and override with extra
         # provided
         pipeline_getter = getattr(sub_study, pipeline_name)
-        try:
-            pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
-        except:
-            raise
+        pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:
@@ -438,8 +438,6 @@ class MultiStudyMetaClass(StudyMetaClass):
     are not explicitly mapped in the spec.
     """
 
-    input_attrs = StudyMetaClass.input_attrs + ['add_sub_study_specs']
-
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, MultiStudy) for b in bases):
             raise ArcanaUsageError(
@@ -460,7 +458,7 @@ class MultiStudyMetaClass(StudyMetaClass):
         dct['_sub_study_specs'] = sub_study_specs = {}
         for base in reversed(bases):
             try:
-                add_sub_study_specs.update(
+                sub_study_specs.update(
                     (d.name, d) for d in base.sub_study_specs())
             except AttributeError:
                 pass
@@ -488,7 +486,8 @@ class MultiStudyMetaClass(StudyMetaClass):
                         if trans_pname not in dct:
                             dct[trans_pname] = MultiStudy.translate(
                                 sub_study_spec.name,
-                                data_spec.pipeline_name)
+                                data_spec.pipeline_name,
+                                auto_added=True)
                     add_data_specs.append(type(data_spec)(**initkwargs))
             for opt_spec in sub_study_spec.auto_option_specs:
                 trans_sname = sub_study_spec.apply_prefix(

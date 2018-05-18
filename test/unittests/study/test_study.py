@@ -12,7 +12,8 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.node import ArcanaNodeMixin  # @IgnorePep8
-from arcana.exception import ArcanaModulesNotInstalledException  # @IgnorePep8
+from arcana.exception import (
+    ArcanaModulesNotInstalledException, ArcanaCantPickleStudyError)  # @IgnorePep8
 from arcana.study.multi import (
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
@@ -670,11 +671,12 @@ class TestGeneratedPickle(BaseTestCase):
         self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
 
     def test_multi_study_generated_cls_pickle(self):
+        cls_dct = {
+            'add_sub_study_specs': [
+                SubStudySpec('ss1', BasicTestClass),
+                SubStudySpec('ss2', BasicTestClass)]}
         MultiGeneratedClass = MultiStudyMetaClass(
-            'MultiGeneratedClass', (MultiStudy,), {
-                'add_sub_study_specs': [
-                    SubStudySpec('ss1', BasicTestClass),
-                    SubStudySpec('ss2', BasicTestClass)]})
+            'MultiGeneratedClass', (MultiStudy,), cls_dct)
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
@@ -688,6 +690,28 @@ class TestGeneratedPickle(BaseTestCase):
             regen = pkl.load(f)
         regen.data('ss2_out_dataset')[0]
         self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
+
+    def test_genenerated_method_pickle_fail(self):
+        cls_dct = {
+            'add_sub_study_specs': [
+                SubStudySpec('ss1', BasicTestClass),
+                SubStudySpec('ss2', BasicTestClass)],
+            'default_dataset_pipeline': MultiStudy.translate(
+                'ss1', 'pipeline')}
+        MultiGeneratedClass = MultiStudyMetaClass(
+            'MultiGeneratedClass', (MultiStudy,), cls_dct)
+        study = self.create_study(
+            MultiGeneratedClass,
+            'multi_gen_cls',
+            inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
+                    DatasetMatch('ss2_dataset', text_format, 'dataset')])
+        pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
+        with open(pkl_path, 'w') as f:
+            self.assertRaises(
+                ArcanaCantPickleStudyError,
+                pkl.dump,
+                study,
+                f)
 
 
 #     def test_explicit_prereqs(self):

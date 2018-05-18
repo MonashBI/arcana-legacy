@@ -1,11 +1,13 @@
 from itertools import chain
 import sys
+import types
 from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaNoRunRequiredException, ArcanaUsageError,
-    ArcanaMissingInputError, ArcanaNoConverterError)
+    ArcanaMissingInputError, ArcanaNoConverterError,
+    ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
     BaseDatum, BaseMatch, BaseDataset, BaseField)
@@ -64,6 +66,8 @@ class Study(object):
 
     _data_specs = {}
     _option_specs = {}
+
+    implicit_cls_attrs = ['_data_specs', '_option_specs']
 
     def __init__(self, name, archive, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None,
@@ -164,6 +168,11 @@ class Study(object):
                                       self.name)
 
     def __reduce__(self):
+        """
+        Control how study classes are pickled to allow some generated
+        classes (those that don't define additional methods) to be
+        generated
+        """
         cls = type(self)
         module = sys.modules[cls.__module__]
         try:
@@ -172,9 +181,22 @@ class Study(object):
             if cls is not getattr(module, cls.__name__):
                 raise AttributeError
         except AttributeError:
+            cls_dct = {}
+            for name, attr in cls.__dict__.items():
+                if isinstance(attr, types.FunctionType):
+                    try:
+                        if not attr.auto_added:
+                            raise ArcanaCantPickleStudyError()
+                    except (AttributeError, ArcanaCantPickleStudyError):
+                        raise ArcanaCantPickleStudyError(
+                            "Cannot pickle auto-generated study class "
+                            "as it contains non-auto-added method "
+                            "{}:{}".format(name, attr))
+                elif name not in self.implicit_cls_attrs:
+                    cls_dct[name] = attr
             pkld = (pickle_reconstructor,
                     (cls.__metaclass__, cls.__name__, cls.__bases__,
-                     dict(cls.__dict__)), self.__dict__)
+                     cls_dct), self.__dict__)
         else:
             # Use standard pickling if not a generated class
             pkld = object.__reduce__(self)
@@ -515,8 +537,6 @@ class StudyMetaClass(type):
     Metaclass for all study classes that collates data specs from
     bases and checks pipeline method names.
     """
-
-    input_attrs = ['add_data_specs', 'add_option_specs']
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
         if not any(issubclass(b, Study) for b in bases):
