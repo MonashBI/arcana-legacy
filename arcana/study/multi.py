@@ -75,7 +75,6 @@ class MultiStudy(Study):
 
     def __init__(self, name, archive, runner, inputs, options=None,
                  **kwargs):
-        options = [] if options is None else options
         try:
             if not issubclass(type(self).__dict__['__metaclass__'],
                               MultiStudyMetaClass):
@@ -89,21 +88,20 @@ class MultiStudy(Study):
                                          options=options, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
-            # Create copies of the input datasets to pass to the
-            # __init__ method of the generated sub-studies
             sub_study_cls = sub_study_spec.study_class
-            mapped_inputs = []
-            for inpt in inputs:
-                try:
-                    mapped_inputs.append(
-                        inpt.renamed(sub_study_spec.map(inpt.name)))
-                except ArcanaNameError:
-                    pass  # Ignore datasets not required for sub-study
-            mapped_options = []
+            # Map inputs, data_specs and options to the sub_study
+            mapped_inputs = {}
+            for data_name in sub_study_cls.data_spec_names():
+                mapped_name = sub_study_spec.inverse_map(data_name)
+                if mapped_name in self.input_names:
+                    mapped_inputs[data_name] = self.input(mapped_name)
+                else:
+                    mapped_inputs[data_name] = self.spec(mapped_name)
+            mapped_options = {}
             for opt_name in sub_study_cls.option_spec_names():
                 mapped_name = sub_study_spec.inverse_map(opt_name)
                 option = self._get_option(mapped_name)
-                mapped_options.append(option.renamed(opt_name))
+                mapped_options[opt_name] = option
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
@@ -148,6 +146,10 @@ class MultiStudy(Study):
     @classmethod
     def sub_study_specs(cls):
         return cls._sub_study_specs.itervalues()
+
+    @classmethod
+    def sub_study_spec_names(cls):
+        return cls._sub_study_specs.iterkeys()
 
     def __repr__(self):
         return "{}(name='{}')".format(

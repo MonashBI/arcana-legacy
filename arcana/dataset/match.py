@@ -63,10 +63,27 @@ class BaseMatch(object):
         return self._order
 
     def bind(self, study):
-        cpy = copy(self)
-        cpy._study = study
-        cpy._match_tree(study.tree)
-        return cpy
+        if self._study is not None:
+            try:
+                if not ((study.name.startswith(self._study.name) and
+                         study.name[(len(self._study.name) + 1):] in
+                         self._study.sub_study_spec_names())):
+                    raise ArcanaError(
+                        "Attempted to bind {} to a study ({}) that is "
+                        "not a sub-study of the study it is already "
+                        "bound to ({})".format(self, study,
+                                               self._study))
+            except AttributeError:
+                raise ArcanaError(
+                    "Attempted to bind {} to a study ({}) when it is "
+                    "already already bound to ({})".format(
+                        self, study, self._study))
+            bound = self
+        else:
+            bound = copy(self)
+            bound._study = study
+            bound._match_tree(study.tree)
+        return bound
 
     @property
     def prefixed_name(self):
