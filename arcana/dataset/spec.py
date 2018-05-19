@@ -42,20 +42,6 @@ class BaseSpec(object):
             study constructor)
         """
         if self._study is not None:
-            try:
-                if not ((study.name.startswith(self._study.name) and
-                         study.name[(len(self._study.name) + 1):] in
-                         self._study.sub_study_spec_names())):
-                    raise ArcanaError(
-                        "Attempted to bind {} to a study ({}) that is "
-                        "not a sub-study of the study it is already "
-                        "bound to ({})".format(self, study,
-                                               self._study))
-            except AttributeError:
-                raise ArcanaError(
-                    "Attempted to bind {} to a study ({}) when it is "
-                    "already already bound to ({})".format(
-                        self, study, self._study))
             bound = self
         else:
             bound = copy(self)
@@ -92,7 +78,7 @@ class BaseSpec(object):
             return False
         # Check all study inputs required by the pipeline were provided
         try:
-            for inpt in pipeline.all_inputs:
+            for inpt in pipeline.study_inputs:
                 self.study.spec(inpt.name)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
@@ -113,6 +99,10 @@ class BaseSpec(object):
 
     @property
     def pipeline(self):
+        if self.pipeline_name is None:
+            raise ArcanaUsageError(
+                "{} is an acquired data spec so doesn't have a pipeline"
+                .format(self))
         try:
             return getattr(self.study, self.pipeline_name)
         except AttributeError:

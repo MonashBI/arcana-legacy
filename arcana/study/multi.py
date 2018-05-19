@@ -96,7 +96,13 @@ class MultiStudy(Study):
                 if mapped_name in self.input_names:
                     mapped_inputs[data_name] = self.input(mapped_name)
                 else:
-                    mapped_inputs[data_name] = self.spec(mapped_name)
+                    try:
+                        inpt = self.spec(mapped_name)
+                    except ArcanaMissingDataException:
+                        pass
+                    else:
+                        if inpt.derived:
+                            mapped_inputs[data_name] = inpt
             mapped_options = {}
             for opt_name in sub_study_cls.option_spec_names():
                 mapped_name = sub_study_spec.inverse_map(opt_name)

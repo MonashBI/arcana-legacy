@@ -459,7 +459,8 @@ class Pipeline(object):
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             spec = self._study.spec(input)
-            if spec.is_spec:  # Could be an input to the study
+            # Could be an input to the study or optional acquired spec
+            if spec.is_spec and spec.derived:
                 pipeline_getters.add(spec.pipeline)
                 required_outputs[spec.pipeline].add(input.name)
         # Call pipeline-getter instance method on study with provided options
@@ -482,13 +483,14 @@ class Pipeline(object):
             yield pipeline
 
     @property
-    def all_inputs(self):
+    def study_inputs(self):
         """
         Returns all inputs to the pipeline, including inputs of
         prerequisites (and their prerequisites recursively)
         """
-        return chain(self.inputs,
-                     *(p.all_inputs for p in self.prerequisites))
+        return chain((i for i in self.inputs
+                      if not self._study.data_spec(i).derived),
+                     *(p.study_inputs for p in self.prerequisites))
 
     def _sessions_to_process(self, subject_ids=None, visit_ids=None,
                              reprocess=False):

@@ -64,20 +64,6 @@ class BaseMatch(object):
 
     def bind(self, study):
         if self._study is not None:
-            try:
-                if not ((study.name.startswith(self._study.name) and
-                         study.name[(len(self._study.name) + 1):] in
-                         self._study.sub_study_spec_names())):
-                    raise ArcanaError(
-                        "Attempted to bind {} to a study ({}) that is "
-                        "not a sub-study of the study it is already "
-                        "bound to ({})".format(self, study,
-                                               self._study))
-            except AttributeError:
-                raise ArcanaError(
-                    "Attempted to bind {} to a study ({}) when it is "
-                    "already already bound to ({})".format(
-                        self, study, self._study))
             bound = self
         else:
             bound = copy(self)

@@ -10,7 +10,7 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
-    BaseDatum, BaseMatch, BaseDataset, BaseField)
+    BaseDatum, BaseMatch, BaseDataset, BaseField, DatasetSpec)
 from nipype.pipeline import engine as pe
 from arcana.option import Option
 from arcana.interfaces.iterators import (
@@ -109,12 +109,21 @@ class Study(object):
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
             else:
-                try:
-                    spec.format.converter_from(inpt.format)
-                except ArcanaNoConverterError as e:
-                    raise ArcanaNoConverterError(
-                        "{}, which is requried to convert:\n{} to\n{}."
-                        .format(e, inpt, spec))
+                if isinstance(spec, DatasetSpec):
+                    if isinstance(inpt, BaseField):
+                        raise ArcanaUsageError(
+                            "Passed field ({}) as input to dataset spec"
+                            " {}".format(inpt, spec))
+                    try:
+                        spec.format.converter_from(inpt.format)
+                    except ArcanaNoConverterError as e:
+                        raise ArcanaNoConverterError(
+                            "{}, which is requried to convert:\n{} "
+                            "to\n{}.".format(e, inpt, spec))
+                elif not isinstance(inpt, BaseField):
+                    raise ArcanaUsageError(
+                        "Passed dataset ({}) as input to field spec {}"
+                        .format(inpt, spec))
             self._inputs[inpt_name] = inpt.bind(self)
         # "Bind" data specs in the class to the current study object
         # this will allow them to prepend the study name to the name
@@ -135,7 +144,8 @@ class Study(object):
                                 'Non-optional' + msg + " Pipelines "
                                 "depending on this dataset will not "
                                 "run")
-                self._bound_specs[spec.name] = spec.bind(self)
+                else:
+                    self._bound_specs[spec.name] = spec.bind(self)
         if options is None:
             options = {}
         elif not isinstance(options, dict):
