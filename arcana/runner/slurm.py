@@ -39,8 +39,10 @@ class SlurmRunner(BaseRunner):
         for mo in mail_on:
             pargs.append(('mail-type', mo))
         super(SlurmRunner, self).__init__(
-            work_dir, sbatch_args=' '.join(
-                '--{}={}'.format(*a) for a in pargs), **kwargs)
+            work_dir, plugin_args={
+                'sbatch_args': ' '.join(
+                    '--{}={}'.format(*a) for a in pargs)},
+            **kwargs)
 
     @property
     def email(self):

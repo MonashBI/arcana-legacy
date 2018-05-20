@@ -61,7 +61,7 @@ class TestLocalArchive(BaseTestCase):
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
                                   'source4')]
-        sink_files = [study.bound_data_spec(n)
+        sink_files = [study.spec(n)
                       for n in ('sink1', 'sink3', 'sink4')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
@@ -148,7 +148,7 @@ class TestLocalArchive(BaseTestCase):
         source = self.archive.source(source_files)
         # Test subject sink
         subject_sink_files = [
-            study.bound_data_spec('subject_sink')]
+            study.spec('subject_sink')]
         subject_sink = self.archive.sink(subject_sink_files,
                                          frequency='per_subject',
                                          study_name=self.SUMMARY_STUDY_NAME)
@@ -156,7 +156,7 @@ class TestLocalArchive(BaseTestCase):
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [study.bound_data_spec('visit_sink')]
+        visit_sink_files = [study.spec('visit_sink')]
         visit_sink = self.archive.sink(visit_sink_files,
                                        frequency='per_visit',
                                        study_name=self.SUMMARY_STUDY_NAME)
@@ -165,7 +165,7 @@ class TestLocalArchive(BaseTestCase):
             "Tests the sinking of visit-wide datasets")
         # Test project sink
         project_sink_files = [
-            study.bound_data_spec('project_sink')]
+            study.spec('project_sink')]
         project_sink = self.archive.sink(project_sink_files,
                                          frequency='per_project',
                                          study_name=self.SUMMARY_STUDY_NAME)
@@ -213,7 +213,7 @@ class TestLocalArchive(BaseTestCase):
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = self.archive.sink(
-            [study.bound_data_spec(n)
+            [study.spec(n)
              for n in ('resink1', 'resink2', 'resink3')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'

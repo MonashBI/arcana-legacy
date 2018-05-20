@@ -14,6 +14,10 @@ class ArcanaMissingInputError(ArcanaException):
     pass
 
 
+class ArcanaCantPickleStudyError(ArcanaError):
+    pass
+
+
 class ArcanaBadlyFormattedLocalArchiveError(ArcanaError):
     pass
 

@@ -41,11 +41,14 @@ class BaseSpec(object):
             A study to bind the dataset spec to (should happen in the
             study constructor)
         """
-        cpy = copy(self)
-        cpy._study = study
-        if self.pipeline_name is not None:
-            cpy.pipeline  # Test to see if pipeline name is present
-        return cpy
+        if self._study is not None:
+            bound = self
+        else:
+            bound = copy(self)
+            bound._study = study
+            if self.pipeline_name is not None:
+                bound.pipeline  # Test to see if pipeline name is present
+        return bound
 
     def find_mismatch(self, other, indent=''):
         mismatch = ''
@@ -75,8 +78,8 @@ class BaseSpec(object):
             return False
         # Check all study inputs required by the pipeline were provided
         try:
-            for inpt in pipeline.all_inputs:
-                self.study.bound_data_spec(inpt.name)
+            for inpt in pipeline.study_inputs:
+                self.study.spec(inpt.name)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
             return False
@@ -96,6 +99,10 @@ class BaseSpec(object):
 
     @property
     def pipeline(self):
+        if self.pipeline_name is None:
+            raise ArcanaUsageError(
+                "{} is an acquired data spec so doesn't have a pipeline"
+                .format(self))
         try:
             return getattr(self.study, self.pipeline_name)
         except AttributeError:

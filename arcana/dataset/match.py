@@ -63,10 +63,13 @@ class BaseMatch(object):
         return self._order
 
     def bind(self, study):
-        cpy = copy(self)
-        cpy._study = study
-        cpy._match_tree(study.tree)
-        return cpy
+        if self._study is not None:
+            bound = self
+        else:
+            bound = copy(self)
+            bound._study = study
+            bound._match_tree(study.tree)
+        return bound
 
     @property
     def prefixed_name(self):

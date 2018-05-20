@@ -237,7 +237,7 @@ class Pipeline(object):
         try:
             # Create source and sinks from the archive
             source = self._study.archive.source(
-                (self.study.bound_data_spec(i) for i in self.inputs),
+                (self.study.spec(i) for i in self.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(self.name))
         except ArcanaMissingDataException as e:
@@ -257,7 +257,7 @@ class Pipeline(object):
                                   source, 'visit_id')
         for input_spec in self.inputs:
             # Get the dataset corresponding to the pipeline's input
-            input = self.study.bound_data_spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
+            input = self.study.spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
             if isinstance(input, BaseDataset):
                 if input.format != input_spec.format:
                     # Insert a format converter node into the workflow if the
@@ -300,7 +300,7 @@ class Pipeline(object):
             # Create a new sink for each frequency level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
-                (self.study.bound_data_spec(o) for o in outputs),
+                (self.study.spec(o) for o in outputs),
                 frequency=freq,
                 study_name=self.study.name,
                 name='{}_{}_sink'.format(self.name, freq))
@@ -314,7 +314,7 @@ class Pipeline(object):
                                           sink, 'visit_id')
             for output_spec in outputs:
                 # Get the dataset spec corresponding to the pipeline's output
-                output = self.study.bound_data_spec(output_spec.name)
+                output = self.study.spec(output_spec.name)
                 # Skip datasets which are already input datasets
                 if output.is_spec:
                     if isinstance(output, BaseDataset):
@@ -446,7 +446,7 @@ class Pipeline(object):
 
     @property
     def has_prerequisites(self):
-        return any(self._study.bound_data_spec(i).is_spec for i in self.inputs)
+        return any(self._study.spec(i).is_spec for i in self.inputs)
 
     @property
     def prerequisites(self):
@@ -458,8 +458,9 @@ class Pipeline(object):
         pipeline_getters = set()
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
-            spec = self._study.bound_data_spec(input)
-            if spec.is_spec:  # Could be an input to the study
+            spec = self._study.spec(input)
+            # Could be an input to the study or optional acquired spec
+            if spec.is_spec and spec.derived:
                 pipeline_getters.add(spec.pipeline)
                 required_outputs[spec.pipeline].add(input.name)
         # Call pipeline-getter instance method on study with provided options
@@ -482,13 +483,14 @@ class Pipeline(object):
             yield pipeline
 
     @property
-    def all_inputs(self):
+    def study_inputs(self):
         """
         Returns all inputs to the pipeline, including inputs of
         prerequisites (and their prerequisites recursively)
         """
-        return chain(self.inputs,
-                     *(p.all_inputs for p in self.prerequisites))
+        return chain((i for i in self.inputs
+                      if not self._study.data_spec(i).derived),
+                     *(p.study_inputs for p in self.prerequisites))
 
     def _sessions_to_process(self, subject_ids=None, visit_ids=None,
                              reprocess=False):
@@ -528,7 +530,7 @@ class Pipeline(object):
             return all_sessions
         sessions_to_process = set()
         for output_spec in self.outputs:
-            output = self.study.bound_data_spec(output_spec)
+            output = self.study.spec(output_spec)
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
             if output.frequency == 'per_project':

@@ -186,15 +186,15 @@ class TestDerivable(BaseTestCase):
             TestDerivableStudy,
             'study',
             inputs=[DatasetMatch('required', text_format, 'required')])
-        self.assertTrue(study.bound_data_spec('derivable').derivable)
+        self.assertTrue(study.spec('derivable').derivable)
         self.assertTrue(
-            study.bound_data_spec('another_derivable').derivable)
+            study.spec('another_derivable').derivable)
         self.assertFalse(
-            study.bound_data_spec('missing_input').derivable)
+            study.spec('missing_input').derivable)
         self.assertFalse(
-            study.bound_data_spec('wrong_option').derivable)
+            study.spec('wrong_option').derivable)
         self.assertFalse(
-            study.bound_data_spec('wrong_option2').derivable)
+            study.spec('wrong_option2').derivable)
         # Test study with 'switch' enabled
         study_with_switch = self.create_study(
             TestDerivableStudy,
@@ -202,9 +202,9 @@ class TestDerivable(BaseTestCase):
             inputs=[DatasetMatch('required', text_format, 'required')],
             options={'switch': 1})
         self.assertTrue(
-            study_with_switch.bound_data_spec('wrong_option').derivable)
+            study_with_switch.spec('wrong_option').derivable)
         self.assertTrue(
-            study_with_switch.bound_data_spec('wrong_option2').derivable)
+            study_with_switch.spec('wrong_option2').derivable)
         # Test study with optional input
         study_with_input = self.create_study(
             TestDerivableStudy,
@@ -212,4 +212,4 @@ class TestDerivable(BaseTestCase):
             inputs=[DatasetMatch('required', text_format, 'required'),
                     DatasetMatch('optional', text_format, 'required')])
         self.assertTrue(
-            study_with_input.bound_data_spec('missing_input').derivable)
+            study_with_input.spec('missing_input').derivable)

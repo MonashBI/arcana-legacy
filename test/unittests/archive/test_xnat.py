@@ -33,7 +33,8 @@ import test_dataset  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import TestExistingPrereqs study to test it on XNAT
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'study'))
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+                                'study'))
 import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
@@ -199,7 +200,7 @@ class TestXnatArchive(BaseTestCase):
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
                                   'source4')]
-        sink_files = [study.bound_data_spec(n)
+        sink_files = [study.spec(n)
                       for n in ('sink1', 'sink3', 'sink4')]
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
@@ -302,7 +303,7 @@ class TestXnatArchive(BaseTestCase):
         inputnode.inputs.visit_id = self.VISIT
         source = archive.source(source_files)
         subject_sink_files = [
-            study.bound_data_spec('subject_sink')]
+            study.spec('subject_sink')]
         subject_sink = archive.sink(subject_sink_files,
                                     frequency='per_subject',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -310,7 +311,7 @@ class TestXnatArchive(BaseTestCase):
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [study.bound_data_spec('visit_sink')]
+        visit_sink_files = [study.spec('visit_sink')]
         visit_sink = archive.sink(visit_sink_files,
                                   frequency='per_visit',
                                   study_name=self.SUMMARY_STUDY_NAME)
@@ -319,7 +320,7 @@ class TestXnatArchive(BaseTestCase):
             "Tests the sinking of visit-wide datasets")
         # Test project sink
         project_sink_files = [
-            study.bound_data_spec('project_sink')]
+            study.spec('project_sink')]
         project_sink = archive.sink(project_sink_files,
                                     frequency='per_project',
                                     study_name=self.SUMMARY_STUDY_NAME)
@@ -413,7 +414,7 @@ class TestXnatArchive(BaseTestCase):
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink = archive.sink(
-            [study.bound_data_spec(n)
+            [study.spec(n)
              for n in ('resink1', 'resink2', 'resink3')],
             study_name=self.SUMMARY_STUDY_NAME)
         reloadsink.inputs.name = 'reload_summary'
@@ -602,7 +603,7 @@ class TestXnatArchive(BaseTestCase):
             cache_dir=cache_dir)
         DATASET_NAME = 'sink1'
         sink = sink_archive.sink(
-            [study.bound_data_spec(DATASET_NAME)],
+            [study.spec(DATASET_NAME)],
             name='digest_check_sink',
             study_name=STUDY_NAME)
         sink.inputs.name = 'digest_check_sink'
