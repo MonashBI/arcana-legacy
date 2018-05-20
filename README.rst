@@ -10,7 +10,7 @@ Arcana
   :alt: Documentation Status
 
 
-ARchive-Centred ANAlysis (Arcana) is Python package for "archive-centric" 
+ARchive-Centred ANAlysis (Arcana) is Python package for "archive-centred" 
 analysis of study groups (e.g. NeuroImaging studies)
 
 Arcana interacts closely with an archive, storing intermediate
