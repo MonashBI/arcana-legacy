@@ -11,6 +11,7 @@ from collections import defaultdict
 import warnings
 import logging
 import arcana
+from arcana.dataset import Dataset
 from arcana.utils import classproperty
 from arcana.archive.local import (
     LocalArchive, SUMMARY_NAME)
@@ -20,7 +21,6 @@ from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException)
-from traceback import format_exc
 from arcana.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 
@@ -38,9 +38,6 @@ class BaseTestCase(TestCase):
 
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
-    SERVER = 'https://mbi-xnat.erc.monash.edu.au'
-    XNAT_TEST_PROJECT = 'TEST001'
-    REF_SUFFIX = '_REF'
 
     # The path to the test directory, which should sit along side the
     # the package directory. Note this will not work when Arcana
@@ -68,53 +65,40 @@ class BaseTestCase(TestCase):
     def work_path(cls):
         return os.path.join(cls.test_data_dir, 'work')
 
-    @classproperty
-    @classmethod
-    def base_cache_path(cls):
-        return os.path.join(cls.test_data_dir, 'cache')
-
-    def setUp(self, cache_dir=None):
+    def setUp(self):
         self.reset_dirs()
-        self.add_session(self.project_dir, self.SUBJECT, self.VISIT,
-                         cache_dir=cache_dir)
+        self.add_session(datasets=getattr(self, 'DATASETS', None),
+                         fields=getattr(self, 'FIELDS', None))
 
-    def add_session(self, project_dir, subject, session,
-                    required_datasets=None, cache_dir=None):
-        if cache_dir is None:
-            cache_dir = self.cache_dir
-        session_dir = os.path.join(project_dir, subject, session)
+    def add_session(self, datasets=None, fields=None, project_dir=None,
+                    subject=SUBJECT, visit=VISIT):
+        if project_dir is None:
+            project_dir = self.project_dir
+        if datasets is None:
+            datasets = {}
+        session_dir = os.path.join(project_dir, subject, visit)
         os.makedirs(session_dir)
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER, self.xnat_session_name,
-                overwrite=False)
-        except Exception:
-            if os.path.exists(cache_dir):
-                warnings.warn(
-                    "Could not download datasets from '{}_{}' session on "
-                    "MBI-XNAT, attempting with what has already been "
-                    "downloaded:\n\n{}"
-                    .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
-            else:
-                raise
-        for f in os.listdir(cache_dir):
-            if required_datasets is None or f in required_datasets:
-                src_path = os.path.join(cache_dir, f)
-                dst_path = os.path.join(session_dir, f)
-                if os.path.isdir(src_path):
-                    shutil.copytree(src_path, dst_path)
-                elif os.path.isfile(src_path):
-                    shutil.copy(src_path, dst_path)
+        for name, dataset in datasets.items():
+            if isinstance(dataset, Dataset):
+                dst_path = os.path.join(session_dir,
+                                        name + dataset.format.ext_str)
+                if dataset.format.directory:
+                    shutil.copytree(dataset.path, dst_path)
                 else:
-                    assert False
-        # Download reference
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER,
-                self.xnat_session_name + self.REF_SUFFIX,
-                overwrite=False)
-        except Exception:
-            pass
+                    shutil.copy(dataset.path, dst_path)
+            elif isinstance(dataset, basestring):
+                # Write string as text file
+                with open(os.path.join(session_dir,
+                                       name + '.txt'), 'w') as f:
+                        f.write(dataset)
+            else:
+                raise ArcanaError(
+                    "Unrecognised dataset in {} test setup"
+                    .format(self))
+        if fields is not None:
+            with open(os.path.join(session_dir,
+                                   FIELDS_FNAME), 'w') as f:
+                json.dump(fields, f)
 
     def delete_project(self, project_dir):
         # Clean out any existing archive files
@@ -126,7 +110,7 @@ class BaseTestCase(TestCase):
         self.create_dirs()
 
     def create_dirs(self):
-        for d in (self.project_dir, self.work_dir, self.cache_dir):
+        for d in (self.project_dir, self.work_dir):
             if not os.path.exists(d):
                 os.makedirs(d)
 
@@ -137,10 +121,6 @@ class BaseTestCase(TestCase):
     @property
     def session_dir(self):
         return self.get_session_dir(self.SUBJECT, self.VISIT)
-
-    @property
-    def cache_dir(self):
-        return os.path.join(self.base_cache_path, self.name)
 
     @property
     def archive(self):
@@ -259,22 +239,6 @@ class BaseTestCase(TestCase):
             msg += ':\n' + error_msg
         self.assertTrue(filecmp.cmp(dataset1.path, dataset2.path,
                                     shallow=False), msg=msg)
-
-#     def assertImagesMatch(self, output, ref, study_name):
-#         out_path = self.output_file_path(output, study_name)
-#         ref_path = self.ref_file_path(ref)
-#         try:
-#             sp.check_output('diff {}.nii {}.nii'
-#                             .format(out_path, ref_path), shell=True)
-#         except sp.CalledProcessError as e:
-#             if e.output == "Binary files {} and {} differ\n".format(
-#                     out_path, ref_path):
-#                 self.assert_(
-#                     False,
-#                     "Images {} and {} do not match exactly".format(out_path,
-#                                                                    ref_path))
-#             else:
-#                 raise
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
                         subject=None, visit=None,

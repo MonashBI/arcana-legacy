@@ -7,7 +7,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.archive.local import (
     LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
-from nianalysis.data_format import nifti_gz_format
+from arcana.data_format import text_format
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
@@ -15,7 +15,6 @@ from arcana.dataset import (
 from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.archive.base import Project, Subject, Session, Visit
-from nianalysis.data_format import mrtrix_format
 
 
 class DummyStudy(Study):
@@ -23,23 +22,23 @@ class DummyStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('source1', nifti_gz_format),
-        DatasetSpec('source2', nifti_gz_format),
-        DatasetSpec('source3', nifti_gz_format),
-        DatasetSpec('source4', nifti_gz_format,
+        DatasetSpec('source1', text_format),
+        DatasetSpec('source2', text_format),
+        DatasetSpec('source3', text_format),
+        DatasetSpec('source4', text_format,
                     optional=True),
-        DatasetSpec('sink1', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('sink3', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('sink4', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('subject_sink', nifti_gz_format, 'dummy_pipeline',
+        DatasetSpec('sink1', text_format, 'dummy_pipeline'),
+        DatasetSpec('sink3', text_format, 'dummy_pipeline'),
+        DatasetSpec('sink4', text_format, 'dummy_pipeline'),
+        DatasetSpec('subject_sink', text_format, 'dummy_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_sink', nifti_gz_format, 'dummy_pipeline',
+        DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_sink', nifti_gz_format, 'dummy_pipeline',
+        DatasetSpec('project_sink', text_format, 'dummy_pipeline',
                     frequency='per_project'),
-        DatasetSpec('resink1', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('resink2', nifti_gz_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', nifti_gz_format, 'dummy_pipeline')]
+        DatasetSpec('resink1', text_format, 'dummy_pipeline'),
+        DatasetSpec('resink2', text_format, 'dummy_pipeline'),
+        DatasetSpec('resink3', text_format, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -49,14 +48,18 @@ class TestLocalArchive(BaseTestCase):
 
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
+    DATASETS = {'source1': '1',
+                'source2': '2',
+                'source3': '3',
+                'source4': '4'}
 
     def test_archive_roundtrip(self):
         study = DummyStudy(
             self.STUDY_NAME, self.archive, runner=LinearRunner('a_dir'),
-            inputs=[DatasetMatch('source1', nifti_gz_format, 'source1'),
-                    DatasetMatch('source2', nifti_gz_format, 'source2'),
-                    DatasetMatch('source3', nifti_gz_format, 'source3'),
-                    DatasetMatch('source4', nifti_gz_format, 'source4')])
+            inputs=[DatasetMatch('source1', text_format, 'source1'),
+                    DatasetMatch('source2', text_format, 'source2'),
+                    DatasetMatch('source3', text_format, 'source3'),
+                    DatasetMatch('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3',
@@ -93,11 +96,11 @@ class TestLocalArchive(BaseTestCase):
             f for f in sorted(os.listdir(self.session_dir))
             if f != FIELDS_FNAME]
         self.assertEqual(outputs,
-                         [self.STUDY_NAME + '_sink1.nii.gz',
-                          self.STUDY_NAME + '_sink3.nii.gz',
-                          self.STUDY_NAME + '_sink4.nii.gz',
-                          'source1.nii.gz', 'source2.nii.gz',
-                          'source3.nii.gz', 'source4.nii.gz'])
+                         [self.STUDY_NAME + '_sink1.txt',
+                          self.STUDY_NAME + '_sink3.txt',
+                          self.STUDY_NAME + '_sink4.txt',
+                          'source1.txt', 'source2.txt',
+                          'source3.txt', 'source4.txt'])
 
     def test_fields_roundtrip(self):
         archive = LocalArchive(base_dir=self.project_dir)
@@ -135,9 +138,9 @@ class TestLocalArchive(BaseTestCase):
     def test_summary(self):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, self.archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('source1', nifti_gz_format, 'source1'),
-                    DatasetMatch('source2', nifti_gz_format, 'source2'),
-                    DatasetMatch('source3', nifti_gz_format, 'source3')])
+            inputs=[DatasetMatch('source1', text_format, 'source1'),
+                    DatasetMatch('source2', text_format, 'source2'),
+                    DatasetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = [study.input(n)
                         for n in ('source1', 'source2', 'source3')]
@@ -194,13 +197,13 @@ class TestLocalArchive(BaseTestCase):
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(frequency='per_subject')
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_subject_sink.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_subject_sink.txt'])
         visit_dir = self.get_session_dir(frequency='per_visit')
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_visit_sink.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_visit_sink.txt'])
         project_dir = self.get_session_dir(frequency='per_project')
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_project_sink.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_project_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'visit_id']),
@@ -246,11 +249,11 @@ class TestLocalArchive(BaseTestCase):
             f for f in sorted(os.listdir(self.session_dir))
             if f != FIELDS_FNAME]
         self.assertEqual(outputs,
-                         [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
-                          self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
-                          self.SUMMARY_STUDY_NAME + '_resink3.nii.gz',
-                          'source1.nii.gz', 'source2.nii.gz',
-                          'source3.nii.gz', 'source4.nii.gz'])
+                         [self.SUMMARY_STUDY_NAME + '_resink1.txt',
+                          self.SUMMARY_STUDY_NAME + '_resink2.txt',
+                          self.SUMMARY_STUDY_NAME + '_resink3.txt',
+                          'source1.txt', 'source2.txt',
+                          'source3.txt', 'source4.txt'])
 
 
 class TestProjectInfo(BaseMultiSubjectTestCase):
@@ -263,13 +266,13 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
-                    Dataset('hundreds', mrtrix_format,
+                    Dataset('hundreds', text_format,
                             subject_id='subject1', visit_id='visit1',
                             archive=archive),
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject1', visit_id='visit1',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject1', visit_id='visit1',
                             archive=archive)],
                 fields=[
@@ -284,10 +287,10 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject1', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject1', visit_id='visit2',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject1', visit_id='visit2',
                             archive=archive)],
                 fields=[
@@ -299,13 +302,13 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject1', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format,
+                    Dataset('hundreds', text_format,
                             subject_id='subject1', visit_id='visit3',
                             archive=archive),
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject1', visit_id='visit3',
                             archive=archive),
-                    Dataset('thousands', mrtrix_format,
+                    Dataset('thousands', text_format,
                             subject_id='subject1', visit_id='visit3',
                             archive=archive)],
                 fields=[
@@ -317,19 +320,19 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject2', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit1',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject2', visit_id='visit1',
                             archive=archive)],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit2',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject2', visit_id='visit2',
                             archive=archive)],
                 fields=[
@@ -344,16 +347,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject2', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format,
+                    Dataset('hundreds', text_format,
                             subject_id='subject2', visit_id='visit3',
                             archive=archive),
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit3',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject2', visit_id='visit3',
                             archive=archive),
-                    Dataset('thousands', mrtrix_format,
+                    Dataset('thousands', text_format,
                             subject_id='subject2', visit_id='visit3',
                             archive=archive)],
                 fields=[
@@ -362,28 +365,28 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                             archive=archive)]),
             Session(
                 'subject3', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject3', visit_id='visit1',
                             archive=archive)],
                 fields=[]),
             Session(
                 'subject3', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject3', visit_id='visit2',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject3', visit_id='visit2',
                             archive=archive)],
                 fields=[]),
             Session(
                 'subject3', 'visit3', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject3', visit_id='visit3',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject3', visit_id='visit3',
                             archive=archive),
-                    Dataset('thousands', mrtrix_format,
+                    Dataset('thousands', text_format,
                             subject_id='subject3', visit_id='visit3',
                             archive=archive)],
                 fields=[
@@ -395,7 +398,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject4', 'visit1', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject4', visit_id='visit1',
                             archive=archive)],
                 fields=[
@@ -407,10 +410,10 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject4', 'visit2', datasets=[
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject4', visit_id='visit2',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject4', visit_id='visit2',
                             archive=archive)],
                 fields=[
@@ -425,16 +428,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive)]),
             Session(
                 'subject4', 'visit3', datasets=[
-                    Dataset('hundreds', mrtrix_format,
+                    Dataset('hundreds', text_format,
                             subject_id='subject4', visit_id='visit3',
                             archive=archive),
-                    Dataset('ones', mrtrix_format,
+                    Dataset('ones', text_format,
                             subject_id='subject4', visit_id='visit3',
                             archive=archive),
-                    Dataset('tens', mrtrix_format,
+                    Dataset('tens', text_format,
                             subject_id='subject4', visit_id='visit3',
                             archive=archive),
-                    Dataset('thousands', mrtrix_format,
+                    Dataset('thousands', text_format,
                             subject_id='subject4', visit_id='visit3',
                             archive=archive)],
                 fields=[])]
@@ -444,11 +447,11 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject1', sessions=[s for s in sessions
                                           if s.subject_id == 'subject1'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        Dataset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
                                 archive=archive),
-                        Dataset('tens', mrtrix_format,
+                        Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
                                 archive=archive)],
@@ -461,11 +464,11 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        Dataset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
                                 archive=archive),
-                        Dataset('tens', mrtrix_format,
+                        Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
                                 archive=archive)],
@@ -478,7 +481,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject3', sessions=[s for s in sessions
                                           if s.subject_id == 'subject3'],
                     datasets=[
-                        Dataset('tens', mrtrix_format,
+                        Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject3',
                                 archive=archive)],
@@ -491,7 +494,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'subject4', sessions=[s for s in sessions
                                           if s.subject_id == 'subject4'],
                     datasets=[
-                        Dataset('tens', mrtrix_format,
+                        Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject4',
                                 archive=archive)],
@@ -505,7 +508,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                     'visit1', sessions=[s for s in sessions
                                         if s.visit_id == 'visit1'],
                     datasets=[
-                        Dataset('ones', mrtrix_format,
+                        Dataset('ones', text_format,
                                 frequency='per_visit',
                                 visit_id='visit1',
                                 archive=archive)],
@@ -533,7 +536,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                               visit_id='visit3',
                               archive=archive)])],
             datasets=[
-                Dataset('ones', mrtrix_format,
+                Dataset('ones', text_format,
                         frequency='per_project',
                         archive=archive)],
             fields=[
@@ -594,7 +597,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
 
 class TestLocalInterfacePickle(TestCase):
 
-    datasets = [DatasetSpec('a', nifti_gz_format)]
+    datasets = [DatasetSpec('a', text_format)]
     fields = [FieldSpec('b', int)]
 
     def setUp(self):
