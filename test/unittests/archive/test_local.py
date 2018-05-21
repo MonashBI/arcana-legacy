@@ -1,14 +1,13 @@
 import os
 from unittest import TestCase
 import tempfile
-import json
 import os.path as op
 import cPickle as pkl
 import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.archive.local import (
-    LocalSource, LocalArchive, FIELDS_FNAME, SUMMARY_NAME)
+    LocalSource, LocalArchive, FIELDS_FNAME)
 from arcana.data_format import text_format
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner

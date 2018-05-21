@@ -46,7 +46,12 @@ sys.path.pop(0)
 
 logger = logging.getLogger('Arcana')
 
-SERVER = 'https://mbi-xnat.erc.monash.edu.au'
+
+try:
+    SERVER = os.environ['ARCANA_TEST_XNAT']
+except KeyError:
+    SERVER = None
+# SERVER = 'https://mbi-xnat.erc.monash.edu.au'
 
 
 class DummyStudy(Study):
@@ -182,7 +187,7 @@ class TestXnatArchive(BaseTestCase):
     def _connect(self):
         return xnat.connect(SERVER)
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_archive_roundtrip(self):
 
         # Create working dirs
@@ -245,7 +250,7 @@ class TestXnatArchive(BaseTestCase):
                 XnatArchive.PROCESSED_SUFFIX].scans.keys()
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_fields_roundtrip(self):
         archive = XnatArchive(
             server=SERVER, cache_dir=self.archive_cache_dir,
@@ -281,7 +286,7 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_summary(self):
         # Create working dirs
         # Create XnatSource node
@@ -460,7 +465,7 @@ class TestXnatArchive(BaseTestCase):
                               self.SUMMARY_STUDY_NAME + '_resink2',
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_delayed_download(self):
         """
         Tests handling of race conditions where separate processes attempt to
@@ -538,7 +543,7 @@ class TestXnatArchive(BaseTestCase):
             d = f.read()
         self.assertEqual(d, 'simulated')
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_digest_check(self):
         """
         Tests check of downloaded digests to see if file needs to be
@@ -638,14 +643,13 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
     PROJECT = 'MRH033'
     SUBJECT = '001'
     VISIT = 'MR01'
-    SERVER = 'https://mbi-xnat.erc.monash.edu.au'
     TEST_NAME = 'special_char_in_scan_name'
     DATASETS = ['localizer 3 PLANES (Left)',
                 'PosDisp: [3] cv_t1rho_3D_2_TR450 (Left)']
     work_path = os.path.join(BaseTestCase.test_data_dir, 'work',
                              TEST_NAME)
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_special_char_in_scan_name(self):
         """
         Tests whether XNAT source can download files with spaces in their names
@@ -895,7 +899,7 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin,
     PROJECT = 'TEST007'
     BASE_CLASS = test_study.TestExistingPrereqs
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
@@ -918,7 +922,7 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     SUBJECTS = ['subject1', 'subject3', 'subject4']
     VISITS = ['visit1']
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_cache_download(self):
         archive = XnatArchive(project_id=self.project_id,
                               server=SERVER,
@@ -953,7 +957,7 @@ class TestProjectInfo(TestOnXnatMixin,
     PROJECT = 'TEST013'
     BASE_CLASS = test_local.TestProjectInfo
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_project_info(self):
         tree = self.archive.get_tree()
         ref_tree = self.ref_tree(self.archive, set_ids=True)
@@ -971,7 +975,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
     def tearDown(self):
         pass
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_dicom_match(self):
         study = test_dataset.TestMatchStudy(
             name='test_dicom',
@@ -986,7 +990,7 @@ class TestDicomTagMatchAndIDOnXnat(BaseTestCase):
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_id_match(self):
         study = test_dataset.TestMatchStudy(
             name='test_dicom',
@@ -1011,7 +1015,7 @@ class TestDatasetCacheOnPathAccess(TestCase):
     SUBJECT = 'ARCHIVEXNAT'
     VISIT = 'DATASETCACHEONPATHACCESS'
 
-    @unittest.skip('skipping due to travis time constraints')
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_cache_on_path_access(self):
         tmp_dir = tempfile.mkdtemp()
         archive = XnatArchive(
