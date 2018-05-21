@@ -1,6 +1,8 @@
 import os
 from unittest import TestCase
 import tempfile
+import json
+import os.path as op
 import cPickle as pkl
 import shutil
 from nipype.pipeline import engine as pe
@@ -262,7 +264,10 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     fields in a project returned in a Project object.
     """
 
-    def ref_tree(self, archive, base_dir=None, set_ids=False):
+    dataset_name_to_contents = {'ones': 1, 'tens': 10, 'hundreds': 100,
+                                'thousands': 1000}
+
+    def get_tree(self, archive, set_ids=False):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
@@ -543,56 +548,37 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                 Field('g', value=100,
                       frequency='per_project',
                       archive=archive)])
-        if base_dir is not None or set_ids:
+        if set_ids:  # For xnat archive
             for dataset in project.datasets:
-                if base_dir is not None:
-                    dataset._path = os.path.join(
-                        base_dir, SUMMARY_NAME, SUMMARY_NAME,
-                        dataset.name + dataset.format.ext_str)
-                if set_ids:
-                    dataset._id = dataset.name
+                dataset._id = dataset.name
             for visit in project.visits:
                 for dataset in visit.datasets:
-                    if base_dir is not None:
-                        dataset._path = os.path.join(
-                            base_dir, SUMMARY_NAME, visit.id,
-                            dataset.name + dataset.format.ext_str)
-                    if set_ids:
-                        dataset._id = dataset.name
+                    dataset._id = dataset.name
             for subject in project.subjects:
                 for dataset in subject.datasets:
-                    if base_dir is not None:
-                        dataset._path = os.path.join(
-                            base_dir, subject.id, SUMMARY_NAME,
-                            dataset.name + dataset.format.ext_str)
-                    if set_ids:
-                        dataset._id = dataset.name
+                    dataset._id = dataset.name
                 for session in subject.sessions:
                     for dataset in session.datasets:
-                        if base_dir is not None:
-                            dataset._path = os.path.join(
-                                base_dir, session.subject_id,
-                                session.visit_id,
-                                dataset.name + dataset.format.ext_str)
-                        if set_ids:
-                            dataset._id = dataset.name
+                        dataset._id = dataset.name
         return project
 
+    @property
+    def tree(self):
+        return self.get_tree(self.archive)
+
     def test_project_info(self):
-        archive = LocalArchive(base_dir=self.project_dir)
         # Add hidden file to local archive at project and subject
         # levels to test ignore
         a_subj_dir = os.listdir(self.project_dir)[0]
-        open(os.path.join(os.path.join(self.project_dir, '.DS_Store')),
+        open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
-        open(os.path.join(os.path.join(self.project_dir, a_subj_dir,
+        open(op.join(op.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
-        tree = archive.get_tree()
-        ref_tree = self.ref_tree(archive, self.project_dir)
+        tree = self.archive.get_tree()
         self.assertEqual(
-            tree, ref_tree,
+            tree, self.local_tree,
             "Generated project doesn't match reference:{}"
-            .format(tree.find_mismatch(ref_tree)))
+            .format(tree.find_mismatch(self.local_tree)))
 
 
 class TestLocalInterfacePickle(TestCase):
@@ -611,7 +597,7 @@ class TestLocalInterfacePickle(TestCase):
     def test_source(self):
         source = LocalSource('a_study', self.datasets, self.fields,
                              base_dir=self.tmp_dir)
-        fname = os.path.join(self.pkl_dir, 'source.pkl')
+        fname = op.join(self.pkl_dir, 'source.pkl')
         with open(fname, 'w') as f:
             pkl.dump(source, f)
         with open(fname) as f:
