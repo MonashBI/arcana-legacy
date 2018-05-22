@@ -6,7 +6,7 @@ from nipype.interfaces.base import (
 from arcana.node import Node
 from arcana.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
-from arcana.exception import ArcanaError
+from arcana.exception import ArcanaError, ArcanaNameError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
@@ -335,34 +335,66 @@ class Project(object):
             datasets = []
         if fields is None:
             fields = []
-        self._subjects = subjects
-        self._visits = visits
-        self._datasets = datasets
-        self._fields = fields
+        self._subjects = {s.id: s for s in subjects}
+        self._visits = {v.id: v for v in visits}
+        self._datasets = {d.name: d for d in datasets}
+        self._fields = {f.name: f for f in fields}
 
     @property
     def subjects(self):
-        return iter(self._subjects)
+        return self._subjects.itervalues()
 
     @property
     def visits(self):
-        return iter(self._visits)
+        return self._visits.itervalues()
+
+    def subject(self, id):  # @ReservedAssignment
+        try:
+            return self._subjects[id]
+        except KeyError:
+            raise ArcanaNameError(
+                id, ("{} doesn't have a subject named '{}'"
+                       .format(self, id)))
+
+    def visit(self, id):  # @ReservedAssignment
+        try:
+            return self._visits[id]
+        except KeyError:
+            raise ArcanaNameError(
+                id, ("{} doesn't have a visit named '{}'"
+                       .format(self, id)))
 
     @property
     def datasets(self):
-        return self._datasets
+        return self._datasets.itervalues()
 
     @property
     def fields(self):
-        return self._fields
+        return self._fields.itervalues()
 
     @property
     def dataset_names(self):
-        return (d.name for d in self.datasets)
+        return self._datasets.iterkeys()
 
     @property
     def field_names(self):
-        return (f.name for f in self.fields)
+        return self._fields.iterkeys()
+
+    def dataset(self, name):
+        try:
+            return self._datasets[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a dataset named '{}'"
+                       .format(self, name)))
+
+    def field(self, name):
+        try:
+            return self._fields[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a field named '{}'"
+                       .format(self, name)))
 
     @property
     def data(self):
@@ -475,10 +507,10 @@ class Subject(object):
         if fields is None:
             fields = []
         self._id = subject_id
-        self._sessions = sessions
-        self._datasets = datasets
-        self._fields = fields
-        for session in sessions:
+        self._sessions = {s.visit_id: s for s in sessions}
+        self._datasets = {d.name: d for d in datasets}
+        self._fields = {f.name: f for f in fields}
+        for session in self.sessions:
             session.subject = self
 
     @property
@@ -490,23 +522,47 @@ class Subject(object):
 
     @property
     def sessions(self):
-        return iter(self._sessions)
+        return self._sessions.itervalues()
+
+    def session(self, visit_id):
+        try:
+            return self._sessions[visit_id]
+        except KeyError:
+            raise ArcanaNameError(
+                visit_id, ("{} doesn't have a session named '{}'"
+                           .format(self, visit_id)))
 
     @property
     def datasets(self):
-        return self._datasets
+        return self._datasets.itervalues()
 
     @property
     def fields(self):
-        return self._fields
+        return self._fields.itervalues()
 
     @property
     def dataset_names(self):
-        return (d.name for d in self.datasets)
+        return self._datasets.iterkeys()
 
     @property
     def field_names(self):
-        return (f.name for f in self.fields)
+        return self._fields.iterkeys()
+
+    def dataset(self, name):
+        try:
+            return self._datasets[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a dataset named '{}'"
+                       .format(self, name)))
+
+    def field(self, name):
+        try:
+            return self._fields[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a field named '{}'"
+                       .format(self, name)))
 
     @property
     def data(self):
@@ -591,9 +647,9 @@ class Visit(object):
         if fields is None:
             fields = []
         self._id = visit_id
-        self._sessions = sessions
-        self._datasets = datasets
-        self._fields = fields
+        self._sessions = {s.subject_id: s for s in sessions}
+        self._datasets = {d.name: d for d in datasets}
+        self._fields = {f.name: f for f in fields}
         for session in sessions:
             session.visit = self
 
@@ -606,23 +662,47 @@ class Visit(object):
 
     @property
     def sessions(self):
-        return iter(self._sessions)
+        return self._sessions.itervalues()
+
+    def session(self, subject_id):
+        try:
+            return self._sessions[subject_id]
+        except KeyError:
+            raise ArcanaNameError(
+                subject_id, ("{} doesn't have a session named '{}'"
+                             .format(self, subject_id)))
 
     @property
     def datasets(self):
-        return self._datasets
+        return self._datasets.itervalues()
 
     @property
     def fields(self):
-        return self._fields
+        return self._fields.itervalues()
 
     @property
     def dataset_names(self):
-        return (d.name for d in self.datasets)
+        return self._datasets.iterkeys()
 
     @property
     def field_names(self):
-        return (f.name for f in self.fields)
+        return self._fields.iterkeys()
+
+    def dataset(self, name):
+        try:
+            return self._datasets[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a dataset named '{}'"
+                       .format(self, name)))
+
+    def field(self, name):
+        try:
+            return self._fields[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a field named '{}'"
+                       .format(self, name)))
 
     @property
     def data(self):
@@ -721,8 +801,8 @@ class Session(object):
             fields = []
         self._subject_id = subject_id
         self._visit_id = visit_id
-        self._datasets = datasets
-        self._fields = fields
+        self._datasets = {d.name: d for d in datasets}
+        self._fields = {f.name: f for f in fields}
         self._subject = None
         self._visit = None
         self._derived = derived
@@ -772,19 +852,35 @@ class Session(object):
 
     @property
     def datasets(self):
-        return self._datasets
+        return self._datasets.itervalues()
 
     @property
     def fields(self):
-        return self._fields
+        return self._fields.itervalues()
 
     @property
     def dataset_names(self):
-        return (d.name for d in self.datasets)
+        return self._datasets.iterkeys()
 
     @property
     def field_names(self):
-        return (f.name for f in self.fields)
+        return self._fields.iterkeys()
+
+    def dataset(self, name):
+        try:
+            return self._datasets[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a dataset named '{}'"
+                       .format(self, name)))
+
+    def field(self, name):
+        try:
+            return self._fields[name]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a field named '{}'"
+                       .format(self, name)))
 
     @property
     def data(self):

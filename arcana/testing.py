@@ -4,6 +4,7 @@ import subprocess as sp
 import operator
 import shutil
 from unittest import TestCase
+from functools import reduce
 import errno
 import sys
 import json
@@ -205,12 +206,13 @@ class BaseTestCase(TestCase):
                  dataset_name, out_path, "', '".join(os.listdir(output_dir)),
                  output_dir)))
 
-    def assertContentsEqual(self, dataset, reference):
+    def assertContentsEqual(self, dataset, reference, msg):
         with open(dataset.path) as f:
             contents = f.read()
         self.assertEqual(contents, reference,
                          "Contents of {} ({}) do not match reference "
-                         "({})".format(dataset, contents, reference))
+                         "({}) for {}".format(
+                             dataset, contents, reference, msg))
 
     def assertCreated(self, dataset):
         self.assertTrue(
@@ -477,13 +479,17 @@ class TestTestCase(BaseTestCase):
 class TestMathInputSpec(TraitedSpec):
 
     x = traits.Either(traits.Float(), traits.File(exists=True),
+                      traits.List(traits.Float),
                       mandatory=True, desc='first arg')
     y = traits.Either(traits.Float(), traits.File(exists=True),
-                      mandatory=True, desc='second arg')
+                      mandatory=False, desc='second arg')
     op = traits.Str(mandatory=True, desc='operation')
 
     z = traits.File(genfile=True, mandatory=False,
                     desc="Name for output file")
+
+    as_file = traits.Bool(False, desc="Whether to write as a file",
+                          usedefault=True)
 
 
 class TestMathOutputSpec(TraitedSpec):
@@ -504,20 +510,24 @@ class TestMath(BaseInterface):
         return runtime
 
     def _list_outputs(self):
-        as_file = False
         x = self.inputs.x
         y = self.inputs.y
         if isinstance(x, basestring):
             with open(x) as f:
                 x = float(f.read())
-            as_file = True
         if isinstance(y, basestring):
             with open(y) as f:
                 y = float(f.read())
-            as_file = True
-        z = getattr(operator, self.inputs.op)(x, y)
+        oper = getattr(operator, self.inputs.op)
+        if isdefined(y):
+            z = oper(x, y)
+        elif isinstance(x, list):
+            z = reduce(oper, *x)
+        else:
+            raise Exception(
+                "If 'y' is not provided then x needs to be list")
         outputs = self.output_spec().get()
-        if as_file:
+        if self.inputs.as_file:
             z_path = op.abspath(self._gen_z_fname())
             with open(z_path, 'w') as f:
                 f.write(str(z))
