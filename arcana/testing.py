@@ -65,8 +65,8 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         self.reset_dirs()
-        self.add_session(datasets=getattr(self, 'DATASETS', None),
-                         fields=getattr(self, 'FIELDS', None))
+        self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
+                         fields=getattr(self, 'INPUT_FIELDS', None))
 
     def add_session(self, datasets=None, fields=None, project_dir=None,
                     subject=SUBJECT, visit=VISIT):

@@ -22,7 +22,7 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
 
 
-class TestStudy(Study):
+class ExampleStudy(Study):
 
     __metaclass__ = StudyMetaClass
 
@@ -66,10 +66,8 @@ class TestStudy(Study):
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline1")
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1",
-                                         requirements=[mrtrix3_req])
-        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2",
-                                          requirements=[mrtrix3_req])
+        mrconvert = pipeline.create_node(MRConvert(), name="convert1")
+        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2")
         # Connect inputs
         pipeline.connect_input('start', mrconvert, 'in_file')
         pipeline.connect_input('start', mrconvert2, 'in_file')
@@ -109,8 +107,7 @@ class TestStudy(Study):
             version=1,
             citations=[],
             **kwargs)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert",
-                                         requirements=[mrtrix3_req])
+        mrconvert = pipeline.create_node(MRConvert(), name="convert")
         # Connect inputs
         pipeline.connect_input('derived2', mrconvert, 'in_file')
         # Connect outputs
@@ -199,7 +196,7 @@ class TestStudy(Study):
             citations=[],
             **kwargs)
         mrmath = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
+            MRMath(), 'in_files', 'mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -218,9 +215,9 @@ class TestStudy(Study):
             citations=[],
             **kwargs)
         mrmath1 = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath1', requirements=[mrtrix3_req])
+            MRMath(), 'in_files', 'mrmath1')
         mrmath2 = pipeline.create_join_subjects_node(
-            MRMath(), 'in_files', 'mrmath2', requirements=[mrtrix3_req])
+            MRMath(), 'in_files', 'mrmath2')
         mrmath1.inputs.operation = 'sum'
         mrmath2.inputs.operation = 'sum'
         # Connect inputs
@@ -267,7 +264,7 @@ class IteratorToFile(BaseInterface):
         return fname
 
 
-class TestRunPipeline(BaseTestCase):
+class TestStudy(BaseTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
@@ -278,7 +275,7 @@ class TestRunPipeline(BaseTestCase):
             for visit_id in self.SESSION_IDS:
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
-            TestStudy, 'dummy', inputs=[
+            ExampleStudy, 'dummy', inputs=[
                 DatasetMatch('start', text_format, 'start'),
                 DatasetMatch('ones_slice', text_format, 'ones_slice')],
             options={'pipeline_option': True})
@@ -291,7 +288,7 @@ class TestRunPipeline(BaseTestCase):
 
     def test_pipeline_prerequisites(self):
         self.study.data('derived4')[0]
-        for dataset in TestStudy.data_specs():
+        for dataset in ExampleStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.SESSION_IDS:

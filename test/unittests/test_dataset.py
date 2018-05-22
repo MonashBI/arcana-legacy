@@ -144,6 +144,8 @@ class TestDerivableStudy(Study):
 
 class TestDerivable(BaseTestCase):
 
+    INPUT_DATASETS = {'required': 'blah'}
+
     def test_derivable(self):
         # Test vanilla study
         study = self.create_study(

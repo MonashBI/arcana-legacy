@@ -49,10 +49,10 @@ class TestLocalArchive(BaseTestCase):
 
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
-    DATASETS = {'source1': '1',
-                'source2': '2',
-                'source3': '3',
-                'source4': '4'}
+    INPUT_DATASETS = {'source1': '1',
+                      'source2': '2',
+                      'source3': '3',
+                      'source4': '4'}
 
     def test_archive_roundtrip(self):
         study = DummyStudy(
