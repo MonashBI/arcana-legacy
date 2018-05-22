@@ -271,7 +271,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     VISIT_IDS = ['VISITID1', 'VISITID2']
-    DATASET_CONTENTS = {'start': 'foo', 'ones': 1}
+    DATASET_CONTENTS = {'start': 'foo', 'ones': '1'}
 
     @property
     def input_tree(self):
@@ -443,74 +443,9 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     """
     This unittest tests out that partially previously calculated prereqs
     are detected and not rerun unless reprocess==True.
-
-    The structure of the "subjects" and "sessions" stored on the XNAT archive
-    is:
-
-
-    -- subject1 -- visit1 -- ones
-     |           |         |
-     |           |         - tens
-     |           |         |
-     |           |         - hundreds
-     |           |
-     |           - visit2 -- ones
-     |           |         |
-     |           |         - tens
-     |           |
-     |           - visit3 -- ones
-     |                     |
-     |                     - hundreds
-     |                     |
-     |                     - thousands
-     |
-     - subject2 -- visit1 -- ones
-     |           |         |
-     |           |         - tens
-     |           |
-     |           - visit2 -- ones
-     |           |         |
-     |           |         - tens
-     |           |
-     |           - visit3 -- ones
-     |                     |
-     |                     - tens
-     |                     |
-     |                     - hundreds
-     |                     |
-     |                     - thousands
-     |
-     - subject3 -- visit1 -- ones
-     |           |
-     |           - visit2 -- ones
-     |           |         |
-     |           |         - tens
-     |           |
-     |           - visit3 -- ones
-     |                     |
-     |                     - tens
-     |                     |
-     |                     - thousands
-     |
-     - subject4 -- visit1 -- ones
-                 |
-                 - visit2 -- ones
-                 |         |
-                 |         - tens
-                 |
-                 - visit3 -- ones
-                           |
-                           - tens
-                           |
-                           - hundreds
-                           |
-                           - thousands
-
-    For prexisting sessions the values in the existing images are multiplied by
-    5, i.e. preexisting tens actually contains voxels of value 50, hundreds 500
     """
 
-    saved_structure = {
+    PROJECT_STRUCTURE = {
         'subject1': {
             'visit1': ['ones', 'tens', 'hundreds'],
             'visit2': ['ones', 'tens'],
@@ -528,7 +463,28 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             'visit2': ['ones', 'tens'],
             'visit3': ['ones', 'tens', 'hundreds', 'thousands']}}
 
+    DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
+                        'thousands': 1000}
+
     study_name = 'existing'
+
+    @property
+    def input_tree(self):
+        sessions = []
+        visit_ids = set()
+        for subj_id, visits in self.PROJECT_STRUCTURE.items():
+            for visit_id, datasets in visits.items():
+                sessions.append(Session(subj_id, visit_id, datasets=[
+                    Dataset(d, text_format, subject_id=subj_id,
+                            visit_id=visit_id) for d in datasets]))
+                visit_ids.add(visit_id)
+        subjects = [Subject(i, sessions=[s for s in sessions
+                                         if s.subject_id == i])
+                    for i in self.PROJECT_STRUCTURE]
+        visits = [Visit(i, sessions=[s for s in sessions
+                                     if s.visit == i])
+                  for i in visit_ids]
+        return Project(subjects=subjects, visits=visits)
 
     def test_per_session_prereqs(self):
         study = self.create_study(
@@ -552,13 +508,13 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111,
                 'visit2': 1110,
                 'visit3': 1000}}
-        for subj_id, visits in self.saved_structure.iteritems():
+        tree = self.archive.get_tree()
+        for subj_id, visits in self.PROJECT_STRUCTURE.iteritems():
             for visit_id in visits:
-                self.assertStatEqual('mean', 'thousands.mif',
-                                     targets[subj_id][visit_id],
-                                     self.study_name,
-                                     subject=subj_id, visit=visit_id,
-                                     frequency='per_session')
+                dataset = tree.subject(subj_id).visit(
+                    visit_id).dataset('thousands')
+                self.assertContentsEqual(dataset, str(
+                    targets[subj_id][visit_id]))
 
 
 test1_format = DataFormat('test1', extension='.t1')
@@ -658,6 +614,8 @@ class BasicTestClass(Study):
 
 
 class TestGeneratedPickle(BaseTestCase):
+
+    INPUT_DATASETS = {'dataset': 'foo'}
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(

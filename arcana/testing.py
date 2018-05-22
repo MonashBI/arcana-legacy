@@ -79,7 +79,7 @@ class BaseTestCase(TestCase):
         for name, dataset in datasets.items():
             if isinstance(dataset, Dataset):
                 dst_path = op.join(session_dir,
-                                        name + dataset.format.ext_str)
+                                   name + dataset.format.ext_str)
                 if dataset.format.directory:
                     shutil.copytree(dataset.path, dst_path)
                 else:
@@ -87,7 +87,7 @@ class BaseTestCase(TestCase):
             elif isinstance(dataset, basestring):
                 # Write string as text file
                 with open(op.join(session_dir,
-                                       name + '.txt'), 'w') as f:
+                                  name + '.txt'), 'w') as f:
                         f.write(dataset)
             else:
                 raise ArcanaError(
@@ -201,6 +201,18 @@ class BaseTestCase(TestCase):
              " ('{}' found in '{}' instead)".format(
                  dataset_name, out_path, "', '".join(os.listdir(output_dir)),
                  output_dir)))
+
+    def assertContentsEqual(self, dataset, reference):
+        with open(dataset.path) as f:
+            contents = f.read()
+        self.assertEqual(contents, reference,
+                         "Contents of {} ({}) do not match reference "
+                         "({})".format(dataset, contents, reference))
+
+    def assertCreated(self, dataset):
+        self.assertTrue(
+            os.path.exists(dataset.path),
+            "{} was not created".format(dataset))
 
     def assertField(self, name, ref_value, study_name, subject=None,
                     visit=None, frequency='per_session',

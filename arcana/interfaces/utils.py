@@ -136,9 +136,6 @@ class MergeTuple(Merge):
         return outputs
 
 
-
-
-
 class Chain(IdentityInterface):
 
     def _list_outputs(self):
@@ -320,14 +317,17 @@ class ZipDir(CommandLine):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['zipped'] = os.path.join(os.getcwd(),
-                                         self._gen_filename('zipped'))
+        outputs['zipped'] = os.path.abspath(
+            self._gen_filename('zipped'))
         return outputs
 
     def _gen_filename(self, name):
         if name == 'zipped':
-            fname = (os.path.basename(self.inputs.dirname) +
-                     self.inputs.ext_prefix + self.zip_ext)
+            if isdefined(self.inputs.zipped):
+                fname = self.inputs.zipped
+            else:
+                fname = (os.path.basename(self.inputs.dirname) +
+                         self.inputs.ext_prefix + self.zip_ext)
         else:
             assert False
         return fname
