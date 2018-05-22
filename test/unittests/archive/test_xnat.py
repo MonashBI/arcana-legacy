@@ -23,6 +23,7 @@ from arcana.utils import split_extension
 from arcana.data_format import DataFormat
 from arcana.utils import PATH_SUFFIX
 from arcana.exception import ArcanaError
+from arcana.data_format import text_format
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
