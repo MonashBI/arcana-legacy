@@ -3,7 +3,7 @@ from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
 from arcana.requirement import (
     Requirement, split_version, date_split)
-from nianalysis.requirement import matlab_version_split
+from arcana.requirement import matlab_version_split
 
 
 a_req = Requirement('a', min_version=(2, 0, 1))

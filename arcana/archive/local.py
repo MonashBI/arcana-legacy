@@ -16,7 +16,7 @@ import logging
 import json
 from fasteners import InterProcessLock
 from nipype.interfaces.base import isdefined
-from .base import Project, Subject, Session, Visit
+from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
     ArcanaError, ArcanaBadlyFormattedLocalArchiveError)

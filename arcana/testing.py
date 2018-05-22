@@ -1,28 +1,30 @@
-import os.path
+import os.path as op
+import os
 import subprocess as sp
+import operator
 import shutil
 from unittest import TestCase
+from functools import reduce
 import errno
-from xnat.exceptions import XNATError
 import sys
 import json
 import filecmp
-from collections import defaultdict
-import warnings
+from copy import deepcopy
 import logging
 import arcana
+from arcana.dataset import Dataset
 from arcana.utils import classproperty
 from arcana.archive.local import (
     LocalArchive, SUMMARY_NAME)
-from arcana.archive.xnat import download_all_datasets
 from arcana.runner import LinearRunner
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException)
-from traceback import format_exc
 from arcana.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
+from nipype.interfaces.base import (
+    traits, TraitedSpec, BaseInterface, isdefined)
 
 logger = logging.getLogger('Arcana')
 logger.setLevel(logging.INFO)
@@ -38,83 +40,68 @@ class BaseTestCase(TestCase):
 
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
-    SERVER = 'https://mbi-xnat.erc.monash.edu.au'
-    XNAT_TEST_PROJECT = 'TEST001'
-    REF_SUFFIX = '_REF'
 
     # The path to the test directory, which should sit along side the
     # the package directory. Note this will not work when Arcana
     # is installed by a package manager.
-    BASE_TEST_DIR = os.path.abspath(os.path.join(
-        os.path.dirname(arcana.__file__), '..', 'test'))
+    BASE_TEST_DIR = op.abspath(op.join(
+        op.dirname(arcana.__file__), '..', 'test'))
 
     @classproperty
     @classmethod
     def test_data_dir(cls):
-        return os.path.join(cls.BASE_TEST_DIR, 'data')
+        return op.join(cls.BASE_TEST_DIR, 'data')
 
     @classproperty
     @classmethod
     def unittest_root(cls):
-        return os.path.join(cls.BASE_TEST_DIR, 'unittests')
+        return op.join(cls.BASE_TEST_DIR, 'unittests')
 
     @classproperty
     @classmethod
     def archive_path(cls):
-        return os.path.join(cls.test_data_dir, 'archive')
+        return op.join(cls.test_data_dir, 'archive')
 
     @classproperty
     @classmethod
     def work_path(cls):
-        return os.path.join(cls.test_data_dir, 'work')
+        return op.join(cls.test_data_dir, 'work')
 
-    @classproperty
-    @classmethod
-    def base_cache_path(cls):
-        return os.path.join(cls.test_data_dir, 'cache')
-
-    def setUp(self, cache_dir=None):
+    def setUp(self):
         self.reset_dirs()
-        self.add_session(self.project_dir, self.SUBJECT, self.VISIT,
-                         cache_dir=cache_dir)
+        self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
+                         fields=getattr(self, 'INPUT_FIELDS', None))
 
-    def add_session(self, project_dir, subject, session,
-                    required_datasets=None, cache_dir=None):
-        if cache_dir is None:
-            cache_dir = self.cache_dir
-        session_dir = os.path.join(project_dir, subject, session)
+    def add_session(self, datasets=None, fields=None, project_dir=None,
+                    subject=SUBJECT, visit=VISIT):
+        if project_dir is None:
+            project_dir = self.project_dir
+        if datasets is None:
+            datasets = {}
+        session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER, self.xnat_session_name,
-                overwrite=False)
-        except Exception:
-            if os.path.exists(cache_dir):
-                warnings.warn(
-                    "Could not download datasets from '{}_{}' session on "
-                    "MBI-XNAT, attempting with what has already been "
-                    "downloaded:\n\n{}"
-                    .format(self.XNAT_TEST_PROJECT, self.name, format_exc()))
-            else:
-                raise
-        for f in os.listdir(cache_dir):
-            if required_datasets is None or f in required_datasets:
-                src_path = os.path.join(cache_dir, f)
-                dst_path = os.path.join(session_dir, f)
-                if os.path.isdir(src_path):
-                    shutil.copytree(src_path, dst_path)
-                elif os.path.isfile(src_path):
-                    shutil.copy(src_path, dst_path)
+        for name, dataset in datasets.items():
+            if isinstance(dataset, Dataset):
+                dst_path = op.join(session_dir,
+                                   name + dataset.format.ext_str)
+                if dataset.format.directory:
+                    shutil.copytree(dataset.path, dst_path)
                 else:
-                    assert False
-        # Download reference
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER,
-                self.xnat_session_name + self.REF_SUFFIX,
-                overwrite=False)
-        except Exception:
-            pass
+                    shutil.copy(dataset.path, dst_path)
+            elif isinstance(dataset, basestring):
+                # Write string as text file
+                with open(op.join(session_dir,
+                                  name + '.txt'), 'w') as f:
+                        f.write(dataset)
+            else:
+                raise ArcanaError(
+                    "Unrecognised dataset ({}) in {} test setup. Can "
+                    "be either a Dataset or basestring object"
+                    .format(dataset, self))
+        if fields is not None:
+            with open(op.join(session_dir,
+                                   FIELDS_FNAME), 'w') as f:
+                json.dump(fields, f)
 
     def delete_project(self, project_dir):
         # Clean out any existing archive files
@@ -126,8 +113,8 @@ class BaseTestCase(TestCase):
         self.create_dirs()
 
     def create_dirs(self):
-        for d in (self.project_dir, self.work_dir, self.cache_dir):
-            if not os.path.exists(d):
+        for d in (self.project_dir, self.work_dir):
+            if not op.exists(d):
                 os.makedirs(d)
 
     @property
@@ -139,10 +126,6 @@ class BaseTestCase(TestCase):
         return self.get_session_dir(self.SUBJECT, self.VISIT)
 
     @property
-    def cache_dir(self):
-        return os.path.join(self.base_cache_path, self.name)
-
-    @property
     def archive(self):
         return LocalArchive(self.project_dir)
 
@@ -152,11 +135,11 @@ class BaseTestCase(TestCase):
 
     @property
     def project_dir(self):
-        return os.path.join(self.archive_path, self.name)
+        return op.join(self.archive_path, self.name)
 
     @property
     def work_dir(self):
-        return os.path.join(self.work_path, self.name)
+        return op.join(self.work_path, self.name)
 
     @property
     def name(self):
@@ -172,11 +155,11 @@ class BaseTestCase(TestCase):
         be used for storing test data on XNAT and creating unique work/project
         dirs
         """
-        module_path = os.path.abspath(sys.modules[cls.__module__].__file__)
+        module_path = op.abspath(sys.modules[cls.__module__].__file__)
         rel_module_path = module_path[(len(self.unittest_root) + 1):]
-        path_parts = rel_module_path.split(os.path.sep)
+        path_parts = rel_module_path.split(op.sep)
         module_name = (''.join(path_parts[:-1]) +
-                       os.path.splitext(path_parts[-1])[0][5:]).upper()
+                       op.splitext(path_parts[-1])[0][5:]).upper()
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
@@ -217,11 +200,25 @@ class BaseTestCase(TestCase):
         out_path = self.output_file_path(
             dataset_name, study_name, subject, visit, frequency)
         self.assertTrue(
-            os.path.exists(out_path),
+            op.exists(out_path),
             ("Dataset '{}' (expected at '{}') was not created by unittest"
              " ('{}' found in '{}' instead)".format(
                  dataset_name, out_path, "', '".join(os.listdir(output_dir)),
                  output_dir)))
+
+    def assertContentsEqual(self, dataset, reference, context=None):
+        with open(dataset.path) as f:
+            contents = f.read()
+        msg = ("Contents of {} ({}) do not match reference ({})"
+               .format(dataset, contents, reference))
+        if context is not None:
+            msg += 'for ' + context
+        self.assertEqual(contents, str(reference), msg)
+
+    def assertCreated(self, dataset):
+        self.assertTrue(
+            os.path.exists(dataset.path),
+            "{} was not created".format(dataset))
 
     def assertField(self, name, ref_value, study_name, subject=None,
                     visit=None, frequency='per_session',
@@ -229,7 +226,7 @@ class BaseTestCase(TestCase):
         esc_name = study_name + '_' + name
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
-            with open(os.path.join(output_dir, FIELDS_FNAME)) as f:
+            with open(op.join(output_dir, FIELDS_FNAME)) as f:
                 fields = json.load(f)
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -259,22 +256,6 @@ class BaseTestCase(TestCase):
             msg += ':\n' + error_msg
         self.assertTrue(filecmp.cmp(dataset1.path, dataset2.path,
                                     shallow=False), msg=msg)
-
-#     def assertImagesMatch(self, output, ref, study_name):
-#         out_path = self.output_file_path(output, study_name)
-#         ref_path = self.ref_file_path(ref)
-#         try:
-#             sp.check_output('diff {}.nii {}.nii'
-#                             .format(out_path, ref_path), shell=True)
-#         except sp.CalledProcessError as e:
-#             if e.output == "Binary files {} and {} differ\n".format(
-#                     out_path, ref_path):
-#                 self.assert_(
-#                     False,
-#                     "Images {} and {} do not match exactly".format(out_path,
-#                                                                    ref_path))
-#             else:
-#                 raise
 
     def assertStatEqual(self, stat, dataset_name, target, study_name,
                         subject=None, visit=None,
@@ -325,40 +306,40 @@ class BaseTestCase(TestCase):
         if frequency == 'per_session':
             assert subject is not None
             assert visit is not None
-            path = os.path.join(self.project_dir, subject, visit)
+            path = op.join(self.project_dir, subject, visit)
         elif frequency == 'per_subject':
             assert subject is not None
             assert visit is None
-            path = os.path.join(
+            path = op.join(
                 self.project_dir, subject, SUMMARY_NAME)
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
-            path = os.path.join(self.project_dir, SUMMARY_NAME, visit)
+            path = op.join(self.project_dir, SUMMARY_NAME, visit)
         elif frequency == 'per_project':
             assert subject is None
             assert visit is None
-            path = os.path.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
+            path = op.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
         else:
             assert False
-        return os.path.abspath(path)
+        return op.abspath(path)
 
     @classmethod
     def remove_generated_files(cls, study=None):
         # Remove derived datasets
         for fname in os.listdir(cls.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
-                os.remove(os.path.join(cls.get_session_dir(), fname))
+                os.remove(op.join(cls.get_session_dir(), fname))
 
     def output_file_path(self, fname, study_name, subject=None, visit=None,
                          frequency='per_session', **kwargs):
-        return os.path.join(
+        return op.join(
             self.get_session_dir(subject=subject, visit=visit,
                                  frequency=frequency, **kwargs),
             '{}_{}'.format(study_name, fname))
 
     def ref_file_path(self, fname, subject=None, session=None):
-        return os.path.join(self.session_dir, fname,
+        return op.join(self.session_dir, fname,
                             subject=subject, session=session)
 
 
@@ -366,74 +347,41 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     SUMMARY_NAME = LOCAL_SUMMARY_NAME
 
-    def setUp(self, cache_dir=None):
+    def setUp(self):
         self.reset_dirs()
-        self.add_sessions(self.project_dir, cache_dir=cache_dir)
+        self.add_sessions(self.project_dir)
 
-    def add_sessions(self, project_dir, required_datasets=None,
-                     cache_dir=None):
-        if cache_dir is None:
-            cache_dir = self.cache_dir
-        try:
-            download_all_datasets(
-                cache_dir, self.SERVER, self.xnat_session_name,
-                overwrite=False)
-        except XNATError as e:
-            if os.path.exists(cache_dir):
-                warnings.warn(
-                    "Could not download datasets from '{}_{}' session on "
-                    "MBI-XNAT, attempting with what has already been "
-                    "downloaded:\n\n{}"
-                    .format(self.XNAT_TEST_PROJECT, self.name, e))
-            else:
-                raise
-        fnames = os.listdir(cache_dir)
-        for fname in fnames:
-            if fname == FIELDS_FNAME:
-                continue
-            if fname.startswith('.'):
-                continue
-            subj_id, visit_id, dataset = self._extract_ids(fname)
-            if required_datasets is None or dataset in required_datasets:
-                session_dir = self.make_session_dir(
-                    project_dir, subj_id, visit_id)
-                src_path = os.path.join(cache_dir, fname)
-                dst_path = os.path.join(session_dir, dataset)
-                if os.path.isdir(src_path):
-                    shutil.copytree(src_path, dst_path)
-                elif os.path.isfile(src_path):
-                    shutil.copy(src_path, dst_path)
-                else:
-                    assert False
-        if FIELDS_FNAME in fnames:
-            fields = defaultdict(lambda: defaultdict(dict))
-            with open(os.path.join(cache_dir, FIELDS_FNAME), 'rb') as f:
-                all_fields = json.load(f)
-            for name, value in all_fields.items():
-                subj_id, visit_id, field_name = self._extract_ids(name)
-                fields[subj_id][visit_id][field_name] = value
-            for subj_id, subj_fields in fields.items():
-                for visit_id, visit_fields in subj_fields.items():
-                    session_dir = self.make_session_dir(
-                        project_dir, subj_id, visit_id)
-                    with open(os.path.join(session_dir, FIELDS_FNAME),
-                              'w') as f:
-                        json.dump(visit_fields, f)
-
-    def _extract_ids(self, name):
-        parts = name.split('_')
-        if len(parts) < 3:
-            raise ArcanaError(
-                "'{}' in multi-subject test session '{}' needs to be "
-                "prepended with subject and session IDs (delimited by "
-                "'_')".format(name, self.xnat_session_name))
-        subj_id, visit_id = parts[:2]
-        if subj_id.lower() == SUMMARY_NAME.lower():
-            subj_id = SUMMARY_NAME
-        if visit_id.lower() == SUMMARY_NAME.lower():
-            visit_id = SUMMARY_NAME
-        basename = '_'.join(parts[2:])
-        return subj_id, visit_id, basename
+    def add_sessions(self, project_dir):
+        self.local_tree = deepcopy(self.input_tree)
+        if project_dir is not None:  # For local archive
+            proj_summ_path = op.join(project_dir, SUMMARY_NAME,
+                                     SUMMARY_NAME)
+            for dataset in self.local_tree.datasets:
+                self.init_dataset(dataset, op.join(proj_summ_path,
+                                                   dataset.fname()))
+            self.init_fields(proj_summ_path, self.local_tree.fields)
+            for visit in self.local_tree.visits:
+                visit_summ_path = op.join(project_dir, SUMMARY_NAME,
+                                          visit.id)
+                for dataset in visit.datasets:
+                    self.init_dataset(dataset, op.join(visit_summ_path,
+                                                       dataset.fname()))
+                self.init_fields(visit_summ_path, visit.fields)
+            for subject in self.local_tree.subjects:
+                subj_summ_path = op.join(project_dir, subject.id,
+                                         SUMMARY_NAME)
+                for dataset in subject.datasets:
+                    self.init_dataset(dataset, op.join(subj_summ_path,
+                                                       dataset.fname()))
+                self.init_fields(subj_summ_path, subject.fields)
+                for session in subject.sessions:
+                    sess_path = op.join(project_dir, session.subject_id,
+                                        session.visit_id)
+                    for dataset in session.datasets:
+                        self.init_dataset(
+                            dataset, op.join(sess_path,
+                                             dataset.fname()))
+                    self.init_fields(sess_path, session.fields)
 
     @property
     def subject_ids(self):
@@ -441,7 +389,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 if d != self.SUMMARY_NAME)
 
     def visit_ids(self, subject_id):
-        subject_dir = os.path.join(self.project_dir, subject_id)
+        subject_dir = op.join(self.project_dir, subject_id)
         return (d for d in os.listdir(subject_dir)
                 if d != self.SUMMARY_NAME)
 
@@ -452,16 +400,26 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
             subject=subject, visit=visit, frequency=frequency)
 
-    @classmethod
-    def make_session_dir(cls, project_dir, subj_id, visit_id):
-        session_dir = os.path.join(project_dir, subj_id,
-                                   visit_id)
+    def init_dataset(self, dataset, path):
+        dataset._path = path
+        dataset._archive = self.archive
+        self._make_dir(op.dirname(dataset.path))
+        with open(dataset.path, 'w') as f:
+            f.write(str(self.DATASET_CONTENTS[dataset.name]))
+
+    def init_fields(self, dpath, fields):
+        self._make_dir(dpath)
+        dct = {f.name: f.value for f in fields}
+        with open(op.join(dpath, FIELDS_FNAME), 'w') as f:
+            json.dump(dct, f)
+
+    def _make_dir(self, path):
         try:
-            os.makedirs(session_dir)
+            os.makedirs(path)
         except OSError as e:
             if e.errno != errno.EEXIST:
                 raise
-        return session_dir
+        return path
 
 
 class DummyTestCase(BaseTestCase):
@@ -517,3 +475,99 @@ class TestTestCase(BaseTestCase):
 
     def test_test(self):
         pass
+
+
+class TestMathInputSpec(TraitedSpec):
+
+    x = traits.Either(traits.Float(), traits.File(exists=True),
+                      traits.List(traits.Float),
+                      traits.List(traits.File(exists=True)),
+                      mandatory=True, desc='first arg')
+    y = traits.Either(traits.Float(), traits.File(exists=True),
+                      mandatory=False, desc='second arg')
+    op = traits.Str(mandatory=True, desc='operation')
+
+    z = traits.File(genfile=True, mandatory=False,
+                    desc="Name for output file")
+
+    as_file = traits.Bool(False, desc="Whether to write as a file",
+                          usedefault=True)
+
+
+class TestMathOutputSpec(TraitedSpec):
+
+    z = traits.Either(traits.Float(), traits.File(exists=True),
+                      'output')
+
+
+class TestMath(BaseInterface):
+    """
+    A basic interface to test out the pipeline infrastructure
+    """
+
+    input_spec = TestMathInputSpec
+    output_spec = TestMathOutputSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        x = self.inputs.x
+        y = self.inputs.y
+        if isinstance(x, basestring):
+            x = self._load_file(x)
+        if isinstance(y, basestring):
+            y = self._load_file(y)
+        oper = getattr(operator, self.inputs.op)
+        if isdefined(y):
+            z = oper(x, y)
+        elif isinstance(x, list):
+            if isinstance(x[0], basestring):
+                x = [self._load_file(u) for u in x]
+            z = reduce(oper, x)
+        else:
+            raise Exception(
+                "If 'y' is not provided then x needs to be list")
+        outputs = self.output_spec().get()
+        if self.inputs.as_file:
+            z_path = op.abspath(self._gen_z_fname())
+            with open(z_path, 'w') as f:
+                f.write(str(z))
+            outputs['z'] = z_path
+        else:
+            outputs['z'] = z
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'z':
+            fname = self._gen_z_fname()
+        else:
+            assert False
+        return fname
+
+    def _gen_z_fname(self):
+        if isdefined(self.inputs.z):
+            fname = self.inputs.z
+        else:
+            fname = 'z.txt'
+        return fname
+
+    @classmethod
+    def _load_file(self, path):
+        with open(path) as f:
+            return float(f.read())
+
+
+if __name__ == '__main__':
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        path = f.name
+        f.write('10.0')
+    math = TestMath()
+    math.inputs.x = 1.0
+    math.inputs.y = 20  # path
+    math.inputs.op = 'add'
+    result = math.run()
+    print(result.outputs.z)
+    with open(result.outputs.z) as f:
+        print(f.read())
