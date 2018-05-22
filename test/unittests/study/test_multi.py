@@ -1,10 +1,8 @@
 from arcana.testing import BaseTestCase as TestCase
 import subprocess as sp
-from arcana.requirement import Requirement
 from arcana.interfaces.utils import Merge
 from arcana.dataset import DatasetMatch, DatasetSpec
-from nianalysis.data_format import mrtrix_format
-from nianalysis.requirement import mrtrix3_req
+from arcana.data_format import text_format
 from arcana.option import OptionSpec
 from arcana.study.base import Study
 from arcana.study.multi import (
@@ -12,7 +10,6 @@ from arcana.study.multi import (
 from arcana.interfaces.mrtrix import MRMath
 from arcana.option import Option
 from arcana.node import ArcanaNodeMixin  # @IgnorePep8
-from arcana.exception import ArcanaModulesNotInstalledException  # @IgnorePep8
 
 
 class StudyA(Study):
@@ -20,9 +17,9 @@ class StudyA(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format),
-        DatasetSpec('z', mrtrix_format, 'pipeline_alpha')]
+        DatasetSpec('x', text_format),
+        DatasetSpec('y', text_format),
+        DatasetSpec('z', text_format, 'pipeline_alpha')]
 
     add_option_specs = [
         OptionSpec('o1', 1),
@@ -32,16 +29,15 @@ class StudyA(Study):
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_alpha',
-            inputs=[DatasetSpec('x', mrtrix_format),
-                    DatasetSpec('y', mrtrix_format)],
-            outputs=[DatasetSpec('z', mrtrix_format)],
+            inputs=[DatasetSpec('x', text_format),
+                    DatasetSpec('y', text_format)],
+            outputs=[DatasetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
             **kwargs)
         merge = pipeline.create_node(Merge(2), name="merge")
-        mrmath = pipeline.create_node(MRMath(), name="mrmath",
-                                      requirements=[mrtrix3_req])
+        mrmath = pipeline.create_node(MRMath(), name="mrmath")
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('x', merge, 'in1')
@@ -58,10 +54,10 @@ class StudyB(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('w', mrtrix_format),
-        DatasetSpec('x', mrtrix_format),
-        DatasetSpec('y', mrtrix_format, 'pipeline_beta'),
-        DatasetSpec('z', mrtrix_format, 'pipeline_beta')]
+        DatasetSpec('w', text_format),
+        DatasetSpec('x', text_format),
+        DatasetSpec('y', text_format, 'pipeline_beta'),
+        DatasetSpec('z', text_format, 'pipeline_beta')]
 
     add_option_specs = [
         OptionSpec('o1', 10),
@@ -72,10 +68,10 @@ class StudyB(Study):
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_beta',
-            inputs=[DatasetSpec('w', mrtrix_format),
-                    DatasetSpec('x', mrtrix_format)],
-            outputs=[DatasetSpec('y', mrtrix_format),
-                     DatasetSpec('z', mrtrix_format)],
+            inputs=[DatasetSpec('w', text_format),
+                    DatasetSpec('x', text_format)],
+            outputs=[DatasetSpec('y', text_format),
+                     DatasetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
@@ -83,14 +79,11 @@ class StudyB(Study):
         merge1 = pipeline.create_node(Merge(2), name='merge1')
         merge2 = pipeline.create_node(Merge(2), name='merge2')
         merge3 = pipeline.create_node(Merge(2), name='merge3')
-        mrsum1 = pipeline.create_node(MRMath(), name="mrsum1",
-                                      requirements=[mrtrix3_req])
+        mrsum1 = pipeline.create_node(MRMath(), name="mrsum1")
         mrsum1.inputs.operation = 'sum'
-        mrsum2 = pipeline.create_node(MRMath(), name="mrsum2",
-                                      requirements=[mrtrix3_req])
+        mrsum2 = pipeline.create_node(MRMath(), name="mrsum2")
         mrsum2.inputs.operation = 'sum'
-        mrproduct = pipeline.create_node(MRMath(), name="mrproduct",
-                                         requirements=[mrtrix3_req])
+        mrproduct = pipeline.create_node(MRMath(), name="mrproduct")
         mrproduct.inputs.operation = pipeline.option('product_op')
         # Connect inputs
         pipeline.connect_input('w', merge1, 'in1')
@@ -132,12 +125,12 @@ class FullMultiStudy(MultiStudy):
                       'required_op': 'product_op'})]
 
     add_data_specs = [
-        DatasetSpec('a', mrtrix_format),
-        DatasetSpec('b', mrtrix_format),
-        DatasetSpec('c', mrtrix_format),
-        DatasetSpec('d', mrtrix_format, 'pipeline_alpha_trans'),
-        DatasetSpec('e', mrtrix_format, 'pipeline_beta_trans'),
-        DatasetSpec('f', mrtrix_format, 'pipeline_beta_trans')]
+        DatasetSpec('a', text_format),
+        DatasetSpec('b', text_format),
+        DatasetSpec('c', text_format),
+        DatasetSpec('d', text_format, 'pipeline_alpha_trans'),
+        DatasetSpec('e', text_format, 'pipeline_beta_trans'),
+        DatasetSpec('f', text_format, 'pipeline_beta_trans')]
 
     add_option_specs = [
         OptionSpec('p1', 100),
@@ -164,9 +157,9 @@ class PartialMultiStudy(MultiStudy):
                      {'b': 'w', 'c': 'x', 'p1': 'o1'})]
 
     add_data_specs = [
-        DatasetSpec('a', mrtrix_format),
-        DatasetSpec('b', mrtrix_format),
-        DatasetSpec('c', mrtrix_format)]
+        DatasetSpec('a', text_format),
+        DatasetSpec('b', text_format),
+        DatasetSpec('c', text_format)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -185,7 +178,7 @@ class MultiMultiStudy(MultiStudy):
         SubStudySpec('partial', PartialMultiStudy)]
 
     add_data_specs = [
-        DatasetSpec('g', mrtrix_format, 'combined_pipeline')]
+        DatasetSpec('g', text_format, 'combined_pipeline')]
 
     add_option_specs = [
         OptionSpec('combined_op', 'sum')]
@@ -193,18 +186,17 @@ class MultiMultiStudy(MultiStudy):
     def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='combined',
-            inputs=[DatasetSpec('ss1_z', mrtrix_format),
-                    DatasetSpec('full_e', mrtrix_format),
-                    DatasetSpec('partial_ss2_z', mrtrix_format)],
-            outputs=[DatasetSpec('g', mrtrix_format)],
+            inputs=[DatasetSpec('ss1_z', text_format),
+                    DatasetSpec('full_e', text_format),
+                    DatasetSpec('partial_ss2_z', text_format)],
+            outputs=[DatasetSpec('g', text_format)],
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             version=1,
             citations=[],
             **kwargs)
         merge = pipeline.create_node(Merge(3), name="merge")
-        mrmath = pipeline.create_node(MRMath(), name="mrmath",
-                                      requirements=[mrtrix3_req])
+        mrmath = pipeline.create_node(MRMath(), name="mrmath")
         mrmath.inputs.operation = pipeline.option('combined_op')
         # Connect inputs
         pipeline.connect_input('ss1_z', merge, 'in1')
@@ -219,22 +211,12 @@ class MultiMultiStudy(MultiStudy):
 
 class TestMulti(TestCase):
 
-    def setUp(self):
-        super(TestMulti, self).setUp()
-        # Calculate MRtrix module required for 'mrstats' commands
-        try:
-            self.mrtrix_req = Requirement.best_requirement(
-                [mrtrix3_req], ArcanaNodeMixin.available_modules(),
-                ArcanaNodeMixin.preloaded_modules())
-        except ArcanaModulesNotInstalledException:
-            self.mrtrix_req = None
-
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full',
-            [DatasetMatch('a', mrtrix_format, 'ones'),
-             DatasetMatch('b', mrtrix_format, 'ones'),
-             DatasetMatch('c', mrtrix_format, 'ones')],
+            [DatasetMatch('a', text_format, 'ones'),
+             DatasetMatch('b', text_format, 'ones'),
+             DatasetMatch('c', text_format, 'ones')],
             options=[Option('required_op', 'product')])
         d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
         e = study.data('e')[0]
@@ -278,9 +260,9 @@ class TestMulti(TestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial',
-            [DatasetMatch('a', mrtrix_format, 'ones'),
-             DatasetMatch('b', mrtrix_format, 'ones'),
-             DatasetMatch('c', mrtrix_format, 'ones')],
+            [DatasetMatch('a', text_format, 'ones'),
+             DatasetMatch('b', text_format, 'ones'),
+             DatasetMatch('c', text_format, 'ones')],
             options=[Option('ss2_product_op', 'product')])
         ss1_z = study.data('ss1_z')[0]
         ss2_y = study.data('ss2_y')[0]
@@ -324,14 +306,14 @@ class TestMulti(TestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [DatasetMatch('ss1_x', mrtrix_format, 'ones'),
-             DatasetMatch('ss1_y', mrtrix_format, 'ones'),
-             DatasetMatch('full_a', mrtrix_format, 'ones'),
-             DatasetMatch('full_b', mrtrix_format, 'ones'),
-             DatasetMatch('full_c', mrtrix_format, 'ones'),
-             DatasetMatch('partial_a', mrtrix_format, 'ones'),
-             DatasetMatch('partial_b', mrtrix_format, 'ones'),
-             DatasetMatch('partial_c', mrtrix_format, 'ones')],
+            [DatasetMatch('ss1_x', text_format, 'ones'),
+             DatasetMatch('ss1_y', text_format, 'ones'),
+             DatasetMatch('full_a', text_format, 'ones'),
+             DatasetMatch('full_b', text_format, 'ones'),
+             DatasetMatch('full_c', text_format, 'ones'),
+             DatasetMatch('partial_a', text_format, 'ones'),
+             DatasetMatch('partial_b', text_format, 'ones'),
+             DatasetMatch('partial_c', text_format, 'ones')],
             options=[Option('full_required_op', 'product'),
                      Option('partial_ss2_product_op', 'product')])
         g = study.data('g')[0]
@@ -388,14 +370,14 @@ class TestMulti(TestCase):
         # 'product'
         missing_option_study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [DatasetMatch('ss1_x', mrtrix_format, 'ones'),
-             DatasetMatch('ss1_y', mrtrix_format, 'ones'),
-             DatasetMatch('full_a', mrtrix_format, 'ones'),
-             DatasetMatch('full_b', mrtrix_format, 'ones'),
-             DatasetMatch('full_c', mrtrix_format, 'ones'),
-             DatasetMatch('partial_a', mrtrix_format, 'ones'),
-             DatasetMatch('partial_b', mrtrix_format, 'ones'),
-             DatasetMatch('partial_c', mrtrix_format, 'ones')],
+            [DatasetMatch('ss1_x', text_format, 'ones'),
+             DatasetMatch('ss1_y', text_format, 'ones'),
+             DatasetMatch('full_a', text_format, 'ones'),
+             DatasetMatch('full_b', text_format, 'ones'),
+             DatasetMatch('full_c', text_format, 'ones'),
+             DatasetMatch('partial_a', text_format, 'ones'),
+             DatasetMatch('partial_b', text_format, 'ones'),
+             DatasetMatch('partial_c', text_format, 'ones')],
             options=[Option('partial_ss2_product_op', 'product')])
         self.assertRaises(
             RuntimeError,

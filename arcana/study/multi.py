@@ -59,8 +59,8 @@ class MultiStudy(Study):
                 SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'})]
 
             add_data_specs = [
-                DatasetSpec('t1', nifti_gz_format'),
-                DatasetSpec('t2', nifti_gz_format')]
+                DatasetSpec('t1', text_format'),
+                DatasetSpec('t2', text_format')]
     add_data_specs : List[DatasetSpec|FieldSpec]
         Add's that data specs to the 'data_specs' class attribute,
         which is a dictionary that maps the names of datasets that are

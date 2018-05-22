@@ -28,6 +28,14 @@ def date_split(version_str):
         raise ArcanaRequirementVersionException(str(e))
 
 
+def matlab_version_split(version_str):
+    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
+    if match is None:
+        raise ArcanaRequirementVersionException(
+            "Do not understand Matlab version '{}'".format(version_str))
+    return int(match.group(1)), match.group(2).lower()
+
+
 class Requirement(object):
     """
     Defines a software package that is required by a processing Node, which is

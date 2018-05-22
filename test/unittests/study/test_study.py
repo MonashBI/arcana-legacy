@@ -2,11 +2,9 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 import subprocess as sp  # @IgnorePep8
-from nianalysis.requirement import Requirement, mrtrix3_req
 import cPickle as pkl
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from nianalysis.data_format import (
-    nifti_gz_format, mrtrix_format, text_format)  # @IgnorePep8
+from arcana.data_format import text_format  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
@@ -29,20 +27,20 @@ class TestStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('start', nifti_gz_format),
-        DatasetSpec('ones_slice', mrtrix_format),
-        DatasetSpec('derived1_1', nifti_gz_format, 'pipeline1'),
-        DatasetSpec('derived1_2', nifti_gz_format, 'pipeline1'),
-        DatasetSpec('derived2', nifti_gz_format, 'pipeline2'),
-        DatasetSpec('derived3', nifti_gz_format, 'pipeline3'),
-        DatasetSpec('derived4', nifti_gz_format, 'pipeline4'),
-        DatasetSpec('subject_summary', mrtrix_format,
+        DatasetSpec('start', text_format),
+        DatasetSpec('ones_slice', text_format),
+        DatasetSpec('derived1_1', text_format, 'pipeline1'),
+        DatasetSpec('derived1_2', text_format, 'pipeline1'),
+        DatasetSpec('derived2', text_format, 'pipeline2'),
+        DatasetSpec('derived3', text_format, 'pipeline3'),
+        DatasetSpec('derived4', text_format, 'pipeline4'),
+        DatasetSpec('subject_summary', text_format,
                     'subject_summary_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_summary', mrtrix_format,
+        DatasetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_summary', mrtrix_format,
+        DatasetSpec('project_summary', text_format,
                     'project_summary_pipeline',
                     frequency='per_project'),
         DatasetSpec('subject_ids', text_format,
@@ -58,9 +56,9 @@ class TestStudy(Study):
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline1',
-            inputs=[DatasetSpec('start', nifti_gz_format)],
-            outputs=[DatasetSpec('derived1_1', nifti_gz_format),
-                     DatasetSpec('derived1_2', nifti_gz_format)],
+            inputs=[DatasetSpec('start', text_format)],
+            outputs=[DatasetSpec('derived1_1', text_format),
+                     DatasetSpec('derived1_2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -83,9 +81,9 @@ class TestStudy(Study):
     def pipeline2(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline2',
-            inputs=[DatasetSpec('start', nifti_gz_format),
-                    DatasetSpec('derived1_1', nifti_gz_format)],
-            outputs=[DatasetSpec('derived2', nifti_gz_format)],
+            inputs=[DatasetSpec('start', text_format),
+                    DatasetSpec('derived1_1', text_format)],
+            outputs=[DatasetSpec('derived2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -93,8 +91,7 @@ class TestStudy(Study):
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline2")
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
+        mrmath = pipeline.create_node(MRCat(), name="mrcat")
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('start', mrmath, 'first_scan')
@@ -106,8 +103,8 @@ class TestStudy(Study):
     def pipeline3(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline3',
-            inputs=[DatasetSpec('derived2', nifti_gz_format)],
-            outputs=[DatasetSpec('derived3', nifti_gz_format)],
+            inputs=[DatasetSpec('derived2', text_format)],
+            outputs=[DatasetSpec('derived3', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -123,15 +120,14 @@ class TestStudy(Study):
     def pipeline4(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline4',
-            inputs=[DatasetSpec('derived1_2', nifti_gz_format),
-                    DatasetSpec('derived3', nifti_gz_format)],
-            outputs=[DatasetSpec('derived4', nifti_gz_format)],
+            inputs=[DatasetSpec('derived1_2', text_format),
+                    DatasetSpec('derived3', text_format)],
+            outputs=[DatasetSpec('derived4', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
             **kwargs)
-        mrmath = pipeline.create_node(MRCat(), name="mrcat",
-                                      requirements=[mrtrix3_req])
+        mrmath = pipeline.create_node(MRCat(), name="mrcat")
         mrmath.inputs.axis = 0
         # Connect inputs
         pipeline.connect_input('derived1_2', mrmath, 'first_scan')
@@ -177,14 +173,14 @@ class TestStudy(Study):
     def subject_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="subject_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('subject_summary', mrtrix_format)],
+            inputs=[DatasetSpec('ones_slice', text_format)],
+            outputs=[DatasetSpec('subject_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
             **kwargs)
         mrmath = pipeline.create_join_visits_node(
-            MRMath(), 'in_files', 'mrmath', requirements=[mrtrix3_req])
+            MRMath(), 'in_files', 'mrmath')
         mrmath.inputs.operation = 'sum'
         # Connect inputs
         pipeline.connect_input('ones_slice', mrmath, 'in_files')
@@ -196,8 +192,8 @@ class TestStudy(Study):
     def visit_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="visit_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('visit_summary', mrtrix_format)],
+            inputs=[DatasetSpec('ones_slice', text_format)],
+            outputs=[DatasetSpec('visit_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
@@ -215,8 +211,8 @@ class TestStudy(Study):
     def project_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="project_summary",
-            inputs=[DatasetSpec('ones_slice', mrtrix_format)],
-            outputs=[DatasetSpec('project_summary', mrtrix_format)],
+            inputs=[DatasetSpec('ones_slice', text_format)],
+            outputs=[DatasetSpec('project_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
@@ -283,16 +279,9 @@ class TestRunPipeline(BaseTestCase):
                 self.add_session(self.project_dir, subject_id, visit_id)
         self.study = self.create_study(
             TestStudy, 'dummy', inputs=[
-                DatasetMatch('start', nifti_gz_format, 'start'),
-                DatasetMatch('ones_slice', mrtrix_format, 'ones_slice')],
+                DatasetMatch('start', text_format, 'start'),
+                DatasetMatch('ones_slice', text_format, 'ones_slice')],
             options={'pipeline_option': True})
-        # Calculate MRtrix module required for 'mrstats' commands
-        try:
-            self.mrtrix_req = Requirement.best_requirement(
-                [mrtrix3_req], ArcanaNodeMixin.available_modules(),
-                ArcanaNodeMixin.preloaded_modules())
-        except ArcanaModulesNotInstalledException:
-            self.mrtrix_req = None
 
     def tearDown(self):
         try:
@@ -397,24 +386,23 @@ class ExistingPrereqStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('start', mrtrix_format),
-        DatasetSpec('tens', mrtrix_format, 'tens_pipeline'),
-        DatasetSpec('hundreds', mrtrix_format, 'hundreds_pipeline'),
-        DatasetSpec('thousands', mrtrix_format, 'thousands_pipeline')]
+        DatasetSpec('start', text_format),
+        DatasetSpec('tens', text_format, 'tens_pipeline'),
+        DatasetSpec('hundreds', text_format, 'hundreds_pipeline'),
+        DatasetSpec('thousands', text_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
             name=output,
-            inputs=[DatasetSpec(input, mrtrix_format)],
-            outputs=[DatasetSpec(output, mrtrix_format)],
+            inputs=[DatasetSpec(input, text_format)],
+            outputs=[DatasetSpec(output, text_format)],
             desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             version=1,
             citations=[])
         # Nodes
         operands = pipeline.create_node(Merge(2), name='merge')
-        mult = pipeline.create_node(MRCalc(), name="convert1",
-                                    requirements=[mrtrix3_req])
+        mult = pipeline.create_node(MRCalc(), name="convert1")
         operands.inputs.in2 = incr
         mult.inputs.operation = 'add'
         # Connect inputs
@@ -529,7 +517,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.study_name, inputs=[
-                DatasetMatch('start', mrtrix_format, 'ones')])
+                DatasetMatch('start', text_format, 'ones')])
         study.data('thousands')
         targets = {
             'subject1': {
@@ -719,7 +707,7 @@ class TestGeneratedPickle(BaseTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.study_name, inputs=[
-#                 DatasetMatch('ones', mrtrix_format, 'ones')])
+#                 DatasetMatch('ones', text_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
 #             'subject1': {

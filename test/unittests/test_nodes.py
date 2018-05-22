@@ -4,9 +4,7 @@ from arcana.dataset import DatasetSpec, DatasetMatch
 from arcana.study.base import Study, StudyMetaClass
 from arcana.testing import BaseTestCase
 from unittest import TestCase
-from nianalysis.data_format import nifti_gz_format
-from nianalysis.requirement import (
-    dcm2niix_req, mrtrix3_req)
+from arcana.data_format import text_format
 from arcana.node import Node
 from arcana.requirement import Requirement
 
@@ -20,14 +18,14 @@ class RequirementsStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('ones', nifti_gz_format),
-        DatasetSpec('twos', nifti_gz_format, 'pipeline')]
+        DatasetSpec('ones', text_format),
+        DatasetSpec('twos', text_format, 'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('ones', nifti_gz_format)],
-            outputs=[DatasetSpec('twos', nifti_gz_format)],
+            inputs=[DatasetSpec('ones', text_format)],
+            outputs=[DatasetSpec('twos', text_format)],
             desc=("A pipeline that tests loading of requirements"),
             version=1,
             citations=[],)
@@ -51,7 +49,7 @@ class TestModuleLoad(BaseTestCase):
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [DatasetMatch('ones', nifti_gz_format, 'ones')])
+            [DatasetMatch('ones', text_format, 'ones')])
         study.data('twos')
         self.assertDatasetCreated('twos.nii.gz', study.name)
 
