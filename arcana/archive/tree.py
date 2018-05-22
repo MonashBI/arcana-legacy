@@ -598,8 +598,8 @@ class Session(object):
             return False
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
-                self.datasets == other.datasets and
-                self.fields == other.fields and
+                self._datasets == other._datasets and
+                self._fields == other._fields and
                 self.derived == other.derived)
 
     def find_mismatch(self, other, indent=''):

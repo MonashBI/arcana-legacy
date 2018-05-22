@@ -1,14 +1,12 @@
 import os.path
 # from nipype import config
 # config.enable_debug_mode()
-import subprocess as sp  # @IgnorePep8
 import cPickle as pkl
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from arcana.data_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.node import ArcanaNodeMixin  # @IgnorePep8
 from arcana.exception import (
     ArcanaNameError, ArcanaCantPickleStudyError)  # @IgnorePep8
 from arcana.study.multi import (
@@ -428,10 +426,11 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             'visit2': ['one', 'ten'],
             'visit3': ['one', 'ten', 'hundred', 'thousand']}}
 
-    DATASET_CONTENTS = {'one': 1, 'ten': 10, 'hundred': 100,
-                        'thousand': 1000}
+    DATASET_CONTENTS = {'one': 1.0, 'study_ten': 10.0,
+                        'study_hundred': 100.0,
+                        'study_thousand': 1000.0}
 
-    STUDY_NAME = 'prereqs'
+    STUDY_NAME = 'study'
 
     @property
     def input_tree(self):
@@ -440,7 +439,9 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id, datasets in visits.items():
                 sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(d, text_format, subject_id=subj_id,
+                    Dataset(('{}_{}'.format(self.STUDY_NAME, d)
+                             if d != 'one' else d),
+                            text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in datasets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
@@ -458,21 +459,21 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study.data('thousand')
         targets = {
             'subject1': {
-                'visit1': 1100,
-                'visit2': 1110,
-                'visit3': 1000},
+                'visit1': 1100.0,
+                'visit2': 1110.0,
+                'visit3': 1000.0},
             'subject2': {
-                'visit1': 1110,
-                'visit2': 1110,
-                'visit3': 1000},
+                'visit1': 1110.0,
+                'visit2': 1110.0,
+                'visit3': 1000.0},
             'subject3': {
-                'visit1': 1111,
-                'visit2': 1110,
-                'visit3': 1000},
+                'visit1': 1111.0,
+                'visit2': 1110.0,
+                'visit3': 1000.0},
             'subject4': {
-                'visit1': 1111,
-                'visit2': 1110,
-                'visit3': 1000}}
+                'visit1': 1111.0,
+                'visit2': 1110.0,
+                'visit3': 1000.0}}
         tree = self.archive.get_tree()
         for subj_id, visits in self.PROJECT_STRUCTURE.iteritems():
             for visit_id in visits:
@@ -482,9 +483,9 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 except ArcanaNameError:
                     dataset = session.dataset('{}_thousand'
                                               .format(self.STUDY_NAME))
-                self.assertContentsEqual(dataset, str(
-                    float(targets[subj_id][visit_id])), "{}:{}".format(
-                        subj_id, visit_id))
+                self.assertContentsEqual(
+                    dataset, targets[subj_id][visit_id],
+                    "{}:{}".format(subj_id, visit_id))
 
 
 test1_format = DataFormat('test1', extension='.t1')
