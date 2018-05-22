@@ -130,7 +130,8 @@ class ExampleStudy(Study):
             citations=[],
             **kwargs)
         math = pipeline.create_node(TestMath(), name="mrcat")
-        math.inputs.op = 'mult'
+        math.inputs.op = 'mul'
+        math.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('derived1_2', math, 'x')
         pipeline.connect_input('derived3', math, 'y')
@@ -201,7 +202,7 @@ class ExampleStudy(Study):
             version=1,
             citations=[],
             **kwargs)
-        math = pipeline.create_join_visits_node(
+        math = pipeline.create_join_subjects_node(
             TestMath(), joinfield='x', name='math')
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -227,6 +228,8 @@ class ExampleStudy(Study):
             TestMath(), joinfield='x', name='math2')
         math1.inputs.op = 'add'
         math2.inputs.op = 'add'
+        math1.inputs.as_file = True
+        math2.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('one', math1, 'x')
         pipeline.connect(math1, 'z', math2, 'x')
@@ -303,7 +306,7 @@ class TestStudy(BaseMultiSubjectTestCase):
                 DatasetMatch('ten', text_format, 'ten')],
             options={'pipeline_option': True})
 
-    def test_pipeline_prerequisites(self):
+    def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
         study.data('derived4')[0]
         for dataset in ExampleStudy.data_specs():
@@ -317,66 +320,26 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     def test_subject_summary(self):
         study = self.make_study()
-        study.data('subject_summary')
-        for subject_id in self.SUBJECT_IDS:
-            # Get mean value from resultant image (should be the same as the
-            # number of sessions as the original image is full of ones and
-            # all sessions have been summed together
-            if self.mrtrix_req is not None:
-                ArcanaNodeMixin.load_module(*self.mrtrix_req)
-            try:
-                mean_val = float(sp.check_output(
-                    'mrstats {} -output mean'.format(
-                        self.output_file_path(
-                            'subject_summary.mif', study.name,
-                            subject=subject_id,
-                            frequency='per_subject')),
-                    shell=True))
-                self.assertEqual(mean_val, len(self.VISIT_IDS))
-            finally:
-                if self.mrtrix_req is not None:
-                    ArcanaNodeMixin.unload_module(*self.mrtrix_req)
+        summaries = study.data('subject_summary')
+        ref = str(float(len(self.VISIT_IDS)))
+        for dataset in summaries:
+            self.assertContentsEqual(dataset, ref,
+                                     str(dataset.visit_id))
 
     def test_visit_summary(self):
         study = self.make_study()
-        study.data('visit_summary')
-        for visit_id in self.VISIT_IDS:
-            # Get mean value from resultant image (should be the same as the
-            # number of sessions as the original image is full of ones and
-            # all sessions have been summed together
-            if self.mrtrix_req is not None:
-                ArcanaNodeMixin.load_module(*self.mrtrix_req)
-            try:
-                mean_val = float(sp.check_output(
-                    'mrstats {} -output mean'.format(
-                        self.output_file_path(
-                            'visit_summary.mif', study.name,
-                            visit=visit_id, frequency='per_visit')),
-                    shell=True))
-                self.assertEqual(mean_val, len(self.VISIT_IDS))
-            finally:
-                if self.mrtrix_req is not None:
-                    ArcanaNodeMixin.unload_module(*self.mrtrix_req)
+        summaries = study.data('visit_summary')
+        ref = str(float(len(self.SUBJECT_IDS)))
+        for dataset in summaries:
+            self.assertContentsEqual(dataset, ref,
+                                     str(dataset.visit_id))
 
     def test_project_summary(self):
         study = self.make_study()
         study.data('project_summary')
-        # Get mean value from resultant image (should be the same as the
-        # number of sessions as the original image is full of ones and
-        # all sessions have been summed together
-        if self.mrtrix_req is not None:
-            ArcanaNodeMixin.load_module(*self.mrtrix_req)
-        try:
-            mean_val = float(sp.check_output(
-                'mrstats {} -output mean'.format(self.output_file_path(
-                    'project_summary.mif', study.name,
-                    frequency='per_project')),
-                shell=True))
-            self.assertEqual(mean_val,
-                             len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        finally:
-            if self.mrtrix_req is not None:
-                ArcanaNodeMixin.unload_module(*self.mrtrix_req)
+        summary = study.data('project_summary')[0]
+        ref = str(float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS)))
+        self.assertContentsEqual(summary, ref)
 
     def test_subject_ids_access(self):
         study = self.make_study()

@@ -206,13 +206,14 @@ class BaseTestCase(TestCase):
                  dataset_name, out_path, "', '".join(os.listdir(output_dir)),
                  output_dir)))
 
-    def assertContentsEqual(self, dataset, reference, msg):
+    def assertContentsEqual(self, dataset, reference, context=None):
         with open(dataset.path) as f:
             contents = f.read()
-        self.assertEqual(contents, reference,
-                         "Contents of {} ({}) do not match reference "
-                         "({}) for {}".format(
-                             dataset, contents, reference, msg))
+        msg = ("Contents of {} ({}) do not match reference ({})"
+               .format(dataset, contents, reference))
+        if context is not None:
+            msg += 'for ' + context
+        self.assertEqual(contents, reference, msg)
 
     def assertCreated(self, dataset):
         self.assertTrue(
@@ -480,6 +481,7 @@ class TestMathInputSpec(TraitedSpec):
 
     x = traits.Either(traits.Float(), traits.File(exists=True),
                       traits.List(traits.Float),
+                      traits.List(traits.File(exists=True)),
                       mandatory=True, desc='first arg')
     y = traits.Either(traits.Float(), traits.File(exists=True),
                       mandatory=False, desc='second arg')
@@ -513,16 +515,16 @@ class TestMath(BaseInterface):
         x = self.inputs.x
         y = self.inputs.y
         if isinstance(x, basestring):
-            with open(x) as f:
-                x = float(f.read())
+            x = self._load_file(x)
         if isinstance(y, basestring):
-            with open(y) as f:
-                y = float(f.read())
+            y = self._load_file(y)
         oper = getattr(operator, self.inputs.op)
         if isdefined(y):
             z = oper(x, y)
         elif isinstance(x, list):
-            z = reduce(oper, *x)
+            if isinstance(x[0], basestring):
+                x = [self._load_file(u) for u in x]
+            z = reduce(oper, x)
         else:
             raise Exception(
                 "If 'y' is not provided then x needs to be list")
@@ -549,6 +551,11 @@ class TestMath(BaseInterface):
         else:
             fname = 'z.txt'
         return fname
+
+    @classmethod
+    def _load_file(self, path):
+        with open(path) as f:
+            return float(f.read())
 
 
 if __name__ == '__main__':
