@@ -1,4 +1,4 @@
-from arcana.testing import BaseTestCase as TestCase
+from arcana.testing import BaseTestCase
 import subprocess as sp
 from arcana.interfaces.utils import Merge
 from arcana.dataset import DatasetMatch, DatasetSpec
@@ -209,7 +209,9 @@ class MultiMultiStudy(MultiStudy):
         return pipeline
 
 
-class TestMulti(TestCase):
+class TestMulti(BaseTestCase):
+
+    INPUT_DATASETS = {'ones': '1'}
 
     def test_full_multi_study(self):
         study = self.create_study(

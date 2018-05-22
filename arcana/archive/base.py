@@ -330,7 +330,11 @@ class ArchiveProjectSink(BaseArchiveSink):
 
 class Project(object):
 
-    def __init__(self, subjects, visits, datasets, fields):
+    def __init__(self, subjects, visits, datasets=None, fields=None):
+        if datasets is None:
+            datasets = []
+        if fields is None:
+            fields = []
         self._subjects = subjects
         self._visits = visits
         self._datasets = datasets
@@ -464,7 +468,12 @@ class Subject(object):
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, subject_id, sessions, datasets, fields):
+    def __init__(self, subject_id, sessions, datasets=None,
+                 fields=None):
+        if datasets is None:
+            datasets = []
+        if fields is None:
+            fields = []
         self._id = subject_id
         self._sessions = sessions
         self._datasets = datasets
@@ -576,7 +585,11 @@ class Visit(object):
     Holds a subject id and a list of sessions
     """
 
-    def __init__(self, visit_id, sessions, datasets, fields):
+    def __init__(self, visit_id, sessions, datasets=None, fields=None):
+        if datasets is None:
+            datasets = []
+        if fields is None:
+            fields = []
         self._id = visit_id
         self._sessions = sessions
         self._datasets = datasets
@@ -700,7 +713,12 @@ class Session(object):
         here
     """
 
-    def __init__(self, subject_id, visit_id, datasets, fields, derived=None):
+    def __init__(self, subject_id, visit_id, datasets=None, fields=None,
+                 derived=None):
+        if datasets is None:
+            datasets = []
+        if fields is None:
+            fields = []
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._datasets = datasets

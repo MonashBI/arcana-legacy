@@ -263,8 +263,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     fields in a project returned in a Project object.
     """
 
-    dataset_name_to_contents = {'ones': 1, 'tens': 10, 'hundreds': 100,
-                                'thousands': 1000}
+    DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
+                        'thousands': 1000}
 
     def get_tree(self, archive, set_ids=False):
         sessions = [
@@ -562,7 +562,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
         return project
 
     @property
-    def tree(self):
+    def input_tree(self):
         return self.get_tree(self.archive)
 
     def test_project_info(self):

@@ -10,8 +10,7 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.node import ArcanaNodeMixin  # @IgnorePep8
-from arcana.exception import (
-    ArcanaModulesNotInstalledException, ArcanaCantPickleStudyError)  # @IgnorePep8
+from arcana.exception import ArcanaCantPickleStudyError  # @IgnorePep8
 from arcana.study.multi import (
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
@@ -20,6 +19,10 @@ from arcana.option import OptionSpec
 from arcana.data_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
+from arcana.archive.base import Project, Subject, Session, Visit
+from arcana.dataset import Dataset
+
+
 
 
 class ExampleStudy(Study):
@@ -264,41 +267,53 @@ class IteratorToFile(BaseInterface):
         return fname
 
 
-class TestStudy(BaseTestCase):
+class TestStudy(BaseMultiSubjectTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
-    SESSION_IDS = ['SESSIONID1', 'SESSIONID2']
+    VISIT_IDS = ['VISITID1', 'VISITID2']
+    DATASET_CONTENTS = {'start': 'foo', 'ones': 1}
 
-    def setUp(self):
-        self.reset_dirs()
-        for subject_id in self.SUBJECT_IDS:
-            for visit_id in self.SESSION_IDS:
-                self.add_session(self.project_dir, subject_id, visit_id)
-        self.study = self.create_study(
+    @property
+    def input_tree(self):
+        sessions = []
+        for subj_id in self.SUBJECT_IDS:
+            for visit_id in self.VISIT_IDS:
+                sessions.append(
+                    Session(subj_id, visit_id, datasets=[
+                        Dataset('start', text_format,
+                                subject_id=subj_id, visit_id=visit_id),
+                        Dataset('ones', text_format, subject_id=subj_id,
+                                visit_id=visit_id)]))
+        subjects = [Subject(i, sessions=[s for s in sessions
+                                          if s.subject_id == i])
+                     for i in self.SUBJECT_IDS]
+        visits = [Visit(i, sessions=[s for s in sessions
+                                     if s.visit == i])
+                     for i in self.VISIT_IDS]
+        return Project(subjects=subjects, visits=visits)
+
+    def make_study(self):
+        return self.create_study(
             ExampleStudy, 'dummy', inputs=[
                 DatasetMatch('start', text_format, 'start'),
-                DatasetMatch('ones_slice', text_format, 'ones_slice')],
+                DatasetMatch('ones_slice', text_format, 'ones')],
             options={'pipeline_option': True})
 
-    def tearDown(self):
-        try:
-            ArcanaNodeMixin.unload_module('mrtrix')
-        except ArcanaModulesNotInstalledException:
-            pass
-
     def test_pipeline_prerequisites(self):
-        self.study.data('derived4')[0]
+        study = self.make_study()
+        study.data('derived4')[0]
         for dataset in ExampleStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
-                    for visit_id in self.SESSION_IDS:
+                    for visit_id in self.VISIT_IDS:
                         self.assertDatasetCreated(
                             dataset.name + dataset.format.extension,
-                            self.study.name, subject=subject_id,
+                            study.name, subject=subject_id,
                             visit=visit_id)
 
     def test_subject_summary(self):
-        self.study.data('subject_summary')
+        study = self.make_study()
+        study.data('subject_summary')
         for subject_id in self.SUBJECT_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
@@ -309,18 +324,19 @@ class TestStudy(BaseTestCase):
                 mean_val = float(sp.check_output(
                     'mrstats {} -output mean'.format(
                         self.output_file_path(
-                            'subject_summary.mif', self.study.name,
+                            'subject_summary.mif', study.name,
                             subject=subject_id,
                             frequency='per_subject')),
                     shell=True))
-                self.assertEqual(mean_val, len(self.SESSION_IDS))
+                self.assertEqual(mean_val, len(self.VISIT_IDS))
             finally:
                 if self.mrtrix_req is not None:
                     ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_visit_summary(self):
-        self.study.data('visit_summary')
-        for visit_id in self.SESSION_IDS:
+        study = self.make_study()
+        study.data('visit_summary')
+        for visit_id in self.VISIT_IDS:
             # Get mean value from resultant image (should be the same as the
             # number of sessions as the original image is full of ones and
             # all sessions have been summed together
@@ -330,16 +346,17 @@ class TestStudy(BaseTestCase):
                 mean_val = float(sp.check_output(
                     'mrstats {} -output mean'.format(
                         self.output_file_path(
-                            'visit_summary.mif', self.study.name,
+                            'visit_summary.mif', study.name,
                             visit=visit_id, frequency='per_visit')),
                     shell=True))
-                self.assertEqual(mean_val, len(self.SESSION_IDS))
+                self.assertEqual(mean_val, len(self.VISIT_IDS))
             finally:
                 if self.mrtrix_req is not None:
                     ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_project_summary(self):
-        self.study.data('project_summary')
+        study = self.make_study()
+        study.data('project_summary')
         # Get mean value from resultant image (should be the same as the
         # number of sessions as the original image is full of ones and
         # all sessions have been summed together
@@ -348,34 +365,36 @@ class TestStudy(BaseTestCase):
         try:
             mean_val = float(sp.check_output(
                 'mrstats {} -output mean'.format(self.output_file_path(
-                    'project_summary.mif', self.study.name,
+                    'project_summary.mif', study.name,
                     frequency='per_project')),
                 shell=True))
             self.assertEqual(mean_val,
-                             len(self.SUBJECT_IDS) * len(self.SESSION_IDS))
+                             len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
         finally:
             if self.mrtrix_req is not None:
                 ArcanaNodeMixin.unload_module(*self.mrtrix_req)
 
     def test_subject_ids_access(self):
-        self.study.data('subject_ids')
-        for visit_id in self.SESSION_IDS:
+        study = self.make_study()
+        study.data('subject_ids')
+        for visit_id in self.VISIT_IDS:
             subject_ids_path = self.output_file_path(
-                'subject_ids.txt', self.study.name,
+                'subject_ids.txt', study.name,
                 visit=visit_id, frequency='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        self.study.data('visit_ids')
+        study = self.make_study()
+        study.data('visit_ids')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
-                'visit_ids.txt', self.study.name,
+                'visit_ids.txt', study.name,
                 subject=subject_id, frequency='per_subject')
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
-            self.assertEqual(sorted(ids), sorted(self.SESSION_IDS))
+            self.assertEqual(sorted(ids), sorted(self.VISIT_IDS))
 
 
 class ExistingPrereqStudy(Study):

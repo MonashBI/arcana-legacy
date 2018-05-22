@@ -91,8 +91,9 @@ class BaseTestCase(TestCase):
                         f.write(dataset)
             else:
                 raise ArcanaError(
-                    "Unrecognised dataset in {} test setup"
-                    .format(self))
+                    "Unrecognised dataset ({}) in {} test setup. Can "
+                    "be either a Dataset or basestring object"
+                    .format(dataset, self))
         if fields is not None:
             with open(op.join(session_dir,
                                    FIELDS_FNAME), 'w') as f:
@@ -333,38 +334,36 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         self.add_sessions(self.project_dir)
 
     def add_sessions(self, project_dir):
-        self.local_tree = deepcopy(self.tree)
+        self.local_tree = deepcopy(self.input_tree)
         if project_dir is not None:  # For local archive
             proj_summ_path = op.join(project_dir, SUMMARY_NAME,
                                      SUMMARY_NAME)
             for dataset in self.local_tree.datasets:
-                dataset._path = op.join(proj_summ_path, dataset.fname())
-                self._create_file(dataset)
-            self._create_json(proj_summ_path, self.local_tree.fields)
+                self.init_dataset(dataset, op.join(proj_summ_path,
+                                                   dataset.fname()))
+            self.init_fields(proj_summ_path, self.local_tree.fields)
             for visit in self.local_tree.visits:
                 visit_summ_path = op.join(project_dir, SUMMARY_NAME,
                                           visit.id)
                 for dataset in visit.datasets:
-                    dataset._path = op.join(visit_summ_path,
-                                            dataset.fname())
-                    self._create_file(dataset)
-                self._create_json(visit_summ_path, visit.fields)
+                    self.init_dataset(dataset, op.join(visit_summ_path,
+                                                       dataset.fname()))
+                self.init_fields(visit_summ_path, visit.fields)
             for subject in self.local_tree.subjects:
                 subj_summ_path = op.join(project_dir, subject.id,
                                          SUMMARY_NAME)
                 for dataset in subject.datasets:
-                    dataset._path = op.join(subj_summ_path,
-                                            dataset.fname())
-                    self._create_file(dataset)
-                self._create_json(subj_summ_path, subject.fields)
+                    self.init_dataset(dataset, op.join(subj_summ_path,
+                                                       dataset.fname()))
+                self.init_fields(subj_summ_path, subject.fields)
                 for session in subject.sessions:
                     sess_path = op.join(project_dir, session.subject_id,
                                         session.visit_id)
                     for dataset in session.datasets:
-                        dataset._path = op.join(sess_path,
-                                                dataset.fname())
-                        self._create_file(dataset)
-                    self._create_json(sess_path, session.fields)
+                        self.init_dataset(
+                            dataset, op.join(sess_path,
+                                             dataset.fname()))
+                    self.init_fields(sess_path, session.fields)
 
     @property
     def subject_ids(self):
@@ -383,12 +382,14 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
             subject=subject, visit=visit, frequency=frequency)
 
-    def _create_file(self, dataset):
+    def init_dataset(self, dataset, path):
+        dataset._path = path
+        dataset._archive = self.archive
         self._make_dir(op.dirname(dataset.path))
         with open(dataset.path, 'w') as f:
-            f.write(str(self.dataset_name_to_contents[dataset.name]))
+            f.write(str(self.DATASET_CONTENTS[dataset.name]))
 
-    def _create_json(self, dpath, fields):
+    def init_fields(self, dpath, fields):
         self._make_dir(dpath)
         dct = {f.name: f.value for f in fields}
         with open(op.join(dpath, FIELDS_FNAME), 'w') as f:
