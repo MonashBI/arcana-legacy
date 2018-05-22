@@ -45,12 +45,14 @@ sys.path.pop(0)
 
 logger = logging.getLogger('Arcana')
 
+dicom_format = DataFormat(name='dicom', extension=None,
+                          directory=True, within_dir_exts=['.dcm'])
 
 try:
     SERVER = os.environ['ARCANA_TEST_XNAT']
 except KeyError:
     SERVER = None
-# SERVER = 'https://mbi-xnat.erc.monash.edu.au'
+SERVER = 'https://mbi-xnat.erc.monash.edu.au'
 
 
 class DummyStudy(Study):
@@ -108,6 +110,9 @@ class TestXnatArchive(BaseTestCase):
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
 
+    INPUT_DATASETS = {'source1': 'foo', 'source2': 'bar',
+                      'source3': 'wee', 'source4': 'wa'}
+
     def session_label(self, project=None, subject=None, visit=None):
         if project is None:
             project = self.PROJECT
@@ -120,7 +125,7 @@ class TestXnatArchive(BaseTestCase):
     def session_cache(self, base_dir=None, project=None, subject=None,
                       visit=None):
         if base_dir is None:
-            base_dir = self.archive_cache_dir
+            base_dir = self.cache_dir
         if project is None:
             project = self.PROJECT
         if subject is None:
@@ -135,42 +140,30 @@ class TestXnatArchive(BaseTestCase):
             *args, **kwargs) + XnatArchive.PROCESSED_SUFFIX
 
     def setUp(self):
-        self.reset_dirs()
-        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
-        os.makedirs(self.archive_cache_dir)
+        super(TestXnatArchive, self).setUp()
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        os.makedirs(self.cache_dir)
         self._delete_test_subjects()
-        download_all_datasets(
-            self.cache_dir, SERVER,
-            '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name),
-            overwrite=False)
         with self._connect() as mbi_xnat:
-            project = mbi_xnat.projects[self.PROJECT]
-            subject = mbi_xnat.classes.SubjectData(
+            xproject = mbi_xnat.projects[self.PROJECT]
+            xsubject = mbi_xnat.classes.SubjectData(
                 label='{}_{}'.format(self.PROJECT, self.SUBJECT),
-                parent=project)
-            session = mbi_xnat.classes.MrSessionData(
+                parent=xproject)
+            xsession = mbi_xnat.classes.MrSessionData(
                 label=self.session_label(),
-                parent=subject)
-            for fname in os.listdir(self.cache_dir):
-                if fname == FIELDS_FNAME:
-                    continue
-                name, ext = split_extension(fname)
-                dataset = mbi_xnat.classes.MrScanData(type=name,
-                                                      parent=session)
-                resource = dataset.create_resource(
-                    DataFormat.by_ext(ext).name.upper())
-                resource.upload(os.path.join(self.cache_dir, fname),
-                                fname)
+                parent=xsubject)
+            for dataset in self.session.datasets:
+                xdataset = mbi_xnat.classes.MrScanData(
+                    type=dataset.name, parent=xsession)
+                resource = xdataset.create_resource(
+                    dataset.format.name.upper())
+                resource.upload(dataset.path, dataset.fname())
 
     def tearDown(self):
         # Clean up working dirs
-        shutil.rmtree(self.archive_cache_dir, ignore_errors=True)
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
         # Clean up session created for unit-test
         self._delete_test_subjects()
-
-    @property
-    def archive_cache_dir(self):
-        return self.cache_dir + '.archive'
 
     def _delete_test_subjects(self):
         with self._connect() as mbi_xnat:
@@ -193,7 +186,7 @@ class TestXnatArchive(BaseTestCase):
         # Create DarisSource node
         archive = XnatArchive(
             project_id=self.PROJECT,
-            server=SERVER, cache_dir=self.archive_cache_dir)
+            server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
             inputs=[DatasetMatch('source1', text_format, 'source1'),
@@ -206,7 +199,8 @@ class TestXnatArchive(BaseTestCase):
                                   'source4')]
         sink_files = [study.spec(n)
                       for n in ('sink1', 'sink3', 'sink4')]
-        inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
+        inputnode = pe.Node(IdentityInterface(['subject_id',
+                                               'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
         inputnode.inputs.visit_id = str(self.VISIT)
@@ -234,8 +228,8 @@ class TestXnatArchive(BaseTestCase):
         workflow.run()
         # Check cache was created properly
         self.assertEqual(filter_md5_fnames(os.listdir(self.session_cache())),
-                         ['source1.nii.gz', 'source2.nii.gz',
-                          'source3.nii.gz', 'source4.nii.gz'])
+                         ['source1.txt', 'source2.txt',
+                          'source3.txt', 'source4.txt'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
                                   self.STUDY_NAME + '_sink3',
                                   self.STUDY_NAME + '_sink4']
@@ -450,9 +444,9 @@ class TestXnatArchive(BaseTestCase):
         # Check that the datasets
         self.assertEqual(
             filter_md5_fnames(os.listdir(self.proc_session_cache())),
-            [self.SUMMARY_STUDY_NAME + '_resink1.nii.gz',
-             self.SUMMARY_STUDY_NAME + '_resink2.nii.gz',
-             self.SUMMARY_STUDY_NAME + '_resink3.nii.gz'])
+            [self.SUMMARY_STUDY_NAME + '_resink1.txt',
+             self.SUMMARY_STUDY_NAME + '_resink2.txt',
+             self.SUMMARY_STUDY_NAME + '_resink3.txt'])
         # and on XNAT
         with self._connect() as mbi_xnat:
             resinked_dataset_names = mbi_xnat.projects[

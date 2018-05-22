@@ -67,17 +67,26 @@ class BaseTestCase(TestCase):
     def work_path(cls):
         return op.join(cls.test_data_dir, 'work')
 
+    @classproperty
+    @classmethod
+    def cache_path(cls):
+        return op.join(cls.test_data_dir, 'cache')
+
     def setUp(self):
         self.reset_dirs()
         self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
                          fields=getattr(self, 'INPUT_FIELDS', None))
 
     def add_session(self, datasets=None, fields=None, project_dir=None,
-                    subject=SUBJECT, visit=VISIT):
+                    subject=None, visit=None):
         if project_dir is None:
             project_dir = self.project_dir
         if datasets is None:
             datasets = {}
+        if subject is None:
+            subject = self.SUBJECT
+        if visit is None:
+            visit = self.VISIT
         session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
         for name, dataset in datasets.items():
@@ -92,7 +101,7 @@ class BaseTestCase(TestCase):
                 # Write string as text file
                 with open(op.join(session_dir,
                                   name + '.txt'), 'w') as f:
-                        f.write(dataset)
+                    f.write(dataset)
             else:
                 raise ArcanaError(
                     "Unrecognised dataset ({}) in {} test setup. Can "
@@ -118,12 +127,21 @@ class BaseTestCase(TestCase):
                 os.makedirs(d)
 
     @property
+    def archive_tree(self):
+        return self.archive.get_tree()
+
+    @property
     def xnat_session_name(self):
         return '{}_{}'.format(self.XNAT_TEST_PROJECT, self.name)
 
     @property
     def session_dir(self):
         return self.get_session_dir(self.SUBJECT, self.VISIT)
+
+    @property
+    def session(self):
+        return self.archive_tree.subject(
+            self.SUBJECT).session(self.VISIT)
 
     @property
     def archive(self):
@@ -140,6 +158,10 @@ class BaseTestCase(TestCase):
     @property
     def work_dir(self):
         return op.join(self.work_path, self.name)
+
+    @property
+    def cache_dir(self):
+        return op.join(self.cache_path, self.name)
 
     @property
     def name(self):
