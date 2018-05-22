@@ -7,7 +7,6 @@ from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from arcana.data_format import text_format  # @IgnorePep8
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.interfaces.mrtrix import MRConvert, MRCat, MRMath, MRCalc  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.node import ArcanaNodeMixin  # @IgnorePep8
 from arcana.exception import ArcanaCantPickleStudyError  # @IgnorePep8
@@ -21,8 +20,6 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
 from arcana.archive.base import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
-
-
 
 
 class ExampleStudy(Study):
@@ -69,14 +66,16 @@ class ExampleStudy(Study):
         if not pipeline.option('pipeline_option'):
             raise Exception("Pipeline option was not cascaded down to "
                             "pipeline1")
-        mrconvert = pipeline.create_node(MRConvert(), name="convert1")
-        mrconvert2 = pipeline.create_node(MRConvert(), name="convert2")
+        indent = pipeline.create_node(IdentityInterface(['file'])(),
+                                      name="ident1")
+        indent2 = pipeline.create_node(IdentityInterface(['file'])(),
+                                       name="ident2")
         # Connect inputs
-        pipeline.connect_input('start', mrconvert, 'in_file')
-        pipeline.connect_input('start', mrconvert2, 'in_file')
+        pipeline.connect_input('start', indent, 'file')
+        pipeline.connect_input('start', indent2, 'file')
         # Connect outputs
-        pipeline.connect_output('derived1_1', mrconvert, 'out_file')
-        pipeline.connect_output('derived1_2', mrconvert2, 'out_file')
+        pipeline.connect_output('derived1_1', indent, 'file')
+        pipeline.connect_output('derived1_2', indent2, 'file')
         return pipeline
 
     def pipeline2(self, **kwargs):
@@ -110,11 +109,11 @@ class ExampleStudy(Study):
             version=1,
             citations=[],
             **kwargs)
-        mrconvert = pipeline.create_node(MRConvert(), name="convert")
+        indent = pipeline.create_node(IdentityInterface(['file'])(), name="ident")
         # Connect inputs
-        pipeline.connect_input('derived2', mrconvert, 'in_file')
+        pipeline.connect_input('derived2', indent, 'in_file')
         # Connect outputs
-        pipeline.connect_output('derived3', mrconvert, 'out_file')
+        pipeline.connect_output('derived3', indent, 'out_file')
         return pipeline
 
     def pipeline4(self, **kwargs):
@@ -418,7 +417,7 @@ class ExistingPrereqStudy(Study):
             citations=[])
         # Nodes
         operands = pipeline.create_node(Merge(2), name='merge')
-        mult = pipeline.create_node(MRCalc(), name="convert1")
+        mult = pipeline.create_node(MRCalc(), name="ident1")
         operands.inputs.in2 = incr
         mult.inputs.operation = 'add'
         # Connect inputs

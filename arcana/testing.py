@@ -1,6 +1,7 @@
 import os.path as op
 import os
 import subprocess as sp
+import operator
 import shutil
 from unittest import TestCase
 import errno
@@ -21,6 +22,8 @@ from arcana.exception import (
     ArcanaModulesNotInstalledException)
 from arcana.archive.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
+from nipype.interfaces.base import (
+    traits, TraitedSpec, BaseInterface, isdefined)
 
 logger = logging.getLogger('Arcana')
 logger.setLevel(logging.INFO)
@@ -469,3 +472,85 @@ class TestTestCase(BaseTestCase):
 
     def test_test(self):
         pass
+
+
+class TestMathInputSpec(TraitedSpec):
+
+    x = traits.Either(traits.Float(), traits.File(exists=True),
+                      mandatory=True, desc='first arg')
+    y = traits.Either(traits.Float(), traits.File(exists=True),
+                      mandatory=True, desc='second arg')
+    op = traits.Str(mandatory=True, desc='operation')
+
+    z = traits.File(genfile=True, mandatory=False,
+                    desc="Name for output file")
+
+
+class TestMathOutputSpec(TraitedSpec):
+
+    z = traits.Either(traits.Float(), traits.File(exists=True),
+                      'output')
+
+
+class TestMath(BaseInterface):
+    """
+    A basic interface to test out the pipeline infrastructure
+    """
+
+    input_spec = TestMathInputSpec
+    output_spec = TestMathOutputSpec
+
+    def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        as_file = False
+        x = self.inputs.x
+        y = self.inputs.y
+        if isinstance(x, basestring):
+            with open(x) as f:
+                x = float(f.read())
+            as_file = True
+        if isinstance(y, basestring):
+            with open(y) as f:
+                y = float(f.read())
+            as_file = True
+        z = getattr(operator, self.inputs.op)(x, y)
+        outputs = self.output_spec().get()
+        if as_file:
+            z_path = op.abspath(self._gen_z_fname())
+            with open(z_path, 'w') as f:
+                f.write(str(z))
+            outputs['z'] = z_path
+        else:
+            outputs['z'] = z
+        return outputs
+
+    def _gen_filename(self, name):
+        if name == 'z':
+            fname = self._gen_z_fname()
+        else:
+            assert False
+        return fname
+
+    def _gen_z_fname(self):
+        if isdefined(self.inputs.z):
+            fname = self.inputs.z
+        else:
+            fname = 'z.txt'
+        return fname
+
+
+if __name__ == '__main__':
+    import tempfile
+    with tempfile.NamedTemporaryFile(delete=False) as f:
+        path = f.name
+        f.write('10.0')
+    math = TestMath()
+    math.inputs.x = 1.0
+    math.inputs.y = 20  # path
+    math.inputs.op = 'add'
+    result = math.run()
+    print(result.outputs.z)
+    with open(result.outputs.z) as f:
+        print(f.read())
