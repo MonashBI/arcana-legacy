@@ -1,8 +1,8 @@
-from arcana.interfaces.mrtrix import MRMath
 from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.dataset import DatasetSpec, DatasetMatch
 from arcana.study.base import Study, StudyMetaClass
-from arcana.testing import BaseTestCase
+import unittest
+from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
 from arcana.data_format import text_format
 from arcana.node import Node
@@ -11,6 +11,8 @@ from arcana.requirement import Requirement
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))
 dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
+dummy3_req = Requirement(name='dummy3', min_version=(1, 0))
+dummy4_req = Requirement(name='dummy4', min_version=(1, 0))
 
 
 class RequirementsStudy(Study):
@@ -33,8 +35,8 @@ class RequirementsStudy(Study):
         input_merge = pipeline.create_node(
             Merge(2), "input_merge")
         maths = pipeline.create_node(
-            MRMath(), "maths", requirements=[
-                (dummy1_req, dummy2_req, mrtrix3_req), dcm2niix_req])
+            TestMath(), "maths", requirements=[
+                (dummy1_req, dummy2_req, dummy3_req), dummy4_req])
         pipeline.connect_input('ones', input_merge, 'in1')
         pipeline.connect_input('ones', input_merge, 'in2')
         pipeline.connect(input_merge, 'out', maths, 'in_files')
@@ -46,6 +48,9 @@ class RequirementsStudy(Study):
 
 class TestModuleLoad(BaseTestCase):
 
+    INPUT_DATASETS = {'ones': '1'}
+
+    @unittest.skip("Don't have an interface that needs to be loaded")
     def test_pipeline_prerequisites(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',

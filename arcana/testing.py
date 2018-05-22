@@ -213,7 +213,7 @@ class BaseTestCase(TestCase):
                .format(dataset, contents, reference))
         if context is not None:
             msg += 'for ' + context
-        self.assertEqual(contents, reference, msg)
+        self.assertEqual(contents, str(reference), msg)
 
     def assertCreated(self, dataset):
         self.assertTrue(
