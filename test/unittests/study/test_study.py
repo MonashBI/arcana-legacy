@@ -19,7 +19,7 @@ from arcana.option import OptionSpec
 from arcana.data_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
-from arcana.archive.base import Project, Subject, Session, Visit
+from arcana.archive import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
 
 

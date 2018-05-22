@@ -15,7 +15,7 @@ from arcana.dataset import (
     DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
 from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.archive.base import Project, Subject, Session, Visit
+from arcana.archive import Project, Subject, Session, Visit
 
 
 class DummyStudy(Study):

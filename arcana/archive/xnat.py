@@ -18,9 +18,10 @@ from arcana.archive.base import (
     Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
     ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
     ArchiveVisitSinkInputSpec,
-    ArchiveProjectSinkInputSpec, Session, Subject, Project, Visit,
+    ArchiveProjectSinkInputSpec,
     ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
     MULTIPLICITIES)
+from arcana.archive.tree import Session, Subject, Project, Visit
 from arcana.data_format import DataFormat
 from arcana.utils import split_extension
 from arcana.exception import (
