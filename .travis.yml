@@ -28,7 +28,6 @@ install:
   - install/mrtrix.sh
   - pip install .
   - mkdir -p $HOME/data
-  - mkdir ./test/data
   - ln -s $HOME/xnat-cache ./test/data/cache
   - pip install nose
   - pip install codecov
