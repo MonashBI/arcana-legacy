@@ -305,24 +305,6 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           subject_id='subject1', visit_id='visit2',
                           archive=archive)]),
             Session(
-                'subject1', 'visit3', datasets=[
-                    Dataset('hundreds', text_format,
-                            subject_id='subject1', visit_id='visit3',
-                            archive=archive),
-                    Dataset('ones', text_format,
-                            subject_id='subject1', visit_id='visit3',
-                            archive=archive),
-                    Dataset('thousands', text_format,
-                            subject_id='subject1', visit_id='visit3',
-                            archive=archive)],
-                fields=[
-                    Field('a', value=3,
-                          subject_id='subject1', visit_id='visit3',
-                          archive=archive),
-                    Field('b', value=30,
-                          subject_id='subject1', visit_id='visit3',
-                          archive=archive)]),
-            Session(
                 'subject2', 'visit1', datasets=[
                     Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit1',
@@ -348,103 +330,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                           archive=archive),
                     Field('c', value='buggy',
                           subject_id='subject2', visit_id='visit2',
-                          archive=archive)]),
-            Session(
-                'subject2', 'visit3', datasets=[
-                    Dataset('hundreds', text_format,
-                            subject_id='subject2', visit_id='visit3',
-                            archive=archive),
-                    Dataset('ones', text_format,
-                            subject_id='subject2', visit_id='visit3',
-                            archive=archive),
-                    Dataset('tens', text_format,
-                            subject_id='subject2', visit_id='visit3',
-                            archive=archive),
-                    Dataset('thousands', text_format,
-                            subject_id='subject2', visit_id='visit3',
-                            archive=archive)],
-                fields=[
-                    Field('a', value=33,
-                            subject_id='subject2', visit_id='visit3',
-                            archive=archive)]),
-            Session(
-                'subject3', 'visit1', datasets=[
-                    Dataset('ones', text_format,
-                            subject_id='subject3', visit_id='visit1',
-                            archive=archive)],
-                fields=[]),
-            Session(
-                'subject3', 'visit2', datasets=[
-                    Dataset('ones', text_format,
-                            subject_id='subject3', visit_id='visit2',
-                            archive=archive),
-                    Dataset('tens', text_format,
-                            subject_id='subject3', visit_id='visit2',
-                            archive=archive)],
-                fields=[]),
-            Session(
-                'subject3', 'visit3', datasets=[
-                    Dataset('ones', text_format,
-                            subject_id='subject3', visit_id='visit3',
-                            archive=archive),
-                    Dataset('tens', text_format,
-                            subject_id='subject3', visit_id='visit3',
-                            archive=archive),
-                    Dataset('thousands', text_format,
-                            subject_id='subject3', visit_id='visit3',
-                            archive=archive)],
-                fields=[
-                    Field('a', value=333,
-                          subject_id='subject3', visit_id='visit3',
-                          archive=archive),
-                    Field('b', value=3330,
-                          subject_id='subject3', visit_id='visit3',
-                          archive=archive)]),
-            Session(
-                'subject4', 'visit1', datasets=[
-                    Dataset('ones', text_format,
-                            subject_id='subject4', visit_id='visit1',
-                            archive=archive)],
-                fields=[
-                    Field('a', value=1111,
-                          subject_id='subject4', visit_id='visit1',
-                          archive=archive),
-                    Field('d', value=0.9999999999,
-                          subject_id='subject4', visit_id='visit1',
-                          archive=archive)]),
-            Session(
-                'subject4', 'visit2', datasets=[
-                    Dataset('ones', text_format,
-                            subject_id='subject4', visit_id='visit2',
-                            archive=archive),
-                    Dataset('tens', text_format,
-                            subject_id='subject4', visit_id='visit2',
-                            archive=archive)],
-                fields=[
-                    Field('a', value=2222,
-                          subject_id='subject4', visit_id='visit2',
-                          archive=archive),
-                    Field('b', value=22220,
-                          subject_id='subject4', visit_id='visit2',
-                          archive=archive),
-                    Field('c', value='bus',
-                          subject_id='subject4', visit_id='visit2',
-                          archive=archive)]),
-            Session(
-                'subject4', 'visit3', datasets=[
-                    Dataset('hundreds', text_format,
-                            subject_id='subject4', visit_id='visit3',
-                            archive=archive),
-                    Dataset('ones', text_format,
-                            subject_id='subject4', visit_id='visit3',
-                            archive=archive),
-                    Dataset('tens', text_format,
-                            subject_id='subject4', visit_id='visit3',
-                            archive=archive),
-                    Dataset('thousands', text_format,
-                            subject_id='subject4', visit_id='visit3',
-                            archive=archive)],
-                fields=[])]
+                          archive=archive)])]
         project = Project(
             subjects=[
                 Subject(
@@ -480,32 +366,6 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Field('e', value=3.33333,
                               frequency='per_subject',
                               subject_id='subject2',
-                              archive=archive)]),
-                Subject(
-                    'subject3', sessions=[s for s in sessions
-                                          if s.subject_id == 'subject3'],
-                    datasets=[
-                        Dataset('tens', text_format,
-                                frequency='per_subject',
-                                subject_id='subject3',
-                                archive=archive)],
-                    fields=[
-                        Field('e', value=2.22222,
-                              frequency='per_subject',
-                              subject_id='subject3',
-                              archive=archive)]),
-                Subject(
-                    'subject4', sessions=[s for s in sessions
-                                          if s.subject_id == 'subject4'],
-                    datasets=[
-                        Dataset('tens', text_format,
-                                frequency='per_subject',
-                                subject_id='subject4',
-                                archive=archive)],
-                    fields=[
-                        Field('e', value=1.11111,
-                              frequency='per_subject',
-                              subject_id='subject4',
                               archive=archive)])],
             visits=[
                 Visit(
@@ -529,15 +389,6 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Field('f', value='cat',
                               frequency='per_visit',
                               visit_id='visit2',
-                              archive=archive)]),
-                Visit(
-                    'visit3', sessions=[s for s in sessions
-                                        if s.visit_id == 'visit3'],
-                    datasets=[],
-                    fields=[
-                        Field('f', value='hippopotamus',
-                              frequency='per_visit',
-                              visit_id='visit3',
                               archive=archive)])],
             datasets=[
                 Dataset('ones', text_format,
