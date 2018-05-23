@@ -9,7 +9,8 @@ from arcana.requirement import Requirement
 from arcana.exception import (
     ArcanaError, ArcanaModulesNotInstalledException)
 from nipype.pipeline.engine import (
-    Node as NipypeNode, JoinNode as NipypeJoinNode, MapNode as NipypeMapNode)
+    Node as NipypeNode, JoinNode as NipypeJoinNode,
+    MapNode as NipypeMapNode)
 
 logger = logging.getLogger('Arcana')
 
@@ -37,15 +38,22 @@ class ArcanaNodeMixin(object):
         Flags whether a GPU compute node is preferred
     """
 
+    arcana_params = {
+        'requirements': [],
+        'nthreads': 1,
+        'wall_time': DEFAULT_WALL_TIME,
+        'memory': DEFAULT_MEMORY,
+        'gpu': False,
+        'account': 'dq13'}  # Should get from runner
+
     def __init__(self, *args, **kwargs):
-        self._requirements = kwargs.pop('requirements', [])
-        self._nthreads = kwargs.pop('nthreads', 1)
-        self._wall_time = kwargs.pop('wall_time', DEFAULT_WALL_TIME)
-        self._memory = kwargs.pop('memory', DEFAULT_MEMORY)
-        self._gpu = kwargs.pop('gpu', False)
-        self._account = kwargs.pop('account', 'dq13')
-        self._loaded_modules = []
+        self._arcana_init(**kwargs)
         self.nipype_cls.__init__(self, *args, **kwargs)
+
+    def _arcana_init(self, **kwargs):
+        for name, value in self.arcana_params.items():
+            setattr(self, name, kwargs.pop(name, value))
+        self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
         self._load_modules()
@@ -60,10 +68,10 @@ class ArcanaNodeMixin(object):
         self._unload_modules()
         end_time = time.time()
         run_time = (end_time - start_time) / 60
-        if run_time > self._wall_time:
+        if run_time > self.wall_time:
             logger.warning("Executed '{}' node in {} minutes, which is longer "
                            "than specified wall time ({} minutes)"
-                           .format(self.name, run_time, self._wall_time))
+                           .format(self.name, run_time, self.wall_time))
         else:
             logger.info("Executed '{}' node in {} minutes"
                         .format(self.name, run_time))
@@ -74,8 +82,8 @@ class ArcanaNodeMixin(object):
             preloaded = self.preloaded_modules()
             available = self.available_modules()
             logger.debug("Loading required modules {} for '{}'"
-                         .format(self._requirements, self.name))
-            for possible_reqs in self._requirements:
+                         .format(self.requirements, self.name))
+            for possible_reqs in self.requirements:
                 # Get best requirement from list of possible options
                 req_name, req_ver = Requirement.best_requirement(
                     possible_reqs, available, preloaded)
@@ -163,14 +171,14 @@ class ArcanaNodeMixin(object):
     @property
     def slurm_template(self):
         additional = ''
-        if self._gpu:
+        if self.gpu:
             additional += '#SBATCH --gres=gpu:1\n'
-        if self._account is not None:
-            additional += '#SBATCH --account={}'.format(self._account)
+        if self.account is not None:
+            additional += '#SBATCH --account={}'.format(self.account)
         return sbatch_template.format(
-            wall_time=self.wall_time_str, ntasks=self._nthreads,
-            memory=self._memory,
-            partition=('m3c' if self._gpu else 'm3a'),
+            wall_time=self.wall_time_str, ntasks=self.nthreads,
+            memory=self.memory,
+            partition=('m3c' if self.gpu else 'm3a'),
             additional=additional)
 
     @property
@@ -178,10 +186,10 @@ class ArcanaNodeMixin(object):
         """
         Returns the wall time in the format required for the sbatch script
         """
-        days = int(self._wall_time // 1440)
-        hours = int((self._wall_time - days * 1440) // 60)
-        minutes = int(math.floor(self._wall_time - days * 1440 - hours * 60))
-        seconds = int((self._wall_time - math.floor(self._wall_time)) * 60)
+        days = int(self.wall_time // 1440)
+        hours = int((self.wall_time - days * 1440) // 60)
+        minutes = int(math.floor(self.wall_time - days * 1440 - hours * 60))
+        seconds = int((self.wall_time - math.floor(self.wall_time)) * 60)
         return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
 
 
@@ -198,6 +206,18 @@ class JoinNode(ArcanaNodeMixin, NipypeJoinNode):
 class MapNode(ArcanaNodeMixin, NipypeMapNode):
 
     nipype_cls = NipypeMapNode
+
+    def _make_nodes(self, cwd=None):
+        """
+        Cast generated nodes to be Arcana nodes
+        """
+        for i, node in NipypeMapNode._make_nodes(self, cwd=cwd):
+            # "Cast" NiPype node to a Arcana Node and set Arcana Node
+            # parameters
+            node.__class__ = Node
+            node._arcana_init(
+                **{n: getattr(self, n) for n in self.arcana_params})
+            yield i, node
 
 
 sbatch_template = """#!/bin/bash

@@ -23,6 +23,8 @@ from arcana.data_format import DataFormat
 from arcana.utils import PATH_SUFFIX
 from arcana.exception import ArcanaError
 from arcana.data_format import text_format
+from arcana.archive.tree import Project, Subject, Session, Visit
+from arcana.dataset import Dataset, FieldMatch
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
@@ -60,9 +62,9 @@ class DummyStudy(Study):
 
     add_data_specs = [
         DatasetSpec('source1', text_format),
-        DatasetSpec('source2', text_format),
-        DatasetSpec('source3', text_format),
-        DatasetSpec('source4', text_format),
+        DatasetSpec('source2', text_format, optional=True),
+        DatasetSpec('source3', text_format, optional=True),
+        DatasetSpec('source4', text_format, optional=True),
         DatasetSpec('sink1', text_format, 'dummy_pipeline'),
         DatasetSpec('sink3', text_format, 'dummy_pipeline'),
         DatasetSpec('sink4', text_format, 'dummy_pipeline'),
@@ -74,7 +76,10 @@ class DummyStudy(Study):
                     frequency='per_project'),
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline')]
+        DatasetSpec('resink3', text_format, 'dummy_pipeline'),
+        FieldSpec('field1', int, 'dummy_pipeline'),
+        FieldSpec('field2', float, 'dummy_pipeline'),
+        FieldSpec('field3', str, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -111,6 +116,7 @@ class TestXnatArchive(BaseTestCase):
 
     INPUT_DATASETS = {'source1': 'foo', 'source2': 'bar',
                       'source3': 'wee', 'source4': 'wa'}
+    INPUT_FIELDS = {'field1': 1, 'field2': 0.5, 'field3': 'boo'}
 
     def session_label(self, project=None, subject=None, visit=None):
         if project is None:
@@ -157,6 +163,8 @@ class TestXnatArchive(BaseTestCase):
                 resource = xdataset.create_resource(
                     dataset.format.name.upper())
                 resource.upload(dataset.path, dataset.fname())
+            for field in self.session.fields:
+                xsession.fields[field.name] = field.value
 
     def tearDown(self):
         # Clean up working dirs
@@ -245,13 +253,14 @@ class TestXnatArchive(BaseTestCase):
     @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_fields_roundtrip(self):
         archive = XnatArchive(
-            server=SERVER, cache_dir=self.archive_cache_dir,
+            server=SERVER, cache_dir=self.cache_dir,
             project_id=self.PROJECT)
+        study = DummyStudy(
+            self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
+            inputs=[DatasetMatch('source1', text_format, 'source1')])
+        fields = [study.spec('field{}'.format(i)) for i in range(1, 4)]
         sink = archive.sink(
-            outputs=[
-                FieldSpec('field1', int, 'pipeline'),
-                FieldSpec('field2', float, 'pipeline'),
-                FieldSpec('field3', str, 'pipeline')],
+            outputs=fields,
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -263,10 +272,7 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
-            inputs=[
-                FieldSpec('field1', int, 'dummy_pipeline'),
-                FieldSpec('field2', float, 'dummy_pipeline'),
-                FieldSpec('field3', str, 'dummy_pipeline')],
+            inputs=fields,
             name='fields_source',
             study_name='test')
         source.inputs.visit_id = self.VISIT
@@ -283,7 +289,7 @@ class TestXnatArchive(BaseTestCase):
         # Create working dirs
         # Create XnatSource node
         archive = XnatArchive(
-            server=SERVER, cache_dir=self.archive_cache_dir,
+            server=SERVER, cache_dir=self.cache_dir,
             project_id=self.PROJECT)
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
@@ -349,7 +355,7 @@ class TestXnatArchive(BaseTestCase):
             expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
                                       '_subject_sink']
             subject_dir = os.path.join(
-                self.archive_cache_dir, self.PROJECT,
+                self.cache_dir, self.PROJECT,
                 '_'.join((self.PROJECT, self.SUBJECT)),
                 '_'.join((self.PROJECT, self.SUBJECT,
                          XnatArchive.SUMMARY_NAME)))
@@ -367,7 +373,7 @@ class TestXnatArchive(BaseTestCase):
             expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
                                        '_visit_sink']
             visit_dir = os.path.join(
-                self.archive_cache_dir, self.PROJECT,
+                self.cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
                 (self.PROJECT + '_' + XnatArchive.SUMMARY_NAME +
                  '_' + self.VISIT))
@@ -385,7 +391,7 @@ class TestXnatArchive(BaseTestCase):
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
                                       '_project_sink']
             project_dir = os.path.join(
-                self.archive_cache_dir, self.PROJECT,
+                self.cache_dir, self.PROJECT,
                 self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
                 self.PROJECT + '_' + XnatArchive.SUMMARY_NAME + '_' +
                 XnatArchive.SUMMARY_NAME)
@@ -463,7 +469,7 @@ class TestXnatArchive(BaseTestCase):
         Tests handling of race conditions where separate processes attempt to
         cache the same dataset
         """
-        cache_dir = os.path.join(self.base_cache_path,
+        cache_dir = os.path.join(self.cache_path,
                                  'delayed-download-cache')
         DATASET_NAME = 'source1'
         target_path = os.path.join(self.session_cache(cache_dir),
@@ -541,7 +547,7 @@ class TestXnatArchive(BaseTestCase):
         Tests check of downloaded digests to see if file needs to be
         redownloaded
         """
-        cache_dir = os.path.join(self.base_cache_path,
+        cache_dir = os.path.join(self.cache_path,
                                  'digest-check-cache')
         DATASET_NAME = 'source1'
         STUDY_NAME = 'digest_check_study'
@@ -641,7 +647,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
     work_path = os.path.join(BaseTestCase.test_data_dir, 'work',
                              TEST_NAME)
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skip("Can't set up files with special chars on XNAT")
     def test_special_char_in_scan_name(self):
         """
         Tests whether XNAT source can download files with spaces in their names
@@ -674,9 +680,6 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
 class TestOnXnatMixin(object):
 
     sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
-    # Used to specify datasets that should be put in the derived
-    # session
-#     DERIVED_SUFFIX = '_derived'
 
     def setUp(self):
         self._clean_up()
@@ -750,6 +753,7 @@ class TestOnXnatMixin(object):
                 for field in project.fields:
                     xproj_summary.fields[field.name] = field.value
         self._output_cache_dir = tempfile.mkdtemp()
+
     def _upload_datset(self, xnat_login, dataset, xsession):
         if self._is_derived(dataset):
             type_name = self._derived_name(dataset)
@@ -896,17 +900,44 @@ class TestStudy(Study):
 
     add_data_specs = [
         DatasetSpec('dataset1', text_format),
-        DatasetSpec('dataset2', text_format),
+        DatasetSpec('dataset2', text_format, optional=True),
         DatasetSpec('dataset3', text_format),
-        DatasetSpec('dataset5', text_format)]
+        DatasetSpec('dataset5', text_format, optional=True)]
 
 
 class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     PROJECT = 'TEST011'
     BASE_CLASS = BaseMultiSubjectTestCase
-    SUBJECTS = ['subject1', 'subject3', 'subject4']
-    VISITS = ['visit1']
+    STRUCTURE = {
+        'subject1': {
+            'visit1': ['dataset1', 'dataset2', 'dataset3'],
+            'visit2': ['dataset1', 'dataset2', 'dataset3']},
+        'subject2': {
+            'visit1': ['dataset1', 'dataset2', 'dataset3'],
+            'visit2': ['dataset1', 'dataset2', 'dataset3']}}
+
+    DATASET_CONTENTS = {'dataset1': 1,
+                        'dataset2': 2,
+                        'dataset3': 3}
+
+    @property
+    def input_tree(self):
+        sessions = []
+        visit_ids = set()
+        for subj_id, visits in self.STRUCTURE.items():
+            for visit_id, datasets in visits.items():
+                sessions.append(Session(subj_id, visit_id, datasets=[
+                    Dataset(d, text_format, subject_id=subj_id,
+                            visit_id=visit_id) for d in datasets]))
+                visit_ids.add(visit_id)
+        subjects = [Subject(i, sessions=[s for s in sessions
+                                         if s.subject_id == i])
+                    for i in self.STRUCTURE]
+        visits = [Visit(i, sessions=[s for s in sessions
+                                     if s.visit == i])
+                  for i in visit_ids]
+        return Project(subjects=subjects, visits=visits)
 
     @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_cache_download(self):
@@ -917,20 +948,21 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
             TestStudy, 'cache_download',
             inputs=[
                 DatasetMatch('dataset1', text_format, 'dataset1'),
-                DatasetMatch('dataset2', text_format, 'dataset2'),
-                DatasetMatch('dataset3', text_format, 'dataset3'),
-                DatasetMatch('dataset5', text_format, 'dataset5')],
+                DatasetMatch('dataset3', text_format, 'dataset3')],
             archive=archive)
         study.cache_inputs()
-        for subject_id in self.SUBJECTS:
-            for inpt in study.inputs:
-                self.assertTrue(
-                    os.path.exists(os.path.join(
-                        archive.cache_dir, self.PROJECT,
-                        '{}_{}'.format(self.PROJECT, subject_id),
-                        '{}_{}_{}'.format(self.PROJECT, subject_id,
-                                          self.VISITS[0]),
-                        inpt.fname())))
+        for subject_id, visits in self.STRUCTURE.items():
+            subj_dir = os.path.join(
+                archive.cache_dir, self.PROJECT,
+                '{}_{}'.format(self.PROJECT, subject_id))
+            for visit_id in visits:
+                sess_dir = os.path.join(
+                    subj_dir,
+                    '{}_{}_{}'.format(self.PROJECT, subject_id,
+                                      visit_id))
+                for inpt in study.inputs:
+                    self.assertTrue(os.path.exists(os.path.join(
+                        sess_dir, inpt.fname())))
 
     @property
     def base_name(self):

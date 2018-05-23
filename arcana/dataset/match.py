@@ -348,9 +348,9 @@ class FieldMatch(BaseField, BaseMatch):
 
     is_spec = False
 
-    def __init__(self, name, pattern, dtype, frequency='per_session',
+    def __init__(self, name, dtype, pattern, frequency='per_session',
                  derived=False, order=None, is_regex=False, study=None):
-        FieldMatch.__init__(self, name, format, frequency)
+        BaseField.__init__(self, name, dtype, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
                            is_regex)
         super(FieldMatch, self).__init__(name, dtype, frequency)

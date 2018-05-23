@@ -59,16 +59,20 @@ class Project(object):
             return self._datasets[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a dataset named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a dataset named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.dataset_names))))
 
     def field(self, name):
         try:
             return self._fields[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a field named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.field_names))))
 
     @property
     def data(self):
@@ -367,16 +371,20 @@ class Visit(object):
             return self._datasets[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a dataset named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a dataset named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.dataset_names))))
 
     def field(self, name):
         try:
             return self._fields[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a field named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.field_names))))
 
     @property
     def data(self):
@@ -545,16 +553,20 @@ class Session(object):
             return self._datasets[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a dataset named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a dataset named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.dataset_names))))
 
     def field(self, name):
         try:
             return self._fields[name]
         except KeyError:
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}'"
-                       .format(self, name)))
+                name, ("{} doesn't have a field named '{}' "
+                       "(available '{}')"
+                       .format(self, name,
+                               "', '".join(self.field_names))))
 
     @property
     def data(self):
