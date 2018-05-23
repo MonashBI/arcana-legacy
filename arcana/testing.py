@@ -41,6 +41,9 @@ class BaseTestCase(TestCase):
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
 
+    # Whether to copy reference datasets from reference directory
+    INPUTS_FROM_REF_DIR = False
+
     # The path to the test directory, which should sit along side the
     # the package directory. Note this will not work when Arcana
     # is installed by a package manager.
@@ -74,7 +77,12 @@ class BaseTestCase(TestCase):
 
     def setUp(self):
         self.reset_dirs()
-        self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
+        if self.INPUTS_FROM_REF_DIR:
+            for fname in os.listdir(self.ref_dir):
+                pass
+        else:
+            datasets = getattr(self, 'INPUT_DATASETS', None)
+        self.add_session(datasets=datasets,
                          fields=getattr(self, 'INPUT_FIELDS', None))
 
     def add_session(self, datasets=None, fields=None, project_dir=None,
@@ -145,7 +153,15 @@ class BaseTestCase(TestCase):
 
     @property
     def archive(self):
-        return LocalArchive(self.project_dir)
+        return self.local_archive
+
+    @property
+    def local_archive(self):
+        try:
+            return self._local_archive
+        except AttributeError:
+            self._local_archive = LocalArchive(self.project_dir)
+            return self._local_archive
 
     @property
     def runner(self):
@@ -162,6 +178,10 @@ class BaseTestCase(TestCase):
     @property
     def cache_dir(self):
         return op.join(self.cache_path, self.name)
+
+    @property
+    def ref_dir(self):
+        return op.join(self.test_data_dir, self.name)
 
     @property
     def name(self):

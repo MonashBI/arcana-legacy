@@ -681,6 +681,9 @@ class TestOnXnatMixin(object):
 
     def setUp(self):
         self._clean_up()
+        self._archive = XnatArchive(project_id=self.project_id,
+                                    server=SERVER,
+                                    cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
         local_archive = LocalArchive(self.project_dir)
         project = local_archive.get_tree()
@@ -748,10 +751,6 @@ class TestOnXnatMixin(object):
                 for field in project.fields:
                     xproj_summary.fields[field.name] = field.value
         self._output_cache_dir = tempfile.mkdtemp()
-        self._archive = XnatArchive(project_id=self.project_id,
-                                    server=SERVER,
-                                    cache_dir=self.cache_dir)
-
     def _upload_datset(self, xnat_login, dataset, xsession):
         if self._is_derived(dataset):
             type_name = self._derived_name(dataset)
@@ -795,10 +794,6 @@ class TestOnXnatMixin(object):
     @property
     def archive(self):
         return self._archive
-
-    @property
-    def local_archive(self):
-        return self._local_archive
 
     @property
     def xnat_session_name(self):
@@ -952,7 +947,7 @@ class TestProjectInfo(TestOnXnatMixin,
     @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_project_info(self):
         tree = self.archive.get_tree()
-        ref_tree = self.ref_tree(self.archive, set_ids=True)
+        ref_tree = self.get_tree(self.archive, set_ids=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

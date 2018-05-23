@@ -733,7 +733,7 @@ class XnatArchive(Archive):
         # Convert subject ids to strings if they are integers
         if subject_ids is not None:
             subject_ids = [
-                ('{}_{:03d}'.format(self.project_id, s)
+                ('{:03d}'.format(s)
                  if isinstance(s, int) else s) for s in subject_ids]
         # Add derived visit IDs to list of visit ids to filter
         if visit_ids is not None:
@@ -751,7 +751,8 @@ class XnatArchive(Archive):
                 subj_id = xsubject.label[(len(self.project_id) + 1):]
                 if subj_id == XnatArchive.SUMMARY_NAME:
                     continue
-                if not (subject_ids is None or subj_id in subject_ids):
+                if (subject_ids is not None and
+                        subj_id not in subject_ids):
                     continue
                 logger.debug("Getting info for subject '{}'"
                              .format(subj_id))
@@ -858,17 +859,18 @@ class XnatArchive(Archive):
                         ("', '".join(subject_ids)
                          if subject_ids is not None else ''),
                         self.project_id,
-                        "', '".join(
-                            s.label for s in xproject.subjects.values())))
+                        "', '".join(s.label[(len(self.project_id) + 1):]
+                                    for s in xproject.subjects.values())))
             if not sessions:
                 raise ArcanaError(
-                    "Did not find any sessions matching the IDs '{}'"
-                    "(in subjects '{}') for project '{}'"
+                    "Did not find any sessions matching the visit IDs "
+                    "'{}' (in subjects '{}') for project '{}'"
                     .format(
                         ("', '".join(visit_ids)
                          if visit_ids is not None else ''),
                         "', '".join(
-                            s.label for s in xproject.experiments.values()),
+                            s.label.split('_')[1]
+                            for s in xproject.experiments.values()),
                         self.project_id))
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)

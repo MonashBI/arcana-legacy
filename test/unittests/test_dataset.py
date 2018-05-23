@@ -9,7 +9,11 @@ from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.study.base import Study, StudyMetaClass
 from arcana.option import OptionSpec
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from arcana.data_format import text_format
+from arcana.data_format import text_format, DataFormat
+
+# For testing DICOM tag matching
+dicom_format = DataFormat(name='dicom', extension=None,
+                          directory=True, within_dir_exts=['.dcm'])
 
 
 class TestDatasetSpecPickle(TestCase):
@@ -58,6 +62,52 @@ class TestDatasetMatching(BaseMultiSubjectTestCase):
     @unittest.skip("Test not implemented")
     def test_match_pattern(self):
         pass
+
+
+class TestDicomTagMatch(BaseTestCase):
+
+    IMAGE_TYPE_TAG = ('0008', '0008')
+    GRE_PATTERN = 'gre_field_mapping_3mm.*'
+    PHASE_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'P', 'ND']
+    MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
+    DICOM_MATCH = [
+        DatasetMatch('gre_phase', dicom_format, GRE_PATTERN,
+                     dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
+                     is_regex=True),
+        DatasetMatch('gre_mag', dicom_format, GRE_PATTERN,
+                     dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
+                     is_regex=True)]
+
+    INPUTS_FROM_REF_DIR = True
+
+    def setUp(self):
+        self.reset_dirs()
+        self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
+                         )
+
+    def test_dicom_match(self):
+        study = self.create_study(
+            TestMatchStudy, 'test_dicom',
+            inputs=self.DICOM_MATCH)
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+    def test_order_match(self):
+        study = self.create_study(
+            TestMatchStudy, 'test_dicom',
+            inputs=[
+                DatasetMatch('gre_phase', dicom_format,
+                             pattern=self.GRE_PATTERN, order=1,
+                             is_regex=True),
+                DatasetMatch('gre_mag', dicom_format,
+                             pattern=self.GRE_PATTERN, order=0,
+                             is_regex=True)])
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
 
 class TestDerivableStudy(Study):

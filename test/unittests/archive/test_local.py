@@ -563,7 +563,7 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        return self.get_tree(self.archive)
+        return self.get_tree(self.local_archive)
 
     def test_project_info(self):
         # Add hidden file to local archive at project and subject
