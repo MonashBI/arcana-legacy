@@ -1,0 +1,6 @@
+# requirements file for readthedocs.org
+docutils>=0.10
+mock>1.0
+lazyarray>=0.2.6
+numpydoc>=0.6.0
+sphinx-argparse>=0.2.0

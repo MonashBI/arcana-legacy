@@ -653,7 +653,7 @@ class TestXnatArchiveSpecialCharInScanName(TestCase):
             project_id=self.PROJECT)
         study = DummyStudy(
             'study', archive, LinearRunner('ad'),
-            inputs=[DatasetMatch('source{}'.format(i), dicom_format, d)
+            inputs=[DatasetMatch('source{}'.format(i), text_format, d)
                     for i, d in enumerate(self.DATASETS, start=1)],
             subject_ids=[self.SUBJECT], visit_ids=[self.VISIT])
         source = archive.source(
@@ -681,8 +681,7 @@ class TestOnXnatMixin(object):
 
     def setUp(self):
         self._clean_up()
-        cache_dir = os.path.join(self.base_cache_path, self.base_name)
-        self.BASE_CLASS.setUp(self, cache_dir=cache_dir)
+        self.BASE_CLASS.setUp(self)
         local_archive = LocalArchive(self.project_dir)
         project = local_archive.get_tree()
         with xnat.connect(SERVER) as xnat_login:
