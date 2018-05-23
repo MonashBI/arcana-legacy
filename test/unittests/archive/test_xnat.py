@@ -77,12 +77,9 @@ class DummyStudy(Study):
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
         DatasetSpec('resink3', text_format, 'dummy_pipeline'),
-        FieldSpec('field1', int),
-        FieldSpec('field2', float),
-        FieldSpec('field3', str),
-        FieldSpec('fieldsink1', int, 'dummy_pipeline'),
-        FieldSpec('fieldsink2', float, 'dummy_pipeline'),
-        FieldSpec('fieldsink3', str, 'dummy_pipeline')]
+        FieldSpec('field1', int, 'dummy_pipeline'),
+        FieldSpec('field2', float, 'dummy_pipeline'),
+        FieldSpec('field3', str, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -260,15 +257,10 @@ class TestXnatArchive(BaseTestCase):
             project_id=self.PROJECT)
         study = DummyStudy(
             self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    FieldMatch('field1', int, 'field1'),
-                    FieldMatch('field2', float, 'field2'),
-                    FieldMatch('field3', str, 'field3')])
-        inputs = [study.spec('field{}'.format(i)) for i in range(1, 4)]
-        outputs = [study.spec('fieldsink{}'.format(i))
-                   for i in range(1, 4)]
+            inputs=[DatasetMatch('source1', text_format, 'source1')])
+        fields = [study.spec('field{}'.format(i)) for i in range(1, 4)]
         sink = archive.sink(
-            outputs=outputs,
+            outputs=fields,
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -280,7 +272,7 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
-            inputs=inputs,
+            inputs=fields,
             name='fields_source',
             study_name='test')
         source.inputs.visit_id = self.VISIT
