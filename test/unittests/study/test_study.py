@@ -414,14 +414,6 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             'visit2': ['one', 'ten'],
             'visit3': ['one', 'hundred', 'thousand']},
         'subject2': {
-            'visit1': ['one', 'ten'],
-            'visit2': ['one', 'ten'],
-            'visit3': ['one', 'ten', 'hundred', 'thousand']},
-        'subject3': {
-            'visit1': ['one'],
-            'visit2': ['one', 'ten'],
-            'visit3': ['one', 'ten', 'thousand']},
-        'subject4': {
             'visit1': ['one'],
             'visit2': ['one', 'ten'],
             'visit3': ['one', 'ten', 'hundred', 'thousand']}}
@@ -463,14 +455,6 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit2': 1110.0,
                 'visit3': 1000.0},
             'subject2': {
-                'visit1': 1110.0,
-                'visit2': 1110.0,
-                'visit3': 1000.0},
-            'subject3': {
-                'visit1': 1111.0,
-                'visit2': 1110.0,
-                'visit3': 1000.0},
-            'subject4': {
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
