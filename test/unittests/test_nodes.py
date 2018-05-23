@@ -1,5 +1,5 @@
-from nipype.interfaces.utility import IdentityInterface, Merge
-from arcana.dataset import DatasetSpec, DatasetMatch
+from nipype.interfaces.utility import IdentityInterface, Merge, Split
+from arcana.dataset import DatasetSpec, DatasetMatch, FieldSpec
 from arcana.study.base import Study, StudyMetaClass
 import unittest
 from arcana.testing import BaseTestCase, TestMath
@@ -21,7 +21,9 @@ class RequirementsStudy(Study):
 
     add_data_specs = [
         DatasetSpec('ones', text_format),
-        DatasetSpec('twos', text_format, 'pipeline')]
+        DatasetSpec('twos', text_format, 'pipeline'),
+        FieldSpec('threes', float, 'pipeline2'),
+        FieldSpec('fours', float, 'pipeline2')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
@@ -32,16 +34,44 @@ class RequirementsStudy(Study):
             version=1,
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
-        input_merge = pipeline.create_node(
-            Merge(2), "input_merge")
         maths = pipeline.create_node(
             TestMath(), "maths", requirements=[
                 (dummy1_req, dummy2_req, dummy3_req), dummy4_req])
-        pipeline.connect_input('ones', input_merge, 'in1')
-        pipeline.connect_input('ones', input_merge, 'in2')
-        pipeline.connect(input_merge, 'out', maths, 'in_files')
-        maths.inputs.operation = 'sum'
-        pipeline.connect_output('twos', maths, 'out_file')
+        maths.inputs.op = 'add'
+        maths.inputs.as_file = True
+        maths.inputs.y = 1
+        pipeline.connect_input('ones', maths, 'x')
+        pipeline.connect_output('twos', maths, 'z')
+        pipeline.assert_connected()
+        return pipeline
+
+    def pipeline2(self):
+        pipeline = self.create_pipeline(
+            name='pipeline2',
+            inputs=[DatasetSpec('ones', text_format),
+                    DatasetSpec('twos', text_format)],
+            outputs=[FieldSpec('threes', float),
+                     FieldSpec('fours', float)],
+            desc=("A pipeline that tests loading of requirements in "
+                  "map nodes"),
+            version=1,
+            citations=[],)
+        # Convert from DICOM to NIfTI.gz format on input
+        merge = pipeline.create_node(Merge(2), "merge")
+        maths = pipeline.create_map_node(
+            TestMath(), "maths", iterfield='x', requirements=[
+                (dummy1_req, dummy2_req, dummy3_req), dummy4_req])
+        split = pipeline.create_node(Split(), 'split')
+        split.inputs.splits = [1, 1]
+        split.inputs.squeeze = True
+        maths.inputs.op = 'add'
+        maths.inputs.y = 2
+        pipeline.connect_input('ones', merge, 'in1')
+        pipeline.connect_input('twos', merge, 'in2')
+        pipeline.connect(merge, 'out', maths, 'x')
+        pipeline.connect(maths, 'z', split, 'inlist')
+        pipeline.connect_output('threes', split, 'out1')
+        pipeline.connect_output('fours', split, 'out2')
         pipeline.assert_connected()
         return pipeline
 
@@ -51,12 +81,21 @@ class TestModuleLoad(BaseTestCase):
     INPUT_DATASETS = {'ones': '1'}
 
     @unittest.skip("Don't have an interface that needs to be loaded")
-    def test_pipeline_prerequisites(self):
+    def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
         study.data('twos')
-        self.assertDatasetCreated('twos.nii.gz', study.name)
+        self.assertDatasetCreated('twos.txt', study.name)
+
+    def test_module_load_in_map(self):
+        study = self.create_study(
+            RequirementsStudy, 'requirements',
+            [DatasetMatch('ones', text_format, 'ones')])
+        threes = study.data('threes')[0].value
+        fours = study.data('fours')[0].value
+        self.assertEqual(threes, 3)
+        self.assertEqual(fours, 4)
 
 
 class TestSlurmTemplate(TestCase):

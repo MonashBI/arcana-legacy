@@ -168,7 +168,7 @@ class BaseField(BaseDatum):
         if dtype not in self.dtypes:
             raise ArcanaError(
                 "Invalid dtype {}, can be one of {}".format(
-                    dtype.__name__, ', '.join(self._dtype_names())))
+                    dtype, ', '.join(self._dtype_names())))
         self._dtype = dtype
 
     def __eq__(self, other):

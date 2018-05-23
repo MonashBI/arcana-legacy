@@ -24,7 +24,7 @@ from arcana.utils import PATH_SUFFIX
 from arcana.exception import ArcanaError
 from arcana.data_format import text_format
 from arcana.archive.tree import Project, Subject, Session, Visit
-from arcana.dataset import Dataset
+from arcana.dataset import Dataset, FieldMatch
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
@@ -76,7 +76,13 @@ class DummyStudy(Study):
                     frequency='per_project'),
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline')]
+        DatasetSpec('resink3', text_format, 'dummy_pipeline'),
+        FieldSpec('field1', int),
+        FieldSpec('field2', float),
+        FieldSpec('field3', str),
+        FieldSpec('fieldsink1', int, 'dummy_pipeline'),
+        FieldSpec('fieldsink2', float, 'dummy_pipeline'),
+        FieldSpec('fieldsink3', str, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -113,6 +119,7 @@ class TestXnatArchive(BaseTestCase):
 
     INPUT_DATASETS = {'source1': 'foo', 'source2': 'bar',
                       'source3': 'wee', 'source4': 'wa'}
+    INPUT_FIELDS = {'field1': 1, 'field2': 0.5, 'field3': 'boo'}
 
     def session_label(self, project=None, subject=None, visit=None):
         if project is None:
@@ -159,6 +166,8 @@ class TestXnatArchive(BaseTestCase):
                 resource = xdataset.create_resource(
                     dataset.format.name.upper())
                 resource.upload(dataset.path, dataset.fname())
+            for field in self.session.fields:
+                xsession.fields[field.name] = field.value
 
     def tearDown(self):
         # Clean up working dirs
@@ -249,11 +258,17 @@ class TestXnatArchive(BaseTestCase):
         archive = XnatArchive(
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.PROJECT)
+        study = DummyStudy(
+            self.STUDY_NAME, archive, runner=LinearRunner('a_dir'),
+            inputs=[DatasetMatch('source1', text_format, 'source1'),
+                    FieldMatch('field1', int, 'field1'),
+                    FieldMatch('field2', float, 'field2'),
+                    FieldMatch('field3', str, 'field3')])
+        inputs = [study.spec('field{}'.format(i)) for i in range(1, 4)]
+        outputs = [study.spec('fieldsink{}'.format(i))
+                   for i in range(1, 4)]
         sink = archive.sink(
-            outputs=[
-                FieldSpec('field1', int, 'pipeline'),
-                FieldSpec('field2', float, 'pipeline'),
-                FieldSpec('field3', str, 'pipeline')],
+            outputs=outputs,
             name='fields_sink',
             study_name='test')
         sink.inputs.field1_field = field1 = 1
@@ -265,10 +280,7 @@ class TestXnatArchive(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = archive.source(
-            inputs=[
-                FieldSpec('field1', int, 'dummy_pipeline'),
-                FieldSpec('field2', float, 'dummy_pipeline'),
-                FieldSpec('field3', str, 'dummy_pipeline')],
+            inputs=inputs,
             name='fields_source',
             study_name='test')
         source.inputs.visit_id = self.VISIT
@@ -905,27 +917,23 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
 
     PROJECT = 'TEST011'
     BASE_CLASS = BaseMultiSubjectTestCase
-    SUBJECTS = ['subject1', 'subject3', 'subject4']
-    VISITS = ['visit1']
+    STRUCTURE = {
+        'subject1': {
+            'visit1': ['dataset1', 'dataset2', 'dataset3'],
+            'visit2': ['dataset1', 'dataset2', 'dataset3']},
+        'subject2': {
+            'visit1': ['dataset1', 'dataset2', 'dataset3'],
+            'visit2': ['dataset1', 'dataset2', 'dataset3']}}
 
     DATASET_CONTENTS = {'dataset1': 1,
                         'dataset2': 2,
                         'dataset3': 3}
 
-    STUDY_NAME = 'study'
-
     @property
     def input_tree(self):
-        structure = {
-            'subject1': {
-                'visit1': ['dataset1', 'dataset2', 'dataset3'],
-                'visit2': ['dataset1', 'dataset2', 'dataset3']},
-            'subject2': {
-                'visit1': ['dataset1', 'dataset2', 'dataset3'],
-                'visit2': ['dataset1', 'dataset2', 'dataset3']}}
         sessions = []
         visit_ids = set()
-        for subj_id, visits in structure.items():
+        for subj_id, visits in self.STRUCTURE.items():
             for visit_id, datasets in visits.items():
                 sessions.append(Session(subj_id, visit_id, datasets=[
                     Dataset(d, text_format, subject_id=subj_id,
@@ -933,7 +941,7 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
-                    for i in structure]
+                    for i in self.STRUCTURE]
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                   for i in visit_ids]
@@ -951,15 +959,18 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
                 DatasetMatch('dataset3', text_format, 'dataset3')],
             archive=archive)
         study.cache_inputs()
-        for subject_id in self.SUBJECTS:
-            for inpt in study.inputs:
-                self.assertTrue(
-                    os.path.exists(os.path.join(
-                        archive.cache_dir, self.PROJECT,
-                        '{}_{}'.format(self.PROJECT, subject_id),
-                        '{}_{}_{}'.format(self.PROJECT, subject_id,
-                                          self.VISITS[0]),
-                        inpt.fname())))
+        for subject_id, visits in self.STRUCTURE.items():
+            subj_dir = os.path.join(
+                archive.cache_dir, self.PROJECT,
+                '{}_{}'.format(self.PROJECT, subject_id))
+            for visit_id in visits:
+                sess_dir = os.path.join(
+                    subj_dir,
+                    '{}_{}_{}'.format(self.PROJECT, subject_id,
+                                      visit_id))
+                for inpt in study.inputs:
+                    self.assertTrue(os.path.exists(os.path.join(
+                        sess_dir, inpt.fname())))
 
     @property
     def base_name(self):

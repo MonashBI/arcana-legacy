@@ -198,9 +198,17 @@ class LocalSinkMixin(LocalNodeMixin):
                                     spec.name + FIELD_SUFFIX)
                     qual_name = self.prefix_study_name(spec.name)
                     if spec.dtype is str:
-                        assert isinstance(value, basestring)
+                        if not isinstance(value, basestring):
+                            raise ArcanaError(
+                                "Provided value for field '{}' ({}) "
+                                "does not match string datatype"
+                                .format(spec.name, value))
                     else:
-                        assert isinstance(value, spec.dtype)
+                        if not isinstance(value, spec.dtype):
+                            raise ArcanaError(
+                                "Provided value for field '{}' ({}) "
+                                "does not match datatype {}"
+                                .format(spec.name, value, spec.dtype))
                     fields[qual_name] = value
                     out_fields.append((qual_name, value))
                 with open(fpath, 'wb') as f:
