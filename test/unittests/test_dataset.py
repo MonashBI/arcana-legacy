@@ -14,6 +14,7 @@ from arcana.data_format import text_format, DataFormat
 # For testing DICOM tag matching
 dicom_format = DataFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])
+DataFormat.register(dicom_format)
 
 
 class TestDatasetSpecPickle(TestCase):
@@ -47,8 +48,8 @@ class TestMatchStudy(Study):
     __metaclass__ = StudyMetaClass
 
     add_data_specs = [
-        DatasetSpec('gre_phase', text_format),
-        DatasetSpec('gre_mag', text_format)]
+        DatasetSpec('gre_phase', dicom_format),
+        DatasetSpec('gre_mag', dicom_format)]
 
     def dummy_pipeline1(self):
         pass
@@ -79,11 +80,6 @@ class TestDicomTagMatch(BaseTestCase):
                      is_regex=True)]
 
     INPUTS_FROM_REF_DIR = True
-
-    def setUp(self):
-        self.reset_dirs()
-        self.add_session(datasets=getattr(self, 'INPUT_DATASETS', None),
-                         )
 
     def test_dicom_match(self):
         study = self.create_study(

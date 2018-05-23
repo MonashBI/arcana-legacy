@@ -78,8 +78,13 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.reset_dirs()
         if self.INPUTS_FROM_REF_DIR:
+            datasets = {}
             for fname in os.listdir(self.ref_dir):
-                pass
+                if fname.startswith('.'):
+                    continue
+                dataset = Dataset.from_path(op.join(self.ref_dir,
+                                                    fname))
+                datasets[dataset.name] = dataset
         else:
             datasets = getattr(self, 'INPUT_DATASETS', None)
         self.add_session(datasets=datasets,
@@ -181,7 +186,7 @@ class BaseTestCase(TestCase):
 
     @property
     def ref_dir(self):
-        return op.join(self.test_data_dir, self.name)
+        return op.join(self.test_data_dir, 'reference', self.name)
 
     @property
     def name(self):

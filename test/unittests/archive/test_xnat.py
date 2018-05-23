@@ -14,12 +14,11 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.archive.xnat import (
     XnatArchive, download_all_datasets)
-from arcana.archive.local import LocalArchive, FIELDS_FNAME
+from arcana.archive.local import LocalArchive
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from arcana.utils import split_extension
 from arcana.data_format import DataFormat
 from arcana.utils import PATH_SUFFIX
 from arcana.exception import ArcanaError
@@ -1011,7 +1010,8 @@ class TestDatasetCacheOnPathAccess(TestCase):
         tree = archive.get_tree(
             subject_ids=[self.SUBJECT],
             visit_ids=[self.VISIT])
-        dataset = next(next(tree.subjects).sessions).datasets[0]
+        # Get a dataset
+        dataset = next(next(next(tree.subjects).sessions).datasets)
         self.assertEqual(dataset._path, None)
         target_path = os.path.join(
             tmp_dir, self.PROJECT,

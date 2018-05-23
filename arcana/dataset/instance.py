@@ -3,7 +3,7 @@ import pydicom
 from arcana.data_format import DataFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
-    ArcanaError, ArcanaDataFormatError,
+    ArcanaError, ArcanaDataFormatError, ArcanaUsageError,
     ArcanaDataFormatNotRegisteredError)
 from .base import BaseDataset, BaseField
 
@@ -140,23 +140,30 @@ class Dataset(BaseDataset):
         return self._visit_id
 
     @classmethod
-    def from_path(cls, path, frequency='per_session',
+    def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
                   subject_id=None, visit_id=None, archive=None):
+        if not os.path.exists(path):
+            raise ArcanaUsageError(
+                "Attempting to read Dataset from path '{}' but it "
+                "does not exist".format(path))
         if os.path.isdir(path):
             within_exts = frozenset(
                 split_extension(f)[1] for f in os.listdir(path)
                 if not f.startswith('.'))
-            try:
-                data_format = DataFormat.by_within_dir_exts(within_exts)
-            except ArcanaDataFormatNotRegisteredError:
-                # Fall back to general directory format
-                data_format = directory_format
+            if format is None:
+                # Try to guess format
+                try:
+                    format = DataFormat.by_within_dir_exts(within_exts)  # @ReservedAssignment @IgnorePep8
+                except ArcanaDataFormatNotRegisteredError:
+                    # Fall back to general directory format
+                    format = directory_format  # @ReservedAssignment
             name = os.path.basename(path)
         else:
             filename = os.path.basename(path)
             name, ext = split_extension(filename)
-            data_format = DataFormat.by_ext(ext)
-        return cls(name, data_format, frequency=frequency,
+            if format is None:
+                format = DataFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
+        return cls(name, format, frequency=frequency,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)
 
@@ -180,7 +187,8 @@ class Dataset(BaseDataset):
             raise ArcanaDataFormatError(
                 "Can not read DICOM header as {} is not in DICOM format"
                 .format(self))
-        fnames = sorted(os.listdir(self.path))
+        fnames = sorted([f for f in os.listdir(self.path)
+                         if not f.startswith('.')])
         with open(os.path.join(self.path, fnames[index])) as f:
             dcm = pydicom.dcmread(f)
         return dcm
