@@ -6,8 +6,8 @@ Arcana
 .. image:: https://codecov.io/gh/monashbiomedicalimaging/arcana/branch/master/graph/badge.svg
   :target: https://codecov.io/gh/monashbiomedicalimaging/arcana
 .. image:: https://img.shields.io/pypi/v/arcana.svg
-    :target: https://pypi.python.org/pypi/arcana/
-    :alt: Latest Version    
+  :target: https://pypi.python.org/pypi/arcana/
+  :alt: Latest Version    
 .. image:: https://readthedocs.org/projects/arcana/badge/?version=latest
   :target: http://arcana.readthedocs.io/en/latest/?badge=latest
   :alt: Documentation Status
