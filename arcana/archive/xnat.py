@@ -545,7 +545,7 @@ class XnatProjectSink(XnatSinkMixin, ArchiveProjectSink):
 
 class XnatArchive(Archive):
     """
-    An 'Archive' class for the DaRIS research management system.
+    An 'Archive' class for XNAT repositories
 
     Parameters
     ----------
@@ -1001,62 +1001,6 @@ class XnatArchive(Archive):
         return (subj_label, sess_label)
 
 
-def download_all_datasets(download_dir, server, session_id, overwrite=True,
-                          **kwargs):
-    with xnat.connect(server, **kwargs) as xnat_login:
-        try:
-            session = xnat_login.experiments[session_id]
-        except KeyError:
-            raise ArcanaMissingDataException(
-                "Didn't find session matching '{}' on {}"
-                .format(session_id, server))
-        try:
-            os.makedirs(download_dir)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
-        for dataset in session.scans.itervalues():
-            data_format_name = guess_data_format(dataset)
-            ext = DataFormat.by_name(data_format_name).extension
-            if ext is None:
-                ext = ''
-            download_path = os.path.join(download_dir, dataset.type + ext)
-            if overwrite or not os.path.exists(download_path):
-                download_resource(download_path, dataset,
-                                  data_format_name, session.label)
-        fields = {}
-        for name, value in session.fields.items():
-            # Try convert to each datatypes in order of specificity to
-            # determine type
-            if name not in BUILTIN_XNAT_FIELDS:
-                fields[name] = value
-        with open(os.path.join(download_dir, FIELDS_FNAME), 'wb') as f:
-            json.dump(fields, f)
-
-
-def download_dataset(download_path, server, user, password, session_id,
-                     dataset_name, data_format=None):
-    """
-    Downloads a single dataset from an XNAT server
-    """
-    with xnat.connect(server, user=user, password=password) as xnat_login:
-        try:
-            session = xnat_login.experiments[session_id]
-        except KeyError:
-            raise ArcanaError(
-                "Didn't find session matching '{}' on {}".format(session_id,
-                                                                 server))
-        try:
-            dataset = session.scans[dataset_name]
-        except KeyError:
-            raise ArcanaError(
-                "Didn't find dataset matching '{}' in {}".format(dataset_name,
-                                                                 session_id))
-        if data_format is None:
-            data_format = guess_data_format(dataset)
-        download_resource(download_path, dataset, data_format, session.label)
-
-
 def guess_data_format(dataset):
     dataset_formats = [r for r in dataset.resources.itervalues()
                        if r.label.lower() in DataFormat.by_names]
@@ -1072,43 +1016,3 @@ def guess_data_format(dataset):
                 dataset.type, "', '".join(
                     r.label for r in dataset.resources.itervalues())))
     return dataset_formats[0].label
-
-
-def download_resource(download_path, dataset, data_format_name,
-                      session_label):
-
-    data_format = DataFormat.by_name(data_format_name)
-    try:
-        resource = dataset.resources[data_format.xnat_resource_name]
-    except KeyError:
-        raise ArcanaError(
-            "Didn't find {} resource in {} dataset matching '{}' in {}"
-            .format(data_format.xnat_resource_name, dataset.type))
-    tmp_dir = download_path + '.download'
-    resource.download_dir(tmp_dir)
-    dataset_label = dataset.id + '-' + special_char_re.sub('_', dataset.type)
-    src_path = os.path.join(tmp_dir, session_label, 'scans',
-                            dataset_label, 'resources',
-                            data_format.xnat_resource_name, 'files')
-    if not data_format.directory:
-        fnames = os.listdir(src_path)
-        match_fnames = [
-            f for f in fnames
-            if lower(split_extension(f)[-1]) == lower(
-                data_format.extension)]
-        if len(match_fnames) == 1:
-            src_path = os.path.join(src_path, match_fnames[0])
-        else:
-            raise ArcanaMissingDataException(
-                "Did not find single file with extension '{}' "
-                "(found '{}') in resource '{}'"
-                .format(data_format.extension,
-                        "', '".join(fnames), src_path))
-    shutil.move(src_path, download_path)
-    shutil.rmtree(tmp_dir)
-
-
-def list_datasets(server, user, password, session_id):
-    with xnat.connect(server, user=user, password=password) as xnat_login:
-        session = xnat_login.experiments[session_id]
-        return [s.type for s in session.scans.itervalues()]

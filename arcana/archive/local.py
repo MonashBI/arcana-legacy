@@ -260,8 +260,13 @@ class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
 
 class LocalArchive(Archive):
     """
-    Abstract base class for all Archive systems, DaRIS, XNAT and local file
-    system. Sets out the interface that all Archive classes should implement.
+    An 'Archive' class for directories on the local file system organised
+    into sub-directories by subject and then visit.
+
+    Parameters
+    ----------
+    base_dir : str (path)
+        Path to local directory containing data
     """
 
     type = 'local'

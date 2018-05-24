@@ -21,19 +21,20 @@ class Citation(object):
 
     def __eq__(self, other):
         return (
-            self._authors == other._authors and
-            self._title == other._title and
-            self._year == other._year and
-            self._journal == other._journal and
-            self._volume == other._volume and
-            self._issue == other.issue and
-            self._pages == other._pages and
-            self._institute == other._institute and
-            self._month == other._month and
-            self._proceedings == other._proceedings and
-            self._url == other._url and
-            self._pdf == other._pdf and
-            self._doi == other._doi)
+            self.short_name == other.short_name and
+            self.authors == other.authors and
+            self.title == other.title and
+            self.year == other.year and
+            self.journal == other.journal and
+            self.volume == other.volume and
+            self.issue == other.issue and
+            self.pages == other.pages and
+            self.institute == other.institute and
+            self.month == other.month and
+            self.proceedings == other.proceedings and
+            self.url == other.url and
+            self.pdf == other.pdf and
+            self.doi == other.doi)
 
     def __ne__(self, other):
         return not (self == other)

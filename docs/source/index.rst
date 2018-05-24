@@ -42,4 +42,6 @@ User/Developer Guide
 
     installation
     design
-    api
+    example
+    api_design
+    api_application

@@ -603,18 +603,3 @@ class TestMath(BaseInterface):
     def _load_file(self, path):
         with open(path) as f:
             return float(f.read())
-
-
-if __name__ == '__main__':
-    import tempfile
-    with tempfile.NamedTemporaryFile(delete=False) as f:
-        path = f.name
-        f.write('10.0')
-    math = TestMath()
-    math.inputs.x = 1.0
-    math.inputs.y = 20  # path
-    math.inputs.op = 'add'
-    result = math.run()
-    print(result.outputs.z)
-    with open(result.outputs.z) as f:
-        print(f.read())

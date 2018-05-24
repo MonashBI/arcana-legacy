@@ -621,22 +621,6 @@ class StudyMetaClass(type):
         return type(name, bases, dct)
 
 
-def make_data_property(spec):
-    if spec.frequency == 'per_project':
-        def getter(self):
-            return self.data(spec.name)[0]
-    else:
-        def getter(self):
-            return self.data(spec.name)
-    return property(getter)
-
-
-def make_option_property(spec):
-    def getter(self):
-        return self._get_option(spec.name).value
-    return property(getter)
-
-
 def pickle_reconstructor(metacls, name, bases, cls_dict):
     obj = DummyObject()
     obj.__class__ = metacls(name, bases, cls_dict)

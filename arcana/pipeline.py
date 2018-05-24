@@ -25,9 +25,8 @@ logger = getLogger('Arcana')
 
 class Pipeline(object):
     """
-    Basically a wrapper around a NiPype workflow to keep track of the inputs
-    and outputs a little better and provide some convenience functions related
-    to the Study objects.
+    A fairly thin wrapper around a NiPype workflow, which keeps track
+    inputs and outputs, and maps names of nodes to avoid name-clashes
 
     Parameters
     ----------
