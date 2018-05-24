@@ -1,6 +1,9 @@
 from nipype.interfaces.utility import IdentityInterface, Merge, Split
 from arcana.dataset import DatasetSpec, DatasetMatch, FieldSpec
 from arcana.study.base import Study, StudyMetaClass
+from arcana.exception import (ArcanaModulesNotInstalledException,
+                              ArcanaRequirementVersionException,
+                              ArcanaError)
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
@@ -11,8 +14,31 @@ from arcana.requirement import Requirement
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))
 dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
-dummy3_req = Requirement(name='dummy3', min_version=(1, 0))
-dummy4_req = Requirement(name='dummy4', min_version=(1, 0))
+mrtrix_req = Requirement('mrtrix', min_version=(3, 0, 0))
+dcm2niix_req = Requirement('dcm2niix', min_version=(1, 0, 2))
+
+try:
+    avail_modules = Node.available_modules()
+    for req in (mrtrix_req, dcm2niix_req):
+        Requirement.best_requirement([req], avail_modules)
+except (ArcanaModulesNotInstalledException,
+        ArcanaRequirementVersionException):
+    MODULES_NOT_INSTALLED = True
+else:
+    MODULES_NOT_INSTALLED = False
+
+
+class TestMathWithReq(TestMath):
+
+    def _run_interface(self, runtime):
+        loaded_modules = Node.preloaded_modules()
+        if mrtrix_req.name not in loaded_modules:
+            raise ArcanaError(
+                "Mrtrix module was not loaded in Node")
+        if dcm2niix_req.name not in loaded_modules:
+            raise ArcanaError(
+                "Dcm2niix module was not loaded in Node")
+        return runtime
 
 
 class RequirementsStudy(Study):
@@ -35,8 +61,8 @@ class RequirementsStudy(Study):
             citations=[],)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
-            TestMath(), "maths", requirements=[
-                (dummy1_req, dummy2_req, dummy3_req), dummy4_req])
+            TestMathWithReq(), "maths", requirements=[
+                (dummy1_req, dummy2_req, mrtrix_req), dcm2niix_req])
         maths.inputs.op = 'add'
         maths.inputs.as_file = True
         maths.inputs.y = 1
@@ -59,8 +85,8 @@ class RequirementsStudy(Study):
         # Convert from DICOM to NIfTI.gz format on input
         merge = pipeline.create_node(Merge(2), "merge")
         maths = pipeline.create_map_node(
-            TestMath(), "maths", iterfield='x', requirements=[
-                (dummy1_req, dummy2_req, dummy3_req), dummy4_req])
+            TestMathWithReq(), "maths", iterfield='x', requirements=[
+                (dummy1_req, dummy2_req, mrtrix_req), dcm2niix_req])
         split = pipeline.create_node(Split(), 'split')
         split.inputs.splits = [1, 1]
         split.inputs.squeeze = True
@@ -80,7 +106,8 @@ class TestModuleLoad(BaseTestCase):
 
     INPUT_DATASETS = {'ones': '1'}
 
-    @unittest.skip("Don't have an interface that needs to be loaded")
+    @unittest.skipIf(MODULES_NOT_INSTALLED,
+                     "Dcm2niix and Mrtrix modules are not installed")
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
@@ -88,6 +115,8 @@ class TestModuleLoad(BaseTestCase):
         study.data('twos')
         self.assertDatasetCreated('twos.txt', study.name)
 
+    @unittest.skipIf(MODULES_NOT_INSTALLED,
+                     "Dcm2niix and Mrtrix modules are not installed")
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
