@@ -24,7 +24,7 @@ from arcana.utils import PATH_SUFFIX
 from arcana.exception import ArcanaError
 from arcana.data_format import text_format
 from arcana.archive.tree import Project, Subject, Session, Visit
-from arcana.dataset import Dataset, FieldMatch
+from arcana.dataset import Dataset
 import sys
 import logging
 # Import TestExistingPrereqs study to test it on XNAT
@@ -53,7 +53,6 @@ try:
     SERVER = os.environ['ARCANA_TEST_XNAT']
 except KeyError:
     SERVER = None
-SERVER = 'https://mbi-xnat.erc.monash.edu.au'
 
 
 class DummyStudy(Study):
