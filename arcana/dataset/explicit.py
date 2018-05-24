@@ -162,7 +162,12 @@ class Dataset(BaseDataset):
             filename = os.path.basename(path)
             name, ext = split_extension(filename)
             if format is None:
-                format = DataFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
+                try:
+                    format = DataFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
+                except ArcanaDataFormatNotRegisteredError as e:
+                    raise ArcanaDataFormatNotRegisteredError(
+                        str(e) + ", which is required to identify the "
+                        "format of the dataset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
                    path=path, derived=False, subject_id=subject_id,
                    visit_id=visit_id, archive=archive)

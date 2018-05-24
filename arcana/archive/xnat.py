@@ -291,6 +291,11 @@ class XnatSource(ArchiveSource, XnatMixin):
                     "(found '{}') in resource '{}'"
                     .format(dataset.format.extension,
                             "', '".join(fnames), data_path))
+        try:
+            os.makedirs(os.path.dirname(cache_path))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
         shutil.move(data_path, cache_path)
         with open(cache_path + XnatArchive.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)

@@ -465,8 +465,12 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 try:
                     dataset = session.dataset('thousand')
                 except ArcanaNameError:
-                    dataset = session.dataset('{}_thousand'
-                                              .format(self.STUDY_NAME))
+                    if session.derived is None:
+                        derived_session = session
+                    else:
+                        derived_session = session.derived
+                    dataset = derived_session.dataset(
+                        '{}_thousand'.format(self.STUDY_NAME))
                 self.assertContentsEqual(
                     dataset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
