@@ -12,8 +12,7 @@ from arcana.testing import (
     BaseTestCase, BaseMultiSubjectTestCase)
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from arcana.archive.xnat import (
-    XnatArchive, download_all_datasets)
+from arcana.archive.xnat import XnatArchive
 from arcana.archive.local import LocalArchive
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
@@ -853,7 +852,9 @@ class TestOnXnatMixin(object):
             session_id += XnatArchive.PROCESSED_SUFFIX
         session_path = os.path.join(self.output_cache_dir, session_id)
         if not os.path.exists(session_path):
-            download_all_datasets(session_path, SERVER, session_id)
+            raise ArcanaError(
+                "Session path '{}' does not exist".format(session_path))
+#             download_all_datasets(session_path, SERVER, session_id)
         return session_path
 
     def output_file_path(self, fname, study_name, subject=None, visit=None,
