@@ -43,8 +43,8 @@ class MultiStudy(Study):
         and exception will be thrown if the archive already contains
         matching datasets|fields created with different parameters.
 
-    Class Attributes
-    ----------------
+    Class Attrs
+    -----------
     add_sub_study_specs : list[SubStudySpec]
         Subclasses of MultiStudy typically have a 'add_sub_study_specs'
         class member, which defines the sub-studies that make up the
