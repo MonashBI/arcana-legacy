@@ -43,16 +43,16 @@ A basic toy example
             if not pipeline.option('pipeline_option'):
                 raise Exception("Pipeline option was not cascaded down to "
                                 "pipeline1")
-            indent = pipeline.create_node(IdentityInterface(['file']),
+            ident = pipeline.create_node(IdentityInterface(['file']),
                                           name="ident1")
-            indent2 = pipeline.create_node(IdentityInterface(['file']),
+            ident2 = pipeline.create_node(IdentityInterface(['file']),
                                            name="ident2")
             # Connect inputs
-            pipeline.connect_input('one', indent, 'file')
-            pipeline.connect_input('one', indent2, 'file')
+            pipeline.connect_input('one', ident, 'file')
+            pipeline.connect_input('one', ident2, 'file')
             # Connect outputs
-            pipeline.connect_output('derived1_1', indent, 'file')
-            pipeline.connect_output('derived1_2', indent2, 'file')
+            pipeline.connect_output('derived1_1', ident, 'file')
+            pipeline.connect_output('derived1_2', ident2, 'file')
             return pipeline
     
         def pipeline2(self, **kwargs):
