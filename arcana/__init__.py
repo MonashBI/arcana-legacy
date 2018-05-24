@@ -1,7 +1,7 @@
 """
 Arcana
 
-Copyright (c) 2012-2017 Thomas G. Close, Monash Biomedical Imaging,
+Copyright (c) 2012-2018 Thomas G. Close, Monash Biomedical Imaging,
 Monash University, Melbourne, Australia
 
 Licensed under the Apache License, Version 2.0 (the "License");
@@ -30,4 +30,3 @@ from .runner import LinearRunner, MultiProcRunner, SlurmRunner
 from .archive import LocalArchive, XnatArchive
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
-
