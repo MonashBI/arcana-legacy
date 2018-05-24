@@ -3,6 +3,16 @@ from arcana.exception import ArcanaUsageError
 
 
 class Option(object):
+    """
+    Represents an option passed to a Study object
+
+    Parameters
+    ----------
+    name : str
+        Name of the option
+    value : float | int | str | list | tuple
+        Value of the option
+    """
 
     def __init__(self, name, value):
         self._name = name
@@ -47,6 +57,23 @@ class Option(object):
 
 
 class OptionSpec(Option):
+    """
+    Specifies an option that can be passed to the study
+
+    Parameters
+    ----------
+    name : str
+        Name of the option
+    default : float | int | str | list | tuple
+        Default value of the option
+    choices : List(float | int | str | list | tuple)
+        Restrict valid inputs to the following choices
+    desc : str
+        A description of the option
+    dtype : type | None
+        The datatype of the option. If none will be determined from
+        default value
+    """
 
     def __init__(self, name, default, choices=None, desc=None, dtype=None):
         super(OptionSpec, self).__init__(name, default)

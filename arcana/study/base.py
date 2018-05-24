@@ -33,7 +33,7 @@ class Study(object):
     runner : Runner
         A Runner to process the pipelines required to generate the
         requested derived datasets.
-    inputs : Dict[str, *Match | *Spec] | List[*Match | *Spec]
+    inputs : Dict[str, DatasetMatch | DatasetSpec | FieldMatch | FieldSpec] | List[DatasetMatch | DatasetSpec | FieldMatch | FieldSpec]
         Either a list or a dictionary containing DatasetMatch,
         FieldMatch, DatasetSpec, or FieldSpec objects, which specify the
         names of input datasets to the study, i.e. those that won't

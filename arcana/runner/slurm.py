@@ -21,6 +21,26 @@ class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
 
 
 class SlurmRunner(BaseRunner):
+    """
+    A thin wrapper around the NiPype SLURMGraphPlugin used to connect
+    submit pipelines to a Slurm scheduler
+
+    Parameters
+    ----------
+    work_dir : str
+        A directory in which to run the nipype workflows
+    email : str | None
+        The email address to send alerts to. If not provided the 'EMAIL'
+        environment variable needs to be set
+    mail_on : List[str]
+        Conditions on which to send mail (default 'FAIL')
+    max_process_time : float
+        The maximum time allowed for the process
+    reprocess: True|False|'all'
+        A flag which determines whether to rerun the processing for this
+        step. If set to 'all' then pre-requisite pipelines will also be
+        reprocessed.
+    """
 
     nipype_plugin_cls = ArcanaSlurmGraphPlugin
 

@@ -4,7 +4,8 @@ from nipype.pipeline import engine as pe
 
 class BaseRunner(object):
     """
-    Connects pipeline to archive and runs it on the local workstation
+    A thin wrapper around the NiPype LinearPlugin used to connect
+    runs pipelines on the local workstation
 
     Parameters
     ----------
@@ -20,9 +21,11 @@ class BaseRunner(object):
 
     default_plugin_args = {}
 
-    def __init__(self, work_dir, max_process_time=None, **kwargs):
+    def __init__(self, work_dir, max_process_time=None,
+                 reprocess=False, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
+        self._reprocess = reprocess
         self._plugin_args = copy(self.default_plugin_args)
         self._plugin_args.update(kwargs)
         self._init_plugin()
@@ -33,7 +36,8 @@ class BaseRunner(object):
     def run(self, pipeline, **kwargs):
         workflow = pe.Workflow(name=pipeline.name,
                                base_dir=self.work_dir)
-        pipeline.connect_to_archive(workflow, **kwargs)
+        pipeline.connect_to_archive(workflow, reprocess=self._reprocess,
+                                    **kwargs)
         # Reset the cached tree of datasets in the archive as it will
         # change after the pipeline has run.
         pipeline.study.reset_tree()

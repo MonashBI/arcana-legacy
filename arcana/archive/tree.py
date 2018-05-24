@@ -101,6 +101,23 @@ class TreeNode(object):
 
 
 class Project(TreeNode):
+    """
+    Represents a project tree as stored in an archive
+
+    Parameters
+    ----------
+    subjects : List[Subject]
+        List of subjects
+    visits : List[Visits]
+        List of visits in the project across subjects
+        (i.e. timepoint 1, 2, 3)
+    datasets : List[Dataset]
+        The datasets that belong to the project, i.e. of 'per_project'
+        frequency
+    fields : List[Field]
+        The fields that belong to the project, i.e. of 'per_project'
+        frequency
+    """
 
     def __init__(self, subjects, visits, datasets=None, fields=None):
         TreeNode.__init__(self, datasets, fields)
@@ -191,7 +208,20 @@ class Project(TreeNode):
 
 class Subject(TreeNode):
     """
-    Holds a subject id and a list of sessions
+    Represents a subject as stored in an archive
+
+    Parameters
+    ----------
+    subject_id : str
+        The ID of the subject
+    sessions : List[Session]
+        The sessions in the subject
+    datasets : List[Dataset]
+        The datasets that belong to the subject, i.e. of 'per_subject'
+        frequency
+    fields : List[Field]
+        The fields that belong to the subject, i.e. of 'per_subject'
+        frequency
     """
 
     def __init__(self, subject_id, sessions, datasets=None,
@@ -256,7 +286,21 @@ class Subject(TreeNode):
 
 class Visit(TreeNode):
     """
-    Holds a subject id and a list of sessions
+    Represents a collection of visits across subjects (e.g. time-point 1)
+    as stored in an archive
+
+    Parameters
+    ----------
+    visit_id : str
+        The ID of the visit
+    sessions : List[Session]
+        The sessions in the visit
+    datasets : List[Dataset]
+        The datasets that belong to the visit, i.e. of 'per_visit'
+        frequency
+    fields : List[Field]
+        The fields that belong to the visit, i.e. of 'per_visit'
+        frequency
     """
 
     def __init__(self, visit_id, sessions, datasets=None, fields=None):
@@ -320,7 +364,7 @@ class Visit(TreeNode):
 
 class Session(TreeNode):
     """
-    Holds the session id and the list of datasets loaded from it
+    Represents a session stored in an archive
 
     Parameters
     ----------

@@ -2,59 +2,74 @@
 Public API
 ==========
 
-The Pype9 public API consists of seven classes required to create simulations
-of individual neurons or neural networks described in NineML_. All classes in
-the public API have an abstract base class in the ``pype9.simulate.common``
-module and matching derived simulator-specific classes in the
-``pype9.simulate.neuron`` and ``pype9.simulate.nest`` modules.
+The Arcana public API is based around the Study class, and classes that
+are provided either to sub-class definitions or Study instantiations.
 
-As the simulator-specific classes have the same signatures as those in the base
-module only the base module classes are described here.
+Study
+-----
 
-Simulation
-----------
+.. autoclass:: arcana.study.Study
+    :members: data
 
-.. autoclass:: pype9.simulate.common.simulation.Simulation
-    :members: run
+.. autoclass:: arcana.study.MultiStudy
 
 
-CellMetaClass
--------------
+Archives
+--------
 
-.. autoclass:: pype9.simulate.common.cells.CellMetaClass
+.. autoclass:: arcana.archive.xnat.XnatArchive
 
+.. autoclass:: arcana.archive.local.LocalArchive
 
-Cell
-----
-
-.. autoclass:: pype9.simulate.common.cells.Cell
-    :members: record, recording, record_regime, regime_epochs, play, connect
-
-
-Network
+Runners
 -------
 
-.. autoclass:: pype9.simulate.common.network.Network
-    :members: component_array, connection_group, selection, component_arrays, connection_groups, selections
+.. autoclass:: arcana.runner.LinearRunner
+
+.. autoclass:: arcana.runner.MultiProcRunner
+
+.. autoclass:: arcana.runner.SlurmRunner
 
 
-ComponentArray
---------------
- 
-.. autoclass:: pype9.simulate.common.network.ComponentArray
-    :members: record, recording, play
+
+Datasets and Fields
+-------------------
+
+.. autoclass:: arcana.dataset.Dataset
+
+.. autoclass:: arcana.dataset.Field
+
+.. autoclass:: arcana.dataset.DatasetSpec
+
+.. autoclass:: arcana.dataset.FieldSpec
+
+.. autoclass:: arcana.dataset.DatasetMatch
+
+.. autoclass:: arcana.dataset.FieldMatch
+
+Options
+-------
+
+.. autoclass:: arcana.option.Option
+
+.. autoclass:: arcana.option.OptionSpec
 
 
-Selection
----------
+Project tree
+------------
 
-.. autoclass:: pype9.simulate.common.network.Selection
+.. autoclass:: arcana.archive.Project
+
+.. autoclass:: arcana.archive.Subject
+
+.. autoclass:: arcana.archive.Visit
+
+.. autoclass:: arcana.archive.Session
 
 
-.. _NineML: http://nineml.net
+Other
+-----
 
+.. autoclass:: arcana.requirement.Requirement
 
-ConnectionGroup
----------------
-
-.. autoclass:: pype9.simulate.common.network.ConnectionGroup
+.. autoclass:: arcana.data_format.DataFormat
