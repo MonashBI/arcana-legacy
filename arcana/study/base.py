@@ -388,7 +388,9 @@ class Study(object):
                     spec.pipeline(), subject_ids=subject_ids,
                     visit_ids=visit_ids)
             except ArcanaNoRunRequiredException:
-                pass
+                logger.info("Not running '{}' pipeline as '{}' is "
+                            "already present in the archive"
+                            .format(spec.pipeline_name, spec.name))
             if isinstance(spec, BaseDataset):
                 data = chain(*(
                     (d for d in n.datasets
