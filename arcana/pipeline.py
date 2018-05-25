@@ -213,15 +213,25 @@ class Pipeline(object):
                     # NB: Even if reprocess==True, the prerequisite pipelines
                     # are not re-processed, they are only reprocessed if
                     # reprocess == 'all'
-                    prereq_report = prereq.connect_to_archive(
-                        complete_workflow=complete_workflow,
-                        subject_ids=prereq_subject_ids,
-                        visit_ids=visit_ids,
-                        reprocess=(reprocess if reprocess == 'all' else False),
-                        connected_prereqs=connected_prereqs)
-                    if prereq_report is not None:
-                        connected_prereqs[prereq.name] = prereq, prereq_report
-                        reports.append(prereq_report)
+                    try:
+                        prereq_report = prereq.connect_to_archive(
+                            complete_workflow=complete_workflow,
+                            subject_ids=prereq_subject_ids,
+                            visit_ids=visit_ids,
+                            reprocess=(
+                                reprocess
+                                if reprocess == 'all' else False),
+                            connected_prereqs=connected_prereqs)
+                        if prereq_report is not None:
+                            connected_prereqs[prereq.name] = (
+                                prereq, prereq_report)
+                            reports.append(prereq_report)
+                    except ArcanaNoRunRequiredException:
+                        logger.info(
+                            "Not running '{}' pipeline as a "
+                            "prerequisite of '{}' as the required "
+                            "outputs are already present in the archive"
+                            .format(prereq.name, self.name))
             if reports:
                 prereq_reports = self.create_node(Merge(len(reports)),
                                                   'prereq_reports')
