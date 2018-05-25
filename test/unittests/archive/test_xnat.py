@@ -83,8 +83,8 @@ class DummyStudy(Study):
         pass
 
 
-def filter_md5_fnames(fnames):
-    return [f for f in sorted(fnames)
+def ls_with_md5_filter(path):
+    return [f for f in sorted(os.listdir(path))
             if not f.endswith(XnatArchive.MD5_SUFFIX)]
 
 
@@ -232,14 +232,14 @@ class TestXnatArchive(BaseTestCase):
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check cache was created properly
-        self.assertEqual(filter_md5_fnames(os.listdir(self.session_cache())),
+        self.assertEqual(ls_with_md5_filter(self.session_cache()),
                          ['source1.txt', 'source2.txt',
                           'source3.txt', 'source4.txt'])
         expected_sink_datasets = [self.STUDY_NAME + '_sink1',
                                   self.STUDY_NAME + '_sink3',
                                   self.STUDY_NAME + '_sink4']
         self.assertEqual(
-            filter_md5_fnames(os.listdir(self.proc_session_cache())),
+            ls_with_md5_filter(self.proc_session_cache()),
             [d + text_format.extension
              for d in expected_sink_datasets])
         with self._connect() as mbi_xnat:
@@ -281,185 +281,6 @@ class TestXnatArchive(BaseTestCase):
         self.assertEqual(results.outputs.field1_field, field1)
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
-    def test_summary(self):
-        # Create working dirs
-        # Create XnatSource node
-        archive = XnatArchive(
-            server=SERVER, cache_dir=self.cache_dir,
-            project_id=self.PROJECT)
-        study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
-            inputs=[
-                DatasetMatch('source1', text_format, 'source1'),
-                DatasetMatch('source2', text_format, 'source2'),
-                DatasetMatch('source3', text_format, 'source3')])
-        # TODO: Should test out other file formats as well.
-        source_files = [study.input(n)
-                        for n in ('source1', 'source2', 'source3')]
-        inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
-                            'inputnode')
-        inputnode.inputs.subject_id = self.SUBJECT
-        inputnode.inputs.visit_id = self.VISIT
-        source = archive.source(source_files)
-        subject_sink_files = [
-            study.spec('subject_sink')]
-        subject_sink = archive.sink(subject_sink_files,
-                                    frequency='per_subject',
-                                    study_name=self.SUMMARY_STUDY_NAME)
-        subject_sink.inputs.name = 'subject_summary'
-        subject_sink.inputs.desc = (
-            "Tests the sinking of subject-wide datasets")
-        # Test visit sink
-        visit_sink_files = [study.spec('visit_sink')]
-        visit_sink = archive.sink(visit_sink_files,
-                                  frequency='per_visit',
-                                  study_name=self.SUMMARY_STUDY_NAME)
-        visit_sink.inputs.name = 'visit_summary'
-        visit_sink.inputs.desc = (
-            "Tests the sinking of visit-wide datasets")
-        # Test project sink
-        project_sink_files = [
-            study.spec('project_sink')]
-        project_sink = archive.sink(project_sink_files,
-                                    frequency='per_project',
-                                    study_name=self.SUMMARY_STUDY_NAME)
-
-        project_sink.inputs.name = 'project_summary'
-        project_sink.inputs.desc = (
-            "Tests the sinking of project-wide datasets")
-        # Create workflow connecting them together
-        workflow = pe.Workflow('summary_unittest',
-                               base_dir=self.work_dir)
-        workflow.add_nodes((source, subject_sink, visit_sink,
-                            project_sink))
-        workflow.connect(inputnode, 'subject_id', source, 'subject_id')
-        workflow.connect(inputnode, 'visit_id', source, 'visit_id')
-        workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
-        workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
-        workflow.connect(
-            source, 'source1' + PATH_SUFFIX,
-            subject_sink, 'subject_sink' + PATH_SUFFIX)
-        workflow.connect(
-            source, 'source2' + PATH_SUFFIX,
-            visit_sink, 'visit_sink' + PATH_SUFFIX)
-        workflow.connect(
-            source, 'source3' + PATH_SUFFIX,
-            project_sink, 'project_sink' + PATH_SUFFIX)
-        workflow.run()
-        with self._connect() as mbi_xnat:
-            # Check subject summary directories were created properly in cache
-            expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
-                                      '_subject_sink']
-            subject_dir = os.path.join(
-                self.cache_dir, self.PROJECT,
-                '_'.join((self.PROJECT, self.SUBJECT)),
-                '_'.join((self.PROJECT, self.SUBJECT,
-                         XnatArchive.SUMMARY_NAME)))
-            self.assertEqual(filter_md5_fnames(os.listdir(subject_dir)),
-                             [d + text_format.extension
-                              for d in expected_subj_datasets])
-            # and on XNAT
-            subject_dataset_names = mbi_xnat.projects[
-                self.PROJECT].experiments[
-                    '_'.join((self.PROJECT, self.SUBJECT,
-                              XnatArchive.SUMMARY_NAME))].scans.keys()
-            self.assertEqual(expected_subj_datasets, subject_dataset_names)
-            # Check visit summary directories were created properly in
-            # cache
-            expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
-                                       '_visit_sink']
-            visit_dir = os.path.join(
-                self.cache_dir, self.PROJECT,
-                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
-                (self.PROJECT + '_' + XnatArchive.SUMMARY_NAME +
-                 '_' + self.VISIT))
-            self.assertEqual(filter_md5_fnames(os.listdir(visit_dir)),
-                             [d + text_format.extension
-                              for d in expected_visit_datasets])
-            # and on XNAT
-            visit_dataset_names = mbi_xnat.projects[
-                self.PROJECT].experiments[
-                    '{}_{}_{}'.format(
-                        self.PROJECT, XnatArchive.SUMMARY_NAME,
-                        self.VISIT)].scans.keys()
-            self.assertEqual(expected_visit_datasets, visit_dataset_names)
-            # Check project summary directories were created properly in cache
-            expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
-                                      '_project_sink']
-            project_dir = os.path.join(
-                self.cache_dir, self.PROJECT,
-                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
-                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME + '_' +
-                XnatArchive.SUMMARY_NAME)
-            self.assertEqual(filter_md5_fnames(os.listdir(project_dir)),
-                             [d + text_format.extension
-                              for d in expected_proj_datasets])
-            # and on XNAT
-            project_dataset_names = mbi_xnat.projects[
-                self.PROJECT].experiments[
-                    '{}_{sum}_{sum}'.format(
-                        self.PROJECT,
-                        sum=XnatArchive.SUMMARY_NAME)].scans.keys()
-            self.assertEqual(expected_proj_datasets, project_dataset_names)
-        # Reload the data from the summary directories
-        reloadinputnode = pe.Node(IdentityInterface(['subject_id',
-                                                     'visit_id']),
-                                  'reload_inputnode')
-        reloadinputnode.inputs.subject_id = self.SUBJECT
-        reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = archive.source(
-            (source_files + subject_sink_files + visit_sink_files +
-             project_sink_files),
-            name='reload_source',
-            study_name=self.SUMMARY_STUDY_NAME)
-        reloadsink = archive.sink(
-            [study.spec(n)
-             for n in ('resink1', 'resink2', 'resink3')],
-            study_name=self.SUMMARY_STUDY_NAME)
-        reloadsink.inputs.name = 'reload_summary'
-        reloadsink.inputs.desc = (
-            "Tests the reloading of subject and project summary datasets")
-        reloadworkflow = pe.Workflow('reload_summary_unittest',
-                                     base_dir=self.work_dir)
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsource, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsource, 'visit_id')
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsink, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsink, 'visit_id')
-        reloadworkflow.connect(reloadsource,
-                               'subject_sink' + PATH_SUFFIX,
-                               reloadsink,
-                               'resink1' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'visit_sink' + PATH_SUFFIX,
-                               reloadsink,
-                               'resink2' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'project_sink' + PATH_SUFFIX,
-                               reloadsink,
-                               'resink3' + PATH_SUFFIX)
-        reloadworkflow.run()
-        # Check that the datasets
-        self.assertEqual(
-            filter_md5_fnames(os.listdir(self.proc_session_cache())),
-            [self.SUMMARY_STUDY_NAME + '_resink1.txt',
-             self.SUMMARY_STUDY_NAME + '_resink2.txt',
-             self.SUMMARY_STUDY_NAME + '_resink3.txt'])
-        # and on XNAT
-        with self._connect() as mbi_xnat:
-            resinked_dataset_names = mbi_xnat.projects[
-                self.PROJECT].experiments[
-                    self.session_label() +
-                    XnatArchive.PROCESSED_SUFFIX].scans.keys()
-            self.assertEqual(sorted(resinked_dataset_names),
-                             [self.SUMMARY_STUDY_NAME + '_resink1',
-                              self.SUMMARY_STUDY_NAME + '_resink2',
-                              self.SUMMARY_STUDY_NAME + '_resink3'])
 
     @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
     def test_delayed_download(self):
@@ -632,6 +453,190 @@ class TestXnatArchive(BaseTestCase):
             ("Source digest ({}) did not equal sink digest ({})"
              .format(source_digests[dataset_fpath],
                      sink_digests[sink_fpath])))
+
+
+class TestXnatSummaryRoundtrip(TestXnatArchive):
+
+    SUBJECT = 'SUMMARY'
+
+    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    def test_summary(self):
+        # Create working dirs
+        # Create XnatSource node
+        archive = XnatArchive(
+            server=SERVER, cache_dir=self.cache_dir,
+            project_id=self.PROJECT)
+        study = DummyStudy(
+            self.SUMMARY_STUDY_NAME, archive, LinearRunner('ad'),
+            inputs=[
+                DatasetMatch('source1', text_format, 'source1'),
+                DatasetMatch('source2', text_format, 'source2'),
+                DatasetMatch('source3', text_format, 'source3')])
+        # TODO: Should test out other file formats as well.
+        source_files = [study.input(n)
+                        for n in ('source1', 'source2', 'source3')]
+        inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
+                            'inputnode')
+        inputnode.inputs.subject_id = self.SUBJECT
+        inputnode.inputs.visit_id = self.VISIT
+        source = archive.source(source_files)
+        subject_sink_files = [
+            study.spec('subject_sink')]
+        subject_sink = archive.sink(subject_sink_files,
+                                    frequency='per_subject',
+                                    study_name=self.SUMMARY_STUDY_NAME)
+        subject_sink.inputs.name = 'subject_summary'
+        subject_sink.inputs.desc = (
+            "Tests the sinking of subject-wide datasets")
+        # Test visit sink
+        visit_sink_files = [study.spec('visit_sink')]
+        visit_sink = archive.sink(visit_sink_files,
+                                  frequency='per_visit',
+                                  study_name=self.SUMMARY_STUDY_NAME)
+        visit_sink.inputs.name = 'visit_summary'
+        visit_sink.inputs.desc = (
+            "Tests the sinking of visit-wide datasets")
+        # Test project sink
+        project_sink_files = [
+            study.spec('project_sink')]
+        project_sink = archive.sink(project_sink_files,
+                                    frequency='per_project',
+                                    study_name=self.SUMMARY_STUDY_NAME)
+
+        project_sink.inputs.name = 'project_summary'
+        project_sink.inputs.desc = (
+            "Tests the sinking of project-wide datasets")
+        # Create workflow connecting them together
+        workflow = pe.Workflow('summary_unittest',
+                               base_dir=self.work_dir)
+        workflow.add_nodes((source, subject_sink, visit_sink,
+                            project_sink))
+        workflow.connect(inputnode, 'subject_id', source, 'subject_id')
+        workflow.connect(inputnode, 'visit_id', source, 'visit_id')
+        workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
+        workflow.connect(inputnode, 'visit_id', visit_sink, 'visit_id')
+        workflow.connect(
+            source, 'source1' + PATH_SUFFIX,
+            subject_sink, 'subject_sink' + PATH_SUFFIX)
+        workflow.connect(
+            source, 'source2' + PATH_SUFFIX,
+            visit_sink, 'visit_sink' + PATH_SUFFIX)
+        workflow.connect(
+            source, 'source3' + PATH_SUFFIX,
+            project_sink, 'project_sink' + PATH_SUFFIX)
+        workflow.run()
+        with self._connect() as mbi_xnat:
+            # Check subject summary directories were created properly in cache
+            expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
+                                      '_subject_sink']
+            subject_dir = os.path.join(
+                self.cache_dir, self.PROJECT,
+                '_'.join((self.PROJECT, self.SUBJECT)),
+                '_'.join((self.PROJECT, self.SUBJECT,
+                         XnatArchive.SUMMARY_NAME)))
+            self.assertEqual(ls_with_md5_filter(subject_dir),
+                             [d + text_format.extension
+                              for d in expected_subj_datasets])
+            # and on XNAT
+            subject_dataset_names = mbi_xnat.projects[
+                self.PROJECT].experiments[
+                    '_'.join((self.PROJECT, self.SUBJECT,
+                              XnatArchive.SUMMARY_NAME))].scans.keys()
+            self.assertEqual(expected_subj_datasets, subject_dataset_names)
+            # Check visit summary directories were created properly in
+            # cache
+            expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
+                                       '_visit_sink']
+            visit_dir = os.path.join(
+                self.cache_dir, self.PROJECT,
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
+                (self.PROJECT + '_' + XnatArchive.SUMMARY_NAME +
+                 '_' + self.VISIT))
+            self.assertEqual(ls_with_md5_filter(visit_dir),
+                             [d + text_format.extension
+                              for d in expected_visit_datasets])
+            # and on XNAT
+            visit_dataset_names = mbi_xnat.projects[
+                self.PROJECT].experiments[
+                    '{}_{}_{}'.format(
+                        self.PROJECT, XnatArchive.SUMMARY_NAME,
+                        self.VISIT)].scans.keys()
+            self.assertEqual(expected_visit_datasets, visit_dataset_names)
+            # Check project summary directories were created properly in cache
+            expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
+                                      '_project_sink']
+            project_dir = os.path.join(
+                self.cache_dir, self.PROJECT,
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME,
+                self.PROJECT + '_' + XnatArchive.SUMMARY_NAME + '_' +
+                XnatArchive.SUMMARY_NAME)
+            self.assertEqual(ls_with_md5_filter(project_dir),
+                             [d + text_format.extension
+                              for d in expected_proj_datasets])
+            # and on XNAT
+            project_dataset_names = mbi_xnat.projects[
+                self.PROJECT].experiments[
+                    '{}_{sum}_{sum}'.format(
+                        self.PROJECT,
+                        sum=XnatArchive.SUMMARY_NAME)].scans.keys()
+            self.assertEqual(expected_proj_datasets, project_dataset_names)
+        # Reload the data from the summary directories
+        reloadinputnode = pe.Node(IdentityInterface(['subject_id',
+                                                     'visit_id']),
+                                  'reload_inputnode')
+        reloadinputnode.inputs.subject_id = self.SUBJECT
+        reloadinputnode.inputs.visit_id = self.VISIT
+        reloadsource = archive.source(
+            (source_files + subject_sink_files + visit_sink_files +
+             project_sink_files),
+            name='reload_source',
+            study_name=self.SUMMARY_STUDY_NAME)
+        reloadsink = archive.sink(
+            [study.spec(n)
+             for n in ('resink1', 'resink2', 'resink3')],
+            study_name=self.SUMMARY_STUDY_NAME)
+        reloadsink.inputs.name = 'reload_summary'
+        reloadsink.inputs.desc = (
+            "Tests the reloading of subject and project summary datasets")
+        reloadworkflow = pe.Workflow('reload_summary_unittest',
+                                     base_dir=self.work_dir)
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsource, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'visit_id',
+                               reloadsource, 'visit_id')
+        reloadworkflow.connect(reloadinputnode, 'subject_id',
+                               reloadsink, 'subject_id')
+        reloadworkflow.connect(reloadinputnode, 'visit_id',
+                               reloadsink, 'visit_id')
+        reloadworkflow.connect(reloadsource,
+                               'subject_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink1' + PATH_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'visit_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink2' + PATH_SUFFIX)
+        reloadworkflow.connect(reloadsource,
+                               'project_sink' + PATH_SUFFIX,
+                               reloadsink,
+                               'resink3' + PATH_SUFFIX)
+        reloadworkflow.run()
+        # Check that the datasets
+        self.assertEqual(
+            ls_with_md5_filter(self.proc_session_cache()),
+            [self.SUMMARY_STUDY_NAME + '_resink1.txt',
+             self.SUMMARY_STUDY_NAME + '_resink2.txt',
+             self.SUMMARY_STUDY_NAME + '_resink3.txt'])
+        # and on XNAT
+        with self._connect() as mbi_xnat:
+            resinked_dataset_names = mbi_xnat.projects[
+                self.PROJECT].experiments[
+                    self.session_label() +
+                    XnatArchive.PROCESSED_SUFFIX].scans.keys()
+            self.assertEqual(sorted(resinked_dataset_names),
+                             [self.SUMMARY_STUDY_NAME + '_resink1',
+                              self.SUMMARY_STUDY_NAME + '_resink2',
+                              self.SUMMARY_STUDY_NAME + '_resink3'])
 
 
 class TestXnatArchiveSpecialCharInScanName(TestCase):
