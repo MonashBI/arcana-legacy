@@ -213,9 +213,8 @@ class TestMulti(BaseTestCase):
              DatasetMatch('b', text_format, 'ones'),
              DatasetMatch('c', text_format, 'ones')],
             options=[Option('required_op', 'mul')])
-        d = study.data('d', subject_id='SUBJECT', visit_id='VISIT')
-        e = study.data('e')[0]
-        f = study.data('f')[0]
+        d, e, f = study.data(('d', 'e', 'f'),
+                             subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
         self.assertContentsEqual(e, 3.0)
         self.assertContentsEqual(f, 6.0)
@@ -244,7 +243,8 @@ class TestMulti(BaseTestCase):
              DatasetMatch('b', text_format, 'ones'),
              DatasetMatch('c', text_format, 'ones')],
             options=[Option('ss2_product_op', 'mul')])
-        ss1_z = study.data('ss1_z')[0]
+        ss1_z = study.data('ss1_z',
+                           subject_id='SUBJECT', visit_id='VISIT')
         ss2_y = study.data('ss2_y')[0]
         ss2_z = study.data('ss2_z')[0]
         self.assertContentsEqual(ss1_z, 2.0)

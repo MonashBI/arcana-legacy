@@ -5,7 +5,7 @@ from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError,
-    ArcanaNoRunRequiredException, ArcanaUsageError,
+    ArcanaError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError,
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
@@ -391,16 +391,27 @@ class Study(object):
                        if is_single_id(subject_id) else subject_id)
         visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
         # Work out which pipelines need to be run
-        pipelines = []
+        pipelines = {}
         for name in names:
             try:
-                pipelines.append(self.spec(name).pipeline)
+                pipeline = self.spec(name).pipeline
             except AttributeError:
-                pass  # Match objects
+                pass  # Match objects don't have pipelines
+            else:
+                try:
+                    prev_pipeline = pipelines[pipeline.name]
+                except KeyError:
+                    pipelines[pipeline.name] = pipeline
+                else:
+                    if pipeline != prev_pipeline:
+                        raise ArcanaError(
+                            "Name clash between non-matching piplines "
+                            "{} and {} in {}".format(
+                                pipeline, prev_pipeline, self.study))
         # Run all pipelines together
         if pipelines:
             self.runner.run(
-                *pipelines, subject_ids=subject_ids,
+                *(pipelines.values()), subject_ids=subject_ids,
                 visit_ids=visit_ids)
         all_data = []
         for name in names:

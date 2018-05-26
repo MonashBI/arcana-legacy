@@ -26,10 +26,15 @@ class BaseSpec(object):
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
-                self._pipeline_name == other._pipeline_name and
                 self.desc == other.desc and
                 self._study == other._study and
                 self.optional == other.optional)
+
+#     def __hash__(self):
+#         return (hash(self.pipeline_name) ^
+#                 hash(self.desc) ^
+#                 hash(self._study) ^
+#                 hash(self.optional))
 
     def bind(self, study):
         """
