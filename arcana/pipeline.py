@@ -7,17 +7,9 @@ from nipype.pipeline import engine as pe
 import errno
 from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
-from arcana.interfaces.utils import Merge
 from logging import getLogger
 from arcana.exception import (
-    ArcanaNameError, ArcanaError, ArcanaMissingDataException,
-    ArcanaNoRunRequiredException,
-    ArcanaNoConverterError, ArcanaOutputNotProducedException)
-from arcana.dataset.base import BaseDataset, BaseField
-from arcana.interfaces.iterators import (
-    InputSessions, PipelineReport, InputSubjects, SubjectReport,
-    VisitReport, SubjectSessionReport, SessionReport)
-from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
+    ArcanaNameError, ArcanaError, ArcanaOutputNotProducedException)
 
 
 logger = getLogger('Arcana')
@@ -143,316 +135,6 @@ class Pipeline(object):
     def __ne__(self, other):
         return not (self == other)
 
-    def connect_to_archive(self, complete_workflow, subject_ids=None,
-                           visit_ids=None, reprocess=False,
-                           connected_prereqs=None):
-        """
-        Gets a data source and data sink from the archive for the requested
-        sessions, connects them to the pipeline's NiPyPE workflow
-
-        Parameters
-        ----------
-        subject_ids : List[str]
-            The subset of subject IDs to process. If None all available will be
-            reprocessed
-        visit_ids: List[str]
-            The subset of visit IDs for each subject to process. If None all
-            available will be reprocessed
-        work_dir : str
-            A directory in which to run the nipype workflows
-        reprocess: True|False|'all'
-            A flag which determines whether to rerun the processing for this
-            step. If set to 'all' then pre-requisite pipelines will also be
-            reprocessed.
-        connected_prereqs: list(Pipeline, Node)
-            Prerequisite pipelines that have already been connected to the
-            workflow (prequisites of prerequisites) and their corresponding
-            "report" nodes
-
-        Returns
-        -------
-        report : ReportNode
-            The final report node, which can be connected to subsequent
-            pipelines
-        """
-        if connected_prereqs is None:
-            connected_prereqs = {}
-        # Check all inputs and outputs are connected
-        self.assert_connected()
-        # Get list of sessions that need to be processed (i.e. if
-        # they don't contain the outputs of this pipeline)
-        sessions_to_process = self._sessions_to_process(
-            subject_ids=subject_ids, visit_ids=visit_ids,
-            reprocess=reprocess)
-        if not sessions_to_process:
-            raise ArcanaNoRunRequiredException(
-                "All outputs of '{}' are already present in project archive, "
-                "skipping".format(self.name))
-        # Set up workflow to run the pipeline, loading and saving from the
-        # archive
-        complete_workflow.add_nodes([self._workflow])
-        # Get iterator nodes over subjects and sessions to be processed
-        subjects, sessions = self._subject_and_session_iterators(
-            sessions_to_process, complete_workflow)
-        # Prepend prerequisite pipelines to complete workflow if required
-        if self.has_prerequisites:
-            reports = []
-            prereq_subject_ids = list(
-                set(s.subject.id for s in sessions_to_process))
-            for prereq in self.prerequisites:
-                try:
-                    (connected_prereq,
-                     prereq_report) = connected_prereqs[prereq.name]
-                    if connected_prereq != prereq:
-                        raise ArcanaError(
-                            "Name clash between {} and {} non-matching "
-                            "prerequisite pipelines".format(connected_prereq,
-                                                            prereq))
-                    reports.append(prereq_report)
-                except KeyError:
-                    # NB: Even if reprocess==True, the prerequisite pipelines
-                    # are not re-processed, they are only reprocessed if
-                    # reprocess == 'all'
-                    try:
-                        prereq_report = prereq.connect_to_archive(
-                            complete_workflow=complete_workflow,
-                            subject_ids=prereq_subject_ids,
-                            visit_ids=visit_ids,
-                            reprocess=(
-                                reprocess
-                                if reprocess == 'all' else False),
-                            connected_prereqs=connected_prereqs)
-                        if prereq_report is not None:
-                            connected_prereqs[prereq.name] = (
-                                prereq, prereq_report)
-                            reports.append(prereq_report)
-                    except ArcanaNoRunRequiredException:
-                        logger.info(
-                            "Not running '{}' pipeline as a "
-                            "prerequisite of '{}' as the required "
-                            "outputs are already present in the archive"
-                            .format(prereq.name, self.name))
-            if reports:
-                prereq_reports = self.create_node(Merge(len(reports)),
-                                                  'prereq_reports')
-                for i, report in enumerate(reports, 1):
-                    # Connect the output summary of the prerequisite to the
-                    # pipeline to ensure that the prerequisite is run first.
-                    complete_workflow.connect(
-                        report, 'subject_session_pairs',
-                        prereq_reports, 'in{}'.format(i))
-                complete_workflow.connect(prereq_reports, 'out', subjects,
-                                          'prereq_reports')
-        try:
-            # Create source and sinks from the archive
-            source = self._study.archive.source(
-                (self.study.spec(i) for i in self.inputs),
-                study_name=self.study.name,
-                name='{}_source'.format(self.name))
-        except ArcanaMissingDataException as e:
-            raise ArcanaMissingDataException(
-                str(e) + ", which is required for pipeline '{}'".format(
-                    self.name))
-        # Map the subject and visit IDs to the input node of the pipeline
-        # for use in connect_subject_id and connect_visit_id
-        complete_workflow.connect(sessions, 'subject_id',
-                                  self.inputnode, 'subject_id')
-        complete_workflow.connect(sessions, 'visit_id',
-                                  self.inputnode, 'visit_id')
-        # Connect the nodes of the wrapper workflow
-        complete_workflow.connect(sessions, 'subject_id',
-                                  source, 'subject_id')
-        complete_workflow.connect(sessions, 'visit_id',
-                                  source, 'visit_id')
-        for input_spec in self.inputs:
-            # Get the dataset corresponding to the pipeline's input
-            input = self.study.spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
-            if isinstance(input, BaseDataset):
-                if input.format != input_spec.format:
-                    # Insert a format converter node into the workflow if the
-                    # format of the dataset if it is not in the required format
-                    # for the study
-                    try:
-                        converter = input_spec.format.converter_from(
-                            input.format)
-                    except ArcanaNoConverterError as e:
-                        raise ArcanaNoConverterError(
-                            str(e) + (
-                                " required to convert {} to {} "
-                                " in '{}' pipeline, in study '{}"
-                                .format(input.name, input_spec.name,
-                                        self.name, self.study.name)))
-                    conv_node_name = '{}_{}_input_conversion'.format(
-                        self.name, input_spec.name)
-                    (dataset_source, conv_in_field,
-                     dataset_name) = converter.get_node(conv_node_name)
-                    complete_workflow.connect(
-                        source, input.name + PATH_SUFFIX,
-                        dataset_source, conv_in_field)
-                else:
-                    dataset_source = source
-                    dataset_name = input.name + PATH_SUFFIX
-                # Connect the dataset to the pipeline input
-                complete_workflow.connect(dataset_source, dataset_name,
-                                          self.inputnode, input_spec.name)
-            else:
-                assert isinstance(input, BaseField)
-                complete_workflow.connect(
-                    source, input.name + FIELD_SUFFIX,
-                    self.inputnode, input_spec.name)
-        # Create a report node for holding a summary of all the sessions/
-        # subjects that were sunk. This is used to connect with dependent
-        # pipelines into one large connected pipeline.
-        report = self.create_node(PipelineReport(), 'report')
-        # Connect all outputs to the archive sink
-        for freq, outputs in self._outputs.iteritems():
-            # Create a new sink for each frequency level (i.e 'per_session',
-            # 'per_subject', 'per_visit', or 'per_project')
-            sink = self.study.archive.sink(
-                (self.study.spec(o) for o in outputs),
-                frequency=freq,
-                study_name=self.study.name,
-                name='{}_{}_sink'.format(self.name, freq))
-#             sink.inputs.desc = self.desc
-#             sink.inputs.name = self._study.name
-            if freq in ('per_session', 'per_subject'):
-                complete_workflow.connect(sessions, 'subject_id',
-                                          sink, 'subject_id')
-            if freq in ('per_session', 'per_visit'):
-                complete_workflow.connect(sessions, 'visit_id',
-                                          sink, 'visit_id')
-            for output_spec in outputs:
-                # Get the dataset spec corresponding to the pipeline's output
-                output = self.study.spec(output_spec.name)
-                # Skip datasets which are already input datasets
-                if output.is_spec:
-                    if isinstance(output, BaseDataset):
-                        # Convert the format of the node if it doesn't match
-                        if output.format != output_spec.format:
-                            try:
-                                converter = output.format.converter_from(
-                                    output_spec.format)
-                            except ArcanaNoConverterError as e:
-                                raise ArcanaNoConverterError(
-                                    str(e) + (
-                                        " required to convert {} to {} "
-                                        " in '{}' pipeline, in study '{}"
-                                        .format(
-                                            input.name, input_spec.name,
-                                            self.name, self.study.name)))
-                            conv_node_name = (output_spec.name +
-                                              '_output_conversion')
-                            (output_node, conv_in_field,
-                             node_dataset_name) = converter.get_node(
-                                 conv_node_name)
-                            complete_workflow.connect(
-                                self._outputnodes[freq],
-                                output_spec.name,
-                                output_node, conv_in_field)
-                        else:
-                            output_node = self._outputnodes[freq]
-                            node_dataset_name = output.name
-                        complete_workflow.connect(
-                            output_node, node_dataset_name,
-                            sink, output.name + PATH_SUFFIX)
-                    else:
-                        assert isinstance(output, BaseField)
-                        complete_workflow.connect(
-                            self._outputnodes[freq], output.name, sink,
-                            output.name + FIELD_SUFFIX)
-            self._connect_to_reports(
-                sink, report, freq, subjects, sessions, complete_workflow)
-        return report
-
-    def _subject_and_session_iterators(self, sessions_to_process, workflow):
-        """
-        Generate an input node that iterates over the sessions and subjects
-        that need to be processed.
-        """
-        # Create nodes to control the iteration over subjects and sessions in
-        # the project
-        subjects = self.create_node(InputSubjects(), 'subjects', wall_time=10,
-                                    memory=1000)
-        sessions = self.create_node(InputSessions(), 'sessions', wall_time=10,
-                                    memory=4000)
-        # Construct iterable over all subjects to process
-        subjects_to_process = set(s.subject for s in sessions_to_process)
-        subject_ids_to_process = set(s.id for s in subjects_to_process)
-        subjects.iterables = ('subject_id',
-                              tuple(s.id for s in subjects_to_process))
-        # Determine whether the visit ids are the same for every subject,
-        # in which case they can be set as a constant, otherwise they will
-        # need to be specified for each subject separately
-        session_subjects = defaultdict(set)
-        for session in sessions_to_process:
-            session_subjects[session.visit_id].add(session.subject_id)
-        if all(ss == subject_ids_to_process
-               for ss in session_subjects.itervalues()):
-            # All sessions are to be processed in every node, a simple second
-            # layer of iterations on top of the subject iterations will
-            # suffice. This allows re-combining on visit_id across subjects
-            sessions.iterables = ('visit_id', session_subjects.keys())
-        else:
-            # visit IDs to be processed vary between subjects and so need
-            # to be specified explicitly
-            subject_sessions = defaultdict(list)
-            for session in sessions_to_process:
-                subject_sessions[session.subject.id].append(session.visit_id)
-            sessions.itersource = ('{}_subjects'.format(self.name),
-                                   'subject_id')
-            sessions.iterables = ('visit_id', subject_sessions)
-        # Connect subject and session nodes together
-        workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
-        return subjects, sessions
-
-    def _connect_to_reports(self, sink, output_summary, freq, subjects,
-                            sessions, workflow):
-        """
-        Connects the sink of the pipeline to an "Output Summary", which lists
-        the subjects and sessions that were processed for the pipeline. There
-        should be only one summary node instance per pipeline so it can be
-        used to feed into the input of subsequent pipelines to ensure that
-        they are executed afterwards.
-        """
-        if freq == 'per_session':
-            session_outputs = JoinNode(
-                SessionReport(), joinsource=sessions,
-                joinfield=['subjects', 'sessions'],
-                name=self.name + '_session_outputs', wall_time=20,
-                memory=4000)
-            subject_session_outputs = JoinNode(
-                SubjectSessionReport(), joinfield='subject_session_pairs',
-                joinsource=subjects,
-                name=self.name + '_subject_session_outputs', wall_time=20,
-                memory=4000)
-            workflow.connect(sink, 'subject_id', session_outputs, 'subjects')
-            workflow.connect(sink, 'visit_id', session_outputs, 'sessions')
-            workflow.connect(session_outputs, 'subject_session_pairs',
-                             subject_session_outputs, 'subject_session_pairs')
-            workflow.connect(
-                subject_session_outputs, 'subject_session_pairs',
-                output_summary, 'subject_session_pairs')
-        elif freq == 'per_subject':
-            subject_output_summary = JoinNode(
-                SubjectReport(), joinsource=subjects, joinfield='subjects',
-                name=self.name + '_subject_summary_outputs', wall_time=20,
-                memory=4000)
-            workflow.connect(sink, 'subject_id',
-                             subject_output_summary, 'subjects')
-            workflow.connect(subject_output_summary, 'subjects',
-                             output_summary, 'subjects')
-        elif freq == 'per_visit':
-            visit_output_summary = JoinNode(
-                VisitReport(), joinsource=sessions, joinfield='sessions',
-                name=self.name + '_visit_summary_outputs', wall_time=20,
-                memory=4000)
-            workflow.connect(sink, 'visit_id',
-                             visit_output_summary, 'sessions')
-            workflow.connect(visit_output_summary, 'sessions',
-                             output_summary, 'visits')
-        elif freq == 'per_project':
-            workflow.connect(sink, 'project_id', output_summary, 'project')
-
     @property
     def has_prerequisites(self):
         return any(self._study.spec(i).is_spec for i in self.inputs)
@@ -464,21 +146,20 @@ class Pipeline(object):
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
-        pipeline_getters = set()
+        pipelines = set()
         required_outputs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             spec = self._study.spec(input)
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
-                pipeline_getters.add(spec.pipeline)
-                required_outputs[spec.pipeline].add(input.name)
+                pipelines.add(spec.pipeline)
+                required_outputs[spec.pipeline_name].add(input.name)
         # Call pipeline-getter instance method on study with provided options
         # to generate pipeline to run
-        for getter in pipeline_getters:
-            pipeline = getter()
+        for pipeline in pipelines:
             # Check that the required outputs are created with the given
             # options
-            missing_outputs = required_outputs[getter] - set(
+            missing_outputs = required_outputs[pipeline.name] - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
@@ -501,113 +182,11 @@ class Pipeline(object):
                       if not self._study.data_spec(i).derived),
                      *(p.study_inputs for p in self.prerequisites))
 
-    def _sessions_to_process(self, subject_ids=None, visit_ids=None,
-                             reprocess=False):
-        """
-        Check whether the outputs of the pipeline are present in all sessions
-        in the project archive, and make a list of the sessions and subjects
-        that need to be reprocessed if they aren't.
-
-        Parameters
-        ----------
-        subject_ids : list(str)
-            Filter the subject IDs to process
-        visit_ids : list(str)
-            Filter the visit IDs to process
-        reprocess : bool
-            Whether to reprocess the pipeline outputs even if they
-            exist.
-        """
-        # Get list of available subjects and their associated sessions/datasets
-        # from the archive
-        def filter_sessions(sessions):  # @IgnorePep8
-            if visit_ids is None and subject_ids is None:
-                return sessions
-            return (
-                s for s in sessions
-                if ((visit_ids is None or s.visit_id in visit_ids) and
-                    (subject_ids is None or s.subject_id in subject_ids)))
-        tree = self._study.tree
-        subjects = ([s for s in tree.subjects if s.id in subject_ids]
-                    if subject_ids is not None else list(tree.subjects))
-        visits = ([v for v in tree.visits if s.id in visit_ids]
-                    if visit_ids is not None else list(tree.visits))
-        # Get all filtered sessions
-        all_sessions = list(chain(*[filter_sessions(s.sessions)
-                                    for s in subjects]))
-        if reprocess:
-            return all_sessions
-        sessions_to_process = set()
-        for output_spec in self.outputs:
-            output = self.study.spec(output_spec)
-            # If there is a project output then all subjects and sessions need
-            # to be reprocessed
-            if output.frequency == 'per_project':
-                if output.prefixed_name not in tree.data_names:
-                    # Return all filtered sessions
-                    return all_sessions
-            elif output.frequency == 'per_subject':
-                sessions_to_process.update(chain(*(
-                    filter_sessions(s.sessions) for s in subjects
-                    if output.prefixed_name not in s.data_names)))
-            elif output.frequency == 'per_visit':
-                sessions_to_process.update(chain(*(
-                    filter_sessions(v.sessions) for v in visits
-                    if (output.prefixed_name not in v.data_names))))
-            elif output.frequency == 'per_session':
-                sessions_to_process.update(filter_sessions(
-                    s for s in all_sessions
-                    if output.prefixed_name not in s.all_data_names))
-            else:
-                assert False, ("Unrecognised frequency of {}"
-                               .format(output))
-        return list(sessions_to_process)
-
     def connect(self, *args, **kwargs):
         """
         Performs the connection in the wrapped NiPype workflow
         """
         self._workflow.connect(*args, **kwargs)
-
-    def save_graph(self, fname, style='flat', complete=False):
-        """
-        Saves a graph of the pipeline to file
-
-        Parameters
-        ----------
-        fname : str
-            The filename for the saved graph
-        style : str
-            The style of the graph, can be one of can be one of
-            'orig', 'flat', 'exec', 'hierarchical'
-        complete : bool
-            Whether to plot the complete graph including sources, sinks and
-            prerequisite pipelines or just the current pipeline
-        plot : bool
-            Whether to load and plot the graph after it has been written
-        """
-        fname = os.path.expanduser(fname)
-        orig_dir = os.getcwd()
-        tmpdir = tempfile.mkdtemp()
-        os.chdir(tmpdir)
-        if complete:
-            workflow = pe.Workflow(name=self.name, base_dir=tmpdir)
-            self.connect_to_archive(workflow)
-            out_dir = os.path.join(tmpdir, self.name)
-        else:
-            workflow = self._workflow
-            out_dir = tmpdir
-        workflow.write_graph(graph2use=style)
-        os.chdir(orig_dir)
-        try:
-            shutil.move(os.path.join(out_dir, 'graph_detailed.png'),
-                        fname)
-        except IOError as e:
-            if e.errno == errno.ENOENT:
-                shutil.move(os.path.join(out_dir, 'graph.png'), fname)
-            else:
-                raise
-        shutil.rmtree(tmpdir)
 
     def connect_input(self, spec_name, node, node_input):
         """
@@ -965,6 +544,37 @@ class Pipeline(object):
         """
         return '__'.join('{}_{}'.format(k, v)
                          for k, v in self.options.iteritems())
+
+    def save_graph(self, fname, style='flat'):
+        """
+        Saves a graph of the pipeline to file
+
+        Parameters
+        ----------
+        fname : str
+            The filename for the saved graph
+        style : str
+            The style of the graph, can be one of can be one of
+            'orig', 'flat', 'exec', 'hierarchical'
+        plot : bool
+            Whether to load and plot the graph after it has been written
+        """
+        fname = os.path.expanduser(fname)
+        orig_dir = os.getcwd()
+        tmpdir = tempfile.mkdtemp()
+        os.chdir(tmpdir)
+        workflow = self._workflow
+        workflow.write_graph(graph2use=style)
+        os.chdir(orig_dir)
+        try:
+            shutil.move(os.path.join(tmpdir, 'graph_detailed.png'),
+                        fname)
+        except IOError as e:
+            if e.errno == errno.ENOENT:
+                shutil.move(os.path.join(tmpdir, 'graph.png'), fname)
+            else:
+                raise
+        shutil.rmtree(tmpdir)
 
     def add_input(self, input_name):
         """

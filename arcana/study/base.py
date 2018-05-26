@@ -88,7 +88,7 @@ class Study(object):
                 "the metaclass of all classes derived from Study")
         self._name = name
         self._archive = archive
-        self._runner = runner
+        self._runner = runner.bind(self)
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
@@ -353,11 +353,13 @@ class Study(object):
     def data(self, name, subject_id=None, visit_id=None):
         """
         Returns the Dataset or Field associated with the name,
-        generating derived datasets as required
+        generating derived datasets as required. Multiple names in a
+        list can be provided, in which case their workflows are
+        joined into a single workflow.
 
         Parameters
         ----------
-        name : str
+        name : str | List[str]
             The name of the DatasetSpec|FieldSpec to retried the
             datasets for
         subject_id : int | str | List[int|str] | None
@@ -369,56 +371,74 @@ class Study(object):
 
         Returns
         -------
-        data : Dataset | Field | List[Dataset|Field]
-            Either a single Dataset or field if a single subject_id
-            and visit_id are provided, otherwise a list of datasets or
-            fields corresponding to the given name
+        data : Dataset | Field | List[Dataset | Field] | List[List[Dataset | Field]]
+            If a single name is provided then data is either a single
+            Dataset or field if a single subject_id and visit_id are
+            provided, otherwise a list of datasets or fields
+            corresponding to the given name. If muliple names are
+            provided then a list is returned containing the data for
+            each provided name.
         """
-        def is_single(id_):
+        if isinstance(name, basestring):
+            single_name = True
+            names = [name]
+        else:
+            names = name
+            single_name = False
+        def is_single_id(id_):  # @IgnorePep8
             return isinstance(id_, (str, int))
         subject_ids = ([subject_id]
-                       if is_single(subject_id) else subject_id)
-        visit_ids = ([visit_id] if is_single(visit_id) else visit_id)
-        spec = self.spec(name)
-        if isinstance(spec, BaseMatch):
-            data = spec.matches
-        else:
+                       if is_single_id(subject_id) else subject_id)
+        visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
+        # Work out which pipelines need to be run
+        pipelines = []
+        for name in names:
             try:
-                self.runner.run(
-                    spec.pipeline(), subject_ids=subject_ids,
-                    visit_ids=visit_ids)
-            except ArcanaNoRunRequiredException:
-                logger.info("Not running '{}' pipeline as '{}' is "
-                            "already present in the archive"
-                            .format(spec.pipeline_name, spec.name))
-            if isinstance(spec, BaseDataset):
-                data = chain(*(
-                    (d for d in n.datasets
-                     if d.name == spec.prefixed_name)
-                    for n in self.tree.nodes(spec.frequency)))
-            elif isinstance(spec, BaseField):
-                data = chain(*(
-                    (f for f in n.fields
-                     if f.name == spec.prefixed_name)
-                    for n in self.tree.nodes(spec.frequency)))
+                pipelines.append(self.spec(name).pipeline)
+            except AttributeError:
+                pass  # Match objects
+        # Run all pipelines together
+        if pipelines:
+            self.runner.run(
+                *pipelines, subject_ids=subject_ids,
+                visit_ids=visit_ids)
+        all_data = []
+        for name in names:
+            spec = self.spec(name)
+            if isinstance(spec, BaseMatch):
+                data = spec.matches
             else:
-                assert False
-        if subject_ids is not None and spec.frequency in (
-                'per_session', 'per_subject'):
-            data = [d for d in data if d.subject_id in subject_ids]
-        if visit_ids is not None and spec.frequency in (
-                'per_session', 'per_visit'):
-            data = [d for d in data if d.visit_id in visit_ids]
-        if not data:
-            raise ArcanaUsageError(
-                "No matching data found (subject_id={}, visit_id={})"
-                .format(subject_id, visit_id))
-        if is_single(subject_id) and is_single(visit_id):
-            assert len(data) == 1
-            data = data[0]
-        else:
-            data = list(data)
-        return data
+                if isinstance(spec, BaseDataset):
+                    data = chain(*(
+                        (d for d in n.datasets
+                         if d.name == spec.prefixed_name)
+                        for n in self.tree.nodes(spec.frequency)))
+                elif isinstance(spec, BaseField):
+                    data = chain(*(
+                        (f for f in n.fields
+                         if f.name == spec.prefixed_name)
+                        for n in self.tree.nodes(spec.frequency)))
+                else:
+                    assert False
+            if subject_ids is not None and spec.frequency in (
+                    'per_session', 'per_subject'):
+                data = [d for d in data if d.subject_id in subject_ids]
+            if visit_ids is not None and spec.frequency in (
+                    'per_session', 'per_visit'):
+                data = [d for d in data if d.visit_id in visit_ids]
+            if not data:
+                raise ArcanaUsageError(
+                    "No matching data found (subject_id={}, visit_id={})"
+                    .format(subject_id, visit_id))
+            if is_single_id(subject_id) and is_single_id(visit_id):
+                assert len(data) == 1
+                data = data[0]
+            else:
+                data = list(data)
+            if single_name:
+                return data
+            all_data.append(data)
+        return all_data
 
     def spec(self, name):
         """
