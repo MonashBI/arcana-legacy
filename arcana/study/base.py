@@ -394,11 +394,9 @@ class Study(object):
         pipelines = []
         for name in names:
             try:
-                pipeline = self.spec(name).pipeline
+                pipelines.append(self.spec(name).pipeline)
             except AttributeError:
                 pass  # Match objects don't have pipelines
-            else:
-                pipelines.append(pipeline)
         # Run all pipelines together
         if pipelines:
             self.runner.run(
