@@ -63,9 +63,11 @@ class ArcanaNodeMixin(object):
 
     def _run_command(self, *args, **kwargs):
         start_time = time.time()
-        self._load_modules()
-        result = self.nipype_cls._run_command(self, *args, **kwargs)
-        self._unload_modules()
+        try:
+            self._load_modules()
+            result = self.nipype_cls._run_command(self, *args, **kwargs)
+        finally:
+            self._unload_modules()
         end_time = time.time()
         run_time = (end_time - start_time) / 60
         if run_time > self.wall_time:
