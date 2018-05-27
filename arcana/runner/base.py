@@ -88,12 +88,12 @@ class BaseRunner(object):
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
-        connected_prereqs = {}
+        already_connected = {}
         for pipeline in pipelines:
             try:
                 self._connect_to_archive(
                     pipeline, workflow,
-                    connected_prereqs=connected_prereqs, **kwargs)
+                    already_connected=already_connected, **kwargs)
             except ArcanaNoRunRequiredException:
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the archive"
@@ -105,9 +105,20 @@ class BaseRunner(object):
 
     def _connect_to_archive(self, pipeline, complete_workflow,
                             subject_ids=None, visit_ids=None,
-                            connected_prereqs=None):
-        if connected_prereqs is None:
-            connected_prereqs = {}
+                            already_connected=None):
+        if already_connected is None:
+            already_connected = {}
+        try:
+            (prev_connected, report) = already_connected[pipeline.name]
+            if prev_connected == pipeline:
+                return report
+            else:
+                raise ArcanaError(
+                    "Name clash between {} and {} non-matching "
+                    "prerequisite pipelines".format(prev_connected,
+                                                    pipeline))
+        except KeyError:
+            pass
         # Check all inputs and outputs are connected
         pipeline.assert_connected()
         # Get list of sessions that need to be processed (i.e. if
@@ -130,35 +141,22 @@ class BaseRunner(object):
             prereq_subject_ids = list(
                 set(s.subject.id for s in sessions_to_process))
             for prereq in pipeline.prerequisites:
+                # NB: Even if reprocess==True, the prerequisite pipelines
+                # are not re-processed, they are only reprocessed if
+                # reprocess == 'all'
                 try:
-                    (connected_prereq,
-                     prereq_report) = connected_prereqs[prereq.name]
-                    if connected_prereq != prereq:
-                        raise ArcanaError(
-                            "Name clash between {} and {} non-matching "
-                            "prerequisite pipelines".format(connected_prereq,
-                                                            prereq))
+                    prereq_report = self._connect_to_archive(
+                        prereq, complete_workflow=complete_workflow,
+                        subject_ids=prereq_subject_ids,
+                        visit_ids=visit_ids,
+                        already_connected=already_connected)
                     reports.append(prereq_report)
-                except KeyError:
-                    # NB: Even if reprocess==True, the prerequisite pipelines
-                    # are not re-processed, they are only reprocessed if
-                    # reprocess == 'all'
-                    try:
-                        prereq_report = self._connect_to_archive(
-                            prereq, complete_workflow=complete_workflow,
-                            subject_ids=prereq_subject_ids,
-                            visit_ids=visit_ids,
-                            connected_prereqs=connected_prereqs)
-                        if prereq_report is not None:
-                            connected_prereqs[prereq.name] = (
-                                prereq, prereq_report)
-                            reports.append(prereq_report)
-                    except ArcanaNoRunRequiredException:
-                        logger.info(
-                            "Not running '{}' pipeline as a "
-                            "prerequisite of '{}' as the required "
-                            "outputs are already present in the archive"
-                            .format(prereq.name, pipeline.name))
+                except ArcanaNoRunRequiredException:
+                    logger.info(
+                        "Not running '{}' pipeline as a "
+                        "prerequisite of '{}' as the required "
+                        "outputs are already present in the archive"
+                        .format(prereq.name, pipeline.name))
             if reports:
                 prereq_reports = pipeline.create_node(
                     Merge(len(reports)), 'prereq_reports')
@@ -290,6 +288,8 @@ class BaseRunner(object):
             self._connect_to_reports(
                 pipeline, sink, report, freq, subjects, sessions,
                 complete_workflow)
+        # Register pipeline as being connected to prevent duplicates
+        already_connected[pipeline.name] = (pipeline, report)
         return report
 
     def _subject_and_session_iterators(self, pipeline,

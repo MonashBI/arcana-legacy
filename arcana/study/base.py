@@ -391,27 +391,18 @@ class Study(object):
                        if is_single_id(subject_id) else subject_id)
         visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
         # Work out which pipelines need to be run
-        pipelines = {}
+        pipelines = []
         for name in names:
             try:
                 pipeline = self.spec(name).pipeline
             except AttributeError:
                 pass  # Match objects don't have pipelines
             else:
-                try:
-                    prev_pipeline = pipelines[pipeline.name]
-                except KeyError:
-                    pipelines[pipeline.name] = pipeline
-                else:
-                    if pipeline != prev_pipeline:
-                        raise ArcanaError(
-                            "Name clash between non-matching piplines "
-                            "{} and {} in {}".format(
-                                pipeline, prev_pipeline, self.study))
+                pipelines.append(pipeline)
         # Run all pipelines together
         if pipelines:
             self.runner.run(
-                *(pipelines.values()), subject_ids=subject_ids,
+                *pipelines, subject_ids=subject_ids,
                 visit_ids=visit_ids)
         all_data = []
         for name in names:
