@@ -26,10 +26,15 @@ class BaseSpec(object):
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
-                self._pipeline_name == other._pipeline_name and
                 self.desc == other.desc and
                 self._study == other._study and
                 self.optional == other.optional)
+
+#     def __hash__(self):
+#         return (hash(self.pipeline_name) ^
+#                 hash(self.desc) ^
+#                 hash(self._study) ^
+#                 hash(self.optional))
 
     def bind(self, study):
         """
@@ -46,8 +51,12 @@ class BaseSpec(object):
         else:
             bound = copy(self)
             bound._study = study
-            if self.pipeline_name is not None:
-                bound.pipeline  # Test to see if pipeline name is present
+            if (self.pipeline_name is not None and
+                    not hasattr(study, self.pipeline_name)):
+                raise ArcanaError(
+                    "{} does not have a method named '{}' required to "
+                    "derive {}".format(study, self.pipeline_name,
+                                       self))
         return bound
 
     def find_mismatch(self, other, indent=''):
@@ -73,12 +82,8 @@ class BaseSpec(object):
             raise ArcanaUsageError(
                 "'{}' is not a derived {}".format(self.name,
                                                   type(self)))
-        pipeline = self.pipeline()
-        if self.name not in (o.name for o in pipeline.outputs):
-            return False
-        # Check all study inputs required by the pipeline were provided
         try:
-            for inpt in pipeline.study_inputs:
+            for inpt in self.pipeline.study_inputs:
                 self.study.spec(inpt.name)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
@@ -104,11 +109,18 @@ class BaseSpec(object):
                 "{} is an acquired data spec so doesn't have a pipeline"
                 .format(self))
         try:
-            return getattr(self.study, self.pipeline_name)
+            pipeline = getattr(self.study, self.pipeline_name)()
         except AttributeError:
             raise ArcanaError(
                 "There is no pipeline method named '{}' in present in "
                 "'{}' study".format(self.pipeline_name, self.study))
+        if self.name not in pipeline.output_names:
+            raise ArcanaOutputNotProducedException(
+                "'{}' is not produced by {} with options: {}".format(
+                    self.name, self.study,
+                    '\n'.join('{}={}'.format(o.name, o.value)
+                              for o in self.study.options)))
+        return pipeline
 
     @property
     def derived(self):
