@@ -1,3 +1,5 @@
+from future import standard_library
+standard_library.install_aliases()
 import tempfile
 import shutil
 import os.path
@@ -10,8 +12,9 @@ from arcana.option import OptionSpec
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
 from arcana.data_format import text_format, DataFormat
 from future.utils import PY2
+from future.utils import with_metaclass
 if PY2:
-    import cPickle as pkl  # @UnusedImport
+    import pickle as pkl  # @UnusedImport
 else:
     import pickle as pkl  # @Reimport
 
@@ -47,9 +50,7 @@ class TestDatasetSpecPickle(TestCase):
             self.assertEqual(obj, re_obj)
 
 
-class TestMatchStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('gre_phase', dicom_format),
@@ -110,9 +111,7 @@ class TestDicomTagMatch(BaseTestCase):
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
 
-class TestDerivableStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('required', text_format),

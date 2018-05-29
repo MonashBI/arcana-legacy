@@ -1,3 +1,6 @@
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
 import os.path
 # from nipype import config
 # config.enable_debug_mode()
@@ -19,15 +22,14 @@ from arcana.exception import ArcanaNoConverterError
 from arcana.archive import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
 from future.utils import PY2
+from future.utils import with_metaclass
 if PY2:
-    import cPickle as pkl  # @UnusedImport
+    import pickle as pkl  # @UnusedImport
 else:
     import pickle as pkl  # @Reimport
 
 
-class ExampleStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('one', text_format),
@@ -366,9 +368,7 @@ class TestStudy(BaseMultiSubjectTestCase):
             self.assertEqual(sorted(ids), sorted(self.VISIT_IDS))
 
 
-class ExistingPrereqStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('one', text_format),
@@ -432,8 +432,8 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def input_tree(self):
         sessions = []
         visit_ids = set()
-        for subj_id, visits in self.PROJECT_STRUCTURE.items():
-            for visit_id, datasets in visits.items():
+        for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
+            for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
                     Dataset(('{}_{}'.format(self.STUDY_NAME, d)
                              if d != 'one' else d),
@@ -463,7 +463,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
         tree = self.archive.get_tree()
-        for subj_id, visits in self.PROJECT_STRUCTURE.iteritems():
+        for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
                 try:
@@ -490,9 +490,7 @@ DataFormat.register(test2_format)
 DataFormat.register(test3_format)
 
 
-class TestInputValidationStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('a', test2_format),
@@ -552,9 +550,7 @@ class TestInputValidation(BaseTestCase):
                 DatasetMatch('d', test3_format, 'd')])
 
 
-class BasicTestClass(Study):
-
-    __metaclass__ = StudyMetaClass
+class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [DatasetSpec('dataset', text_format),
                       DatasetSpec('out_dataset', text_format,

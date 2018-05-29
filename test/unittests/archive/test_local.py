@@ -1,3 +1,5 @@
+from future import standard_library
+standard_library.install_aliases()
 import os
 from unittest import TestCase
 import tempfile
@@ -16,15 +18,14 @@ from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.archive import Project, Subject, Session, Visit
 from future.utils import PY2
+from future.utils import with_metaclass
 if PY2:
-    import cPickle as pkl  # @UnusedImport
+    import pickle as pkl  # @UnusedImport
 else:
     import pickle as pkl  # @Reimport
 
 
-class DummyStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('source1', text_format),

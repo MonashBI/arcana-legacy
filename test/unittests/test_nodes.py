@@ -10,6 +10,7 @@ from unittest import TestCase
 from arcana.data_format import text_format
 from arcana.node import Node
 from arcana.requirement import Requirement
+from future.utils import with_metaclass
 
 
 dummy1_req = Requirement(name='dummy1', min_version=(1, 0))
@@ -41,9 +42,7 @@ class TestMathWithReq(TestMath):
         return runtime
 
 
-class RequirementsStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('ones', text_format),

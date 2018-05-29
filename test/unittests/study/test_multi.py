@@ -7,11 +7,10 @@ from arcana.study.base import Study
 from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
 from arcana.option import Option
+from future.utils import with_metaclass
 
 
-class StudyA(Study):
-
-    __metaclass__ = StudyMetaClass
+class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('x', text_format),
@@ -44,9 +43,7 @@ class StudyA(Study):
         return pipeline
 
 
-class StudyB(Study):
-
-    __metaclass__ = StudyMetaClass
+class StudyB(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('w', text_format),
@@ -94,9 +91,7 @@ class StudyB(Study):
         return pipeline
 
 
-class FullMultiStudy(MultiStudy):
-
-    __metaclass__ = MultiStudyMetaClass
+class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
@@ -138,9 +133,7 @@ class FullMultiStudy(MultiStudy):
         'ss2', 'pipeline_beta')
 
 
-class PartialMultiStudy(MultiStudy):
-
-    __metaclass__ = MultiStudyMetaClass
+class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
@@ -160,9 +153,7 @@ class PartialMultiStudy(MultiStudy):
         OptionSpec('p1', 1000)]
 
 
-class MultiMultiStudy(MultiStudy):
-
-    __metaclass__ = MultiStudyMetaClass
+class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA, {}),

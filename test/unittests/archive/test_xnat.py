@@ -1,4 +1,8 @@
 from __future__ import absolute_import
+from builtins import str
+from builtins import next
+from builtins import range
+from builtins import object
 import os.path
 import shutil
 import tempfile
@@ -27,6 +31,7 @@ from arcana.archive.tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
 import sys
 import logging
+from future.utils import with_metaclass
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
 import test_dataset  # @UnresolvedImport @IgnorePep8
@@ -53,9 +58,7 @@ except KeyError:
     SERVER = None
 
 
-class DummyStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('source1', text_format),
@@ -242,9 +245,9 @@ class TestXnatArchive(BaseTestCase):
             [d + text_format.extension
              for d in expected_sink_datasets])
         with self._connect() as mbi_xnat:
-            dataset_names = mbi_xnat.experiments[
+            dataset_names = list(mbi_xnat.experiments[
                 self.session_label() +
-                XnatArchive.PROCESSED_SUFFIX].scans.keys()
+                XnatArchive.PROCESSED_SUFFIX].scans.keys())
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
     @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
@@ -537,10 +540,10 @@ class TestXnatSummaryRoundtrip(TestXnatArchive):
                              [d + text_format.extension
                               for d in expected_subj_datasets])
             # and on XNAT
-            subject_dataset_names = mbi_xnat.projects[
+            subject_dataset_names = list(mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '_'.join((self.PROJECT, self.SUBJECT,
-                              XnatArchive.SUMMARY_NAME))].scans.keys()
+                              XnatArchive.SUMMARY_NAME))].scans.keys())
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check visit summary directories were created properly in
             # cache
@@ -555,11 +558,11 @@ class TestXnatSummaryRoundtrip(TestXnatArchive):
                              [d + text_format.extension
                               for d in expected_visit_datasets])
             # and on XNAT
-            visit_dataset_names = mbi_xnat.projects[
+            visit_dataset_names = list(mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '{}_{}_{}'.format(
                         self.PROJECT, XnatArchive.SUMMARY_NAME,
-                        self.VISIT)].scans.keys()
+                        self.VISIT)].scans.keys())
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
@@ -573,11 +576,11 @@ class TestXnatSummaryRoundtrip(TestXnatArchive):
                              [d + text_format.extension
                               for d in expected_proj_datasets])
             # and on XNAT
-            project_dataset_names = mbi_xnat.projects[
+            project_dataset_names = list(mbi_xnat.projects[
                 self.PROJECT].experiments[
                     '{}_{sum}_{sum}'.format(
                         self.PROJECT,
-                        sum=XnatArchive.SUMMARY_NAME)].scans.keys()
+                        sum=XnatArchive.SUMMARY_NAME)].scans.keys())
             self.assertEqual(expected_proj_datasets, project_dataset_names)
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
@@ -628,10 +631,10 @@ class TestXnatSummaryRoundtrip(TestXnatArchive):
              self.SUMMARY_STUDY_NAME + '_resink3.txt'])
         # and on XNAT
         with self._connect() as mbi_xnat:
-            resinked_dataset_names = mbi_xnat.projects[
+            resinked_dataset_names = list(mbi_xnat.projects[
                 self.PROJECT].experiments[
                     self.session_label() +
-                    XnatArchive.PROCESSED_SUFFIX].scans.keys()
+                    XnatArchive.PROCESSED_SUFFIX].scans.keys())
             self.assertEqual(sorted(resinked_dataset_names),
                              [self.SUMMARY_STUDY_NAME + '_resink1',
                               self.SUMMARY_STUDY_NAME + '_resink2',
@@ -793,7 +796,7 @@ class TestOnXnatMixin(object):
         # Clean up session created for unit-test
         with xnat.connect(SERVER) as mbi_xnat:
             xproject = mbi_xnat.projects[self.PROJECT]
-            for xsubject in list(xproject.subjects.itervalues()):
+            for xsubject in list(xproject.subjects.values()):
                 xsubject.delete()
 
     @property
@@ -898,9 +901,7 @@ class TestExistingPrereqsOnXnat(TestOnXnatMixin,
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
 
-class TestStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('dataset1', text_format),
@@ -929,8 +930,8 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
     def input_tree(self):
         sessions = []
         visit_ids = set()
-        for subj_id, visits in self.STRUCTURE.items():
-            for visit_id, datasets in visits.items():
+        for subj_id, visits in list(self.STRUCTURE.items()):
+            for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
                     Dataset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in datasets]))
@@ -955,7 +956,7 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
                 DatasetMatch('dataset3', text_format, 'dataset3')],
             archive=archive)
         study.cache_inputs()
-        for subject_id, visits in self.STRUCTURE.items():
+        for subject_id, visits in list(self.STRUCTURE.items()):
             subj_dir = os.path.join(
                 archive.cache_dir, self.PROJECT,
                 '{}_{}'.format(self.PROJECT, subject_id))

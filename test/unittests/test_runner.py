@@ -1,3 +1,5 @@
+from future import standard_library
+standard_library.install_aliases()
 from unittest import TestCase
 import tempfile
 from future.utils import PY2
@@ -5,7 +7,7 @@ import shutil
 import os.path
 from arcana.runner import LinearRunner, MultiProcRunner, SlurmRunner
 if PY2:
-    import cPickle as pkl  # @UnusedImport
+    import pickle as pkl  # @UnusedImport
 else:
     import pickle as pkl  # @Reimport
 
