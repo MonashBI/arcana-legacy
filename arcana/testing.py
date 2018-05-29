@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os.path as op
 import os
 import subprocess as sp
@@ -486,36 +487,36 @@ class DummyTestCase(BaseTestCase):
     def assert_(self, statement, message=None):
         if not statement:
             message = "'{}' is not true".format(statement)
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertEqual(self, first, second, message=None):
         if first != second:
             if message is None:
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertAlmostEqual(self, first, second, message=None):
         if first != second:
             if message is None:
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertLess(self, first, second, message=None):
         if first >= second:
             if message is None:
                 message = '{} is not less than {}'.format(repr(first),
                                                           repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
 
 class TestTestCase(BaseTestCase):

@@ -165,7 +165,7 @@ class ArcanaNodeMixin(object):
                 raise ArcanaError(
                     "Call to subprocess `{}` threw an error: {}".format(
                         ' '.join([modulecmd, 'python'] + list(args)), e))
-            exec output
+            exec(output)
             return error
         else:
             raise ArcanaModulesNotInstalledException('MODULESHOME')
