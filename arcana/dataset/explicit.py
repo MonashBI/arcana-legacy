@@ -1,3 +1,5 @@
+from builtins import str
+from past.builtins import basestring
 import os.path
 import pydicom
 from arcana.data_format import DataFormat, directory_format

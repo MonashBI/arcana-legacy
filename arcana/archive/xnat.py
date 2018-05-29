@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+from builtins import zip
+from builtins import str
+from builtins import object
 from abc import ABCMeta
 import os.path
 import tempfile
@@ -31,6 +34,7 @@ import re
 import xnat  # NB: XnatPy not PyXNAT
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from .local import FIELDS_FNAME
+from future.utils import with_metaclass
 
 logger = logging.getLogger('Arcana')
 
@@ -124,7 +128,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             sessions = {}
             cache_dirs = {}
             for freq, derived in ([('per_session', False)] +
-                                    zip(MULTIPLICITIES, repeat(True))):
+                                    list(zip(MULTIPLICITIES, repeat(True)))):
                 subj_label, sess_label = XnatArchive.get_labels(
                     freq, self.inputs.project_id, subject_id, visit_id)
                 if freq == 'per_session' and derived:
@@ -160,7 +164,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                         "Could not find '{}' dataset in session '{}' "
                         "(found {})".format(
                             dataset.prefixed_name, session.label,
-                            "', '".join(session.scans.keys())))
+                            "', '".join(list(session.scans.keys()))))
                 # Get filename
                 fname = dataset.fname(subject_id=subject_id,
                                       visit_id=visit_id)
@@ -233,7 +237,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                 .format(
                     dataset.name, dataset.format.xnat_resource_name,
                     "', '".join(r.label
-                                 for r in dataset.resources.values())))
+                                 for r in list(dataset.resources.values()))))
         return xresource
 
     @classmethod
@@ -374,13 +378,11 @@ class XnatProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
     pass
 
 
-class XnatSinkMixin(XnatMixin):
+class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
     """
     A NiPype IO interface for putting derived datasets onto DaRIS (analogous
     to DataSink)
     """
-
-    __metaclass__ = ABCMeta
 
     def _list_outputs(self):
         """Execute this module.
@@ -713,7 +715,7 @@ class XnatArchive(Archive):
         with self.login() as xnat_login:
             return [
                 s.label for s in xnat_login.projects[
-                    project_id].experiments.itervalues()]
+                    project_id].experiments.values()]
 
     def get_tree(self, subject_ids=None, visit_ids=None):
         """
@@ -750,7 +752,7 @@ class XnatArchive(Archive):
             xproject = xnat_login.projects[self.project_id]
             visit_sessions = defaultdict(list)
             # Create list of subjects
-            for xsubject in xproject.subjects.itervalues():
+            for xsubject in xproject.subjects.values():
                 # This assumes that the subject ID is prepended with
                 # the project ID
                 subj_id = xsubject.label[(len(self.project_id) + 1):]
@@ -764,7 +766,7 @@ class XnatArchive(Archive):
                 sessions = {}
                 proc_sessions = []
                 # Get per_session datasets
-                for xsession in xsubject.experiments.itervalues():
+                for xsession in xsubject.experiments.values():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
                     if visit_id == XnatArchive.SUMMARY_NAME:
                         continue
@@ -823,7 +825,7 @@ class XnatArchive(Archive):
                                         fields=subj_fields))
             # Create list of visits
             visits = []
-            for visit_id, v_sessions in visit_sessions.iteritems():
+            for visit_id, v_sessions in visit_sessions.items():
                 (_, visit_summary_sess_name) = self.get_labels(
                     'per_visit', self.project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
@@ -865,7 +867,7 @@ class XnatArchive(Archive):
                          if subject_ids is not None else ''),
                         self.project_id,
                         "', '".join(s.label[(len(self.project_id) + 1):]
-                                    for s in xproject.subjects.values())))
+                                    for s in list(xproject.subjects.values()))))
             if not sessions:
                 raise ArcanaError(
                     "Did not find any sessions matching the visit IDs "
@@ -875,7 +877,7 @@ class XnatArchive(Archive):
                          if visit_ids is not None else ''),
                         "', '".join(
                             s.label.split('_')[1]
-                            for s in xproject.experiments.values()),
+                            for s in list(xproject.experiments.values())),
                         self.project_id))
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
@@ -901,7 +903,7 @@ class XnatArchive(Archive):
             List of datasets within an XNAT session
         """
         datasets = []
-        for xdataset in xsession.scans.itervalues():
+        for xdataset in xsession.scans.values():
             data_format = DataFormat.by_name(
                 guess_data_format(xdataset))
             datasets.append(Dataset(
@@ -930,7 +932,7 @@ class XnatArchive(Archive):
             List of fields within an XNAT session
         """
         fields = []
-        for name, value in xsession.fields.items():
+        for name, value in list(xsession.fields.items()):
             fields.append(Field(
                 name=name, value=value, derived=derived,
                 frequency=freq, subject_id=subject_id,
@@ -1002,7 +1004,7 @@ class XnatArchive(Archive):
 
 
 def guess_data_format(dataset):
-    dataset_formats = [r for r in dataset.resources.itervalues()
+    dataset_formats = [r for r in dataset.resources.values()
                        if r.label.lower() in DataFormat.by_names]
     if len(dataset_formats) > 1:
         raise ArcanaError(
@@ -1014,5 +1016,5 @@ def guess_data_format(dataset):
             "No recognised data formats for '{}' dataset (available resources "
             "are '{}')".format(
                 dataset.type, "', '".join(
-                    r.label for r in dataset.resources.itervalues())))
+                    r.label for r in dataset.resources.values())))
     return dataset_formats[0].label

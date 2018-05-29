@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import re
 from itertools import chain
 from copy import copy
@@ -42,12 +44,12 @@ class BaseMatch(object):
     @property
     def matches(self):
         if self.frequency == 'per_session':
-            matches = chain(*(d.itervalues()
-                              for d in self._matches.itervalues()))
+            matches = chain(*(iter(d.values())
+                              for d in self._matches.values()))
         elif self.frequency == 'per_subject':
-            matches = self._matches.itervalues()
+            matches = iter(self._matches.values())
         elif self.frequency == 'per_visit':
-            matches = self._matches.itervalues()
+            matches = iter(self._matches.values())
         elif self.frequency == 'per_project':
             self._matches = iter([self._matches])
         else:
@@ -304,7 +306,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             filtered = []
             for dataset in matches:
                 values = dataset.dicom_values(
-                    self.dicom_tags.keys(), archive_login=archive_login)
+                    list(self.dicom_tags.keys()), archive_login=archive_login)
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:

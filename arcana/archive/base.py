@@ -1,3 +1,4 @@
+from builtins import object
 from abc import ABCMeta, abstractmethod
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
@@ -7,19 +8,18 @@ from arcana.dataset import (
     Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
 from arcana.exception import ArcanaError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
+from future.utils import with_metaclass
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
 FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
 MULTIPLICITIES = ('per_session', 'per_subject', 'per_visit', 'per_project')
 
 
-class Archive(object):
+class Archive(with_metaclass(ABCMeta, object)):
     """
     Abstract base class for all Archive systems, DaRIS, XNAT and local file
     system. Sets out the interface that all Archive classes should implement.
     """
-
-    __metaclass__ = ABCMeta
 
     @abstractmethod
     def source(self, inputs, name=None, study_name=None, **kwargs):

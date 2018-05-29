@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+from builtins import next
+from builtins import str
+from builtins import range
 import os.path
 import re
 import shutil
@@ -141,7 +144,7 @@ class Chain(IdentityInterface):
     def _list_outputs(self):
         outputs = super(Chain, self)._list_outputs()
         chained_outputs = {}
-        for k, v in outputs.iteritems():
+        for k, v in outputs.items():
             chained_outputs[k] = list(chain(*v))
         return chained_outputs
 

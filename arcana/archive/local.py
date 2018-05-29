@@ -1,3 +1,6 @@
+from builtins import str
+from past.builtins import basestring
+from builtins import object
 from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
@@ -388,7 +391,7 @@ class LocalArchive(Archive):
             else:
                 summaries[subj_id][visit_id] = (datasets, fields)
         subjects = []
-        for subj_id, subj_sessions in all_sessions.items():
+        for subj_id, subj_sessions in list(all_sessions.items()):
             try:
                 datasets, fields = summaries[subj_id][None]
             except KeyError:
@@ -400,7 +403,7 @@ class LocalArchive(Archive):
         visits = []
         for visit_id in all_visit_ids:
             visit_sessions = list(chain(
-                sess[visit_id] for sess in all_sessions.values()))
+                sess[visit_id] for sess in list(all_sessions.values())))
             try:
                 datasets, fields = summaries[None][visit_id]
             except KeyError:
@@ -458,4 +461,4 @@ class LocalArchive(Archive):
         return [Field(name=k, value=v, frequency=frequency,
                       subject_id=subject_id, visit_id=visit_id,
                       archive=self)
-                for k, v in dct.items()]
+                for k, v in list(dct.items())]

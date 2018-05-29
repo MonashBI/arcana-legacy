@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 from itertools import chain
 from copy import copy, deepcopy
 from logging import getLogger
@@ -230,7 +232,7 @@ class BaseRunner(object):
         # pipelines into one large connected pipeline.
         report = pipeline.create_node(PipelineReport(), 'report')
         # Connect all outputs to the archive sink
-        for freq, outputs in pipeline._outputs.iteritems():
+        for freq, outputs in pipeline._outputs.items():
             # Create a new sink for each frequency level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
             sink = self.study.archive.sink(
@@ -316,11 +318,11 @@ class BaseRunner(object):
         for session in sessions_to_process:
             session_subjects[session.visit_id].add(session.subject_id)
         if all(ss == subject_ids_to_process
-               for ss in session_subjects.itervalues()):
+               for ss in session_subjects.values()):
             # All sessions are to be processed in every node, a simple second
             # layer of iterations on top of the subject iterations will
             # suffice. This allows re-combining on visit_id across subjects
-            sessions.iterables = ('visit_id', session_subjects.keys())
+            sessions.iterables = ('visit_id', list(session_subjects.keys()))
         else:
             # visit IDs to be processed vary between subjects and so need
             # to be specified explicitly

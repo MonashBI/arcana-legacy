@@ -1,3 +1,5 @@
+from past.builtins import basestring
+from builtins import object
 from itertools import chain
 import sys
 import types
@@ -102,7 +104,7 @@ class Study(object):
             inputs = {i.name: i for i in inputs}
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study types
-        for inpt_name, inpt in inputs.items():
+        for inpt_name, inpt in list(inputs.items()):
             try:
                 spec = self.data_spec(inpt_name)
             except ArcanaNameError:
@@ -157,7 +159,7 @@ class Study(object):
             options = {o.name: o for o in options}
         self._options = {}
         # Set options
-        for opt_name, opt in options.items():
+        for opt_name, opt in list(options.items()):
             if not isinstance(opt, Option):
                 opt = Option(opt_name, opt)
             try:
@@ -206,7 +208,7 @@ class Study(object):
                 raise AttributeError
         except AttributeError:
             cls_dct = {}
-            for name, attr in cls.__dict__.items():
+            for name, attr in list(cls.__dict__.items()):
                 if isinstance(attr, types.FunctionType):
                     try:
                         if not attr.auto_added:
@@ -243,11 +245,11 @@ class Study(object):
 
     @property
     def inputs(self):
-        return self._inputs.values()
+        return list(self._inputs.values())
 
     @property
     def input_names(self):
-        return self._inputs.keys()
+        return list(self._inputs.keys())
 
     def input(self, name):
         try:
@@ -306,7 +308,7 @@ class Study(object):
                 "Orphanned pre-options for '{}' pipeline(s) remain in "
                 "'{}' {} after creating '{}' pipeline. Please check "
                 "pipeline generation code".format(
-                    "', '".join(self._pre_options.keys()),
+                    "', '".join(list(self._pre_options.keys())),
                     self.name, type(self).__name__, pipeline.name))
         return pipeline
 
@@ -498,7 +500,7 @@ class Study(object):
                 name,
                 "No dataset spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
-                               "', '".join(cls._data_specs.keys())))
+                               "', '".join(list(cls._data_specs.keys()))))
 
     @classmethod
     def option_spec(cls, name):
@@ -509,26 +511,26 @@ class Study(object):
                 name,
                 "No option spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
-                               "', '".join(cls._option_specs.keys())))
+                               "', '".join(list(cls._option_specs.keys()))))
 
     @classmethod
     def data_specs(cls):
         """Lists all data_specs defined in the study class"""
-        return cls._data_specs.itervalues()
+        return iter(cls._data_specs.values())
 
     @classmethod
     def option_specs(cls):
-        return cls._option_specs.itervalues()
+        return iter(cls._option_specs.values())
 
     @classmethod
     def data_spec_names(cls):
         """Lists the names of all data_specs defined in the study"""
-        return cls._data_specs.iterkeys()
+        return iter(cls._data_specs.keys())
 
     @classmethod
     def option_spec_names(cls):
         """Lists the names of all option_specs defined in the study"""
-        return cls._option_specs.iterkeys()
+        return iter(cls._option_specs.keys())
 
     @classmethod
     def spec_names(cls):
@@ -620,7 +622,7 @@ class StudyMetaClass(type):
                     (o.name, o) for o in base.option_specs())
             except AttributeError:
                 pass
-        combined_attrs.update(dct.keys())
+        combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_option_specs.update(
             (o.name, o) for o in add_option_specs)

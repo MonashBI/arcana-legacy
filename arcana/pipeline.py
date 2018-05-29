@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import os
 import tempfile
 import shutil
@@ -454,7 +456,7 @@ class Pipeline(object):
 
     @property
     def outputs(self):
-        return chain(*self._outputs.values())
+        return chain(*list(self._outputs.values()))
 
     @property
     def input_names(self):
@@ -487,11 +489,11 @@ class Pipeline(object):
     @property
     def all_options(self):
         """Return all options, including options of prerequisites"""
-        return chain(self.options, self._prereq_options.iteritems())
+        return chain(self.options, iter(self._prereq_options.items()))
 
     @property
     def non_default_options(self):
-        return ((k, v) for k, v in self.options.iteritems()
+        return ((k, v) for k, v in self.options.items()
                 if v != self.default_options[k])
 
     @property
@@ -518,7 +520,7 @@ class Pipeline(object):
     @property
     def frequencies(self):
         "The frequencies present in the pipeline outputs"
-        return self._outputs.iterkeys()
+        return iter(self._outputs.keys())
 
     def frequency_outputs(self, freq):
         return iter(self._outputs[freq])
@@ -527,7 +529,7 @@ class Pipeline(object):
         return (o.name for o in self.frequency_outputs(freq))
 
     def frequency(self, output):
-        freqs = [m for m, outputs in self._outputs.itervalues()
+        freqs = [m for m, outputs in self._outputs.values()
                  if output in outputs]
         if not freqs:
             raise KeyError(
@@ -552,7 +554,7 @@ class Pipeline(object):
         identify the options used to generate them
         """
         return '__'.join('{}_{}'.format(k, v)
-                         for k, v in self.options.iteritems())
+                         for k, v in self.options.items())
 
     def save_graph(self, fname, style='flat'):
         """

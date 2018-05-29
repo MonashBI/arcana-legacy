@@ -1,3 +1,4 @@
+from builtins import zip
 import os
 from arcana.exception import (
     ArcanaError, ArcanaJobSubmittedException)

@@ -1,3 +1,5 @@
+from builtins import zip
+from builtins import object
 from itertools import chain
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
@@ -15,19 +17,19 @@ class TreeNode(object):
 
     @property
     def datasets(self):
-        return self._datasets.itervalues()
+        return iter(self._datasets.values())
 
     @property
     def fields(self):
-        return self._fields.itervalues()
+        return iter(self._fields.values())
 
     @property
     def dataset_names(self):
-        return self._datasets.iterkeys()
+        return iter(self._datasets.keys())
 
     @property
     def field_names(self):
-        return self._fields.iterkeys()
+        return iter(self._fields.keys())
 
     def dataset(self, name):
         try:
@@ -126,11 +128,11 @@ class Project(TreeNode):
 
     @property
     def subjects(self):
-        return self._subjects.itervalues()
+        return iter(self._subjects.values())
 
     @property
     def visits(self):
-        return self._visits.itervalues()
+        return iter(self._visits.values())
 
     def subject(self, id):  # @ReservedAssignment
         try:
@@ -241,7 +243,7 @@ class Subject(TreeNode):
 
     @property
     def sessions(self):
-        return self._sessions.itervalues()
+        return iter(self._sessions.values())
 
     def session(self, visit_id):
         try:
@@ -319,7 +321,7 @@ class Visit(TreeNode):
 
     @property
     def sessions(self):
-        return self._sessions.itervalues()
+        return iter(self._sessions.values())
 
     def session(self, subject_id):
         try:

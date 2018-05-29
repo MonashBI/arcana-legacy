@@ -1,19 +1,21 @@
+from past.builtins import basestring
+from builtins import object
 import os.path
 from abc import ABCMeta
 from arcana.data_format import DataFormat
 from copy import copy
 from logging import getLogger
 from arcana.exception import ArcanaError
+from future.utils import with_metaclass
+from future.types import newstr
 
 logger = getLogger('Arcana')
 
 
-class BaseDatum(object):
+class BaseDatum(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
                             'per_project')
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         assert name is None or isinstance(name, basestring)
@@ -77,7 +79,7 @@ class BaseDatum(object):
                 'frequency': self.frequency}
 
 
-class BaseDataset(BaseDatum):
+class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a derived dataset.
@@ -94,8 +96,6 @@ class BaseDataset(BaseDatum):
         specifying whether the dataset is present for each session, subject,
         visit or project.
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         super(BaseDataset, self).__init__(name=name, frequency=frequency)
@@ -142,7 +142,7 @@ class BaseDataset(BaseDatum):
         return self.basename(**kwargs) + self.format.ext_str
 
 
-class BaseField(BaseDatum):
+class BaseField(with_metaclass(ABCMeta, BaseDatum)):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived value.
@@ -159,13 +159,11 @@ class BaseField(BaseDatum):
         visit or project.
     """
 
-    __metaclass__ = ABCMeta
-
     dtypes = (int, float, str)
 
     def __init__(self, name, dtype, frequency):
         super(BaseField, self).__init__(name, frequency)
-        if dtype not in self.dtypes:
+        if dtype not in self.dtypes + (newstr,):
             raise ArcanaError(
                 "Invalid dtype {}, can be one of {}".format(
                     dtype, ', '.join(self._dtype_names())))

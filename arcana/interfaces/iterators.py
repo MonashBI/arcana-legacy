@@ -1,3 +1,4 @@
+from builtins import zip
 from itertools import chain
 from nipype.interfaces.base import TraitedSpec, traits, BaseInterface
 from arcana.exception import ArcanaError
@@ -227,7 +228,7 @@ class SelectSession(BaseInterface):
     def _list_outputs(self):
         outputs = {}
         session_id = (self.inputs.subject_id, self.inputs.visit_id)
-        session_ids = zip(self.inputs.subject_ids, self.inputs.visit_ids)
+        session_ids = list(zip(self.inputs.subject_ids, self.inputs.visit_ids))
         if session_ids.count(session_id) != 1:
             raise ArcanaError(
                 "More than one indices matched {} in subjects and visits list "

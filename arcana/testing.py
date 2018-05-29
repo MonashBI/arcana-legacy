@@ -1,4 +1,6 @@
 from __future__ import print_function
+from builtins import str
+from past.builtins import basestring
 import os.path as op
 import os
 import subprocess as sp
@@ -103,7 +105,7 @@ class BaseTestCase(TestCase):
             visit = self.VISIT
         session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
-        for name, dataset in datasets.items():
+        for name, dataset in list(datasets.items()):
             if isinstance(dataset, Dataset):
                 dst_path = op.join(session_dir,
                                    name + dataset.format.ext_str)

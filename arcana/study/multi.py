@@ -1,3 +1,5 @@
+from past.builtins import basestring
+from builtins import object
 from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import (
@@ -124,11 +126,11 @@ class MultiStudy(Study):
 
     @property
     def sub_studies(self):
-        return self._sub_studies.itervalues()
+        return iter(self._sub_studies.values())
 
     @property
     def sub_study_names(self):
-        return self._sub_studies.iterkeys()
+        return iter(self._sub_studies.keys())
 
     def sub_study(self, name):
         try:
@@ -151,11 +153,11 @@ class MultiStudy(Study):
 
     @classmethod
     def sub_study_specs(cls):
-        return cls._sub_study_specs.itervalues()
+        return iter(cls._sub_study_specs.values())
 
     @classmethod
     def sub_study_spec_names(cls):
-        return cls._sub_study_specs.iterkeys()
+        return iter(cls._sub_study_specs.keys())
 
     def __repr__(self):
         return "{}(name='{}')".format(
@@ -231,7 +233,7 @@ class SubStudySpec(object):
         # Fill dataset map with default values before overriding with
         # argument provided to constructor
         self._name_map = name_map if name_map is not None else {}
-        self._inv_map = dict((v, k) for k, v in self._name_map.items())
+        self._inv_map = dict((v, k) for k, v in list(self._name_map.items()))
 
     @property
     def name(self):
@@ -469,7 +471,7 @@ class MultiStudyMetaClass(StudyMetaClass):
         cls = StudyMetaClass(name, bases, dct)
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
-        for sub_study_spec in sub_study_specs.values():
+        for sub_study_spec in list(sub_study_specs.values()):
             for data_spec in sub_study_spec.auto_data_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
@@ -499,10 +501,10 @@ class MultiStudyMetaClass(StudyMetaClass):
                     cls._option_specs[renamed_spec.name] = renamed_spec
         # Check all names in name-map correspond to data or option
         # specs
-        for sub_study_spec in sub_study_specs.values():
+        for sub_study_spec in list(sub_study_specs.values()):
             local_spec_names = list(
                 sub_study_spec.study_class.spec_names())
-            for global_name, local_name in sub_study_spec._name_map.items():
+            for global_name, local_name in list(sub_study_spec._name_map.items()):
                 if local_name not in local_spec_names:
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"

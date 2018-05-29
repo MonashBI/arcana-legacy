@@ -1,3 +1,6 @@
+from __future__ import division
+from builtins import object
+from past.utils import old_div
 import os
 import re
 import time
@@ -51,7 +54,7 @@ class ArcanaNodeMixin(object):
         self.nipype_cls.__init__(self, *args, **kwargs)
 
     def _arcana_init(self, **kwargs):
-        for name, value in self.arcana_params.items():
+        for name, value in list(self.arcana_params.items()):
             setattr(self, name, kwargs.pop(name, value))
         self._loaded_modules = []
 
@@ -69,7 +72,7 @@ class ArcanaNodeMixin(object):
         finally:
             self._unload_modules()
         end_time = time.time()
-        run_time = (end_time - start_time) / 60
+        run_time = old_div((end_time - start_time), 60)
         if run_time > self.wall_time:
             logger.warning("Executed '{}' node in {} minutes, which is longer "
                            "than specified wall time ({} minutes)"
