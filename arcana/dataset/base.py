@@ -32,6 +32,9 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
                 "'{}'".format(self.__class__.__name__))
             return False
 
+    def __hash__(self):
+        return hash(self.name) ^ hash(self.frequency)
+
     def find_mismatch(self, other, indent=''):
         if self != other:
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
@@ -106,6 +109,10 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         return (super(BaseDataset, self).__eq__(other) and
                 self._format == other._format)
 
+    def __hash__(self):
+        return (super(BaseDataset, self).__hash__() ^
+                hash(self._format))
+
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseDataset, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
@@ -172,6 +179,9 @@ class BaseField(with_metaclass(ABCMeta, BaseDatum)):
     def __eq__(self, other):
         return (super(BaseField, self).__eq__(other) and
                 self.dtype == other.dtype)
+
+    def __hash__(self):
+        return (super(BaseField, self).__hash__() ^ hash(self.dtype))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseField, self).find_mismatch(other, indent)

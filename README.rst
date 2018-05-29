@@ -13,10 +13,11 @@ Arcana
   :alt: Documentation Status
 
 
-ARchive-Centred ANAlysis (Arcana) is Python package for "archive-centred" 
-analysis of study groups (e.g. NeuroImaging studies)
+Architecture for Repository-Centric ANAlysis (Arcana) is Python package
+for "repository-centred" analysis of study groups (e.g. NeuroImaging
+studies)
 
-Arcana interacts closely with an archive, storing intermediate
+Arcana interacts closely with an repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
 subsequent analyses. Archives can either be XNAT repositories or
 (http://xnat.org) local directories organised by subject and visit,
@@ -27,7 +28,7 @@ Analysis workflows are constructed and executed using the NiPype
 package, and can either be run locally or submitted to high HPC
 facilities using NiPype’s execution plugins. For a requested analysis
 output, Arcana determines the required processing steps by querying
-the archive to check for missing intermediate outputs before
+the repository to check for missing intermediate outputs before
 constructing the workflow graph. When running in an environment
 with `the modules package <http://modules.sourceforge.net>`_ installed,
 Arcana manages the loading and unloading of software modules per

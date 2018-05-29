@@ -68,6 +68,15 @@ class Dataset(BaseDataset):
                 self.visit_id == other.visit_id and
                 self._archive == other._archive)
 
+    def __hash__(self, other):
+        return (super(Dataset, self).__hash__() ^
+                hash(self.derived) ^
+                hash(self._path) ^
+                hash(self.id) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id) ^
+                hash(self._archive))
+
     def __lt__(self, other):
         return self.id < other.id
 
@@ -300,6 +309,14 @@ class Field(BaseField):
                 self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
                 self._archive == other._archive)
+
+    def __hash__(self):
+        return (super(Field, self).__hash__() ^
+                hash(self.derived) ^
+                hash(self.value) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id) ^
+                hash(self._archive))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)

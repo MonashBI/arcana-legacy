@@ -15,6 +15,16 @@ class TreeNode(object):
         self._datasets = OrderedDict((d.name, d) for d in datasets)
         self._fields = OrderedDict((f.name, f) for f in fields)
 
+    def __eq__(self, other):
+        if not (isinstance(other, type(self)) or
+                isinstance(self, type(other))):
+            return False
+        return (self._datasets == other._datasets and
+                self._fields == other._fields)
+
+    def __hash__(self):
+        return hash(self._datasets) ^ hash(self._fields)
+
     @property
     def datasets(self):
         return iter(self._datasets.values())
@@ -58,13 +68,6 @@ class TreeNode(object):
     @property
     def data_names(self):
         return (d.name for d in self.data)
-
-    def __eq__(self, other):
-        if not (isinstance(other, type(self)) or
-                isinstance(self, type(other))):
-            return False
-        return (self._datasets == other._datasets and
-                self._fields == other._fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -126,6 +129,16 @@ class Project(TreeNode):
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
 
+    def __eq__(self, other):
+        return (super(Project, self).__eq__(other) and
+                self._subjects == other._subjects and
+                self._visits == other._visits)
+
+    def __hash__(self):
+        return (TreeNode.__hash_(self) ^
+                hash(self._subjects) ^
+                hash(self._visits))
+
     @property
     def subjects(self):
         return iter(self._subjects.values())
@@ -162,11 +175,6 @@ class Project(TreeNode):
         else:
             assert False
         return nodes
-
-    def __eq__(self, other):
-        return (super(Project, self).__eq__(other) and
-                self._subjects == other._subjects and
-                self._visits == other._visits)
 
     def find_mismatch(self, other, indent=''):
         """
@@ -241,6 +249,16 @@ class Subject(TreeNode):
     def __lt__(self, other):
         return self._id < other._id
 
+    def __eq__(self, other):
+        return (TreeNode.__eq__(self, other)and
+                self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __hash__(self):
+        return (TreeNode.__hash__(self) ^
+                hash(self._id) ^
+                hash(self._sessions))
+
     @property
     def sessions(self):
         return iter(self._sessions.values())
@@ -252,11 +270,6 @@ class Subject(TreeNode):
             raise ArcanaNameError(
                 visit_id, ("{} doesn't have a session named '{}'"
                            .format(self, visit_id)))
-
-    def __eq__(self, other):
-        return (TreeNode.__eq__(self, other)and
-                self._id == other._id and
-                self._sessions == other._sessions)
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
@@ -316,6 +329,16 @@ class Visit(TreeNode):
     def id(self):
         return self._id
 
+    def __eq__(self, other):
+        return (TreeNode.__eq__(self, other) and
+                self._id == other._id and
+                self._sessions == other._sessions)
+
+    def __hash__(self):
+        return (TreeNode.__hash__(self) ^
+                hash(self._id) ^
+                hash(self._sessions))
+
     def __lt__(self, other):
         return self._id < other._id
 
@@ -330,11 +353,6 @@ class Visit(TreeNode):
             raise ArcanaNameError(
                 subject_id, ("{} doesn't have a session named '{}'"
                              .format(self, subject_id)))
-
-    def __eq__(self, other):
-        return (TreeNode.__eq__(self, other)and
-                self._id == other._id and
-                self._sessions == other._sessions)
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
@@ -397,6 +415,18 @@ class Session(TreeNode):
     @property
     def subject_id(self):
         return self._subject_id
+
+    def __eq__(self, other):
+        return (TreeNode.__eq__(self, other) and
+                self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id and
+                self.derived == other.derived)
+
+    def __hash__(self):
+        return (TreeNode.__hash__(self) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id) ^
+                hash(self.derived))
 
     def __lt__(self, other):
         if self.subject_id < other.subject_id:
@@ -461,12 +491,6 @@ class Session(TreeNode):
     @property
     def all_data_names(self):
         return chain(self.data_names, self.derived_data_names)
-
-    def __eq__(self, other):
-        return (TreeNode.__eq__(self, other) and
-                self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self.derived == other.derived)
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
