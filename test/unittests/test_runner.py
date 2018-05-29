@@ -1,9 +1,13 @@
 from unittest import TestCase
 import tempfile
-import cPickle as pkl
+from future.utils import PY2
 import shutil
 import os.path
 from arcana.runner import LinearRunner, MultiProcRunner, SlurmRunner
+if PY2:
+    import cPickle as pkl  # @UnusedImport
+else:
+    import pickle as pkl  # @Reimport
 
 
 class TestRunnerPickle(TestCase):

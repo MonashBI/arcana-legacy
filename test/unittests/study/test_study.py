@@ -1,7 +1,6 @@
 import os.path
 # from nipype import config
 # config.enable_debug_mode()
-import cPickle as pkl
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from arcana.data_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
@@ -19,6 +18,11 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
 from arcana.archive import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
+from future.utils import PY2
+if PY2:
+    import cPickle as pkl  # @UnusedImport
+else:
+    import pickle as pkl  # @Reimport
 
 
 class ExampleStudy(Study):

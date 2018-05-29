@@ -2,7 +2,6 @@ import os
 from unittest import TestCase
 import tempfile
 import os.path as op
-import cPickle as pkl
 import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
@@ -16,6 +15,11 @@ from arcana.dataset import (
 from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.archive import Project, Subject, Session, Visit
+from future.utils import PY2
+if PY2:
+    import cPickle as pkl  # @UnusedImport
+else:
+    import pickle as pkl  # @Reimport
 
 
 class DummyStudy(Study):

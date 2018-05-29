@@ -1,7 +1,6 @@
 import tempfile
 import shutil
 import os.path
-import cPickle as pkl
 import unittest
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
@@ -10,6 +9,11 @@ from arcana.study.base import Study, StudyMetaClass
 from arcana.option import OptionSpec
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
 from arcana.data_format import text_format, DataFormat
+from future.utils import PY2
+if PY2:
+    import cPickle as pkl  # @UnusedImport
+else:
+    import pickle as pkl  # @Reimport
 
 # For testing DICOM tag matching
 dicom_format = DataFormat(name='dicom', extension=None,
