@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from __future__ import print_function
 import os.path
 import numpy
 # from nipype.interfaces.base import (
@@ -156,10 +157,10 @@ concat_floats.inputs.in_files = [
     '/Users/tclose/Desktop/arcana_tutorial/subject1/visit2/awk.txt',
     '/Users/tclose/Desktop/arcana_tutorial/subject2/visit1/awk.txt']
 result = concat_floats.run()
-print 'Output list {}'.format(result.outputs.out_list)
+print('Output list {}'.format(result.outputs.out_list))
 
 extract_metrics = ExtractMetrics()
 extract_metrics.inputs.in_list = result.outputs.out_list
 result = extract_metrics.run()
-print 'Average: {}'.format(result.outputs.avg)
-print 'Std.: {}'.format(result.outputs.std)
+print('Average: {}'.format(result.outputs.avg))
+print('Std.: {}'.format(result.outputs.std))

@@ -1,3 +1,4 @@
+from __future__ import absolute_import
 import os.path
 import shutil
 import tempfile
@@ -38,9 +39,7 @@ import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
-import test_local  # @UnresolvedImport @IgnorePep8
-sys.path.pop(0)
+from . import test_local  # @UnresolvedImport @IgnorePep8
 
 
 logger = logging.getLogger('Arcana')
