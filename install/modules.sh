@@ -1,8 +1,8 @@
 # Install environment modules to handle package versions
 
-mkdir $HOME/modules
-mkdir $HOME/packages
-mkdir $HOME/downloads
+mkdir -p $HOME/modules
+mkdir -p $HOME/packages
+mkdir -p $HOME/downloads
 
 MODULE_VER=4.1.0
 

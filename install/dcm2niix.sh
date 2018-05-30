@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 # Clones and builds a copy of dcm2niix
 
+mkdir -p $HOME/modules
+mkdir -p $HOME/packages
 PKG_DIR=$HOME/packages/dcm2niix
 BUILD_DIR=$PKG_DIR/build
 

@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Clones and builds a copy of dcm2niix
 
+mkdir -p $HOME/modules
+mkdir -p $HOME/packages
+mkdir -p $HOME/downloads
 PKG_DIR=$HOME/packages/mrtrix
 
 if [ ! -d $PKG_DIR ]; then

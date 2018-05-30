@@ -11,11 +11,6 @@ env:
   global:
     - ARCANA_TEST_XNAT='https://localhost'
     - DOCKER_COMPOSE_VERSION=1.21.2
-before_install:
-  - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m`  > docker-compose
-  - chmod +x docker-compose
-  - sudo mv docker-compose /usr/local/bin
 addons:
   apt:
     packages:
@@ -32,12 +27,17 @@ addons:
     - python-pip
     - wget
     - cmake
+before_install:
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m`  > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 install:
   - export NUMBER_OF_PROCESSORS=8
+  - install/xnat.sh
   - install/modules.sh
   - export MODULESHOME=$HOME/packages/modules
   - export MODULEPATH=$HOME/modules
-  - install/xnat.sh  
   - install/dcm2niix.sh
   - install/netrc.sh
   - install/mrtrix.sh
