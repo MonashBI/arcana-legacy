@@ -9,9 +9,10 @@ BUILD_DIR=$PKG_DIR/build
 if [ ! -d $PKG_DIR ]; then
   mkdir -p $BUILD_DIR
   git clone https://github.com/rordenlab/dcm2niix.git $PKG_DIR
-  cd $BUILD_DIR
+  pushd $BUILD_DIR
   cmake ..
   make
+  popd
 fi
 
 if [ ! -d $HOME/modules/dcm2niix ]; then

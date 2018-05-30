@@ -16,7 +16,7 @@ Arcana
 Architecture for Repository-Centric ANAlysis (Arcana) is Python package
 for "repository-centric" analysis of study groups (e.g. NeuroImaging studies)
 
-Arcana interacts closely with an repository, storing intermediate
+Arcana interacts closely with a repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
 subsequent analyses. Archives can either be XNAT repositories or
 (http://xnat.org) local directories organised by subject and visit,

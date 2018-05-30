@@ -24,7 +24,7 @@ class GrepOutputSpec(TraitedSpec):
 
 
 class Grep(CommandLine):
-    """Creates a zip archive from a given folder"""
+    """Creates a zip repository from a given folder"""
 
     _cmd = 'grep'
     input_spec = GrepInputSpec
@@ -60,7 +60,7 @@ class AwkOutputSpec(TraitedSpec):
 
 
 class Awk(CommandLine):
-    """Creates a zip archive from a given folder"""
+    """Creates a zip repository from a given folder"""
 
     _cmd = 'awk'
     input_spec = AwkInputSpec

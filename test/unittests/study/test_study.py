@@ -19,7 +19,7 @@ from arcana.option import OptionSpec
 from arcana.data_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
-from arcana.archive import Project, Subject, Session, Visit
+from arcana.repository import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
 from future.utils import PY2
 from future.utils import with_metaclass
@@ -462,7 +462,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
-        tree = self.archive.get_tree()
+        tree = self.repository.get_tree()
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)

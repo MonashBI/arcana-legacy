@@ -13,8 +13,8 @@ from arcana.exception import (
     ArcanaUsageError)
 from arcana.dataset.base import BaseDataset, BaseField
 from arcana.interfaces.iterators import (
-    InputSessions, PipelineReport, InputSubjects, SubjectReport,
-    VisitReport, SubjectSessionReport, SessionReport)
+    InputSessions, PipelineRepositoryrt, InputSubjects, SubjectRepositoryrt,
+    VisitRepositoryrt, SubjectSessionRepositoryrt, SessionRepositoryrt)
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 logger = getLogger('Arcana')
@@ -63,13 +63,13 @@ class BaseRunner(object):
 
     def run(self, *pipelines, **kwargs):
         """
-        Connects all pipelines to that study's archive and runs them
+        Connects all pipelines to that study's repository and runs them
         in the same NiPype workflow
 
         Parameters
         ----------
         pipeline(s) : Pipeline, ...
-            The pipeline to connect to archive
+            The pipeline to connect to repository
         subject_ids : List[str]
             The subset of subject IDs to process. If None all available will be
             reprocessed
@@ -79,7 +79,7 @@ class BaseRunner(object):
 
         Returns
         -------
-        report : ReportNode
+        report : RepositoryrtNode
             The final report node, which can be connected to subsequent
             pipelines
         """
@@ -93,19 +93,19 @@ class BaseRunner(object):
         already_connected = {}
         for pipeline in pipelines:
             try:
-                self._connect_to_archive(
+                self._connect_to_repository(
                     pipeline, workflow,
                     already_connected=already_connected, **kwargs)
             except ArcanaNoRunRequiredException:
                 logger.info("Not running '{}' pipeline as its outputs "
-                            "are already present in the archive"
+                            "are already present in the repository"
                             .format(pipeline.name))
-        # Reset the cached tree of datasets in the archive as it will
+        # Reset the cached tree of datasets in the repository as it will
         # change after the pipeline has run.
         self.study.reset_tree()
         return workflow.run(plugin=self._plugin)
 
-    def _connect_to_archive(self, pipeline, complete_workflow,
+    def _connect_to_repository(self, pipeline, complete_workflow,
                             subject_ids=None, visit_ids=None,
                             already_connected=None):
         if already_connected is None:
@@ -129,10 +129,10 @@ class BaseRunner(object):
             pipeline, subject_ids=subject_ids, visit_ids=visit_ids)
         if not sessions_to_process:
             raise ArcanaNoRunRequiredException(
-                "All outputs of '{}' are already present in project archive, "
+                "All outputs of '{}' are already present in project repository, "
                 "skipping".format(pipeline.name))
         # Set up workflow to run the pipeline, loading and saving from the
-        # archive
+        # repository
         complete_workflow.add_nodes([pipeline._workflow])
         # Get iterator nodes over subjects and sessions to be processed
         subjects, sessions = self._subject_and_session_iterators(
@@ -147,7 +147,7 @@ class BaseRunner(object):
                 # are not re-processed, they are only reprocessed if
                 # reprocess == 'all'
                 try:
-                    prereq_report = self._connect_to_archive(
+                    prereq_report = self._connect_to_repository(
                         prereq, complete_workflow=complete_workflow,
                         subject_ids=prereq_subject_ids,
                         visit_ids=visit_ids,
@@ -157,7 +157,7 @@ class BaseRunner(object):
                     logger.info(
                         "Not running '{}' pipeline as a "
                         "prerequisite of '{}' as the required "
-                        "outputs are already present in the archive"
+                        "outputs are already present in the repository"
                         .format(prereq.name, pipeline.name))
             if reports:
                 prereq_reports = pipeline.create_node(
@@ -171,8 +171,8 @@ class BaseRunner(object):
                 complete_workflow.connect(prereq_reports, 'out', subjects,
                                           'prereq_reports')
         try:
-            # Create source and sinks from the archive
-            source = self.study.archive.source(
+            # Create source and sinks from the repository
+            source = self.study.repository.source(
                 (self.study.spec(i) for i in pipeline.inputs),
                 study_name=self.study.name,
                 name='{}_source'.format(pipeline.name))
@@ -230,12 +230,12 @@ class BaseRunner(object):
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        report = pipeline.create_node(PipelineReport(), 'report')
-        # Connect all outputs to the archive sink
+        report = pipeline.create_node(PipelineRepositoryrt(), 'report')
+        # Connect all outputs to the repository sink
         for freq, outputs in pipeline._outputs.items():
             # Create a new sink for each frequency level (i.e 'per_session',
             # 'per_subject', 'per_visit', or 'per_project')
-            sink = self.study.archive.sink(
+            sink = self.study.repository.sink(
                 (self.study.spec(o) for o in outputs),
                 frequency=freq,
                 study_name=self.study.name,
@@ -347,12 +347,12 @@ class BaseRunner(object):
         """
         if freq == 'per_session':
             session_outputs = JoinNode(
-                SessionReport(), joinsource=sessions,
+                SessionRepositoryrt(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
                 name=pipeline.name + '_session_outputs', wall_time=20,
                 memory=4000)
             subject_session_outputs = JoinNode(
-                SubjectSessionReport(), joinfield='subject_session_pairs',
+                SubjectSessionRepositoryrt(), joinfield='subject_session_pairs',
                 joinsource=subjects,
                 name=pipeline.name + '_subject_session_outputs', wall_time=20,
                 memory=4000)
@@ -365,7 +365,7 @@ class BaseRunner(object):
                 output_summary, 'subject_session_pairs')
         elif freq == 'per_subject':
             subject_output_summary = JoinNode(
-                SubjectReport(), joinsource=subjects, joinfield='subjects',
+                SubjectRepositoryrt(), joinsource=subjects, joinfield='subjects',
                 name=pipeline.name + '_subject_summary_outputs', wall_time=20,
                 memory=4000)
             workflow.connect(sink, 'subject_id',
@@ -374,7 +374,7 @@ class BaseRunner(object):
                              output_summary, 'subjects')
         elif freq == 'per_visit':
             visit_output_summary = JoinNode(
-                VisitReport(), joinsource=sessions, joinfield='sessions',
+                VisitRepositoryrt(), joinsource=sessions, joinfield='sessions',
                 name=pipeline.name + '_visit_summary_outputs', wall_time=20,
                 memory=4000)
             workflow.connect(sink, 'visit_id',
@@ -388,7 +388,7 @@ class BaseRunner(object):
                              visit_ids=None, reprocess=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
-        in the project archive, and make a list of the sessions and subjects
+        in the project repository, and make a list of the sessions and subjects
         that need to be reprocessed if they aren't.
 
         Parameters
@@ -404,7 +404,7 @@ class BaseRunner(object):
             exist.
         """
         # Get list of available subjects and their associated sessions/datasets
-        # from the archive
+        # from the repository
         def filter_sessions(sessions):  # @IgnorePep8
             if visit_ids is None and subject_ids is None:
                 return sessions

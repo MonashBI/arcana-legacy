@@ -18,8 +18,8 @@ class MultiStudy(Study):
     ----------
     name : str
         The name of the combined study.
-    archive : Archive
-        An Archive object that provides access to a DaRIS, XNAT or local file
+    repository : Repository
+        An Repository object that provides access to a DaRIS, XNAT or local file
         system
     runner : Runner
         The runner the processes the derived data when demanded
@@ -42,7 +42,7 @@ class MultiStudy(Study):
     reprocess : bool
         Whether to reprocess dataset|fields that have been created with
         different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the archive already contains
+        and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
 
     Class Attrs
@@ -75,7 +75,7 @@ class MultiStudy(Study):
 
     implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
 
-    def __init__(self, name, archive, runner, inputs, options=None,
+    def __init__(self, name, repository, runner, inputs, options=None,
                  **kwargs):
         try:
             if not issubclass(type(self).__dict__['__metaclass__'],
@@ -86,7 +86,7 @@ class MultiStudy(Study):
                 "Need to set MultiStudyMetaClass (or sub-class) as "
                 "the metaclass of all classes derived from "
                 "MultiStudy")
-        super(MultiStudy, self).__init__(name, archive, runner, inputs,
+        super(MultiStudy, self).__init__(name, repository, runner, inputs,
                                          options=options, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
@@ -113,7 +113,7 @@ class MultiStudy(Study):
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
-                archive, runner, mapped_inputs,
+                repository, runner, mapped_inputs,
                 options=mapped_options,
                 enforce_inputs=False)
             # Append to dictionary of sub_studies

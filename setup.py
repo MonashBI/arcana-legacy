@@ -20,7 +20,7 @@ setup(
     url='https://github.com/monashbiomedicalimaging/arcana',
     license='The Apache Software Licence 2.0',
     description=(
-        'Archive-centric analysis workflow architecture based on NiPype'),
+        'Repository-centric analysis workflow architecture based on NiPype'),
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.7',
                       'nipype==1.0',
@@ -36,4 +36,4 @@ setup(
         "Programming Language :: Python :: 2.7",
         "Topic :: Scientific/Engineering :: Bio-Informatics",
         "Topic :: Scientific/Engineering :: Medical Science Apps."],
-    keywords='archive analysis')
+    keywords='repository analysis')

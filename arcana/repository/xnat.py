@@ -17,14 +17,14 @@ from zipfile import ZipFile, BadZipfile
 from collections import defaultdict
 from nipype.interfaces.base import Directory, traits, isdefined
 from arcana.dataset import Dataset, Field
-from arcana.archive.base import (
-    Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
-    ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveVisitSinkInputSpec,
-    ArchiveProjectSinkInputSpec,
-    ArchiveSubjectSink, ArchiveVisitSink, ArchiveProjectSink,
+from arcana.repository.base import (
+    Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
+    RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
+    RepositoryVisitSinkInputSpec,
+    RepositoryProjectSinkInputSpec,
+    RepositorySubjectSink, RepositoryVisitSink, RepositoryProjectSink,
     MULTIPLICITIES)
-from arcana.archive.tree import Session, Subject, Project, Visit
+from arcana.repository.tree import Session, Subject, Project, Visit
 from arcana.data_format import DataFormat
 from arcana.utils import split_extension
 from arcana.exception import (
@@ -60,7 +60,7 @@ class XnatMixin(object):
         return self.inputs.subject_id + '_' + self.inputs.visit_id
 
 
-class XnatSourceInputSpec(ArchiveSourceInputSpec):
+class XnatSourceInputSpec(RepositorySourceInputSpec):
     project_id = traits.Str(mandatory=True, desc='The project ID')
     server = traits.Str(mandatory=True,
                         desc="The address of the XNAT server")
@@ -93,7 +93,7 @@ class XnatSourceInputSpec(ArchiveSourceInputSpec):
               "concurrent requests to XNAT"))
 
 
-class XnatSource(ArchiveSource, XnatMixin):
+class XnatSource(RepositorySource, XnatMixin):
     """
     A NiPype IO interface for grabbing datasets off DaRIS (analogous to
     DataGrabber)
@@ -129,10 +129,10 @@ class XnatSource(ArchiveSource, XnatMixin):
             cache_dirs = {}
             for freq, derived in ([('per_session', False)] +
                                     list(zip(MULTIPLICITIES, repeat(True)))):
-                subj_label, sess_label = XnatArchive.get_labels(
+                subj_label, sess_label = XnatRepository.get_labels(
                     freq, self.inputs.project_id, subject_id, visit_id)
                 if freq == 'per_session' and derived:
-                    sess_label += XnatArchive.PROCESSED_SUFFIX
+                    sess_label += XnatRepository.PROCESSED_SUFFIX
                 cache_dirs[(freq, derived)] = os.path.join(
                     base_cache_dir, subj_label, sess_label)
                 try:
@@ -179,7 +179,7 @@ class XnatSource(ArchiveSource, XnatMixin):
                     if self.check_md5:
                         try:
                             with open(cache_path +
-                                      XnatArchive.MD5_SUFFIX) as f:
+                                      XnatRepository.MD5_SUFFIX) as f:
                                 cached_digests = json.load(f)
                             digests = self.get_digests(xresource)
                             if cached_digests == digests:
@@ -301,7 +301,7 @@ class XnatSource(ArchiveSource, XnatMixin):
             if e.errno != errno.EEXIST:
                 raise
         shutil.move(data_path, cache_path)
-        with open(cache_path + XnatArchive.MD5_SUFFIX, 'w') as f:
+        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w') as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
@@ -359,21 +359,21 @@ class XnatSinkInputSpecMixin(object):
                            "datasets will be cached"))
 
 
-class XnatSinkInputSpec(ArchiveSinkInputSpec, XnatSinkInputSpecMixin):
+class XnatSinkInputSpec(RepositorySinkInputSpec, XnatSinkInputSpecMixin):
     pass
 
 
-class XnatSubjectSinkInputSpec(ArchiveSubjectSinkInputSpec,
+class XnatSubjectSinkInputSpec(RepositorySubjectSinkInputSpec,
                                XnatSinkInputSpecMixin):
     pass
 
 
-class XnatVisitSinkInputSpec(ArchiveVisitSinkInputSpec,
+class XnatVisitSinkInputSpec(RepositoryVisitSinkInputSpec,
                                  XnatSinkInputSpecMixin):
     pass
 
 
-class XnatProjectSinkInputSpec(ArchiveProjectSinkInputSpec,
+class XnatProjectSinkInputSpec(RepositoryProjectSinkInputSpec,
                                XnatSinkInputSpecMixin):
     pass
 
@@ -433,7 +433,7 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
                 # Create md5 digest
                 with open(dst_path) as f:
                     digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
-                with open(dst_path + XnatArchive.MD5_SUFFIX, 'w') as f:
+                with open(dst_path + XnatRepository.MD5_SUFFIX, 'w') as f:
                     json.dump(digests, f)
                 # Upload to XNAT
                 xdataset = xnat_login.classes.MrScanData(
@@ -478,12 +478,12 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
             visit_id = self.inputs.visit_id
         except AttributeError:
             visit_id = None
-        subj_label, sess_label = XnatArchive.get_labels(
+        subj_label, sess_label = XnatRepository.get_labels(
             self.frequency, self.inputs.project_id, subject_id, visit_id)
         if self.frequency == 'per_session':
-            sess_label += XnatArchive.PROCESSED_SUFFIX
+            sess_label += XnatRepository.PROCESSED_SUFFIX
             if visit_id is not None:
-                visit_id += XnatArchive.PROCESSED_SUFFIX
+                visit_id += XnatRepository.PROCESSED_SUFFIX
         try:
             subject = project.subjects[subj_label]
         except KeyError:
@@ -510,7 +510,7 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
             session = xnat_login.classes.MrSessionData(label=proc_session_id,
                                                        parent=subject)
         """
-        uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
+        uri = ('/data/repository/projects/{}/subjects/{}/experiments/{}'
                .format(self.inputs.project_id, subject_id, visit_id))
         query = {'xsiType': 'xnat:mrSessionData', 'label': visit_id,
                  'req_format': 'qa'}
@@ -525,29 +525,29 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
                                                 xnat_session=xnat_login)
 
 
-class XnatSink(XnatSinkMixin, ArchiveSink):
+class XnatSink(XnatSinkMixin, RepositorySink):
 
     input_spec = XnatSinkInputSpec
 
 
-class XnatSubjectSink(XnatSinkMixin, ArchiveSubjectSink):
+class XnatSubjectSink(XnatSinkMixin, RepositorySubjectSink):
 
     input_spec = XnatSubjectSinkInputSpec
 
 
-class XnatVisitSink(XnatSinkMixin, ArchiveVisitSink):
+class XnatVisitSink(XnatSinkMixin, RepositoryVisitSink):
 
     input_spec = XnatVisitSinkInputSpec
 
 
-class XnatProjectSink(XnatSinkMixin, ArchiveProjectSink):
+class XnatProjectSink(XnatSinkMixin, RepositoryProjectSink):
 
     input_spec = XnatProjectSinkInputSpec
 
 
-class XnatArchive(Archive):
+class XnatRepository(Repository):
     """
-    An 'Archive' class for XNAT repositories
+    An 'Repository' class for XNAT repositories
 
     Parameters
     ----------
@@ -566,11 +566,11 @@ class XnatArchive(Archive):
         checks for updates on the server since the file was cached
     subject_ids : list(str) | None
         A list of subject IDs to filter the project search for. Will
-        reduce the time taken to initialise the archive but will also
+        reduce the time taken to initialise the repository but will also
         limit the subjects that can be analysed
     visit_ids : list(str) | None
         A list of subject IDs to filter the project search for. Will
-        reduce the time taken to initialise the archive but will also
+        reduce the time taken to initialise the repository but will also
         limit the subjects that can be analysed
     """
 
@@ -618,7 +618,7 @@ class XnatArchive(Archive):
             return False  # For comparison with other types
 
     def source(self, *args, **kwargs):
-        source = super(XnatArchive, self).source(*args, **kwargs)
+        source = super(XnatRepository, self).source(*args, **kwargs)
         source.inputs.project_id = str(self.project_id)
         source.inputs.server = self._server
         if self._user is not None:
@@ -629,7 +629,7 @@ class XnatArchive(Archive):
         return source
 
     def sink(self, *args, **kwargs):
-        sink = super(XnatArchive, self).sink(*args, **kwargs)
+        sink = super(XnatRepository, self).sink(*args, **kwargs)
         sink.inputs.project_id = str(self.project_id)
         sink.inputs.server = self._server
         if self._user is not None:
@@ -671,7 +671,7 @@ class XnatArchive(Archive):
             An XNATSession object to use for the connection. A new
             one is created if one isn't provided
         """
-        if dataset.archive is not self:
+        if dataset.repository is not self:
             raise ArcanaError(
                 "{} is not from {}".format(dataset, self))
         assert dataset.uri is not None
@@ -720,7 +720,7 @@ class XnatArchive(Archive):
     def get_tree(self, subject_ids=None, visit_ids=None):
         """
         Return the tree of subject and sessions information within a
-        project in the XNAT archive
+        project in the XNAT repository
 
         Parameters
         ----------
@@ -733,9 +733,9 @@ class XnatArchive(Archive):
 
         Returns
         -------
-        project : arcana.archive.Project
+        project : arcana.repository.Project
             A hierarchical tree of subject, session and dataset
-            information for the archive
+            information for the repository
         """
         # Convert subject ids to strings if they are integers
         if subject_ids is not None:
@@ -756,7 +756,7 @@ class XnatArchive(Archive):
                 # This assumes that the subject ID is prepended with
                 # the project ID
                 subj_id = xsubject.label[(len(self.project_id) + 1):]
-                if subj_id == XnatArchive.SUMMARY_NAME:
+                if subj_id == XnatRepository.SUMMARY_NAME:
                     continue
                 if (subject_ids is not None and
                         subj_id not in subject_ids):
@@ -768,7 +768,7 @@ class XnatArchive(Archive):
                 # Get per_session datasets
                 for xsession in xsubject.experiments.values():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
-                    if visit_id == XnatArchive.SUMMARY_NAME:
+                    if visit_id == XnatRepository.SUMMARY_NAME:
                         continue
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
@@ -910,7 +910,7 @@ class XnatArchive(Archive):
                 xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 frequency=freq, path=None, id=xdataset.id,
                 uri=xdataset.uri, subject_id=subject_id,
-                visit_id=visit_id, archive=self))
+                visit_id=visit_id, repository=self))
         return sorted(datasets)
 
     def _get_fields(self, xsession, freq, subject_id=None,
@@ -936,13 +936,13 @@ class XnatArchive(Archive):
             fields.append(Field(
                 name=name, value=value, derived=derived,
                 frequency=freq, subject_id=subject_id,
-                visit_id=visit_id, archive=self))
+                visit_id=visit_id, repository=self))
         return sorted(fields)
 
     def dicom_header(self, dataset, prev_login=None):
         with self.login(prev_login) as xnat_login:
             response = xnat_login.get(
-                '/REST/services/dicomdump?src=/archive/projects/{}'
+                '/REST/services/dicomdump?src=/repository/projects/{}'
                 '{}&format=json'
                 .format(self.project_id, dataset.uri[len('/data'):]))
         def convert(val, code):  # @IgnorePep8

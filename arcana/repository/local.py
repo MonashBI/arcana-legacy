@@ -8,11 +8,11 @@ from itertools import chain, groupby
 from operator import attrgetter
 import errno
 from .base import (
-    Archive, ArchiveSource, ArchiveSink, ArchiveSourceInputSpec,
-    ArchiveSinkInputSpec, ArchiveSubjectSinkInputSpec,
-    ArchiveVisitSinkInputSpec,
-    ArchiveProjectSinkInputSpec, ArchiveSubjectSink, ArchiveVisitSink,
-    ArchiveProjectSink)
+    Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
+    RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
+    RepositoryVisitSinkInputSpec,
+    RepositoryProjectSinkInputSpec, RepositorySubjectSink, RepositoryVisitSink,
+    RepositoryProjectSink)
 import stat
 import shutil
 import logging
@@ -23,7 +23,7 @@ from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
-    ArcanaError, ArcanaBadlyFormattedLocalArchiveError)
+    ArcanaError, ArcanaBadlyFormattedLocalRepositoryError)
 from arcana.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
@@ -77,9 +77,9 @@ class LocalNodeMixin(object):
                 self.base_dir == other.base_dir)
 
 
-class LocalSource(ArchiveSource, LocalNodeMixin):
+class LocalSource(RepositorySource, LocalNodeMixin):
 
-    input_spec = ArchiveSourceInputSpec
+    input_spec = RepositorySourceInputSpec
 
     def __init__(self, study_name, datasets, fields, base_dir):
         self._base_dir = base_dir
@@ -136,14 +136,14 @@ class LocalSinkMixin(LocalNodeMixin):
         outputs = self._base_outputs()
         out_files = []
         missing_files = []
-        # Get output dir from base ArchiveSink class (will change depending on
+        # Get output dir from base RepositorySink class (will change depending on
         # whether it is per session/subject/visit/project)
         out_path = self._get_output_path()
         out_dir = os.path.abspath(os.path.join(*out_path))
         # Make session dir
         if not os.path.exists(out_dir):
             os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-        # Loop through datasets connected to the sink and copy them to archive
+        # Loop through datasets connected to the sink and copy them to repository
         # directory
         for spec in self.datasets:
             assert spec.derived, (
@@ -226,9 +226,9 @@ class LocalSinkMixin(LocalNodeMixin):
         "Get the output path to save the generated datasets into"
 
 
-class LocalSink(LocalSinkMixin, ArchiveSink):
+class LocalSink(LocalSinkMixin, RepositorySink):
 
-    input_spec = ArchiveSinkInputSpec
+    input_spec = RepositorySinkInputSpec
 
     def _get_output_path(self):
         return [
@@ -236,36 +236,36 @@ class LocalSink(LocalSinkMixin, ArchiveSink):
             self.inputs.visit_id]
 
 
-class LocalSubjectSink(LocalSinkMixin, ArchiveSubjectSink):
+class LocalSubjectSink(LocalSinkMixin, RepositorySubjectSink):
 
-    input_spec = ArchiveSubjectSinkInputSpec
+    input_spec = RepositorySubjectSinkInputSpec
 
     def _get_output_path(self):
         return [
             self.base_dir, self.inputs.subject_id, SUMMARY_NAME]
 
 
-class LocalVisitSink(LocalSinkMixin, ArchiveVisitSink):
+class LocalVisitSink(LocalSinkMixin, RepositoryVisitSink):
 
-    input_spec = ArchiveVisitSinkInputSpec
+    input_spec = RepositoryVisitSinkInputSpec
 
     def _get_output_path(self):
         return [
             self.base_dir, SUMMARY_NAME, self.inputs.visit_id]
 
 
-class LocalProjectSink(LocalSinkMixin, ArchiveProjectSink):
+class LocalProjectSink(LocalSinkMixin, RepositoryProjectSink):
 
-    input_spec = ArchiveProjectSinkInputSpec
+    input_spec = RepositoryProjectSinkInputSpec
 
     def _get_output_path(self):
         return [
             self.base_dir, SUMMARY_NAME, SUMMARY_NAME]
 
 
-class LocalArchive(Archive):
+class LocalRepository(Repository):
     """
-    An 'Archive' class for directories on the local file system organised
+    An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
 
     Parameters
@@ -284,12 +284,12 @@ class LocalArchive(Archive):
     def __init__(self, base_dir):
         if not os.path.exists(base_dir):
             raise ArcanaError(
-                "Base directory for LocalArchive '{}' does not exist"
+                "Base directory for LocalRepository '{}' does not exist"
                 .format(base_dir))
         self._base_dir = os.path.abspath(base_dir)
 
     def __repr__(self):
-        return "LocalArchive(base_dir='{}')".format(self.base_dir)
+        return "LocalRepository(base_dir='{}')".format(self.base_dir)
 
     def __eq__(self, other):
         try:
@@ -298,12 +298,12 @@ class LocalArchive(Archive):
             return False
 
     def source(self, *args, **kwargs):
-        source = super(LocalArchive, self).source(
+        source = super(LocalRepository, self).source(
             *args, base_dir=self.base_dir, **kwargs)
         return source
 
     def sink(self, *args, **kwargs):
-        sink = super(LocalArchive, self).sink(
+        sink = super(LocalRepository, self).sink(
             *args, base_dir=self.base_dir, **kwargs)
         return sink
 
@@ -313,7 +313,7 @@ class LocalArchive(Archive):
     def get_tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
-        archive
+        repository
 
         Parameters
         ----------
@@ -326,9 +326,9 @@ class LocalArchive(Archive):
 
         Returns
         -------
-        project : arcana.archive.Project
+        project : arcana.repository.Project
             A hierarchical tree of subject, session and dataset information for
-            the archive
+            the repository
         """
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
@@ -343,9 +343,9 @@ class LocalArchive(Archive):
                 continue
             if depth < 2:
                 if any(not f.startswith('.') for f in files):
-                    raise ArcanaBadlyFormattedLocalArchiveError(
+                    raise ArcanaBadlyFormattedLocalRepositoryError(
                         "Files ('{}') not permitted at {} level in "
-                        "local archive".format(
+                        "local repository".format(
                             "', '".join(dnames),
                             ('subject' if depth else 'project')))
                 continue  # Not a session directory
@@ -378,7 +378,7 @@ class LocalArchive(Archive):
                         os.path.join(session_path, dname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
-                        archive=self))
+                        repository=self))
             if FIELDS_FNAME in dnames:
                 fields = self.fields_from_json(os.path.join(
                     session_path, FIELDS_FNAME),
@@ -426,7 +426,7 @@ class LocalArchive(Archive):
         if any(not os.path.isdir(os.path.join(path, d))
                for d in dirs):
             raise ArcanaError(
-                "Files found in local archive directory '{}' "
+                "Files found in local repository directory '{}' "
                 "('{}') instead of sub-directories".format(
                     path, "', '".join(dirs)))
 
@@ -462,5 +462,5 @@ class LocalArchive(Archive):
             dct = json.load(f)
         return [Field(name=k, value=v, frequency=frequency,
                       subject_id=subject_id, visit_id=visit_id,
-                      archive=self)
+                      repository=self)
                 for k, v in list(dct.items())]

@@ -15,18 +15,18 @@ FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
 MULTIPLICITIES = ('per_session', 'per_subject', 'per_visit', 'per_project')
 
 
-class Archive(with_metaclass(ABCMeta, object)):
+class Repository(with_metaclass(ABCMeta, object)):
     """
-    Abstract base class for all Archive systems, DaRIS, XNAT and local file
-    system. Sets out the interface that all Archive classes should implement.
+    Abstract base class for all Repository systems, DaRIS, XNAT and local file
+    system. Sets out the interface that all Repository classes should implement.
     """
 
     @abstractmethod
     def source(self, inputs, name=None, study_name=None, **kwargs):
         """
-        Returns a NiPype node that gets the input data from the archive
+        Returns a NiPype node that gets the input data from the repository
         system. The input spec of the node's interface should inherit from
-        ArchiveSourceInputSpec
+        RepositorySourceInputSpec
 
         Parameters
         ----------
@@ -35,7 +35,7 @@ class Archive(with_metaclass(ABCMeta, object)):
         inputs : list(Dataset|Field)
             An iterable of arcana.Dataset or arcana.Field
             objects, which specify the datasets to extract from the
-            archive system
+            repository system
         name : str
             Name of the NiPype node
         study_name: str
@@ -54,9 +54,9 @@ class Archive(with_metaclass(ABCMeta, object)):
     def sink(self, outputs, frequency='per_session', name=None,
              study_name=None, **kwargs):
         """
-        Returns a NiPype node that puts the output data back to the archive
+        Returns a NiPype node that puts the output data back to the repository
         system. The input spec of the node's interface should inherit from
-        ArchiveSinkInputSpec
+        RepositorySinkInputSpec
 
         Parameters
         ----------
@@ -64,7 +64,7 @@ class Archive(with_metaclass(ABCMeta, object)):
             The ID of the project to return the sessions for
         outputs : List(BaseFile|Field) | list(
             An iterable of arcana.Dataset arcana.Field objects,
-            which specify the datasets to put into the archive system
+            which specify the datasets to put into the repository system
         name : str
             Name of the NiPype node
         study_name: str
@@ -97,7 +97,7 @@ class Archive(with_metaclass(ABCMeta, object)):
         return not (self == other)
 
 
-class BaseArchiveNode(BaseInterface):
+class BaseRepositoryNode(BaseInterface):
     """
     Parameters
     ----------
@@ -112,7 +112,7 @@ class BaseArchiveNode(BaseInterface):
     """
 
     def __init__(self, study_name, datasets, fields):
-        super(BaseArchiveNode, self).__init__()
+        super(BaseRepositoryNode, self).__init__()
         self._study_name = study_name
         self._datasets = datasets
         self._fields = fields
@@ -163,25 +163,25 @@ class BaseArchiveNode(BaseInterface):
         return name
 
 
-class ArchiveSourceInputSpec(DynamicTraitedSpec):
+class RepositorySourceInputSpec(DynamicTraitedSpec):
     """
-    Base class for archive source input specifications. Provides a common
-    interface for 'run_pipeline' when using the archive source to extract
-    primary and preprocessed datasets from the archive system
+    Base class for repository source input specifications. Provides a common
+    interface for 'run_pipeline' when using the repository source to extract
+    primary and preprocessed datasets from the repository system
     """
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
                             desc="The visit or derived group ID")
 
 
-class ArchiveSource(BaseArchiveNode):
+class RepositorySource(BaseRepositoryNode):
     """
     Parameters
     ----------
     datasets: list
-        List of all datasets to be extracted from the archive
+        List of all datasets to be extracted from the repository
     fields: list
-        List of all the fields that are to be extracted from the archive
+        List of all the fields that are to be extracted from the repository
     study_name: str
         Prefix prepended onto derived dataset "names"
     """
@@ -190,7 +190,7 @@ class ArchiveSource(BaseArchiveNode):
     _always_run = True
 
     def _outputs(self):
-        outputs = super(ArchiveSource, self)._outputs()
+        outputs = super(RepositorySource, self)._outputs()
         # Add output datasets
         for dataset in self.datasets:
             assert isinstance(dataset, BaseDataset)
@@ -204,32 +204,32 @@ class ArchiveSource(BaseArchiveNode):
         return outputs
 
 
-class BaseArchiveSinkSpec(DynamicTraitedSpec):
+class BaseRepositorySinkSpec(DynamicTraitedSpec):
     pass
 
 
-class ArchiveSinkInputSpec(BaseArchiveSinkSpec):
+class RepositorySinkInputSpec(BaseRepositorySinkSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
     visit_id = traits.Str(mandatory=False,
                             desc="The session or derived group ID")
 
 
-class ArchiveSubjectSinkInputSpec(BaseArchiveSinkSpec):
+class RepositorySubjectSinkInputSpec(BaseRepositorySinkSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
 
 
-class ArchiveVisitSinkInputSpec(BaseArchiveSinkSpec):
+class RepositoryVisitSinkInputSpec(BaseRepositorySinkSpec):
 
     visit_id = traits.Str(mandatory=True, desc="The visit ID")
 
 
-class ArchiveProjectSinkInputSpec(BaseArchiveSinkSpec):
+class RepositoryProjectSinkInputSpec(BaseRepositorySinkSpec):
     pass
 
 
-class BaseArchiveSinkOutputSpec(DynamicTraitedSpec):
+class BaseRepositorySinkOutputSpec(DynamicTraitedSpec):
 
     out_files = traits.List(PATH_TRAIT, desc='Output datasets')
 
@@ -237,31 +237,31 @@ class BaseArchiveSinkOutputSpec(DynamicTraitedSpec):
         traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
 
 
-class ArchiveSinkOutputSpec(BaseArchiveSinkOutputSpec):
+class RepositorySinkOutputSpec(BaseRepositorySinkOutputSpec):
 
     subject_id = traits.Str(desc="The subject ID")
     visit_id = traits.Str(desc="The visit ID")
 
 
-class ArchiveSubjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
+class RepositorySubjectSinkOutputSpec(BaseRepositorySinkOutputSpec):
 
     subject_id = traits.Str(desc="The subject ID")
 
 
-class ArchiveVisitSinkOutputSpec(BaseArchiveSinkOutputSpec):
+class RepositoryVisitSinkOutputSpec(BaseRepositorySinkOutputSpec):
 
     visit_id = traits.Str(desc="The visit ID")
 
 
-class ArchiveProjectSinkOutputSpec(BaseArchiveSinkOutputSpec):
+class RepositoryProjectSinkOutputSpec(BaseRepositorySinkOutputSpec):
 
     project_id = traits.Str(desc="The project ID")
 
 
-class BaseArchiveSink(BaseArchiveNode):
+class BaseRepositorySink(BaseRepositoryNode):
 
     def __init__(self, study_name, datasets, fields):
-        super(BaseArchiveSink, self).__init__(study_name, datasets,
+        super(BaseRepositorySink, self).__init__(study_name, datasets,
                                               fields)
         # Add input datasets
         for dataset in datasets:
@@ -275,10 +275,10 @@ class BaseArchiveSink(BaseArchiveNode):
                             field.dtype)
 
 
-class ArchiveSink(BaseArchiveSink):
+class RepositorySink(BaseRepositorySink):
 
-    input_spec = ArchiveSinkInputSpec
-    output_spec = ArchiveSinkOutputSpec
+    input_spec = RepositorySinkInputSpec
+    output_spec = RepositorySinkOutputSpec
 
     frequency = 'per_session'
 
@@ -289,10 +289,10 @@ class ArchiveSink(BaseArchiveSink):
         return outputs
 
 
-class ArchiveSubjectSink(BaseArchiveSink):
+class RepositorySubjectSink(BaseRepositorySink):
 
-    input_spec = ArchiveSubjectSinkInputSpec
-    output_spec = ArchiveSubjectSinkOutputSpec
+    input_spec = RepositorySubjectSinkInputSpec
+    output_spec = RepositorySubjectSinkOutputSpec
 
     frequency = 'per_subject'
 
@@ -302,10 +302,10 @@ class ArchiveSubjectSink(BaseArchiveSink):
         return outputs
 
 
-class ArchiveVisitSink(BaseArchiveSink):
+class RepositoryVisitSink(BaseRepositorySink):
 
-    input_spec = ArchiveVisitSinkInputSpec
-    output_spec = ArchiveVisitSinkOutputSpec
+    input_spec = RepositoryVisitSinkInputSpec
+    output_spec = RepositoryVisitSinkOutputSpec
 
     frequency = 'per_visit'
 
@@ -315,10 +315,10 @@ class ArchiveVisitSink(BaseArchiveSink):
         return outputs
 
 
-class ArchiveProjectSink(BaseArchiveSink):
+class RepositoryProjectSink(BaseRepositorySink):
 
-    input_spec = ArchiveProjectSinkInputSpec
-    output_spec = ArchiveProjectSinkOutputSpec
+    input_spec = RepositoryProjectSinkInputSpec
+    output_spec = RepositoryProjectSinkOutputSpec
 
     frequency = 'per_project'
 

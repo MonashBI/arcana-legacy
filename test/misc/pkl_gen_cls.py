@@ -4,7 +4,7 @@ standard_library.install_aliases()
 import os
 import shutil
 from arcana import (
-    StudyMetaClass, Study, LocalArchive, LinearRunner, DatasetSpec,
+    StudyMetaClass, Study, LocalRepository, LinearRunner, DatasetSpec,
     DatasetMatch)
 from arcana.data_format import text_format
 import pickle as pkl
@@ -13,7 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from future.utils import with_metaclass
 
 DATA_DIR = op.join(op.dirname(__file__), 'data', 'gen_cls')
-ARCHIVE_DIR = op.join(DATA_DIR, 'archive')
+ARCHIVE_DIR = op.join(DATA_DIR, 'repository')
 WORK_DIR = op.join(DATA_DIR, 'work')
 GEN_PKL_PATH = op.join(DATA_DIR, 'gen.pkl')
 NORM_PKL_PATH = op.join(DATA_DIR, 'normal.pkl')
@@ -82,13 +82,13 @@ GeneratedClass = StudyMetaClass(
     'GeneratedClass', (NormalClass,), {})
 
 
-norm = NormalClass('norm', LocalArchive(ARCHIVE_DIR),
+norm = NormalClass('norm', LocalRepository(ARCHIVE_DIR),
                    LinearRunner(WORK_DIR),
                    inputs=[DatasetMatch('dataset', text_format,
                                            'dataset')])
 
 
-gen = GeneratedClass('gen', LocalArchive(ARCHIVE_DIR),
+gen = GeneratedClass('gen', LocalRepository(ARCHIVE_DIR),
                      LinearRunner(WORK_DIR),
                      inputs=[DatasetMatch('dataset', text_format,
                                           'dataset')])

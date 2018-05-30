@@ -548,7 +548,7 @@ class Pipeline(object):
     @property
     def suffix(self):
         """
-        A suffixed appended to output filenames when they are archived to
+        A suffixed appended to output filenames when they are repositoryd to
         identify the options used to generate them
         """
         return '__'.join('{}_{}'.format(k, v)

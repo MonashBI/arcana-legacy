@@ -107,7 +107,7 @@ class TreeNode(object):
 
 class Project(TreeNode):
     """
-    Represents a project tree as stored in an archive
+    Represents a project tree as stored in a repository
 
     Parameters
     ----------
@@ -218,7 +218,7 @@ class Project(TreeNode):
 
 class Subject(TreeNode):
     """
-    Represents a subject as stored in an archive
+    Represents a subject as stored in a repository
 
     Parameters
     ----------
@@ -302,7 +302,7 @@ class Subject(TreeNode):
 class Visit(TreeNode):
     """
     Represents a collection of visits across subjects (e.g. time-point 1)
-    as stored in an archive
+    as stored in a repository
 
     Parameters
     ----------
@@ -384,7 +384,7 @@ class Visit(TreeNode):
 
 class Session(TreeNode):
     """
-    Represents a session stored in an archive
+    Represents a session stored in a repository
 
     Parameters
     ----------

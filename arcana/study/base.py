@@ -28,8 +28,8 @@ class Study(object):
     ----------
     name : str
         The name of the study.
-    archive : Archive
-        An Archive object that provides access to a DaRIS, XNAT or local file
+    repository : Repository
+        An Repository object that provides access to a DaRIS, XNAT or local file
         system
     runner : Runner
         A Runner to process the pipelines required to generate the
@@ -55,7 +55,7 @@ class Study(object):
     reprocess : bool
         Whether to reprocess dataset|fields that have been created with
         different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the archive already contains
+        and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
 
 
@@ -76,7 +76,7 @@ class Study(object):
 
     implicit_cls_attrs = ['_data_specs', '_option_specs']
 
-    def __init__(self, name, archive, runner, inputs, options=None,
+    def __init__(self, name, repository, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False):
         try:
@@ -88,7 +88,7 @@ class Study(object):
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
         self._name = name
-        self._archive = archive
+        self._repository = repository
         self._runner = runner.bind(self)
         self._inputs = {}
         self._subject_ids = subject_ids
@@ -230,7 +230,7 @@ class Study(object):
     @property
     def tree(self):
         if self._tree_cache is None:
-            self._tree_cache = self.archive.get_tree(
+            self._tree_cache = self.repository.get_tree(
                 subject_ids=self._subject_ids,
                 visit_ids=self._visit_ids)
         return self._tree_cache
@@ -286,9 +286,9 @@ class Study(object):
         return self._reprocess
 
     @property
-    def archive(self):
-        "Accessor for the archive member (e.g. Daris, XNAT, MyTardis)"
-        return self._archive
+    def repository(self):
+        "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
+        return self._repository
 
     def create_pipeline(self, *args, **kwargs):
         """
@@ -564,10 +564,10 @@ class Study(object):
 
     def cache_inputs(self):
         """
-        Runs the Study's archive source node for each of the inputs
+        Runs the Study's repository source node for each of the inputs
         of the study, thereby caching any data required from remote
-        archives. Useful when launching many parallel jobs that will
-        all try to concurrently access the remote archive, and probably
+        repositorys. Useful when launching many parallel jobs that will
+        all try to concurrently access the remote repository, and probably
         lead to timeout errors.
         """
         workflow = pe.Workflow(name='cache_download',
@@ -576,7 +576,7 @@ class Study(object):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.archive.source(self.inputs, study_name='cache')
+        source = self.repository.source(self.inputs, study_name='cache')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')

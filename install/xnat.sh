@@ -8,6 +8,7 @@ if [ ! -d $PKG_DIR ]; then
   pushd $PKG_DIR
   mkdir webapps
   wget --no-cookies https://bintray.com/nrgxnat/applications/download_file?file_path=xnat-web-${XNAT_VER}.war -O webapps/xnat.war
+  popd
 fi
 
 # Run docker-compose up

@@ -1,4 +1,4 @@
-from arcana.archive.xnat import XnatSource
+from arcana.repository.xnat import XnatSource
 
 source = XnatSource()
 

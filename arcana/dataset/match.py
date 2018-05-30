@@ -202,7 +202,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         specifying whether the dataset is present for each session, subject,
         visit or project.
     derived : bool
-        Whether the scan was generated or acquired. Depending on the archive
+        Whether the scan was generated or acquired. Depending on the repository
         used to store the dataset this is used to determine the location of the
         dataset.
     id : int | None
@@ -282,11 +282,11 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return self._dicom_tags
 
     def _match_tree(self, tree, **kwargs):
-        with self.study.archive.login() as archive_login:
+        with self.study.repository.login() as repository_login:
             super(DatasetMatch, self)._match_tree(
-                tree, archive_login=archive_login, **kwargs)
+                tree, repository_login=repository_login, **kwargs)
 
-    def _filtered_matches(self, node, archive_login=None):
+    def _filtered_matches(self, node, repository_login=None):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -316,7 +316,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             filtered = []
             for dataset in matches:
                 values = dataset.dicom_values(
-                    list(self.dicom_tags.keys()), archive_login=archive_login)
+                    list(self.dicom_tags.keys()), repository_login=repository_login)
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:

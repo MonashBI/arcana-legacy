@@ -7,8 +7,8 @@ import os.path as op
 import shutil
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from arcana.archive.local import (
-    LocalSource, LocalArchive, FIELDS_FNAME)
+from arcana.repository.local import (
+    LocalSource, LocalRepository, FIELDS_FNAME)
 from arcana.data_format import text_format
 from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
@@ -16,7 +16,7 @@ from arcana.dataset import (
     DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
 from arcana.utils import PATH_SUFFIX
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.archive import Project, Subject, Session, Visit
+from arcana.repository import Project, Subject, Session, Visit
 from future.utils import PY2
 from future.utils import with_metaclass
 if PY2:
@@ -50,7 +50,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         pass
 
 
-class TestLocalArchive(BaseTestCase):
+class TestLocalRepository(BaseTestCase):
 
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
@@ -59,9 +59,9 @@ class TestLocalArchive(BaseTestCase):
                       'source3': '3',
                       'source4': '4'}
 
-    def test_archive_roundtrip(self):
+    def test_repository_roundtrip(self):
         study = DummyStudy(
-            self.STUDY_NAME, self.archive, runner=LinearRunner('a_dir'),
+            self.STUDY_NAME, self.repository, runner=LinearRunner('a_dir'),
             inputs=[DatasetMatch('source1', text_format, 'source1'),
                     DatasetMatch('source2', text_format, 'source2'),
                     DatasetMatch('source3', text_format, 'source3'),
@@ -76,12 +76,12 @@ class TestLocalArchive(BaseTestCase):
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = self.archive.source(source_files,
+        source = self.repository.source(source_files,
                                      study_name=self.STUDY_NAME)
-        sink = self.archive.sink(sink_files, study_name=self.STUDY_NAME)
-        sink.inputs.name = 'archive_sink'
+        sink = self.repository.sink(sink_files, study_name=self.STUDY_NAME)
+        sink.inputs.name = 'repository_sink'
         sink.inputs.desc = (
-            "A test session created by archive roundtrip unittest")
+            "A test session created by repository roundtrip unittest")
         # Create workflow connecting them together
         workflow = pe.Workflow('source_sink_unit_test', base_dir=self.work_dir)
         workflow.add_nodes((source, sink))
@@ -109,8 +109,8 @@ class TestLocalArchive(BaseTestCase):
                           'source3.txt', 'source4.txt'])
 
     def test_fields_roundtrip(self):
-        archive = LocalArchive(base_dir=self.project_dir)
-        sink = archive.sink(
+        repository = LocalRepository(base_dir=self.project_dir)
+        sink = repository.sink(
             outputs=[
                 FieldSpec('field1', int, 'pipeline'),
                 FieldSpec('field2', float, 'pipeline'),
@@ -125,7 +125,7 @@ class TestLocalArchive(BaseTestCase):
         sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
-        source = archive.source(
+        source = repository.source(
             inputs=[
                 FieldSpec('field1', int, 'dummy_pipeline'),
                 FieldSpec('field2', float, 'dummy_pipeline'),
@@ -143,7 +143,7 @@ class TestLocalArchive(BaseTestCase):
 
     def test_summary(self):
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, self.archive, LinearRunner('ad'),
+            self.SUMMARY_STUDY_NAME, self.repository, LinearRunner('ad'),
             inputs=[DatasetMatch('source1', text_format, 'source1'),
                     DatasetMatch('source2', text_format, 'source2'),
                     DatasetMatch('source3', text_format, 'source3')])
@@ -154,11 +154,11 @@ class TestLocalArchive(BaseTestCase):
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = self.archive.source(source_files)
+        source = self.repository.source(source_files)
         # Test subject sink
         subject_sink_files = [
             study.spec('subject_sink')]
-        subject_sink = self.archive.sink(subject_sink_files,
+        subject_sink = self.repository.sink(subject_sink_files,
                                          frequency='per_subject',
                                          study_name=self.SUMMARY_STUDY_NAME)
         subject_sink.inputs.name = 'subject_summary'
@@ -166,7 +166,7 @@ class TestLocalArchive(BaseTestCase):
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
         visit_sink_files = [study.spec('visit_sink')]
-        visit_sink = self.archive.sink(visit_sink_files,
+        visit_sink = self.repository.sink(visit_sink_files,
                                        frequency='per_visit',
                                        study_name=self.SUMMARY_STUDY_NAME)
         visit_sink.inputs.name = 'visit_summary'
@@ -175,7 +175,7 @@ class TestLocalArchive(BaseTestCase):
         # Test project sink
         project_sink_files = [
             study.spec('project_sink')]
-        project_sink = self.archive.sink(project_sink_files,
+        project_sink = self.repository.sink(project_sink_files,
                                          frequency='per_project',
                                          study_name=self.SUMMARY_STUDY_NAME)
 
@@ -216,12 +216,12 @@ class TestLocalArchive(BaseTestCase):
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = self.archive.source(
+        reloadsource = self.repository.source(
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source',
             study_name=self.SUMMARY_STUDY_NAME)
-        reloadsink = self.archive.sink(
+        reloadsink = self.repository.sink(
             [study.spec(n)
              for n in ('resink1', 'resink2', 'resink3')],
             study_name=self.SUMMARY_STUDY_NAME)
@@ -271,71 +271,71 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
     DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
                         'thousands': 1000}
 
-    def get_tree(self, archive, set_ids=False):
+    def get_tree(self, repository, set_ids=False):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
                     Dataset('hundreds', text_format,
                             subject_id='subject1', visit_id='visit1',
-                            archive=archive),
+                            repository=repository),
                     Dataset('ones', text_format,
                             subject_id='subject1', visit_id='visit1',
-                            archive=archive),
+                            repository=repository),
                     Dataset('tens', text_format,
                             subject_id='subject1', visit_id='visit1',
-                            archive=archive)],
+                            repository=repository)],
                 fields=[
                     Field('a', value=1,
                           subject_id='subject1', visit_id='visit1',
-                          archive=archive),
+                          repository=repository),
                     Field('b', value=10,
                           subject_id='subject1', visit_id='visit1',
-                          archive=archive),
+                          repository=repository),
                     Field('d', value=42.42,
                           subject_id='subject1', visit_id='visit1',
-                          archive=archive)]),
+                          repository=repository)]),
             Session(
                 'subject1', 'visit2', datasets=[
                     Dataset('ones', text_format,
                             subject_id='subject1', visit_id='visit2',
-                            archive=archive),
+                            repository=repository),
                     Dataset('tens', text_format,
                             subject_id='subject1', visit_id='visit2',
-                            archive=archive)],
+                            repository=repository)],
                 fields=[
                     Field('a', value=2,
                           subject_id='subject1', visit_id='visit2',
-                          archive=archive),
+                          repository=repository),
                     Field('c', value='van',
                           subject_id='subject1', visit_id='visit2',
-                          archive=archive)]),
+                          repository=repository)]),
             Session(
                 'subject2', 'visit1', datasets=[
                     Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit1',
-                            archive=archive),
+                            repository=repository),
                     Dataset('tens', text_format,
                             subject_id='subject2', visit_id='visit1',
-                            archive=archive)],
+                            repository=repository)],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
                     Dataset('ones', text_format,
                             subject_id='subject2', visit_id='visit2',
-                            archive=archive),
+                            repository=repository),
                     Dataset('tens', text_format,
                             subject_id='subject2', visit_id='visit2',
-                            archive=archive)],
+                            repository=repository)],
                 fields=[
                     Field('a', value=22,
                           subject_id='subject2', visit_id='visit2',
-                          archive=archive),
+                          repository=repository),
                     Field('b', value=220,
                           subject_id='subject2', visit_id='visit2',
-                          archive=archive),
+                          repository=repository),
                     Field('c', value='buggy',
                           subject_id='subject2', visit_id='visit2',
-                          archive=archive)])]
+                          repository=repository)])]
         project = Project(
             subjects=[
                 Subject(
@@ -345,16 +345,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
-                                archive=archive),
+                                repository=repository),
                         Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
-                                archive=archive)],
+                                repository=repository)],
                     fields=[
                         Field('e', value=4.44444,
                               frequency='per_subject',
                               subject_id='subject1',
-                              archive=archive)]),
+                              repository=repository)]),
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
@@ -362,16 +362,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
-                                archive=archive),
+                                repository=repository),
                         Dataset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
-                                archive=archive)],
+                                repository=repository)],
                     fields=[
                         Field('e', value=3.33333,
                               frequency='per_subject',
                               subject_id='subject2',
-                              archive=archive)])],
+                              repository=repository)])],
             visits=[
                 Visit(
                     'visit1', sessions=[s for s in sessions
@@ -380,12 +380,12 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Dataset('ones', text_format,
                                 frequency='per_visit',
                                 visit_id='visit1',
-                                archive=archive)],
+                                repository=repository)],
                     fields=[
                         Field('f', value='dog',
                               frequency='per_visit',
                               visit_id='visit1',
-                              archive=archive)]),
+                              repository=repository)]),
                 Visit(
                     'visit2', sessions=[s for s in sessions
                                         if s.visit_id == 'visit2'],
@@ -394,16 +394,16 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
                         Field('f', value='cat',
                               frequency='per_visit',
                               visit_id='visit2',
-                              archive=archive)])],
+                              repository=repository)])],
             datasets=[
                 Dataset('ones', text_format,
                         frequency='per_project',
-                        archive=archive)],
+                        repository=repository)],
             fields=[
                 Field('g', value=100,
                       frequency='per_project',
-                      archive=archive)])
-        if set_ids:  # For xnat archive
+                      repository=repository)])
+        if set_ids:  # For xnat repository
             for dataset in project.datasets:
                 dataset._id = dataset.name
             for visit in project.visits:
@@ -419,17 +419,17 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        return self.get_tree(self.local_archive)
+        return self.get_tree(self.local_repository)
 
     def test_project_info(self):
-        # Add hidden file to local archive at project and subject
+        # Add hidden file to local repository at project and subject
         # levels to test ignore
         a_subj_dir = os.listdir(self.project_dir)[0]
         open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
         open(op.join(op.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
-        tree = self.archive.get_tree()
+        tree = self.repository.get_tree()
         self.assertEqual(
             tree, self.local_tree,
             "Generated project doesn't match reference:{}"

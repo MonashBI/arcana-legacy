@@ -7,11 +7,11 @@ mkdir -p $HOME/downloads
 PKG_DIR=$HOME/packages/mrtrix
 
 if [ ! -d $PKG_DIR ]; then
-  mkdir -p $PKG_DIR
   git clone https://github.com/MRtrix3/mrtrix3.git $PKG_DIR
-  cd $PKG_DIR
+  pushd $PKG_DIR
   ./configure
   ./build -nowarnings
+  popd
 fi
 
 

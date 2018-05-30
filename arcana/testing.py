@@ -17,14 +17,14 @@ import logging
 import arcana
 from arcana.dataset import Dataset
 from arcana.utils import classproperty
-from arcana.archive.local import (
-    LocalArchive, SUMMARY_NAME)
+from arcana.repository.local import (
+    LocalRepository, SUMMARY_NAME)
 from arcana.runner import LinearRunner
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException)
-from arcana.archive.local import (
+from arcana.repository.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
@@ -65,8 +65,8 @@ class BaseTestCase(TestCase):
 
     @classproperty
     @classmethod
-    def archive_path(cls):
-        return op.join(cls.test_data_dir, 'archive')
+    def repository_path(cls):
+        return op.join(cls.test_data_dir, 'repository')
 
     @classproperty
     @classmethod
@@ -129,7 +129,7 @@ class BaseTestCase(TestCase):
                 json.dump(fields, f)
 
     def delete_project(self, project_dir):
-        # Clean out any existing archive files
+        # Clean out any existing repository files
         shutil.rmtree(project_dir, ignore_errors=True)
 
     def reset_dirs(self):
@@ -143,8 +143,8 @@ class BaseTestCase(TestCase):
                 os.makedirs(d)
 
     @property
-    def archive_tree(self):
-        return self.archive.get_tree()
+    def repository_tree(self):
+        return self.repository.get_tree()
 
     @property
     def xnat_session_name(self):
@@ -156,20 +156,20 @@ class BaseTestCase(TestCase):
 
     @property
     def session(self):
-        return self.archive_tree.subject(
+        return self.repository_tree.subject(
             self.SUBJECT).session(self.VISIT)
 
     @property
-    def archive(self):
-        return self.local_archive
+    def repository(self):
+        return self.local_repository
 
     @property
-    def local_archive(self):
+    def local_repository(self):
         try:
-            return self._local_archive
+            return self._local_repository
         except AttributeError:
-            self._local_archive = LocalArchive(self.project_dir)
-            return self._local_archive
+            self._local_repository = LocalRepository(self.project_dir)
+            return self._local_repository
 
     @property
     def runner(self):
@@ -177,7 +177,7 @@ class BaseTestCase(TestCase):
 
     @property
     def project_dir(self):
-        return op.join(self.archive_path, self.name)
+        return op.join(self.repository_path, self.name)
 
     @property
     def work_dir(self):
@@ -213,10 +213,10 @@ class BaseTestCase(TestCase):
         test_class_name = cls.__name__[4:].upper()
         return module_name + '_' + test_class_name
 
-    def create_study(self, study_cls, name, inputs, archive=None,
+    def create_study(self, study_cls, name, inputs, repository=None,
                      runner=None, **kwargs):
         """
-        Creates a study using default archive and runners.
+        Creates a study using default repository and runners.
 
         Parameters
         ----------
@@ -226,20 +226,20 @@ class BaseTestCase(TestCase):
             Name of the study
         inputs : List[BaseSpec]
             List of inputs to the study
-        archive : BaseArchive | None
-            The archive to use (a default local archive is used if one
+        repository : BaseRepository | None
+            The repository to use (a default local repository is used if one
             isn't provided
         runner : Runner | None
             The runner to use (a default LinearRunner is used if one
             isn't provided
         """
-        if archive is None:
-            archive = self.archive
+        if repository is None:
+            repository = self.repository
         if runner is None:
             runner = self.runner
         return study_cls(
             name=name,
-            archive=archive,
+            repository=repository,
             runner=runner,
             inputs=inputs,
             **kwargs)
@@ -403,7 +403,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     def add_sessions(self, project_dir):
         self.local_tree = deepcopy(self.input_tree)
-        if project_dir is not None:  # For local archive
+        if project_dir is not None:  # For local repository
             proj_summ_path = op.join(project_dir, SUMMARY_NAME,
                                      SUMMARY_NAME)
             for dataset in self.local_tree.datasets:
@@ -452,7 +452,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     def init_dataset(self, dataset, path):
         dataset._path = path
-        dataset._archive = self.archive
+        dataset._repository = self.repository
         self._make_dir(op.dirname(dataset.path))
         with open(dataset.path, 'w') as f:
             f.write(str(self.DATASET_CONTENTS[dataset.name]))
