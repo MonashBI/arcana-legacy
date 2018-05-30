@@ -44,6 +44,7 @@ install:
   - ln -s $HOME/xnat-cache ./test/data/cache
   - pip install nose
   - pip install codecov
+  - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
 cache:
