@@ -260,7 +260,7 @@ class XnatSource(RepositorySource, XnatMixin):
                          session_label, cache_path):
         # Download resource to zip file
         zip_path = os.path.join(tmp_dir, 'download.zip')
-        with open(zip_path, 'w') as f:
+        with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
         digests = cls.get_digests(xresource)

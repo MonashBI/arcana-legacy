@@ -44,7 +44,9 @@ import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
-from . import test_local  # @UnresolvedImport @IgnorePep8
+sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+import test_local  # @UnresolvedImport @IgnorePep8
+sys.path.pop(0)
 
 
 logger = logging.getLogger('Arcana')

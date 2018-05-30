@@ -6,7 +6,7 @@ from arcana.data_format import DataFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaDataFormatError, ArcanaUsageError,
-    ArcanaDataFormatNotRegisteredError)
+    ArcanaDataFormatNotRegisteredError, ArcanaNameError)
 from .base import BaseDataset, BaseField
 
 
@@ -225,15 +225,19 @@ class Dataset(BaseDataset):
         -------
         dct : Dict[Tuple[str, str], str|int|float]
         """
-        if (self._path is None and self._repository is not None and
-                hasattr(self.repository, 'dicom_header')):
-            hdr = self.repository.dicom_header(self,
-                                            prev_login=repository_login)
-            dct = {t: hdr[t] for t in tags}
-        else:
-            # Get the DICOM object for the first file in the dataset
-            dcm = self.dicom(0)
-            dct = {t: dcm[t].value for t in tags}
+        try:
+            if (self._path is None and self._repository is not None and
+                    hasattr(self.repository, 'dicom_header')):
+                hdr = self.repository.dicom_header(
+                    self, prev_login=repository_login)
+                dct = {t: hdr[t] for t in tags}
+            else:
+                # Get the DICOM object for the first file in the dataset
+                dcm = self.dicom(0)
+                dct = {t: dcm[t].value for t in tags}
+        except KeyError as e:
+            raise ArcanaNameError(
+                e.args[0], "{} does not have dicom tag {}:{}".format(self, e))
         return dct
 
     def initkwargs(self):
