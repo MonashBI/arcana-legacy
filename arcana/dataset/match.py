@@ -26,8 +26,12 @@ class BaseMatch(object):
     def __eq__(self, other):
         return (self.derived == other.derived and
                 self.pattern == other.pattern and
-                self.order == other.order and
-                self._study == other._study)
+                self.order == other.order)
+
+    def __hash__(self):
+        return (hash(self.derived) ^
+                hash(self.pattern) ^
+                hash(self.order))
 
     @property
     def pattern(self):
@@ -247,6 +251,12 @@ class DatasetMatch(BaseDataset, BaseMatch):
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
+    def __hash__(self):
+        return (BaseDataset.__hash__(self) ^
+                BaseMatch.__hash__(self) ^
+                hash(self.dicom_tags) ^
+                hash(self.id))
+
     def initkwargs(self):
         dct = BaseDataset.initkwargs(self)
         dct.update(BaseMatch.initkwargs(self))
@@ -360,6 +370,9 @@ class FieldMatch(BaseField, BaseMatch):
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
                 BaseMatch.__eq__(self, other))
+
+    def __hash__(self):
+        return (BaseField.__hash__(self) ^ BaseMatch.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

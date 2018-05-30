@@ -43,9 +43,9 @@ class TestDatasetSpecPickle(TestCase):
                 FieldSpec('b', int, 'dummy_pipeline2')]
         for i, obj in enumerate(objs):
             fname = os.path.join(self.pkl_dir, '{}.pkl'.format(i))
-            with open(fname, 'w') as f:
+            with open(fname, 'wb') as f:
                 pkl.dump(obj, f)
-            with open(fname) as f:
+            with open(fname, 'rb') as f:
                 re_obj = pkl.load(f)
             self.assertEqual(obj, re_obj)
 

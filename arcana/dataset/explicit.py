@@ -65,17 +65,15 @@ class Dataset(BaseDataset):
                 self._path == other._path and
                 self.id == other.id and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self._archive == other._archive)
+                self.visit_id == other.visit_id)
 
-    def __hash__(self, other):
+    def __hash__(self):
         return (super(Dataset, self).__hash__() ^
                 hash(self.derived) ^
                 hash(self._path) ^
                 hash(self.id) ^
                 hash(self.subject_id) ^
-                hash(self.visit_id) ^
-                hash(self._archive))
+                hash(self.visit_id))
 
     def __lt__(self, other):
         return self.id < other.id
@@ -205,7 +203,7 @@ class Dataset(BaseDataset):
                 .format(self))
         fnames = sorted([f for f in os.listdir(self.path)
                          if not f.startswith('.')])
-        with open(os.path.join(self.path, fnames[index])) as f:
+        with open(os.path.join(self.path, fnames[index]), 'rb') as f:
             dcm = pydicom.dcmread(f)
         return dcm
 
@@ -307,16 +305,14 @@ class Field(BaseField):
                 self.derived == other.derived and
                 self.value == other.value and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self._archive == other._archive)
+                self.visit_id == other.visit_id)
 
     def __hash__(self):
         return (super(Field, self).__hash__() ^
                 hash(self.derived) ^
                 hash(self.value) ^
                 hash(self.subject_id) ^
-                hash(self.visit_id) ^
-                hash(self._archive))
+                hash(self.visit_id))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)

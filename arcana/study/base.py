@@ -6,8 +6,7 @@ import types
 from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
-    ArcanaMissingDataException, ArcanaNameError,
-    ArcanaError, ArcanaUsageError,
+    ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError,
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline

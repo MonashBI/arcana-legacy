@@ -214,7 +214,7 @@ class LocalSinkMixin(LocalNodeMixin):
                                 .format(spec.name, value, spec.dtype))
                     fields[qual_name] = value
                     out_fields.append((qual_name, value))
-                with open(fpath, 'wb') as f:
+                with open(fpath, 'w', encoding="utf-8") as f:
                     json.dump(fields, f)
         outputs['out_fields'] = out_fields
         return outputs

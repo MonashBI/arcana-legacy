@@ -584,10 +584,10 @@ class TestGeneratedPickle(BaseTestCase):
             'gen_cls',
             inputs=[DatasetMatch('dataset', text_format, 'dataset')])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
-        with open(pkl_path, 'w') as f:
+        with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del GeneratedClass
-        with open(pkl_path) as f:
+        with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
         regen.data('out_dataset')[0]
         self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
@@ -605,10 +605,10 @@ class TestGeneratedPickle(BaseTestCase):
             inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
                     DatasetMatch('ss2_dataset', text_format, 'dataset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
-        with open(pkl_path, 'w') as f:
+        with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del MultiGeneratedClass
-        with open(pkl_path) as f:
+        with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
         regen.data('ss2_out_dataset')[0]
         self.assertDatasetCreated('ss2_out_dataset.txt',

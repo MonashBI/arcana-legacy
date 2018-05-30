@@ -453,8 +453,8 @@ class TestLocalInterfacePickle(TestCase):
         source = LocalSource('a_study', self.datasets, self.fields,
                              base_dir=self.tmp_dir)
         fname = op.join(self.pkl_dir, 'source.pkl')
-        with open(fname, 'w') as f:
+        with open(fname, 'wb') as f:
             pkl.dump(source, f)
-        with open(fname) as f:
+        with open(fname, 'rb') as f:
             re_source = pkl.load(f)
         self.assertEqual(source, re_source)

@@ -415,7 +415,7 @@ class BaseRunner(object):
         tree = self.study.tree
         subjects = ([s for s in tree.subjects if s.id in subject_ids]
                     if subject_ids is not None else list(tree.subjects))
-        visits = ([v for v in tree.visits if s.id in visit_ids]
+        visits = ([v for v in tree.visits if v.id in visit_ids]
                     if visit_ids is not None else list(tree.visits))
         # Get all filtered sessions
         all_sessions = list(chain(*[filter_sessions(s.sessions)

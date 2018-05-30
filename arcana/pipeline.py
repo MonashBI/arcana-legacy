@@ -127,21 +127,19 @@ class Pipeline(object):
             return False
         return (
             self._name == other._name and
-            self._study == other._study and
             self._desc == other._desc and
             self._version == other.version and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
             self._citations == other._citations)
-# 
-#     def __hash__(self):
-#         return (hash(self._name) ^
-#                 hash(self._study) ^
-#                 hash(self._desc) ^
-#                 hash(self._version) ^
-#                 hash(self._inputs) ^
-#                 hash(self._outputs) ^
-#                 hash(self._citations))
+
+    def __hash__(self):
+        return (hash(self._name) ^
+                hash(self._desc) ^
+                hash(self._version) ^
+                hash(tuple(self._inputs)) ^
+                hash(tuple(self._outputs)) ^
+                hash(tuple(self._citations)))
 
     def __ne__(self, other):
         return not (self == other)

@@ -82,10 +82,17 @@ class DataFormat(object):
                 self._desc == other._desc and
                 self._directory == other._directory and
                 self._within_dir_exts ==
-                other._within_dir_exts and
-                self._converters == other._converters)
+                other._within_dir_exts)
         except AttributeError:
             return False
+
+    def __hash__(self):
+        return (
+            hash(self._name) ^
+            hash(self._extension) ^
+            hash(self._desc) ^
+            hash(self._directory) ^
+            hash(self._within_dir_exts))
 
     def __ne__(self, other):
         return not self == other
@@ -246,6 +253,10 @@ class Converter(with_metaclass(ABCMeta, object)):
                     ', '.join(r.name for r in self.requirements)))
         except ArcanaModulesNotInstalledException:
             pass
+
+    def __eq__(self, other):
+        return (self.input_format == self.input_format and
+                self._output_format == other.output_format)
 
     @property
     def input_format(self):

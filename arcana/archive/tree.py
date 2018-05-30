@@ -23,7 +23,7 @@ class TreeNode(object):
                 self._fields == other._fields)
 
     def __hash__(self):
-        return hash(self._datasets) ^ hash(self._fields)
+        return hash(tuple(self.datasets)) ^ hash(tuple(self._fields))
 
     @property
     def datasets(self):
@@ -136,8 +136,8 @@ class Project(TreeNode):
 
     def __hash__(self):
         return (TreeNode.__hash_(self) ^
-                hash(self._subjects) ^
-                hash(self._visits))
+                hash(tuple(self.subjects)) ^
+                hash(tuple(self._visits)))
 
     @property
     def subjects(self):
@@ -257,7 +257,7 @@ class Subject(TreeNode):
     def __hash__(self):
         return (TreeNode.__hash__(self) ^
                 hash(self._id) ^
-                hash(self._sessions))
+                hash(tuple(self.sessions)))
 
     @property
     def sessions(self):
@@ -337,7 +337,7 @@ class Visit(TreeNode):
     def __hash__(self):
         return (TreeNode.__hash__(self) ^
                 hash(self._id) ^
-                hash(self._sessions))
+                hash(tuple(self.sessions)))
 
     def __lt__(self, other):
         return self._id < other._id
