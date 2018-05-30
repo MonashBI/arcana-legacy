@@ -7,7 +7,7 @@ matrix:
     - python: 2.7
 env:
   global:
-    - ARCANA_TEST_XNAT='https://localhost'
+    - ARCANA_TEST_XNAT='http://localhost'
 addons:
   apt:
     update: true
@@ -32,13 +32,13 @@ before_install:
   - sudo mv docker-compose /usr/local/bin
 install:
   - export NUMBER_OF_PROCESSORS=8
-  - install/xnat.sh
-  - install/modules.sh
+  - ci/xnat.sh
+  - ci/modules.sh
   - export MODULESHOME=$HOME/packages/modules
   - export MODULEPATH=$HOME/modules
-  - install/dcm2niix.sh
-  - install/netrc.sh
-  - install/mrtrix.sh
+  - ci/dcm2niix.sh
+  - ci/netrc.sh
+  - ci/mrtrix.sh
   - pip install .
   - mkdir -p $HOME/data
   - ln -s $HOME/xnat-cache ./test/data/cache
