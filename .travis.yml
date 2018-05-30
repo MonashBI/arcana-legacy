@@ -1,11 +1,20 @@
 language: python
+sudo: required
+services:
+  - docker
 matrix:
   include:
     - python: 2.7
     - python: 3.4
     - python: 3.6
 env:
-  - ARCANA_TEST_XNAT='https://mbi-xnat.erc.monash.edu.au'
+  - ARCANA_TEST_XNAT='https://localhost'
+  - DOCKER_COMPOSE_VERSION=1.21.2
+before_install:
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m`  > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 addons:
   apt:
     packages:
@@ -27,9 +36,9 @@ install:
   - install/modules.sh
   - export MODULESHOME=$HOME/packages/modules
   - export MODULEPATH=$HOME/modules
+  - install/xnat.sh  
   - install/dcm2niix.sh
   - install/netrc.sh
-  - cat $HOME/.netrc
   - install/mrtrix.sh
   - pip install .
   - mkdir -p $HOME/data
