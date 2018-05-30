@@ -18,6 +18,7 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
+from future.utils import PY3
 from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
@@ -214,7 +215,8 @@ class LocalSinkMixin(LocalNodeMixin):
                                 .format(spec.name, value, spec.dtype))
                     fields[qual_name] = value
                     out_fields.append((qual_name, value))
-                with open(fpath, 'w', encoding="utf-8") as f:
+                with open(fpath, 'w', **({'encoding': 'utf-8'}
+                                         if PY3 else {})) as f:
                     json.dump(fields, f)
         outputs['out_fields'] = out_fields
         return outputs
