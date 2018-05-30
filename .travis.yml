@@ -5,12 +5,9 @@ services:
 matrix:
   include:
     - python: 2.7
-    - python: 3.5
-    - python: 3.6
 env:
   global:
     - ARCANA_TEST_XNAT='https://localhost'
-    - DOCKER_COMPOSE_VERSION=1.21.2
 addons:
   apt:
     update: true
@@ -30,7 +27,7 @@ addons:
     - cmake
 before_install:
   - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/${DOCKER_COMPOSE_VERSION}/docker-compose-`uname -s`-`uname -m`  > docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m`  > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
 install:
