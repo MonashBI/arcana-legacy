@@ -301,14 +301,14 @@ class TestXnatRepository(BaseTestCase):
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         repository = XnatRepository(server=SERVER, cache_dir=cache_dir,
-                              project_id=self.PROJECT)
+                                    project_id=self.PROJECT)
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearRunner('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = repository.source([study.input(DATASET_NAME)],
-                                name='delayed_source',
-                                study_name='delayed_study')
+                                   name='delayed_source',
+                                   study_name='delayed_study')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         result1 = source.run()

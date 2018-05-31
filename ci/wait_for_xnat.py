@@ -34,9 +34,11 @@ try:
     logs = sp.check_output(
         '/usr/local/bin/docker-compose logs xnat-web',
         shell=True)
+    with open(os.path.expanduser('~/.netrc')) as f:
+        netrc = f.read()
     raise Exception(
         "Gave up attempting to access XNAT server '{}' after after {} "
-        "seconds. The logs for xnat-web were:\n{}"
-        .format(i * wait_incr, WAIT_TIME, logs))
+        "seconds. The netrc file was:\n{}\n\nand the logs for xnat-web "
+        "were:\n{}".format(server, WAIT_TIME, netrc, logs))
 finally:
     os.chdir(orig_dir)
