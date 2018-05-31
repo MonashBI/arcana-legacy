@@ -6,20 +6,20 @@ import xnat
 import subprocess as sp
 import time
 
-NUM_ATTEMPTS = 10
+NUM_RETRIES = 10
 WAIT_TIME = 600
 
 server = os.environ['ARCANA_TEST_XNAT']
 dc_path = os.path.expanduser('~/packages/xnat-docker-compose')
 
-wait_incr = WAIT_TIME // NUM_ATTEMPTS
+wait_incr = WAIT_TIME // NUM_RETRIES
 
 orig_dir = os.getcwd()
 
 
 try:
     os.chdir(dc_path)
-    for i in range(NUM_ATTEMPTS):
+    for i in range(NUM_RETRIES + 1):
         try:
             # Test to see whether we can connect to the XNAT server
             xnat.connect(server, verify=True)
