@@ -11,6 +11,7 @@ from functools import reduce
 import errno
 import sys
 import json
+from arcana.utils import JSON_ENCODING
 import filecmp
 from copy import deepcopy
 import logging
@@ -124,8 +125,8 @@ class BaseTestCase(TestCase):
                     "be either a Dataset or basestring object"
                     .format(dataset, self))
         if fields is not None:
-            with open(op.join(session_dir,
-                                   FIELDS_FNAME), 'w') as f:
+            with open(op.join(session_dir, FIELDS_FNAME), 'w',
+                      **JSON_ENCODING) as f:
                 json.dump(fields, f)
 
     def delete_project(self, project_dir):
@@ -277,7 +278,7 @@ class BaseTestCase(TestCase):
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir, FIELDS_FNAME)) as f:
-                fields = json.load(f)
+                fields = json.load(f, 'rb')
         except OSError as e:
             if e.errno == errno.ENOENT:
                 raise ArcanaError(
@@ -460,7 +461,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def init_fields(self, dpath, fields):
         self._make_dir(dpath)
         dct = {f.name: f.value for f in fields}
-        with open(op.join(dpath, FIELDS_FNAME), 'w') as f:
+        with open(op.join(dpath, FIELDS_FNAME), 'w',
+                  **JSON_ENCODING) as f:
             json.dump(dct, f)
 
     def _make_dir(self, path):

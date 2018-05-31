@@ -237,7 +237,8 @@ class Dataset(BaseDataset):
                 dct = {t: dcm[t].value for t in tags}
         except KeyError as e:
             raise ArcanaNameError(
-                e.args[0], "{} does not have dicom tag {}:{}".format(self, e))
+                e.args[0], "{} does not have dicom tag {}".format(
+                    self, e.args[0]))
         return dct
 
     def initkwargs(self):

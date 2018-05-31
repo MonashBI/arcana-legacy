@@ -18,7 +18,7 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from future.utils import PY3
+from arcana.utils import JSON_ENCODING
 from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
@@ -104,8 +104,8 @@ class LocalSource(RepositorySource, LocalNodeMixin):
             # locks I believe.
             fpath = self.fields_path(freq)
             try:
-                with InterProcessLock(
-                        fpath + LOCK, logger=logger), open(fpath) as f:
+                with (InterProcessLock(fpath + LOCK, logger=logger),
+                      open(fpath, 'rb')) as f:
                     fields = json.load(f)
             except IOError as e:
                 if e.errno == errno.ENOENT:
@@ -215,8 +215,7 @@ class LocalSinkMixin(LocalNodeMixin):
                                 .format(spec.name, value, spec.dtype))
                     fields[qual_name] = value
                     out_fields.append((qual_name, value))
-                with open(fpath, 'w', **({'encoding': 'utf-8'}
-                                         if PY3 else {})) as f:
+                with open(fpath, 'w', **JSON_ENCODING) as f:
                     json.dump(fields, f)
         outputs['out_fields'] = out_fields
         return outputs
@@ -458,7 +457,7 @@ class LocalRepository(Repository):
 
     def fields_from_json(self, fname, frequency,
                          subject_id=None, visit_id=None):
-        with open(fname) as f:
+        with open(fname, 'rb') as f:
             dct = json.load(f)
         return [Field(name=k, value=v, frequency=frequency,
                       subject_id=subject_id, visit_id=visit_id,

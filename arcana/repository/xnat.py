@@ -8,6 +8,8 @@ import tempfile
 from itertools import repeat
 import shutil
 import hashlib
+from future.utils import with_metaclass
+from arcana.utils import JSON_ENCODING
 import stat
 import time
 import logging
@@ -34,7 +36,6 @@ import re
 import xnat  # NB: XnatPy not PyXNAT
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from .local import FIELDS_FNAME
-from future.utils import with_metaclass
 
 logger = logging.getLogger('Arcana')
 
@@ -177,9 +178,10 @@ class XnatSource(RepositorySource, XnatMixin):
                 cache_path = os.path.join(cache_dir, fname)
                 if os.path.exists(cache_path):
                     if self.check_md5:
+                        md5_path = (cache_path +
+                                    XnatRepository.MD5_SUFFIX)
                         try:
-                            with open(cache_path +
-                                      XnatRepository.MD5_SUFFIX) as f:
+                            with open(md5_path, 'rb') as f:
                                 cached_digests = json.load(f)
                             digests = self.get_digests(xresource)
                             if cached_digests == digests:
@@ -301,7 +303,8 @@ class XnatSource(RepositorySource, XnatMixin):
             if e.errno != errno.EEXIST:
                 raise
         shutil.move(data_path, cache_path)
-        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w') as f:
+        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
+                  **JSON_ENCODING) as f:
             json.dump(digests, f)
         shutil.rmtree(tmp_dir)
 
@@ -431,9 +434,10 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
                 out_files.append(dst_path)
                 shutil.copyfile(src_path, dst_path)
                 # Create md5 digest
-                with open(dst_path) as f:
+                with open(dst_path, 'rb') as f:
                     digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
-                with open(dst_path + XnatRepository.MD5_SUFFIX, 'w') as f:
+                with open(dst_path + XnatRepository.MD5_SUFFIX, 'w',
+                          **JSON_ENCODING) as f:
                     json.dump(digests, f)
                 # Upload to XNAT
                 xdataset = xnat_login.classes.MrScanData(
@@ -849,7 +853,8 @@ class XnatRepository(Repository):
                                                        self.project_id)
             try:
                 xproj_summary = xproject.subjects[
-                    proj_summary_subj_name].experiments[proj_summary_sess_name]
+                    proj_summary_subj_name].experiments[
+                        proj_summary_sess_name]
             except KeyError:
                 proj_datasets = []
                 proj_fields = []
@@ -866,8 +871,9 @@ class XnatRepository(Repository):
                         ("', '".join(subject_ids)
                          if subject_ids is not None else ''),
                         self.project_id,
-                        "', '".join(s.label[(len(self.project_id) + 1):]
-                                    for s in list(xproject.subjects.values()))))
+                        "', '".join(
+                            s.label[(len(self.project_id) + 1):]
+                            for s in list(xproject.subjects.values()))))
             if not sessions:
                 raise ArcanaError(
                     "Did not find any sessions matching the visit IDs "

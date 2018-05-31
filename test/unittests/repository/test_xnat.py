@@ -24,7 +24,7 @@ from arcana.runner import LinearRunner
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
 from arcana.data_format import DataFormat
-from arcana.utils import PATH_SUFFIX
+from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
 from arcana.data_format import text_format
 from arcana.repository.tree import Project, Subject, Session, Visit
@@ -412,7 +412,7 @@ class TestXnatRepository(BaseTestCase):
         # Replace the digest with a dummy
         os.remove(md5_path)
         digests[dataset_fpath] = 'dummy_digest'
-        with open(md5_path, 'w') as f:
+        with open(md5_path, 'w', **JSON_ENCODING) as f:
             json.dump(digests, f)
         # Retry the download, which should now download since the digests
         # differ

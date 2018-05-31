@@ -26,15 +26,17 @@ try:
             print("Connected successfully to '{}'" .format(server))
             sys.exit(0)  # Exit with success
         except ValueError:
-            logs = sp.check_output(
-                '/usr/local/bin/docker-compose logs xnat-web',
-                shell=True)
-            print("Could not access XNAT after after {} seconds. "
-                  "Will wait up until {} seconds before giving up. "
-                  "Found log:\n\n{}"
-                  .format(i * wait_incr, WAIT_TIME, logs))
+            print("Could not access XNAT server '{}' after after {} "
+                  "seconds. Will wait up until {} seconds before "
+                  "giving up. ".format(server, i * wait_incr,
+                                       WAIT_TIME))
             time.sleep(wait_incr)
-    raise Exception("Could not connect to '{}' after {} seconds, "
-                    "aborting".format(server, WAIT_TIME))
+    logs = sp.check_output(
+        '/usr/local/bin/docker-compose logs xnat-web',
+        shell=True)
+    raise Exception(
+        "Gave up attempting to access XNAT server '{}' after after {} "
+        "seconds. The logs for xnat-web were:\n{}"
+        .format(i * wait_incr, WAIT_TIME, logs))
 finally:
     os.chdir(orig_dir)

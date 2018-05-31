@@ -1,7 +1,6 @@
 from builtins import object
 import os.path
-from arcana.exception import ArcanaError
-import re
+from future.utils import PY3
 
 
 PATH_SUFFIX = '_path'
@@ -78,3 +77,9 @@ class NoContextWrapper(object):
 
     def __exit__(self, *args, **kwargs):
         pass
+
+
+if PY3:
+    JSON_ENCODING = {'encoding': 'utf-8'}
+else:
+    JSON_ENCODING = {}
