@@ -25,7 +25,7 @@ try:
             xnat.connect(server, verify=True)
             print("Connected successfully to '{}'" .format(server))
             sys.exit(0)  # Exit with success
-        except ValueError:
+        except Exception:
             print("Could not access XNAT server '{}' after after {} "
                   "seconds. Will wait up until {} seconds before "
                   "giving up. ".format(server, i * wait_incr,

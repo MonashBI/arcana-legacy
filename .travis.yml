@@ -7,7 +7,7 @@ matrix:
     - python: 2.7
 env:
   global:
-    - ARCANA_TEST_XNAT='https://xnat-dev.erc.monash.edu.au'
+    - ARCANA_TEST_XNAT='http://localhost'
 addons:
   apt:
     update: true

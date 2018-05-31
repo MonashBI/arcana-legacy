@@ -299,7 +299,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             matches = list(node.datasets)
         if not matches:
             raise ArcanaDatasetMatchError(
-                "No dataset names in {} match '{}' pattern:{}"
+                "No dataset names in {} match '{}' pattern, found: {}"
                 .format(node, self.pattern,
                         '\n'.join(d.name for d in node.datasets)))
         if self.id is not None:

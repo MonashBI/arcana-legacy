@@ -1,18 +1,18 @@
 from future import standard_library
 standard_library.install_aliases()
-import tempfile
-import shutil
-import os.path
-import unittest
-from unittest import TestCase
-from nipype.interfaces.utility import IdentityInterface
-from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.study.base import Study, StudyMetaClass
-from arcana.option import OptionSpec
-from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from arcana.data_format import text_format, DataFormat
-from future.utils import PY2
-from future.utils import with_metaclass
+import tempfile  # @IgnorePep8
+import shutil  # @IgnorePep8
+import os.path  # @IgnorePep8
+import unittest  # @IgnorePep8
+from unittest import TestCase  # @IgnorePep8
+from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
+from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
+from arcana.option import OptionSpec  # @IgnorePep8
+from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
+from arcana.data_format import text_format, DataFormat  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:

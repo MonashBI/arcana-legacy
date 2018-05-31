@@ -193,26 +193,31 @@ class BaseTestCase(TestCase):
         return op.join(self.test_data_dir, 'reference', self.name)
 
     @property
-    def name(self):
+    def name(self):  # @NoSelf
         return self._get_name(type(self))
 
     @property
     def project_id(self):
         return self.name  # To allow override in deriving classes
 
-    def _get_name(self, cls):
+    @classmethod
+    def _get_name(cls, name_cls=None, sep='_'):
         """
         Get unique name for test class from module path and its class name to
         be used for storing test data on XNAT and creating unique work/project
         dirs
         """
-        module_path = op.abspath(sys.modules[cls.__module__].__file__)
-        rel_module_path = module_path[(len(self.unittest_root) + 1):]
+        if name_cls is None:
+            name_cls = cls
+        module_path = op.abspath(sys.modules[name_cls.__module__].__file__)
+        rel_module_path = module_path[(len(name_cls.unittest_root) + 1):]
         path_parts = rel_module_path.split(op.sep)
         module_name = (''.join(path_parts[:-1]) +
                        op.splitext(path_parts[-1])[0][5:]).upper()
-        test_class_name = cls.__name__[4:].upper()
-        return module_name + '_' + test_class_name
+        test_class_name = name_cls.__name__.upper()
+        if test_class_name.startswith('TEST'):
+            test_class_name = test_class_name[4:]
+        return module_name + sep + test_class_name
 
     def create_study(self, study_cls, name, inputs, repository=None,
                      runner=None, **kwargs):

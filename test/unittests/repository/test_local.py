@@ -1,24 +1,24 @@
 from future import standard_library
 standard_library.install_aliases()
-import os
-from unittest import TestCase
-import tempfile
-import os.path as op
-import shutil
-from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import IdentityInterface
-from arcana.repository.local import (
-    LocalSource, LocalRepository, FIELDS_FNAME)
-from arcana.data_format import text_format
-from arcana.study import Study, StudyMetaClass
-from arcana.runner import LinearRunner
-from arcana.dataset import (
-    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)
-from arcana.utils import PATH_SUFFIX
-from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.repository import Project, Subject, Session, Visit
-from future.utils import PY2
-from future.utils import with_metaclass
+import os  # @IgnorePep8
+from unittest import TestCase  # @IgnorePep8
+import tempfile  # @IgnorePep8
+import os.path as op  # @IgnorePep8
+import shutil  # @IgnorePep8
+from nipype.pipeline import engine as pe  # @IgnorePep8
+from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
+from arcana.repository.local import (  # @IgnorePep8
+    LocalSource, LocalRepository, FIELDS_FNAME)  # @IgnorePep8
+from arcana.data_format import text_format  # @IgnorePep8
+from arcana.study import Study, StudyMetaClass  # @IgnorePep8
+from arcana.runner import LinearRunner  # @IgnorePep8
+from arcana.dataset import (  # @IgnorePep8
+    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)  # @IgnorePep8
+from arcana.utils import PATH_SUFFIX  # @IgnorePep8
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
+from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:

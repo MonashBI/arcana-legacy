@@ -514,7 +514,7 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
             session = xnat_login.classes.MrSessionData(label=proc_session_id,
                                                        parent=subject)
         """
-        uri = ('/data/repository/projects/{}/subjects/{}/experiments/{}'
+        uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
                .format(self.inputs.project_id, subject_id, visit_id))
         query = {'xsiType': 'xnat:mrSessionData', 'label': visit_id,
                  'req_format': 'qa'}
@@ -1010,17 +1010,21 @@ class XnatRepository(Repository):
 
 
 def guess_data_format(dataset):
-    dataset_formats = [r for r in dataset.resources.values()
-                       if r.label.lower() in DataFormat.by_names]
+    # Use a set here as in some strange cases I can get two references
+    # to the same resource
+    dataset_formats = set(r for r in dataset.resources.values()
+                          if r.label.lower() in DataFormat.by_names)
     if len(dataset_formats) > 1:
         raise ArcanaError(
             "Multiple valid resources '{}' for '{}' dataset, please pass "
             "'data_format' to 'download_dataset' method to speficy resource to"
-            "download".format("', '".join(dataset_formats), dataset.type))
+            "download".format(
+                "', '".join(f.label for f in dataset_formats),
+                dataset.type))
     elif not dataset_formats:
         raise ArcanaError(
             "No recognised data formats for '{}' dataset (available resources "
             "are '{}')".format(
                 dataset.type, "', '".join(
                     r.label for r in dataset.resources.values())))
-    return dataset_formats[0].label
+    return next(iter(dataset_formats)).label
