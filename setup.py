@@ -23,7 +23,7 @@ setup(
         'Repository-centric analysis workflow architecture based on NiPype'),
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.7',
-                      'nipype==1.0',
+                      'nipype>=1.0.4',
                       'pydicom>=1.0.2',
                       'networkx==1.9',
                       'fasteners>=0.7.0'],
