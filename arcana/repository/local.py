@@ -104,8 +104,9 @@ class LocalSource(RepositorySource, LocalNodeMixin):
             # locks I believe.
             fpath = self.fields_path(freq)
             try:
-                with (InterProcessLock(fpath + LOCK, logger=logger),
-                      open(fpath, 'rb')) as f:
+                with InterProcessLock(
+                    fpath + LOCK,
+                        logger=logger), open(fpath, 'rb') as f:
                     fields = json.load(f)
             except IOError as e:
                 if e.errno == errno.ENOENT:
