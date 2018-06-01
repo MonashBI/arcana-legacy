@@ -17,4 +17,5 @@ fi
 
 
 # Run docker-compose up
+docker-compose down --rmi all
 docker-compose -f $PKG_DIR/docker-compose.yml up -d
