@@ -5,9 +5,13 @@ services:
 matrix:
   include:
     - python: 2.7
+    - python: 3.4
+    - python: 3.6
 env:
   global:
     - ARCANA_TEST_XNAT='http://localhost'
+    - MODULESHOME=$HOME/packages/modules
+    - MODULEPATH=$HOME/modules
 addons:
   apt:
     update: true
@@ -34,8 +38,6 @@ install:
   - export NUMBER_OF_PROCESSORS=8
   - ci/xnat.sh
   - ci/modules.sh
-  - export MODULESHOME=$HOME/packages/modules
-  - export MODULEPATH=$HOME/modules
   - ci/dcm2niix.sh
   - ci/netrc.sh
   - ci/mrtrix.sh
