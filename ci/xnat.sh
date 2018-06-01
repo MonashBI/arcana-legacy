@@ -1,5 +1,3 @@
-XNAT_VER=1.7.4
-
 INSTALL_DIR=$HOME/xnat-docker-compose
 mkdir -p $INSTALL_DIR
 

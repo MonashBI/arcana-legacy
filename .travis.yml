@@ -10,6 +10,7 @@ matrix:
 env:
   global:
     - ARCANA_TEST_XNAT='http://localhost'
+    - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
 addons:
