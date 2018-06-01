@@ -57,7 +57,15 @@ class BaseTestCase(TestCase):
     @classproperty
     @classmethod
     def test_data_dir(cls):
-        return op.join(cls.BASE_TEST_DIR, 'data')
+        try:
+            return cls._test_data_dir
+        except AttributeError:
+            try:
+                cls._test_data_dir = os.environ['ARCANA_TEST_DATA']
+                os.makedirs(cls._test_data_dir, exist_ok=True)
+            except KeyError:
+                cls._test_data_dir = op.join(cls.BASE_TEST_DIR, 'data')
+            return cls._test_data_dir
 
     @classproperty
     @classmethod
@@ -78,6 +86,11 @@ class BaseTestCase(TestCase):
     @classmethod
     def cache_path(cls):
         return op.join(cls.test_data_dir, 'cache')
+
+    @classproperty
+    @classmethod
+    def ref_path(cls):
+        return op.join(cls.BASE_TEST_DIR, 'data', 'reference')
 
     def setUp(self):
         self.reset_dirs()
@@ -204,7 +217,7 @@ class BaseTestCase(TestCase):
 
     @property
     def ref_dir(self):
-        return op.join(self.test_data_dir, 'reference', self.name)
+        return op.join(self.ref_path, self.name)
 
     @property
     def name(self):  # @NoSelf
