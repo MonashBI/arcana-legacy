@@ -3,7 +3,6 @@ XNAT_VER=1.7.4
 mkdir -p $HOME/packages
 PKG_DIR=$HOME/packages/xnat-docker-compose
 
-sudo rm -rf $PKG_DIR
 
 if [ ! -d $PKG_DIR ]; then
   git clone https://github.com/monashbiomedicalimaging/xnat-docker-compose $PKG_DIR
@@ -17,5 +16,4 @@ fi
 
 
 # Run docker-compose up
-docker-compose down --rmi all
 docker-compose -f $PKG_DIR/docker-compose.yml up -d
