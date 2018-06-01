@@ -15,5 +15,8 @@ if [ ! -d $PKG_DIR ]; then
 fi
 
 
-# Run docker-compose up
-docker-compose -f $PKG_DIR/docker-compose.yml up -d
+# Delete existing docker images and run docker-compose up
+pushd $PKG_DIR
+docker-compose down --rmi all
+docker-compose up -d
+popd
