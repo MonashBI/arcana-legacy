@@ -61,6 +61,9 @@ try:
 except KeyError:
     SERVER = None
 
+SKIP_ARGS = (SERVER is None,
+             "Skipping as ARCANA_TEST_XNAT env var not set")
+
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
@@ -105,17 +108,21 @@ def ls_with_md5_filter(path):
 
 class CreateXnatProjectMixin(object):
 
-    NAME_SUFFIX_LEN = 6
+    PROJECT_NAME_LEN = 12
 
     @property
-    def rand_suffix(self):
+    def project(self):
+        """
+        Creates a random string of letters and numbers to be the
+        project ID
+        """
         try:
-            return self._rand_suffix
+            return self._project
         except AttributeError:
-            self._rand_suffix = ''.join(
+            self._project = ''.join(
                 random.choice(string.ascii_uppercase + string.digits)
-                for _ in range(self.NAME_SUFFIX_LEN))
-            return self._rand_suffix
+                for _ in range(self.PROJECT_NAME_LEN))
+            return self._project
 
     def _create_project(self, project_name=None):
         if project_name is None:
@@ -138,18 +145,87 @@ class CreateXnatProjectMixin(object):
         with xnat.connect(SERVER) as login:
             login.projects[project_name].delete()
 
-    @property
-    def project(self):
-        return type(self).__name__.upper()
-
 
 class TestOnXnatMixin(CreateXnatProjectMixin):
+
+    def session_label(self, project=None, subject=None, visit=None):
+        if project is None:
+            project = self.project
+        if subject is None:
+            subject = self.SUBJECT
+        if visit is None:
+            visit = self.VISIT
+        return '_'.join((project, subject, visit))
+
+    def session_cache(self, base_dir=None, project=None, subject=None,
+                      visit=None):
+        if base_dir is None:
+            base_dir = self.cache_dir
+        if project is None:
+            project = self.project
+        if subject is None:
+            subject = self.SUBJECT
+        return os.path.join(
+            base_dir, project, '{}_{}'.format(project, subject),
+            self.session_label(project=project, subject=subject,
+                               visit=visit))
+
+    def proc_session_cache(self, *args, **kwargs):
+        return self.session_cache(
+            *args, **kwargs) + XnatRepository.PROCESSED_SUFFIX
+
+    def setUp(self):
+        BaseTestCase.setUp(self)
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        os.makedirs(self.cache_dir)
+        self._create_project()
+        with self._connect() as login:
+            xproject = login.projects[self.project]
+            xsubject = login.classes.SubjectData(
+                label='{}_{}'.format(self.project, self.SUBJECT),
+                parent=xproject)
+            xsession = login.classes.MrSessionData(
+                label=self.session_label(),
+                parent=xsubject)
+            for dataset in self.session.datasets:
+                # Create dataset with an integer ID instead of the
+                # label
+                query = {'xsiType': 'xnat:mrScanData',
+                         'req_format': 'qa',
+                         'type': dataset.name}
+                uri = '{}/scans/{}'.format(xsession.fulluri, dataset.id)
+                login.put(uri, query=query)
+                # Get XnatPy object for newly created dataset
+                xdataset = login.classes.MrScanData(uri,
+                                                    xnat_session=login)
+                resource = xdataset.create_resource(
+                    dataset.format.name.upper())
+                if dataset.format.directory:
+                    for fname in os.listdir(dataset.path):
+                        resource.upload(
+                            os.path.join(dataset.path, fname), fname)
+                else:
+                    resource.upload(dataset.path, dataset.fname())
+            for field in self.session.fields:
+                xsession.fields[field.name] = field.value
+
+    def tearDown(self):
+        # Clean up working dirs
+        shutil.rmtree(self.cache_dir, ignore_errors=True)
+        # Clean up session created for unit-test
+        self._delete_project()
+
+    def _connect(self):
+        return xnat.connect(SERVER)
+
+
+class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
 
     def setUp(self):
         self._clean_up()
-        self._repository = XnatRepository(project_id=self.project_id,
+        self._repository = XnatRepository(project_id=self.project,
                                           server=SERVER,
                                           cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
@@ -343,10 +419,9 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         return path
 
 
-class TestRepositoryMixin(CreateXnatProjectMixin):
+class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
 
     SUBJECT = 'SUBJECT'
-    DIGEST_SINK_SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
@@ -355,73 +430,30 @@ class TestRepositoryMixin(CreateXnatProjectMixin):
                       'source3': 'wee', 'source4': 'wa'}
     INPUT_FIELDS = {'field1': 1, 'field2': 0.5, 'field3': 'boo'}
 
-    def session_label(self, project=None, subject=None, visit=None):
-        if project is None:
-            project = self.project
-        if subject is None:
-            subject = self.SUBJECT
-        if visit is None:
-            visit = self.VISIT
-        return '_'.join((project, subject, visit))
+    def setUp(self):
+        BaseTestCase.setUp(self)
+        TestOnXnatMixin.setUp(self)
 
-    def session_cache(self, base_dir=None, project=None, subject=None,
-                      visit=None):
-        if base_dir is None:
-            base_dir = self.cache_dir
-        if project is None:
-            project = self.project
-        if subject is None:
-            subject = self.SUBJECT
-        return os.path.join(
-            base_dir, project, '{}_{}'.format(project, subject),
-            self.session_label(project=project, subject=subject,
-                               visit=visit))
+    def tearDown(self):
+        TestOnXnatMixin.tearDown(self)
+        BaseTestCase.tearDown(self)
 
-    def proc_session_cache(self, *args, **kwargs):
-        return self.session_cache(
-            *args, **kwargs) + XnatRepository.PROCESSED_SUFFIX
+
+class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
 
     @property
     def digest_sink_project(self):
         return self.project + 'SINK'
 
     def setUp(self):
-        BaseTestCase.setUp(self)
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
-        os.makedirs(self.cache_dir)
-        self._create_project()
+        TestXnatSourceAndSinkBase.setUp(self)
         self._create_project(self.digest_sink_project)
-        with self._connect() as mbi_xnat:
-            xproject = mbi_xnat.projects[self.project]
-            xsubject = mbi_xnat.classes.SubjectData(
-                label='{}_{}'.format(self.project, self.SUBJECT),
-                parent=xproject)
-            xsession = mbi_xnat.classes.MrSessionData(
-                label=self.session_label(),
-                parent=xsubject)
-            for dataset in self.session.datasets:
-                xdataset = mbi_xnat.classes.MrScanData(
-                    type=dataset.name, parent=xsession)
-                resource = xdataset.create_resource(
-                    dataset.format.name.upper())
-                resource.upload(dataset.path, dataset.fname())
-            for field in self.session.fields:
-                xsession.fields[field.name] = field.value
 
     def tearDown(self):
-        # Clean up working dirs
-        shutil.rmtree(self.cache_dir, ignore_errors=True)
-        # Clean up session created for unit-test
-        self._delete_project()
+        TestXnatSourceAndSinkBase.tearDown(self)
         self._delete_project(self.digest_sink_project)
 
-    def _connect(self):
-        return xnat.connect(SERVER)
-
-
-class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_repository_roundtrip(self):
 
         # Create working dirs
@@ -485,7 +517,7 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
                 XnatRepository.PROCESSED_SUFFIX].scans.keys())
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_fields_roundtrip(self):
         repository = XnatRepository(
             server=SERVER, cache_dir=self.cache_dir,
@@ -519,7 +551,7 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_delayed_download(self):
         """
         Tests handling of race conditions where separate processes attempt to
@@ -597,7 +629,7 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
             d = f.read()
         self.assertEqual(d, 'simulated')
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_digest_check(self):
         """
         Tests check of downloaded digests to see if file needs to be
@@ -666,7 +698,7 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
             study_name=STUDY_NAME)
         sink.inputs.name = 'digest_check_sink'
         sink.inputs.desc = "Tests the generation of MD5 digests"
-        sink.inputs.subject_id = self.digest_sink_project
+        sink.inputs.subject_id = self.SUBJECT
         sink.inputs.visit_id = self.VISIT
         sink.inputs.sink1_path = source_target_path
         sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
@@ -674,7 +706,7 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
         sink_target_path = os.path.join(
             (self.session_cache(
                 cache_dir, project=self.digest_sink_project,
-                subject=(self.DIGEST_SINK_SUBJECT)) +
+                subject=(self.SUBJECT)) +
              XnatRepository.PROCESSED_SUFFIX),
             sink_fpath)
         sink_md5_path = sink_target_path + XnatRepository.MD5_SUFFIX
@@ -691,11 +723,9 @@ class TestXnatRepository(TestRepositoryMixin, BaseTestCase):
                      sink_digests[sink_fpath])))
 
 
-class TestXnatSummaryRoundtrip(TestRepositoryMixin, BaseTestCase):
+class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
 
-    SUBJECT = 'SUMMARY'
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_summary(self):
         # Create working dirs
         # Create XnatSource node
@@ -878,17 +908,107 @@ class TestXnatSummaryRoundtrip(TestRepositoryMixin, BaseTestCase):
                               self.SUMMARY_STUDY_NAME + '_resink3'])
 
 
-class TestExistingPrereqsOnXnat(TestOnXnatMixin,
+class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
+                                   test_dataset.TestDicomTagMatch):
+
+    BASE_CLASS = test_dataset.TestDicomTagMatch
+
+    @property
+    def ref_dir(self):
+        return os.path.join(
+            self.test_data_dir, 'reference',
+            self._get_name(self.BASE_CLASS))
+
+    def setUp(self):
+        test_dataset.TestDicomTagMatch.setUp(self)
+        TestOnXnatMixin.setUp(self)
+        # Set up DICOM headers
+        with xnat.connect(SERVER) as login:
+            xsess = login.projects[self.project].experiments[
+                '_'.join((self.project, self.SUBJECT, self.VISIT))]
+            login.put('/data/experiments/{}?pullDataFromHeaders=true'
+                      .format(xsess.id))
+
+    def tearDown(self):
+        TestOnXnatMixin.tearDown(self)
+        test_dataset.TestDicomTagMatch.tearDown(self)
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_dicom_match(self):
+        study = test_dataset.TestMatchStudy(
+            name='test_dicom',
+            repository=XnatRepository(
+                project_id=self.project,
+                server=SERVER, cache_dir=tempfile.mkdtemp()),
+            runner=LinearRunner(self.work_dir),
+            inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH)
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_id_match(self):
+        study = test_dataset.TestMatchStudy(
+            name='test_dicom',
+            repository=XnatRepository(
+                project_id=self.project,
+                server=SERVER, cache_dir=tempfile.mkdtemp()),
+            runner=LinearRunner(self.work_dir),
+            inputs=[
+                DatasetMatch('gre_phase', dicom_format, id=7),
+                DatasetMatch('gre_mag', dicom_format, id=6)])
+        phase = study.data('gre_phase')[0]
+        mag = study.data('gre_mag')[0]
+        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
+        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_order_match(self):
+        test_dataset.TestDicomTagMatch.test_order_match(self)
+
+
+class TestDatasetCacheOnPathAccess(TestOnXnatMixin,
+                                   BaseTestCase):
+
+    INPUT_DATASETS = {'dataset': '1'}
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_cache_on_path_access(self):
+        tmp_dir = tempfile.mkdtemp()
+        repository = XnatRepository(
+            project_id=self.project,
+            server=SERVER, cache_dir=tmp_dir)
+        tree = repository.get_tree(
+            subject_ids=[self.SUBJECT],
+            visit_ids=[self.VISIT])
+        # Get a dataset
+        dataset = next(next(next(tree.subjects).sessions).datasets)
+        self.assertEqual(dataset._path, None)
+        target_path = os.path.join(
+            tmp_dir, self.project,
+            '{}_{}'.format(self.project, self.SUBJECT),
+            '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
+            dataset.fname())
+        # This should implicitly download the dataset
+        self.assertEqual(dataset.path, target_path)
+        with open(target_path) as f:
+            self.assertEqual(f.read(),
+                             self.INPUT_DATASETS[dataset.name])
+
+
+class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,
                                 test_study.TestExistingPrereqs):
 
     BASE_CLASS = test_study.TestExistingPrereqs
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_per_session_prereqs(self):
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
 
-class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
+class TestXnatCache(TestMultiSubjectOnXnatMixin,
+                    BaseMultiSubjectTestCase):
 
     BASE_CLASS = BaseMultiSubjectTestCase
     STRUCTURE = {
@@ -921,10 +1041,10 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
                   for i in visit_ids]
         return Project(subjects=subjects, visits=visits)
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):
         repository = XnatRepository(
-            project_id=self.project_id,
+            project_id=self.project,
             server=SERVER,
             cache_dir=tempfile.mkdtemp())
         study = self.create_study(
@@ -952,12 +1072,12 @@ class TestXnatCache(TestOnXnatMixin, BaseMultiSubjectTestCase):
         return self.name
 
 
-class TestProjectInfo(TestOnXnatMixin,
+class TestProjectInfo(TestMultiSubjectOnXnatMixin,
                       test_local.TestProjectInfo):
 
     BASE_CLASS = test_local.TestProjectInfo
 
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
         tree = self.repository.get_tree()
         ref_tree = self.get_tree(self.repository, set_ids=True)
@@ -965,140 +1085,3 @@ class TestProjectInfo(TestOnXnatMixin,
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(ref_tree)))
-
-
-class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
-                                   test_dataset.TestDicomTagMatch):
-
-    BASE_CLASS = test_dataset.TestDicomTagMatch
-
-    @property
-    def ref_dir(self):
-        return os.path.join(
-            self.test_data_dir, 'reference',
-            self._get_name(self.BASE_CLASS))
-
-    def setUp(self):
-        super(TestDicomTagMatchAndIDOnXnat, self).setUp()
-        with xnat.connect(SERVER) as login:
-            xsess = login.projects[self.project].experiments[
-                '_'.join((self.project, self.SUBJECT, self.VISIT))]
-            login.put('/data/experiments/{}?pullDataFromHeaders=true'
-                      .format(xsess.id))
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
-    def test_dicom_match(self):
-        study = test_dataset.TestMatchStudy(
-            name='test_dicom',
-            repository=XnatRepository(
-                project_id=self.project,
-                server=SERVER, cache_dir=tempfile.mkdtemp()),
-            runner=LinearRunner(self.work_dir),
-            inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH)
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
-        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
-        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
-    def test_id_match(self):
-        study = test_dataset.TestMatchStudy(
-            name='test_dicom',
-            repository=XnatRepository(
-                project_id=self.project,
-                server=SERVER, cache_dir=tempfile.mkdtemp()),
-            runner=LinearRunner(self.work_dir),
-            inputs=[
-                DatasetMatch('gre_phase', dicom_format, id=8),
-                DatasetMatch('gre_mag', dicom_format, id=7)])
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
-        self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
-        self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
-
-
-class TestDatasetCacheOnPathAccess(CreateXnatProjectMixin,
-                                   BaseTestCase):
-
-    DATASET_NAME = 'localizer'
-
-    def setUp(self):
-        BaseTestCase.setUp(self)
-        self._create_project()
-
-    def tearDown(self):
-        self._delete_project()
-        BaseTestCase.tearDown(self)
-
-    @unittest.skipIf(SERVER is None, "ARCANA_TEST_XNAT env var not set")
-    def test_cache_on_path_access(self):
-        tmp_dir = tempfile.mkdtemp()
-        repository = XnatRepository(
-            project_id=self.project,
-            server=SERVER, cache_dir=tmp_dir)
-        tree = repository.get_tree(
-            subject_ids=[self.SUBJECT],
-            visit_ids=[self.VISIT])
-        # Get a dataset
-        dataset = next(next(next(tree.subjects).sessions).datasets)
-        self.assertEqual(dataset._path, None)
-        target_path = os.path.join(
-            tmp_dir, self.project,
-            '{}_{}'.format(self.project, self.SUBJECT),
-            '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
-            self.DATASET_NAME)
-        # This should implicitly download the dataset
-        self.assertEqual(dataset.path, target_path)
-        self.assertTrue(os.path.exists(target_path))
-
-
-class TestXnatRepositorySpecialCharInScanName(TestCase):
-
-    # project = 'MRH033'
-    # SUBJECT = '001'
-    # VISIT = 'MR01'
-    TEST_NAME = 'special_char_in_scan_name'
-    DATASETS = ['localizer 3 PLANES (Left)',
-                'PosDisp: [3] cv_t1rho_3D_2_TR450 (Left)']
-    work_path = os.path.join(BaseTestCase.test_data_dir, 'work',
-                             TEST_NAME)
-
-    def setUp(self):
-        pass
-        # BaseTestCase.setUp(self)
-        # self._create_project()
-
-    def tearDown(self):
-        pass
-        # self._delete_project()
-        # BaseTestCase.tearDown(self)
-
-    @unittest.skip(
-        "Haven't worked out how set up files with special chars on XNAT")
-    def test_special_char_in_scan_name(self):
-        """
-        Tests whether XNAT source can download files with spaces in their names
-        """
-        cache_dir = tempfile.mkdtemp()
-        repository = XnatRepository(
-            server=SERVER, cache_dir=cache_dir,
-            project_id=self.project)
-        study = DummyStudy(
-            'study', repository, LinearRunner('ad'),
-            inputs=[DatasetMatch('source{}'.format(i), text_format, d)
-                    for i, d in enumerate(self.DATASETS, start=1)],
-            subject_ids=[self.SUBJECT], visit_ids=[self.VISIT])
-        source = repository.source(
-            [study.input('source{}'.format(i))
-             for i in range(1, len(self.DATASETS) + 1)])
-        source.inputs.subject_id = self.SUBJECT
-        source.inputs.visit_id = self.VISIT
-        workflow = pe.Workflow(self.TEST_NAME, base_dir=self.work_path)
-        workflow.add_nodes([source])
-        graph = workflow.run()
-        result = next(n.result for n in graph.nodes() if n.name == source.name)
-        for i, dname in enumerate(self.DATASETS, start=1):
-            path = getattr(result.outputs,
-                           'source{}{}'.format(i, PATH_SUFFIX))
-            self.assertEqual(os.path.basename(path), dname)
-            self.assertTrue(os.path.exists(path))

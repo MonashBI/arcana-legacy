@@ -948,12 +948,15 @@ class XnatRepository(Repository):
     def dicom_header(self, dataset, prev_login=None):
         with self.login(prev_login) as xnat_login:
             response = xnat_login.get(
-                '/REST/services/dicomdump?src=/repository/projects/{}'
+                '/REST/services/dicomdump?src=/archive/projects/{}'
                 '{}&format=json'
                 .format(self.project_id, dataset.uri[len('/data'):]))
         def convert(val, code):  # @IgnorePep8
             if code == 'TM':
-                val = float(val)
+                try:
+                    val = float(val)
+                except ValueError:
+                    pass
             elif code == 'CS':
                 val = val.split('\\')
             return val

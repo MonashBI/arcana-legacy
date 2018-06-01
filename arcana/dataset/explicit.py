@@ -9,6 +9,8 @@ from arcana.exception import (
     ArcanaDataFormatNotRegisteredError, ArcanaNameError)
 from .base import BaseDataset, BaseField
 
+DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
+
 
 class Dataset(BaseDataset):
     """
@@ -46,6 +48,7 @@ class Dataset(BaseDataset):
 
     is_spec = False
 
+
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
@@ -53,11 +56,15 @@ class Dataset(BaseDataset):
         super(Dataset, self).__init__(name, format, frequency)
         self._derived = derived
         self._path = path
-        self._id = id
         self._uri = uri
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
+        if id is None and path is not None and format.name == 'dicom':
+            self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
+                           [DICOM_SERIES_NUMBER_TAG])
+        else:
+            self._id = id
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and

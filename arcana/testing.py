@@ -83,6 +83,12 @@ class BaseTestCase(TestCase):
         self.reset_dirs()
         if self.INPUTS_FROM_REF_DIR:
             datasets = {}
+            # Unzip reference directory if required
+            if not os.path.exists(self.ref_dir) and os.path.exists(
+                    self.ref_dir + '.tar.gz'):
+                sp.check_call(
+                    'tar xzf {}.tar.gz'.format(self.ref_dir),
+                    shell=True, cwd=os.path.dirname(self.ref_dir))
             for fname in os.listdir(self.ref_dir):
                 if fname.startswith('.'):
                     continue
@@ -159,6 +165,14 @@ class BaseTestCase(TestCase):
     def session(self):
         return self.repository_tree.subject(
             self.SUBJECT).session(self.VISIT)
+
+    @property
+    def datasets(self):
+        return self.session.datasets
+
+    @property
+    def fields(self):
+        return self.session.fields
 
     @property
     def repository(self):

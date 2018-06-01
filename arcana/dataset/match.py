@@ -306,7 +306,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
                 raise ArcanaDatasetMatchError(
-                    "Did not find datasets names matching pattern {}"
+                    "Did not find datasets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
