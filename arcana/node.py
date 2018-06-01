@@ -1,6 +1,7 @@
 from __future__ import division
 from builtins import object
 from past.utils import old_div
+from future.utils import PY3
 import os
 import re
 import time
@@ -169,6 +170,8 @@ class ArcanaNodeMixin(object):
                     "Call to subprocess `{}` threw an error: {}".format(
                         ' '.join([modulecmd, 'python'] + list(args)), e))
             exec(output)
+            if PY3:
+                error = str(error)
             return error
         else:
             raise ArcanaModulesNotInstalledException('MODULESHOME')
