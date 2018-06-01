@@ -458,7 +458,7 @@ class LocalRepository(Repository):
 
     def fields_from_json(self, fname, frequency,
                          subject_id=None, visit_id=None):
-        with open(fname, 'rb') as f:
+        with open(fname, 'r') as f:
             dct = json.load(f)
         return [Field(name=k, value=v, frequency=frequency,
                       subject_id=subject_id, visit_id=visit_id,
