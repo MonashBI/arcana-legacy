@@ -55,6 +55,5 @@ cache:
     - $HOME/packages
     - $HOME/modules
     - $HOME/downloads
-    - $HOME/xnat-cache
 after_success:
   codecov
