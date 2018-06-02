@@ -8,3 +8,4 @@ xnat>=0.3.7
 pydicom>=1.0.2
 networkx==1.9
 fasteners>=0.7.0
+future>=0.16.0
