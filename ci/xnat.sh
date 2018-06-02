@@ -1,5 +1,6 @@
 INSTALL_DIR=$HOME/xnat-docker-compose
 mkdir -p $INSTALL_DIR
+mkdir -p $HOME/xnat
 
 # Clone the docker compose script
 git clone https://github.com/monashbiomedicalimaging/xnat-docker-compose $INSTALL_DIR

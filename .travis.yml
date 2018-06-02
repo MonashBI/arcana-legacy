@@ -55,6 +55,7 @@ script:
 cache:
   directories:
     - $HOME/packages
+    - $HOME/xnat-docker-compose
     - $HOME/modules
     - $HOME/downloads
 after_success:
