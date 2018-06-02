@@ -916,8 +916,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     @property
     def ref_dir(self):
         return os.path.join(
-            self.test_data_dir, 'reference',
-            self._get_name(self.BASE_CLASS))
+            self.ref_path, self._get_name(self.BASE_CLASS))
 
     def setUp(self):
         test_dataset.TestDicomTagMatch.setUp(self)

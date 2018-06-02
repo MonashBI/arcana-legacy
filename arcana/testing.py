@@ -62,7 +62,11 @@ class BaseTestCase(TestCase):
         except AttributeError:
             try:
                 cls._test_data_dir = os.environ['ARCANA_TEST_DATA']
-                os.makedirs(cls._test_data_dir, exist_ok=True)
+                try:
+                    os.makedirs(cls._test_data_dir)
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
             except KeyError:
                 cls._test_data_dir = op.join(cls.BASE_TEST_DIR, 'data')
             return cls._test_data_dir

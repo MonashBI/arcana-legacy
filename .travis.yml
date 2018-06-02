@@ -42,9 +42,7 @@ install:
   - export NUMBER_OF_PROCESSORS=8
   - ci/xnat.sh
   - ci/modules.sh
-  - ci/dcm2niix.sh
   - ci/netrc.sh
-  - ci/mrtrix.sh
   - pip install .
   - mkdir -p $HOME/data
   - pip install nose
@@ -54,7 +52,6 @@ script:
   nosetests test/unittests --with-coverage --cover-package=arcana
 cache:
   directories:
-    - $HOME/xnat-docker-compose
     - $HOME/modules
     - $HOME/downloads
 after_success:
