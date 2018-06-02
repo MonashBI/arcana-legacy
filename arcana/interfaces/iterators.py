@@ -1,3 +1,4 @@
+from builtins import zip
 from itertools import chain
 from nipype.interfaces.base import TraitedSpec, traits, BaseInterface
 from arcana.exception import ArcanaError
@@ -59,24 +60,24 @@ class InputSessions(BaseInterface):
         return outputs
 
 
-class SessionReportInputSpec(TraitedSpec):
+class SessionRepositoryrtInputSpec(TraitedSpec):
 
     sessions = traits.List(traits.Str)
     subjects = traits.List(traits.Str)
 
 
-class SessionReportOutputSpec(TraitedSpec):
+class SessionRepositoryrtOutputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(traits.Tuple(traits.Str, traits.Str))
 
 
-class SessionReport(BaseInterface):
+class SessionRepositoryrt(BaseInterface):
     """
     Basically an IndentityInterface for joining over sessions
     """
 
-    input_spec = SessionReportInputSpec
-    output_spec = SessionReportOutputSpec
+    input_spec = SessionRepositoryrtInputSpec
+    output_spec = SessionRepositoryrtOutputSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -88,18 +89,18 @@ class SessionReport(BaseInterface):
         return outputs
 
 
-class SubjectReportSpec(TraitedSpec):
+class SubjectRepositoryrtSpec(TraitedSpec):
 
     subjects = traits.List(traits.Str)
 
 
-class SubjectReport(BaseInterface):
+class SubjectRepositoryrt(BaseInterface):
     """
     Basically an IndentityInterface for joining over subjects
     """
 
-    input_spec = SubjectReportSpec
-    output_spec = SubjectReportSpec
+    input_spec = SubjectRepositoryrtSpec
+    output_spec = SubjectRepositoryrtSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -110,18 +111,18 @@ class SubjectReport(BaseInterface):
         return outputs
 
 
-class VisitReportSpec(TraitedSpec):
+class VisitRepositoryrtSpec(TraitedSpec):
 
     sessions = traits.List(traits.Str)
 
 
-class VisitReport(BaseInterface):
+class VisitRepositoryrt(BaseInterface):
     """
     Basically an IndentityInterface for joining over sessions
     """
 
-    input_spec = VisitReportSpec
-    output_spec = VisitReportSpec
+    input_spec = VisitRepositoryrtSpec
+    output_spec = VisitRepositoryrtSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -132,24 +133,24 @@ class VisitReport(BaseInterface):
         return outputs
 
 
-class SubjectSessionReportInputSpec(TraitedSpec):
+class SubjectSessionRepositoryrtInputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(
         traits.List(traits.Tuple(traits.Str, traits.Str)))
 
 
-class SubjectSessionReportOutputSpec(TraitedSpec):
+class SubjectSessionRepositoryrtOutputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(traits.Tuple(traits.Str, traits.Str))
 
 
-class SubjectSessionReport(BaseInterface):
+class SubjectSessionRepositoryrt(BaseInterface):
     """
     Basically an IndentityInterface for joining over subject-session pairs
     """
 
-    input_spec = SubjectSessionReportInputSpec
-    output_spec = SubjectSessionReportOutputSpec
+    input_spec = SubjectSessionRepositoryrtInputSpec
+    output_spec = SubjectSessionRepositoryrtOutputSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -161,7 +162,7 @@ class SubjectSessionReport(BaseInterface):
         return outputs
 
 
-class PipelineReportInputSpec(TraitedSpec):
+class PipelineRepositoryrtInputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Subject & session pairs from per-session sink")
@@ -172,7 +173,7 @@ class PipelineReportInputSpec(TraitedSpec):
     project = traits.Str(desc="Project ID from per-project sink")
 
 
-class PipelineReportOutputSpec(TraitedSpec):
+class PipelineRepositoryrtOutputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Session & subject pairs from per-session sink")
@@ -180,10 +181,10 @@ class PipelineReportOutputSpec(TraitedSpec):
     project = traits.Str(desc="Project ID from per-project sink")
 
 
-class PipelineReport(BaseInterface):
+class PipelineRepositoryrt(BaseInterface):
 
-    input_spec = PipelineReportInputSpec
-    output_spec = PipelineReportOutputSpec
+    input_spec = PipelineRepositoryrtInputSpec
+    output_spec = PipelineRepositoryrtOutputSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -227,7 +228,7 @@ class SelectSession(BaseInterface):
     def _list_outputs(self):
         outputs = {}
         session_id = (self.inputs.subject_id, self.inputs.visit_id)
-        session_ids = zip(self.inputs.subject_ids, self.inputs.visit_ids)
+        session_ids = list(zip(self.inputs.subject_ids, self.inputs.visit_ids))
         if session_ids.count(session_id) != 1:
             raise ArcanaError(
                 "More than one indices matched {} in subjects and visits list "

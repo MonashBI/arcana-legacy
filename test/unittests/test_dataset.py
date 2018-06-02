@@ -1,15 +1,22 @@
-import tempfile
-import shutil
-import os.path
-import cPickle as pkl
-import unittest
-from unittest import TestCase
-from nipype.interfaces.utility import IdentityInterface
-from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.study.base import Study, StudyMetaClass
-from arcana.option import OptionSpec
-from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch
-from arcana.data_format import text_format, DataFormat
+from future import standard_library
+standard_library.install_aliases()
+import tempfile  # @IgnorePep8
+import shutil  # @IgnorePep8
+import os.path  # @IgnorePep8
+import unittest  # @IgnorePep8
+from unittest import TestCase  # @IgnorePep8
+from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
+from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
+from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
+from arcana.option import OptionSpec  # @IgnorePep8
+from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
+from arcana.data_format import text_format, DataFormat  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
+if PY2:
+    import pickle as pkl  # @UnusedImport
+else:
+    import pickle as pkl  # @Reimport
 
 # For testing DICOM tag matching
 dicom_format = DataFormat(name='dicom', extension=None,
@@ -36,16 +43,14 @@ class TestDatasetSpecPickle(TestCase):
                 FieldSpec('b', int, 'dummy_pipeline2')]
         for i, obj in enumerate(objs):
             fname = os.path.join(self.pkl_dir, '{}.pkl'.format(i))
-            with open(fname, 'w') as f:
+            with open(fname, 'wb') as f:
                 pkl.dump(obj, f)
-            with open(fname) as f:
+            with open(fname, 'rb') as f:
                 re_obj = pkl.load(f)
             self.assertEqual(obj, re_obj)
 
 
-class TestMatchStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('gre_phase', dicom_format),
@@ -106,9 +111,7 @@ class TestDicomTagMatch(BaseTestCase):
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
 
-class TestDerivableStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('required', text_format),

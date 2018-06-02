@@ -1,16 +1,20 @@
+from builtins import str
+from past.builtins import basestring
 import os.path
 import pydicom
 from arcana.data_format import DataFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaDataFormatError, ArcanaUsageError,
-    ArcanaDataFormatNotRegisteredError)
+    ArcanaDataFormatNotRegisteredError, ArcanaNameError)
 from .base import BaseDataset, BaseField
+
+DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
 class Dataset(BaseDataset):
     """
-    A representation of a dataset within the archive.
+    A representation of a dataset within the repository.
 
     Parameters
     ----------
@@ -24,38 +28,43 @@ class Dataset(BaseDataset):
         specifying whether the dataset is present for each session, subject,
         visit or project.
     derived : bool
-        Whether the scan was generated or acquired. Depending on the archive
+        Whether the scan was generated or acquired. Depending on the repository
         used to store the dataset this is used to determine the location of the
         dataset.
     path : str | None
-        The path to the dataset (for archives on the local system)
+        The path to the dataset (for repositorys on the local system)
     id : int | None
         The ID of the dataset in the session. To be used to
         distinguish multiple datasets with the same scan type in the
         same session, e.g. scans taken before and after a task. For
-        archives where this isn't stored (i.e. Local), id can be None
+        repositorys where this isn't stored (i.e. Local), id can be None
     subject_id : int | str | None
         The id of the subject which the dataset belongs to
     visit_id : int | str | None
         The id of the visit which the dataset belongs to
-    archive : BaseArchive
-        The archive which the dataset is stored
+    repository : BaseRepository
+        The repository which the dataset is stored
     """
 
     is_spec = False
 
+
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 archive=None):
+                 repository=None):
         super(Dataset, self).__init__(name, format, frequency)
         self._derived = derived
         self._path = path
-        self._id = id
         self._uri = uri
         self._subject_id = subject_id
         self._visit_id = visit_id
-        self._archive = archive
+        self._repository = repository
+        if id is None and path is not None and format.name == 'dicom':
+            self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
+                           [DICOM_SERIES_NUMBER_TAG])
+        else:
+            self._id = id
 
     def __eq__(self, other):
         return (super(Dataset, self).__eq__(other) and
@@ -63,8 +72,15 @@ class Dataset(BaseDataset):
                 self._path == other._path and
                 self.id == other.id and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self._archive == other._archive)
+                self.visit_id == other.visit_id)
+
+    def __hash__(self):
+        return (super(Dataset, self).__hash__() ^
+                hash(self.derived) ^
+                hash(self._path) ^
+                hash(self.id) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id))
 
     def __lt__(self, other):
         return self.id < other.id
@@ -92,20 +108,20 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if self.archive != other.archive:
-            mismatch += ('\n{}archive: self={} v other={}'
-                         .format(sub_indent, self.archive,
-                                 other.archive))
+        if self.repository != other.repository:
+            mismatch += ('\n{}repository: self={} v other={}'
+                         .format(sub_indent, self.repository,
+                                 other.repository))
         return mismatch
 
     @property
     def path(self):
         if self._path is None:
-            if self.archive is not None:
-                self._path = self.archive.cache(self)
+            if self.repository is not None:
+                self._path = self.repository.cache(self)
             else:
                 raise ArcanaError(
-                    "Neither path nor archive has been set for Dataset "
+                    "Neither path nor repository has been set for Dataset "
                     "{}".format(self.name))
         return self._path
 
@@ -128,8 +144,8 @@ class Dataset(BaseDataset):
         return self._uri
 
     @property
-    def archive(self):
-        return self._archive
+    def repository(self):
+        return self._repository
 
     @property
     def subject_id(self):
@@ -141,7 +157,7 @@ class Dataset(BaseDataset):
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  subject_id=None, visit_id=None, archive=None):
+                  subject_id=None, visit_id=None, repository=None):
         if not os.path.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Dataset from path '{}' but it "
@@ -170,7 +186,7 @@ class Dataset(BaseDataset):
                         "format of the dataset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
                    path=path, derived=False, subject_id=subject_id,
-                   visit_id=visit_id, archive=archive)
+                   visit_id=visit_id, repository=repository)
 
     def dicom(self, index):
         """
@@ -194,11 +210,11 @@ class Dataset(BaseDataset):
                 .format(self))
         fnames = sorted([f for f in os.listdir(self.path)
                          if not f.startswith('.')])
-        with open(os.path.join(self.path, fnames[index])) as f:
+        with open(os.path.join(self.path, fnames[index]), 'rb') as f:
             dcm = pydicom.dcmread(f)
         return dcm
 
-    def dicom_values(self, tags, archive_login=None):
+    def dicom_values(self, tags, repository_login=None):
         """
         Returns a dictionary with the DICOM header fields corresponding
         to the given tag names
@@ -208,23 +224,28 @@ class Dataset(BaseDataset):
         tags : List[Tuple[str, str]]
             List of DICOM tag values as 2-tuple of strings, e.g.
             [('0080', '0020')]
-        archive_login : <archive-login-object>
-            A login object for the archive to avoid having to relogin
+        repository_login : <repository-login-object>
+            A login object for the repository to avoid having to relogin
             for every dicom_header call.
 
         Returns
         -------
         dct : Dict[Tuple[str, str], str|int|float]
         """
-        if (self._path is None and self._archive is not None and
-                hasattr(self.archive, 'dicom_header')):
-            hdr = self.archive.dicom_header(self,
-                                            prev_login=archive_login)
-            dct = {t: hdr[t] for t in tags}
-        else:
-            # Get the DICOM object for the first file in the dataset
-            dcm = self.dicom(0)
-            dct = {t: dcm[t].value for t in tags}
+        try:
+            if (self._path is None and self._repository is not None and
+                    hasattr(self.repository, 'dicom_header')):
+                hdr = self.repository.dicom_header(
+                    self, prev_login=repository_login)
+                dct = {t: hdr[t] for t in tags}
+            else:
+                # Get the DICOM object for the first file in the dataset
+                dcm = self.dicom(0)
+                dct = {t: dcm[t].value for t in tags}
+        except KeyError as e:
+            raise ArcanaNameError(
+                e.args[0], "{} does not have dicom tag {}".format(
+                    self, e.args[0]))
         return dct
 
     def initkwargs(self):
@@ -233,13 +254,13 @@ class Dataset(BaseDataset):
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
-        dct['archive'] = self.archive
+        dct['repository'] = self.repository
         return dct
 
 
 class Field(BaseField):
     """
-    A representation of a value field in the archive.
+    A representation of a value field in the repository.
 
     Parameters
     ----------
@@ -257,13 +278,13 @@ class Field(BaseField):
         The id of the subject which the field belongs to
     visit_id : int | str | None
         The id of the visit which the field belongs to
-    archive : BaseArchive
-        The archive which the field is stored
+    repository : BaseRepository
+        The repository which the field is stored
     """
 
     def __init__(self, name, value, frequency='per_session',
                  derived=False, subject_id=None, visit_id=None,
-                 archive=None):
+                 repository=None):
         if isinstance(value, int):
             dtype = int
         elif isinstance(value, float):
@@ -289,15 +310,21 @@ class Field(BaseField):
         self._derived = derived
         self._subject_id = subject_id
         self._visit_id = visit_id
-        self._archive = archive
+        self._repository = repository
 
     def __eq__(self, other):
         return (super(Field, self).__eq__(other) and
                 self.derived == other.derived and
                 self.value == other.value and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self._archive == other._archive)
+                self.visit_id == other.visit_id)
+
+    def __hash__(self):
+        return (super(Field, self).__hash__() ^
+                hash(self.derived) ^
+                hash(self.value) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Field, self).find_mismatch(other, indent)
@@ -318,10 +345,10 @@ class Field(BaseField):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if self.archive != other.archive:
-            mismatch += ('\n{}archive: self={} v other={}'
-                         .format(sub_indent, self.archive,
-                                 other.archive))
+        if self.repository != other.repository:
+            mismatch += ('\n{}repository: self={} v other={}'
+                         .format(sub_indent, self.repository,
+                                 other.repository))
         return mismatch
 
     def __int__(self):
@@ -335,10 +362,10 @@ class Field(BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', value={}, frequency='{}', derived={},"
-                " subject_id={}, visit_id={}, archive={})".format(
+                " subject_id={}, visit_id={}, repository={})".format(
                     type(self).__name__, self.name, self.value,
                     self.frequency, self.derived, self.subject_id,
-                    self.visit_id, self.archive))
+                    self.visit_id, self.repository))
 
     @property
     def derived(self):
@@ -348,8 +375,8 @@ class Field(BaseField):
         return self.name
 
     @property
-    def archive(self):
-        return self._archive
+    def repository(self):
+        return self._repository
 
     @property
     def value(self):
@@ -369,5 +396,5 @@ class Field(BaseField):
         dct['value'] = self.value
         dct['frequency'] = self.frequency
         dct['derived'] = self.derived
-        dct['archive'] = self.archive
+        dct['repository'] = self.repository
         return dct

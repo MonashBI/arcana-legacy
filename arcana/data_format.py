@@ -1,3 +1,4 @@
+from builtins import object
 from abc import ABCMeta, abstractmethod
 from copy import copy
 from arcana.node import Node
@@ -13,6 +14,7 @@ from arcana.exception import (
 from nipype.interfaces.utility import IdentityInterface
 from arcana.requirement import Requirement
 import logging
+from future.utils import with_metaclass
 
 
 logger = logging.getLogger('Arcana')
@@ -80,10 +82,17 @@ class DataFormat(object):
                 self._desc == other._desc and
                 self._directory == other._directory and
                 self._within_dir_exts ==
-                other._within_dir_exts and
-                self._converters == other._converters)
+                other._within_dir_exts)
         except AttributeError:
             return False
+
+    def __hash__(self):
+        return (
+            hash(self._name) ^
+            hash(self._extension) ^
+            hash(self._desc) ^
+            hash(self._directory) ^
+            hash(self._within_dir_exts))
 
     def __ne__(self, other):
         return not self == other
@@ -190,7 +199,7 @@ class DataFormat(object):
                 "No data format named '{}' has been registered"
                 .format(name,
                         ', '.format(repr(f)
-                                    for f in cls.by_names.values())))
+                                    for f in list(cls.by_names.values()))))
 
     @classmethod
     def by_ext(cls, ext):
@@ -201,7 +210,7 @@ class DataFormat(object):
                 "No data format with extension '{}' has been registered"
                 .format(
                     ext, ', '.format(repr(f)
-                                     for f in cls.by_exts.values())))
+                                     for f in list(cls.by_exts.values()))))
 
     @classmethod
     def by_within_dir_exts(cls, within_exts):
@@ -213,10 +222,10 @@ class DataFormat(object):
                 "has been registered ({})".format(
                     within_exts,
                     ', '.format(repr(f)
-                                for f in cls.by_within_exts.values())))
+                                for f in list(cls.by_within_exts.values()))))
 
 
-class Converter(object):
+class Converter(with_metaclass(ABCMeta, object)):
     """
     Base class for all Arcana data format converters
 
@@ -227,8 +236,6 @@ class Converter(object):
     output_format : DataFormat
         The output format to convert to
     """
-
-    __metaclass__ = ABCMeta
 
     def __init__(self, input_format, output_format):
         self._input_format = input_format
@@ -246,6 +253,10 @@ class Converter(object):
                     ', '.join(r.name for r in self.requirements)))
         except ArcanaModulesNotInstalledException:
             pass
+
+    def __eq__(self, other):
+        return (self.input_format == self.input_format and
+                self._output_format == other.output_format)
 
     @property
     def input_format(self):
@@ -331,6 +342,6 @@ targz_format = DataFormat(name='targz', extension='.tar.gz',
                           converters={'direcctory': TarGzConverter})
 
 # Register all data formats in module
-for data_format in copy(globals()).itervalues():
+for data_format in copy(globals()).values():
     if isinstance(data_format, DataFormat):
         DataFormat.register(data_format)

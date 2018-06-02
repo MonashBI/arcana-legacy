@@ -8,11 +8,10 @@ from arcana.study.base import Study, StudyMetaClass
 from arcana.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.interfaces.utils import ZipDir
+from future.utils import with_metaclass
 
 
-class ConversionStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('text', text_format),

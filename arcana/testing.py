@@ -1,3 +1,6 @@
+from __future__ import print_function
+from builtins import str
+from past.builtins import basestring
 import os.path as op
 import os
 import subprocess as sp
@@ -8,20 +11,21 @@ from functools import reduce
 import errno
 import sys
 import json
+from arcana.utils import JSON_ENCODING
 import filecmp
 from copy import deepcopy
 import logging
 import arcana
 from arcana.dataset import Dataset
 from arcana.utils import classproperty
-from arcana.archive.local import (
-    LocalArchive, SUMMARY_NAME)
+from arcana.repository.local import (
+    LocalRepository, SUMMARY_NAME)
 from arcana.runner import LinearRunner
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException)
-from arcana.archive.local import (
+from arcana.repository.local import (
     SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
@@ -53,7 +57,19 @@ class BaseTestCase(TestCase):
     @classproperty
     @classmethod
     def test_data_dir(cls):
-        return op.join(cls.BASE_TEST_DIR, 'data')
+        try:
+            return cls._test_data_dir
+        except AttributeError:
+            try:
+                cls._test_data_dir = os.environ['ARCANA_TEST_DATA']
+                try:
+                    os.makedirs(cls._test_data_dir)
+                except OSError as e:
+                    if e.errno != errno.EEXIST:
+                        raise
+            except KeyError:
+                cls._test_data_dir = op.join(cls.BASE_TEST_DIR, 'data')
+            return cls._test_data_dir
 
     @classproperty
     @classmethod
@@ -62,8 +78,8 @@ class BaseTestCase(TestCase):
 
     @classproperty
     @classmethod
-    def archive_path(cls):
-        return op.join(cls.test_data_dir, 'archive')
+    def repository_path(cls):
+        return op.join(cls.test_data_dir, 'repository')
 
     @classproperty
     @classmethod
@@ -75,10 +91,21 @@ class BaseTestCase(TestCase):
     def cache_path(cls):
         return op.join(cls.test_data_dir, 'cache')
 
+    @classproperty
+    @classmethod
+    def ref_path(cls):
+        return op.join(cls.BASE_TEST_DIR, 'data', 'reference')
+
     def setUp(self):
         self.reset_dirs()
         if self.INPUTS_FROM_REF_DIR:
             datasets = {}
+            # Unzip reference directory if required
+            if not os.path.exists(self.ref_dir) and os.path.exists(
+                    self.ref_dir + '.tar.gz'):
+                sp.check_call(
+                    'tar xzf {}.tar.gz'.format(self.ref_dir),
+                    shell=True, cwd=os.path.dirname(self.ref_dir))
             for fname in os.listdir(self.ref_dir):
                 if fname.startswith('.'):
                     continue
@@ -102,7 +129,7 @@ class BaseTestCase(TestCase):
             visit = self.VISIT
         session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
-        for name, dataset in datasets.items():
+        for name, dataset in list(datasets.items()):
             if isinstance(dataset, Dataset):
                 dst_path = op.join(session_dir,
                                    name + dataset.format.ext_str)
@@ -121,12 +148,12 @@ class BaseTestCase(TestCase):
                     "be either a Dataset or basestring object"
                     .format(dataset, self))
         if fields is not None:
-            with open(op.join(session_dir,
-                                   FIELDS_FNAME), 'w') as f:
+            with open(op.join(session_dir, FIELDS_FNAME), 'w',
+                      **JSON_ENCODING) as f:
                 json.dump(fields, f)
 
     def delete_project(self, project_dir):
-        # Clean out any existing archive files
+        # Clean out any existing repository files
         shutil.rmtree(project_dir, ignore_errors=True)
 
     def reset_dirs(self):
@@ -140,8 +167,8 @@ class BaseTestCase(TestCase):
                 os.makedirs(d)
 
     @property
-    def archive_tree(self):
-        return self.archive.get_tree()
+    def repository_tree(self):
+        return self.repository.get_tree()
 
     @property
     def xnat_session_name(self):
@@ -153,20 +180,28 @@ class BaseTestCase(TestCase):
 
     @property
     def session(self):
-        return self.archive_tree.subject(
+        return self.repository_tree.subject(
             self.SUBJECT).session(self.VISIT)
 
     @property
-    def archive(self):
-        return self.local_archive
+    def datasets(self):
+        return self.session.datasets
 
     @property
-    def local_archive(self):
+    def fields(self):
+        return self.session.fields
+
+    @property
+    def repository(self):
+        return self.local_repository
+
+    @property
+    def local_repository(self):
         try:
-            return self._local_archive
+            return self._local_repository
         except AttributeError:
-            self._local_archive = LocalArchive(self.project_dir)
-            return self._local_archive
+            self._local_repository = LocalRepository(self.project_dir)
+            return self._local_repository
 
     @property
     def runner(self):
@@ -174,7 +209,7 @@ class BaseTestCase(TestCase):
 
     @property
     def project_dir(self):
-        return op.join(self.archive_path, self.name)
+        return op.join(self.repository_path, self.name)
 
     @property
     def work_dir(self):
@@ -186,34 +221,39 @@ class BaseTestCase(TestCase):
 
     @property
     def ref_dir(self):
-        return op.join(self.test_data_dir, 'reference', self.name)
+        return op.join(self.ref_path, self.name)
 
     @property
-    def name(self):
+    def name(self):  # @NoSelf
         return self._get_name(type(self))
 
     @property
     def project_id(self):
         return self.name  # To allow override in deriving classes
 
-    def _get_name(self, cls):
+    @classmethod
+    def _get_name(cls, name_cls=None, sep='_'):
         """
         Get unique name for test class from module path and its class name to
         be used for storing test data on XNAT and creating unique work/project
         dirs
         """
-        module_path = op.abspath(sys.modules[cls.__module__].__file__)
-        rel_module_path = module_path[(len(self.unittest_root) + 1):]
+        if name_cls is None:
+            name_cls = cls
+        module_path = op.abspath(sys.modules[name_cls.__module__].__file__)
+        rel_module_path = module_path[(len(name_cls.unittest_root) + 1):]
         path_parts = rel_module_path.split(op.sep)
         module_name = (''.join(path_parts[:-1]) +
                        op.splitext(path_parts[-1])[0][5:]).upper()
-        test_class_name = cls.__name__[4:].upper()
-        return module_name + '_' + test_class_name
+        test_class_name = name_cls.__name__.upper()
+        if test_class_name.startswith('TEST'):
+            test_class_name = test_class_name[4:]
+        return module_name + sep + test_class_name
 
-    def create_study(self, study_cls, name, inputs, archive=None,
+    def create_study(self, study_cls, name, inputs, repository=None,
                      runner=None, **kwargs):
         """
-        Creates a study using default archive and runners.
+        Creates a study using default repository and runners.
 
         Parameters
         ----------
@@ -223,20 +263,20 @@ class BaseTestCase(TestCase):
             Name of the study
         inputs : List[BaseSpec]
             List of inputs to the study
-        archive : BaseArchive | None
-            The archive to use (a default local archive is used if one
+        repository : BaseRepository | None
+            The repository to use (a default local repository is used if one
             isn't provided
         runner : Runner | None
             The runner to use (a default LinearRunner is used if one
             isn't provided
         """
-        if archive is None:
-            archive = self.archive
+        if repository is None:
+            repository = self.repository
         if runner is None:
             runner = self.runner
         return study_cls(
             name=name,
-            archive=archive,
+            repository=repository,
             runner=runner,
             inputs=inputs,
             **kwargs)
@@ -274,7 +314,7 @@ class BaseTestCase(TestCase):
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir, FIELDS_FNAME)) as f:
-                fields = json.load(f)
+                fields = json.load(f, 'rb')
         except OSError as e:
             if e.errno == errno.ENOENT:
                 raise ArcanaError(
@@ -400,7 +440,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     def add_sessions(self, project_dir):
         self.local_tree = deepcopy(self.input_tree)
-        if project_dir is not None:  # For local archive
+        if project_dir is not None:  # For local repository
             proj_summ_path = op.join(project_dir, SUMMARY_NAME,
                                      SUMMARY_NAME)
             for dataset in self.local_tree.datasets:
@@ -449,7 +489,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     def init_dataset(self, dataset, path):
         dataset._path = path
-        dataset._archive = self.archive
+        dataset._repository = self.repository
         self._make_dir(op.dirname(dataset.path))
         with open(dataset.path, 'w') as f:
             f.write(str(self.DATASET_CONTENTS[dataset.name]))
@@ -457,7 +497,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def init_fields(self, dpath, fields):
         self._make_dir(dpath)
         dct = {f.name: f.value for f in fields}
-        with open(op.join(dpath, FIELDS_FNAME), 'w') as f:
+        with open(op.join(dpath, FIELDS_FNAME), 'w',
+                  **JSON_ENCODING) as f:
             json.dump(dct, f)
 
     def _make_dir(self, path):
@@ -486,36 +527,36 @@ class DummyTestCase(BaseTestCase):
     def assert_(self, statement, message=None):
         if not statement:
             message = "'{}' is not true".format(statement)
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertEqual(self, first, second, message=None):
         if first != second:
             if message is None:
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertAlmostEqual(self, first, second, message=None):
         if first != second:
             if message is None:
                 message = '{} and {} are not equal'.format(repr(first),
                                                            repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
     def assertLess(self, first, second, message=None):
         if first >= second:
             if message is None:
                 message = '{} is not less than {}'.format(repr(first),
                                                           repr(second))
-            print message
+            print(message)
         else:
-            print "Test successful"
+            print("Test successful")
 
 
 class TestTestCase(BaseTestCase):

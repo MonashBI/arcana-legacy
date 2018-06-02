@@ -18,7 +18,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedLocalArchiveError(ArcanaError):
+class ArcanaBadlyFormattedLocalRepositoryError(ArcanaError):
     pass
 
 
@@ -78,7 +78,7 @@ class ArcanaJobSubmittedException(ArcanaException):
 class ArcanaNoRunRequiredException(ArcanaException):
     """
     Used to signify when a pipeline doesn't need to be run as all
-    required outputs are already present in the archive
+    required outputs are already present in the repository
     """
 
 

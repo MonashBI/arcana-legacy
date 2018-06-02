@@ -10,16 +10,17 @@ from unittest import TestCase
 from arcana.data_format import text_format
 from arcana.node import Node
 from arcana.requirement import Requirement
+from future.utils import with_metaclass
 
 
-dummy1_req = Requirement(name='dummy1', min_version=(1, 0))
-dummy2_req = Requirement(name='dummy2', min_version=(1, 0))
-mrtrix_req = Requirement('mrtrix', min_version=(3, 0, 0))
-dcm2niix_req = Requirement('dcm2niix', min_version=(1, 0, 2))
+notinstalled1_req = Requirement(name='notinstalled1', min_version=(1, 0))
+notinstalled2_req = Requirement(name='notinstalled2', min_version=(1, 0))
+first_req = Requirement('firstmodule', min_version=(0, 15, 9))
+second_req = Requirement('secondmodule', min_version=(1, 0, 2))
 
 try:
     avail_modules = Node.available_modules()
-    for req in (mrtrix_req, dcm2niix_req):
+    for req in (first_req, second_req):
         Requirement.best_requirement([req], avail_modules)
 except (ArcanaModulesNotInstalledException,
         ArcanaRequirementVersionException):
@@ -32,18 +33,16 @@ class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
         loaded_modules = Node.preloaded_modules()
-        if mrtrix_req.name not in loaded_modules:
+        if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "Mrtrix module was not loaded in Node")
-        if dcm2niix_req.name not in loaded_modules:
+        if second_req.name not in loaded_modules:
             raise ArcanaError(
                 "Dcm2niix module was not loaded in Node")
         return runtime
 
 
-class RequirementsStudy(Study):
-
-    __metaclass__ = StudyMetaClass
+class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         DatasetSpec('ones', text_format),
@@ -62,7 +61,8 @@ class RequirementsStudy(Study):
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
             TestMathWithReq(), "maths", requirements=[
-                (dummy1_req, dummy2_req, mrtrix_req), dcm2niix_req])
+                (notinstalled1_req, notinstalled2_req,
+                 first_req), second_req])
         maths.inputs.op = 'add'
         maths.inputs.as_file = True
         maths.inputs.y = 1
@@ -86,7 +86,8 @@ class RequirementsStudy(Study):
         merge = pipeline.create_node(Merge(2), "merge")
         maths = pipeline.create_map_node(
             TestMathWithReq(), "maths", iterfield='x', requirements=[
-                (dummy1_req, dummy2_req, mrtrix_req), dcm2niix_req])
+                (notinstalled1_req, notinstalled2_req,
+                 first_req), second_req])
         split = pipeline.create_node(Split(), 'split')
         split.inputs.splits = [1, 1]
         split.inputs.squeeze = True

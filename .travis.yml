@@ -1,10 +1,24 @@
 language: python
-python:
-  - 2.7
+sudo: required
+services:
+  - docker
+matrix:
+  include:
+    - python: 2.7
+      env: ARCANA_TEST_DATA=$HOME/data/py2.7
+    - python: 3.4
+      env: ARCANA_TEST_DATA=$HOME/data/py3.4
+    - python: 3.6
+      env: ARCANA_TEST_DATA=$HOME/data/py3.6
 env:
-  - ARCANA_TEST_XNAT='https://mbi-xnat.erc.monash.edu.au'
+  global:
+    - ARCANA_TEST_XNAT='http://localhost'
+    - XNAT_VER=1.7.4
+    - MODULESHOME=$HOME/packages/modules
+    - MODULEPATH=$HOME/modules
 addons:
   apt:
+    update: true
     packages:
     - git
     - g++
@@ -19,20 +33,21 @@ addons:
     - python-pip
     - wget
     - cmake
+before_install:
+  - sudo rm /usr/local/bin/docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m`  > docker-compose
+  - chmod +x docker-compose
+  - sudo mv docker-compose /usr/local/bin
 install:
   - export NUMBER_OF_PROCESSORS=8
-  - install/modules.sh
-  - export MODULESHOME=$HOME/packages/modules
-  - export MODULEPATH=$HOME/modules
-  - install/dcm2niix.sh
-  - install/netrc.sh
-  - cat $HOME/.netrc
-  - install/mrtrix.sh
+  - ci/xnat.sh
+  - ci/modules.sh
+  - ci/netrc.sh
   - pip install .
   - mkdir -p $HOME/data
-  - ln -s $HOME/xnat-cache ./test/data/cache
   - pip install nose
   - pip install codecov
+  - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
 cache:
@@ -40,6 +55,5 @@ cache:
     - $HOME/packages
     - $HOME/modules
     - $HOME/downloads
-    - $HOME/xnat-cache
 after_success:
   codecov

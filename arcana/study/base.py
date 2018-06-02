@@ -1,11 +1,12 @@
+from past.builtins import basestring
+from builtins import object
 from itertools import chain
 import sys
 import types
 from logging import getLogger
 from collections import defaultdict
 from arcana.exception import (
-    ArcanaMissingDataException, ArcanaNameError,
-    ArcanaError, ArcanaUsageError,
+    ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError,
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
@@ -27,8 +28,8 @@ class Study(object):
     ----------
     name : str
         The name of the study.
-    archive : Archive
-        An Archive object that provides access to a DaRIS, XNAT or local file
+    repository : Repository
+        An Repository object that provides access to a DaRIS, XNAT or local file
         system
     runner : Runner
         A Runner to process the pipelines required to generate the
@@ -54,7 +55,7 @@ class Study(object):
     reprocess : bool
         Whether to reprocess dataset|fields that have been created with
         different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the archive already contains
+        and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
 
 
@@ -75,7 +76,7 @@ class Study(object):
 
     implicit_cls_attrs = ['_data_specs', '_option_specs']
 
-    def __init__(self, name, archive, runner, inputs, options=None,
+    def __init__(self, name, repository, runner, inputs, options=None,
                  subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False):
         try:
@@ -87,7 +88,7 @@ class Study(object):
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
         self._name = name
-        self._archive = archive
+        self._repository = repository
         self._runner = runner.bind(self)
         self._inputs = {}
         self._subject_ids = subject_ids
@@ -102,7 +103,7 @@ class Study(object):
             inputs = {i.name: i for i in inputs}
         # Add each "input dataset" checking to see whether the given
         # dataset_spec name is valid for the study types
-        for inpt_name, inpt in inputs.items():
+        for inpt_name, inpt in list(inputs.items()):
             try:
                 spec = self.data_spec(inpt_name)
             except ArcanaNameError:
@@ -157,7 +158,7 @@ class Study(object):
             options = {o.name: o for o in options}
         self._options = {}
         # Set options
-        for opt_name, opt in options.items():
+        for opt_name, opt in list(options.items()):
             if not isinstance(opt, Option):
                 opt = Option(opt_name, opt)
             try:
@@ -206,7 +207,7 @@ class Study(object):
                 raise AttributeError
         except AttributeError:
             cls_dct = {}
-            for name, attr in cls.__dict__.items():
+            for name, attr in list(cls.__dict__.items()):
                 if isinstance(attr, types.FunctionType):
                     try:
                         if not attr.auto_added:
@@ -229,7 +230,7 @@ class Study(object):
     @property
     def tree(self):
         if self._tree_cache is None:
-            self._tree_cache = self.archive.get_tree(
+            self._tree_cache = self.repository.get_tree(
                 subject_ids=self._subject_ids,
                 visit_ids=self._visit_ids)
         return self._tree_cache
@@ -243,11 +244,11 @@ class Study(object):
 
     @property
     def inputs(self):
-        return self._inputs.values()
+        return list(self._inputs.values())
 
     @property
     def input_names(self):
-        return self._inputs.keys()
+        return list(self._inputs.keys())
 
     def input(self, name):
         try:
@@ -285,9 +286,9 @@ class Study(object):
         return self._reprocess
 
     @property
-    def archive(self):
-        "Accessor for the archive member (e.g. Daris, XNAT, MyTardis)"
-        return self._archive
+    def repository(self):
+        "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
+        return self._repository
 
     def create_pipeline(self, *args, **kwargs):
         """
@@ -306,7 +307,7 @@ class Study(object):
                 "Orphanned pre-options for '{}' pipeline(s) remain in "
                 "'{}' {} after creating '{}' pipeline. Please check "
                 "pipeline generation code".format(
-                    "', '".join(self._pre_options.keys()),
+                    "', '".join(list(self._pre_options.keys())),
                     self.name, type(self).__name__, pipeline.name))
         return pipeline
 
@@ -498,7 +499,7 @@ class Study(object):
                 name,
                 "No dataset spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
-                               "', '".join(cls._data_specs.keys())))
+                               "', '".join(list(cls._data_specs.keys()))))
 
     @classmethod
     def option_spec(cls, name):
@@ -509,26 +510,26 @@ class Study(object):
                 name,
                 "No option spec named '{}' in {} (available: "
                 "'{}')".format(name, cls.__name__,
-                               "', '".join(cls._option_specs.keys())))
+                               "', '".join(list(cls._option_specs.keys()))))
 
     @classmethod
     def data_specs(cls):
         """Lists all data_specs defined in the study class"""
-        return cls._data_specs.itervalues()
+        return iter(cls._data_specs.values())
 
     @classmethod
     def option_specs(cls):
-        return cls._option_specs.itervalues()
+        return iter(cls._option_specs.values())
 
     @classmethod
     def data_spec_names(cls):
         """Lists the names of all data_specs defined in the study"""
-        return cls._data_specs.iterkeys()
+        return iter(cls._data_specs.keys())
 
     @classmethod
     def option_spec_names(cls):
         """Lists the names of all option_specs defined in the study"""
-        return cls._option_specs.iterkeys()
+        return iter(cls._option_specs.keys())
 
     @classmethod
     def spec_names(cls):
@@ -563,10 +564,10 @@ class Study(object):
 
     def cache_inputs(self):
         """
-        Runs the Study's archive source node for each of the inputs
+        Runs the Study's repository source node for each of the inputs
         of the study, thereby caching any data required from remote
-        archives. Useful when launching many parallel jobs that will
-        all try to concurrently access the remote archive, and probably
+        repositorys. Useful when launching many parallel jobs that will
+        all try to concurrently access the remote repository, and probably
         lead to timeout errors.
         """
         workflow = pe.Workflow(name='cache_download',
@@ -575,7 +576,7 @@ class Study(object):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.archive.source(self.inputs, study_name='cache')
+        source = self.repository.source(self.inputs, study_name='cache')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
@@ -620,7 +621,7 @@ class StudyMetaClass(type):
                     (o.name, o) for o in base.option_specs())
             except AttributeError:
                 pass
-        combined_attrs.update(dct.keys())
+        combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_option_specs.update(
             (o.name, o) for o in add_option_specs)

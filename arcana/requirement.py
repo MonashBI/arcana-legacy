@@ -1,5 +1,7 @@
+from builtins import str
+from builtins import object
 import re
-from itertools import izip_longest
+from itertools import zip_longest
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
 import logging
@@ -133,7 +135,7 @@ class Requirement(object):
 
     @classmethod
     def later_or_equal_version(cls, version, reference):
-        for v_part, r_part in izip_longest(version, reference, fillvalue=0):
+        for v_part, r_part in zip_longest(version, reference, fillvalue=0):
             if type(v_part) != type(r_part):
                 raise ArcanaError(
                     "Type of version part {} (of '{}'), {}, does not match "

@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import re
 from itertools import chain
 from copy import copy
@@ -24,8 +26,12 @@ class BaseMatch(object):
     def __eq__(self, other):
         return (self.derived == other.derived and
                 self.pattern == other.pattern and
-                self.order == other.order and
-                self._study == other._study)
+                self.order == other.order)
+
+    def __hash__(self):
+        return (hash(self.derived) ^
+                hash(self.pattern) ^
+                hash(self.order))
 
     @property
     def pattern(self):
@@ -42,12 +48,12 @@ class BaseMatch(object):
     @property
     def matches(self):
         if self.frequency == 'per_session':
-            matches = chain(*(d.itervalues()
-                              for d in self._matches.itervalues()))
+            matches = chain(*(iter(d.values())
+                              for d in self._matches.values()))
         elif self.frequency == 'per_subject':
-            matches = self._matches.itervalues()
+            matches = iter(self._matches.values())
         elif self.frequency == 'per_visit':
-            matches = self._matches.itervalues()
+            matches = iter(self._matches.values())
         elif self.frequency == 'per_project':
             self._matches = iter([self._matches])
         else:
@@ -196,7 +202,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         specifying whether the dataset is present for each session, subject,
         visit or project.
     derived : bool
-        Whether the scan was generated or acquired. Depending on the archive
+        Whether the scan was generated or acquired. Depending on the repository
         used to store the dataset this is used to determine the location of the
         dataset.
     id : int | None
@@ -245,6 +251,12 @@ class DatasetMatch(BaseDataset, BaseMatch):
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
+    def __hash__(self):
+        return (BaseDataset.__hash__(self) ^
+                BaseMatch.__hash__(self) ^
+                hash(self.dicom_tags) ^
+                hash(self.id))
+
     def initkwargs(self):
         dct = BaseDataset.initkwargs(self)
         dct.update(BaseMatch.initkwargs(self))
@@ -270,11 +282,11 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return self._dicom_tags
 
     def _match_tree(self, tree, **kwargs):
-        with self.study.archive.login() as archive_login:
+        with self.study.repository.login() as repository_login:
             super(DatasetMatch, self)._match_tree(
-                tree, archive_login=archive_login, **kwargs)
+                tree, repository_login=repository_login, **kwargs)
 
-    def _filtered_matches(self, node, archive_login=None):
+    def _filtered_matches(self, node, repository_login=None):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -287,14 +299,14 @@ class DatasetMatch(BaseDataset, BaseMatch):
             matches = list(node.datasets)
         if not matches:
             raise ArcanaDatasetMatchError(
-                "No dataset names in {} match '{}' pattern:{}"
+                "No dataset names in {} match '{}' pattern, found: {}"
                 .format(node, self.pattern,
                         '\n'.join(d.name for d in node.datasets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
                 raise ArcanaDatasetMatchError(
-                    "Did not find datasets names matching pattern {}"
+                    "Did not find datasets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
@@ -304,7 +316,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
             filtered = []
             for dataset in matches:
                 values = dataset.dicom_values(
-                    self.dicom_tags.keys(), archive_login=archive_login)
+                    list(self.dicom_tags.keys()), repository_login=repository_login)
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:
@@ -358,6 +370,9 @@ class FieldMatch(BaseField, BaseMatch):
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
                 BaseMatch.__eq__(self, other))
+
+    def __hash__(self):
+        return (BaseField.__hash__(self) ^ BaseMatch.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

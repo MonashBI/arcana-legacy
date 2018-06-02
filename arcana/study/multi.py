@@ -1,3 +1,5 @@
+from past.builtins import basestring
+from builtins import object
 from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import (
@@ -16,8 +18,8 @@ class MultiStudy(Study):
     ----------
     name : str
         The name of the combined study.
-    archive : Archive
-        An Archive object that provides access to a DaRIS, XNAT or local file
+    repository : Repository
+        An Repository object that provides access to a DaRIS, XNAT or local file
         system
     runner : Runner
         The runner the processes the derived data when demanded
@@ -40,7 +42,7 @@ class MultiStudy(Study):
     reprocess : bool
         Whether to reprocess dataset|fields that have been created with
         different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the archive already contains
+        and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
 
     Class Attrs
@@ -73,7 +75,7 @@ class MultiStudy(Study):
 
     implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
 
-    def __init__(self, name, archive, runner, inputs, options=None,
+    def __init__(self, name, repository, runner, inputs, options=None,
                  **kwargs):
         try:
             if not issubclass(type(self).__dict__['__metaclass__'],
@@ -84,7 +86,7 @@ class MultiStudy(Study):
                 "Need to set MultiStudyMetaClass (or sub-class) as "
                 "the metaclass of all classes derived from "
                 "MultiStudy")
-        super(MultiStudy, self).__init__(name, archive, runner, inputs,
+        super(MultiStudy, self).__init__(name, repository, runner, inputs,
                                          options=options, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
@@ -111,7 +113,7 @@ class MultiStudy(Study):
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
-                archive, runner, mapped_inputs,
+                repository, runner, mapped_inputs,
                 options=mapped_options,
                 enforce_inputs=False)
             # Append to dictionary of sub_studies
@@ -124,11 +126,11 @@ class MultiStudy(Study):
 
     @property
     def sub_studies(self):
-        return self._sub_studies.itervalues()
+        return iter(self._sub_studies.values())
 
     @property
     def sub_study_names(self):
-        return self._sub_studies.iterkeys()
+        return iter(self._sub_studies.keys())
 
     def sub_study(self, name):
         try:
@@ -151,11 +153,11 @@ class MultiStudy(Study):
 
     @classmethod
     def sub_study_specs(cls):
-        return cls._sub_study_specs.itervalues()
+        return iter(cls._sub_study_specs.values())
 
     @classmethod
     def sub_study_spec_names(cls):
-        return cls._sub_study_specs.iterkeys()
+        return iter(cls._sub_study_specs.keys())
 
     def __repr__(self):
         return "{}(name='{}')".format(
@@ -231,7 +233,7 @@ class SubStudySpec(object):
         # Fill dataset map with default values before overriding with
         # argument provided to constructor
         self._name_map = name_map if name_map is not None else {}
-        self._inv_map = dict((v, k) for k, v in self._name_map.items())
+        self._inv_map = dict((v, k) for k, v in list(self._name_map.items()))
 
     @property
     def name(self):
@@ -469,7 +471,7 @@ class MultiStudyMetaClass(StudyMetaClass):
         cls = StudyMetaClass(name, bases, dct)
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
-        for sub_study_spec in sub_study_specs.values():
+        for sub_study_spec in list(sub_study_specs.values()):
             for data_spec in sub_study_spec.auto_data_specs:
                 trans_sname = sub_study_spec.apply_prefix(
                     data_spec.name)
@@ -499,10 +501,10 @@ class MultiStudyMetaClass(StudyMetaClass):
                     cls._option_specs[renamed_spec.name] = renamed_spec
         # Check all names in name-map correspond to data or option
         # specs
-        for sub_study_spec in sub_study_specs.values():
+        for sub_study_spec in list(sub_study_specs.values()):
             local_spec_names = list(
                 sub_study_spec.study_class.spec_names())
-            for global_name, local_name in sub_study_spec._name_map.items():
+            for global_name, local_name in list(sub_study_spec._name_map.items()):
                 if local_name not in local_spec_names:
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"

@@ -1,3 +1,4 @@
+from builtins import object
 import nipype.pipeline.engine.tests.test_join
 import os
 import tempfile

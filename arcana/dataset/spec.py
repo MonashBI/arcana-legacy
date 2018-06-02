@@ -1,3 +1,5 @@
+from past.builtins import basestring
+from builtins import object
 from copy import copy
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
@@ -27,14 +29,11 @@ class BaseSpec(object):
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
                 self.desc == other.desc and
-                self._study == other._study and
                 self.optional == other.optional)
 
-#     def __hash__(self):
-#         return (hash(self.pipeline_name) ^
-#                 hash(self.desc) ^
-#                 hash(self._study) ^
-#                 hash(self.optional))
+    def __hash__(self):
+        return (hash(self.pipeline_name) ^ hash(self.desc) ^
+                hash(self.optional))
 
     def bind(self, study):
         """
@@ -196,6 +195,10 @@ class DatasetSpec(BaseDataset, BaseSpec):
         return (BaseDataset.__eq__(self, other) and
                 BaseSpec.__eq__(self, other))
 
+    def __hash__(self):
+        return (BaseDataset.__hash__(self) and
+                BaseSpec.__hash__(self))
+
     def __repr__(self):
         return ("DatasetSpec(name='{}', format={}, pipeline_name={}, "
                 "frequency={})".format(
@@ -245,6 +248,9 @@ class FieldSpec(BaseField, BaseSpec):
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
                 BaseSpec.__eq__(self, other))
+
+    def hash(self):
+        return (BaseField.__hash__(self) ^ BaseSpec.__hash__(self))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)

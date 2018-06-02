@@ -1,3 +1,4 @@
+from builtins import object
 class Citation(object):
 
     def __init__(self, short_name, authors, title, year, journal=None,

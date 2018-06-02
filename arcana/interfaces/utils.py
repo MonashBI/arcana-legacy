@@ -1,4 +1,7 @@
 from __future__ import absolute_import
+from builtins import next
+from builtins import str
+from builtins import range
 import os.path
 import re
 import shutil
@@ -141,7 +144,7 @@ class Chain(IdentityInterface):
     def _list_outputs(self):
         outputs = super(Chain, self)._list_outputs()
         chained_outputs = {}
-        for k, v in outputs.iteritems():
+        for k, v in outputs.items():
             chained_outputs[k] = list(chain(*v))
         return chained_outputs
 
@@ -308,7 +311,7 @@ class ZipDirOutputSpec(TraitedSpec):
 
 
 class ZipDir(CommandLine):
-    """Creates a zip archive from a given folder"""
+    """Creates a zip repository from a given folder"""
 
     _cmd = zip_path
     input_spec = ZipDirInputSpec
@@ -358,7 +361,7 @@ class UnzipDir(CommandLine):
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
             raise ArcanaUsageError(
-                "Zip archives can only contain a single directory, found '{}'"
+                "Zip repositorys can only contain a single directory, found '{}'"
                 .format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))
@@ -474,7 +477,7 @@ class TarGzDirOutputSpec(TraitedSpec):
 
 
 class TarGzDir(CommandLine):
-    """Creates a tar_gzip archive from a given folder"""
+    """Creates a tar_gzip repository from a given folder"""
 
     _cmd = targz_path
     input_spec = TarGzDirInputSpec
@@ -521,7 +524,7 @@ class UnTarGzDir(CommandLine):
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
             raise ArcanaUsageError(
-                "Zip archives can only contain a single directory, found '{}'"
+                "Zip repositorys can only contain a single directory, found '{}'"
                 .format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))

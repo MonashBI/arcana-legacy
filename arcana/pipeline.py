@@ -1,3 +1,5 @@
+from builtins import str
+from builtins import object
 import os
 import tempfile
 import shutil
@@ -125,21 +127,19 @@ class Pipeline(object):
             return False
         return (
             self._name == other._name and
-            self._study == other._study and
             self._desc == other._desc and
             self._version == other.version and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
             self._citations == other._citations)
-# 
-#     def __hash__(self):
-#         return (hash(self._name) ^
-#                 hash(self._study) ^
-#                 hash(self._desc) ^
-#                 hash(self._version) ^
-#                 hash(self._inputs) ^
-#                 hash(self._outputs) ^
-#                 hash(self._citations))
+
+    def __hash__(self):
+        return (hash(self._name) ^
+                hash(self._desc) ^
+                hash(self._version) ^
+                hash(tuple(self._inputs)) ^
+                hash(tuple(self._outputs)) ^
+                hash(tuple(self._citations)))
 
     def __ne__(self, other):
         return not (self == other)
@@ -454,7 +454,7 @@ class Pipeline(object):
 
     @property
     def outputs(self):
-        return chain(*self._outputs.values())
+        return chain(*list(self._outputs.values()))
 
     @property
     def input_names(self):
@@ -487,11 +487,11 @@ class Pipeline(object):
     @property
     def all_options(self):
         """Return all options, including options of prerequisites"""
-        return chain(self.options, self._prereq_options.iteritems())
+        return chain(self.options, iter(self._prereq_options.items()))
 
     @property
     def non_default_options(self):
-        return ((k, v) for k, v in self.options.iteritems()
+        return ((k, v) for k, v in self.options.items()
                 if v != self.default_options[k])
 
     @property
@@ -518,7 +518,7 @@ class Pipeline(object):
     @property
     def frequencies(self):
         "The frequencies present in the pipeline outputs"
-        return self._outputs.iterkeys()
+        return iter(self._outputs.keys())
 
     def frequency_outputs(self, freq):
         return iter(self._outputs[freq])
@@ -527,7 +527,7 @@ class Pipeline(object):
         return (o.name for o in self.frequency_outputs(freq))
 
     def frequency(self, output):
-        freqs = [m for m, outputs in self._outputs.itervalues()
+        freqs = [m for m, outputs in self._outputs.values()
                  if output in outputs]
         if not freqs:
             raise KeyError(
@@ -548,11 +548,11 @@ class Pipeline(object):
     @property
     def suffix(self):
         """
-        A suffixed appended to output filenames when they are archived to
+        A suffixed appended to output filenames when they are repositoryd to
         identify the options used to generate them
         """
         return '__'.join('{}_{}'.format(k, v)
-                         for k, v in self.options.iteritems())
+                         for k, v in self.options.items())
 
     def save_graph(self, fname, style='flat'):
         """
