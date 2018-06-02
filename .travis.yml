@@ -52,6 +52,7 @@ script:
   nosetests test/unittests --with-coverage --cover-package=arcana
 cache:
   directories:
+    - $HOME/packages
     - $HOME/modules
     - $HOME/downloads
 after_success:

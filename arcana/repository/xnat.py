@@ -1,41 +1,42 @@
 from __future__ import absolute_import
 from builtins import zip
-from builtins import str
-from builtins import object
-from abc import ABCMeta
-import os.path
-import tempfile
-from itertools import repeat
-import shutil
-import hashlib
-from future.utils import with_metaclass
-from arcana.utils import JSON_ENCODING
-import stat
-import time
-import logging
-import errno
-import json
-from zipfile import ZipFile, BadZipfile
-from collections import defaultdict
-from nipype.interfaces.base import Directory, traits, isdefined
-from arcana.dataset import Dataset, Field
-from arcana.repository.base import (
+oldstr = str
+from builtins import str  # @IgnorePep8
+from builtins import object  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from abc import ABCMeta  # @IgnorePep8
+import os.path  # @IgnorePep8
+import tempfile  # @IgnorePep8
+from itertools import repeat  # @IgnorePep8
+import shutil  # @IgnorePep8
+import hashlib  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
+from arcana.utils import JSON_ENCODING  # @IgnorePep8
+import stat  # @IgnorePep8
+import time  # @IgnorePep8
+import logging  # @IgnorePep8
+import errno  # @IgnorePep8
+import json  # @IgnorePep8
+from zipfile import ZipFile, BadZipfile  # @IgnorePep8
+from collections import defaultdict  # @IgnorePep8
+from nipype.interfaces.base import Directory, traits, isdefined  # @IgnorePep8
+from arcana.dataset import Dataset, Field  # @IgnorePep8
+from arcana.repository.base import (  # @IgnorePep8
     Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
     RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
     RepositoryVisitSinkInputSpec,
     RepositoryProjectSinkInputSpec,
     RepositorySubjectSink, RepositoryVisitSink, RepositoryProjectSink,
     MULTIPLICITIES)
-from arcana.repository.tree import Session, Subject, Project, Visit
-from arcana.data_format import DataFormat
-from arcana.utils import split_extension
-from arcana.exception import (
+from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePep8
+from arcana.data_format import DataFormat  # @IgnorePep8
+from arcana.utils import split_extension  # @IgnorePep8
+from arcana.exception import (  # @IgnorePep8
     ArcanaError, ArcanaMissingDataException)
-from arcana.utils import dir_modtime, NoContextWrapper
-import re
-import xnat  # NB: XnatPy not PyXNAT
-from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
-from .local import FIELDS_FNAME
+from arcana.utils import dir_modtime, NoContextWrapper  # @IgnorePep8
+import re  # @IgnorePep8
+import xnat  # @IgnorePep8
+from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX  # @IgnorePep8
 
 logger = logging.getLogger('Arcana')
 
@@ -181,7 +182,7 @@ class XnatSource(RepositorySource, XnatMixin):
                         md5_path = (cache_path +
                                     XnatRepository.MD5_SUFFIX)
                         try:
-                            with open(md5_path, 'rb') as f:
+                            with open(md5_path, 'r') as f:
                                 cached_digests = json.load(f)
                             digests = self.get_digests(xresource)
                             if cached_digests == digests:
@@ -458,8 +459,10 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
                 assert field.frequency == self.frequency
                 assert field.derived, ("{} isn't derived".format(
                     field))
-                session.fields[field.prefixed_name] = getattr(
-                    self.inputs, field.name + FIELD_SUFFIX)
+                val = getattr(self.inputs, field.name + FIELD_SUFFIX)
+                if PY2 and isinstance(val, basestring):  # @UndefinedVariable
+                    val = oldstr(val)
+                session.fields[field.prefixed_name] = val
         if missing_files:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw
