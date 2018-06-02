@@ -106,7 +106,7 @@ class LocalSource(RepositorySource, LocalNodeMixin):
             try:
                 with InterProcessLock(
                     fpath + LOCK,
-                        logger=logger), open(fpath, 'rb') as f:
+                        logger=logger), open(fpath, 'r') as f:
                     fields = json.load(f)
             except IOError as e:
                 if e.errno == errno.ENOENT:
