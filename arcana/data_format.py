@@ -144,8 +144,9 @@ class DataFormat(object):
         return self._within_dir_exts
 
     @property
-    def xnat_resource_name(self):
-        return self.name.upper()
+    def xnat_resource_names(self):
+        "Lists acceptable XNAT resource names in order of preference"
+        return (self.name.upper(),) + self.alternate_names
 
     def converter_from(self, data_format):
         if data_format == self:
