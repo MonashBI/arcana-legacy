@@ -52,7 +52,7 @@ class DataFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None):
+                 converters=None, alternate_names=None):
         if not name.islower():
             raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
@@ -73,6 +73,8 @@ class DataFormat(object):
             within_dir_exts = frozenset(within_dir_exts)
         self._within_dir_exts = within_dir_exts
         self._converters = converters if converters is not None else {}
+        self._alternate_names = (tuple(alternate_names)
+                                 if alternate_names is not None else ())
 
     def __eq__(self, other):
         try:
@@ -82,7 +84,8 @@ class DataFormat(object):
                 self._desc == other._desc and
                 self._directory == other._directory and
                 self._within_dir_exts ==
-                other._within_dir_exts)
+                other._within_dir_exts and
+                self.alternate_names == other.alternate_names)
         except AttributeError:
             return False
 
@@ -92,7 +95,8 @@ class DataFormat(object):
             hash(self._extension) ^
             hash(self._desc) ^
             hash(self._directory) ^
-            hash(self._within_dir_exts))
+            hash(self._within_dir_exts) ^
+            hash(self._alternate_names))
 
     def __ne__(self, other):
         return not self == other
@@ -130,6 +134,10 @@ class DataFormat(object):
     @property
     def directory(self):
         return self._directory
+
+    @property
+    def alternate_names(self):
+        return self._alternate_names
 
     @property
     def within_dir_exts(self):
@@ -183,7 +191,16 @@ class DataFormat(object):
                         "previously registered {}".format(
                             data_format,
                             cls.by_exts[data_format.ext]))
+            for alt_name in data_format.alternate_names:
+                if alt_name in cls.by_names:
+                    raise ArcanaDataFormatClashError(
+                        "Cannot register {} due to alternate name clash"
+                        "('{}') with previously registered {}".format(
+                            data_format, alt_name,
+                            cls.by_names[alt_name]))
             cls.by_names[data_format.name] = data_format
+            for alt_name in data_format.alternate_names:
+                cls.by_names[alt_name] = data_format
             if data_format.ext is not None:
                 cls.by_exts[data_format.ext] = data_format
             if data_format.within_dir_exts is not None:
