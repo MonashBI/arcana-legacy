@@ -83,7 +83,12 @@ class Dataset(BaseDataset):
                 hash(self.visit_id))
 
     def __lt__(self, other):
-        return self.id < other.id
+        if isinstance(self.id, int) and isinstance(other.id, str):
+            return True
+        elif isinstance(self.id, str) and isinstance(other.id, int):
+            return False
+        else:
+            return self.id < other.id
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(Dataset, self).find_mismatch(other, indent)
