@@ -106,8 +106,8 @@ class BaseRunner(object):
         return workflow.run(plugin=self._plugin)
 
     def _connect_to_repository(self, pipeline, complete_workflow,
-                            subject_ids=None, visit_ids=None,
-                            already_connected=None):
+                               subject_ids=None, visit_ids=None,
+                               already_connected=None):
         if already_connected is None:
             already_connected = {}
         try:
