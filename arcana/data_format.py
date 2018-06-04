@@ -104,7 +104,7 @@ class DataFormat(object):
     def __repr__(self):
         return ("DataFormat(name='{}', extension='{}', directory={}{})"
                 .format(self.name, self.extension, self.directory,
-                        ('within_dir_extension={}'.format(
+                        (', within_dir_extension={}'.format(
                             self.within_dir_exts)
                          if self.directory else '')))
 
@@ -155,8 +155,10 @@ class DataFormat(object):
             converter_cls = self._converters[data_format.name]
         except KeyError:
             raise ArcanaNoConverterError(
-                "There is no converter to convert {} to {}"
-                .format(self, data_format))
+                "There is no converter to convert {} to {}, available:\n{}"
+                .format(self, data_format,
+                        '\n'.join('{} <- {}'.format(k, v)
+                                  for k, v in self._converter.items())))
         return converter_cls(data_format, self)
 
     @classmethod

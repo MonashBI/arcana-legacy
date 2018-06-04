@@ -115,7 +115,7 @@ class BaseSpec(object):
                 "'{}' study".format(self.pipeline_name, self.study))
         if self.name not in pipeline.output_names:
             raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} with options: {}".format(
+                "'{}' is not produced by {} with options:\n{}".format(
                     self.name, self.study,
                     '\n'.join('{}={}'.format(o.name, o.value)
                               for o in self.study.options)))
