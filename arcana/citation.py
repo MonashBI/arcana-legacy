@@ -8,7 +8,7 @@ class Citation(object):
                  month=None, proceedings=None, url=None, pdf=None,
                  doi=None):
         self._short_name = short_name
-        self._authors = authors
+        self._authors = tuple(authors)
         self._title = title
         self._year = year
         self._journal = journal
