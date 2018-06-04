@@ -157,8 +157,9 @@ class DataFormat(object):
             raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}, available:\n{}"
                 .format(self, data_format,
-                        '\n'.join('{} <- {}'.format(k, v)
-                                  for k, v in self._converter.items())))
+                        '\n'.join(
+                            '{} <- {}'.format(k, v)
+                            for k, v in self._converters.items())))
         return converter_cls(data_format, self)
 
     @classmethod
