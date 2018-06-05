@@ -1,5 +1,6 @@
 from past.builtins import basestring
 from builtins import object
+from future.utils import PY3
 from itertools import chain
 import sys
 import types
@@ -80,8 +81,11 @@ class Study(object):
                  subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False):
         try:
-            if not issubclass(type(self).__dict__['__metaclass__'],
-                              StudyMetaClass):
+#             if PY3:
+#                 metaclass = type(type(self))
+#             else:
+            metaclass = type(self).__dict__['__metaclass__']
+            if not issubclass(metaclass, StudyMetaClass):
                 raise KeyError
         except KeyError:
             raise ArcanaUsageError(

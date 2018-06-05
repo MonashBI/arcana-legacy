@@ -299,9 +299,9 @@ class DatasetMatch(BaseDataset, BaseMatch):
             matches = list(node.datasets)
         if not matches:
             raise ArcanaDatasetMatchError(
-                "No dataset names in {} match '{}' pattern, found: {}"
-                .format(node, self.pattern,
-                        '\n'.join(d.name for d in node.datasets)))
+                "No dataset names in {}:{} match '{}' pattern, found: {}"
+                .format(node.subject_id, node.visit_id, self.pattern,
+                        ', '.join(d.name for d in node.datasets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
@@ -316,7 +316,8 @@ class DatasetMatch(BaseDataset, BaseMatch):
             filtered = []
             for dataset in matches:
                 values = dataset.dicom_values(
-                    list(self.dicom_tags.keys()), repository_login=repository_login)
+                    list(self.dicom_tags.keys()),
+                    repository_login=repository_login)
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:

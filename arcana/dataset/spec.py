@@ -196,7 +196,7 @@ class DatasetSpec(BaseDataset, BaseSpec):
                 BaseSpec.__eq__(self, other))
 
     def __hash__(self):
-        return (BaseDataset.__hash__(self) and
+        return (BaseDataset.__hash__(self) ^
                 BaseSpec.__hash__(self))
 
     def __repr__(self):
@@ -249,7 +249,7 @@ class FieldSpec(BaseField, BaseSpec):
         return (BaseField.__eq__(self, other) and
                 BaseSpec.__eq__(self, other))
 
-    def hash(self):
+    def __hash__(self):
         return (BaseField.__hash__(self) ^ BaseSpec.__hash__(self))
 
     def find_mismatch(self, other, indent=''):
