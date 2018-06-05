@@ -1,4 +1,4 @@
-from past.builtins import basestring
+from builtins import str
 from builtins import object
 from copy import copy
 from arcana.exception import ArcanaUsageError
@@ -6,7 +6,7 @@ from arcana.exception import ArcanaUsageError
 
 class Parameter(object):
     """
-    Represents an parameter passed to a Study object
+    Represents a parameter passed to a Study object
 
     Parameters
     ----------
@@ -21,14 +21,14 @@ class Parameter(object):
         if value is None:
             self._dtype = None
         else:
-            if not isinstance(value, (int, float, basestring,
+            if not isinstance(value, (int, float, str,
                                       tuple, list)):
                 raise ArcanaUsageError(
                     "Invalid type for '{}' parameter default ({}), {}, "
                     "can be one of int, float or str"
                     .format(name, value, type(value)))
-            self._dtype = (
-                str if isinstance(value, basestring) else type(value))
+            self._dtype = (str
+                           if isinstance(value, str) else type(value))
         self._value = value
 
     @property
@@ -55,12 +55,12 @@ class Parameter(object):
 
     def __repr__(self):
         return "Parameter(name='{}', value={})".format(self.name,
-                                                    self.value)
+                                                       self.value)
 
 
 class ParameterSpec(Parameter):
     """
-    Specifies an parameter that can be passed to the study
+    Specifies a parameter that can be passed to the study
 
     Parameters
     ----------
@@ -106,6 +106,87 @@ class ParameterSpec(Parameter):
         return self._desc
 
     def __repr__(self):
-        return ("ParameterSpec(name='{}', value={}, desc='{}', "
-                "choices={})".format(self.name, self.value,
-                                     self.desc, self.choices))
+        return ("ParameterSpec(name='{}', default={}, choices={}, "
+                "desc='{}')".format(self.name, self.default,
+                                    self.choices, self.desc))
+
+
+class Switch(object):
+    """
+    A special type parameter that signifies a branch of
+    analysis to follow.
+
+    Parameters
+    ----------
+    name : str
+        Name of the parameter
+    value : list[str]
+        The value of the switch
+    """
+
+    def __init__(self, name, value):
+        self._name = name
+        if not isinstance(value, str):
+            raise ArcanaUsageError(
+                "Value of '{}' switch needs to be of type str "
+                "(provided {})".format(name, value))
+        self._value = value
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def value(self):
+        return self._value
+
+    def __repr__(self):
+        return "Switch(name='{}', value={})".format(self.name,
+                                                    self.value)
+
+
+class SwitchSpec(Switch):
+    """
+    Specifies a special parameter that switches between different
+    methods and/or pipeline input/outputs. Typically used to select
+    between comparable methods, such as FSL or ANTs registration but can
+    also be used to specify whether certain methods are applied, and by
+    extension some auxiliary outputs are generated
+
+    Parameters
+    ----------
+    name : str
+        Name of the parameter
+    choices : list[str]
+        The valid values for the switch
+    default : str
+        Default option for the switch
+    desc : str
+        A description of the parameter
+    """
+
+    def __init__(self, name, choices, default, desc=None):
+        super(ParameterSpec, self).__init__(name, default)
+        self._choices = tuple(choices) if choices is not None else None
+        self._desc = desc
+
+    @property
+    def name(self):
+        return self._name
+
+    @property
+    def default(self):
+        return self._value
+
+    @property
+    def choices(self):
+        return self._choices
+
+    @property
+    def desc(self):
+        return self._desc
+
+    def __repr__(self):
+        return ("SwitchSpec(name='{}', choices={}, default={}, "
+                "desc='{}')".format(self.name, self.choices,
+                                    self.default, self.desc))

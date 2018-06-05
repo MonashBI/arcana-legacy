@@ -324,7 +324,7 @@ class Study(object):
             except KeyError:
                 raise ArcanaNameError(
                     name,
-                    "{} does not have an parameter named '{}'".format(
+                    "{} does not have a parameter named '{}'".format(
                         self, name))
         return parameter
 
