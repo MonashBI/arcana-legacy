@@ -1,4 +1,5 @@
 from past.builtins import basestring
+from future.utils import PY3
 from builtins import object
 from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
@@ -78,8 +79,11 @@ class MultiStudy(Study):
     def __init__(self, name, repository, runner, inputs, options=None,
                  **kwargs):
         try:
-            if not issubclass(type(self).__dict__['__metaclass__'],
-                              MultiStudyMetaClass):
+#             if PY3:
+#                 metaclass = type(type(self))
+#             else:
+            metaclass = type(self).__dict__['__metaclass__']
+            if not issubclass(metaclass, MultiStudyMetaClass):
                 raise KeyError
         except KeyError:
             raise ArcanaUsageError(

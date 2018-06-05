@@ -13,8 +13,8 @@ from arcana.exception import (
     ArcanaUsageError)
 from arcana.dataset.base import BaseDataset, BaseField
 from arcana.interfaces.iterators import (
-    InputSessions, PipelineRepositoryrt, InputSubjects, SubjectRepositoryrt,
-    VisitRepositoryrt, SubjectSessionRepositoryrt, SessionRepositoryrt)
+    InputSessions, PipelineReport, InputSubjects, SubjectReport,
+    VisitReport, SubjectSessionReport, SessionReport)
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 logger = getLogger('Arcana')
@@ -79,7 +79,7 @@ class BaseRunner(object):
 
         Returns
         -------
-        report : RepositoryrtNode
+        report : ReportNode
             The final report node, which can be connected to subsequent
             pipelines
         """
@@ -106,8 +106,8 @@ class BaseRunner(object):
         return workflow.run(plugin=self._plugin)
 
     def _connect_to_repository(self, pipeline, complete_workflow,
-                            subject_ids=None, visit_ids=None,
-                            already_connected=None):
+                               subject_ids=None, visit_ids=None,
+                               already_connected=None):
         if already_connected is None:
             already_connected = {}
         try:
@@ -230,7 +230,7 @@ class BaseRunner(object):
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
-        report = pipeline.create_node(PipelineRepositoryrt(), 'report')
+        report = pipeline.create_node(PipelineReport(), 'report')
         # Connect all outputs to the repository sink
         for freq, outputs in pipeline._outputs.items():
             # Create a new sink for each frequency level (i.e 'per_session',
@@ -347,12 +347,12 @@ class BaseRunner(object):
         """
         if freq == 'per_session':
             session_outputs = JoinNode(
-                SessionRepositoryrt(), joinsource=sessions,
+                SessionReport(), joinsource=sessions,
                 joinfield=['subjects', 'sessions'],
                 name=pipeline.name + '_session_outputs', wall_time=20,
                 memory=4000)
             subject_session_outputs = JoinNode(
-                SubjectSessionRepositoryrt(), joinfield='subject_session_pairs',
+                SubjectSessionReport(), joinfield='subject_session_pairs',
                 joinsource=subjects,
                 name=pipeline.name + '_subject_session_outputs', wall_time=20,
                 memory=4000)
@@ -365,7 +365,7 @@ class BaseRunner(object):
                 output_summary, 'subject_session_pairs')
         elif freq == 'per_subject':
             subject_output_summary = JoinNode(
-                SubjectRepositoryrt(), joinsource=subjects, joinfield='subjects',
+                SubjectReport(), joinsource=subjects, joinfield='subjects',
                 name=pipeline.name + '_subject_summary_outputs', wall_time=20,
                 memory=4000)
             workflow.connect(sink, 'subject_id',
@@ -374,7 +374,7 @@ class BaseRunner(object):
                              output_summary, 'subjects')
         elif freq == 'per_visit':
             visit_output_summary = JoinNode(
-                VisitRepositoryrt(), joinsource=sessions, joinfield='sessions',
+                VisitReport(), joinsource=sessions, joinfield='sessions',
                 name=pipeline.name + '_visit_summary_outputs', wall_time=20,
                 memory=4000)
             workflow.connect(sink, 'visit_id',

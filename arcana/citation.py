@@ -1,4 +1,6 @@
 from builtins import object
+
+
 class Citation(object):
 
     def __init__(self, short_name, authors, title, year, journal=None,
@@ -6,7 +8,7 @@ class Citation(object):
                  month=None, proceedings=None, url=None, pdf=None,
                  doi=None):
         self._short_name = short_name
-        self._authors = authors
+        self._authors = tuple(authors)
         self._title = title
         self._year = year
         self._journal = journal
@@ -36,6 +38,22 @@ class Citation(object):
             self.url == other.url and
             self.pdf == other.pdf and
             self.doi == other.doi)
+
+    def __hash__(self):
+        return (hash(self.short_name) ^
+                hash(self.authors) ^
+                hash(self.title) ^
+                hash(self.year) ^
+                hash(self.journal) ^
+                hash(self.volume) ^
+                hash(self.issue) ^
+                hash(self.pages) ^
+                hash(self.institute) ^
+                hash(self.month) ^
+                hash(self.proceedings) ^
+                hash(self.url) ^
+                hash(self.pdf) ^
+                hash(self.doi))
 
     def __ne__(self, other):
         return not (self == other)

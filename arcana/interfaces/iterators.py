@@ -60,24 +60,24 @@ class InputSessions(BaseInterface):
         return outputs
 
 
-class SessionRepositoryrtInputSpec(TraitedSpec):
+class SessionReportInputSpec(TraitedSpec):
 
     sessions = traits.List(traits.Str)
     subjects = traits.List(traits.Str)
 
 
-class SessionRepositoryrtOutputSpec(TraitedSpec):
+class SessionReportOutputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(traits.Tuple(traits.Str, traits.Str))
 
 
-class SessionRepositoryrt(BaseInterface):
+class SessionReport(BaseInterface):
     """
     Basically an IndentityInterface for joining over sessions
     """
 
-    input_spec = SessionRepositoryrtInputSpec
-    output_spec = SessionRepositoryrtOutputSpec
+    input_spec = SessionReportInputSpec
+    output_spec = SessionReportOutputSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -89,18 +89,18 @@ class SessionRepositoryrt(BaseInterface):
         return outputs
 
 
-class SubjectRepositoryrtSpec(TraitedSpec):
+class SubjectReportSpec(TraitedSpec):
 
     subjects = traits.List(traits.Str)
 
 
-class SubjectRepositoryrt(BaseInterface):
+class SubjectReport(BaseInterface):
     """
     Basically an IndentityInterface for joining over subjects
     """
 
-    input_spec = SubjectRepositoryrtSpec
-    output_spec = SubjectRepositoryrtSpec
+    input_spec = SubjectReportSpec
+    output_spec = SubjectReportSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -111,18 +111,18 @@ class SubjectRepositoryrt(BaseInterface):
         return outputs
 
 
-class VisitRepositoryrtSpec(TraitedSpec):
+class VisitReportSpec(TraitedSpec):
 
     sessions = traits.List(traits.Str)
 
 
-class VisitRepositoryrt(BaseInterface):
+class VisitReport(BaseInterface):
     """
     Basically an IndentityInterface for joining over sessions
     """
 
-    input_spec = VisitRepositoryrtSpec
-    output_spec = VisitRepositoryrtSpec
+    input_spec = VisitReportSpec
+    output_spec = VisitReportSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -133,24 +133,24 @@ class VisitRepositoryrt(BaseInterface):
         return outputs
 
 
-class SubjectSessionRepositoryrtInputSpec(TraitedSpec):
+class SubjectSessionReportInputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(
         traits.List(traits.Tuple(traits.Str, traits.Str)))
 
 
-class SubjectSessionRepositoryrtOutputSpec(TraitedSpec):
+class SubjectSessionReportOutputSpec(TraitedSpec):
 
     subject_session_pairs = traits.List(traits.Tuple(traits.Str, traits.Str))
 
 
-class SubjectSessionRepositoryrt(BaseInterface):
+class SubjectSessionReport(BaseInterface):
     """
     Basically an IndentityInterface for joining over subject-session pairs
     """
 
-    input_spec = SubjectSessionRepositoryrtInputSpec
-    output_spec = SubjectSessionRepositoryrtOutputSpec
+    input_spec = SubjectSessionReportInputSpec
+    output_spec = SubjectSessionReportOutputSpec
 
     def _run_interface(self, runtime):
         return runtime
@@ -162,7 +162,7 @@ class SubjectSessionRepositoryrt(BaseInterface):
         return outputs
 
 
-class PipelineRepositoryrtInputSpec(TraitedSpec):
+class PipelineReportInputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Subject & session pairs from per-session sink")
@@ -173,7 +173,7 @@ class PipelineRepositoryrtInputSpec(TraitedSpec):
     project = traits.Str(desc="Project ID from per-project sink")
 
 
-class PipelineRepositoryrtOutputSpec(TraitedSpec):
+class PipelineReportOutputSpec(TraitedSpec):
     subject_session_pairs = traits.List(traits.Tuple(
         traits.Str, traits.Str),
         desc="Session & subject pairs from per-session sink")
@@ -181,10 +181,10 @@ class PipelineRepositoryrtOutputSpec(TraitedSpec):
     project = traits.Str(desc="Project ID from per-project sink")
 
 
-class PipelineRepositoryrt(BaseInterface):
+class PipelineReport(BaseInterface):
 
-    input_spec = PipelineRepositoryrtInputSpec
-    output_spec = PipelineRepositoryrtOutputSpec
+    input_spec = PipelineReportInputSpec
+    output_spec = PipelineReportOutputSpec
 
     def _run_interface(self, runtime):
         return runtime

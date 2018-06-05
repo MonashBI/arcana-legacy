@@ -230,18 +230,19 @@ class XnatSource(RepositorySource, XnatMixin):
 
     @classmethod
     def get_resource(cls, xdataset, dataset):
-        try:
-            xresource = xdataset.resources[
-                dataset.format.xnat_resource_name]
-        except KeyError:
-            raise ArcanaError(
-                "'{}' dataset is not available in '{}' format, "
-                "available resources are '{}'"
-                .format(
-                    dataset.name, dataset.format.xnat_resource_name,
-                    "', '".join(r.label
-                                 for r in list(dataset.resources.values()))))
-        return xresource
+        for resource_name in dataset.format.xnat_resource_names:
+            try:
+                return xdataset.resources[resource_name]
+            except KeyError:
+                continue
+        raise ArcanaError(
+            "'{}' dataset is not available in '{}' format(s), "
+            "available resources are '{}'"
+            .format(
+                dataset.name,
+                "', '".join(dataset.format.xnat_resource_names),
+                "', '".join(
+                    r.label for r in list(dataset.resources.values()))))
 
     @classmethod
     def get_digests(cls, resource):
@@ -279,7 +280,7 @@ class XnatSource(RepositorySource, XnatMixin):
         data_path = os.path.join(
             expanded_dir, session_label, 'scans',
             (xdataset.id + '-' + special_char_re.sub('_', xdataset.type)),
-            'resources', dataset.format.xnat_resource_name, 'files')
+            'resources', xresource.label, 'files')
         if not dataset.format.directory:
             # If the dataformat is not a directory (e.g. DICOM),
             # attempt to locate a single file within the resource
@@ -913,8 +914,7 @@ class XnatRepository(Repository):
         """
         datasets = []
         for xdataset in xsession.scans.values():
-            data_format = DataFormat.by_name(
-                guess_data_format(xdataset))
+            data_format = guess_data_format(xdataset)
             datasets.append(Dataset(
                 xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 frequency=freq, path=None, id=xdataset.id,
@@ -1015,22 +1015,28 @@ class XnatRepository(Repository):
         return (subj_label, sess_label)
 
 
-def guess_data_format(dataset):
-    # Use a set here as in some strange cases I can get two references
-    # to the same resource
-    dataset_formats = set(r for r in dataset.resources.values()
-                          if r.label.lower() in DataFormat.by_names)
-    if len(dataset_formats) > 1:
+def guess_data_format(xdataset):
+    # Use a set here as in some cases there are multiple resources
+    # the same format (e.g. DICOM + secondary)
+    dataset_formats = set()
+    for xresource in xdataset.resources.values():
+        try:
+            dataset_formats.add(DataFormat.by_names[
+                xresource.label.lower()])
+        except KeyError:
+            logger.debug("Ignoring resource '{}' in dataset {}"
+                         .format(xresource.label, xdataset.type))
+    if not dataset_formats:
         raise ArcanaError(
-            "Multiple valid resources '{}' for '{}' dataset, please pass "
-            "'data_format' to 'download_dataset' method to speficy resource to"
-            "download".format(
+            "No recognised data formats for '{}' dataset (available "
+            "resources are '{}')".format(
+                xdataset.type, "', '".join(
+                    r.label for r in xdataset.resources.values())))
+    elif len(dataset_formats) > 1:
+        raise ArcanaError(
+            "Multiple valid data-formats '{}' for '{}' dataset, please "
+            "pass 'data_format' to 'download_dataset' method to speficy"
+            " resource to download".format(
                 "', '".join(f.label for f in dataset_formats),
-                dataset.type))
-    elif not dataset_formats:
-        raise ArcanaError(
-            "No recognised data formats for '{}' dataset (available resources "
-            "are '{}')".format(
-                dataset.type, "', '".join(
-                    r.label for r in dataset.resources.values())))
-    return next(iter(dataset_formats)).label
+                xdataset.type))
+    return next(iter(dataset_formats))
