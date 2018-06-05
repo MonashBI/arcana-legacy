@@ -27,9 +27,9 @@ subsequent analyses. Repositories can either be XNAT repositories or
 and a BIDS module (http://bids.neuroimaging.io/) is planned as future
 work. 
 
-Analysis workflows are constructed and executed using the NiPype
-package, and can either be run locally or submitted to high HPC
-facilities using NiPype’s execution plugins. For a requested analysis
+Analysis workflows are constructed and executed using the Nipype
+package, and can either be run locally or submitted to HPC
+schedulers using Nipype’s execution plugins. For a requested analysis
 output, Arcana determines the required processing steps by querying
 the repository to check for missing intermediate outputs before
 constructing the workflow graph. When running in an environment
