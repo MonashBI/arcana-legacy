@@ -336,19 +336,9 @@ class Study(object):
         argument
         """
         pipeline = Pipeline(self, *args, **kwargs)
-        # Register parameters used before the pipeline was created
-        try:
-            pipeline._used_parameters.update(
-                self._pre_parameters.pop(pipeline.name))
-        except KeyError:
-            pass
-        if self._pre_parameters:
-            raise ArcanaUsageError(
-                "Orphanned pre-parameters for '{}' pipeline(s) remain in "
-                "'{}' {} after creating '{}' pipeline. Please check "
-                "pipeline generation code".format(
-                    "', '".join(list(self._pre_parameters.keys())),
-                    self.name, type(self).__name__, pipeline.name))
+        # Register switches used before the pipeline was created
+        pipeline._used_switches.update(self._used_switches)
+        self._used_switches = set()
         return pipeline
 
     def _get_parameter(self, name):
@@ -674,9 +664,14 @@ class StudyMetaClass(type):
             add_parameter_specs = dct['add_parameter_specs']
         except KeyError:
             add_parameter_specs = []
+        try:
+            add_switch_specs = dct['add_switch_specs']
+        except KeyError:
+            add_switch_specs = []
         combined_attrs = set()
         combined_data_specs = {}
         combined_parameter_specs = {}
+        combined_switch_specs = {}
         for base in reversed(bases):
             # Get the combined class dictionary including base dicts
             # excluding auto-added properties for data and parameter specs
@@ -693,10 +688,17 @@ class StudyMetaClass(type):
                     (o.name, o) for o in base.parameter_specs())
             except AttributeError:
                 pass
+            try:
+                combined_switch_specs.update(
+                    (o.name, o) for o in base.switch_specs())
+            except AttributeError:
+                pass
         combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_parameter_specs.update(
-            (o.name, o) for o in add_parameter_specs)
+            (p.name, p) for p in add_parameter_specs)
+        combined_switch_specs.update(
+            (s.name, s) for s in add_switch_specs)
         # Check that the pipeline names in data specs correspond to a
         # pipeline method in the class
         for spec in add_data_specs:
@@ -715,6 +717,7 @@ class StudyMetaClass(type):
                 .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_parameter_specs'] = combined_parameter_specs
+        dct['_switch_specs'] = combined_switch_specs
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
         return type(name, bases, dct)

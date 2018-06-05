@@ -126,7 +126,7 @@ class Switch(object):
 
     def __init__(self, name, value):
         self._name = name
-        if not isinstance(value, str):
+        if not isinstance(value, str, bool):
             raise ArcanaUsageError(
                 "Value of '{}' switch needs to be of type str "
                 "(provided {})".format(name, value))
@@ -157,16 +157,20 @@ class SwitchSpec(Switch):
     ----------
     name : str
         Name of the parameter
-    choices : list[str]
-        The valid values for the switch
     default : str
         Default option for the switch
+    choices : list[str]
+        The valid values for the switch
     desc : str
         A description of the parameter
     """
 
-    def __init__(self, name, choices, default, desc=None):
+    def __init__(self, name, default, choices=None, desc=None):
         super(ParameterSpec, self).__init__(name, default)
+        if isinstance(default, bool) and choices is not None:
+            raise ArcanaUsageError(
+                "Choices ({}) are only valid for non-boolean switches "
+                "(not {})".format("', '".join(choices), name))
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
 
@@ -179,6 +183,10 @@ class SwitchSpec(Switch):
         return self._value
 
     @property
+    def is_boolean(self):
+        return isinstance(self.default, bool)
+
+    @property
     def choices(self):
         return self._choices
 
@@ -187,6 +195,6 @@ class SwitchSpec(Switch):
         return self._desc
 
     def __repr__(self):
-        return ("SwitchSpec(name='{}', choices={}, default={}, "
-                "desc='{}')".format(self.name, self.choices,
-                                    self.default, self.desc))
+        return ("SwitchSpec(name='{}', default={}, choices={}, "
+                "desc='{}')".format(self.name, self.default,
+                                    self.choices, self.desc))
