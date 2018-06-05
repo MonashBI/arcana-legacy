@@ -4,7 +4,7 @@ from copy import copy
 from arcana.exception import ArcanaUsageError
 
 
-class Option(object):
+class Parameter(object):
     """
     Represents an option passed to a Study object
 
@@ -47,18 +47,18 @@ class Option(object):
 
     def renamed(self, name):
         """
-        Duplicate the Option and rename it
+        Duplicate the Parameter and rename it
         """
         duplicate = copy(self)
         duplicate._name = name
         return duplicate
 
     def __repr__(self):
-        return "Option(name='{}', value={})".format(self.name,
+        return "Parameter(name='{}', value={})".format(self.name,
                                                     self.value)
 
 
-class OptionSpec(Option):
+class ParameterSpec(Parameter):
     """
     Specifies an option that can be passed to the study
 
@@ -78,7 +78,7 @@ class OptionSpec(Option):
     """
 
     def __init__(self, name, default, choices=None, desc=None, dtype=None):
-        super(OptionSpec, self).__init__(name, default)
+        super(ParameterSpec, self).__init__(name, default)
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
         if dtype is not None:
@@ -106,6 +106,6 @@ class OptionSpec(Option):
         return self._desc
 
     def __repr__(self):
-        return ("OptionSpec(name='{}', value={}, desc='{}', "
+        return ("ParameterSpec(name='{}', value={}, desc='{}', "
                 "choices={})".format(self.name, self.value,
                                      self.desc, self.choices))

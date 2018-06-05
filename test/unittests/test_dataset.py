@@ -8,7 +8,7 @@ from unittest import TestCase  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.option import OptionSpec  # @IgnorePep8
+from arcana.option import ParameterSpec  # @IgnorePep8
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
 from arcana.data_format import text_format, DataFormat  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
@@ -123,7 +123,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('wrong_option2', text_format, 'pipeline4')]
 
     add_option_specs = [
-        OptionSpec('switch', 0)]
+        ParameterSpec('switch', 0)]
 
     def pipeline1(self):
         pipeline = self.create_pipeline(

@@ -2,11 +2,11 @@ from arcana.testing import BaseTestCase, TestMath
 from arcana.interfaces.utils import Merge
 from arcana.dataset import DatasetMatch, DatasetSpec
 from arcana.data_format import text_format
-from arcana.option import OptionSpec
+from arcana.option import ParameterSpec
 from arcana.study.base import Study
 from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
-from arcana.option import Option
+from arcana.option import Parameter
 from future.utils import with_metaclass
 
 
@@ -18,9 +18,9 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('z', text_format, 'pipeline_alpha')]
 
     add_option_specs = [
-        OptionSpec('o1', 1),
-        OptionSpec('o2', '2'),
-        OptionSpec('o3', 3.0)]
+        ParameterSpec('o1', 1),
+        ParameterSpec('o2', '2'),
+        ParameterSpec('o3', 3.0)]
 
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -52,10 +52,10 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('z', text_format, 'pipeline_beta')]
 
     add_option_specs = [
-        OptionSpec('o1', 10),
-        OptionSpec('o2', '20'),
-        OptionSpec('o3', 30.0),
-        OptionSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
+        ParameterSpec('o1', 10),
+        ParameterSpec('o2', '20'),
+        ParameterSpec('o3', 30.0),
+        ParameterSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
 
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
@@ -120,12 +120,12 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         DatasetSpec('f', text_format, 'pipeline_beta_trans')]
 
     add_option_specs = [
-        OptionSpec('p1', 100),
-        OptionSpec('p2', '200'),
-        OptionSpec('p3', 300.0),
-        OptionSpec('q1', 150),
-        OptionSpec('q2', '250'),
-        OptionSpec('required_op', 'still-not-specified')]
+        ParameterSpec('p1', 100),
+        ParameterSpec('p2', '200'),
+        ParameterSpec('p3', 300.0),
+        ParameterSpec('q1', 150),
+        ParameterSpec('q2', '250'),
+        ParameterSpec('required_op', 'still-not-specified')]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -150,7 +150,7 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         'ss1', 'pipeline_alpha')
 
     add_option_specs = [
-        OptionSpec('p1', 1000)]
+        ParameterSpec('p1', 1000)]
 
 
 class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
@@ -164,7 +164,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         DatasetSpec('g', text_format, 'combined_pipeline')]
 
     add_option_specs = [
-        OptionSpec('combined_op', 'add')]
+        ParameterSpec('combined_op', 'add')]
 
     def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -203,7 +203,7 @@ class TestMulti(BaseTestCase):
             [DatasetMatch('a', text_format, 'ones'),
              DatasetMatch('b', text_format, 'ones'),
              DatasetMatch('c', text_format, 'ones')],
-            options=[Option('required_op', 'mul')])
+            options=[Parameter('required_op', 'mul')])
         d, e, f = study.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
@@ -233,7 +233,7 @@ class TestMulti(BaseTestCase):
             [DatasetMatch('a', text_format, 'ones'),
              DatasetMatch('b', text_format, 'ones'),
              DatasetMatch('c', text_format, 'ones')],
-            options=[Option('ss2_product_op', 'mul')])
+            options=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
         ss2_y = study.data('ss2_y')[0]
@@ -270,8 +270,8 @@ class TestMulti(BaseTestCase):
              DatasetMatch('partial_a', text_format, 'ones'),
              DatasetMatch('partial_b', text_format, 'ones'),
              DatasetMatch('partial_c', text_format, 'ones')],
-            options=[Option('full_required_op', 'mul'),
-                     Option('partial_ss2_product_op', 'mul')])
+            options=[Parameter('full_required_op', 'mul'),
+                     Parameter('partial_ss2_product_op', 'mul')])
         g = study.data('g')[0]
         self.assertContentsEqual(g, 11.0)
         # Test option values in MultiStudy
@@ -325,7 +325,7 @@ class TestMulti(BaseTestCase):
              DatasetMatch('partial_a', text_format, 'ones'),
              DatasetMatch('partial_b', text_format, 'ones'),
              DatasetMatch('partial_c', text_format, 'ones')],
-            options=[Option('partial_ss2_product_op', 'mul')])
+            options=[Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
             RuntimeError,
             missing_option_study.data,

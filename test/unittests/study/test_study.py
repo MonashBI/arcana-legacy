@@ -15,7 +15,7 @@ from arcana.study.multi import (
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.option import OptionSpec
+from arcana.option import ParameterSpec
 from arcana.data_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
@@ -56,7 +56,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     frequency='per_subject')]
 
     add_option_specs = [
-        OptionSpec('pipeline_option', False)]
+        ParameterSpec('pipeline_option', False)]
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
