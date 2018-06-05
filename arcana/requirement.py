@@ -156,7 +156,7 @@ class Requirement(object):
         # iterating
         if isinstance(possible_requirements, Requirement):
             possible_requirements = [possible_requirements]
-        # Loop through all options for a given requirement and see
+        # Loop through all parameters for a given requirement and see
         # if at least one can be satisfied.
         logger.debug(
             "Searching for one of {}".format(
@@ -188,7 +188,7 @@ class Requirement(object):
                     return req.name, best_version
                 except ArcanaRequirementVersionException as e:
                     ver_exceptions.append(e)
-        # If no options can be satisfied, otherwise raise exception with
-        # combined messages from all options.
+        # If no parameters can be satisfied, otherwise raise exception with
+        # combined messages from all parameters.
         raise ArcanaRequirementVersionException(
             ' and '.join(str(e) for e in ver_exceptions))

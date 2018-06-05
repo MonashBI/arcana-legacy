@@ -43,7 +43,7 @@ class ArcanaDatasetMatchError(ArcanaUsageError):
 
 class ArcanaOutputNotProducedException(ArcanaException):
     """
-    Raised when a given spec is not produced due to options provided
+    Raised when a given spec is not produced due to parameters provided
     to the study
     """
 

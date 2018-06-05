@@ -6,14 +6,14 @@ from arcana.exception import ArcanaUsageError
 
 class Parameter(object):
     """
-    Represents an option passed to a Study object
+    Represents an parameter passed to a Study object
 
     Parameters
     ----------
     name : str
-        Name of the option
+        Name of the parameter
     value : float | int | str | list | tuple
-        Value of the option
+        Value of the parameter
     """
 
     def __init__(self, name, value):
@@ -24,7 +24,7 @@ class Parameter(object):
             if not isinstance(value, (int, float, basestring,
                                       tuple, list)):
                 raise ArcanaUsageError(
-                    "Invalid type for '{}' option default ({}), {}, "
+                    "Invalid type for '{}' parameter default ({}), {}, "
                     "can be one of int, float or str"
                     .format(name, value, type(value)))
             self._dtype = (
@@ -60,20 +60,20 @@ class Parameter(object):
 
 class ParameterSpec(Parameter):
     """
-    Specifies an option that can be passed to the study
+    Specifies an parameter that can be passed to the study
 
     Parameters
     ----------
     name : str
-        Name of the option
+        Name of the parameter
     default : float | int | str | list | tuple
-        Default value of the option
+        Default value of the parameter
     choices : List(float | int | str | list | tuple)
         Restrict valid inputs to the following choices
     desc : str
-        A description of the option
+        A description of the parameter
     dtype : type | None
-        The datatype of the option. If none will be determined from
+        The datatype of the parameter. If none will be determined from
         default value
     """
 

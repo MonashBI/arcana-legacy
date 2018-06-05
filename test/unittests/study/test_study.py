@@ -15,7 +15,7 @@ from arcana.study.multi import (
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.option import ParameterSpec
+from arcana.parameter import ParameterSpec
 from arcana.data_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
@@ -55,8 +55,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    add_option_specs = [
-        ParameterSpec('pipeline_option', False)]
+    add_parameter_specs = [
+        ParameterSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -68,8 +68,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
+        if not pipeline.parameter('pipeline_parameter'):
+            raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline1")
         indent = pipeline.create_node(IdentityInterface(['file']),
                                       name="ident1")
@@ -93,8 +93,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
+        if not pipeline.parameter('pipeline_parameter'):
+            raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
         math = pipeline.create_node(TestMath(), name="math")
         math.inputs.op = 'add'
@@ -308,7 +308,7 @@ class TestStudy(BaseMultiSubjectTestCase):
             ExampleStudy, 'dummy', inputs=[
                 DatasetMatch('one', text_format, 'one'),
                 DatasetMatch('ten', text_format, 'ten')],
-            options={'pipeline_option': True})
+            parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()

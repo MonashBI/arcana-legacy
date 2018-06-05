@@ -30,7 +30,7 @@ class Pipeline(object):
         The study from which the pipeline was created
     inputs : List[DatasetSpec|FieldSpec]
         The list of input datasets required for the pipeline
-        un/processed datasets, and the options used to generate them for
+        un/processed datasets, and the parameters used to generate them for
         unprocessed datasets
     outputs : List[DatasetSpec|FieldSpec]
         The list of outputs (hard-coded names for un/processed datasets)
@@ -103,9 +103,9 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'"
             .format("', '".join(self.output_names)))
         self._citations = citations
-        # Keep record of all options used in the pipeline construction
+        # Keep record of all parameters used in the pipeline construction
         # so that they can be saved with the provenence.
-        self._used_options = set()
+        self._used_parameters = set()
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -163,22 +163,22 @@ class Pipeline(object):
             if spec.is_spec and spec.derived:
                 pipelines.add(spec.pipeline)
                 required_outputs[spec.pipeline_name].add(input.name)
-        # Call pipeline-getter instance method on study with provided options
+        # Call pipeline-getter instance method on study with provided parameters
         # to generate pipeline to run
         for pipeline in pipelines:
             # Check that the required outputs are created with the given
-            # options
+            # parameters
             missing_outputs = required_outputs[pipeline.name] - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
                     "Output(s) '{}', required for '{}' pipeline, will "
                     "not be created by prerequisite pipeline '{}' "
-                    "with options: {}".format(
+                    "with parameters: {}".format(
                         "', '".join(missing_outputs), self.name,
                         pipeline.name,
                         '\n'.join('{}={}'.format(o.name, o.value)
-                                  for o in self.study.options)))
+                                  for o in self.study.parameters)))
             yield pipeline
 
     @property
@@ -464,35 +464,35 @@ class Pipeline(object):
     def output_names(self):
         return (o.name for o in self.outputs)
 
-    def option(self, name):
+    def parameter(self, name):
         """
-        Retrieves the value of the option provided to the pipeline's
-        study and registers the option as being used by this pipeline
+        Retrieves the value of the parameter provided to the pipeline's
+        study and registers the parameter as being used by this pipeline
         for use in provenance capture
 
         Parameters
         ----------
         name : str
-            The name of the option to retrieve
+            The name of the parameter to retrieve
         """
-        option = self.study._get_option(name)
-        # Register option as being used by the pipeline
-        self._used_options.add(option)
-        return option.value
+        parameter = self.study._get_parameter(name)
+        # Register parameter as being used by the pipeline
+        self._used_parameters.add(parameter)
+        return parameter.value
 
     @property
-    def used_options(self):
-        return iter(self._used_options)
+    def used_parameters(self):
+        return iter(self._used_parameters)
 
     @property
-    def all_options(self):
-        """Return all options, including options of prerequisites"""
-        return chain(self.options, iter(self._prereq_options.items()))
+    def all_parameters(self):
+        """Return all parameters, including parameters of prerequisites"""
+        return chain(self.parameters, iter(self._prereq_parameters.items()))
 
     @property
-    def non_default_options(self):
-        return ((k, v) for k, v in self.options.items()
-                if v != self.default_options[k])
+    def non_default_parameters(self):
+        return ((k, v) for k, v in self.parameters.items()
+                if v != self.default_parameters[k])
 
     @property
     def desc(self):
@@ -549,10 +549,10 @@ class Pipeline(object):
     def suffix(self):
         """
         A suffixed appended to output filenames when they are repositoryd to
-        identify the options used to generate them
+        identify the parameters used to generate them
         """
         return '__'.join('{}_{}'.format(k, v)
-                         for k, v in self.options.items())
+                         for k, v in self.parameters.items())
 
     def save_graph(self, fname, style='flat'):
         """
