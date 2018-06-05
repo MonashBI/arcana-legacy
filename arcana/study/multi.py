@@ -12,16 +12,16 @@ from .base import Study, StudyMetaClass
 
 class MultiStudy(Study):
     """
-    Abstract base class for all studies that combine multiple studies into a
-    a combined study
+    Abstract base class for all studies that combine multiple studies
+    into a "multi-study".
 
     Parameters
     ----------
     name : str
         The name of the combined study.
     repository : Repository
-        An Repository object that provides access to a DaRIS, XNAT or local file
-        system
+        An Repository object that provides access to a DaRIS, XNAT or
+        local file system
     runner : Runner
         The runner the processes the derived data when demanded
     inputs : Dict[str, Dataset|Field]
@@ -33,6 +33,10 @@ class MultiStudy(Study):
         either as a dictionary of key-value pairs or as a list of
         'Parameter' objects. The name and dtype must match ParameterSpecs in
         the _parameter_spec class attribute (see 'add_parameter_specs').
+    switches : List[Switch] | Dict[str, str]
+        Switches that are used to specify which analysis branches to
+        follow, i.e. which method to select out of several comparable
+        methods
     subject_ids : List[(int|str)]
         List of subject IDs to restrict the analysis to
     visit_ids : List[(int|str)]
@@ -77,11 +81,10 @@ class MultiStudy(Study):
     implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
 
     def __init__(self, name, repository, runner, inputs, parameters=None,
-                 **kwargs):
+                 switches=None, **kwargs):
         try:
-#             if PY3:
-#                 metaclass = type(type(self))
-#             else:
+            # This works for PY3 as the metaclass inserts it itself if
+            # it isn't provided
             metaclass = type(self).__dict__['__metaclass__']
             if not issubclass(metaclass, MultiStudyMetaClass):
                 raise KeyError
@@ -90,8 +93,9 @@ class MultiStudy(Study):
                 "Need to set MultiStudyMetaClass (or sub-class) as "
                 "the metaclass of all classes derived from "
                 "MultiStudy")
-        super(MultiStudy, self).__init__(name, repository, runner, inputs,
-                                         parameters=parameters, **kwargs)
+        super(MultiStudy, self).__init__(
+            name, repository, runner, inputs, parameters=parameters,
+            switches=switches, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
             sub_study_cls = sub_study_spec.study_class
