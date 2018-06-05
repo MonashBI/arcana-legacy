@@ -181,7 +181,7 @@ class BaseMatch(object):
         return dct
 
 
-class DatasetMatch(BaseDataset, BaseMatch):
+class DatasetMatch(BaseMatch, BaseDataset):
     """
     A pattern that describes a single dataset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -329,7 +329,7 @@ class DatasetMatch(BaseDataset, BaseMatch):
         return matches
 
 
-class FieldMatch(BaseField, BaseMatch):
+class FieldMatch(BaseMatch, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.

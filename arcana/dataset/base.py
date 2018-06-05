@@ -130,7 +130,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         return (self.name, self.format.name, self.frequency, self.derived,
                 self.is_spec)
 
-    def match(self, filename):
+    def matches_filename(self, filename):
         base, ext = os.path.splitext(filename)
         return base == self.name and (ext == self.format.extension or
                                       self.format is None)
