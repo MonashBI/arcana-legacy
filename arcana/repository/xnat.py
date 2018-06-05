@@ -1019,18 +1019,19 @@ def guess_data_format(xdataset):
     # Use a set here as in some cases there are multiple resources
     # the same format (e.g. DICOM + secondary)
     dataset_formats = set()
-    for resource in xdataset.resources.values():
+    for xresource in xdataset.resources.values():
         try:
             dataset_formats.add(DataFormat.by_names[
-                resource.label.lower()])
+                xresource.label.lower()])
         except KeyError:
             logger.debug("Ignoring resource '{}' in dataset {}"
-                         .format(resource.label, xdataset.label))
+                         .format(xresource.label, xdataset.type))
     if not dataset_formats:
         raise ArcanaError(
             "No recognised data formats for '{}' dataset (available "
             "resources are '{}')".format(
-                xdataset.type, "', '".join(xdataset.resources)))
+                xdataset.type, "', '".join(
+                    r.label for r in xdataset.resources.values())))
     elif len(dataset_formats) > 1:
         raise ArcanaError(
             "Multiple valid data-formats '{}' for '{}' dataset, please "
