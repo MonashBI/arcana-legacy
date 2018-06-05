@@ -30,7 +30,7 @@ from arcana.repository.local import (
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")

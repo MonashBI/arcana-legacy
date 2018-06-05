@@ -28,7 +28,7 @@ from arcana.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 SUMMARY_NAME = 'ALL'
 FIELDS_FNAME = 'fields.json'

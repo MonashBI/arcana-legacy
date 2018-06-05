@@ -17,7 +17,7 @@ import logging
 from future.utils import with_metaclass
 
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 
 class DataFormat(object):

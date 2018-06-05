@@ -6,7 +6,7 @@ from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
 import logging
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 
 def split_version(version_str):

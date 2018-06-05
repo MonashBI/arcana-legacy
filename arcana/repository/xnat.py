@@ -38,7 +38,7 @@ import re  # @IgnorePep8
 import xnat  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX  # @IgnorePep8
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 special_char_re = re.compile(r'[^a-zA-Z_0-9]')
 tag_parse_re = re.compile(r'\((\d+),(\d+)\)')

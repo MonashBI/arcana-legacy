@@ -51,7 +51,7 @@ import test_local  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 dicom_format = DataFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])

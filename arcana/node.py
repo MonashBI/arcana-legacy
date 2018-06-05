@@ -16,7 +16,7 @@ from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
     MapNode as NipypeMapNode)
 
-logger = logging.getLogger('Arcana')
+logger = logging.getLogger('arcana')
 
 DEFAULT_MEMORY = 4096
 DEFAULT_WALL_TIME = 20
