@@ -20,6 +20,9 @@ from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 logger = getLogger('Arcana')
 
 
+WORKFLOW_MAX_NAME_LEN = 100
+
+
 class BaseRunner(object):
     """
     A thin wrapper around the NiPype LinearPlugin used to connect
@@ -89,6 +92,9 @@ class BaseRunner(object):
                 .format(self))
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
+        # Trim the end of very large names to avoid problems with
+        # work-dir paths exceeding system limits.
+        name = name[:WORKFLOW_MAX_NAME_LEN]
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
         already_connected = {}
         for pipeline in pipelines:
