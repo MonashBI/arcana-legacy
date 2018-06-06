@@ -106,6 +106,7 @@ class Pipeline(object):
         # Keep record of all parameters used in the pipeline construction
         # so that they can be saved with the provenence.
         self._used_parameters = set()
+        self._used_switches = set()
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -163,8 +164,8 @@ class Pipeline(object):
             if spec.is_spec and spec.derived:
                 pipelines.add(spec.pipeline)
                 required_outputs[spec.pipeline_name].add(input.name)
-        # Call pipeline-getter instance method on study with provided parameters
-        # to generate pipeline to run
+        # Call pipeline-getter instance method on study with provided
+        # parameters to generate pipeline to run
         for pipeline in pipelines:
             # Check that the required outputs are created with the given
             # parameters
@@ -483,6 +484,10 @@ class Pipeline(object):
     @property
     def used_parameters(self):
         return iter(self._used_parameters)
+
+    @property
+    def used_switches(self):
+        return iter(self._used_switches)
 
     @property
     def all_parameters(self):

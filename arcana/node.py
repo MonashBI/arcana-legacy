@@ -90,7 +90,7 @@ class ArcanaNodeMixin(object):
             logger.debug("Loading required modules {} for '{}'"
                          .format(self.requirements, self.name))
             for possible_reqs in self.requirements:
-                # Get best requirement from list of possible parameters
+                # Get best requirement from list of possible options
                 req_name, req_ver = Requirement.best_requirement(
                     possible_reqs, available, preloaded)
                 # Load best requirement

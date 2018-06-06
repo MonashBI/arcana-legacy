@@ -25,7 +25,7 @@ from .study import (
 from .dataset import (
     DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
 from .data_format import DataFormat
-from .parameter import Parameter, ParameterSpec
+from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
 from .runner import LinearRunner, MultiProcRunner, SlurmRunner
 from .repository import LocalRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning

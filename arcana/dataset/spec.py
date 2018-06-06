@@ -75,7 +75,7 @@ class BaseSpec(object):
     def derivable(self):
         """
         Whether the spec (only valid for derived specs) can be derived
-        given the inputs and parameters provided to the study
+        given the inputs and switches provided to the study
         """
         if not self.derived:
             raise ArcanaUsageError(
@@ -115,10 +115,12 @@ class BaseSpec(object):
                 "'{}' study".format(self.pipeline_name, self.study))
         if self.name not in pipeline.output_names:
             raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} with parameters:\n{}".format(
-                    self.name, self.study,
-                    '\n'.join('{}={}'.format(o.name, o.value)
-                              for o in self.study.parameters)))
+                "'{}' is not produced by {} class given the provided "
+                " switches ({}) and the missing inputs ('{}')".format(
+                    self.name, self.study.__class__.__name__,
+                    ', '.join('{}={}'.format(s.name, s.value)
+                              for s in self.study.switches),
+                    "', '".join(self.study.missing_inputs)))
         return pipeline
 
     @property

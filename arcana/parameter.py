@@ -144,12 +144,20 @@ class Switch(object):
         return "Switch(name='{}', value={})".format(self.name,
                                                     self.value)
 
+    def renamed(self, name):
+        """
+        Duplicate the Parameter and rename it
+        """
+        duplicate = copy(self)
+        duplicate._name = name
+        return duplicate
+
 
 class SwitchSpec(Switch):
     """
     Specifies a special parameter that switches between different
     methods and/or pipeline input/outputs. Typically used to select
-    between comparable methods, such as FSL or ANTs registration but can
+    between comparable methods (e.g. FSL or ANTs registration) but can
     also be used to specify whether certain methods are applied, and by
     extension some auxiliary outputs are generated
 

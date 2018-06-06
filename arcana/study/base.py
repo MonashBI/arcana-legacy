@@ -82,6 +82,7 @@ class Study(object):
 
     _data_specs = {}
     _parameter_specs = {}
+    _switch_specs = {}
 
     implicit_cls_attrs = ['_data_specs', '_parameter_specs',
                           '_switch_specs']
@@ -300,6 +301,11 @@ class Study(object):
                 .format(self, name))
 
     @property
+    def missing_inputs(self):
+        return (n for n in self.acquired_data_spec_names
+                if name not in self._inputs)
+
+    @property
     def subject_ids(self):
         if self._subject_ids is None:
             return [s.id for s in self.tree.subjects]
@@ -367,7 +373,7 @@ class Study(object):
                         self, name))
         return switch
 
-    def check_switch(self, name, matches_value):  # @UnusedVariable @IgnorePep8
+    def check_switch(self, name, value=None):  # @UnusedVariable @IgnorePep8
         """
         Checks whether the given switch matches the value provided
 
@@ -375,13 +381,21 @@ class Study(object):
         ----------
         name : str
             The name of the parameter to retrieve
-        matches_value : str
-            The value of the switch to match
+        value : str | None
+            The value of the switch to match if a non-boolean switch
         """
+        is_bool = self.switch_spec(name).is_boolean
+        if (value is not None) != is_bool:
+            raise ArcanaUsageError(
+                "Values ({}) must/can only be provided to non-boolean "
+                "switches ({})".format(value, name))
         switch = self._get_switch(name)
         # Register parameter as being used by the pipeline
         self._used_switches.add(switch)
-        return (switch.value == matches_value)
+        if is_bool:
+            return switch.value
+        else:
+            return (switch.value == value)
 
     @property
     def parameters(self):
@@ -511,14 +525,16 @@ class Study(object):
                     try:
                         spec = self._parameter_specs[name]
                     except KeyError:
-                        raise ArcanaNameError(
-                            name,
-                            "'{}' is not a recognised spec name "
-                            "for {} studies:\n{}."
-                            .format(name, self.__class__.__name__,
-                                    '\n'.join(chain(
-                                        sorted(self.data_spec_names()),
-                                        sorted(self.parameter_spec_names())))))
+                        try:
+                            spec = self._switch_specs[name]
+                        except KeyError:
+                            raise ArcanaNameError(
+                                name,
+                                "'{}' is not a recognised spec name "
+                                "for {} studies:\n{}."
+                                .format(name, self.__class__.__name__,
+                                        '\n'.join(sorted(
+                                            self.spec_names()))))
         return spec
 
     @classmethod
@@ -595,7 +611,9 @@ class Study(object):
 
     @classmethod
     def spec_names(cls):
-        return chain(cls.data_spec_names(), cls.parameter_spec_names())
+        return chain(cls.data_spec_names(),
+                     cls.parameter_spec_names(),
+                     cls.switch_spec_names())
 
     @classmethod
     def acquired_data_specs(cls):
@@ -649,6 +667,10 @@ class StudyMetaClass(type):
     """
     Metaclass for all study classes that collates data specs from
     bases and checks pipeline method names.
+
+    Combines specifications in add_(data|parameter|switch)_specs from
+    the class to be created with its base classes, overriding matching
+    specs in the order of the bases.
     """
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
@@ -685,12 +707,12 @@ class StudyMetaClass(type):
                 pass
             try:
                 combined_parameter_specs.update(
-                    (o.name, o) for o in base.parameter_specs())
+                    (p.name, p) for p in base.parameter_specs())
             except AttributeError:
                 pass
             try:
                 combined_switch_specs.update(
-                    (o.name, o) for o in base.switch_specs())
+                    (s.name, s) for s in base.switch_specs())
             except AttributeError:
                 pass
         combined_attrs.update(list(dct.keys()))
@@ -710,7 +732,8 @@ class StudyMetaClass(type):
                         spec.name, spec.pipeline_name, name))
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
-                             set(combined_parameter_specs))
+                             set(combined_parameter_specs) &
+                             set(combined_switch_specs))
         if spec_name_clashes:
             raise ArcanaUsageError(
                 "'{}' name both data and parameter specs in '{}' class"
