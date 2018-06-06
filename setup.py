@@ -20,7 +20,7 @@ setup(
     url='https://github.com/monashbiomedicalimaging/arcana',
     license='The Apache Software Licence 2.0',
     description=(
-        'Architecture for repository-centric analysis based on Nipype'),
+        'Abstracted repository-centric analysis framework'),
     long_description=open('README.rst').read(),
     install_requires=['xnat>=0.3.7',
                       'nipype>=1.0.4',

@@ -16,8 +16,8 @@ Arcana
   :alt: Documentation Status
 
 
-Architecture for Repository-Centric ANAlysis (Arcana) is Python package
-for "repository-centred" analysis of study groups (e.g. NeuroImaging
+Abstracted Repository-Centric ANAlysis (Arcana) is Python framework
+for "repository-centric" analysis of study groups (e.g. NeuroImaging
 studies)
 
 Arcana interacts closely with a repository, storing intermediate
@@ -45,9 +45,9 @@ the acquired and derived data sets along with the analysis pipelines
 used to derive the derived data sets encapsulated within "Study" classes.
 
 The Arcana package itself only provides the abstract *Study* and
-*MultiStudy* base classes, which are designed to be sub-classed by
-more specific classes representing the analysis that can be performed
-on different types of data (e.g. FmriStudy, PetStudy). These specific classes
+*MultiStudy* base classes, which are designed to be sub-classed to
+provide specialised classes representing the analysis that can be performed
+on specific types of data (e.g. FmriStudy, PetStudy). These specific classes
 can then be sub-classed further into classes that are specific to the a particular
 study, and integrate the complete workflow from preprocessing
 to statistic analysis.
