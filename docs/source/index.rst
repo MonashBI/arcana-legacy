@@ -17,7 +17,7 @@ Arcana
 
 
 Abstracted Repository-Centric ANAlysis (Arcana) is Python framework
-for "repository-centric" analysis of study groups (e.g. NeuroImaging studies)
+for "repository-centric" analyses of study groups (e.g. NeuroImaging studies)
 
 Arcana interacts closely with a repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
