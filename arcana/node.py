@@ -171,7 +171,7 @@ class ArcanaNodeMixin(object):
                         ' '.join([modulecmd, 'python'] + list(args)), e))
             exec(output)
             if PY3:
-                error = str(error)
+                error = error.decode('utf-8')
             return error
         else:
             raise ArcanaModulesNotInstalledException('MODULESHOME')
