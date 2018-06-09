@@ -585,22 +585,35 @@ class Pipeline(object):
                 raise
         shutil.rmtree(tmpdir)
 
-    def add_input(self, input_name):
+    def add_input(self, input):  # @ReservedAssignment
         """
         Adds a new input to the pipeline. Useful if extending a pipeline in a
         derived Study class
 
         Parameters
         ----------
-        input_name : str
-            Name of the input to add to the pipeline
+        input : BaseSpec
+            The input to add to the pipeline
         """
-        if input_name not in self.study.data_spec_names():
+        if input.name not in self.study.data_spec_names():
             raise ArcanaNameError(
-                input_name,
+                input.name,
                 "'{}' is not a name of a specified dataset or field in {} "
-                "Study".format(input_name, self.study.name))
-        self._inputs.append(input_name)
+                "Study".format(input.name, self.study.name))
+        self._inputs.append(input)
+
+    def add_output(self, output):
+        """
+        Adds a new output to the pipeline. Useful if extending a
+        pipeline in a derived Study class
+
+        Parameters
+        ----------
+        output : BaseSpec
+            The output to add to the pipeline
+        """
+        freq = self._study.data_spec(output.name).frequency
+        self._outputs[freq].append(output)
 
     def assert_connected(self):
         """
