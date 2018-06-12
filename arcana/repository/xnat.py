@@ -29,7 +29,7 @@ from arcana.repository.base import (  # @IgnorePep8
     RepositorySubjectSink, RepositoryVisitSink, RepositoryProjectSink,
     MULTIPLICITIES)
 from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePep8
-from arcana.file_format import DataFormat  # @IgnorePep8
+from arcana.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
     ArcanaError, ArcanaMissingDataException)
@@ -1021,7 +1021,7 @@ def guess_file_format(xdataset):
     dataset_formats = set()
     for xresource in xdataset.resources.values():
         try:
-            dataset_formats.add(DataFormat.by_names[
+            dataset_formats.add(FileFormat.by_names[
                 xresource.label.lower()])
         except KeyError:
             logger.debug("Ignoring resource '{}' in dataset {}"

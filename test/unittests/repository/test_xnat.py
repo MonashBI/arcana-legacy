@@ -25,7 +25,7 @@ from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from arcana.file_format import DataFormat
+from arcana.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
 from arcana.file_format import text_format
@@ -53,7 +53,7 @@ sys.path.pop(0)
 
 logger = logging.getLogger('arcana')
 
-dicom_format = DataFormat(name='dicom', extension=None,
+dicom_format = FileFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])
 
 try:

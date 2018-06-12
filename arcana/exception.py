@@ -48,7 +48,7 @@ class ArcanaOutputNotProducedException(ArcanaException):
     """
 
 
-class ArcanaDataFormatError(ArcanaUsageError):
+class ArcanaFileFormatError(ArcanaUsageError):
     pass
 
 
@@ -82,7 +82,7 @@ class ArcanaNoRunRequiredException(ArcanaException):
     """
 
 
-class ArcanaDataFormatClashError(ArcanaError):
+class ArcanaFileFormatClashError(ArcanaError):
     """
     Used when two mismatching data formats are registered with the same
     name or extention
@@ -98,5 +98,5 @@ class ArcanaConverterNotAvailableError(ArcanaError):
     "available"
 
 
-class ArcanaDataFormatNotRegisteredError(ArcanaError):
+class ArcanaFileFormatNotRegisteredError(ArcanaError):
     pass

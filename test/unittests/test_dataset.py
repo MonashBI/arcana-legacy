@@ -10,7 +10,7 @@ from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.parameter import ParameterSpec  # @IgnorePep8
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
-from arcana.file_format import text_format, DataFormat  # @IgnorePep8
+from arcana.file_format import text_format, FileFormat  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -19,9 +19,9 @@ else:
     import pickle as pkl  # @Reimport
 
 # For testing DICOM tag matching
-dicom_format = DataFormat(name='dicom', extension=None,
+dicom_format = FileFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])
-DataFormat.register(dicom_format)
+FileFormat.register(dicom_format)
 
 
 class TestDatasetSpecPickle(TestCase):

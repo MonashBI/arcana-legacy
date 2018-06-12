@@ -16,7 +16,7 @@ from arcana.study.multi import (
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.parameter import ParameterSpec
-from arcana.file_format import DataFormat, IdentityConverter
+from arcana.file_format import FileFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
 from arcana.repository import Project, Subject, Session, Visit
@@ -480,14 +480,14 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     "{}:{}".format(subj_id, visit_id))
 
 
-test1_format = DataFormat('test1', extension='.t1')
-test2_format = DataFormat('test2', extension='.t2',
+test1_format = FileFormat('test1', extension='.t1')
+test2_format = FileFormat('test2', extension='.t2',
                           converters={'test1': IdentityConverter})
-test3_format = DataFormat('test3', extension='.t3')
+test3_format = FileFormat('test3', extension='.t3')
 
-DataFormat.register(test1_format)
-DataFormat.register(test2_format)
-DataFormat.register(test3_format)
+FileFormat.register(test1_format)
+FileFormat.register(test2_format)
+FileFormat.register(test3_format)
 
 
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):

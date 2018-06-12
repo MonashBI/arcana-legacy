@@ -2,11 +2,11 @@ from builtins import str
 from past.builtins import basestring
 import os.path
 import pydicom
-from arcana.file_format import DataFormat, directory_format
+from arcana.file_format import FileFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
-    ArcanaError, ArcanaDataFormatError, ArcanaUsageError,
-    ArcanaDataFormatNotRegisteredError, ArcanaNameError)
+    ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
+    ArcanaFileFormatNotRegisteredError, ArcanaNameError)
 from .base import BaseDataset, BaseField
 
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
@@ -174,8 +174,8 @@ class Dataset(BaseDataset):
             if format is None:
                 # Try to guess format
                 try:
-                    format = DataFormat.by_within_dir_exts(within_exts)  # @ReservedAssignment @IgnorePep8
-                except ArcanaDataFormatNotRegisteredError:
+                    format = FileFormat.by_within_dir_exts(within_exts)  # @ReservedAssignment @IgnorePep8
+                except ArcanaFileFormatNotRegisteredError:
                     # Fall back to general directory format
                     format = directory_format  # @ReservedAssignment
             name = os.path.basename(path)
@@ -184,9 +184,9 @@ class Dataset(BaseDataset):
             name, ext = split_extension(filename)
             if format is None:
                 try:
-                    format = DataFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
-                except ArcanaDataFormatNotRegisteredError as e:
-                    raise ArcanaDataFormatNotRegisteredError(
+                    format = FileFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
+                except ArcanaFileFormatNotRegisteredError as e:
+                    raise ArcanaFileFormatNotRegisteredError(
                         str(e) + ", which is required to identify the "
                         "format of the dataset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
@@ -210,7 +210,7 @@ class Dataset(BaseDataset):
             A PyDicom file object
         """
         if self.format.name != 'dicom':
-            raise ArcanaDataFormatError(
+            raise ArcanaFileFormatError(
                 "Can not read DICOM header as {} is not in DICOM format"
                 .format(self))
         fnames = sorted([f for f in os.listdir(self.path)

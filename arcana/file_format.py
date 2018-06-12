@@ -7,10 +7,10 @@ from arcana.interfaces.utils import (
 from arcana.exception import (
     ArcanaRequirementVersionException,
     ArcanaModulesNotInstalledException,
-    ArcanaUsageError, ArcanaDataFormatClashError,
+    ArcanaUsageError, ArcanaFileFormatClashError,
     ArcanaNoConverterError,
     ArcanaConverterNotAvailableError,
-    ArcanaDataFormatNotRegisteredError)
+    ArcanaFileFormatNotRegisteredError)
 from nipype.interfaces.utility import IdentityInterface
 from arcana.requirement import Requirement
 import logging
@@ -20,7 +20,7 @@ from future.utils import with_metaclass
 logger = logging.getLogger('arcana')
 
 
-class DataFormat(object):
+class FileFormat(object):
     """
     Defines a format for a dataset (e.g. DICOM, NIfTI, Matlab file)
 
@@ -102,7 +102,7 @@ class DataFormat(object):
         return not self == other
 
     def __repr__(self):
-        return ("DataFormat(name='{}', extension='{}', directory={}{})"
+        return ("FileFormat(name='{}', extension='{}', directory={}{})"
                 .format(self.name, self.extension, self.directory,
                         (', within_dir_extension={}'.format(
                             self.within_dir_exts)
@@ -170,19 +170,19 @@ class DataFormat(object):
 
         Parameters
         ----------
-        file_format : DataFormat
+        file_format : FileFormat
             The data format to register
         """
         try:
             saved_format = cls.by_names[file_format.name]
             if saved_format != file_format:
-                raise ArcanaDataFormatClashError(
+                raise ArcanaFileFormatClashError(
                     "Cannot register {} due to name clash with previously "
                     "registered {}".format(file_format, saved_format))
         except KeyError:
             if file_format.directory and file_format.extension is None:
                 if file_format.within_dir_exts in cls.by_within_exts:
-                    raise ArcanaDataFormatClashError(
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to within-directory "
                         "extension clash with previously registered {}"
                         .format(file_format,
@@ -190,14 +190,14 @@ class DataFormat(object):
                                     file_format.within_dir_exts]))
             else:
                 if file_format.extension in cls.by_exts:
-                    raise ArcanaDataFormatClashError(
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to extension clash with "
                         "previously registered {}".format(
                             file_format,
                             cls.by_exts[file_format.ext]))
             for alt_name in file_format.alternate_names:
                 if alt_name in cls.by_names:
-                    raise ArcanaDataFormatClashError(
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to alternate name clash"
                         "('{}') with previously registered {}".format(
                             file_format, alt_name,
@@ -216,7 +216,7 @@ class DataFormat(object):
         try:
             return cls.by_names[name.lower()]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format named '{}' has been registered"
                 .format(name,
                         ', '.format(repr(f)
@@ -227,7 +227,7 @@ class DataFormat(object):
         try:
             return cls.by_exts[ext]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format with extension '{}' has been registered"
                 .format(
                     ext, ', '.format(repr(f)
@@ -238,7 +238,7 @@ class DataFormat(object):
         try:
             return cls.by_within_exts[within_exts]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format with within-directory extension '{}' "
                 "has been registered ({})".format(
                     within_exts,
@@ -252,9 +252,9 @@ class Converter(with_metaclass(ABCMeta, object)):
 
     Parameters
     ----------
-    input_format : DataFormat
+    input_format : FileFormat
         The input format to convert from
-    output_format : DataFormat
+    output_format : FileFormat
         The output format to convert to
     """
 
@@ -349,20 +349,20 @@ class UnTarGzConverter(Converter):
 
 
 # General formats
-directory_format = DataFormat(name='directory', extension=None,
+directory_format = FileFormat(name='directory', extension=None,
                               directory=True,
                               converters={'zip': UnzipConverter,
                                           'targz': UnTarGzConverter})
-text_format = DataFormat(name='text', extension='.txt')
+text_format = FileFormat(name='text', extension='.txt')
 
 
 # Compressed formats
-zip_format = DataFormat(name='zip', extension='.zip',
+zip_format = FileFormat(name='zip', extension='.zip',
                         converters={'directory': ZipConverter})
-targz_format = DataFormat(name='targz', extension='.tar.gz',
+targz_format = FileFormat(name='targz', extension='.tar.gz',
                           converters={'direcctory': TarGzConverter})
 
 # Register all data formats in module
 for file_format in copy(globals()).values():
-    if isinstance(file_format, DataFormat):
-        DataFormat.register(file_format)
+    if isinstance(file_format, FileFormat):
+        FileFormat.register(file_format)
