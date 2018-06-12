@@ -10,7 +10,7 @@ from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.parameter import ParameterSpec  # @IgnorePep8
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
-from arcana.data_format import text_format, DataFormat  # @IgnorePep8
+from arcana.file_format import text_format, DataFormat  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:

@@ -2,7 +2,7 @@ from builtins import str
 from past.builtins import basestring
 import os.path
 import pydicom
-from arcana.data_format import DataFormat, directory_format
+from arcana.file_format import DataFormat, directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaDataFormatError, ArcanaUsageError,

@@ -25,10 +25,10 @@ from arcana.study import Study, StudyMetaClass
 from arcana.runner import LinearRunner
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from arcana.data_format import DataFormat
+from arcana.file_format import DataFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
-from arcana.data_format import text_format
+from arcana.file_format import text_format
 from arcana.repository.tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
 import sys

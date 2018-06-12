@@ -5,7 +5,7 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.data_format import text_format  # @IgnorePep8
+from arcana.file_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -16,7 +16,7 @@ from arcana.study.multi import (
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.parameter import ParameterSpec
-from arcana.data_format import DataFormat, IdentityConverter
+from arcana.file_format import DataFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import ArcanaNoConverterError
 from arcana.repository import Project, Subject, Session, Visit

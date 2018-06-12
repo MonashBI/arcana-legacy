@@ -148,68 +148,68 @@ class DataFormat(object):
         "Lists acceptable XNAT resource names in order of preference"
         return (self.name.upper(),) + self.alternate_names
 
-    def converter_from(self, data_format):
-        if data_format == self:
-            return IdentityConverter(data_format, self)
+    def converter_from(self, file_format):
+        if file_format == self:
+            return IdentityConverter(file_format, self)
         try:
-            converter_cls = self._converters[data_format.name]
+            converter_cls = self._converters[file_format.name]
         except KeyError:
             raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}, available:\n{}"
-                .format(self, data_format,
+                .format(self, file_format,
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
-        return converter_cls(data_format, self)
+        return converter_cls(file_format, self)
 
     @classmethod
-    def register(cls, data_format):
+    def register(cls, file_format):
         """
         Registers a data format so they can be recognised by extension
         and by resource type on XNAT
 
         Parameters
         ----------
-        data_format : DataFormat
+        file_format : DataFormat
             The data format to register
         """
         try:
-            saved_format = cls.by_names[data_format.name]
-            if saved_format != data_format:
+            saved_format = cls.by_names[file_format.name]
+            if saved_format != file_format:
                 raise ArcanaDataFormatClashError(
                     "Cannot register {} due to name clash with previously "
-                    "registered {}".format(data_format, saved_format))
+                    "registered {}".format(file_format, saved_format))
         except KeyError:
-            if data_format.directory and data_format.extension is None:
-                if data_format.within_dir_exts in cls.by_within_exts:
+            if file_format.directory and file_format.extension is None:
+                if file_format.within_dir_exts in cls.by_within_exts:
                     raise ArcanaDataFormatClashError(
                         "Cannot register {} due to within-directory "
                         "extension clash with previously registered {}"
-                        .format(data_format,
+                        .format(file_format,
                                 cls.by_within_exts[
-                                    data_format.within_dir_exts]))
+                                    file_format.within_dir_exts]))
             else:
-                if data_format.extension in cls.by_exts:
+                if file_format.extension in cls.by_exts:
                     raise ArcanaDataFormatClashError(
                         "Cannot register {} due to extension clash with "
                         "previously registered {}".format(
-                            data_format,
-                            cls.by_exts[data_format.ext]))
-            for alt_name in data_format.alternate_names:
+                            file_format,
+                            cls.by_exts[file_format.ext]))
+            for alt_name in file_format.alternate_names:
                 if alt_name in cls.by_names:
                     raise ArcanaDataFormatClashError(
                         "Cannot register {} due to alternate name clash"
                         "('{}') with previously registered {}".format(
-                            data_format, alt_name,
+                            file_format, alt_name,
                             cls.by_names[alt_name]))
-            cls.by_names[data_format.name] = data_format
-            for alt_name in data_format.alternate_names:
-                cls.by_names[alt_name] = data_format
-            if data_format.ext is not None:
-                cls.by_exts[data_format.ext] = data_format
-            if data_format.within_dir_exts is not None:
+            cls.by_names[file_format.name] = file_format
+            for alt_name in file_format.alternate_names:
+                cls.by_names[alt_name] = file_format
+            if file_format.ext is not None:
+                cls.by_exts[file_format.ext] = file_format
+            if file_format.within_dir_exts is not None:
                 cls.by_within_exts[
-                    data_format.within_dir_exts] = data_format
+                    file_format.within_dir_exts] = file_format
 
     @classmethod
     def by_name(cls, name):
@@ -363,6 +363,6 @@ targz_format = DataFormat(name='targz', extension='.tar.gz',
                           converters={'direcctory': TarGzConverter})
 
 # Register all data formats in module
-for data_format in copy(globals()).values():
-    if isinstance(data_format, DataFormat):
-        DataFormat.register(data_format)
+for file_format in copy(globals()).values():
+    if isinstance(file_format, DataFormat):
+        DataFormat.register(file_format)

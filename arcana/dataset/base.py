@@ -2,7 +2,7 @@ from past.builtins import basestring
 from builtins import object
 import os.path
 from abc import ABCMeta
-from arcana.data_format import DataFormat
+from arcana.file_format import DataFormat
 from copy import copy
 from logging import getLogger
 from arcana.exception import ArcanaError

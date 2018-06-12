@@ -24,7 +24,7 @@ from .study import (
     SubStudySpec)
 from .dataset import (
     DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
-from .data_format import DataFormat
+from .file_format import DataFormat
 from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
 from .runner import LinearRunner, MultiProcRunner, SlurmRunner
 from .repository import LocalRepository, XnatRepository
