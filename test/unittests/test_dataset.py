@@ -11,6 +11,7 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.parameter import SwitchSpec  # @IgnorePep8
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
 from arcana.file_format import text_format, FileFormat  # @IgnorePep8
+from arcana.exception import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -126,7 +127,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_switch_specs = [
         SwitchSpec('switch', False),
-        SwitchSpec('branch', 'foo', ('foo', 'bar'))]
+        SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
     def pipeline1(self):
         pipeline = self.create_pipeline(
@@ -198,6 +199,8 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             outputs.append(DatasetSpec('requires_foo', text_format))
         elif self.branch('branch', 'bar'):
             outputs.append(DatasetSpec('requires_bar', text_format))
+        else:
+            self.unhandled_branch('branch')
         pipeline = self.create_pipeline(
             'pipeline5',
             inputs=[DatasetSpec('required', text_format)],
@@ -212,6 +215,8 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             pipeline.connect_output('requires_foo', identity, 'a')
         elif self.branch('branch', 'bar'):
             pipeline.connect_output('requires_bar', identity, 'a')
+        else:
+            self.unhandled_branch('branch')
         return pipeline
 
 
@@ -262,3 +267,13 @@ class TestDerivable(BaseTestCase):
                     DatasetMatch('optional', text_format, 'required')])
         self.assertTrue(
             study_with_input.spec('missing_input').derivable)
+        study_unhandled = self.create_study(
+            TestDerivableStudy,
+            'study_unhandled',
+            inputs=[DatasetMatch('required', text_format, 'required')],
+            switches={'branch': 'wee'})
+        self.assertRaises(
+            ArcanaDesignError,
+            getattr,
+            study_unhandled.spec('requires_foo'),
+            'derivable')
