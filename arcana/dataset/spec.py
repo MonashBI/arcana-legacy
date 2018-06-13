@@ -115,6 +115,7 @@ class BaseSpec(object):
                 "'{}' study".format(self.pipeline_name, self.study))
         # Set up study to record which parameters and switches are
         # referenced during the pipeline generation
+        self.study._pipeline_to_generate = self.pipeline_name
         self.study._referenced_parameters = set()
         self.study._referenced_switches = set()
         try:
@@ -127,6 +128,7 @@ class BaseSpec(object):
         finally:
             # Reset referenced parameters and switches after generating
             # pipeline
+            self.study._pipeline_to_generate = None
             self.study._referenced_parameters = None
             self.study._referenced_switches = None
         if self.name not in pipeline.output_names:

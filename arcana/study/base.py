@@ -226,6 +226,7 @@ class Study(object):
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
         # provenance
+        self._pipeline_to_generate = None
         self._referenced_parameters = None
         self._referenced_switches = None
 
@@ -353,8 +354,10 @@ class Study(object):
             except KeyError:
                 raise ArcanaNameError(
                     name,
-                    "{} does not have a parameter named '{}'".format(
-                        self, name))
+                    "Invalid parameter, '{}', in {} (valid '{}')"
+                    .format(
+                        name, self._param_error_location,
+                        "', '".join(self.parameter_spec_names)))
         return parameter
 
     def _get_switch(self, name):
@@ -366,8 +369,9 @@ class Study(object):
             except KeyError:
                 raise ArcanaNameError(
                     name,
-                    "{} does not have a switch named '{}'".format(
-                        self, name))
+                    "Invalid switch, '{}', in {} (valid '{}')".format(
+                        name, self._param_error_location,
+                        "', '".join(self.switch_spec_names)))
         return switch
 
     def parameter(self, name):
@@ -399,7 +403,8 @@ class Study(object):
         if (value is not None) != is_bool:
             raise ArcanaUsageError(
                 "Values ({}) must/can only be provided to non-boolean "
-                "switches ({})".format(value, name))
+                "switches ({}), see {}".format(
+                    value, name, self._param_error_location))
         switch = self._get_switch(name)
         # Register parameter as being used by the pipeline
         if is_bool:
@@ -407,13 +412,35 @@ class Study(object):
         else:
             if value not in switch.choices:
                 raise ArcanaUsageError(
-                    "Provided value ('{}') for switch '{}' is not a "
-                    "valid option ('{}')".format(
-                        value, name, "', '".join(switch.choices)))
+                    "Provided value ('{}') for switch '{}' in {} "
+                    "is not a valid option ('{}')".format(
+                        value, name, self._param_error_location,
+                        "', '".join(switch.choices)))
             active = (switch.value == value)
         if self._referenced_switches is not None:
             self._referenced_switches.add(name)
         return active
+
+    def unhandled_switch(self, name, value):
+        """
+        Convenient method for raising exception if a pipeline doesn't
+        handle a particular switch value
+
+        Parameters
+        ----------
+        name : str
+            Name of the switch
+        value : str
+            Value of the switch which hasn't been handled
+        """
+        raise ArcanaUsageError(
+            "'{}' value of '{}' switch in {} is not handled"
+            .format(value, name, self._param_error_location))
+
+    @property
+    def _param_error_location(self):
+        return ("generation of '{}' pipeline of {}"
+                .format(self._pipeline_to_generate, self))
 
     @property
     def parameters(self):
