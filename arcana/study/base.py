@@ -1,11 +1,9 @@
 from past.builtins import basestring
 from builtins import object
-from future.utils import PY3
 from itertools import chain
 import sys
 import types
 from logging import getLogger
-from collections import defaultdict
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError,
@@ -108,9 +106,6 @@ class Study(object):
         self._visit_ids = visit_ids
         self._tree_cache = None
         self._reprocess = reprocess
-        # Record switches accessed before a pipeline is created
-        # so they can be attributed to the pipeline after creation
-        self._used_switches = set()
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
@@ -227,6 +222,12 @@ class Study(object):
                             param_name, param.value,
                             ','.join(param_spec.choices)))
             self._parameters[param_name] = param
+        # For recording which parameters and switches are accessed
+        # during pipeline generation so they can be attributed to the
+        # pipeline after it is generated (and then saved in the
+        # provenance
+        self._referenced_parameters = None
+        self._referenced_switches = None
 
     def __repr__(self):
         """String representation of the study"""
@@ -341,11 +342,7 @@ class Study(object):
         Creates a Pipeline object, passing the study (self) as the first
         argument
         """
-        pipeline = Pipeline(self, *args, **kwargs)
-        # Register switches used before the pipeline was created
-        pipeline._used_switches.update(self._used_switches)
-        self._used_switches = set()
-        return pipeline
+        return Pipeline(self, *args, **kwargs)
 
     def _get_parameter(self, name):
         try:
@@ -373,7 +370,21 @@ class Study(object):
                         self, name))
         return switch
 
-    def check_switch(self, name, value=None):  # @UnusedVariable @IgnorePep8
+    def parameter(self, name):
+        """
+        Retrieves the value of the parameter and registers the parameter
+        as being used by this pipeline for use in provenance capture
+
+        Parameters
+        ----------
+        name : str
+            The name of the parameter to retrieve
+        """
+        if self._referenced_parameters is not None:
+            self._referenced_parameters.add(name)
+        return self._get_parameter(name)
+
+    def switch(self, name, value=None):  # @UnusedVariable @IgnorePep8
         """
         Checks whether the given switch matches the value provided
 
@@ -391,11 +402,18 @@ class Study(object):
                 "switches ({})".format(value, name))
         switch = self._get_switch(name)
         # Register parameter as being used by the pipeline
-        self._used_switches.add(switch)
         if is_bool:
-            return switch.value
+            active = switch.value
         else:
-            return (switch.value == value)
+            if value not in switch.choices:
+                raise ArcanaUsageError(
+                    "Provided value ('{}') for switch '{}' is not a "
+                    "valid option ('{}')".format(
+                        value, name, "', '".join(switch.choices)))
+            active = (switch.value == value)
+        if self._referenced_switches is not None:
+            self._referenced_switches.add(name)
+        return active
 
     @property
     def parameters(self):

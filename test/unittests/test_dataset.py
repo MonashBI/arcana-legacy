@@ -157,7 +157,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     def pipeline3(self, **kwargs):
         outputs = [DatasetSpec('another_derivable', text_format)]
-        switch = self.check_switch('switch')
+        switch = self.if_switch('switch')
         if switch:
             outputs.append(DatasetSpec('wrong_parameter', text_format))
         pipeline = self.create_pipeline(
