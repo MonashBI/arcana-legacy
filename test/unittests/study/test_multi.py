@@ -73,7 +73,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         prod = pipeline.create_node(TestMath(), name="product")
         add1.inputs.op = 'add'
         add2.inputs.op = 'add'
-        prod.inputs.op = pipeline.parameter('product_op')
+        prod.inputs.op = self.parameter('product_op')
         add1.inputs.as_file = True
         add2.inputs.as_file = True
         prod.inputs.as_file = True
@@ -180,7 +180,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
             **kwargs)
         merge = pipeline.create_node(Merge(3), name="merge")
         math = pipeline.create_node(TestMath(), name="math")
-        math.inputs.op = pipeline.parameter('combined_op')
+        math.inputs.op = self.parameter('combined_op')
         math.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('ss1_z', merge, 'in1')

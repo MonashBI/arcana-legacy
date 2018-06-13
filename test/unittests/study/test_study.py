@@ -68,7 +68,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.parameter('pipeline_parameter'):
+        if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline1")
         indent = pipeline.create_node(IdentityInterface(['file']),
@@ -93,7 +93,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.parameter('pipeline_parameter'):
+        if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
         math = pipeline.create_node(TestMath(), name="math")
