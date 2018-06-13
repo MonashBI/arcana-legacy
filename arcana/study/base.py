@@ -421,7 +421,7 @@ class Study(object):
             self._referenced_switches.add(name)
         return active
 
-    def unhandled_switch(self, name, value):
+    def unhandled_switch(self, name):
         """
         Convenient method for raising exception if a pipeline doesn't
         handle a particular switch value
@@ -435,7 +435,8 @@ class Study(object):
         """
         raise ArcanaUsageError(
             "'{}' value of '{}' switch in {} is not handled"
-            .format(value, name, self._param_error_location))
+            .format(self.get_switch(name), name,
+                    self._param_error_location))
 
     @property
     def _param_error_location(self):
