@@ -1,12 +1,12 @@
 from past.builtins import basestring
-from builtins import object
+from builtins import object, str
 from itertools import chain
 import sys
 import types
 from logging import getLogger
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
-    ArcanaMissingInputError, ArcanaNoConverterError,
+    ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
@@ -177,14 +177,8 @@ class Study(object):
                     "allowable switches for {} classes ('{}')"
                     .format(switch_name, type(self).__name__,
                             "', '".join(self.default_switches)))
-            if switch.value not in switch_spec.choices:
-                raise ArcanaUsageError(
-                    "Provided value for '{}' switch in {}(name='{}') "
-                    "(as '{}') , {}, is not a valid choice. Can be one "
-                    "of {}"
-                    .format(switch.name, type(self).__name__, name,
-                            switch_name, switch.value,
-                            ','.join(switch_spec.choices)))
+            switch_spec.check_valid(switch, ' provided to {}'
+                                    .format(self))
             self._switches[switch_name] = switch
         # Set parameters
         if parameters is None:
@@ -304,8 +298,8 @@ class Study(object):
 
     @property
     def missing_inputs(self):
-        return (n for n in self.acquired_data_spec_names
-                if name not in self._inputs)
+        return (n for n in self.acquired_data_spec_names()
+                if n not in self._inputs)
 
     @property
     def subject_ids(self):
@@ -386,9 +380,23 @@ class Study(object):
         """
         if self._referenced_parameters is not None:
             self._referenced_parameters.add(name)
-        return self._get_parameter(name)
+        return self._get_parameter(name).value
 
-    def switch(self, name, value=None):  # @UnusedVariable @IgnorePep8
+    def switch(self, name):  # @UnusedVariable @IgnorePep8
+        """
+        Retrieves the value of the switch and registers the parameter
+        as being used by this pipeline for use in provenance capture
+
+        Parameters
+        ----------
+        name : str
+            The name of the parameter to retrieve
+        """
+        if self._referenced_switches is not None:
+            self._referenced_switches.add(name)
+        return self._get_switch(name).value
+
+    def branch(self, name, values):  # @UnusedVariable @IgnorePep8
         """
         Checks whether the given switch matches the value provided
 
@@ -399,27 +407,27 @@ class Study(object):
         value : str | None
             The value of the switch to match if a non-boolean switch
         """
-        is_bool = self.switch_spec(name).is_boolean
-        if (value is not None) != is_bool:
-            raise ArcanaUsageError(
-                "Values ({}) must/can only be provided to non-boolean "
-                "switches ({}), see {}".format(
-                    value, name, self._param_error_location))
+        if isinstance(values, str):
+            values = [values]
+        spec = self.switch_spec(name)
+        if spec.is_boolean:
+            raise ArcanaDesignError(
+                "Boolean switch '{}' in {} should not be used in a "
+                "'branch' call".format(
+                    name, self._param_error_location))
         switch = self._get_switch(name)
         # Register parameter as being used by the pipeline
-        if is_bool:
-            active = switch.value
-        else:
-            if value not in switch.choices:
-                raise ArcanaUsageError(
-                    "Provided value ('{}') for switch '{}' in {} "
-                    "is not a valid option ('{}')".format(
-                        value, name, self._param_error_location,
-                        "', '".join(switch.choices)))
-            active = (switch.value == value)
+        unrecognised_values = set(values) - set(spec.choices)
+        if unrecognised_values:
+            raise ArcanaDesignError(
+                "Provided value(s) ('{}') for switch '{}' in {} "
+                "is not a valid option ('{}')".format(
+                    "', '".join(unrecognised_values), name,
+                    self._param_error_location,
+                    "', '".join(switch.choices)))
         if self._referenced_switches is not None:
             self._referenced_switches.add(name)
-        return active
+        return switch.value in values
 
     def unhandled_switch(self, name):
         """
@@ -433,7 +441,7 @@ class Study(object):
         value : str
             Value of the switch which hasn't been handled
         """
-        raise ArcanaUsageError(
+        raise ArcanaDesignError(
             "'{}' value of '{}' switch in {} is not handled"
             .format(self.get_switch(name), name,
                     self._param_error_location))

@@ -11,7 +11,7 @@ from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
-    ArcanaNameError, ArcanaError, ArcanaOutputNotProducedException)
+    ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
 
 
 logger = getLogger('Arcana')
@@ -234,11 +234,15 @@ class Pipeline(object):
         node_output : str
             Name of the output on the node to connect to the dataset
         """
-        assert spec_name in self.output_names, (
-            "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(spec_name, self.name, "', '".join(self.output_names)))
-        assert spec_name in self._unconnected_outputs, (
-            "'{}' output has been connected already")
+        if spec_name not in self.output_names:
+            raise ArcanaDesignError(
+                "'{}' is not a valid output for '{}' pipeline ('{}')"
+                .format(spec_name, self.name,
+                        "', '".join(self.output_names)))
+        if spec_name not in self._unconnected_outputs:
+            raise ArcanaDesignError(
+                "'{}' output has been connected already"
+                .format(spec_name))
         outputnode = self._outputnodes[
             self._study.data_spec(spec_name).frequency]
         self._workflow.connect(node, node_output, outputnode, spec_name)
@@ -576,35 +580,33 @@ class Pipeline(object):
                 raise
         shutil.rmtree(tmpdir)
 
-    def add_input(self, input):  # @ReservedAssignment
-        """
-        Adds a new input to the pipeline. Useful if extending a pipeline in a
-        derived Study class
-
-        Parameters
-        ----------
-        input : BaseSpec
-            The input to add to the pipeline
-        """
-        if input.name not in self.study.data_spec_names():
-            raise ArcanaNameError(
-                input.name,
-                "'{}' is not a name of a specified dataset or field in {} "
-                "Study".format(input.name, self.study.name))
-        self._inputs.append(input)
-
-    def add_output(self, output):
-        """
-        Adds a new output to the pipeline. Useful if extending a
-        pipeline in a derived Study class
-
-        Parameters
-        ----------
-        output : BaseSpec
-            The output to add to the pipeline
-        """
-        freq = self._study.data_spec(output.name).frequency
-        self._outputs[freq].append(output)
+#     def add_input(self, input_spec):
+#         """
+#         Adds a new input to the pipeline. Useful if extending a pipeline in a
+#         derived Study class
+#
+#         Parameters
+#         ----------
+#         input_spec : DatasetSpec
+#             Spec for the input to add to the pipeline
+#         """
+#         self.study.data_spec(input_spec.name)  # check valid name
+#         self._inputs.append(input_spec)
+#         self._unconnected_inputs.add(input_spec.name)
+#
+#     def add_output(self, output_spec):
+#         """
+#         Adds a new output to the pipeline. Useful if extending a
+#         pipeline in a derived Study class
+#
+#         Parameters
+#         ----------
+#         output_spec : DatasetSpec
+#             Spec of the output to add to the pipeline
+#         """
+#         spec = self.study.data_spec(output_spec.name)
+#         self._outputs[spec.frequency].append(output_spec)
+#         self._unconnected_outputs.add(output_spec.name)
 
     def assert_connected(self):
         """

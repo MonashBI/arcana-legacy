@@ -26,6 +26,10 @@ class ArcanaUsageError(ArcanaError):
     pass
 
 
+class ArcanaDesignError(ArcanaError):
+    pass
+
+
 class ArcanaNameError(ArcanaError):
 
     def __init__(self, name, msg):

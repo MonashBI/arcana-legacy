@@ -126,9 +126,9 @@ class Switch(object):
 
     def __init__(self, name, value):
         self._name = name
-        if not isinstance(value, str, bool):
+        if not isinstance(value, (str, bool)):
             raise ArcanaUsageError(
-                "Value of '{}' switch needs to be of type str "
+                "Value of '{}' switch needs to be of type str or bool"
                 "(provided {})".format(name, value))
         self._value = value
 
@@ -174,11 +174,17 @@ class SwitchSpec(Switch):
     """
 
     def __init__(self, name, default, choices=None, desc=None):
-        super(ParameterSpec, self).__init__(name, default)
-        if isinstance(default, bool) and choices is not None:
+        super(SwitchSpec, self).__init__(name, default)
+        if self.is_boolean:
+            if choices is not None:
+                raise ArcanaUsageError(
+                    "Choices ({}) are only valid for non-boolean "
+                    "switches ('{}')".format("', '".join(choices),
+                                               name))
+        elif choices is None:
             raise ArcanaUsageError(
-                "Choices ({}) are only valid for non-boolean switches "
-                "(not {})".format("', '".join(choices), name))
+                "Choices must be provided for non-boolean "
+                "switches ('{}')".format(name))
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
 
@@ -197,6 +203,20 @@ class SwitchSpec(Switch):
     @property
     def choices(self):
         return self._choices
+
+    def check_valid(self, switch, context=''):
+        if self.is_boolean:
+            if not isinstance(switch.value, bool):
+                raise ArcanaUsageError(
+                    "Value provided to switch '{}'{} should be a "
+                    "boolean (not {})".format(
+                        self.name, context, switch.value))
+        elif switch.value not in self.choices:
+            raise ArcanaUsageError(
+                "Value provided to switch '{}'{} ({}) is not a valid "
+                "choice ('{}')".format(
+                    self.name, context, switch.value,
+                    "', '".join(self.choices)))
 
     @property
     def desc(self):

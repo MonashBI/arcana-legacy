@@ -1,28 +1,28 @@
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
-import os.path
+from builtins import str  # @IgnorePep8
+import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
 from arcana.file_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.testing import (
+from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.exception import (
+from arcana.exception import (  # @IgnorePep8
     ArcanaNameError, ArcanaCantPickleStudyError)  # @IgnorePep8
-from arcana.study.multi import (
+from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.parameter import ParameterSpec
-from arcana.file_format import FileFormat, IdentityConverter
-from nipype.interfaces.utility import IdentityInterface
-from arcana.exception import ArcanaNoConverterError
-from arcana.repository import Project, Subject, Session, Visit
-from arcana.dataset import Dataset
-from future.utils import PY2
-from future.utils import with_metaclass
+from arcana.parameter import ParameterSpec  # @IgnorePep8
+from arcana.file_format import FileFormat, IdentityConverter  # @IgnorePep8
+from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
+from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
+from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from arcana.dataset import Dataset  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -69,8 +69,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             citations=[],
             **kwargs)
         if not self.parameter('pipeline_parameter'):
-            raise Exception("Pipeline parameter was not cascaded down to "
-                            "pipeline1")
+            raise Exception("Pipeline parameter was not accessible")
         indent = pipeline.create_node(IdentityInterface(['file']),
                                       name="ident1")
         indent2 = pipeline.create_node(IdentityInterface(['file']),
