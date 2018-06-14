@@ -1,4 +1,4 @@
-from builtins import str
+from past.builtins import basestring
 from builtins import object
 from copy import copy
 from arcana.exception import ArcanaUsageError
@@ -126,7 +126,7 @@ class Switch(object):
 
     def __init__(self, name, value):
         self._name = name
-        if not isinstance(value, (str, bool)):
+        if not isinstance(value, (basestring, bool)):
             raise ArcanaUsageError(
                 "Value of '{}' switch needs to be of type str or bool"
                 "(provided {})".format(name, value))

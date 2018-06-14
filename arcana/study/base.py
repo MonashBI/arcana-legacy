@@ -407,7 +407,7 @@ class Study(object):
         value : str | None
             The value of the switch to match if a non-boolean switch
         """
-        if isinstance(values, str):
+        if isinstance(values, basestring):
             values = [values]
         spec = self.switch_spec(name)
         if spec.is_boolean:
@@ -497,7 +497,7 @@ class Study(object):
             names = name
             single_name = False
         def is_single_id(id_):  # @IgnorePep8
-            return isinstance(id_, (str, int))
+            return isinstance(id_, (basestring, int))
         subject_ids = ([subject_id]
                        if is_single_id(subject_id) else subject_id)
         visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
