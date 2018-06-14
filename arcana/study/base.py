@@ -197,7 +197,7 @@ class Study(object):
                     "Provided parameter '{}' is not present in the "
                     "allowable parameters for {} classes ('{}')"
                     .format(param_name, type(self).__name__,
-                            "', '".join(self.default_parameters)))
+                            "', '".join(self.parameter_spec_names())))
             if param.value is not None and not isinstance(
                     param.value, param_spec.dtype):
                 raise ArcanaUsageError(
@@ -351,7 +351,7 @@ class Study(object):
                     "Invalid parameter, '{}', in {} (valid '{}')"
                     .format(
                         name, self._param_error_location,
-                        "', '".join(self.parameter_spec_names)))
+                        "', '".join(self.parameter_spec_names())))
         return parameter
 
     def _get_switch(self, name):
@@ -365,7 +365,7 @@ class Study(object):
                     name,
                     "Invalid switch, '{}', in {} (valid '{}')".format(
                         name, self._param_error_location,
-                        "', '".join(self.switch_spec_names)))
+                        "', '".join(self.switch_spec_names())))
         return switch
 
     def parameter(self, name):

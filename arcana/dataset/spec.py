@@ -125,6 +125,10 @@ class BaseSpec(object):
                 self.study._referenced_parameters)
             pipeline._referenced_switches = (
                 self.study._referenced_switches)
+        except AttributeError as e:
+            # Need to capture this as exception to avoid it getting
+            # confused with specs that don't have pipelines
+            raise ArcanaError("AttributeError was thrown: {}".format(e))
         finally:
             # Reset referenced parameters and switches after generating
             # pipeline
