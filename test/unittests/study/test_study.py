@@ -1,28 +1,28 @@
 from future import standard_library
 standard_library.install_aliases()
-from builtins import str
-import os.path
+from builtins import str  # @IgnorePep8
+import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.data_format import text_format  # @IgnorePep8
+from arcana.file_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.testing import (
+from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.exception import (
+from arcana.exception import (  # @IgnorePep8
     ArcanaNameError, ArcanaCantPickleStudyError)  # @IgnorePep8
-from arcana.study.multi import (
+from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.option import OptionSpec
-from arcana.data_format import DataFormat, IdentityConverter
-from nipype.interfaces.utility import IdentityInterface
-from arcana.exception import ArcanaNoConverterError
-from arcana.repository import Project, Subject, Session, Visit
-from arcana.dataset import Dataset
-from future.utils import PY2
-from future.utils import with_metaclass
+from arcana.parameter import ParameterSpec  # @IgnorePep8
+from arcana.file_format import FileFormat, IdentityConverter  # @IgnorePep8
+from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
+from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
+from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from arcana.dataset import Dataset  # @IgnorePep8
+from future.utils import PY2  # @IgnorePep8
+from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -55,8 +55,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    add_option_specs = [
-        OptionSpec('pipeline_option', False)]
+    add_parameter_specs = [
+        ParameterSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
@@ -68,9 +68,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
-                            "pipeline1")
+        if not self.parameter('pipeline_parameter'):
+            raise Exception("Pipeline parameter was not accessible")
         indent = pipeline.create_node(IdentityInterface(['file']),
                                       name="ident1")
         indent2 = pipeline.create_node(IdentityInterface(['file']),
@@ -93,8 +92,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             version=1,
             citations=[],
             **kwargs)
-        if not pipeline.option('pipeline_option'):
-            raise Exception("Pipeline option was not cascaded down to "
+        if not self.parameter('pipeline_parameter'):
+            raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
         math = pipeline.create_node(TestMath(), name="math")
         math.inputs.op = 'add'
@@ -308,7 +307,7 @@ class TestStudy(BaseMultiSubjectTestCase):
             ExampleStudy, 'dummy', inputs=[
                 DatasetMatch('one', text_format, 'one'),
                 DatasetMatch('ten', text_format, 'ten')],
-            options={'pipeline_option': True})
+            parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
@@ -480,14 +479,14 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     "{}:{}".format(subj_id, visit_id))
 
 
-test1_format = DataFormat('test1', extension='.t1')
-test2_format = DataFormat('test2', extension='.t2',
+test1_format = FileFormat('test1', extension='.t1')
+test2_format = FileFormat('test2', extension='.t2',
                           converters={'test1': IdentityConverter})
-test3_format = DataFormat('test3', extension='.t3')
+test3_format = FileFormat('test3', extension='.t3')
 
-DataFormat.register(test1_format)
-DataFormat.register(test2_format)
-DataFormat.register(test3_format)
+FileFormat.register(test1_format)
+FileFormat.register(test2_format)
+FileFormat.register(test3_format)
 
 
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):

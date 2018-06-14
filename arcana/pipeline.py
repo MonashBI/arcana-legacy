@@ -11,7 +11,7 @@ from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
-    ArcanaNameError, ArcanaError, ArcanaOutputNotProducedException)
+    ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
 
 
 logger = getLogger('Arcana')
@@ -30,7 +30,7 @@ class Pipeline(object):
         The study from which the pipeline was created
     inputs : List[DatasetSpec|FieldSpec]
         The list of input datasets required for the pipeline
-        un/processed datasets, and the options used to generate them for
+        un/processed datasets, and the parameters used to generate them for
         unprocessed datasets
     outputs : List[DatasetSpec|FieldSpec]
         The list of outputs (hard-coded names for un/processed datasets)
@@ -103,9 +103,12 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'"
             .format("', '".join(self.output_names)))
         self._citations = citations
-        # Keep record of all options used in the pipeline construction
-        # so that they can be saved with the provenence.
-        self._used_options = set()
+        # For recording which parameters and switches are accessed
+        # during pipeline generation so they can be attributed to the
+        # pipeline after it is generated (and then saved in the
+        # provenance
+        self._referenced_parameters = None
+        self._referenced_switches = None
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -163,22 +166,22 @@ class Pipeline(object):
             if spec.is_spec and spec.derived:
                 pipelines.add(spec.pipeline)
                 required_outputs[spec.pipeline_name].add(input.name)
-        # Call pipeline-getter instance method on study with provided options
-        # to generate pipeline to run
+        # Call pipeline-getter instance method on study with provided
+        # parameters to generate pipeline to run
         for pipeline in pipelines:
             # Check that the required outputs are created with the given
-            # options
+            # parameters
             missing_outputs = required_outputs[pipeline.name] - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
                     "Output(s) '{}', required for '{}' pipeline, will "
                     "not be created by prerequisite pipeline '{}' "
-                    "with options: {}".format(
+                    "with parameters: {}".format(
                         "', '".join(missing_outputs), self.name,
                         pipeline.name,
                         '\n'.join('{}={}'.format(o.name, o.value)
-                                  for o in self.study.options)))
+                                  for o in self.study.parameters)))
             yield pipeline
 
     @property
@@ -231,11 +234,15 @@ class Pipeline(object):
         node_output : str
             Name of the output on the node to connect to the dataset
         """
-        assert spec_name in self.output_names, (
-            "'{}' is not a valid output for '{}' pipeline ('{}')"
-            .format(spec_name, self.name, "', '".join(self.output_names)))
-        assert spec_name in self._unconnected_outputs, (
-            "'{}' output has been connected already")
+        if spec_name not in self.output_names:
+            raise ArcanaDesignError(
+                "'{}' is not a valid output for '{}' pipeline ('{}')"
+                .format(spec_name, self.name,
+                        "', '".join(self.output_names)))
+        if spec_name not in self._unconnected_outputs:
+            raise ArcanaDesignError(
+                "'{}' output has been connected already"
+                .format(spec_name))
         outputnode = self._outputnodes[
             self._study.data_spec(spec_name).frequency]
         self._workflow.connect(node, node_output, outputnode, spec_name)
@@ -464,35 +471,23 @@ class Pipeline(object):
     def output_names(self):
         return (o.name for o in self.outputs)
 
-    def option(self, name):
-        """
-        Retrieves the value of the option provided to the pipeline's
-        study and registers the option as being used by this pipeline
-        for use in provenance capture
-
-        Parameters
-        ----------
-        name : str
-            The name of the option to retrieve
-        """
-        option = self.study._get_option(name)
-        # Register option as being used by the pipeline
-        self._used_options.add(option)
-        return option.value
+    @property
+    def referenced_parameters(self):
+        return iter(self._referenced_parameters)
 
     @property
-    def used_options(self):
-        return iter(self._used_options)
+    def referenced_switches(self):
+        return iter(self._referenced_switches)
 
     @property
-    def all_options(self):
-        """Return all options, including options of prerequisites"""
-        return chain(self.options, iter(self._prereq_options.items()))
+    def all_parameters(self):
+        """Return all parameters, including parameters of prerequisites"""
+        return chain(self.parameters, iter(self._prereq_parameters.items()))
 
     @property
-    def non_default_options(self):
-        return ((k, v) for k, v in self.options.items()
-                if v != self.default_options[k])
+    def non_default_parameters(self):
+        return ((k, v) for k, v in self.parameters.items()
+                if v != self.default_parameters[k])
 
     @property
     def desc(self):
@@ -549,10 +544,10 @@ class Pipeline(object):
     def suffix(self):
         """
         A suffixed appended to output filenames when they are repositoryd to
-        identify the options used to generate them
+        identify the parameters used to generate them
         """
         return '__'.join('{}_{}'.format(k, v)
-                         for k, v in self.options.items())
+                         for k, v in self.parameters.items())
 
     def save_graph(self, fname, style='flat'):
         """
@@ -585,35 +580,33 @@ class Pipeline(object):
                 raise
         shutil.rmtree(tmpdir)
 
-    def add_input(self, input):  # @ReservedAssignment
-        """
-        Adds a new input to the pipeline. Useful if extending a pipeline in a
-        derived Study class
-
-        Parameters
-        ----------
-        input : BaseSpec
-            The input to add to the pipeline
-        """
-        if input.name not in self.study.data_spec_names():
-            raise ArcanaNameError(
-                input.name,
-                "'{}' is not a name of a specified dataset or field in {} "
-                "Study".format(input.name, self.study.name))
-        self._inputs.append(input)
-
-    def add_output(self, output):
-        """
-        Adds a new output to the pipeline. Useful if extending a
-        pipeline in a derived Study class
-
-        Parameters
-        ----------
-        output : BaseSpec
-            The output to add to the pipeline
-        """
-        freq = self._study.data_spec(output.name).frequency
-        self._outputs[freq].append(output)
+#     def add_input(self, input_spec):
+#         """
+#         Adds a new input to the pipeline. Useful if extending a pipeline in a
+#         derived Study class
+#
+#         Parameters
+#         ----------
+#         input_spec : DatasetSpec
+#             Spec for the input to add to the pipeline
+#         """
+#         self.study.data_spec(input_spec.name)  # check valid name
+#         self._inputs.append(input_spec)
+#         self._unconnected_inputs.add(input_spec.name)
+#
+#     def add_output(self, output_spec):
+#         """
+#         Adds a new output to the pipeline. Useful if extending a
+#         pipeline in a derived Study class
+#
+#         Parameters
+#         ----------
+#         output_spec : DatasetSpec
+#             Spec of the output to add to the pipeline
+#         """
+#         spec = self.study.data_spec(output_spec.name)
+#         self._outputs[spec.frequency].append(output_spec)
+#         self._unconnected_outputs.add(output_spec.name)
 
     def assert_connected(self):
         """

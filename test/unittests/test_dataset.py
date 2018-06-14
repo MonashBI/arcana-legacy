@@ -8,9 +8,10 @@ from unittest import TestCase  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.option import OptionSpec  # @IgnorePep8
+from arcana.parameter import SwitchSpec  # @IgnorePep8
 from arcana.dataset import DatasetSpec, FieldSpec, DatasetMatch  # @IgnorePep8
-from arcana.data_format import text_format, DataFormat  # @IgnorePep8
+from arcana.file_format import text_format, FileFormat  # @IgnorePep8
+from arcana.exception import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -19,9 +20,9 @@ else:
     import pickle as pkl  # @Reimport
 
 # For testing DICOM tag matching
-dicom_format = DataFormat(name='dicom', extension=None,
+dicom_format = FileFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])
-DataFormat.register(dicom_format)
+FileFormat.register(dicom_format)
 
 
 class TestDatasetSpecPickle(TestCase):
@@ -119,11 +120,14 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('derivable', text_format, 'pipeline1'),
         DatasetSpec('missing_input', text_format, 'pipeline2'),
         DatasetSpec('another_derivable', text_format, 'pipeline3'),
-        DatasetSpec('wrong_option', text_format, 'pipeline3'),
-        DatasetSpec('wrong_option2', text_format, 'pipeline4')]
+        DatasetSpec('requires_switch', text_format, 'pipeline3'),
+        DatasetSpec('requires_switch2', text_format, 'pipeline4'),
+        DatasetSpec('requires_foo', text_format, 'pipeline5'),
+        DatasetSpec('requires_bar', text_format, 'pipeline5')]
 
-    add_option_specs = [
-        OptionSpec('switch', 0)]
+    add_switch_specs = [
+        SwitchSpec('switch', False),
+        SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
     def pipeline1(self):
         pipeline = self.create_pipeline(
@@ -157,9 +161,8 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     def pipeline3(self, **kwargs):
         outputs = [DatasetSpec('another_derivable', text_format)]
-        switch = self.pre_option('switch', 'pipeline3', **kwargs)
-        if switch:
-            outputs.append(DatasetSpec('wrong_option', text_format))
+        if self.switch('switch'):
+            outputs.append(DatasetSpec('requires_switch', text_format))
         pipeline = self.create_pipeline(
             'pipeline3',
             inputs=[DatasetSpec('required', text_format)],
@@ -172,22 +175,48 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
         pipeline.connect_output('another_derivable', identity, 'a')
-        if switch:
-            pipeline.connect_output('wrong_option', identity, 'b')
+        if self.switch('switch'):
+            pipeline.connect_output('requires_switch', identity, 'b')
         return pipeline
 
     def pipeline4(self, **kwargs):
         pipeline = self.create_pipeline(
             'pipeline4',
-            inputs=[DatasetSpec('wrong_option', text_format)],
-            outputs=[DatasetSpec('wrong_option2', text_format)],
+            inputs=[DatasetSpec('requires_switch', text_format)],
+            outputs=[DatasetSpec('requires_switch2', text_format)],
             desc="",
             citations=[],
             version=1, **kwargs)
         identity = pipeline.create_node(IdentityInterface(['a']),
                                         'identity')
-        pipeline.connect_input('wrong_option', identity, 'a')
-        pipeline.connect_output('wrong_option2', identity, 'a')
+        pipeline.connect_input('requires_switch', identity, 'a')
+        pipeline.connect_output('requires_switch2', identity, 'a')
+        return pipeline
+
+    def pipeline5(self, **kwargs):
+        outputs = []
+        if self.branch('branch', 'foo'):
+            outputs.append(DatasetSpec('requires_foo', text_format))
+        elif self.branch('branch', 'bar'):
+            outputs.append(DatasetSpec('requires_bar', text_format))
+        else:
+            self.unhandled_branch('branch')
+        pipeline = self.create_pipeline(
+            'pipeline5',
+            inputs=[DatasetSpec('required', text_format)],
+            outputs=outputs,
+            desc="",
+            citations=[],
+            version=1, **kwargs)
+        identity = pipeline.create_node(IdentityInterface(['a']),
+                                        'identity')
+        pipeline.connect_input('required', identity, 'a')
+        if self.branch('branch', 'foo'):
+            pipeline.connect_output('requires_foo', identity, 'a')
+        elif self.branch('branch', 'bar'):
+            pipeline.connect_output('requires_bar', identity, 'a')
+        else:
+            self.unhandled_branch('branch')
         return pipeline
 
 
@@ -207,19 +236,29 @@ class TestDerivable(BaseTestCase):
         self.assertFalse(
             study.spec('missing_input').derivable)
         self.assertFalse(
-            study.spec('wrong_option').derivable)
+            study.spec('requires_switch').derivable)
         self.assertFalse(
-            study.spec('wrong_option2').derivable)
+            study.spec('requires_switch2').derivable)
+        self.assertTrue(study.spec('requires_foo').derivable)
+        self.assertFalse(study.spec('requires_bar').derivable)
         # Test study with 'switch' enabled
         study_with_switch = self.create_study(
             TestDerivableStudy,
             'study_with_switch',
             inputs=[DatasetMatch('required', text_format, 'required')],
-            options={'switch': 1})
+            switches={'switch': True})
         self.assertTrue(
-            study_with_switch.spec('wrong_option').derivable)
+            study_with_switch.spec('requires_switch').derivable)
         self.assertTrue(
-            study_with_switch.spec('wrong_option2').derivable)
+            study_with_switch.spec('requires_switch2').derivable)
+        # Test study with branch=='bar'
+        study_bar_branch = self.create_study(
+            TestDerivableStudy,
+            'study_bar_branch',
+            inputs=[DatasetMatch('required', text_format, 'required')],
+            switches={'branch': 'bar'})
+        self.assertFalse(study_bar_branch.spec('requires_foo').derivable)
+        self.assertTrue(study_bar_branch.spec('requires_bar').derivable)
         # Test study with optional input
         study_with_input = self.create_study(
             TestDerivableStudy,
@@ -228,3 +267,13 @@ class TestDerivable(BaseTestCase):
                     DatasetMatch('optional', text_format, 'required')])
         self.assertTrue(
             study_with_input.spec('missing_input').derivable)
+        study_unhandled = self.create_study(
+            TestDerivableStudy,
+            'study_unhandled',
+            inputs=[DatasetMatch('required', text_format, 'required')],
+            switches={'branch': 'wee'})
+        self.assertRaises(
+            ArcanaDesignError,
+            getattr,
+            study_unhandled.spec('requires_foo'),
+            'derivable')

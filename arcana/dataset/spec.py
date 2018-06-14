@@ -75,7 +75,7 @@ class BaseSpec(object):
     def derivable(self):
         """
         Whether the spec (only valid for derived specs) can be derived
-        given the inputs and options provided to the study
+        given the inputs and switches provided to the study
         """
         if not self.derived:
             raise ArcanaUsageError(
@@ -108,17 +108,41 @@ class BaseSpec(object):
                 "{} is an acquired data spec so doesn't have a pipeline"
                 .format(self))
         try:
-            pipeline = getattr(self.study, self.pipeline_name)()
+            getter = getattr(self.study, self.pipeline_name)
         except AttributeError:
             raise ArcanaError(
                 "There is no pipeline method named '{}' in present in "
                 "'{}' study".format(self.pipeline_name, self.study))
+        # Set up study to record which parameters and switches are
+        # referenced during the pipeline generation
+        self.study._pipeline_to_generate = self.pipeline_name
+        self.study._referenced_parameters = set()
+        self.study._referenced_switches = set()
+        try:
+            pipeline = getter()
+            # Copy referenced parameters and switches to pipeline
+            pipeline._referenced_parameters = (
+                self.study._referenced_parameters)
+            pipeline._referenced_switches = (
+                self.study._referenced_switches)
+        except AttributeError as e:
+            # Need to capture this as exception to avoid it getting
+            # confused with specs that don't have pipelines
+            raise ArcanaError("AttributeError was thrown: {}".format(e))
+        finally:
+            # Reset referenced parameters and switches after generating
+            # pipeline
+            self.study._pipeline_to_generate = None
+            self.study._referenced_parameters = None
+            self.study._referenced_switches = None
         if self.name not in pipeline.output_names:
             raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} with options:\n{}".format(
-                    self.name, self.study,
-                    '\n'.join('{}={}'.format(o.name, o.value)
-                              for o in self.study.options)))
+                "'{}' is not produced by {} class given the provided "
+                " switches ({}) and the missing inputs ('{}')".format(
+                    self.name, self.study.__class__.__name__,
+                    ', '.join('{}={}'.format(s.name, s.value)
+                              for s in self.study.switches),
+                    "', '".join(self.study.missing_inputs)))
         return pipeline
 
     @property

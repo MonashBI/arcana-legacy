@@ -29,7 +29,7 @@ from arcana.repository.base import (  # @IgnorePep8
     RepositorySubjectSink, RepositoryVisitSink, RepositoryProjectSink,
     MULTIPLICITIES)
 from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePep8
-from arcana.data_format import DataFormat  # @IgnorePep8
+from arcana.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
     ArcanaError, ArcanaMissingDataException)
@@ -914,9 +914,9 @@ class XnatRepository(Repository):
         """
         datasets = []
         for xdataset in xsession.scans.values():
-            data_format = guess_data_format(xdataset)
+            file_format = guess_file_format(xdataset)
             datasets.append(Dataset(
-                xdataset.type, format=data_format, derived=derived,  # @ReservedAssignment @IgnorePep8
+                xdataset.type, format=file_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 frequency=freq, path=None, id=xdataset.id,
                 uri=xdataset.uri, subject_id=subject_id,
                 visit_id=visit_id, repository=self))
@@ -1015,13 +1015,13 @@ class XnatRepository(Repository):
         return (subj_label, sess_label)
 
 
-def guess_data_format(xdataset):
+def guess_file_format(xdataset):
     # Use a set here as in some cases there are multiple resources
     # the same format (e.g. DICOM + secondary)
     dataset_formats = set()
     for xresource in xdataset.resources.values():
         try:
-            dataset_formats.add(DataFormat.by_names[
+            dataset_formats.add(FileFormat.by_names[
                 xresource.label.lower()])
         except KeyError:
             logger.debug("Ignoring resource '{}' in dataset {}"
@@ -1035,7 +1035,7 @@ def guess_data_format(xdataset):
     elif len(dataset_formats) > 1:
         raise ArcanaError(
             "Multiple valid data-formats '{}' for '{}' dataset, please "
-            "pass 'data_format' to 'download_dataset' method to speficy"
+            "pass 'file_format' to 'download_dataset' method to speficy"
             " resource to download".format(
                 "', '".join(f.label for f in dataset_formats),
                 xdataset.type))

@@ -26,6 +26,10 @@ class ArcanaUsageError(ArcanaError):
     pass
 
 
+class ArcanaDesignError(ArcanaError):
+    pass
+
+
 class ArcanaNameError(ArcanaError):
 
     def __init__(self, name, msg):
@@ -43,12 +47,12 @@ class ArcanaDatasetMatchError(ArcanaUsageError):
 
 class ArcanaOutputNotProducedException(ArcanaException):
     """
-    Raised when a given spec is not produced due to options provided
-    to the study
+    Raised when a given spec is not produced due to switches and inputs
+    provided to the study
     """
 
 
-class ArcanaDataFormatError(ArcanaUsageError):
+class ArcanaFileFormatError(ArcanaUsageError):
     pass
 
 
@@ -82,7 +86,7 @@ class ArcanaNoRunRequiredException(ArcanaException):
     """
 
 
-class ArcanaDataFormatClashError(ArcanaError):
+class ArcanaFileFormatClashError(ArcanaError):
     """
     Used when two mismatching data formats are registered with the same
     name or extention
@@ -98,5 +102,5 @@ class ArcanaConverterNotAvailableError(ArcanaError):
     "available"
 
 
-class ArcanaDataFormatNotRegisteredError(ArcanaError):
+class ArcanaFileFormatNotRegisteredError(ArcanaError):
     pass

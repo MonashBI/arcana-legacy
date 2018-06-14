@@ -24,8 +24,8 @@ from .study import (
     SubStudySpec)
 from .dataset import (
     DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
-from .data_format import DataFormat
-from .option import Option, OptionSpec
+from .file_format import FileFormat
+from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
 from .runner import LinearRunner, MultiProcRunner, SlurmRunner
 from .repository import LocalRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning

@@ -1,6 +1,6 @@
 from unittest import TestCase
 from arcana.interfaces.utils import ZipDir
-from arcana.data_format import (directory_format, zip_format)
+from arcana.file_format import (directory_format, zip_format)
 
 
 class TestConverterAvailability(TestCase):

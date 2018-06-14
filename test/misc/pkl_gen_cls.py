@@ -6,7 +6,7 @@ import shutil
 from arcana import (
     StudyMetaClass, Study, LocalRepository, LinearRunner, DatasetSpec,
     DatasetMatch)
-from arcana.data_format import text_format
+from arcana.file_format import text_format
 import pickle as pkl
 import os.path as op
 from nipype.interfaces.utility import IdentityInterface
@@ -32,7 +32,7 @@ with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
 #         The study from which the pipeline was created
 #     inputs : List[DatasetSpec|FieldSpec]
 #         The list of input datasets required for the pipeline
-#         un/processed datasets, and the options used to generate them for
+#         un/processed datasets, and the parameters used to generate them for
 #         unprocessed datasets
 #     outputs : List[DatasetSpec|FieldSpec]
 #         The list of outputs (hard-coded names for un/processed datasets)

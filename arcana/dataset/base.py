@@ -2,7 +2,7 @@ from past.builtins import basestring
 from builtins import object
 import os.path
 from abc import ABCMeta
-from arcana.data_format import DataFormat
+from arcana.file_format import FileFormat
 from copy import copy
 from logging import getLogger
 from arcana.exception import ArcanaError
@@ -102,7 +102,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         super(BaseDataset, self).__init__(name=name, frequency=frequency)
-        assert format is None or isinstance(format, DataFormat)
+        assert format is None or isinstance(format, FileFormat)
         self._format = format
 
     def __eq__(self, other):

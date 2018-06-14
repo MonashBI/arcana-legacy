@@ -7,10 +7,10 @@ from arcana.interfaces.utils import (
 from arcana.exception import (
     ArcanaRequirementVersionException,
     ArcanaModulesNotInstalledException,
-    ArcanaUsageError, ArcanaDataFormatClashError,
+    ArcanaUsageError, ArcanaFileFormatClashError,
     ArcanaNoConverterError,
     ArcanaConverterNotAvailableError,
-    ArcanaDataFormatNotRegisteredError)
+    ArcanaFileFormatNotRegisteredError)
 from nipype.interfaces.utility import IdentityInterface
 from arcana.requirement import Requirement
 import logging
@@ -20,7 +20,7 @@ from future.utils import with_metaclass
 logger = logging.getLogger('arcana')
 
 
-class DataFormat(object):
+class FileFormat(object):
     """
     Defines a format for a dataset (e.g. DICOM, NIfTI, Matlab file)
 
@@ -102,7 +102,7 @@ class DataFormat(object):
         return not self == other
 
     def __repr__(self):
-        return ("DataFormat(name='{}', extension='{}', directory={}{})"
+        return ("FileFormat(name='{}', extension='{}', directory={}{})"
                 .format(self.name, self.extension, self.directory,
                         (', within_dir_extension={}'.format(
                             self.within_dir_exts)
@@ -148,75 +148,75 @@ class DataFormat(object):
         "Lists acceptable XNAT resource names in order of preference"
         return (self.name.upper(),) + self.alternate_names
 
-    def converter_from(self, data_format):
-        if data_format == self:
-            return IdentityConverter(data_format, self)
+    def converter_from(self, file_format):
+        if file_format == self:
+            return IdentityConverter(file_format, self)
         try:
-            converter_cls = self._converters[data_format.name]
+            converter_cls = self._converters[file_format.name]
         except KeyError:
             raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}, available:\n{}"
-                .format(self, data_format,
+                .format(self, file_format,
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
-        return converter_cls(data_format, self)
+        return converter_cls(file_format, self)
 
     @classmethod
-    def register(cls, data_format):
+    def register(cls, file_format):
         """
         Registers a data format so they can be recognised by extension
         and by resource type on XNAT
 
         Parameters
         ----------
-        data_format : DataFormat
+        file_format : FileFormat
             The data format to register
         """
         try:
-            saved_format = cls.by_names[data_format.name]
-            if saved_format != data_format:
-                raise ArcanaDataFormatClashError(
+            saved_format = cls.by_names[file_format.name]
+            if saved_format != file_format:
+                raise ArcanaFileFormatClashError(
                     "Cannot register {} due to name clash with previously "
-                    "registered {}".format(data_format, saved_format))
+                    "registered {}".format(file_format, saved_format))
         except KeyError:
-            if data_format.directory and data_format.extension is None:
-                if data_format.within_dir_exts in cls.by_within_exts:
-                    raise ArcanaDataFormatClashError(
+            if file_format.directory and file_format.extension is None:
+                if file_format.within_dir_exts in cls.by_within_exts:
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to within-directory "
                         "extension clash with previously registered {}"
-                        .format(data_format,
+                        .format(file_format,
                                 cls.by_within_exts[
-                                    data_format.within_dir_exts]))
+                                    file_format.within_dir_exts]))
             else:
-                if data_format.extension in cls.by_exts:
-                    raise ArcanaDataFormatClashError(
+                if file_format.extension in cls.by_exts:
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to extension clash with "
                         "previously registered {}".format(
-                            data_format,
-                            cls.by_exts[data_format.ext]))
-            for alt_name in data_format.alternate_names:
+                            file_format,
+                            cls.by_exts[file_format.ext]))
+            for alt_name in file_format.alternate_names:
                 if alt_name in cls.by_names:
-                    raise ArcanaDataFormatClashError(
+                    raise ArcanaFileFormatClashError(
                         "Cannot register {} due to alternate name clash"
                         "('{}') with previously registered {}".format(
-                            data_format, alt_name,
+                            file_format, alt_name,
                             cls.by_names[alt_name]))
-            cls.by_names[data_format.name] = data_format
-            for alt_name in data_format.alternate_names:
-                cls.by_names[alt_name] = data_format
-            if data_format.ext is not None:
-                cls.by_exts[data_format.ext] = data_format
-            if data_format.within_dir_exts is not None:
+            cls.by_names[file_format.name] = file_format
+            for alt_name in file_format.alternate_names:
+                cls.by_names[alt_name] = file_format
+            if file_format.ext is not None:
+                cls.by_exts[file_format.ext] = file_format
+            if file_format.within_dir_exts is not None:
                 cls.by_within_exts[
-                    data_format.within_dir_exts] = data_format
+                    file_format.within_dir_exts] = file_format
 
     @classmethod
     def by_name(cls, name):
         try:
             return cls.by_names[name.lower()]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format named '{}' has been registered"
                 .format(name,
                         ', '.format(repr(f)
@@ -227,7 +227,7 @@ class DataFormat(object):
         try:
             return cls.by_exts[ext]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format with extension '{}' has been registered"
                 .format(
                     ext, ', '.format(repr(f)
@@ -238,7 +238,7 @@ class DataFormat(object):
         try:
             return cls.by_within_exts[within_exts]
         except KeyError:
-            raise ArcanaDataFormatNotRegisteredError(
+            raise ArcanaFileFormatNotRegisteredError(
                 "No data format with within-directory extension '{}' "
                 "has been registered ({})".format(
                     within_exts,
@@ -252,9 +252,9 @@ class Converter(with_metaclass(ABCMeta, object)):
 
     Parameters
     ----------
-    input_format : DataFormat
+    input_format : FileFormat
         The input format to convert from
-    output_format : DataFormat
+    output_format : FileFormat
         The output format to convert to
     """
 
@@ -349,20 +349,20 @@ class UnTarGzConverter(Converter):
 
 
 # General formats
-directory_format = DataFormat(name='directory', extension=None,
+directory_format = FileFormat(name='directory', extension=None,
                               directory=True,
                               converters={'zip': UnzipConverter,
                                           'targz': UnTarGzConverter})
-text_format = DataFormat(name='text', extension='.txt')
+text_format = FileFormat(name='text', extension='.txt')
 
 
 # Compressed formats
-zip_format = DataFormat(name='zip', extension='.zip',
+zip_format = FileFormat(name='zip', extension='.zip',
                         converters={'directory': ZipConverter})
-targz_format = DataFormat(name='targz', extension='.tar.gz',
+targz_format = FileFormat(name='targz', extension='.tar.gz',
                           converters={'direcctory': TarGzConverter})
 
 # Register all data formats in module
-for data_format in copy(globals()).values():
-    if isinstance(data_format, DataFormat):
-        DataFormat.register(data_format)
+for file_format in copy(globals()).values():
+    if isinstance(file_format, FileFormat):
+        FileFormat.register(file_format)
