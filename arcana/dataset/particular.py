@@ -12,7 +12,84 @@ from .base import BaseDataset, BaseField
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class Dataset(BaseDataset):
+class BaseParticular(object):
+
+    is_spec = False
+
+    def __init__(self, derived, subject_id, visit_id, repository,
+                 study_name):
+        self._derived = derived
+        self._subject_id = subject_id
+        self._visit_id = visit_id
+        self._repository = repository
+        self._study_name = study_name
+
+    def __eq__(self, other):
+        return (super(Dataset, self).__eq__(other) and
+                self.derived == other.derived and
+                self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id and
+                self.study_name == other.study_name)
+
+    def __hash__(self):
+        return (super(Dataset, self).__hash__() ^
+                hash(self.derived) ^
+                hash(self.subject_id) ^
+                hash(self.visit_id) ^
+                hash(self.study_name))
+
+    def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
+        mismatch = ''
+        if self.derived != other.derived:
+            mismatch += ('\n{}derived: self={} v other={}'
+                         .format(sub_indent, self.derived,
+                                 other.derived))
+        if self.subject_id != other.subject_id:
+            mismatch += ('\n{}subject_id: self={} v other={}'
+                         .format(sub_indent, self.subject_id,
+                                 other.subject_id))
+        if self.visit_id != other.visit_id:
+            mismatch += ('\n{}visit_id: self={} v other={}'
+                         .format(sub_indent, self.visit_id,
+                                 other.visit_id))
+        if self.study_name != other.study_name:
+            mismatch += ('\n{}study_name: self={} v other={}'
+                         .format(sub_indent, self.study_name,
+                                 other.study_name))
+        return mismatch
+
+    @property
+    def derived(self):
+        return self._derived
+
+    @property
+    def repository(self):
+        return self._repository
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
+
+    @property
+    def study_name(self):
+        return self._study_name
+
+    def initkwargs(self):
+        dct = super(Dataset, self).initkwargs()
+        dct['derived'] = self.derived
+        dct['repository'] = self.repository
+        dct['subject_id'] = self.subject_id
+        dct['visit_id'] = self.visit_id
+        dct['study_name'] = self.study_name
+        return dct
+
+
+class Dataset(BaseParticular, BaseDataset):
     """
     A representation of a dataset within the repository.
 
@@ -44,22 +121,19 @@ class Dataset(BaseDataset):
         The id of the visit which the dataset belongs to
     repository : BaseRepository
         The repository which the dataset is stored
+    study_name : str
+        Name of the Arcana study that that generated the field
     """
-
-    is_spec = False
-
 
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 repository=None):
-        super(Dataset, self).__init__(name, format, frequency)
-        self._derived = derived
+                 repository=None, study_name=None):
+        BaseDataset.__init__(self, name, format, frequency)
+        BaseParticular.__init__(self, derived, subject_id,
+                                visit_id, repository, study_name)
         self._path = path
         self._uri = uri
-        self._subject_id = subject_id
-        self._visit_id = visit_id
-        self._repository = repository
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
                            [DICOM_SERIES_NUMBER_TAG])
@@ -67,20 +141,16 @@ class Dataset(BaseDataset):
             self._id = id
 
     def __eq__(self, other):
-        return (super(Dataset, self).__eq__(other) and
-                self.derived == other.derived and
+        return (BaseDataset.__eq__(other) and
+                BaseParticular.__eq__(other) and
                 self._path == other._path and
-                self.id == other.id and
-                self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+                self.id == other.id)
 
     def __hash__(self):
-        return (super(Dataset, self).__hash__() ^
-                hash(self.derived) ^
+        return (BaseDataset.__hash__(self) ^
+                BaseParticular.__hash__(self) ^
                 hash(self._path) ^
-                hash(self.id) ^
-                hash(self.subject_id) ^
-                hash(self.visit_id))
+                hash(self.id))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, str):
@@ -91,12 +161,9 @@ class Dataset(BaseDataset):
             return self.id < other.id
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(Dataset, self).find_mismatch(other, indent)
+        mismatch = BaseDataset.find_mismatch(self, other, indent)
+        mismatch += BaseParticular.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
                          .format(sub_indent, self._path,
@@ -105,18 +172,6 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
-        if self.subject_id != other.subject_id:
-            mismatch += ('\n{}subject_id: self={} v other={}'
-                         .format(sub_indent, self.subject_id,
-                                 other.subject_id))
-        if self.visit_id != other.visit_id:
-            mismatch += ('\n{}visit_id: self={} v other={}'
-                         .format(sub_indent, self.visit_id,
-                                 other.visit_id))
-        if self.repository != other.repository:
-            mismatch += ('\n{}repository: self={} v other={}'
-                         .format(sub_indent, self.repository,
-                                 other.repository))
         return mismatch
 
     @property
@@ -134,10 +189,6 @@ class Dataset(BaseDataset):
         return self.name
 
     @property
-    def derived(self):
-        return self._derived
-
-    @property
     def id(self):
         if self._id is None:
             return self.name
@@ -147,18 +198,6 @@ class Dataset(BaseDataset):
     @property
     def uri(self):
         return self._uri
-
-    @property
-    def repository(self):
-        return self._repository
-
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def visit_id(self):
-        return self._visit_id
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
@@ -254,12 +293,11 @@ class Dataset(BaseDataset):
         return dct
 
     def initkwargs(self):
-        dct = super(Dataset, self).initkwargs()
-        dct['derived'] = self.derived
+        dct = BaseDataset.initkwargs(self)
+        dct.update(BaseParticular.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
-        dct['repository'] = self.repository
         return dct
 
 
@@ -285,11 +323,13 @@ class Field(BaseField):
         The id of the visit which the field belongs to
     repository : BaseRepository
         The repository which the field is stored
+    study_name : str
+        Name of the Arcana study that that generated the field
     """
 
     def __init__(self, name, value, frequency='per_session',
                  derived=False, subject_id=None, visit_id=None,
-                 repository=None):
+                 repository=None, study_name=None):
         if isinstance(value, int):
             dtype = int
         elif isinstance(value, float):
@@ -309,51 +349,29 @@ class Field(BaseField):
             raise ArcanaError(
                 "Unrecognised field dtype {} (can be int, float or str)"
                 .format(value))
-        super(Field, self).__init__(
-            name, dtype, frequency=frequency)
+        BaseField.__init__(name, dtype, frequency=frequency)
+        BaseParticular.__init__(self, derived, subject_id,
+                                visit_id, repository, study_name)
         self._value = value
-        self._derived = derived
-        self._subject_id = subject_id
-        self._visit_id = visit_id
-        self._repository = repository
 
     def __eq__(self, other):
-        return (super(Field, self).__eq__(other) and
-                self.derived == other.derived and
-                self.value == other.value and
-                self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+        return (BaseField.__eq__(self, other) and
+                BaseParticular.__eq__(self, other) and
+                self.value == other.value)
 
     def __hash__(self):
-        return (super(Field, self).__hash__() ^
-                hash(self.derived) ^
-                hash(self.value) ^
-                hash(self.subject_id) ^
-                hash(self.visit_id))
+        return (BaseField.__hash__(self) ^
+                BaseParticular.__hash__(self) ^
+                hash(self.value))
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(Field, self).find_mismatch(other, indent)
+        mismatch = BaseField.find_mismatch(self, other, indent)
+        mismatch += BaseParticular.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
                          .format(sub_indent, self.value,
                                  other.value))
-        if self.subject_id != other.subject_id:
-            mismatch += ('\n{}subject_id: self={} v other={}'
-                         .format(sub_indent, self.subject_id,
-                                 other.subject_id))
-        if self.visit_id != other.visit_id:
-            mismatch += ('\n{}visit_id: self={} v other={}'
-                         .format(sub_indent, self.visit_id,
-                                 other.visit_id))
-        if self.repository != other.repository:
-            mismatch += ('\n{}repository: self={} v other={}'
-                         .format(sub_indent, self.repository,
-                                 other.repository))
         return mismatch
 
     def __int__(self):
@@ -372,34 +390,15 @@ class Field(BaseField):
                     self.frequency, self.derived, self.subject_id,
                     self.visit_id, self.repository))
 
-    @property
-    def derived(self):
-        return self._derived
-
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
-
-    @property
-    def repository(self):
-        return self._repository
 
     @property
     def value(self):
         return self._value
 
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def visit_id(self):
-        return self._visit_id
-
     def initkwargs(self):
-        dct = {}
-        dct['name'] = self.name
+        dct = BaseDataset.initkwargs(self)
+        dct.update(BaseParticular.initkwargs(self))
         dct['value'] = self.value
-        dct['frequency'] = self.frequency
-        dct['derived'] = self.derived
-        dct['repository'] = self.repository
         return dct
