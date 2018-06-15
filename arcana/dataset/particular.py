@@ -25,15 +25,13 @@ class BaseParticular(object):
         self._study_name = study_name
 
     def __eq__(self, other):
-        return (super(Dataset, self).__eq__(other) and
-                self.derived == other.derived and
+        return (self.derived == other.derived and
                 self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
                 self.study_name == other.study_name)
 
     def __hash__(self):
-        return (super(Dataset, self).__hash__() ^
-                hash(self.derived) ^
+        return (hash(self.derived) ^
                 hash(self.subject_id) ^
                 hash(self.visit_id) ^
                 hash(self.study_name))
@@ -141,8 +139,8 @@ class Dataset(BaseParticular, BaseDataset):
             self._id = id
 
     def __eq__(self, other):
-        return (BaseDataset.__eq__(other) and
-                BaseParticular.__eq__(other) and
+        return (BaseDataset.__eq__(self, other) and
+                BaseParticular.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id)
 
@@ -301,7 +299,7 @@ class Dataset(BaseParticular, BaseDataset):
         return dct
 
 
-class Field(BaseField):
+class Field(BaseParticular, BaseField):
     """
     A representation of a value field in the repository.
 
@@ -349,7 +347,7 @@ class Field(BaseField):
             raise ArcanaError(
                 "Unrecognised field dtype {} (can be int, float or str)"
                 .format(value))
-        BaseField.__init__(name, dtype, frequency=frequency)
+        BaseField.__init__(self, name, dtype, frequency)
         BaseParticular.__init__(self, derived, subject_id,
                                 visit_id, repository, study_name)
         self._value = value
