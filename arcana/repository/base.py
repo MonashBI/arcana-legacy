@@ -5,7 +5,7 @@ from nipype.interfaces.base import (
     BaseInterface)
 from arcana.node import Node
 from arcana.dataset import (
-    Dataset, DatasetSpec, FieldSpec, BaseField, BaseDataset)
+    BaseDatum, DatasetSpec, FieldSpec, BaseField, BaseDataset)
 from arcana.exception import ArcanaError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from future.utils import with_metaclass
@@ -87,7 +87,7 @@ class Repository(with_metaclass(ABCMeta, object)):
             raise ArcanaError(
                 "Unrecognised frequency '{}' can be one of '{}'"
                 .format(frequency,
-                        "', '".join(Dataset.MULTIPLICITY_OPTIONS)))
+                        "', '".join(BaseDatum.MULTIPLICITY_OPTIONS)))
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
         return Node(sink_class(study_name, datasets, fields, **kwargs),

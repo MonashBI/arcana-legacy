@@ -1,6 +1,5 @@
 from past.builtins import basestring
 from builtins import object
-import os.path
 from abc import ABCMeta
 from arcana.file_format import FileFormat
 from copy import copy
@@ -57,9 +56,6 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
 
     def __ne__(self, other):
         return not (self == other)
-
-    def __iter__(self):
-        return iter(self.to_tuple())
 
     @property
     def name(self):
@@ -125,15 +121,6 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     @property
     def format(self):
         return self._format
-
-    def to_tuple(self):
-        return (self.name, self.format.name, self.frequency, self.derived,
-                self.is_spec)
-
-    def matches_filename(self, filename):
-        base, ext = os.path.splitext(filename)
-        return base == self.name and (ext == self.format.extension or
-                                      self.format is None)
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={})"

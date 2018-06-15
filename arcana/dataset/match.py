@@ -3,11 +3,11 @@ from builtins import object
 import re
 from itertools import chain
 from copy import copy
-from collections import defaultdict
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
     ArcanaDatasetMatchError)
 from .base import BaseDataset, BaseField
+from .particular import DatasetCollection, FieldCollection
 
 
 class BaseMatch(object):
@@ -46,23 +46,12 @@ class BaseMatch(object):
         return self._study
 
     @property
-    def matches(self):
-        if self.frequency == 'per_session':
-            matches = chain(*(iter(d.values())
-                              for d in self._matches.values()))
-        elif self.frequency == 'per_subject':
-            matches = iter(self._matches.values())
-        elif self.frequency == 'per_visit':
-            matches = iter(self._matches.values())
-        elif self.frequency == 'per_project':
-            self._matches = iter([self._matches])
-        else:
-            assert False
-        return matches
-
-    @property
     def is_regex(self):
         return self._is_regex
+
+    @property
+    def matches(self):
+        return self._matches
 
     @property
     def order(self):
@@ -91,31 +80,24 @@ class BaseMatch(object):
     def _match_tree(self, tree, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
-            self._matches = defaultdict(dict)
+            nodes = []
             for subject in tree.subjects:
                 for sess in subject.sessions:
                     if self.derived and sess.derived is not None:
-                        node = sess.derived
+                        nodes.append(sess.derived)
                     else:
-                        node = sess
-                    self._matches[sess.subject_id][
-                        sess.visit_id] = self._match_node(node,
-                                                          **kwargs)
+                        nodes.append(sess)
         elif self.frequency == 'per_subject':
-            self._matches = {}
-            for subject in tree.subjects:
-                self._matches[subject.id] = self._match_node(subject,
-                                                             **kwargs)
+            nodes = tree.subjects
         elif self.frequency == 'per_visit':
-            self._matches = {}
-            for visit in tree.visits:
-                self._matches[visit.id] = self._match_node(visit,
-                                                           **kwargs)
+            nodes = tree.visits
         elif self.frequency == 'per_project':
-            self._matches = self._match_node(tree, **kwargs)
+            nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
+        self._matches = self.COLLECTION_CLASS(
+            self.name, (self._match_node(n, **kwargs) for n in nodes))
 
     def _match_node(self, node, **kwargs):
         # Get names matching pattern
@@ -145,32 +127,8 @@ class BaseMatch(object):
         return match
 
     def match(self, subject_id=None, visit_id=None):
-        if self._matches is None:
-            raise ArcanaError(
-                "{} has not been bound to study".format(self))
-        if self.frequency == 'per_session':
-            if subject_id is None or visit_id is None:
-                raise ArcanaError(
-                    "The 'subject_id' and 'visit_id' must be provided "
-                    "to get the match from {}".format(self))
-            dataset = self._matches[subject_id][visit_id]
-        elif self.frequency == 'per_subject':
-            if subject_id is None:
-                raise ArcanaError(
-                    "The 'subject_id' arg must be provided to get "
-                    "the match from {}"
-                    .format(self))
-            dataset = self._matches[subject_id]
-        elif self.frequency == 'per_visit':
-            if visit_id is None:
-                raise ArcanaError(
-                    "The 'visit_id' arg must be provided to get "
-                    "the match from {}"
-                    .format(self))
-            dataset = self._matches[visit_id]
-        elif self.frequency == 'per_project':
-            dataset = self._matches
-        return dataset
+        return self._matches.item(subject_id=subject_id,
+                                  visit_id=visit_id)
 
     def initkwargs(self):
         dct = {}
@@ -222,6 +180,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
     """
 
     is_spec = False
+    COLLECTION_CLASS = DatasetCollection
 
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
@@ -360,6 +319,7 @@ class FieldMatch(BaseMatch, BaseField):
     """
 
     is_spec = False
+    COLLECTION_CLASS = FieldCollection
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
                  derived=False, order=None, is_regex=False, study=None):
