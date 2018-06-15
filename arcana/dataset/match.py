@@ -96,7 +96,7 @@ class BaseMatch(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
-        self._matches = self.COLLECTION_CLASS(
+        self._matches = self.CollectionClass(
             self.name, (self._match_node(n, **kwargs) for n in nodes))
 
     def _match_node(self, node, **kwargs):
@@ -180,7 +180,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
     """
 
     is_spec = False
-    COLLECTION_CLASS = DatasetCollection
+    CollectionClass = DatasetCollection
 
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
@@ -319,7 +319,7 @@ class FieldMatch(BaseMatch, BaseField):
     """
 
     is_spec = False
-    COLLECTION_CLASS = FieldCollection
+    CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
                  derived=False, order=None, is_regex=False, study=None):

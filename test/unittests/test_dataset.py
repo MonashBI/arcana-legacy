@@ -91,8 +91,8 @@ class TestDicomTagMatch(BaseTestCase):
         study = self.create_study(
             TestMatchStudy, 'test_dicom',
             inputs=self.DICOM_MATCH)
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
+        phase = list(study.data('gre_phase'))[0]
+        mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
@@ -106,8 +106,8 @@ class TestDicomTagMatch(BaseTestCase):
                 DatasetMatch('gre_mag', dicom_format,
                              pattern=self.GRE_PATTERN, order=0,
                              is_regex=True)])
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
+        phase = list(study.data('gre_phase'))[0]
+        mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 

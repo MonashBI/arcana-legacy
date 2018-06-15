@@ -236,8 +236,8 @@ class TestMulti(BaseTestCase):
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
-        ss2_y = study.data('ss2_y')[0]
-        ss2_z = study.data('ss2_z')[0]
+        ss2_y = list(study.data('ss2_y'))[0]
+        ss2_z = list(study.data('ss2_z'))[0]
         self.assertContentsEqual(ss1_z, 2.0)
         self.assertContentsEqual(ss2_y, 3.0)
         self.assertContentsEqual(ss2_z, 6.0)
@@ -272,7 +272,7 @@ class TestMulti(BaseTestCase):
              DatasetMatch('partial_c', text_format, 'ones')],
             parameters=[Parameter('full_required_op', 'mul'),
                      Parameter('partial_ss2_product_op', 'mul')])
-        g = study.data('g')[0]
+        g = list(study.data('g'))[0]
         self.assertContentsEqual(g, 11.0)
         # Test parameter values in MultiStudy
         self.assertEqual(study._get_parameter('full_p1').value, 100)

@@ -415,7 +415,7 @@ class BaseCollection(object):
         self._frequency = frequency
         if frequency == 'per_project':
             # If wrapped in an iterable
-            if not isinstance(collection, self.CONTAINS_CLASS):
+            if not isinstance(collection, self.CollectedClass):
                 if len(collection) != 1:
                     raise ArcanaUsageError(
                         "More than one {} passed to {}"
@@ -431,30 +431,28 @@ class BaseCollection(object):
                             if c.subject_id == subj_id),
                            key=itemgetter(0)))
         elif frequency == 'per_subject':
-            self._collection = self._collection[subj_id] = OrderedDict(
-                sorted(((c.subject_id, c) for c in collection
-                        if c.subject_id == subj_id),
+            self._collection = OrderedDict(
+                sorted(((c.subject_id, c) for c in collection),
                        key=itemgetter(0)))
         elif frequency == 'per_visit':
-            self._collection = self._collection[subj_id] = OrderedDict(
-                sorted(((c.visit_id, c) for c in collection
-                        if c.subject_id == subj_id),
+            self._collection = OrderedDict(
+                sorted(((c.visit_id, c) for c in collection),
                        key=itemgetter(0)))
         else:
             assert False
         for datum in self:
-            if not isinstance(datum, self.CONTAINS_CLASS):
+            if not isinstance(datum, self.CollectedClass):
                 raise ArcanaUsageError(
                     "Invalid class {} in {}".format(datum, self))
 
     def __iter__(self):
         if self._frequency == 'per_project':
-            return iter(tuple(self._collection))
+            return iter((self._collection,))
         elif self._frequency == 'per_session':
             return chain(*(c.values()
                            for c in self._collection.values()))
         else:
-            return self._collection.values()
+            return iter(self._collection.values())
 
     @classmethod
     def _common_attr(self, collection, attr_name):
@@ -465,7 +463,7 @@ class BaseCollection(object):
                     attr_name, self))
         return next(iter(attr_set))
 
-    def item(self, subject_id=None, visit_id=None):
+    def particular(self, subject_id=None, visit_id=None):
         """
         Returns an item in the collection corresponding to the given
         subject and visit_ids. subject_id and visit_id must be provided
@@ -518,7 +516,7 @@ class DatasetCollection(BaseCollection, BaseDataset):
         An iterable of equivalent datasets
     """
 
-    CONTAINS_CLASS = Dataset
+    CollectedClass = Dataset
 
     def __init__(self, name, collection):
         collection = list(collection)
@@ -541,7 +539,7 @@ class FieldCollection(BaseCollection, BaseField):
         An iterable of equivalent datasets
     """
 
-    CONTAINS_CLASS = Field
+    CollectedClass = Field
 
     def __init__(self, name, collection):
         collection = list(collection)

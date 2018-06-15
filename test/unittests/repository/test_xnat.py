@@ -941,8 +941,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             runner=LinearRunner(self.work_dir),
             inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH)
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
+        phase = list(study.data('gre_phase'))[0]
+        mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
@@ -957,8 +957,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             inputs=[
                 DatasetMatch('gre_phase', dicom_format, id=7),
                 DatasetMatch('gre_mag', dicom_format, id=6)])
-        phase = study.data('gre_phase')[0]
-        mag = study.data('gre_mag')[0]
+        phase = list(study.data('gre_phase'))[0]
+        mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 

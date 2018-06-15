@@ -546,7 +546,7 @@ class Study(object):
                 assert len(data) == 1
                 data = data[0]
             else:
-                data = list(data)
+                data = spec.CollectionClass(spec.name, data)
             if single_name:
                 return data
             all_data.append(data)

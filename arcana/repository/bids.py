@@ -364,65 +364,13 @@ class BidsRepository(Repository):
         summaries = defaultdict(dict)
         all_sessions = defaultdict(dict)
         all_visit_ids = set()
-        for session_path, dirs, files in os.walk(self.base_dir):
-            dnames = [d for d in chain(dirs, files)
-                      if not d.startswith('.')]
-            relpath = os.path.relpath(session_path, self.base_dir)
-            path_parts = relpath.split(os.path.sep)
-            depth = len(path_parts)
-            if depth > 2:
-                continue
-            if depth < 2:
-                if any(not f.startswith('.') for f in files):
-                    raise ArcanaBadlyFormattedBidsRepositoryError(
-                        "Files ('{}') not permitted at {} level in "
-                        "local repository".format(
-                            "', '".join(dnames),
-                            ('subject' if depth else 'project')))
-                continue  # Not a session directory
-            subj_id, visit_id = path_parts
-            subj_id = subj_id if subj_id != SUMMARY_NAME else None
-            visit_id = visit_id if visit_id != SUMMARY_NAME else None
-            if (subject_ids is not None and subj_id is not None and
-                    subj_id not in subject_ids):
-                continue
-            if (visit_ids is not None and visit_id is not None and
-                    visit_id not in visit_ids):
-                continue
-            if (subj_id, visit_id) == (None, None):
-                frequency = 'per_project'
-            elif subj_id is None:
-                frequency = 'per_visit'
-                all_visit_ids.add(visit_id)
-            elif visit_id is None:
-                frequency = 'per_subject'
-            else:
-                frequency = 'per_session'
-                all_visit_ids.add(visit_id)
-            datasets = []
-            fields = {}
-            for dname in sorted(dnames):
-                if dname.startswith(FIELDS_FNAME):
-                    continue
-                datasets.append(
-                    Dataset.from_path(
-                        os.path.join(session_path, dname),
-                        frequency=frequency,
-                        subject_id=subj_id, visit_id=visit_id,
-                        repository=self))
-            if FIELDS_FNAME in dnames:
-                fields = self.fields_from_json(os.path.join(
-                    session_path, FIELDS_FNAME),
-                    frequency=frequency,
-                    subject_id=subj_id, visit_id=visit_id)
-            datasets = sorted(datasets)
-            fields = sorted(fields)
-            if frequency == 'per_session':
-                all_sessions[subj_id][visit_id] = Session(
-                    subject_id=subj_id, visit_id=visit_id,
-                    datasets=datasets, fields=fields)
-            else:
-                summaries[subj_id][visit_id] = (datasets, fields)
+
+        # Need to pull out all datasets and fields
+
+        all_sessions[subj_id][visit_id] = Session(
+            subject_id=subj_id, visit_id=visit_id,
+            datasets=datasets, fields=fields)
+
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
             try:

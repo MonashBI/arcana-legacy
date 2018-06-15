@@ -6,6 +6,7 @@ from arcana.exception import (
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException)
 from .base import BaseDataset, BaseField
+from .particular import DatasetCollection, FieldCollection
 
 
 class BaseSpec(object):
@@ -208,6 +209,7 @@ class DatasetSpec(BaseDataset, BaseSpec):
     """
 
     is_spec = True
+    CollectionClass = DatasetCollection
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', desc=None, optional=False):
@@ -262,6 +264,7 @@ class FieldSpec(BaseField, BaseSpec):
     """
 
     is_spec = True
+    CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_name=None,
                  frequency='per_session', desc=None, optional=False):

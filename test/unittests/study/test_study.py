@@ -311,7 +311,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
-        study.data('derived4')[0]
+        list(study.data('derived4'))[0]
         for dataset in ExampleStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
@@ -340,7 +340,7 @@ class TestStudy(BaseMultiSubjectTestCase):
     def test_project_summary(self):
         study = self.make_study()
         study.data('project_summary')
-        summary = study.data('project_summary')[0]
+        summary = list(study.data('project_summary'))[0]
         ref = str(float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS)))
         self.assertContentsEqual(summary, ref)
 
@@ -588,7 +588,7 @@ class TestGeneratedPickle(BaseTestCase):
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        regen.data('out_dataset')[0]
+        list(regen.data('out_dataset'))[0]
         self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
 
     def test_multi_study_generated_cls_pickle(self):
@@ -609,7 +609,7 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        regen.data('ss2_out_dataset')[0]
+        list(regen.data('ss2_out_dataset'))[0]
         self.assertDatasetCreated('ss2_out_dataset.txt',
                                   'multi_gen_cls')
 

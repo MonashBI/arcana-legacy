@@ -122,8 +122,8 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        threes = study.data('threes')[0].value
-        fours = study.data('fours')[0].value
+        threes = list(study.data('threes'))[0].value
+        fours = list(study.data('fours'))[0].value
         self.assertEqual(threes, 3)
         self.assertEqual(fours, 4)
 

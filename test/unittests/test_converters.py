@@ -98,6 +98,6 @@ class TestFormatConversions(BaseTestCase):
                 DatasetMatch('directory', directory_format,
                              'directory'),
                 DatasetMatch('zip', zip_format, 'zip')])
-        self.assertCreated(study.data('text_from_text')[0])
-        self.assertCreated(study.data('directory_from_zip')[0])
-        self.assertCreated(study.data('zip_from_directory')[0])
+        self.assertCreated(list(study.data('text_from_text'))[0])
+        self.assertCreated(list(study.data('directory_from_zip'))[0])
+        self.assertCreated(list(study.data('zip_from_directory'))[0])
