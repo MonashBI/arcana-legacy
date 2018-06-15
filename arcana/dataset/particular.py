@@ -465,10 +465,10 @@ class BaseCollection(object):
 
     def particular(self, subject_id=None, visit_id=None):
         """
-        Returns an item in the collection corresponding to the given
-        subject and visit_ids. subject_id and visit_id must be provided
-        for relevant frequencies. Note that subject_id/visit_id can also
-        be provided for non-relevant frequencies, they will just be
+        Returns a particular dataset|field in the collection corresponding to
+        the given subject and visit_ids. subject_id and visit_id must be
+        provided for relevant frequencies. Note that subject_id/visit_id can
+        also be provided for non-relevant frequencies, they will just be
         ignored.
 
         Parameter
@@ -525,6 +525,11 @@ class DatasetCollection(BaseCollection, BaseDataset):
         BaseDataset.__init__(
             self, name, format=self._common_attr(collection, 'format'),
             frequency=frequency)
+
+    @property
+    def path(self, subject_id=None, visit_id=None):
+        return self.particular(
+            subject_id=subject_id, visit_id=visit_id).path
 
 
 class FieldCollection(BaseCollection, BaseField):

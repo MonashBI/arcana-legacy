@@ -365,6 +365,22 @@ class BidsRepository(Repository):
         all_sessions = defaultdict(dict)
         all_visit_ids = set()
 
+        layout = gb.BIDSLayout(self.base_dir)
+        all_datasets = defaultdict(lambda: defaultdict(dict))
+        for nifti in layout.get(extension='.nii.gz',
+                                return_type='object'):
+            subj_id = nifti.entities['subject']
+            subj_id = nifti.entities['session']
+            run = nifti.entities['run']
+            path = nifti.path
+            all_datasets[subj_id][sess_id] = Dataset(
+                xdataset.type, format=file_format, derived=derived,  # @ReservedAssignment @IgnorePep8
+                frequency=freq, path=None, id=xdataset.id,
+                uri=xdataset.uri, subject_id=subject_id,
+                visit_id=visit_id, repository=self)
+            
+        for subj_id in layout.get_subjects():
+            sess_id = 
         # Need to pull out all datasets and fields
 
         all_sessions[subj_id][visit_id] = Session(

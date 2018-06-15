@@ -696,6 +696,12 @@ class XnatRepository(Repository):
                 xsession.label, cache_path)
         return cache_path
 
+    def particular_from_spec(self, spec, subject_id=None, visit_id=None):
+        return spec.ParticularClass(
+            spec.basename(), spec.format, frequency=spec.frequency,
+            path=None, derived=True, subject_id=subject_id,
+            visit_id=visit_id, repository=self)
+
     def cache_path(self, dataset):
         subj_dir, sess_dir = self.get_labels(
             dataset.frequency, self.project_id,

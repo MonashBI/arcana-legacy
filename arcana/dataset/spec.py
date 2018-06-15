@@ -6,7 +6,8 @@ from arcana.exception import (
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException)
 from .base import BaseDataset, BaseField
-from .particular import DatasetCollection, FieldCollection
+from .particular import (
+    Dataset, Field, DatasetCollection, FieldCollection)
 
 
 class BaseSpec(object):
@@ -172,6 +173,10 @@ class BaseSpec(object):
     def basename(self, **kwargs):  # @UnusedVariable
         return self.prefixed_name
 
+    def particular(self, subject_id=None, visit_id=None):
+        return self.repository.particular_from_spec(
+            self, subject_id=subject_id, visit_id=visit_id)
+
     def initkwargs(self):
         dct = {}
         dct['pipeline_name'] = self.pipeline_name
@@ -209,6 +214,7 @@ class DatasetSpec(BaseDataset, BaseSpec):
     """
 
     is_spec = True
+    ParticularClass = Dataset
     CollectionClass = DatasetCollection
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
@@ -241,6 +247,11 @@ class DatasetSpec(BaseDataset, BaseSpec):
         dct.update(BaseSpec.initkwargs(self))
         return dct
 
+    @property
+    def path(self, subject_id=None, visit_id=None):
+        return self.particular(subject_id=subject_id,
+                               visit_id=visit_id).path
+
 
 class FieldSpec(BaseField, BaseSpec):
     """
@@ -264,6 +275,7 @@ class FieldSpec(BaseField, BaseSpec):
     """
 
     is_spec = True
+    ParticularClass = Field
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_name=None,

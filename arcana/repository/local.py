@@ -440,6 +440,15 @@ class LocalRepository(Repository):
         assert dataset._path is not None
         return dataset.path
 
+    def particular_from_spec(self, spec, subject_id=None, visit_id=None):
+        raise NotImplementedError
+        path = os.path.join(self.base_dir, subject_id, visit_id,
+                            spec.fname())
+        return spec.ParticularClass(
+            spec.basename(), spec.format, frequency=spec.frequency,
+            path=path, derived=True, subject_id=subject_id,
+            visit_id=visit_id, repository=self)
+
     @property
     def base_dir(self):
         return self._base_dir
