@@ -5,7 +5,8 @@ from nipype.interfaces.base import (
     BaseInterface)
 from arcana.node import Node
 from arcana.dataset import (
-    BaseDatum, DatasetSpec, FieldSpec, BaseField, BaseDataset)
+    BaseDatum, DatasetSpec, FieldSpec, BaseField, BaseDataset,
+    DatasetMatch, FieldMatch)
 from arcana.exception import ArcanaError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from future.utils import with_metaclass
@@ -45,8 +46,17 @@ class Repository(with_metaclass(ABCMeta, object)):
         if name is None:
             name = "{}_source".format(self.type)
         inputs = list(inputs)  # protected against iterators
-        datasets = [i for i in inputs if isinstance(i, BaseDataset)]
-        fields = [i for i in inputs if isinstance(i, BaseField)]
+        datasets = []
+        fields = []
+        for inpt in inputs:
+            if isinstance(inpt, DatasetMatch):
+                datasets.append(input.matches)
+            elif isinstance(inpt, DatasetSpec):
+                datasets.append(inpt)
+            if isinstance(inpt, FieldMatch):
+                fields.append(input.matches)
+            elif isinstance(inpt, FieldSpec):
+                fields.append(inpt)
         return Node(self.Source(study_name, datasets, fields, **kwargs),
                     name=name)
 

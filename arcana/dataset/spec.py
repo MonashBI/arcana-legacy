@@ -173,9 +173,18 @@ class BaseSpec(object):
     def basename(self, **kwargs):  # @UnusedVariable
         return self.prefixed_name
 
-    def particular(self, subject_id=None, visit_id=None):
-        return self.repository.particular_from_spec(
-            self, subject_id=subject_id, visit_id=visit_id)
+    def _tree_node(self, subject_id=None, visit_id=None):
+        if self.frequency == 'per_session':
+            node = self.study.tree.subject(subject_id).visit(visit_id)
+        elif self.frequency == 'per_subject':
+            node = self.study.tree.subject(subject_id)
+        elif self.frequency == 'per_visit':
+            node = self.study.tree.visit(visit_id)
+        elif self.frequency == 'per_project':
+            node = self.study.tree
+        else:
+            assert False
+        return node
 
     def initkwargs(self):
         dct = {}
@@ -247,6 +256,10 @@ class DatasetSpec(BaseDataset, BaseSpec):
         dct.update(BaseSpec.initkwargs(self))
         return dct
 
+    def particular(self, **kwargs):
+        node = self._tree_node(**kwargs)
+        node.dataset(self.basename())
+
     @property
     def path(self, subject_id=None, visit_id=None):
         return self.particular(subject_id=subject_id,
@@ -301,6 +314,10 @@ class FieldSpec(BaseField, BaseSpec):
                 "frequency={})".format(
                     self.__class__.__name__, self.name, self.dtype,
                     self.pipeline_name, self.frequency))
+
+    def particular(self, **kwargs):
+        node = self._tree_node(**kwargs)
+        node.field(self.basename())
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
