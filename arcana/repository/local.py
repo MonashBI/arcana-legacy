@@ -311,9 +311,6 @@ class LocalRepository(Repository):
     def login(self):
         return NoContextWrapper(None)
 
-    def _get_derived_sub_path(self, spec):
-        return spec.study.name
-
     def get_tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
@@ -450,8 +447,7 @@ class LocalRepository(Repository):
 
     def subject_summary_path(self, project_id, subject_id):
         return os.path.join(self.base_dir, project_id, subject_id,
-                            SUMMARY_NAME,
-                            self._get_derived_sub_path())
+                            SUMMARY_NAME)
 
     def visit_summary_path(self, project_id, visit_id):
         return os.path.join(self.base_dir, project_id,

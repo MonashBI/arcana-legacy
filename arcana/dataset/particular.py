@@ -126,10 +126,12 @@ class Dataset(BaseParticular, BaseDataset):
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
                  frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 repository=None, study_name=None):
-        BaseDataset.__init__(self, name, format, frequency)
+                 repository=None, study_name=None, bids_attr=None):
+        BaseDataset.__init__(self, name=name, format=format,
+                             frequency=frequency, bids_attr=bids_attr)
         BaseParticular.__init__(self, derived, subject_id,
-                                visit_id, repository, study_name)
+                                visit_id, repository, study_name,
+                                bids_attr=bids_attr)
         self._path = path
         self._uri = uri
         if id is None and path is not None and format.name == 'dicom':
@@ -199,7 +201,7 @@ class Dataset(BaseParticular, BaseDataset):
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  subject_id=None, visit_id=None, repository=None):
+                  **kwargs):
         if not os.path.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Dataset from path '{}' but it "
@@ -227,8 +229,7 @@ class Dataset(BaseParticular, BaseDataset):
                         str(e) + ", which is required to identify the "
                         "format of the dataset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
-                   path=path, derived=False, subject_id=subject_id,
-                   visit_id=visit_id, repository=repository)
+                   path=path, derived=False, **kwargs)
 
     def dicom(self, index):
         """
@@ -296,6 +297,7 @@ class Dataset(BaseParticular, BaseDataset):
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
+        dct['bids_attr'] = self.bids_attr
         return dct
 
 

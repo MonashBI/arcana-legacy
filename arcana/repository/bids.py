@@ -10,14 +10,15 @@ from operator import attrgetter
 import errno
 from .local import LocalRepository
 import stat
-import shutil
 import logging
 import json
 from bids import grabbids as gb
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
-from arcana.exception import ArcanaError
+from arcana.exception import ArcanaNameError
 from arcana.utils import NoContextWrapper
+
+logger = logging.getLogger('arcana')
 
 
 class BidsRepository(LocalRepository):
@@ -32,6 +33,11 @@ class BidsRepository(LocalRepository):
     """
 
     type = 'bids'
+    DERIVATIVES_SUB_PATH = os.path.join('derivatives', 'arcana')
+
+    def __init__(self, base_dir):
+        LocalRepository.__init__(
+            os.path.join(base_dir, self.DERIVATIVES_SUB_PATH))
 
     def __repr__(self):
         return "BidsRepository(base_dir='{}')".format(self.base_dir)
@@ -65,10 +71,6 @@ class BidsRepository(LocalRepository):
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
-        summaries = defaultdict(dict)
-        all_sessions = defaultdict(dict)
-        all_visit_ids = set()
-
         layout = gb.BIDSLayout(self.base_dir)
         bids_datasets = defaultdict(lambda: defaultdict(dict))
         derived_tree = super(BidsRepository, self).get_tree(
@@ -80,55 +82,53 @@ class BidsRepository(LocalRepository):
             visit_id = bids_obj.entities['session']
             if visit_ids is not None and visit_id not in visit_ids:
                 continue
-            path = bids_obj.path
             bids_datasets[subj_id][visit_id] = Dataset.from_path(
-                path, frequency='per_session', subject_id=subj_id,
-                visit_id=visit_id, repository=self)
+                bids_obj.path, frequency='per_session',
+                subject_id=subj_id, visit_id=visit_id, repository=self,
+                bids_attrs=bids_obj)
         # Need to pull out all datasets and fields
-        all_sessions = []
-        for subj_id, visits in all_sessions.items():
-            for visit_id, visit in visits.items():
-                all_sessions.append(Session(
+        all_sessions = defaultdict(dict)
+        all_visit_ids = set()
+        for subj_id, visits in bids_datasets.items():
+            for visit_id, datasets in visits.items():
+                session = Session(
                     subject_id=subj_id, visit_id=visit_id,
-                    datasets=datasets, fields=fields))
+                    datasets=datasets)
+                try:
+                    session.derived = derived_tree.subject(
+                        subj_id).visit(visit_id)
+                except ArcanaNameError:
+                    pass  # No matching derived session
+                all_sessions[subj_id][visit_id] = session
+                all_visit_ids.add(visit_id)
 
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
             try:
-                datasets, fields = summaries[subj_id][None]
-            except KeyError:
+                derived_subject = derived_tree.subject(subj_id)
+            except ArcanaNameError:
                 datasets = []
                 fields = []
+            else:
+                datasets = derived_subject.datasets
+                fields = derived_subject.fields
             subjects.append(Subject(
-                subj_id, sorted(subj_sessions.values()), datasets,
-                fields))
+                subj_id, sorted(subj_sessions.values()),
+                datasets, fields))
         visits = []
         for visit_id in all_visit_ids:
-            visit_sessions = list(chain(
-                sess[visit_id] for sess in list(all_sessions.values())))
             try:
-                datasets, fields = summaries[None][visit_id]
-            except KeyError:
+                derived_visit = derived_tree.visit(subj_id)
+            except ArcanaNameError:
                 datasets = []
                 fields = []
-            visits.append(Visit(visit_id, sorted(visit_sessions),
-                                datasets, fields))
-        try:
-            datasets, fields = summaries[None][None]
-        except KeyError:
-            datasets = []
-            fields = []
-        return Project(sorted(subjects), sorted(visits), datasets,
-                       fields)
-
-    def _get_derived_sub_path(self, spec):
-        return os.path.join('derived', 'arcana', spec.study.name)
-
-    def fields_from_json(self, fname, frequency,
-                         subject_id=None, visit_id=None):
-        with open(fname, 'r') as f:
-            dct = json.load(f)
-        return [Field(name=k, value=v, frequency=frequency,
-                      subject_id=subject_id, visit_id=visit_id,
-                      repository=self)
-                for k, v in list(dct.items())]
+            else:
+                datasets = derived_visit.datasets
+                fields = derived_visit.fields
+            visit_sessions = list(chain(
+                sess[visit_id] for sess in list(all_sessions.values())))
+            visits.append(
+                Visit(visit_id, sorted(visit_sessions),
+                      datasets, fields))
+        return Project(sorted(subjects), sorted(visits),
+                       derived_tree.datasets, derived_tree.fields)

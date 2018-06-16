@@ -1,13 +1,11 @@
 from builtins import str
 from builtins import object
 import re
-from itertools import chain
 from copy import copy
 from arcana.exception import (
-    ArcanaError, ArcanaUsageError,
-    ArcanaDatasetMatchError)
+    ArcanaUsageError, ArcanaDatasetMatchError)
 from .base import BaseDataset, BaseField
-from .particular import DatasetCollection, FieldCollection
+from .collection import DatasetCollection, FieldCollection
 
 
 class BaseMatch(object):
@@ -361,3 +359,55 @@ class FieldMatch(BaseMatch, BaseField):
                         self.frequency, self.derived,
                         self._pattern, self.order, self.is_regex,
                         self._study))
+
+
+class BidsDatasetMatch(DatasetMatch):
+    """
+    A match object for matching datasets from their 'bids_attr'
+    attribute
+
+    Parameters
+    ----------
+    type : str
+        Type of the dataset
+    modality : str
+        Modality of the datasets
+    format : FileFormat
+        The file format of the dataset to match
+    run : int
+        Run number of the dataset
+    """
+
+    def __init__(self, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
+        DatasetMatch.__init__(
+            self, type, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
+            derived=False, id=None, order=run, dicom_tags=None,
+            is_regex=False, study=None)
+        self._modality = modality
+        self._run = run
+
+    @property
+    def type(self):
+        return self.name
+
+    @property
+    def modality(self):
+        return self._modality
+
+    @property
+    def run(self):
+        return self.order
+
+    def _filtered_matches(self, node):
+        matches = [
+            d for d in node.datasets
+            if (d.bids_attr.entities['type'] == self.type and
+                d.bids_attr.entities['modality'] == self.modality)]
+        if not matches:
+            raise ArcanaDatasetMatchError(
+                "No datasets for subject={}, visit={} match modality "
+                "'{}' and type '{}' found:\n{}"
+                .format(node.subject_id, node.visit_id, self.modality,
+                        self.type, '\n'.join(
+                            sorted(d.name for d in node.datasets))))
+        return matches

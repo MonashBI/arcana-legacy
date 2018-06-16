@@ -515,7 +515,7 @@ class XnatSinkMixin(with_metaclass(ABCMeta, XnatMixin)):
 
         If we weren't worried about this we could just use
 
-            session = xnat_login.classes.MrSessionData(label=proc_session_id,
+            session = xnat_login.classes.MrSessionData(label=derived_session_id,
                                                        parent=subject)
         """
         uri = ('/data/archive/projects/{}/subjects/{}/experiments/{}'
@@ -778,7 +778,7 @@ class XnatRepository(Repository):
                 logger.debug("Getting info for subject '{}'"
                              .format(subj_id))
                 sessions = {}
-                proc_sessions = []
+                derived_sessions = []
                 # Get per_session datasets
                 for xsession in xsubject.experiments.values():
                     visit_id = '_'.join(xsession.label.split('_')[2:])
@@ -801,22 +801,22 @@ class XnatRepository(Repository):
                                           derived=derived),
                                       derived=None)
                     if derived:
-                        proc_sessions.append(session)
+                        derived_sessions.append(session)
                     else:
                         sessions[visit_id] = session
                         visit_sessions[visit_id].append(session)
-                for proc_session in proc_sessions:
-                    visit_id = proc_session.visit_id[:-len(
+                for derived_session in derived_sessions:
+                    visit_id = derived_session.visit_id[:-len(
                         self.PROCESSED_SUFFIX)]
                     try:
-                        sessions[visit_id].derived = proc_session
+                        sessions[visit_id].derived = derived_session
                     except KeyError:
                         raise ArcanaError(
                             "No matching acquired session for derived "
                             "session '{}_{}_{}'".format(
                                 self.project_id,
-                                proc_session.subject_id,
-                                proc_session.visit_id))
+                                derived_session.subject_id,
+                                derived_session.visit_id))
                 # Get per_subject datasets
                 subj_summary_name = self.get_labels(
                     'per_subject', self.project_id, subj_id)[1]

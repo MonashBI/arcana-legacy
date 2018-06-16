@@ -11,6 +11,52 @@ from future.types import newstr
 logger = getLogger('Arcana')
 
 
+class BidsAttrs(object):
+
+    def __init__(self, type=None, modality=None, run=None, metadata=None,  # @ReservedAssignment @IgnorePep8
+                 field_maps=None, bvec=None, bval=None, description=None):
+        self._type = type
+        self._modality = modality
+        self._run = run
+        self._metadata = metadata
+        self._bval = bval
+        self._bvec = bvec
+        self._field_maps = field_maps
+        self._description = description
+
+    @property
+    def type(self):
+        return self._type
+
+    @property
+    def mode(self):
+        return self._mode
+
+    @property
+    def run(self):
+        return self._run
+
+    @property
+    def metadata(self):
+        return self._metadata
+
+    @property
+    def bval(self):
+        return self._bval
+
+    @property
+    def bvec(self):
+        return self._bvec
+
+    @property
+    def field_maps(self):
+        return self._field_maps
+
+    @property
+    def description(self):
+        return self._description
+
+
 class BaseDatum(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
@@ -94,23 +140,26 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
+    bids_attr : BidsAttr
+        A collection of BIDS attributes for the dataset or spec
     """
 
     def __init__(self, name, format=None, frequency='per_session',  # @ReservedAssignment @IgnorePep8
-                 bids_attr=None, header=None):
+                 bids_attr=None):
         super(BaseDataset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format
         self._bids_attr = bids_attr
-        self._header = header
 
     def __eq__(self, other):
         return (super(BaseDataset, self).__eq__(other) and
-                self._format == other._format)
+                self._format == other._format and
+                self._bids_attr == other._bids_attr)
 
     def __hash__(self):
         return (super(BaseDataset, self).__hash__() ^
-                hash(self._format))
+                hash(self._format) ^
+                hash(self._bids_attr))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseDataset, self).find_mismatch(other, indent)
@@ -129,18 +178,15 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     def bids_attr(self):
         return self._bids_attr
 
-    @property
-    def header(self):
-        return self._header
-
     def __repr__(self):
-        return ("{}(name='{}', format={}, frequency={})"
+        return ("{}(name='{}', format={}, frequency={}, bids_attr={})"
                 .format(self.__class__.__name__, self.name, self.format,
-                        self.frequency))
+                        self.frequency, self.bids_attr))
 
     def initkwargs(self):
         dct = super(BaseDataset, self).initkwargs()
         dct['format'] = self.format
+        dct['bids_attr'] = self.bids_attr
         return dct
 
     def fname(self, **kwargs):
