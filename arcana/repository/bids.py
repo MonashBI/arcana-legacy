@@ -1,20 +1,13 @@
 from __future__ import absolute_import
-from builtins import str
-from past.builtins import basestring
-from builtins import object
-from abc import ABCMeta, abstractmethod
 import os.path
 from collections import defaultdict
-from itertools import chain, groupby
-from operator import attrgetter
+from itertools import chain
 import errno
 from .local import LocalRepository
-import stat
 import logging
-import json
 from bids import grabbids as gb
 from .tree import Project, Subject, Session, Visit
-from arcana.dataset import Dataset, Field
+from arcana.dataset import Dataset
 from arcana.exception import ArcanaNameError
 from arcana.utils import NoContextWrapper
 
@@ -35,16 +28,32 @@ class BidsRepository(LocalRepository):
     type = 'bids'
     DERIVATIVES_SUB_PATH = os.path.join('derivatives', 'arcana')
 
-    def __init__(self, base_dir):
-        LocalRepository.__init__(
-            os.path.join(base_dir, self.DERIVATIVES_SUB_PATH))
+    def __init__(self, root_dir):
+        self._root_dir = root_dir
+        derivatives_path = os.path.join(root_dir,
+                                        self.DERIVATIVES_SUB_PATH)
+        try:
+            os.makedirs(derivatives_path)
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        LocalRepository.__init__(derivatives_path)
+        self._layout = gb.BIDSLayout(self.base_dir)
+
+    @property
+    def root_dir(self):
+        return self._root_dir
+
+    @property
+    def layout(self):
+        return self._layout
 
     def __repr__(self):
-        return "BidsRepository(base_dir='{}')".format(self.base_dir)
+        return "BidsRepository(root_dir='{}')".format(self.root_dir)
 
     def __eq__(self, other):
         try:
-            return self.base_dir == other.base_dir
+            return self.root_dir == other.root_dir
         except AttributeError:
             return False
 
@@ -71,11 +80,10 @@ class BidsRepository(LocalRepository):
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
-        layout = gb.BIDSLayout(self.base_dir)
         bids_datasets = defaultdict(lambda: defaultdict(dict))
         derived_tree = super(BidsRepository, self).get_tree(
             subject_ids=None, visit_ids=None)
-        for bids_obj in layout.get(return_type='object'):
+        for bids_obj in self.layout.get(return_type='object'):
             subj_id = bids_obj.entities['subject']
             if subject_ids is not None and subj_id not in subject_ids:
                 continue

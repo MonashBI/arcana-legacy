@@ -90,18 +90,17 @@ class LocalSource(RepositorySource, LocalNodeMixin):
         outputs = {}
         # Source datasets
         for dataset in self.datasets:
-            fname = dataset.fname(subject_id=self.inputs.subject_id,
-                                  visit_id=self.inputs.visit_id)
-            outputs[dataset.name + PATH_SUFFIX] = os.path.join(
-                self._get_data_dir(dataset.frequency), fname)
+            outputs[dataset.name + PATH_SUFFIX] = dataset.path(
+                subject_id=self.inputs.subject_id,
+                visit_id=self.inputs.visit_id)
         # Source fields from JSON file
         for freq, spec_grp in groupby(
             sorted(self.fields, key=attrgetter('frequency')),
                 key=attrgetter('frequency')):
             # Load fields JSON, locking to prevent read/write conflicts
             # Would be better if only checked if locked to allow
-            # concurrent reads but not possible with freqi-process
-            # locks I believe.
+            # concurrent reads but not possible with multi-process
+            # locks (in my understanding at least).
             fpath = self.fields_path(freq)
             try:
                 with InterProcessLock(

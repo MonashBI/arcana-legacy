@@ -378,17 +378,18 @@ class BidsDatasetMatch(DatasetMatch):
         Run number of the dataset
     """
 
-    def __init__(self, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
         DatasetMatch.__init__(
-            self, type, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
+            self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
             derived=False, id=None, order=run, dicom_tags=None,
             is_regex=False, study=None)
+        self._type = type
         self._modality = modality
         self._run = run
 
     @property
     def type(self):
-        return self.name
+        return self._type
 
     @property
     def modality(self):
@@ -405,9 +406,43 @@ class BidsDatasetMatch(DatasetMatch):
                 d.bids_attr.entities['modality'] == self.modality)]
         if not matches:
             raise ArcanaDatasetMatchError(
-                "No datasets for subject={}, visit={} match modality "
-                "'{}' and type '{}' found:\n{}"
+                "No BIDS datasets for subject={}, visit={} match "
+                "modality '{}' and type '{}' found:\n{}"
                 .format(node.subject_id, node.visit_id, self.modality,
                         self.type, '\n'.join(
                             sorted(d.name for d in node.datasets))))
+        return matches
+
+
+class BidsAssociatedDatasetMatch(DatasetMatch):
+
+    VALID_ASSOCIATIONS = ('fieldmap', 'bvec', 'bval')
+
+    def __init__(self, name, primary_match, format, association,  # @ReservedAssignment @IgnorePep8
+                 index=None):
+        DatasetMatch.__init__(
+            self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
+            derived=False, id=None, order=index, dicom_tags=None,
+            is_regex=False, study=None)
+        self._primary_match = primary_match
+        self._association = association
+
+    @property
+    def primary_match(self):
+        return self._primary_match
+
+    @property
+    def association(self):
+        return self._association
+
+    def _filtered_matches(self, node):
+        primary_match = self._primary_match._match_node(node)
+        layout = self.study.repository.layout
+        if self._association == 'fieldmap':
+            matches = layout.get_fieldmap(primary_match.path,
+                                          return_list=True)
+        elif self._association == 'bvec':
+            matches = [layout.get_bvec(primary_match.path)]
+        elif self._association == 'bval':
+            matches = [layout.get_bval(primary_match.path)]
         return matches
