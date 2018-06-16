@@ -368,6 +368,8 @@ class BidsDatasetMatch(DatasetMatch):
 
     Parameters
     ----------
+    name : str
+        Name of the dataset
     type : str
         Type of the dataset
     modality : str
@@ -413,19 +415,69 @@ class BidsDatasetMatch(DatasetMatch):
                             sorted(d.name for d in node.datasets))))
         return matches
 
+    def __eq__(self, other):
+        return (DatasetMatch.__eq__(self, other) and
+                self.type == other.type and
+                self.modality == other.modality and
+                self.run == other.run)
+
+    def __hash__(self):
+        return (DatasetMatch.__hash__(self) ^
+                hash(self.type) ^
+                hash(self.modality) ^
+                hash(self.run))
+
+    def initkwargs(self):
+        dct = DatasetMatch.initkwargs(self)
+        dct['type'] = self.type
+        dct['modality'] = self.modality
+        dct['run'] = self.run
+        return dct
+
 
 class BidsAssociatedDatasetMatch(DatasetMatch):
+    """
+    A match object for matching BIDS datasets that are associated with
+    another BIDS datasets (e.g. field-maps, bvecs, bvals)
+
+    Parameters
+    ----------
+    name : str
+        Name of the associated dataset
+    primary_match : BidsDatasetMatch
+        The primary dataset which the dataset to match is associated with
+    associated : str
+        The name of the association between the dataset to match and the
+        primary dataset
+    fieldmap_type : str
+        Key of the return fieldmap dictionary (if association=='fieldmap'
+    order : int
+        Order of the fieldmap dictionary that you want to match
+    """
 
     VALID_ASSOCIATIONS = ('fieldmap', 'bvec', 'bval')
 
     def __init__(self, name, primary_match, format, association,  # @ReservedAssignment @IgnorePep8
-                 index=None):
+                 fieldmap_type=None, order=0):
         DatasetMatch.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
-            derived=False, id=None, order=index, dicom_tags=None,
+            derived=False, id=None, order=order, dicom_tags=None,
             is_regex=False, study=None)
         self._primary_match = primary_match
         self._association = association
+        if fieldmap_type is not None and association != 'fieldmap':
+            raise ArcanaUsageError(
+                "'fieldmap_type' (provided to '{}' match) "
+                "is only valid for 'fieldmap' "
+                "associations (not '{}')".format(name, association))
+        self._fieldmap_type = fieldmap_type
+
+    def __repr__(self):
+        return ("{}(name={}, primary_match={}, format={}, association={}, "
+                "fieldmap_type\{}, order={})".format(
+                    self.name, self.primary_match, self.format,
+                    self.association, self.fieldmap_type,
+                    self.order))
 
     @property
     def primary_match(self):
@@ -435,14 +487,44 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
     def association(self):
         return self._association
 
-    def _filtered_matches(self, node):
+    @property
+    def fieldmap_type(self):
+        return self._fieldmap_type
+
+    def _match_node(self, node):
         primary_match = self._primary_match._match_node(node)
         layout = self.study.repository.layout
         if self._association == 'fieldmap':
             matches = layout.get_fieldmap(primary_match.path,
                                           return_list=True)
+            try:
+                match = matches[0]
+            except IndexError:
+                raise ArcanaDatasetMatchError(
+                    "Provided order to associated BIDS dataset match "
+                    "{} is out of range")
         elif self._association == 'bvec':
-            matches = [layout.get_bvec(primary_match.path)]
+            match = layout.get_bvec(primary_match.path)
         elif self._association == 'bval':
-            matches = [layout.get_bval(primary_match.path)]
+            match = layout.get_bval(primary_match.path)
+        return match
         return matches
+
+    def __eq__(self, other):
+        return (DatasetMatch.__eq__(self, other) and
+                self.primary_match == other.primary_match and
+                self.association == other.association and
+                self.fieldmap_type == other.fieldmap_type)
+
+    def __hash__(self):
+        return (DatasetMatch.__hash__(self) ^
+                hash(self.primary_match) ^
+                hash(self.association) ^
+                hash(self.fieldmap_type))
+
+    def initkwargs(self):
+        dct = DatasetMatch.initkwargs(self)
+        dct['primary_match'] = self.primary_match
+        dct['association'] = self.association
+        dct['fieldmap_type'] = self.fieldmap_type
+        return dct
