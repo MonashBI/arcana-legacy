@@ -8,293 +8,19 @@ from collections import defaultdict
 from itertools import chain, groupby
 from operator import attrgetter
 import errno
-from .base import (
-    Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
-    RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
-    RepositoryVisitSinkInputSpec,
-    RepositoryProjectSinkInputSpec, RepositorySubjectSink, RepositoryVisitSink,
-    RepositoryProjectSink)
+from .local import LocalRepository
 import stat
 import shutil
 import logging
 import json
 from bids import grabbids as gb
-from fasteners import InterProcessLock
-from arcana.utils import JSON_ENCODING
-from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import ArcanaError
-from arcana.utils import (
-    split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
+from arcana.utils import NoContextWrapper
 
 
-logger = logging.getLogger('arcana')
-
-SUMMARY_NAME = 'ALL'
-FIELDS_FNAME = 'fields.json'
-
-LOCK = '.lock'
-
-
-def lower(s):
-    if s is None:
-        return None
-    return s.lower()
-
-
-class BidsNodeMixin(object):
-
-    def _get_data_dir(self, frequency):
-        if frequency == 'per_project':
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
-                                    SUMMARY_NAME)
-        elif frequency.startswith('per_subject'):
-            data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
-                SUMMARY_NAME)
-        elif frequency.startswith('per_visit'):
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
-                                    str(self.inputs.visit_id))
-        elif frequency.startswith('per_session'):
-            data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
-                str(self.inputs.visit_id))
-        else:
-            assert False, "Unrecognised frequency '{}'".format(
-                frequency)
-        return data_dir
-
-    def fields_path(self, frequency):
-        return os.path.join(self._get_data_dir(frequency),
-                            FIELDS_FNAME)
-
-    @property
-    def base_dir(self):
-        return self._base_dir
-
-    def __eq__(self, other):
-        return (super(BidsNodeMixin, self).__eq__(other) and
-                self.base_dir == other.base_dir)
-
-
-class BidsSource(RepositorySource, BidsNodeMixin):
-
-    input_spec = RepositorySourceInputSpec
-
-    def __init__(self, study_name, datasets, fields, base_dir):
-        self._base_dir = base_dir
-        super(BidsSource, self).__init__(study_name, datasets, fields)
-
-        if not isdefined(self.inputs.output_query):
-            self.inputs.output_query = {"func": {"modality": "func"},
-                                        "anat": {"modality": "anat"}}
-
-        # If infields is empty, use all BIDS entities
-        bids_config = os.path.join(os.path.dirname(gb.__file__),
-                                   'config', 'bids.json')
-        bids_config = json.load(open(bids_config, 'r'))
-        infields = [i['name'] for i in bids_config['entities']]
-
-        self._infields = infields or []
-
-    def _list_outputs(self):
-        layout = gb.BIDSLayout(self.inputs.base_dir)
-
-        # If infield is not given nm input value, silently ignore
-        filters = {}
-        for key in self._infields:
-            value = getattr(self.inputs, key)
-            if isdefined(value):
-                filters[key] = value
-
-        outputs = {}
-        for key, query in self.inputs.output_query.items():
-            args = query.copy()
-            args.update(filters)
-            filelist = layout.get(return_type=self.inputs.return_type, **args)
-            outputs[key] = filelist
-        #======================================================================
-        # 
-        #======================================================================
-        # Directory that holds session-specific
-        outputs = {}
-        # Source datasets
-        for dataset in self.datasets:
-            fname = dataset.fname(subject_id=self.inputs.subject_id,
-                                  visit_id=self.inputs.visit_id)
-            outputs[dataset.name + PATH_SUFFIX] = os.path.join(
-                self._get_data_dir(dataset.frequency), fname)
-        # Source fields from JSON file
-        for freq, spec_grp in groupby(
-            sorted(self.fields, key=attrgetter('frequency')),
-                key=attrgetter('frequency')):
-            # Load fields JSON, locking to prevent read/write conflicts
-            # Would be better if only checked if locked to allow
-            # concurrent reads but not possible with freqi-process
-            # locks I believe.
-            fpath = self.fields_path(freq)
-            try:
-                with InterProcessLock(
-                    fpath + LOCK,
-                        logger=logger), open(fpath, 'r') as f:
-                    fields = json.load(f)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    fields = {}
-                else:
-                    raise
-            for field in spec_grp:
-                outputs[field.name + FIELD_SUFFIX] = field.dtype(
-                    fields[self.prefix_study_name(field.name,
-                                                  field.is_spec)])
-        return outputs
-
-
-class BidsSinkMixin(BidsNodeMixin):
-
-    __metaclass = ABCMeta
-
-    def __init__(self, study_name, datasets, fields, base_dir):
-        self._base_dir = base_dir
-        super(BidsSinkMixin, self).__init__(study_name, datasets,
-                                             fields)
-        BidsNodeMixin.__init__(self)
-
-    def _list_outputs(self):
-        """Execute this module.
-        """
-        # Initiate outputs
-        outputs = self._base_outputs()
-        out_files = []
-        missing_files = []
-        # Get output dir from base RepositorySink class (will change depending on
-        # whether it is per session/subject/visit/project)
-        out_path = self._get_output_path()
-        out_dir = os.path.abspath(os.path.join(*out_path))
-        # Make session dir
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-        # Loop through datasets connected to the sink and copy them to repository
-        # directory
-        for spec in self.datasets:
-            assert spec.derived, (
-                "Should only be sinking derived datasets, not '{}'"
-                .format(spec.name))
-            filename = getattr(self.inputs, spec.name + PATH_SUFFIX)
-            ext = spec.format.extension
-            if not isdefined(filename):
-                missing_files.append(spec.name)
-                continue  # skip the upload for this file
-            if lower(split_extension(filename)[1]) != lower(ext):
-                raise ArcanaError(
-                    "Mismatching extension '{}' for format '{}' ('{}')"
-                    .format(split_extension(filename)[1],
-                            spec.format, ext))
-            assert spec.frequency == self.frequency
-            # Copy to local system
-            src_path = os.path.abspath(filename)
-            out_fname = spec.fname()
-            dst_path = os.path.join(out_dir, out_fname)
-            out_files.append(dst_path)
-            if os.path.isfile(src_path):
-                shutil.copyfile(src_path, dst_path)
-            elif os.path.isdir(src_path):
-                shutil.copytree(src_path, dst_path)
-            else:
-                assert False
-        if missing_files:
-            # FIXME: Not sure if this should be an exception or not,
-            #        indicates a problem but stopping now would throw
-            #        away the datasets that were created
-            logger.warning(
-                "Missing input datasets '{}' in BidsSink".format(
-                    "', '".join(missing_files)))
-        # Return cache file paths
-        outputs['out_files'] = out_files
-        # Loop through fields connected to the sink and save them in the
-        # fields JSON file
-        out_fields = []
-        fpath = self.fields_path(self.frequency)
-        # Open fields JSON, locking to prevent other processes
-        # reading or writing
-        if self.fields:
-            with InterProcessLock(fpath + LOCK, logger=logger):
-                try:
-                    with open(fpath, 'rb') as f:
-                        fields = json.load(f)
-                except IOError as e:
-                    if e.errno == errno.ENOENT:
-                        fields = {}
-                    else:
-                        raise
-                # Update fields JSON and write back to file.
-                for spec in self.fields:
-                    value = getattr(self.inputs,
-                                    spec.name + FIELD_SUFFIX)
-                    qual_name = self.prefix_study_name(spec.name)
-                    if spec.dtype is str:
-                        if not isinstance(value, basestring):
-                            raise ArcanaError(
-                                "Provided value for field '{}' ({}) "
-                                "does not match string datatype"
-                                .format(spec.name, value))
-                    else:
-                        if not isinstance(value, spec.dtype):
-                            raise ArcanaError(
-                                "Provided value for field '{}' ({}) "
-                                "does not match datatype {}"
-                                .format(spec.name, value, spec.dtype))
-                    fields[qual_name] = value
-                    out_fields.append((qual_name, value))
-                with open(fpath, 'w', **JSON_ENCODING) as f:
-                    json.dump(fields, f)
-        outputs['out_fields'] = out_fields
-        return outputs
-
-    @abstractmethod
-    def _get_output_path(self):
-        "Get the output path to save the generated datasets into"
-
-
-class BidsSink(BidsSinkMixin, RepositorySink):
-
-    input_spec = RepositorySinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, self.inputs.subject_id,
-            self.inputs.visit_id]
-
-
-class BidsSubjectSink(BidsSinkMixin, RepositorySubjectSink):
-
-    input_spec = RepositorySubjectSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, self.inputs.subject_id, SUMMARY_NAME]
-
-
-class BidsVisitSink(BidsSinkMixin, RepositoryVisitSink):
-
-    input_spec = RepositoryVisitSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, SUMMARY_NAME, self.inputs.visit_id]
-
-
-class BidsProjectSink(BidsSinkMixin, RepositoryProjectSink):
-
-    input_spec = RepositoryProjectSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, SUMMARY_NAME, SUMMARY_NAME]
-
-
-class BidsRepository(Repository):
+class BidsRepository(LocalRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
@@ -305,19 +31,7 @@ class BidsRepository(Repository):
         Path to local directory containing data
     """
 
-    type = 'local'
-    Source = BidsSource
-    Sink = BidsSink
-    SubjectSink = BidsSubjectSink
-    VisitSink = BidsVisitSink
-    ProjectSink = BidsProjectSink
-
-    def __init__(self, base_dir):
-        if not os.path.exists(base_dir):
-            raise ArcanaError(
-                "Base directory for BidsRepository '{}' does not exist"
-                .format(base_dir))
-        self._base_dir = os.path.abspath(base_dir)
+    type = 'bids'
 
     def __repr__(self):
         return "BidsRepository(base_dir='{}')".format(self.base_dir)
@@ -327,16 +41,6 @@ class BidsRepository(Repository):
             return self.base_dir == other.base_dir
         except AttributeError:
             return False
-
-    def source(self, *args, **kwargs):
-        source = super(BidsRepository, self).source(
-            *args, base_dir=self.base_dir, **kwargs)
-        return source
-
-    def sink(self, *args, **kwargs):
-        sink = super(BidsRepository, self).sink(
-            *args, base_dir=self.base_dir, **kwargs)
-        return sink
 
     def login(self):
         return NoContextWrapper(None)
@@ -366,26 +70,27 @@ class BidsRepository(Repository):
         all_visit_ids = set()
 
         layout = gb.BIDSLayout(self.base_dir)
-        all_datasets = defaultdict(lambda: defaultdict(dict))
-        for nifti in layout.get(extension='.nii.gz',
-                                return_type='object'):
-            subj_id = nifti.entities['subject']
-            subj_id = nifti.entities['session']
-            run = nifti.entities['run']
-            path = nifti.path
-            all_datasets[subj_id][sess_id] = Dataset(
-                xdataset.type, format=file_format, derived=derived,  # @ReservedAssignment @IgnorePep8
-                frequency=freq, path=None, id=xdataset.id,
-                uri=xdataset.uri, subject_id=subject_id,
+        bids_datasets = defaultdict(lambda: defaultdict(dict))
+        derived_tree = super(BidsRepository, self).get_tree(
+            subject_ids=None, visit_ids=None)
+        for bids_obj in layout.get(return_type='object'):
+            subj_id = bids_obj.entities['subject']
+            if subject_ids is not None and subj_id not in subject_ids:
+                continue
+            visit_id = bids_obj.entities['session']
+            if visit_ids is not None and visit_id not in visit_ids:
+                continue
+            path = bids_obj.path
+            bids_datasets[subj_id][visit_id] = Dataset.from_path(
+                path, frequency='per_session', subject_id=subj_id,
                 visit_id=visit_id, repository=self)
-            
-        for subj_id in layout.get_subjects():
-            sess_id = 
         # Need to pull out all datasets and fields
-
-        all_sessions[subj_id][visit_id] = Session(
-            subject_id=subj_id, visit_id=visit_id,
-            datasets=datasets, fields=fields)
+        all_sessions = []
+        for subj_id, visits in all_sessions.items():
+            for visit_id, visit in visits.items():
+                all_sessions.append(Session(
+                    subject_id=subj_id, visit_id=visit_id,
+                    datasets=datasets, fields=fields))
 
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
@@ -416,40 +121,8 @@ class BidsRepository(Repository):
         return Project(sorted(subjects), sorted(visits), datasets,
                        fields)
 
-    @classmethod
-    def _check_only_dirs(cls, dirs, path):
-        if any(not os.path.isdir(os.path.join(path, d))
-               for d in dirs):
-            raise ArcanaError(
-                "Files found in local repository directory '{}' "
-                "('{}') instead of sub-directories".format(
-                    path, "', '".join(dirs)))
-
-    def all_session_ids(self, project_id):
-        project = self.project(project_id)
-        return chain(*[
-            (s.id for s in subj.sessions) for subj in project.subjects])
-
-    def cache(self, dataset):
-        # Don't need to cache dataset as it is already local
-        assert dataset._path is not None
-        return dataset.path
-
-    @property
-    def base_dir(self):
-        return self._base_dir
-
-    def subject_summary_path(self, project_id, subject_id):
-        return os.path.join(self.base_dir, project_id, subject_id,
-                            SUMMARY_NAME)
-
-    def visit_summary_path(self, project_id, visit_id):
-        return os.path.join(self.base_dir, project_id,
-                            SUMMARY_NAME, visit_id)
-
-    def project_summary_path(self, project_id):
-        return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
-                            SUMMARY_NAME)
+    def _get_derived_sub_path(self, spec):
+        return os.path.join('derived', 'arcana', spec.study.name)
 
     def fields_from_json(self, fname, frequency,
                          subject_id=None, visit_id=None):

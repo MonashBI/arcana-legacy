@@ -96,10 +96,13 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         visit or project.
     """
 
-    def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, frequency='per_session',  # @ReservedAssignment @IgnorePep8
+                 bids_attr=None, header=None):
         super(BaseDataset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format
+        self._bids_attr = bids_attr
+        self._header = header
 
     def __eq__(self, other):
         return (super(BaseDataset, self).__eq__(other) and
@@ -121,6 +124,14 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     @property
     def format(self):
         return self._format
+
+    @property
+    def bids_attr(self):
+        return self._bids_attr
+
+    @property
+    def header(self):
+        return self._header
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={})"

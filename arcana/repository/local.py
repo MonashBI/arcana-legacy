@@ -289,7 +289,8 @@ class LocalRepository(Repository):
         self._base_dir = os.path.abspath(base_dir)
 
     def __repr__(self):
-        return "LocalRepository(base_dir='{}')".format(self.base_dir)
+        return "{}(base_dir='{}')".format(type(self).__name__,
+                                          self.base_dir)
 
     def __eq__(self, other):
         try:
@@ -309,6 +310,9 @@ class LocalRepository(Repository):
 
     def login(self):
         return NoContextWrapper(None)
+
+    def _get_derived_sub_path(self, spec):
+        return spec.study.name
 
     def get_tree(self, subject_ids=None, visit_ids=None):
         """
@@ -440,22 +444,14 @@ class LocalRepository(Repository):
         assert dataset._path is not None
         return dataset.path
 
-    def particular_from_spec(self, spec, subject_id=None, visit_id=None):
-        raise NotImplementedError
-        path = os.path.join(self.base_dir, subject_id, visit_id,
-                            spec.fname())
-        return spec.ParticularClass(
-            spec.basename(), spec.format, frequency=spec.frequency,
-            path=path, derived=True, subject_id=subject_id,
-            visit_id=visit_id, repository=self)
-
     @property
     def base_dir(self):
         return self._base_dir
 
     def subject_summary_path(self, project_id, subject_id):
         return os.path.join(self.base_dir, project_id, subject_id,
-                            SUMMARY_NAME)
+                            SUMMARY_NAME,
+                            self._get_derived_sub_path())
 
     def visit_summary_path(self, project_id, visit_id):
         return os.path.join(self.base_dir, project_id,
