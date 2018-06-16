@@ -6,8 +6,8 @@ from arcana.exception import (
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException)
 from .base import BaseDataset, BaseField
-from .particular import (
-    Dataset, Field, DatasetCollection, FieldCollection)
+from .particular import Dataset, Field
+from .collection import DatasetCollection, FieldCollection
 
 
 class BaseSpec(object):

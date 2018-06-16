@@ -9,7 +9,7 @@ from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.repository.local import (  # @IgnorePep8
     LocalSource, LocalRepository, FIELDS_FNAME)  # @IgnorePep8
-from arcana.file_format import text_format  # @IgnorePep8
+from arcana.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.runner import LinearRunner  # @IgnorePep8
 from arcana.dataset import (  # @IgnorePep8

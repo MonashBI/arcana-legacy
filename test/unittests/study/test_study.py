@@ -5,7 +5,7 @@ import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.file_format import text_format  # @IgnorePep8
+from arcana.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8

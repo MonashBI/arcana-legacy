@@ -1,5 +1,6 @@
 from arcana.exception import ArcanaError, ArcanaUsageError
 from .base import BaseDataset, BaseField
+from .particular import Dataset, Field
 from collections import OrderedDict
 from operator import itemgetter
 from itertools import chain
