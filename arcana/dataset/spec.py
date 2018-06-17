@@ -4,7 +4,7 @@ from copy import copy
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
     ArcanaOutputNotProducedException,
-    ArcanaMissingDataException)
+    ArcanaMissingDataException, ArcanaNameError)
 from .base import BaseDataset, BaseField
 from .particular import Dataset, Field
 from .collection import DatasetCollection, FieldCollection
@@ -175,7 +175,7 @@ class BaseSpec(object):
 
     def _tree_node(self, subject_id=None, visit_id=None):
         if self.frequency == 'per_session':
-            node = self.study.tree.subject(subject_id).visit(visit_id)
+            node = self.study.tree.subject(subject_id).session(visit_id)
         elif self.frequency == 'per_subject':
             node = self.study.tree.subject(subject_id)
         elif self.frequency == 'per_visit':
@@ -256,11 +256,20 @@ class DatasetSpec(BaseDataset, BaseSpec):
         dct.update(BaseSpec.initkwargs(self))
         return dct
 
-    def particular(self, **kwargs):
-        node = self._tree_node(**kwargs)
-        node.dataset(self.basename())
+    def particular(self, subject_id=None, visit_id=None):
+        node = self._tree_node(subject_id=subject_id, visit_id=visit_id)
+        try:
+            dataset = node.dataset(self.basename())
+        except ArcanaNameError:
+            # For files that have been generated since the start of the
+            # analysis
+            dataset = Dataset(self.basename(), format=self.format,
+                              frequency=self.frequency, path=None,
+                              subject_id=subject_id, visit_id=visit_id,
+                              repository=self.study.repository,
+                              derived=True, study_name=self.study.name)
+        return dataset
 
-    @property
     def path(self, subject_id=None, visit_id=None):
         return self.particular(subject_id=subject_id,
                                visit_id=visit_id).path

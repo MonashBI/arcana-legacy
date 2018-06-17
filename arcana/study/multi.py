@@ -515,8 +515,11 @@ class MultiStudyMetaClass(StudyMetaClass):
                                         sub_study_spec.name,
                                         data_spec.pipeline_name,
                                         auto_added=True))
-                    cls._data_specs[trans_sname] = type(data_spec)(
-                        **initkwargs)
+                    try:
+                        cls._data_specs[trans_sname] = type(data_spec)(
+                            **initkwargs)
+                    except:
+                        raise
             # Map parameter specs
             for param_spec in sub_study_spec.auto_parameter_specs:
                 trans_sname = sub_study_spec.apply_prefix(

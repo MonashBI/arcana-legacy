@@ -23,7 +23,8 @@ from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
-    ArcanaError, ArcanaBadlyFormattedLocalRepositoryError)
+    ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
+    ArcanaMissingDataException)
 from arcana.utils import (
     split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
@@ -437,24 +438,38 @@ class LocalRepository(Repository):
 
     def cache(self, dataset):
         # Don't need to cache dataset as it is already local
-        assert dataset._path is not None
+        if dataset._path is None:
+            if dataset.frequency == 'per_session':
+                sess_path = os.path.join(
+                    self.base_dir, dataset.subject_id, dataset.visit_id)
+            elif dataset.frequency == 'per_subject':
+                sess_path = self.subject_summary_path(dataset.subject_id)
+            elif dataset.frequency == 'per_visit':
+                sess_path = self.visit_summary_path(dataset.visit_id)
+            elif dataset.frequency == 'per_project':
+                sess_path = self.project_summary_path()
+            else:
+                assert False
+            path = os.path.join(sess_path, dataset.fname())
+            if not os.path.exists(path):
+                raise ArcanaMissingDataException(
+                    "Dataset {} does not exist in the local repository"
+                    " {}".format(dataset, self))
+            dataset.path = path
         return dataset.path
 
     @property
     def base_dir(self):
         return self._base_dir
 
-    def subject_summary_path(self, project_id, subject_id):
-        return os.path.join(self.base_dir, project_id, subject_id,
-                            SUMMARY_NAME)
+    def subject_summary_path(self, subject_id):
+        return os.path.join(self.base_dir, subject_id, SUMMARY_NAME)
 
-    def visit_summary_path(self, project_id, visit_id):
-        return os.path.join(self.base_dir, project_id,
-                            SUMMARY_NAME, visit_id)
+    def visit_summary_path(self, visit_id):
+        return os.path.join(self.base_dir, SUMMARY_NAME, visit_id)
 
-    def project_summary_path(self, project_id):
-        return os.path.join(self.base_dir, project_id, SUMMARY_NAME,
-                            SUMMARY_NAME)
+    def project_summary_path(self):
+        return os.path.join(self.base_dir, SUMMARY_NAME, SUMMARY_NAME)
 
     def fields_from_json(self, fname, frequency,
                          subject_id=None, visit_id=None):

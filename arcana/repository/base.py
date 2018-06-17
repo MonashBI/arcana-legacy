@@ -50,11 +50,11 @@ class Repository(with_metaclass(ABCMeta, object)):
         fields = []
         for inpt in inputs:
             if isinstance(inpt, DatasetMatch):
-                datasets.append(input.matches)
+                datasets.append(inpt.matches)
             elif isinstance(inpt, DatasetSpec):
                 datasets.append(inpt)
             if isinstance(inpt, FieldMatch):
-                fields.append(input.matches)
+                fields.append(inpt.matches)
             elif isinstance(inpt, FieldSpec):
                 fields.append(inpt)
         return Node(self.Source(study_name, datasets, fields, **kwargs),

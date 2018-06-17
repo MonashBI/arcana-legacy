@@ -129,7 +129,6 @@ class DatasetCollection(BaseCollection, BaseDataset):
             self, name, format=self._common_attr(collection, 'format'),
             frequency=frequency)
 
-    @property
     def path(self, subject_id=None, visit_id=None):
         return self.particular(
             subject_id=subject_id, visit_id=visit_id).path

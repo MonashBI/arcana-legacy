@@ -144,22 +144,18 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         A collection of BIDS attributes for the dataset or spec
     """
 
-    def __init__(self, name, format=None, frequency='per_session',  # @ReservedAssignment @IgnorePep8
-                 bids_attr=None):
+    def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         super(BaseDataset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format
-        self._bids_attr = bids_attr
 
     def __eq__(self, other):
         return (super(BaseDataset, self).__eq__(other) and
-                self._format == other._format and
-                self._bids_attr == other._bids_attr)
+                self._format == other._format)
 
     def __hash__(self):
         return (super(BaseDataset, self).__hash__() ^
-                hash(self._format) ^
-                hash(self._bids_attr))
+                hash(self._format))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseDataset, self).find_mismatch(other, indent)
@@ -174,19 +170,14 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     def format(self):
         return self._format
 
-    @property
-    def bids_attr(self):
-        return self._bids_attr
-
     def __repr__(self):
-        return ("{}(name='{}', format={}, frequency={}, bids_attr={})"
+        return ("{}(name='{}', format={}, frequency={})"
                 .format(self.__class__.__name__, self.name, self.format,
-                        self.frequency, self.bids_attr))
+                        self.frequency))
 
     def initkwargs(self):
         dct = super(BaseDataset, self).initkwargs()
         dct['format'] = self.format
-        dct['bids_attr'] = self.bids_attr
         return dct
 
     def fname(self, **kwargs):

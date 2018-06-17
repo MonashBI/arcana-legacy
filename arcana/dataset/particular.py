@@ -2,7 +2,8 @@ from builtins import str
 from past.builtins import basestring
 import os.path
 import pydicom
-from arcana.file_format.standard import FileFormat, directory_format
+from arcana.file_format import FileFormat
+from arcana.file_format.standard import directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
@@ -121,6 +122,7 @@ class Dataset(BaseParticular, BaseDataset):
         The repository which the dataset is stored
     study_name : str
         Name of the Arcana study that that generated the field
+    bids_attr : Py
     """
 
     def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
@@ -128,12 +130,12 @@ class Dataset(BaseParticular, BaseDataset):
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
                  repository=None, study_name=None, bids_attr=None):
         BaseDataset.__init__(self, name=name, format=format,
-                             frequency=frequency, bids_attr=bids_attr)
+                             frequency=frequency)
         BaseParticular.__init__(self, derived, subject_id,
-                                visit_id, repository, study_name,
-                                bids_attr=bids_attr)
+                                visit_id, repository, study_name)
         self._path = path
         self._uri = uri
+        self._bids_attr = bids_attr
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
                            [DICOM_SERIES_NUMBER_TAG])
@@ -144,13 +146,15 @@ class Dataset(BaseParticular, BaseDataset):
         return (BaseDataset.__eq__(self, other) and
                 BaseParticular.__eq__(self, other) and
                 self._path == other._path and
-                self.id == other.id)
+                self.id == other.id and
+                self._bids_attr == other._bids_attr)
 
     def __hash__(self):
         return (BaseDataset.__hash__(self) ^
                 BaseParticular.__hash__(self) ^
                 hash(self._path) ^
-                hash(self.id))
+                hash(self.id) ^
+                hash(self._bids_attr))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, str):
@@ -159,6 +163,10 @@ class Dataset(BaseParticular, BaseDataset):
             return False
         else:
             return self.id < other.id
+
+    @property
+    def bids_attr(self):
+        return self._bids_attr
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseDataset.find_mismatch(self, other, indent)
@@ -172,6 +180,10 @@ class Dataset(BaseParticular, BaseDataset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
+        if self._bids_attr != other._bids_attr:
+            mismatch += ('\n{}bids_attr: self={} v other={}'
+                         .format(sub_indent, self._bids_attr,
+                                 other._bids_attr))
         return mismatch
 
     @property
@@ -184,6 +196,10 @@ class Dataset(BaseParticular, BaseDataset):
                     "Neither path nor repository has been set for Dataset "
                     "{}".format(self.name))
         return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
