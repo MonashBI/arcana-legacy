@@ -424,7 +424,7 @@ class Study(object):
                 "is not a valid option ('{}')".format(
                     "', '".join(unrecognised_values), name,
                     self._param_error_location,
-                    "', '".join(switch.choices)))
+                    "', '".join(spec.choices)))
         if self._referenced_switches is not None:
             self._referenced_switches.add(name)
         return switch.value in values
