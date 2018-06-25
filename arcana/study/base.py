@@ -194,6 +194,7 @@ class Study(object):
                 param_spec = self._parameter_specs[param_name]
             except KeyError:
                 raise ArcanaNameError(
+                    param_name,
                     "Provided parameter '{}' is not present in the "
                     "allowable parameters for {} classes ('{}')"
                     .format(param_name, type(self).__name__,
