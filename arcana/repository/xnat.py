@@ -32,7 +32,7 @@ from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePe
 from arcana.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
-    ArcanaError, ArcanaMissingDataException)
+    ArcanaError, ArcanaFileFormatError, ArcanaMissingDataException)
 from arcana.utils import dir_modtime, NoContextWrapper  # @IgnorePep8
 import re  # @IgnorePep8
 import xnat  # @IgnorePep8
@@ -914,7 +914,12 @@ class XnatRepository(Repository):
         """
         datasets = []
         for xdataset in xsession.scans.values():
-            file_format = guess_file_format(xdataset)
+            try:
+                file_format = guess_file_format(xdataset)
+            except ArcanaFileFormatError as e:
+                logger.warning(
+                    "Ignoring '{}' as couldn't guess its file format:\n{}"
+                    .format(xdataset.type, e))
             datasets.append(Dataset(
                 xdataset.type, format=file_format, derived=derived,  # @ReservedAssignment @IgnorePep8
                 frequency=freq, path=None, id=xdataset.id,
@@ -1027,13 +1032,13 @@ def guess_file_format(xdataset):
             logger.debug("Ignoring resource '{}' in dataset {}"
                          .format(xresource.label, xdataset.type))
     if not dataset_formats:
-        raise ArcanaError(
+        raise ArcanaFileFormatError(
             "No recognised data formats for '{}' dataset (available "
             "resources are '{}')".format(
                 xdataset.type, "', '".join(
                     r.label for r in xdataset.resources.values())))
     elif len(dataset_formats) > 1:
-        raise ArcanaError(
+        raise ArcanaFileFormatError(
             "Multiple valid data-formats '{}' for '{}' dataset, please "
             "pass 'file_format' to 'download_dataset' method to speficy"
             " resource to download".format(

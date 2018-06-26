@@ -52,7 +52,7 @@ class ArcanaOutputNotProducedException(ArcanaException):
     """
 
 
-class ArcanaFileFormatError(ArcanaUsageError):
+class ArcanaFileFormatError(ArcanaError):
     pass
 
 
