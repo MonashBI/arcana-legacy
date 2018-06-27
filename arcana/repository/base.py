@@ -272,7 +272,7 @@ class BaseRepositorySink(BaseRepositoryNode):
 
     def __init__(self, study_name, datasets, fields):
         super(BaseRepositorySink, self).__init__(study_name, datasets,
-                                              fields)
+                                                 fields)
         # Add input datasets
         for dataset in datasets:
             assert isinstance(dataset, DatasetSpec)

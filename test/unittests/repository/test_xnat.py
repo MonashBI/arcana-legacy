@@ -511,8 +511,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             ls_with_md5_filter(self.proc_session_cache()),
             [d + text_format.extension
              for d in expected_sink_datasets])
-        with self._connect() as mbi_xnat:
-            dataset_names = list(mbi_xnat.experiments[
+        with self._connect() as login:
+            dataset_names = list(login.experiments[
                 self.session_label() +
                 XnatRepository.PROCESSED_SUFFIX].scans.keys())
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
@@ -794,7 +794,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             source, 'source3' + PATH_SUFFIX,
             project_sink, 'project_sink' + PATH_SUFFIX)
         workflow.run()
-        with self._connect() as mbi_xnat:
+        with self._connect() as login:
             # Check subject summary directories were created properly in cache
             expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
                                       '_subject_sink']
@@ -807,7 +807,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                              [d + text_format.extension
                               for d in expected_subj_datasets])
             # and on XNAT
-            subject_dataset_names = list(mbi_xnat.projects[
+            subject_dataset_names = list(login.projects[
                 self.project].experiments[
                     '_'.join((self.project, self.SUBJECT,
                               XnatRepository.SUMMARY_NAME))].scans.keys())
@@ -825,7 +825,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                              [d + text_format.extension
                               for d in expected_visit_datasets])
             # and on XNAT
-            visit_dataset_names = list(mbi_xnat.projects[
+            visit_dataset_names = list(login.projects[
                 self.project].experiments[
                     '{}_{}_{}'.format(
                         self.project, XnatRepository.SUMMARY_NAME,
@@ -843,7 +843,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                              [d + text_format.extension
                               for d in expected_proj_datasets])
             # and on XNAT
-            project_dataset_names = list(mbi_xnat.projects[
+            project_dataset_names = list(login.projects[
                 self.project].experiments[
                     '{}_{sum}_{sum}'.format(
                         self.project,
@@ -897,8 +897,8 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
              self.SUMMARY_STUDY_NAME + '_resink2.txt',
              self.SUMMARY_STUDY_NAME + '_resink3.txt'])
         # and on XNAT
-        with self._connect() as mbi_xnat:
-            resinked_dataset_names = list(mbi_xnat.projects[
+        with self._connect() as login:
+            resinked_dataset_names = list(login.projects[
                 self.project].experiments[
                     self.session_label() +
                     XnatRepository.PROCESSED_SUFFIX].scans.keys())
