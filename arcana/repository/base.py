@@ -185,10 +185,10 @@ class BaseRepositoryNode(BaseInterface):
     def __init__(self, collections):
         super(BaseRepositoryNode, self).__init__()
         self._repositories = set(c.repository for c in collections)
-        self._datasets = [o for o in collections
-                          if isinstance(o, BaseDataset)]
-        self._fields = [o for o in collections
-                        if isinstance(o, BaseField)]
+        self._datasets = [c for c in collections
+                          if isinstance(c, BaseDataset)]
+        self._fields = [c for c in collections
+                        if isinstance(c, BaseField)]
 
     def __eq__(self, other):
         try:
