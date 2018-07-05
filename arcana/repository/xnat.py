@@ -22,7 +22,7 @@ from collections import defaultdict  # @IgnorePep8
 from nipype.interfaces.base import Directory, traits, isdefined  # @IgnorePep8
 from arcana.dataset import Dataset, Field  # @IgnorePep8
 from arcana.repository.base import (  # @IgnorePep8
-    Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
+    BaseRepository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
     RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
     RepositoryVisitSinkInputSpec,
     RepositoryProjectSinkInputSpec,
@@ -215,7 +215,6 @@ class XnatSource(RepositorySource, XnatMixin):
                 outputs[field.name + FIELD_SUFFIX] = field.dtype(
                     session.fields[prefixed_name])
         return outputs
-
 
 
 class XnatSinkInputSpecMixin(object):
@@ -428,7 +427,7 @@ class XnatProjectSink(XnatSinkMixin, RepositoryProjectSink):
     input_spec = XnatProjectSinkInputSpec
 
 
-class XnatRepository(Repository):
+class XnatRepository(BaseRepository):
     """
     An 'Repository' class for XNAT repositories
 
@@ -525,7 +524,7 @@ class XnatRepository(Repository):
     def disconnect(self):
         self._login.disconnect()
 
-    def cache(self, dataset):
+    def get_dataset(self, dataset):
         """
         Caches a single dataset (if the 'path' attribute is accessed
         and it has not been previously cached for example
@@ -596,7 +595,7 @@ class XnatRepository(Repository):
                         xsession.label, cache_path)
         return cache_path
 
-    def update(self, dataset):
+    def put_dataset(self, dataset):
         assert dataset.derived, (
             "{} (format: {}, freq: {}) isn't derived"
             .format(dataset.name, dataset.format_name,
@@ -636,7 +635,7 @@ class XnatRepository(Repository):
             dataset.format.name.upper())
         xresource.upload(dst_path, out_fname)
 
-    def update_field(self, field):
+    def put_field(self, field):
         for field in self.fields:
             assert field.frequency == self.frequency
             assert field.derived, ("{} isn't derived".format(
@@ -645,12 +644,6 @@ class XnatRepository(Repository):
             if PY2 and isinstance(val, basestring):  # @UndefinedVariable
                 val = oldstr(val)
             session.fields[field.prefixed_name] = val
-
-    def particular_from_spec(self, spec, subject_id=None, visit_id=None):
-        return spec.ParticularClass(
-            spec.basename(), spec.format, frequency=spec.frequency,
-            path=None, derived=True, subject_id=subject_id,
-            visit_id=visit_id, repository=self)
 
     def cache_path(self, dataset):
         subj_dir, sess_dir = self.get_labels(

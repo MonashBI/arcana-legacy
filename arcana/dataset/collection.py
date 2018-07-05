@@ -1,6 +1,6 @@
 from arcana.exception import ArcanaError, ArcanaUsageError
 from .base import BaseDataset, BaseField
-from .particular import Dataset, Field
+from .item import Dataset, Field
 from collections import OrderedDict
 from operator import itemgetter
 from itertools import chain
@@ -11,7 +11,7 @@ DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 class BaseCollection(object):
     """
-    Base class for collection of particular datasets and fields
+    Base class for collection of datasets and field items
     """
 
     def __init__(self, collection, frequency):
@@ -66,7 +66,7 @@ class BaseCollection(object):
                     attr_name, self))
         return next(iter(attr_set))
 
-    def particular(self, subject_id=None, visit_id=None):
+    def item(self, subject_id=None, visit_id=None):
         """
         Returns a particular dataset|field in the collection corresponding to
         the given subject and visit_ids. subject_id and visit_id must be
@@ -130,7 +130,7 @@ class DatasetCollection(BaseCollection, BaseDataset):
             frequency=frequency)
 
     def path(self, subject_id=None, visit_id=None):
-        return self.particular(
+        return self.item(
             subject_id=subject_id, visit_id=visit_id).path
 
 

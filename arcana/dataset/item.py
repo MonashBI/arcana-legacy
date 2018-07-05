@@ -13,7 +13,7 @@ from .base import BaseDataset, BaseField
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class BaseParticular(object):
+class BaseItem(object):
 
     is_spec = False
 
@@ -88,7 +88,7 @@ class BaseParticular(object):
         return dct
 
 
-class Dataset(BaseParticular, BaseDataset):
+class Dataset(BaseItem, BaseDataset):
     """
     A representation of a dataset within the repository.
 
@@ -131,7 +131,7 @@ class Dataset(BaseParticular, BaseDataset):
                  repository=None, study_name=None, bids_attr=None):
         BaseDataset.__init__(self, name=name, format=format,
                              frequency=frequency)
-        BaseParticular.__init__(self, derived, subject_id,
+        BaseItem.__init__(self, derived, subject_id,
                                 visit_id, repository, study_name)
         self._path = path
         self._uri = uri
@@ -144,14 +144,14 @@ class Dataset(BaseParticular, BaseDataset):
 
     def __eq__(self, other):
         return (BaseDataset.__eq__(self, other) and
-                BaseParticular.__eq__(self, other) and
+                BaseItem.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id and
                 self._bids_attr == other._bids_attr)
 
     def __hash__(self):
         return (BaseDataset.__hash__(self) ^
-                BaseParticular.__hash__(self) ^
+                BaseItem.__hash__(self) ^
                 hash(self._path) ^
                 hash(self.id) ^
                 hash(self._bids_attr))
@@ -170,7 +170,7 @@ class Dataset(BaseParticular, BaseDataset):
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseDataset.find_mismatch(self, other, indent)
-        mismatch += BaseParticular.find_mismatch(self, other, indent)
+        mismatch += BaseItem.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
@@ -309,7 +309,7 @@ class Dataset(BaseParticular, BaseDataset):
 
     def initkwargs(self):
         dct = BaseDataset.initkwargs(self)
-        dct.update(BaseParticular.initkwargs(self))
+        dct.update(BaseItem.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
@@ -317,7 +317,7 @@ class Dataset(BaseParticular, BaseDataset):
         return dct
 
 
-class Field(BaseParticular, BaseField):
+class Field(BaseItem, BaseField):
     """
     A representation of a value field in the repository.
 
@@ -366,23 +366,23 @@ class Field(BaseParticular, BaseField):
                 "Unrecognised field dtype {} (can be int, float or str)"
                 .format(value))
         BaseField.__init__(self, name, dtype, frequency)
-        BaseParticular.__init__(self, derived, subject_id,
+        BaseItem.__init__(self, derived, subject_id,
                                 visit_id, repository, study_name)
         self._value = value
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseParticular.__eq__(self, other) and
+                BaseItem.__eq__(self, other) and
                 self.value == other.value)
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^
-                BaseParticular.__hash__(self) ^
+                BaseItem.__hash__(self) ^
                 hash(self.value))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseParticular.find_mismatch(self, other, indent)
+        mismatch += BaseItem.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
@@ -415,6 +415,6 @@ class Field(BaseParticular, BaseField):
 
     def initkwargs(self):
         dct = BaseDataset.initkwargs(self)
-        dct.update(BaseParticular.initkwargs(self))
+        dct.update(BaseItem.initkwargs(self))
         dct['value'] = self.value
         return dct

@@ -129,7 +129,7 @@ class BaseMatch(object):
         return match
 
     def match(self, subject_id=None, visit_id=None):
-        return self._matches.particular(subject_id=subject_id,
+        return self._matches.item(subject_id=subject_id,
                                         visit_id=visit_id)
 
     def initkwargs(self):

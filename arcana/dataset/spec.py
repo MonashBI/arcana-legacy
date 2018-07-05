@@ -6,7 +6,7 @@ from arcana.exception import (
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException, ArcanaNameError)
 from .base import BaseDataset, BaseField
-from .particular import Dataset, Field
+from .item import Dataset, Field
 from .collection import DatasetCollection, FieldCollection
 
 
@@ -349,10 +349,6 @@ class FieldSpec(BaseField, BaseSpec):
                 "frequency={})".format(
                     self.__class__.__name__, self.name, self.dtype,
                     self.pipeline_name, self.frequency))
-
-    def particular(self, **kwargs):
-        node = self._tree_node(**kwargs)
-        node.field(self.basename())
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

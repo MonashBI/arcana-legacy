@@ -8,7 +8,7 @@ from itertools import chain, groupby
 from operator import attrgetter
 import errno
 from .base import (
-    Repository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
+    BaseRepository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
     RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
     RepositoryVisitSinkInputSpec,
     RepositoryProjectSinkInputSpec, RepositorySubjectSink, RepositoryVisitSink,
@@ -263,7 +263,7 @@ class LocalProjectSink(LocalSinkMixin, RepositoryProjectSink):
             self.base_dir, SUMMARY_NAME, SUMMARY_NAME]
 
 
-class LocalRepository(Repository):
+class LocalRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
