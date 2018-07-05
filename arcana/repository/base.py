@@ -22,8 +22,56 @@ class Repository(with_metaclass(ABCMeta, object)):
     system. Sets out the interface that all Repository classes should implement.
     """
 
+    def __init__(self):
+        self._connection_depth = 0
+
+    def __enter__(self):
+        # This allows the repository to be used within nested contexts
+        # but still only use one connection. This is useful for calling
+        # methods that need connections, and therefore control their
+        # own connection, in batches
+        if self._connection_depth == 0:
+            self.connect()
+        self._connection_depth += 1
+        return self
+
+    def __exit__(self, exception_type, exception_value, traceback):  # @UnusedVariable @IgnorePep8
+        self._connection_depth -= 1
+        if self._connection_depth == 0:
+            self.disconnect()
+
+    def connect(self):
+        """
+        If a connection session is required to the repository,
+        manage it here
+        """
+
+    def disconnect(self):
+        """
+        If a connection session is required to the repository,
+        manage it here
+        """
+
+    def cache(self, datum):
+        """
+        If the repository is remote, cache the dataset or field here
+        """
+        pass
+
     @abstractmethod
-    def source(self, inputs, name=None, study_name=None, **kwargs):
+    def insert(self, datum):
+        """
+        Insert the given dataset or field into the repository
+        """
+
+    @abstractmethod
+    def tree(self):
+        """
+        Should return a Project object representing the current state
+        of the repository
+        """
+
+    def source(self, inputs, name=None):
         """
         Returns a NiPype node that gets the input data from the repository
         system. The input spec of the node's interface should inherit from
@@ -57,12 +105,9 @@ class Repository(with_metaclass(ABCMeta, object)):
                 fields.append(inpt.matches)
             elif isinstance(inpt, FieldSpec):
                 fields.append(inpt)
-        return Node(self.Source(study_name, datasets, fields, **kwargs),
-                    name=name)
+        return Node(RepositorySource(datasets, fields), name=name)
 
-    @abstractmethod
-    def sink(self, outputs, frequency='per_session', name=None,
-             study_name=None, **kwargs):
+    def sink(self, outputs, frequency='per_session', name=None):
         """
         Returns a NiPype node that puts the output data back to the repository
         system. The input spec of the node's interface should inherit from
@@ -86,13 +131,13 @@ class Repository(with_metaclass(ABCMeta, object)):
             name = "{}_{}_sink".format(self.type, frequency)
         outputs = list(outputs)  # protected against iterators
         if frequency.startswith('per_session'):
-            sink_class = self.Sink
+            sink_class = RepositorySessionSink
         elif frequency.startswith('per_subject'):
-            sink_class = self.SubjectSink
+            sink_class = RepositorySubjectSink
         elif frequency.startswith('per_visit'):
-            sink_class = self.VisitSink
+            sink_class = RepositoryVisitSink
         elif frequency.startswith('per_project'):
-            sink_class = self.ProjectSink
+            sink_class = RepositoryProjectSink
         else:
             raise ArcanaError(
                 "Unrecognised frequency '{}' can be one of '{}'"
@@ -100,8 +145,7 @@ class Repository(with_metaclass(ABCMeta, object)):
                         "', '".join(BaseDatum.MULTIPLICITY_OPTIONS)))
         datasets = [o for o in outputs if isinstance(o, BaseDataset)]
         fields = [o for o in outputs if isinstance(o, BaseField)]
-        return Node(sink_class(study_name, datasets, fields, **kwargs),
-                    name=name)
+        return Node(sink_class(datasets, fields), name=name)
 
     def __ne__(self, other):
         return not (self == other)
@@ -121,34 +165,27 @@ class BaseRepositoryNode(BaseInterface):
 
     """
 
-    def __init__(self, study_name, datasets, fields):
+    def __init__(self, datasets, fields):
         super(BaseRepositoryNode, self).__init__()
-        self._study_name = study_name
         self._datasets = datasets
         self._fields = fields
 
     def __eq__(self, other):
         try:
-            return (self.study_name == other.study_name and
-                    self.datasets == other.datasets and
+            return (self.datasets == other.datasets and
                     self.fields == other.fields)
         except AttributeError:
             return False
 
     def __repr__(self):
-        return "{}(study_name='{}', datasets={}, fields={})".format(
-            type(self).__name__, self.study_name, self.datasets,
-            self.fields)
+        return "{}(datasets={}, fields={})".format(
+            type(self).__name__, self.datasets, self.fields)
 
     def __ne__(self, other):
         return not self == other
 
     def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
         return runtime
-
-    @property
-    def study_name(self):
-        return self._study_name
 
     @property
     def datasets(self):
@@ -166,22 +203,14 @@ class BaseRepositoryNode(BaseInterface):
         # so I have also done it here
         getattr(spec, name)
 
-    def prefix_study_name(self, name, is_spec=True):
-        """Prepend study name if defined"""
-        if is_spec:
-            name = self.study_name + '_' + name
-        return name
 
-
-class RepositorySourceInputSpec(DynamicTraitedSpec):
+class RepositorySourceSpec(DynamicTraitedSpec):
     """
-    Base class for repository source input specifications. Provides a common
-    interface for 'run_pipeline' when using the repository source to extract
-    primary and preprocessed datasets from the repository system
+    Base class for repository sink and source input specifications.
     """
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
-                            desc="The visit or derived group ID")
+                          desc="The visit ID")
 
 
 class RepositorySource(BaseRepositoryNode):
@@ -196,21 +225,53 @@ class RepositorySource(BaseRepositoryNode):
         Prefix prepended onto derived dataset "names"
     """
 
-    output_spec = DynamicTraitedSpec
+    input_spec = RepositorySourceSpec
+    output_spec = RepositorySourceSpec
     _always_run = True
 
     def _outputs(self):
         outputs = super(RepositorySource, self)._outputs()
         # Add output datasets
         for dataset in self.datasets:
-            assert isinstance(dataset, BaseDataset)
             self._add_trait(outputs, dataset.name + PATH_SUFFIX,
                             PATH_TRAIT)
         # Add output fields
         for field in self.fields:
-            assert isinstance(field, BaseField)
             self._add_trait(outputs, field.name + FIELD_SUFFIX,
                             field.dtype)
+        return outputs
+
+    def _list_outputs(self):
+        # Directory that holds session-specific
+        outputs = {}
+        # Source datasets
+        for dataset in self.datasets:
+            outputs[dataset.name + PATH_SUFFIX] = dataset.path(
+                subject_id=self.inputs.subject_id,
+                visit_id=self.inputs.visit_id)
+        # Source fields from JSON file
+        for freq, spec_grp in groupby(
+            sorted(self.fields, key=attrgetter('frequency')),
+                key=attrgetter('frequency')):
+            # Load fields JSON, locking to prevent read/write conflicts
+            # Would be better if only checked if locked to allow
+            # concurrent reads but not possible with multi-process
+            # locks (in my understanding at least).
+            fpath = self.fields_path(freq)
+            try:
+                with InterProcessLock(
+                    fpath + LOCK,
+                        logger=logger), open(fpath, 'r') as f:
+                    fields = json.load(f)
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    fields = {}
+                else:
+                    raise
+            for field in spec_grp:
+                outputs[field.name + FIELD_SUFFIX] = field.dtype(
+                    fields[self.prefix_study_name(field.name,
+                                                  field.is_spec)])
         return outputs
 
 
@@ -285,7 +346,7 @@ class BaseRepositorySink(BaseRepositoryNode):
                             field.dtype)
 
 
-class RepositorySink(BaseRepositorySink):
+class RepositorySessionSink(BaseRepositorySink):
 
     input_spec = RepositorySinkInputSpec
     output_spec = RepositorySinkOutputSpec

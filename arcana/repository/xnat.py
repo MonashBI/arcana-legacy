@@ -625,29 +625,7 @@ class XnatRepository(Repository):
         except AttributeError:
             return False  # For comparison with other types
 
-    def source(self, *args, **kwargs):
-        source = super(XnatRepository, self).source(*args, **kwargs)
-        source.inputs.project_id = str(self.project_id)
-        source.inputs.server = self._server
-        if self._user is not None:
-            source.inputs.user = self._user
-        if self._password is not None:
-            source.inputs.password = self._password
-        source.inputs.cache_dir = self._cache_dir
-        return source
-
-    def sink(self, *args, **kwargs):
-        sink = super(XnatRepository, self).sink(*args, **kwargs)
-        sink.inputs.project_id = str(self.project_id)
-        sink.inputs.server = self._server
-        if self._user is not None:
-            sink.inputs.user = self._user
-        if self._password is not None:
-            sink.inputs.password = self._password
-        sink.inputs.cache_dir = self._cache_dir
-        return sink
-
-    def login(self, prev_login=None):
+    def connect(self):
         """
         Parameters
         ----------
@@ -657,16 +635,17 @@ class XnatRepository(Repository):
             NoExitWrapper so the returned connection can be used
             in a "with" statement in the method.
         """
-        if prev_login is not None:
-            return NoContextWrapper(prev_login)
         sess_kwargs = {}
         if self._user is not None:
             sess_kwargs['user'] = self._user
         if self._password is not None:
             sess_kwargs['password'] = self._password
-        return xnat.connect(server=self._server, **sess_kwargs)
+        self._login = xnat.connect(server=self._server, **sess_kwargs)
 
-    def cache(self, dataset, prev_login=None):
+    def disconnect(self):
+        self._login.disconnect()
+
+    def cache(self, dataset):
         """
         Caches a single dataset (if the 'path' attribute is accessed
         and it has not been previously cached for example
@@ -683,11 +662,11 @@ class XnatRepository(Repository):
             raise ArcanaError(
                 "{} is not from {}".format(dataset, self))
         assert dataset.uri is not None
-        with self.login(prev_login=prev_login) as xnat_login:
+        with self:
             sess_id, scan_id = re.match(
                 r'/data/experiments/(\w+)/scans/(.*)',
                 dataset.uri).groups()
-            xsession = xnat_login.experiments[sess_id]
+            xsession = self.login.experiments[sess_id]
             xdataset = xsession.scans[scan_id]
             xresource = XnatSource.get_resource(xdataset, dataset)
             cache_path = self.cache_path(dataset)
