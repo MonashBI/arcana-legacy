@@ -82,18 +82,6 @@ class XnatSourceInputSpec(RepositorySourceInputSpec):
         exists=True, desc=("Path to the base directory where the downloaded"
                            "datasets will be cached"))
 
-    race_cond_delay = traits.Int(
-        usedefault=True, default=30,
-        desc=("The amount of time to wait before checking that the required "
-              "dataset has been downloaded to cache by another process has "
-              "completed if they are attempting to download the same dataset"))
-
-    stagger = traits.Int(
-        mandatory=False,
-        desc=("Stagger the download of the required datasets by "
-              "stagger_delay * subject_id seconds to avoid sending too many "
-              "concurrent requests to XNAT"))
-
 
 class XnatSource(RepositorySource, XnatMixin):
     """
@@ -228,119 +216,6 @@ class XnatSource(RepositorySource, XnatMixin):
                     session.fields[prefixed_name])
         return outputs
 
-    @classmethod
-    def get_resource(cls, xdataset, dataset):
-        for resource_name in dataset.format.xnat_resource_names:
-            try:
-                return xdataset.resources[resource_name]
-            except KeyError:
-                continue
-        raise ArcanaError(
-            "'{}' dataset is not available in '{}' format(s), "
-            "available resources are '{}'"
-            .format(
-                dataset.name,
-                "', '".join(dataset.format.xnat_resource_names),
-                "', '".join(
-                    r.label for r in list(dataset.resources.values()))))
-
-    @classmethod
-    def get_digests(cls, resource):
-        """
-        Downloads the MD5 digests associated with the files in a resource.
-        These are saved with the downloaded files in the cache and used to
-        check if the files have been updated on the server
-        """
-        result = resource.xnat_session.get(resource.uri + '/files')
-        if result.status_code != 200:
-            raise ArcanaError(
-                "Could not download metadata for resource {}"
-                .format(resource.id))
-        return dict((r['Name'], r['digest'])
-                    for r in result.json()['ResultSet']['Result'])
-
-    @classmethod
-    def download_dataset(cls, tmp_dir, xresource, xdataset, dataset,
-                         session_label, cache_path):
-        # Download resource to zip file
-        zip_path = os.path.join(tmp_dir, 'download.zip')
-        with open(zip_path, 'wb') as f:
-            xresource.xnat_session.download_stream(
-                xresource.uri + '/files', f, format='zip', verbose=True)
-        digests = cls.get_digests(xresource)
-        # Extract downloaded zip file
-        expanded_dir = os.path.join(tmp_dir, 'expanded')
-        try:
-            with ZipFile(zip_path) as zip_file:
-                zip_file.extractall(expanded_dir)
-        except BadZipfile as e:
-            raise ArcanaError(
-                "Could not unzip file '{}' ({})"
-                .format(xresource.id, e))
-        data_path = os.path.join(
-            expanded_dir, session_label, 'scans',
-            (xdataset.id + '-' + special_char_re.sub('_', xdataset.type)),
-            'resources', xresource.label, 'files')
-        if not dataset.format.directory:
-            # If the dataformat is not a directory (e.g. DICOM),
-            # attempt to locate a single file within the resource
-            # directory with the appropriate filename and add that
-            # to be the complete data path.
-            fnames = os.listdir(data_path)
-            match_fnames = [
-                f for f in fnames
-                if (lower(split_extension(f)[-1]) ==
-                    lower(dataset.format.extension))]
-            if len(match_fnames) == 1:
-                data_path = os.path.join(data_path, match_fnames[0])
-            else:
-                raise ArcanaMissingDataException(
-                    "Did not find single file with extension '{}' "
-                    "(found '{}') in resource '{}'"
-                    .format(dataset.format.extension,
-                            "', '".join(fnames), data_path))
-        try:
-            os.makedirs(os.path.dirname(cache_path))
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
-        shutil.move(data_path, cache_path)
-        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
-                  **JSON_ENCODING) as f:
-            json.dump(digests, f)
-        shutil.rmtree(tmp_dir)
-
-    @classmethod
-    def delayed_download(cls, tmp_dir, xresource, xdataset, dataset,
-                         session_label, cache_path, delay):
-        logger.info("Waiting {} seconds for incomplete download of '{}' "
-                    "initiated another process to finish"
-                    .format(delay, cache_path))
-        initial_mod_time = dir_modtime(tmp_dir)
-        time.sleep(delay)
-        if os.path.exists(cache_path):
-            logger.info("The download of '{}' has completed "
-                        "successfully in the other process, continuing"
-                        .format(cache_path))
-            return
-        elif initial_mod_time != dir_modtime(tmp_dir):
-            logger.info(
-                "The download of '{}' hasn't completed yet, but it has"
-                " been updated.  Waiting another {} seconds before "
-                "checking again.".format(cache_path, delay))
-            cls.delayed_download(tmp_dir, xresource, xdataset,
-                                   dataset,
-                                   session_label, cache_path, delay)
-        else:
-            logger.warning(
-                "The download of '{}' hasn't updated in {} "
-                "seconds, assuming that it was interrupted and "
-                "restarting download".format(cache_path, delay))
-            shutil.rmtree(tmp_dir)
-            os.mkdir(tmp_dir)
-            cls.download_dataset(
-                tmp_dir, xresource, xdataset, dataset, session_label,
-                cache_path)
 
 
 class XnatSinkInputSpecMixin(object):
@@ -580,6 +455,10 @@ class XnatRepository(Repository):
         A list of subject IDs to filter the project search for. Will
         reduce the time taken to initialise the repository but will also
         limit the subjects that can be analysed
+    race_cond_delay : int
+        The amount of time to wait before checking that the required
+        dataset has been downloaded to cache by another process has
+        completed if they are attempting to download the same dataset
     """
 
     type = 'xnat'
@@ -594,11 +473,12 @@ class XnatRepository(Repository):
     MD5_SUFFIX = '.md5.json'
 
     def __init__(self, server, project_id, user=None, password=None,
-                 cache_dir=None, check_md5=True):
+                 cache_dir=None, check_md5=True, race_cond_delay=30):
         self._project_id = project_id
         self._server = server
         self._user = user
         self._password = password
+        self.race_cond_delay = race_cond_delay
         if cache_dir is None:
             self._cache_dir = os.path.join(os.environ['HOME'], '.xnat')
         else:
@@ -662,18 +542,109 @@ class XnatRepository(Repository):
             raise ArcanaError(
                 "{} is not from {}".format(dataset, self))
         assert dataset.uri is not None
-        with self:
+        with self:  # Connect to the XNAT repository if haven't already
             sess_id, scan_id = re.match(
                 r'/data/experiments/(\w+)/scans/(.*)',
                 dataset.uri).groups()
             xsession = self.login.experiments[sess_id]
             xdataset = xsession.scans[scan_id]
-            xresource = XnatSource.get_resource(xdataset, dataset)
             cache_path = self.cache_path(dataset)
-            XnatSource.download_dataset(
-                tempfile.mkdtemp(), xresource, xdataset, dataset,
-                xsession.label, cache_path)
+            # Get resource to check its MD5 digest
+            xresource = self.get_resource(xdataset, dataset)
+            need_to_download = True
+            if os.path.exists(cache_path):
+                if self.check_md5:
+                    md5_path = (cache_path +
+                                XnatRepository.MD5_SUFFIX)
+                    try:
+                        with open(md5_path, 'r') as f:
+                            cached_digests = json.load(f)
+                        digests = self.get_digests(xresource)
+                        if cached_digests == digests:
+                            need_to_download = False
+                    except IOError:
+                        pass
+                else:
+                    need_to_download = False
+            if need_to_download:
+                # The path to the directory which the files will be
+                # downloaded to.
+                tmp_dir = cache_path + '.download'
+                try:
+                    # Attempt to make tmp download directory. This will
+                    # fail if another process (or previous attempt) has
+                    # already created it. In that case this process will
+                    # wait to see if that download finishes successfully,
+                    # and if so use the cached version.
+                    os.mkdir(tmp_dir)
+                except OSError as e:
+                    if e.errno == errno.EEXIST:
+                        # Another process may be concurrently downloading
+                        # the same file to the cache. Wait for
+                        # 'race_cond_delay' seconds and then check that it
+                        # has been completed or assume interrupted and
+                        # redownload.
+                        self.delayed_download(
+                            tmp_dir, xresource, xdataset, dataset,
+                            xsession.label, cache_path,
+                            delay=self.race_cond_delay)
+                    else:
+                        raise
+                else:
+                    self.download_dataset(
+                        tmp_dir, xresource, xdataset, dataset,
+                        xsession.label, cache_path)
         return cache_path
+
+    def update(self, dataset):
+        assert dataset.derived, (
+            "{} (format: {}, freq: {}) isn't derived"
+            .format(dataset.name, dataset.format_name,
+                    dataset.frequency))
+        filename = getattr(self.inputs,
+                           dataset.name + PATH_SUFFIX)
+        ext = dataset.format.extension
+        assert split_extension(filename)[1] == ext, (
+            "Mismatching extension '{}' for format '{}' ('{}')"
+            .format(split_extension(filename)[1],
+                    dataset.format.name,
+                    dataset.format.extension))
+        src_path = os.path.abspath(filename)
+        out_fname = dataset.fname()
+        # Copy to local cache
+        dst_path = os.path.join(cache_dir, out_fname)
+        shutil.copyfile(src_path, dst_path)
+        # Create md5 digest
+        with open(dst_path, 'rb') as f:
+            digests = {out_fname: hashlib.md5(f.read()).hexdigest()}
+        with open(dst_path + XnatRepository.MD5_SUFFIX, 'w',
+                  **JSON_ENCODING) as f:
+            json.dump(digests, f)
+        # Upload to XNAT
+        xdataset = self._login.classes.MrScanData(
+            type=dataset.basename(), parent=session)
+        # Delete existing resource
+        # TODO: probably should have check to see if we want to
+        #       override it
+        try:
+            xresource = xdataset.resources[
+                dataset.format.name.upper()]
+            xresource.delete()
+        except KeyError:
+            pass
+        xresource = xdataset.create_resource(
+            dataset.format.name.upper())
+        xresource.upload(dst_path, out_fname)
+
+    def update_field(self, field):
+        for field in self.fields:
+            assert field.frequency == self.frequency
+            assert field.derived, ("{} isn't derived".format(
+                field))
+            val = getattr(self.inputs, field.name + FIELD_SUFFIX)
+            if PY2 and isinstance(val, basestring):  # @UndefinedVariable
+                val = oldstr(val)
+            session.fields[field.prefixed_name] = val
 
     def particular_from_spec(self, spec, subject_id=None, visit_id=None):
         return spec.ParticularClass(
@@ -710,7 +681,7 @@ class XnatRepository(Repository):
                 s.label for s in xnat_login.projects[
                     project_id].experiments.values()]
 
-    def get_tree(self, subject_ids=None, visit_ids=None):
+    def tree(self, subject_ids=None, visit_ids=None):
         """
         Return the tree of subject and sessions information within a
         project in the XNAT repository
@@ -1003,6 +974,120 @@ class XnatRepository(Repository):
             raise ArcanaError(
                 "Unrecognised frequency '{}'".format(frequency))
         return (subj_label, sess_label)
+
+    @classmethod
+    def get_resource(cls, xdataset, dataset):
+        for resource_name in dataset.format.xnat_resource_names:
+            try:
+                return xdataset.resources[resource_name]
+            except KeyError:
+                continue
+        raise ArcanaError(
+            "'{}' dataset is not available in '{}' format(s), "
+            "available resources are '{}'"
+            .format(
+                dataset.name,
+                "', '".join(dataset.format.xnat_resource_names),
+                "', '".join(
+                    r.label for r in list(dataset.resources.values()))))
+
+    @classmethod
+    def get_digests(cls, resource):
+        """
+        Downloads the MD5 digests associated with the files in a resource.
+        These are saved with the downloaded files in the cache and used to
+        check if the files have been updated on the server
+        """
+        result = resource.xnat_session.get(resource.uri + '/files')
+        if result.status_code != 200:
+            raise ArcanaError(
+                "Could not download metadata for resource {}"
+                .format(resource.id))
+        return dict((r['Name'], r['digest'])
+                    for r in result.json()['ResultSet']['Result'])
+
+    @classmethod
+    def download_dataset(cls, tmp_dir, xresource, xdataset, dataset,
+                         session_label, cache_path):
+        # Download resource to zip file
+        zip_path = os.path.join(tmp_dir, 'download.zip')
+        with open(zip_path, 'wb') as f:
+            xresource.xnat_session.download_stream(
+                xresource.uri + '/files', f, format='zip', verbose=True)
+        digests = cls.get_digests(xresource)
+        # Extract downloaded zip file
+        expanded_dir = os.path.join(tmp_dir, 'expanded')
+        try:
+            with ZipFile(zip_path) as zip_file:
+                zip_file.extractall(expanded_dir)
+        except BadZipfile as e:
+            raise ArcanaError(
+                "Could not unzip file '{}' ({})"
+                .format(xresource.id, e))
+        data_path = os.path.join(
+            expanded_dir, session_label, 'scans',
+            (xdataset.id + '-' + special_char_re.sub('_', xdataset.type)),
+            'resources', xresource.label, 'files')
+        if not dataset.format.directory:
+            # If the dataformat is not a directory (e.g. DICOM),
+            # attempt to locate a single file within the resource
+            # directory with the appropriate filename and add that
+            # to be the complete data path.
+            fnames = os.listdir(data_path)
+            match_fnames = [
+                f for f in fnames
+                if (lower(split_extension(f)[-1]) ==
+                    lower(dataset.format.extension))]
+            if len(match_fnames) == 1:
+                data_path = os.path.join(data_path, match_fnames[0])
+            else:
+                raise ArcanaMissingDataException(
+                    "Did not find single file with extension '{}' "
+                    "(found '{}') in resource '{}'"
+                    .format(dataset.format.extension,
+                            "', '".join(fnames), data_path))
+        try:
+            os.makedirs(os.path.dirname(cache_path))
+        except OSError as e:
+            if e.errno != errno.EEXIST:
+                raise
+        shutil.move(data_path, cache_path)
+        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
+                  **JSON_ENCODING) as f:
+            json.dump(digests, f)
+        shutil.rmtree(tmp_dir)
+
+    @classmethod
+    def delayed_download(cls, tmp_dir, xresource, xdataset, dataset,
+                         session_label, cache_path, delay):
+        logger.info("Waiting {} seconds for incomplete download of '{}' "
+                    "initiated another process to finish"
+                    .format(delay, cache_path))
+        initial_mod_time = dir_modtime(tmp_dir)
+        time.sleep(delay)
+        if os.path.exists(cache_path):
+            logger.info("The download of '{}' has completed "
+                        "successfully in the other process, continuing"
+                        .format(cache_path))
+            return
+        elif initial_mod_time != dir_modtime(tmp_dir):
+            logger.info(
+                "The download of '{}' hasn't completed yet, but it has"
+                " been updated.  Waiting another {} seconds before "
+                "checking again.".format(cache_path, delay))
+            cls.delayed_download(tmp_dir, xresource, xdataset,
+                                   dataset,
+                                   session_label, cache_path, delay)
+        else:
+            logger.warning(
+                "The download of '{}' hasn't updated in {} "
+                "seconds, assuming that it was interrupted and "
+                "restarting download".format(cache_path, delay))
+            shutil.rmtree(tmp_dir)
+            os.mkdir(tmp_dir)
+            cls.download_dataset(
+                tmp_dir, xresource, xdataset, dataset, session_label,
+                cache_path)
 
 
 def guess_file_format(xdataset):

@@ -2,14 +2,16 @@ from builtins import object
 from abc import ABCMeta, abstractmethod
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
-    BaseInterface)
+    BaseInterface, isdefined)
 from arcana.node import Node
 from arcana.dataset import (
-    BaseDatum, DatasetSpec, FieldSpec, BaseField, BaseDataset,
-    DatasetMatch, FieldMatch)
+    BaseDatum, DatasetSpec, FieldSpec, BaseField, BaseDataset)
 from arcana.exception import ArcanaError
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from future.utils import with_metaclass
+import logging
+
+logger = logging.getLogger('arcana')
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
 FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
@@ -18,8 +20,9 @@ MULTIPLICITIES = ('per_session', 'per_subject', 'per_visit', 'per_project')
 
 class Repository(with_metaclass(ABCMeta, object)):
     """
-    Abstract base class for all Repository systems, DaRIS, XNAT and local file
-    system. Sets out the interface that all Repository classes should implement.
+    Abstract base class for all Repository systems, DaRIS, XNAT and
+    local file system. Sets out the interface that all Repository
+    classes should implement.
     """
 
     def __init__(self):
@@ -52,23 +55,50 @@ class Repository(with_metaclass(ABCMeta, object)):
         manage it here
         """
 
-    def cache(self, datum):
+    def cache_dataset(self, dataset):
         """
-        If the repository is remote, cache the dataset or field here
+        If the repository is remote, cache the dataset here
+        """
+        pass
+
+    def update_field(self, field):
+        """
+        If the repository is remote, cache the dataset here
         """
         pass
 
     @abstractmethod
-    def insert(self, datum):
+    def put_dataset(self, dataset):
         """
-        Insert the given dataset or field into the repository
+        Inserts or updates the dataset into the repository
         """
 
     @abstractmethod
-    def tree(self):
+    def put_field(self, field):
         """
-        Should return a Project object representing the current state
-        of the repository
+        Inserts or updates the fields into the repository
+        """
+
+    @abstractmethod
+    def tree(self, subject_ids=None, visit_ids=None):
+        """
+        Return the tree of subject and sessions information within a
+        project in the XNAT repository
+
+        Parameters
+        ----------
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
+        visit_ids : list(str)
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
+
+        Returns
+        -------
+        project : arcana.repository.Project
+            A hierarchical tree of subject, session and dataset
+            information for the repository
         """
 
     def source(self, inputs, name=None):
@@ -93,19 +123,8 @@ class Repository(with_metaclass(ABCMeta, object)):
         """
         if name is None:
             name = "{}_source".format(self.type)
-        inputs = list(inputs)  # protected against iterators
-        datasets = []
-        fields = []
-        for inpt in inputs:
-            if isinstance(inpt, DatasetMatch):
-                datasets.append(inpt.matches)
-            elif isinstance(inpt, DatasetSpec):
-                datasets.append(inpt)
-            if isinstance(inpt, FieldMatch):
-                fields.append(inpt.matches)
-            elif isinstance(inpt, FieldSpec):
-                fields.append(inpt)
-        return Node(RepositorySource(datasets, fields), name=name)
+        return Node(RepositorySource(
+            i.collection for i in inputs), name=name)
 
     def sink(self, outputs, frequency='per_session', name=None):
         """
@@ -129,23 +148,21 @@ class Repository(with_metaclass(ABCMeta, object)):
         """
         if name is None:
             name = "{}_{}_sink".format(self.type, frequency)
-        outputs = list(outputs)  # protected against iterators
         if frequency.startswith('per_session'):
-            sink_class = RepositorySessionSink
+            RepositorySink = RepositorySessionSink
         elif frequency.startswith('per_subject'):
-            sink_class = RepositorySubjectSink
+            RepositorySink = RepositorySubjectSink
         elif frequency.startswith('per_visit'):
-            sink_class = RepositoryVisitSink
+            RepositorySink = RepositoryVisitSink
         elif frequency.startswith('per_project'):
-            sink_class = RepositoryProjectSink
+            RepositorySink = RepositoryProjectSink
         else:
             raise ArcanaError(
                 "Unrecognised frequency '{}' can be one of '{}'"
                 .format(frequency,
                         "', '".join(BaseDatum.MULTIPLICITY_OPTIONS)))
-        datasets = [o for o in outputs if isinstance(o, BaseDataset)]
-        fields = [o for o in outputs if isinstance(o, BaseField)]
-        return Node(sink_class(datasets, fields), name=name)
+        return Node(RepositorySink((o.collection for o in outputs),
+                                   frequency), name=name)
 
     def __ne__(self, other):
         return not (self == other)
@@ -165,10 +182,13 @@ class BaseRepositoryNode(BaseInterface):
 
     """
 
-    def __init__(self, datasets, fields):
+    def __init__(self, collections):
         super(BaseRepositoryNode, self).__init__()
-        self._datasets = datasets
-        self._fields = fields
+        self._repositories = set(c.repository for c in collections)
+        self._datasets = [o for o in collections
+                          if isinstance(o, BaseDataset)]
+        self._fields = [o for o in collections
+                        if isinstance(o, BaseField)]
 
     def __eq__(self, other):
         try:
@@ -246,32 +266,62 @@ class RepositorySource(BaseRepositoryNode):
         outputs = {}
         # Source datasets
         for dataset in self.datasets:
-            outputs[dataset.name + PATH_SUFFIX] = dataset.path(
-                subject_id=self.inputs.subject_id,
-                visit_id=self.inputs.visit_id)
-        # Source fields from JSON file
-        for freq, spec_grp in groupby(
-            sorted(self.fields, key=attrgetter('frequency')),
-                key=attrgetter('frequency')):
-            # Load fields JSON, locking to prevent read/write conflicts
-            # Would be better if only checked if locked to allow
-            # concurrent reads but not possible with multi-process
-            # locks (in my understanding at least).
-            fpath = self.fields_path(freq)
-            try:
-                with InterProcessLock(
-                    fpath + LOCK,
-                        logger=logger), open(fpath, 'r') as f:
-                    fields = json.load(f)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    fields = {}
-                else:
-                    raise
-            for field in spec_grp:
-                outputs[field.name + FIELD_SUFFIX] = field.dtype(
-                    fields[self.prefix_study_name(field.name,
-                                                  field.is_spec)])
+            outputs[dataset.name + PATH_SUFFIX] = dataset.path
+        for field in self.fields:
+            field.update()
+            outputs[field.name + FIELD_SUFFIX] = field.value
+        return outputs
+
+
+class BaseRepositorySink(BaseRepositoryNode):
+
+    def __init__(self, datasets, fields):
+        super(BaseRepositorySink, self).__init__(datasets, fields)
+        # Add input datasets
+        for dataset in datasets:
+            assert isinstance(dataset, DatasetSpec)
+            self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
+                            PATH_TRAIT)
+        # Add input fields
+        for field in fields:
+            assert isinstance(field, FieldSpec)
+            self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
+                            field.dtype)
+
+    def _list_outputs(self):
+        outputs = self.output_spec().get()
+        # Connect iterables (i.e. subject_id and visit_id)
+        for attr in self.iter_attr:
+            outputs[attr] = getattr(self.inputs, attr)
+        out_files = []
+        out_fields = []
+        missing_inputs = []
+        with self._repositories:
+            for dataset in self.datasets:
+                path = getattr(self.inputs, dataset.name + PATH_SUFFIX)
+                if not isdefined(path):
+                    missing_inputs.append(dataset.name)
+                    continue  # skip the upload for this file
+                dataset.path = path
+                dataset.put()
+            for field in self.fields:
+                value = getattr(self.inputs, field.name + FIELD_SUFFIX)
+                if not isdefined(value):
+                    missing_inputs.append(field.name)
+                    continue  # skip the upload for this file
+                field.value = value
+                field.put()
+                out_fields.append((field.name, value))
+        if missing_inputs:
+            # FIXME: Not sure if this should be an exception or not,
+            #        indicates a problem but stopping now would throw
+            #        away the datasets that were created
+            logger.warning(
+                "Missing inputs '{}' in RepositorySink".format(
+                    "', '".join(missing_inputs)))
+        # Return cache file paths
+        outputs['out_files'] = out_files
+        outputs['out_fields'] = out_fields
         return outputs
 
 
@@ -279,7 +329,7 @@ class BaseRepositorySinkSpec(DynamicTraitedSpec):
     pass
 
 
-class RepositorySinkInputSpec(BaseRepositorySinkSpec):
+class RepositorySessionSinkInputSpec(BaseRepositorySinkSpec):
 
     subject_id = traits.Str(mandatory=True, desc="The subject ID"),
     visit_id = traits.Str(mandatory=False,
@@ -308,7 +358,7 @@ class BaseRepositorySinkOutputSpec(DynamicTraitedSpec):
         traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
 
 
-class RepositorySinkOutputSpec(BaseRepositorySinkOutputSpec):
+class RepositorySessionSinkOutputSpec(BaseRepositorySinkOutputSpec):
 
     subject_id = traits.Str(desc="The subject ID")
     visit_id = traits.Str(desc="The visit ID")
@@ -329,35 +379,13 @@ class RepositoryProjectSinkOutputSpec(BaseRepositorySinkOutputSpec):
     project_id = traits.Str(desc="The project ID")
 
 
-class BaseRepositorySink(BaseRepositoryNode):
-
-    def __init__(self, study_name, datasets, fields):
-        super(BaseRepositorySink, self).__init__(study_name, datasets,
-                                                 fields)
-        # Add input datasets
-        for dataset in datasets:
-            assert isinstance(dataset, DatasetSpec)
-            self._add_trait(self.inputs, dataset.name + PATH_SUFFIX,
-                            PATH_TRAIT)
-        # Add input fields
-        for field in fields:
-            assert isinstance(field, FieldSpec)
-            self._add_trait(self.inputs, field.name + FIELD_SUFFIX,
-                            field.dtype)
-
-
 class RepositorySessionSink(BaseRepositorySink):
 
-    input_spec = RepositorySinkInputSpec
-    output_spec = RepositorySinkOutputSpec
+    input_spec = RepositorySessionSinkInputSpec
+    output_spec = RepositorySessionSinkOutputSpec
 
     frequency = 'per_session'
-
-    def _base_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['subject_id'] = self.inputs.subject_id
-        outputs['visit_id'] = self.inputs.visit_id
-        return outputs
+    iter_attr = ['subject_id', 'visit_id']
 
 
 class RepositorySubjectSink(BaseRepositorySink):
@@ -366,11 +394,7 @@ class RepositorySubjectSink(BaseRepositorySink):
     output_spec = RepositorySubjectSinkOutputSpec
 
     frequency = 'per_subject'
-
-    def _base_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['subject_id'] = self.inputs.subject_id
-        return outputs
+    iter_attr = ['subject_id']
 
 
 class RepositoryVisitSink(BaseRepositorySink):
@@ -379,11 +403,7 @@ class RepositoryVisitSink(BaseRepositorySink):
     output_spec = RepositoryVisitSinkOutputSpec
 
     frequency = 'per_visit'
-
-    def _base_outputs(self):
-        outputs = self.output_spec().get()
-        outputs['visit_id'] = self.inputs.visit_id
-        return outputs
+    iter_attr = ['visit_id']
 
 
 class RepositoryProjectSink(BaseRepositorySink):
@@ -392,7 +412,4 @@ class RepositoryProjectSink(BaseRepositorySink):
     output_spec = RepositoryProjectSinkOutputSpec
 
     frequency = 'per_project'
-
-    def _base_outputs(self):
-        outputs = self.output_spec().get()
-        return outputs
+    iter_attr = []

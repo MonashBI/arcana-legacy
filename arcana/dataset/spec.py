@@ -27,6 +27,7 @@ class BaseSpec(object):
         self._desc = desc
         self._study = None
         self._optional = optional
+        self._collection = None
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
@@ -58,7 +59,36 @@ class BaseSpec(object):
                     "{} does not have a method named '{}' required to "
                     "derive {}".format(study, self.pipeline_name,
                                        self))
+            self._bind_tree(study.stree)
         return bound
+
+    @property
+    def collection(self):
+        if self._collection is None:
+            raise ArcanaUsageError(
+                "{} needs to be bound to a study before accessing "
+                "the corresponding collection".format(self))
+        return self._collection
+
+    def _bind_tree(self, tree, **kwargs):
+        # Run the match against the tree
+        if self.frequency == 'per_session':
+            nodes = []
+            for subject in tree.subjects:
+                for sess in subject.sessions:
+                    nodes.append(sess.derived
+                                 if sess.derived is not None else sess)
+        elif self.frequency == 'per_subject':
+            nodes = tree.subjects
+        elif self.frequency == 'per_visit':
+            nodes = tree.visits
+        elif self.frequency == 'per_project':
+            nodes = [tree]
+        else:
+            assert False, "Unrecognised frequency '{}'".format(
+                self.frequency)
+        self._collection = self.CollectionClass(
+            self.name, (self._bind_node(n, **kwargs) for n in nodes))
 
     def find_mismatch(self, other, indent=''):
         mismatch = ''
@@ -256,8 +286,7 @@ class DatasetSpec(BaseDataset, BaseSpec):
         dct.update(BaseSpec.initkwargs(self))
         return dct
 
-    def particular(self, subject_id=None, visit_id=None):
-        node = self._tree_node(subject_id=subject_id, visit_id=visit_id)
+    def _bind_node(self, node, **kwargs):
         try:
             dataset = node.dataset(self.basename())
         except ArcanaNameError:
@@ -265,14 +294,11 @@ class DatasetSpec(BaseDataset, BaseSpec):
             # analysis
             dataset = Dataset(self.basename(), format=self.format,
                               frequency=self.frequency, path=None,
-                              subject_id=subject_id, visit_id=visit_id,
+                              subject_id=node.subject_id,
+                              visit_id=node.visit_id,
                               repository=self.study.repository,
                               derived=True, study_name=self.study.name)
         return dataset
-
-    def path(self, subject_id=None, visit_id=None):
-        return self.particular(subject_id=subject_id,
-                               visit_id=visit_id).path
 
 
 class FieldSpec(BaseField, BaseSpec):
@@ -332,3 +358,17 @@ class FieldSpec(BaseField, BaseSpec):
         dct = BaseField.initkwargs(self)
         dct.update(BaseSpec.initkwargs(self))
         return dct
+
+    def _bind_node(self, node, **kwargs):
+        try:
+            field = node.field(self.basename())
+        except ArcanaNameError:
+            # For files that have been generated since the start of the
+            # analysis
+            field = Field(self.basename(), dtype=self.type,
+                            frequency=self.frequency,
+                            subject_id=node.subject_id,
+                            visit_id=node.visit_id,
+                            repository=self.study.repository,
+                            derived=True, study_name=self.study.name)
+        return field

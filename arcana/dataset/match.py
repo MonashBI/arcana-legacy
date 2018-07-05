@@ -19,7 +19,7 @@ class BaseMatch(object):
         self._pattern = pattern
         self._study = study
         self._is_regex = is_regex
-        self._matches = None
+        self._collection = None
 
     def __eq__(self, other):
         return (self.derived == other.derived and
@@ -48,8 +48,12 @@ class BaseMatch(object):
         return self._is_regex
 
     @property
-    def matches(self):
-        return self._matches
+    def collection(self):
+        if self._collection is None:
+            raise ArcanaUsageError(
+                "{} needs to be bound to a study before accessing "
+                "the corresponding collection".format(self))
+        return self._collection
 
     @property
     def order(self):
@@ -61,7 +65,7 @@ class BaseMatch(object):
         else:
             bound = copy(self)
             bound._study = study
-            bound._match_tree(study.tree)
+            bound._bind_tree(study.tree)
         return bound
 
     @property
@@ -75,7 +79,7 @@ class BaseMatch(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def _match_tree(self, tree, **kwargs):
+    def _bind_tree(self, tree, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = []
@@ -94,10 +98,10 @@ class BaseMatch(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
-        self._matches = self.CollectionClass(
-            self.name, (self._match_node(n, **kwargs) for n in nodes))
+        self._collection = self.CollectionClass(
+            self.name, (self._bind_node(n, **kwargs) for n in nodes))
 
-    def _match_node(self, node, **kwargs):
+    def _bind_node(self, node, **kwargs):
         # Get names matching pattern
         matches = self._filtered_matches(node, **kwargs)
         # Select the dataset from the matches
@@ -238,10 +242,9 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _match_tree(self, tree, **kwargs):
-        with self.study.repository.login() as repository_login:
-            super(DatasetMatch, self)._match_tree(
-                tree, repository_login=repository_login, **kwargs)
+    def _bind_tree(self, tree, **kwargs):
+        with self.study.repository:
+            super(DatasetMatch, self)._bind_tree(tree, **kwargs)
 
     def _filtered_matches(self, node, repository_login=None):
         if self.pattern is not None:
@@ -491,8 +494,8 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
     def fieldmap_type(self):
         return self._fieldmap_type
 
-    def _match_node(self, node):
-        primary_match = self._primary_match._match_node(node)
+    def _bind_node(self, node):
+        primary_match = self._primary_match._bind_node(node)
         layout = self.study.repository.layout
         if self._association == 'fieldmap':
             matches = layout.get_fieldmap(primary_match.path,
