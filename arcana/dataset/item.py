@@ -316,6 +316,14 @@ class Dataset(BaseItem, BaseDataset):
         dct['bids_attr'] = self.bids_attr
         return dct
 
+    def get(self):
+        if self.repository is not None:
+            self._value = self.repository.get_dataset(self)
+
+    def put(self):
+        if self.repository is not None:
+            self.repository.put_dataset(self)
+
 
 class Field(BaseItem, BaseField):
     """
@@ -418,3 +426,11 @@ class Field(BaseItem, BaseField):
         dct.update(BaseItem.initkwargs(self))
         dct['value'] = self.value
         return dct
+
+    def get(self):
+        if self.repository is not None:
+            self._value = self.repository.get_field(self)
+
+    def put(self):
+        if self.repository is not None:
+            self.repository.put_field(self)
