@@ -184,7 +184,8 @@ class BaseRepositoryNode(BaseInterface):
 
     def __init__(self, collections):
         super(BaseRepositoryNode, self).__init__()
-        self._repositories = set(c.repository for c in collections)
+        self._repositories = set(c.repository for c in collections
+                                 if c.repository is not None)
         self._datasets = [c for c in collections
                           if isinstance(c, BaseDataset)]
         self._fields = [c for c in collections
@@ -265,11 +266,13 @@ class RepositorySource(BaseRepositoryNode):
         # Directory that holds session-specific
         outputs = {}
         # Source datasets
-        for dataset in self.datasets:
-            outputs[dataset.name + PATH_SUFFIX] = dataset.path
-        for field in self.fields:
-            field.update()
-            outputs[field.name + FIELD_SUFFIX] = field.value
+        with self._repositories:
+            for dataset in self.datasets:
+                dataset.get()
+                outputs[dataset.name + PATH_SUFFIX] = dataset.path
+            for field in self.fields:
+                field.get()
+                outputs[field.name + FIELD_SUFFIX] = field.value
         return outputs
 
 
