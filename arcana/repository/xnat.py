@@ -29,7 +29,7 @@ from arcana.repository.base import (  # @IgnorePep8
     RepositorySubjectSink, RepositoryVisitSink, RepositoryProjectSink,
     MULTIPLICITIES)
 from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePep8
-from arcana.file_format import FileFormat  # @IgnorePep8
+from arcana.dataset.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
     ArcanaError, ArcanaFileFormatError, ArcanaMissingDataException)

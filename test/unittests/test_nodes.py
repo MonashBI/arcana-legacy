@@ -7,7 +7,7 @@ from arcana.exception import (ArcanaModulesNotInstalledException,
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
-from arcana.file_format.standard import text_format
+from arcana.dataset.file_format.standard import text_format
 from arcana.node import Node
 from arcana.requirement import Requirement
 from future.utils import with_metaclass

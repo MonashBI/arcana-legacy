@@ -1,7 +1,7 @@
 from arcana.testing import BaseTestCase, TestMath
 from arcana.interfaces.utils import Merge
 from arcana.dataset import DatasetMatch, DatasetSpec
-from arcana.file_format.standard import text_format
+from arcana.dataset.file_format.standard import text_format
 from arcana.parameter import ParameterSpec
 from arcana.study.base import Study
 from arcana.study.multi import (
