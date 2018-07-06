@@ -165,6 +165,10 @@ class Dataset(BaseItem, BaseDataset):
             return self.id < other.id
 
     @property
+    def fname(self):
+        return self.name + self.format.ext_str
+
+    @property
     def bids_attr(self):
         return self._bids_attr
 

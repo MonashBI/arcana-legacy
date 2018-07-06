@@ -445,21 +445,21 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                                      SUMMARY_NAME)
             for dataset in self.local_tree.datasets:
                 self.init_dataset(dataset, op.join(proj_summ_path,
-                                                   dataset.fname()))
+                                                   dataset.fname)
             self.init_fields(proj_summ_path, self.local_tree.fields)
             for visit in self.local_tree.visits:
                 visit_summ_path = op.join(project_dir, SUMMARY_NAME,
                                           visit.id)
                 for dataset in visit.datasets:
                     self.init_dataset(dataset, op.join(visit_summ_path,
-                                                       dataset.fname()))
+                                                       dataset.fname)
                 self.init_fields(visit_summ_path, visit.fields)
             for subject in self.local_tree.subjects:
                 subj_summ_path = op.join(project_dir, subject.id,
                                          SUMMARY_NAME)
                 for dataset in subject.datasets:
                     self.init_dataset(dataset, op.join(subj_summ_path,
-                                                       dataset.fname()))
+                                                       dataset.fname))
                 self.init_fields(subj_summ_path, subject.fields)
                 for session in subject.sessions:
                     sess_path = op.join(project_dir, session.subject_id,
@@ -467,7 +467,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     for dataset in session.datasets:
                         self.init_dataset(
                             dataset, op.join(sess_path,
-                                             dataset.fname()))
+                                             dataset.fname)
                     self.init_fields(sess_path, session.fields)
 
     @property

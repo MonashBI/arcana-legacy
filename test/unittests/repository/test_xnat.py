@@ -205,7 +205,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                         resource.upload(
                             os.path.join(dataset.path, fname), fname)
                 else:
-                    resource.upload(dataset.path, dataset.fname())
+                    resource.upload(dataset.path, dataset.fname)
             for field in self.session.fields:
                 xsession.fields[field.name] = field.value
 
@@ -232,6 +232,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         local_repository = LocalRepository(self.project_dir)
         project = local_repository.get_tree()
         self._create_project()
+        repo = XnatRepository(SERVER, self.project, '/tmp')
         with xnat.connect(SERVER) as xnat_login:
             # Copy local repository to XNAT
             xproject = xnat_login.projects[self.project]
@@ -258,9 +259,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                         xsession.fields[field.name] = field.value
                 if subject.datasets or subject.fields:
                     xsubj_summary = xnat_login.classes.MrSessionData(
-                        label=XnatRepository.get_labels(
-                            'per_subject', self.project,
-                            subject_id=subject.id)[1],
+                        label=repo.get_labels(
+                            'per_subject', subject_id=subject.id)[1],
                         parent=xsubject)
                     for dataset in subject.datasets:
                         self._upload_datset(xnat_login, dataset,
@@ -270,9 +270,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             for visit in project.visits:
                 if visit.datasets or visit.fields:
                     (summ_subj_name,
-                     summ_sess_name) = XnatRepository.get_labels(
-                        'per_visit', self.project,
-                        visit_id=visit.id)
+                     summ_sess_name) = repo.get_labels(
+                        'per_visit', visit_id=visit.id)
                     xvisit_summary = xnat_login.classes.MrSessionData(
                         label=summ_sess_name,
                         parent=xnat_login.classes.SubjectData(
@@ -284,8 +283,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                         xvisit_summary.fields[field.name] = field.value
             if project.datasets or project.fields:
                 (summ_subj_name,
-                 summ_sess_name) = XnatRepository.get_labels(
-                    'per_project', self.project)
+                 summ_sess_name) = repo.get_labels('per_project')
                 xproj_summary = xnat_login.classes.MrSessionData(
                     label=summ_sess_name,
                     parent=xnat_login.classes.SubjectData(
@@ -988,7 +986,7 @@ class TestDatasetCacheOnPathAccess(TestOnXnatMixin,
             tmp_dir, self.project,
             '{}_{}'.format(self.project, self.SUBJECT),
             '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
-            dataset.fname())
+            dataset.fname)
         # This should implicitly download the dataset
         self.assertEqual(dataset.path, target_path)
         with open(target_path) as f:
@@ -1064,7 +1062,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                                       visit_id))
                 for inpt in study.inputs:
                     self.assertTrue(os.path.exists(os.path.join(
-                        sess_dir, inpt.fname())))
+                        sess_dir, inpt.fname))
 
     @property
     def base_name(self):

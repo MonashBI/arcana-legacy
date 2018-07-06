@@ -1,5 +1,6 @@
 from __future__ import absolute_import
-import os.path
+import os
+import os.path as op
 from collections import defaultdict
 from itertools import chain
 import errno
@@ -8,8 +9,7 @@ import logging
 from bids import grabbids as gb
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset
-from arcana.exception import ArcanaNameError
-from arcana.utils import NoContextWrapper
+from arcana.exception import ArcanaNameError, ArcanaMissingDataException
 
 logger = logging.getLogger('arcana')
 
@@ -26,11 +26,11 @@ class BidsRepository(LocalRepository):
     """
 
     type = 'bids'
-    DERIVATIVES_SUB_PATH = os.path.join('derivatives', 'arcana')
+    DERIVATIVES_SUB_PATH = op.join('derivatives')
 
     def __init__(self, root_dir):
         self._root_dir = root_dir
-        derivatives_path = os.path.join(root_dir,
+        derivatives_path = op.join(root_dir,
                                         self.DERIVATIVES_SUB_PATH)
         try:
             os.makedirs(derivatives_path)
@@ -57,10 +57,13 @@ class BidsRepository(LocalRepository):
         except AttributeError:
             return False
 
-    def login(self):
-        return NoContextWrapper(None)
+    def get_dataset(self, dataset):
+        """
+        Set the path of the dataset from the repository
+        """
+        raise NotImplementedError
 
-    def get_tree(self, subject_ids=None, visit_ids=None):
+    def tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         repository
@@ -81,7 +84,7 @@ class BidsRepository(LocalRepository):
             the repository
         """
         bids_datasets = defaultdict(lambda: defaultdict(dict))
-        derived_tree = super(BidsRepository, self).get_tree(
+        derived_tree = super(BidsRepository, self).tree(
             subject_ids=None, visit_ids=None)
         for bids_obj in self.layout.get(return_type='object'):
             subj_id = bids_obj.entities['subject']

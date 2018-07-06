@@ -22,7 +22,7 @@ setup(
     description=(
         'Abstracted repository-centric analysis framework'),
     long_description=open('README.rst').read(),
-    install_requires=['xnat>=0.3.7',
+    install_requires=['xnat>=0.3.9',
                       'nipype>=1.0.4',
                       'pydicom>=1.0.2',
                       'networkx==1.9',

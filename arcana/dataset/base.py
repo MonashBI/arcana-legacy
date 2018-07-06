@@ -134,9 +134,6 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatasetOrField)):
         dct['format'] = self.format
         return dct
 
-    def fname(self, **kwargs):
-        return self.basename(**kwargs) + self.format.ext_str
-
 
 class BaseField(with_metaclass(ABCMeta, BaseDatasetOrField)):
     """

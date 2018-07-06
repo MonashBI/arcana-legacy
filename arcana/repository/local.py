@@ -26,12 +26,6 @@ FIELDS_FNAME = 'fields.json'
 LOCK = '.lock'
 
 
-def lower(s):
-    if s is None:
-        return None
-    return s.lower()
-
-
 class LocalRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
@@ -73,7 +67,7 @@ class LocalRepository(BaseRepository):
         # Don't need to cache dataset as it is already local as long
         # as the path is set
         if dataset._path is None:
-            path = op.join(self.session_dir(dataset), dataset.fname())
+            path = op.join(self.session_dir(dataset), dataset.fname)
             if not op.exists(path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in the local repository {}"
