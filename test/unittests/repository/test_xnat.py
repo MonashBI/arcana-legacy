@@ -535,8 +535,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.run()
         source = repository.source(
             inputs=fields,
-            name='fields_source',
-            study_name='test')
+            name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
         source.inputs.desc = "Test source of fields"
@@ -687,8 +686,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         DATASET_NAME = 'sink1'
         sink = sink_repository.sink(
             [study.spec(DATASET_NAME)],
-            name='digest_check_sink',
-            study_name=STUDY_NAME)
+            name='digest_check_sink')
         sink.inputs.name = 'digest_check_sink'
         sink.inputs.desc = "Tests the generation of MD5 digests"
         sink.inputs.subject_id = self.SUBJECT
@@ -751,8 +749,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         visit_sink_files = [study.spec('visit_sink')]
         visit_sink = repository.sink(
             visit_sink_files,
-            frequency='per_visit',
-            study_name=self.SUMMARY_STUDY_NAME)
+            frequency='per_visit')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide datasets")
@@ -761,9 +758,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             study.spec('project_sink')]
         project_sink = repository.sink(
             project_sink_files,
-            frequency='per_project',
-            study_name=self.SUMMARY_STUDY_NAME)
-
+            frequency='per_project')
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
             "Tests the sinking of project-wide datasets")
@@ -850,12 +845,10 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         reloadsource = repository.source(
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
-            name='reload_source',
-            study_name=self.SUMMARY_STUDY_NAME)
+            name='reload_source')
         reloadsink = repository.sink(
             [study.spec(n)
-             for n in ('resink1', 'resink2', 'resink3')],
-            study_name=self.SUMMARY_STUDY_NAME)
+             for n in ('resink1', 'resink2', 'resink3')])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary datasets")

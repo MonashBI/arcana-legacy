@@ -180,7 +180,6 @@ class BaseRunner(object):
             # Create source and sinks from the repository
             source = self.study.repository.source(
                 (self.study.spec(i) for i in pipeline.inputs),
-                study_name=self.study.name,
                 name='{}_source'.format(pipeline.name))
         except ArcanaMissingDataException as e:
             raise ArcanaMissingDataException(
@@ -244,7 +243,6 @@ class BaseRunner(object):
             sink = self.study.repository.sink(
                 (self.study.spec(o) for o in outputs),
                 frequency=freq,
-                study_name=self.study.name,
                 name='{}_{}_sink'.format(pipeline.name, freq))
 #             sink.inputs.desc = pipeline.desc
 #             sink.inputs.name = pipeline._study.name
