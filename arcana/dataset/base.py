@@ -11,52 +11,6 @@ from future.types import newstr
 logger = getLogger('Arcana')
 
 
-class BidsAttrs(object):
-
-    def __init__(self, type=None, modality=None, run=None, metadata=None,  # @ReservedAssignment @IgnorePep8
-                 field_maps=None, bvec=None, bval=None, description=None):
-        self._type = type
-        self._modality = modality
-        self._run = run
-        self._metadata = metadata
-        self._bval = bval
-        self._bvec = bvec
-        self._field_maps = field_maps
-        self._description = description
-
-    @property
-    def type(self):
-        return self._type
-
-    @property
-    def mode(self):
-        return self._mode
-
-    @property
-    def run(self):
-        return self._run
-
-    @property
-    def metadata(self):
-        return self._metadata
-
-    @property
-    def bval(self):
-        return self._bval
-
-    @property
-    def bvec(self):
-        return self._bvec
-
-    @property
-    def field_maps(self):
-        return self._field_maps
-
-    @property
-    def description(self):
-        return self._description
-
-
 class BaseDatasetOrField(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
