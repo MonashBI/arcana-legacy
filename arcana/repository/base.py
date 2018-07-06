@@ -1,12 +1,9 @@
 from builtins import object
 from abc import ABCMeta, abstractmethod
 from arcana.node import Node
-from arcana.dataset import BaseDatum
-from arcana.exception import ArcanaError
 from future.utils import with_metaclass
 from .interface import (
-    RepositorySource, RepositorySessionSink, RepositorySubjectSink,
-    RepositoryVisitSink, RepositoryProjectSink)
+    RepositorySource, RepositorySink)
 import logging
 
 logger = logging.getLogger('arcana')
@@ -26,7 +23,8 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         # This allows the repository to be used within nested contexts
         # but still only use one connection. This is useful for calling
         # methods that need connections, and therefore control their
-        # own connection, in batches
+        # own connection, in batches using the same connection by
+        # placing the batch calls within an outer context.
         if self._connection_depth == 0:
             self.connect()
         self._connection_depth += 1
@@ -49,13 +47,15 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         manage it here
         """
 
-    def cache_dataset(self, dataset):
+    @abstractmethod
+    def get_dataset(self, dataset):
         """
         If the repository is remote, cache the dataset here
         """
         pass
 
-    def update_field(self, field):
+    @abstractmethod
+    def get_field(self, field):
         """
         If the repository is remote, cache the dataset here
         """
@@ -142,22 +142,8 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
         if name is None:
             name = "{}_{}_sink".format(self.type, frequency)
-        if frequency.startswith('per_session'):
-            RepositorySink = RepositorySessionSink
-        elif frequency.startswith('per_subject'):
-            RepositorySink = RepositorySubjectSink
-        elif frequency.startswith('per_visit'):
-            RepositorySink = RepositoryVisitSink
-        elif frequency.startswith('per_project'):
-            RepositorySink = RepositoryProjectSink
-        else:
-            raise ArcanaError(
-                "Unrecognised frequency '{}' can be one of '{}'"
-                .format(frequency,
-                        "', '".join(BaseDatum.MULTIPLICITY_OPTIONS)))
         return Node(RepositorySink((o.collection for o in outputs),
                                    frequency), name=name)
 
     def __ne__(self, other):
         return not (self == other)
-

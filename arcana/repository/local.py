@@ -1,32 +1,21 @@
 from builtins import str
-from past.builtins import basestring
-from builtins import object
-from abc import ABCMeta, abstractmethod
-import os.path
+from abc import abstractmethod
+import os
+import os.path as op
 from collections import defaultdict
-from itertools import chain, groupby
-from operator import attrgetter
+from itertools import chain
 import errno
-from .base import (
-    BaseRepository, RepositorySource, RepositorySink, RepositorySourceInputSpec,
-    RepositorySinkInputSpec, RepositorySubjectSinkInputSpec,
-    RepositoryVisitSinkInputSpec,
-    RepositoryProjectSinkInputSpec, RepositorySubjectSink, RepositoryVisitSink,
-    RepositoryProjectSink)
+from .base import BaseRepository
 import stat
 import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from arcana.utils import JSON_ENCODING
-from nipype.interfaces.base import isdefined
 from .tree import Project, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
     ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
     ArcanaMissingDataException)
-from arcana.utils import (
-    split_extension, PATH_SUFFIX, FIELD_SUFFIX, NoContextWrapper)
 
 
 logger = logging.getLogger('arcana')
@@ -43,226 +32,6 @@ def lower(s):
     return s.lower()
 
 
-class LocalNodeMixin(object):
-
-    def _get_data_dir(self, frequency):
-        if frequency == 'per_project':
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
-                                    SUMMARY_NAME)
-        elif frequency.startswith('per_subject'):
-            data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
-                SUMMARY_NAME)
-        elif frequency.startswith('per_visit'):
-            data_dir = os.path.join(self.base_dir, SUMMARY_NAME,
-                                    str(self.inputs.visit_id))
-        elif frequency.startswith('per_session'):
-            data_dir = os.path.join(
-                self.base_dir, str(self.inputs.subject_id),
-                str(self.inputs.visit_id))
-        else:
-            assert False, "Unrecognised frequency '{}'".format(
-                frequency)
-        return data_dir
-
-    def fields_path(self, frequency):
-        return os.path.join(self._get_data_dir(frequency),
-                            FIELDS_FNAME)
-
-    @property
-    def base_dir(self):
-        return self._base_dir
-
-    def __eq__(self, other):
-        return (super(LocalNodeMixin, self).__eq__(other) and
-                self.base_dir == other.base_dir)
-
-
-class LocalSource(RepositorySource, LocalNodeMixin):
-
-    input_spec = RepositorySourceInputSpec
-
-    def __init__(self, study_name, datasets, fields, base_dir):
-        self._base_dir = base_dir
-        super(LocalSource, self).__init__(study_name, datasets, fields)
-
-    def _list_outputs(self):
-        # Directory that holds session-specific
-        outputs = {}
-        # Source datasets
-        for dataset in self.datasets:
-            outputs[dataset.name + PATH_SUFFIX] = dataset.path(
-                subject_id=self.inputs.subject_id,
-                visit_id=self.inputs.visit_id)
-        # Source fields from JSON file
-        for freq, spec_grp in groupby(
-            sorted(self.fields, key=attrgetter('frequency')),
-                key=attrgetter('frequency')):
-            # Load fields JSON, locking to prevent read/write conflicts
-            # Would be better if only checked if locked to allow
-            # concurrent reads but not possible with multi-process
-            # locks (in my understanding at least).
-            fpath = self.fields_path(freq)
-            try:
-                with InterProcessLock(
-                    fpath + LOCK,
-                        logger=logger), open(fpath, 'r') as f:
-                    fields = json.load(f)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    fields = {}
-                else:
-                    raise
-            for field in spec_grp:
-                outputs[field.name + FIELD_SUFFIX] = field.dtype(
-                    fields[self.prefix_study_name(field.name,
-                                                  field.is_spec)])
-        return outputs
-
-
-class LocalSinkMixin(LocalNodeMixin):
-
-    __metaclass = ABCMeta
-
-    def __init__(self, study_name, datasets, fields, base_dir):
-        self._base_dir = base_dir
-        super(LocalSinkMixin, self).__init__(study_name, datasets,
-                                             fields)
-        LocalNodeMixin.__init__(self)
-
-    def _list_outputs(self):
-        """Execute this module.
-        """
-        # Initiate outputs
-        outputs = self._base_outputs()
-        out_files = []
-        missing_files = []
-        # Get output dir from base RepositorySink class (will change depending on
-        # whether it is per session/subject/visit/project)
-        out_path = self._get_output_path()
-        out_dir = os.path.abspath(os.path.join(*out_path))
-        # Make session dir
-        if not os.path.exists(out_dir):
-            os.makedirs(out_dir, stat.S_IRWXU | stat.S_IRWXG)
-        # Loop through datasets connected to the sink and copy them to repository
-        # directory
-        for spec in self.datasets:
-            assert spec.derived, (
-                "Should only be sinking derived datasets, not '{}'"
-                .format(spec.name))
-            filename = getattr(self.inputs, spec.name + PATH_SUFFIX)
-            ext = spec.format.extension
-            if not isdefined(filename):
-                missing_files.append(spec.name)
-                continue  # skip the upload for this file
-            if lower(split_extension(filename)[1]) != lower(ext):
-                raise ArcanaError(
-                    "Mismatching extension '{}' for format '{}' ('{}')"
-                    .format(split_extension(filename)[1],
-                            spec.format, ext))
-            assert spec.frequency == self.frequency
-            # Copy to local system
-            src_path = os.path.abspath(filename)
-            out_fname = spec.fname()
-            dst_path = os.path.join(out_dir, out_fname)
-            out_files.append(dst_path)
-            if os.path.isfile(src_path):
-                shutil.copyfile(src_path, dst_path)
-            elif os.path.isdir(src_path):
-                shutil.copytree(src_path, dst_path)
-            else:
-                assert False
-        if missing_files:
-            # FIXME: Not sure if this should be an exception or not,
-            #        indicates a problem but stopping now would throw
-            #        away the datasets that were created
-            logger.warning(
-                "Missing input datasets '{}' in LocalSink".format(
-                    "', '".join(missing_files)))
-        # Return cache file paths
-        outputs['out_files'] = out_files
-        # Loop through fields connected to the sink and save them in the
-        # fields JSON file
-        out_fields = []
-        fpath = self.fields_path(self.frequency)
-        # Open fields JSON, locking to prevent other processes
-        # reading or writing
-        if self.fields:
-            with InterProcessLock(fpath + LOCK, logger=logger):
-                try:
-                    with open(fpath, 'rb') as f:
-                        fields = json.load(f)
-                except IOError as e:
-                    if e.errno == errno.ENOENT:
-                        fields = {}
-                    else:
-                        raise
-                # Update fields JSON and write back to file.
-                for spec in self.fields:
-                    value = getattr(self.inputs,
-                                    spec.name + FIELD_SUFFIX)
-                    qual_name = self.prefix_study_name(spec.name)
-                    if spec.dtype is str:
-                        if not isinstance(value, basestring):
-                            raise ArcanaError(
-                                "Provided value for field '{}' ({}) "
-                                "does not match string datatype"
-                                .format(spec.name, value))
-                    else:
-                        if not isinstance(value, spec.dtype):
-                            raise ArcanaError(
-                                "Provided value for field '{}' ({}) "
-                                "does not match datatype {}"
-                                .format(spec.name, value, spec.dtype))
-                    fields[qual_name] = value
-                    out_fields.append((qual_name, value))
-                with open(fpath, 'w', **JSON_ENCODING) as f:
-                    json.dump(fields, f)
-        outputs['out_fields'] = out_fields
-        return outputs
-
-    @abstractmethod
-    def _get_output_path(self):
-        "Get the output path to save the generated datasets into"
-
-
-class LocalSink(LocalSinkMixin, RepositorySink):
-
-    input_spec = RepositorySinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, self.inputs.subject_id,
-            self.inputs.visit_id]
-
-
-class LocalSubjectSink(LocalSinkMixin, RepositorySubjectSink):
-
-    input_spec = RepositorySubjectSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, self.inputs.subject_id, SUMMARY_NAME]
-
-
-class LocalVisitSink(LocalSinkMixin, RepositoryVisitSink):
-
-    input_spec = RepositoryVisitSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, SUMMARY_NAME, self.inputs.visit_id]
-
-
-class LocalProjectSink(LocalSinkMixin, RepositoryProjectSink):
-
-    input_spec = RepositoryProjectSinkInputSpec
-
-    def _get_output_path(self):
-        return [
-            self.base_dir, SUMMARY_NAME, SUMMARY_NAME]
-
-
 class LocalRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
@@ -275,18 +44,13 @@ class LocalRepository(BaseRepository):
     """
 
     type = 'local'
-    Source = LocalSource
-    Sink = LocalSink
-    SubjectSink = LocalSubjectSink
-    VisitSink = LocalVisitSink
-    ProjectSink = LocalProjectSink
 
     def __init__(self, base_dir):
-        if not os.path.exists(base_dir):
+        if not op.exists(base_dir):
             raise ArcanaError(
                 "Base directory for LocalRepository '{}' does not exist"
                 .format(base_dir))
-        self._base_dir = os.path.abspath(base_dir)
+        self._base_dir = op.abspath(base_dir)
 
     def __repr__(self):
         return "{}(base_dir='{}')".format(type(self).__name__,
@@ -298,20 +62,95 @@ class LocalRepository(BaseRepository):
         except AttributeError:
             return False
 
-    def source(self, *args, **kwargs):
-        source = super(LocalRepository, self).source(
-            *args, base_dir=self.base_dir, **kwargs)
-        return source
+    @property
+    def base_dir(self):
+        return self._base_dir
 
-    def sink(self, *args, **kwargs):
-        sink = super(LocalRepository, self).sink(
-            *args, base_dir=self.base_dir, **kwargs)
-        return sink
+    def get_dataset(self, dataset):
+        """
+        Set the path of the dataset from the repository
+        """
+        # Don't need to cache dataset as it is already local as long
+        # as the path is set
+        if dataset._path is None:
+            path = op.join(self.session_dir(dataset), dataset.fname())
+            if not op.exists(path):
+                raise ArcanaMissingDataException(
+                    "{} does not exist in the local repository {}"
+                    .format(dataset, self))
+        else:
+            path = dataset.path
+        return path
 
-    def login(self):
-        return NoContextWrapper(None)
+    @abstractmethod
+    def get_field(self, field):
+        """
+        Update the value of the field from the repository
+        """
+        # Load fields JSON, locking to prevent read/write conflicts
+        # Would be better if only checked if locked to allow
+        # concurrent reads but not possible with multi-process
+        # locks (in my understanding at least).
+        fpath = self.fields_json_path(field)
+        try:
+            with InterProcessLock(fpath + LOCK,
+                                  logger=logger), open(fpath, 'r') as f:
+                dct = json.load(f)
+            return field.dtype(dct[field.basename()])
+        except (KeyError, IOError) as e:
+            try:
+                # Check to see if the IOError wasn't just because of a
+                # missing file
+                if e.errno != errno.ENOENT:
+                    raise
+            except AttributeError:
+                pass
+            raise ArcanaMissingDataException(
+                "{} does not exist in the local repository {}"
+                .foramt(field, self))
 
-    def get_tree(self, subject_ids=None, visit_ids=None):
+    def put_dataset(self, dataset):
+        """
+        Inserts or updates a dataset in the repository
+        """
+        # Make session dir
+        sess_dir = self.session_dir(dataset)
+        if not op.exists(sess_dir):
+            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
+        target_path = op.join(self.session_dir(dataset),
+                              dataset.name + dataset.format.extension)
+        if op.isfile(dataset.path):
+            shutil.copyfile(dataset.path, target_path)
+        elif op.isdir(dataset.path):
+            shutil.copytree(dataset.path, target_path)
+        else:
+            assert False
+
+    def put_field(self, field):
+        """
+        Inserts or updates a field in the repository
+        """
+        # Make session dir
+        sess_dir = self.session_dir(field)
+        if not op.exists(sess_dir):
+            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
+        fpath = self.fields_json_path(field)
+        # Open fields JSON, locking to prevent other processes
+        # reading or writing
+        with InterProcessLock(fpath + LOCK, logger=logger):
+            try:
+                with open(fpath, 'r') as f:
+                    dct = json.load(f)
+            except IOError as e:
+                if e.errno == errno.ENOENT:
+                    dct = {}
+                else:
+                    raise
+            dct[field.name] = field.value
+            with open(fpath, 'w') as f:
+                json.dump(dct, f)
+
+    def tree(self, subject_ids=None, visit_ids=None):
         """
         Return subject and session information for a project in the local
         repository
@@ -337,8 +176,8 @@ class LocalRepository(BaseRepository):
         for session_path, dirs, files in os.walk(self.base_dir):
             dnames = [d for d in chain(dirs, files)
                       if not d.startswith('.')]
-            relpath = os.path.relpath(session_path, self.base_dir)
-            path_parts = relpath.split(os.path.sep)
+            relpath = op.relpath(session_path, self.base_dir)
+            path_parts = relpath.split(op.sep)
             depth = len(path_parts)
             if depth > 2:
                 continue
@@ -370,21 +209,24 @@ class LocalRepository(BaseRepository):
                 frequency = 'per_session'
                 all_visit_ids.add(visit_id)
             datasets = []
-            fields = {}
+            fields = []
             for dname in sorted(dnames):
                 if dname.startswith(FIELDS_FNAME):
                     continue
                 datasets.append(
                     Dataset.from_path(
-                        os.path.join(session_path, dname),
+                        op.join(session_path, dname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self))
             if FIELDS_FNAME in dnames:
-                fields = self.fields_from_json(os.path.join(
-                    session_path, FIELDS_FNAME),
-                    frequency=frequency,
-                    subject_id=subj_id, visit_id=visit_id)
+                with open(op.join(session_path,
+                                  FIELDS_FNAME), 'r') as f:
+                    dct = json.load(f)
+                fields = [Field(name=k, value=v, frequency=frequency,
+                                subject_id=subj_id, visit_id=visit_id,
+                                repository=self)
+                          for k, v in list(dct.items())]
             datasets = sorted(datasets)
             fields = sorted(fields)
             if frequency == 'per_session':
@@ -422,60 +264,23 @@ class LocalRepository(BaseRepository):
         return Project(sorted(subjects), sorted(visits), datasets,
                        fields)
 
-    @classmethod
-    def _check_only_dirs(cls, dirs, path):
-        if any(not os.path.isdir(os.path.join(path, d))
-               for d in dirs):
-            raise ArcanaError(
-                "Files found in local repository directory '{}' "
-                "('{}') instead of sub-directories".format(
-                    path, "', '".join(dirs)))
+    def session_dir(self, item):
+        if item.frequency == 'per_project':
+            data_dir = op.join(
+                self.base_dir, SUMMARY_NAME, SUMMARY_NAME)
+        elif item.frequency.startswith('per_subject'):
+            data_dir = op.join(
+                self.base_dir, str(item.subject_id), SUMMARY_NAME)
+        elif item.frequency.startswith('per_visit'):
+            data_dir = op.join(
+                self.base_dir, SUMMARY_NAME, str(item.visit_id))
+        elif item.frequency.startswith('per_session'):
+            data_dir = op.join(
+                self.base_dir, str(item.subject_id), str(item.visit_id))
+        else:
+            assert False, "Unrecognised frequency '{}'".format(
+                item.frequency)
+        return data_dir
 
-    def all_session_ids(self, project_id):
-        project = self.project(project_id)
-        return chain(*[
-            (s.id for s in subj.sessions) for subj in project.subjects])
-
-    def cache(self, dataset):
-        # Don't need to cache dataset as it is already local
-        if dataset._path is None:
-            if dataset.frequency == 'per_session':
-                sess_path = os.path.join(
-                    self.base_dir, dataset.subject_id, dataset.visit_id)
-            elif dataset.frequency == 'per_subject':
-                sess_path = self.subject_summary_path(dataset.subject_id)
-            elif dataset.frequency == 'per_visit':
-                sess_path = self.visit_summary_path(dataset.visit_id)
-            elif dataset.frequency == 'per_project':
-                sess_path = self.project_summary_path()
-            else:
-                assert False
-            path = os.path.join(sess_path, dataset.fname())
-            if not os.path.exists(path):
-                raise ArcanaMissingDataException(
-                    "Dataset {} does not exist in the local repository"
-                    " {}".format(dataset, self))
-            dataset.path = path
-        return dataset.path
-
-    @property
-    def base_dir(self):
-        return self._base_dir
-
-    def subject_summary_path(self, subject_id):
-        return os.path.join(self.base_dir, subject_id, SUMMARY_NAME)
-
-    def visit_summary_path(self, visit_id):
-        return os.path.join(self.base_dir, SUMMARY_NAME, visit_id)
-
-    def project_summary_path(self):
-        return os.path.join(self.base_dir, SUMMARY_NAME, SUMMARY_NAME)
-
-    def fields_from_json(self, fname, frequency,
-                         subject_id=None, visit_id=None):
-        with open(fname, 'r') as f:
-            dct = json.load(f)
-        return [Field(name=k, value=v, frequency=frequency,
-                      subject_id=subject_id, visit_id=visit_id,
-                      repository=self)
-                for k, v in list(dct.items())]
+    def fields_json_path(self, field):
+        return op.join(self.session_dir(field), FIELDS_FNAME)

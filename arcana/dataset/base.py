@@ -57,7 +57,7 @@ class BidsAttrs(object):
         return self._description
 
 
-class BaseDatum(with_metaclass(ABCMeta, object)):
+class BaseDatasetOrField(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
                             'per_project')
@@ -124,7 +124,7 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
                 'frequency': self.frequency}
 
 
-class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
+class BaseDataset(with_metaclass(ABCMeta, BaseDatasetOrField)):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a derived dataset.
@@ -184,7 +184,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         return self.basename(**kwargs) + self.format.ext_str
 
 
-class BaseField(with_metaclass(ABCMeta, BaseDatum)):
+class BaseField(with_metaclass(ABCMeta, BaseDatasetOrField)):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived value.
