@@ -1,3 +1,4 @@
+from contextlib import ExitStack
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
@@ -27,12 +28,13 @@ class BaseRepositoryInterface(BaseInterface):
 
     def __init__(self, collections):
         super(BaseRepositoryInterface, self).__init__()
-        self._repositories = set(c.repository for c in collections
+        collections = list(collections)  # Protect against iterators
+        self.repositories = set(c.repository for c in collections
                                  if c.repository is not None)
-        self._dataset_collections = [c for c in collections
-                                     if isinstance(c, BaseDataset)]
-        self._field_collections = [c for c in collections
-                                   if isinstance(c, BaseField)]
+        self.dataset_collections = [c for c in collections
+                                    if isinstance(c, BaseDataset)]
+        self.field_collections = [c for c in collections
+                                  if isinstance(c, BaseField)]
 
     def __eq__(self, other):
         try:
@@ -104,16 +106,22 @@ class RepositorySource(BaseRepositoryInterface):
     def _list_outputs(self):
         # Directory that holds session-specific
         outputs = {}
+        subject_id = (self.inputs.subject_id
+                      if isdefined(self.inputs.subject_id) else None)
+        visit_id = (self.inputs.visit_id
+                    if isdefined(self.inputs.visit_id) else None)
+        outputs['subject_id'] = self.inputs.subject_id
+        outputs['visit_id'] = self.inputs.visit_id
         # Source datasets
-        with self._repositories:
+        with ExitStack() as stack:
+            for repository in self.repositories:
+                stack.enter_context(repository)
             for dataset_collection in self.dataset_collections:
-                dataset = dataset_collection.item(self.inputs.subject_id,
-                                                  self.inputs.visit_id)
+                dataset = dataset_collection.item(subject_id, visit_id)
                 dataset.get()
                 outputs[dataset.name + PATH_SUFFIX] = dataset.path
             for field_collection in self.field_collections:
-                field = field_collection.item(self.inputs.subject_id,
-                                              self.inputs.visit_id)
+                field = field_collection.item(subject_id, visit_id)
                 field.get()
                 outputs[field.name + FIELD_SUFFIX] = field.value
         return outputs
@@ -121,10 +129,8 @@ class RepositorySource(BaseRepositoryInterface):
 
 class RepositorySinkSpec(DynamicTraitedSpec):
 
-    subject_id = traits.Str(None, usedefault=True,
-                            desc="The subject ID"),
-    visit_id = traits.Str(None, usedefault=True,
-                          desc="The session or derived group ID")
+    subject_id = traits.Str(desc="The subject ID"),
+    visit_id = traits.Str(desc="The session or derived group ID")
 
 
 class RepositorySinkOutputSpec(RepositorySinkSpec):
@@ -159,24 +165,30 @@ class RepositorySink(BaseRepositoryInterface):
         # Connect iterables (i.e. subject_id and visit_id)
         outputs['subject_id'] = self.inputs.subject_id
         outputs['visit_id'] = self.inputs.visit_id
+        subject_id = (self.inputs.subject_id
+                      if isdefined(self.inputs.subject_id) else None)
+        visit_id = (self.inputs.visit_id
+                    if isdefined(self.inputs.visit_id) else None)
         out_files = []
         out_fields = []
         missing_inputs = []
-        with self._repositories:  # Open connections to all required repos
-            for dataset_collection in self.datasets:
+        with ExitStack() as stack:
+            for repository in self.repositories:
+                stack.enter_context(repository)
+            for dataset_collection in self.dataset_collections:
                 dataset = dataset_collection.item(
-                    self.inputs.subject_id,
-                    self.inputs.visit_id)
+                    subject_id,
+                    visit_id)
                 path = getattr(self.inputs, dataset.name + PATH_SUFFIX)
                 if not isdefined(path):
                     missing_inputs.append(dataset.name)
                     continue  # skip the upload for this file
                 dataset.path = path
                 dataset.put()
-            for field_collection in self.fields:
+            for field_collection in self.field_collections:
                 field = field_collection.item(
-                    self.inputs.subject_id,
-                    self.inputs.visit_id)
+                    subject_id,
+                    visit_id)
                 value = getattr(self.inputs, field.name + FIELD_SUFFIX)
                 if not isdefined(value):
                     missing_inputs.append(field.name)

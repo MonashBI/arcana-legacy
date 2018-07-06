@@ -40,6 +40,7 @@ class LocalRepository(BaseRepository):
     type = 'local'
 
     def __init__(self, base_dir):
+        super(LocalRepository, self).__init__()
         if not op.exists(base_dir):
             raise ArcanaError(
                 "Base directory for LocalRepository '{}' does not exist"
@@ -55,6 +56,9 @@ class LocalRepository(BaseRepository):
             return self.base_dir == other.base_dir
         except AttributeError:
             return False
+
+    def __hash__(self):
+        return hash(self.base_dir)
 
     @property
     def base_dir(self):
@@ -76,7 +80,6 @@ class LocalRepository(BaseRepository):
             path = dataset.path
         return path
 
-    @abstractmethod
     def get_field(self, field):
         """
         Update the value of the field from the repository
@@ -90,7 +93,7 @@ class LocalRepository(BaseRepository):
             with InterProcessLock(fpath + LOCK,
                                   logger=logger), open(fpath, 'r') as f:
                 dct = json.load(f)
-            return field.dtype(dct[field.basename()])
+            return field.dtype(dct[field.name])
         except (KeyError, IOError) as e:
             try:
                 # Check to see if the IOError wasn't just because of a

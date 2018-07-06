@@ -140,6 +140,14 @@ class Project(TreeNode):
                 hash(tuple(self._visits)))
 
     @property
+    def subject_id(self):
+        return None
+
+    @property
+    def visit_id(self):
+        return None
+
+    @property
     def subjects(self):
         return iter(self._subjects.values())
 
@@ -246,6 +254,14 @@ class Subject(TreeNode):
     def id(self):
         return self._id
 
+    @property
+    def subject_id(self):
+        return self.id
+
+    @property
+    def visit_id(self):
+        return None
+
     def __lt__(self, other):
         return self._id < other._id
 
@@ -328,6 +344,14 @@ class Visit(TreeNode):
     @property
     def id(self):
         return self._id
+
+    @property
+    def subject_id(self):
+        return None
+
+    @property
+    def visit_id(self):
+        return self.id
 
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and

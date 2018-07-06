@@ -16,6 +16,7 @@ class BaseCollection(object):
 
     def __init__(self, collection, frequency):
         self._frequency = frequency
+        self._repository = self._common_attr(collection, 'repository')
         if frequency == 'per_project':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
@@ -56,6 +57,10 @@ class BaseCollection(object):
                            for c in self._collection.values()))
         else:
             return iter(self._collection.values())
+
+    @property
+    def repository(self):
+        return self._repository
 
     @classmethod
     def _common_attr(self, collection, attr_name):
@@ -123,6 +128,9 @@ class DatasetCollection(BaseCollection, BaseDataset):
 
     def __init__(self, name, collection):
         collection = list(collection)
+        if not collection:
+            raise ArcanaError(
+                "DatasetCollection '{}' cannot be empty".format(name))
         frequency = self._common_attr(collection, 'frequency')
         BaseCollection.__init__(self, collection, frequency)
         BaseDataset.__init__(
@@ -150,6 +158,9 @@ class FieldCollection(BaseCollection, BaseField):
 
     def __init__(self, name, collection):
         collection = list(collection)
+        if not collection:
+            raise ArcanaError(
+                "FieldCollection '{}' cannot be empty".format(name))
         frequency = self._common_attr(collection, 'frequency')
         BaseCollection.__init__(self, collection, frequency)
         BaseField.__init__(

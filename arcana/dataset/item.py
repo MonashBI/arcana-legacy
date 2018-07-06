@@ -355,31 +355,40 @@ class Field(BaseItem, BaseField):
         Name of the Arcana study that that generated the field
     """
 
-    def __init__(self, name, value, frequency='per_session',
+    def __init__(self, name, value=None, dtype=None,
+                 frequency='per_session',
                  derived=False, subject_id=None, visit_id=None,
                  repository=None, study_name=None):
-        if isinstance(value, int):
-            dtype = int
-        elif isinstance(value, float):
-            dtype = float
-        elif isinstance(value, basestring):
-            # Attempt to implicitly convert from string
-            try:
-                value = int(value)
+        if dtype is None:
+            if value is None:
+                raise ArcanaUsageError(
+                    "Either 'value' or 'dtype' must be provided to "
+                    "Field init")
+            if isinstance(value, int):
                 dtype = int
-            except ValueError:
+            elif isinstance(value, float):
+                dtype = float
+            elif isinstance(value, basestring):
+                # Attempt to implicitly convert from string
                 try:
-                    value = float(value)
-                    dtype = float
+                    value = int(value)
+                    dtype = int
                 except ValueError:
-                    dtype = str
+                    try:
+                        value = float(value)
+                        dtype = float
+                    except ValueError:
+                        dtype = str
+            else:
+                raise ArcanaUsageError(
+                    "Unrecognised field dtype {} (can be int, float or"
+                    " str)".format(value))
         else:
-            raise ArcanaError(
-                "Unrecognised field dtype {} (can be int, float or str)"
-                .format(value))
+            if value is not None:
+                value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency)
         BaseItem.__init__(self, derived, subject_id,
-                                visit_id, repository, study_name)
+                          visit_id, repository, study_name)
         self._value = value
 
     def __eq__(self, other):
@@ -425,8 +434,12 @@ class Field(BaseItem, BaseField):
     def value(self):
         return self._value
 
+    @value.setter
+    def value(self, value):
+        self._value = self.dtype(value)
+
     def initkwargs(self):
-        dct = BaseDataset.initkwargs(self)
+        dct = BaseField.initkwargs(self)
         dct.update(BaseItem.initkwargs(self))
         dct['value'] = self.value
         return dct

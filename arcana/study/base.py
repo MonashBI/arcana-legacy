@@ -10,7 +10,7 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
-    BaseDatasetOrField, BaseMatch, BaseDataset, BaseField, DatasetSpec)
+    BaseData, BaseMatch, BaseDataset, BaseField, DatasetSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, Switch
 from arcana.interfaces.iterators import (
@@ -268,7 +268,7 @@ class Study(object):
     @property
     def tree(self):
         if self._tree_cache is None:
-            self._tree_cache = self.repository.get_tree(
+            self._tree_cache = self.repository.tree(
                 subject_ids=self._subject_ids,
                 visit_ids=self._visit_ids)
         return self._tree_cache
@@ -560,10 +560,10 @@ class Study(object):
 
         Parameters
         ----------
-        name : Str | BaseDatasetOrField | Parameter
+        name : Str | BaseData | Parameter
             An parameter, dataset or field or name of one
         """
-        if isinstance(name, (BaseDatasetOrField, Parameter)):
+        if isinstance(name, (BaseData, Parameter)):
             name = name.name
         try:
             spec = self._inputs[name]
@@ -603,7 +603,7 @@ class Study(object):
         name : Str
             Name of the dataset_spec to return
         """
-        if isinstance(name, BaseDatasetOrField):
+        if isinstance(name, BaseData):
             name = name.name
         try:
             return cls._data_specs[name]

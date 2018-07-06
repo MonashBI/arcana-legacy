@@ -59,7 +59,7 @@ class BaseSpec(object):
                     "{} does not have a method named '{}' required to "
                     "derive {}".format(study, self.pipeline_name,
                                        self))
-            self._bind_tree(study.stree)
+            bound._bind_tree(study.tree)
         return bound
 
     @property
@@ -120,10 +120,6 @@ class BaseSpec(object):
                 ArcanaMissingDataException):
             return False
         return True
-
-    @property
-    def prefixed_name(self):
-        return self.study.prefix + self.name
 
     @property
     def pipeline_name(self):
@@ -188,20 +184,9 @@ class BaseSpec(object):
                 "{} is not bound to a study".format(self))
         return self._study
 
-    def apply_prefix(self, prefix):
-        """
-        Duplicate the dataset and provide a prefix to apply to the filename
-        """
-        duplicate = copy(self)
-        duplicate._prefix = prefix
-        return duplicate
-
     @property
     def desc(self):
         return self._desc
-
-    def basename(self, **kwargs):  # @UnusedVariable
-        return self.prefixed_name
 
     def _tree_node(self, subject_id=None, visit_id=None):
         if self.frequency == 'per_session':
@@ -288,11 +273,11 @@ class DatasetSpec(BaseDataset, BaseSpec):
 
     def _bind_node(self, node, **kwargs):
         try:
-            dataset = node.dataset(self.basename())
+            dataset = node.dataset(self.name)
         except ArcanaNameError:
             # For files that have been generated since the start of the
             # analysis
-            dataset = Dataset(self.basename(), format=self.format,
+            dataset = Dataset(self.name, format=self.format,
                               frequency=self.frequency, path=None,
                               subject_id=node.subject_id,
                               visit_id=node.visit_id,
@@ -357,14 +342,14 @@ class FieldSpec(BaseField, BaseSpec):
 
     def _bind_node(self, node, **kwargs):
         try:
-            field = node.field(self.basename())
+            field = node.field(self.name)
         except ArcanaNameError:
             # For files that have been generated since the start of the
             # analysis
-            field = Field(self.basename(), dtype=self.type,
-                            frequency=self.frequency,
-                            subject_id=node.subject_id,
-                            visit_id=node.visit_id,
-                            repository=self.study.repository,
-                            derived=True, study_name=self.study.name)
+            field = Field(self.name, dtype=self.dtype,
+                          frequency=self.frequency,
+                          subject_id=node.subject_id,
+                          visit_id=node.visit_id,
+                          repository=self.study.repository,
+                          derived=True, study_name=self.study.name)
         return field

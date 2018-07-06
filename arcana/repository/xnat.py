@@ -67,6 +67,7 @@ class XnatRepository(BaseRepository):
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30):
+        super(XnatRepository, self).__init__()
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
@@ -81,6 +82,13 @@ class XnatRepository(BaseRepository):
         self._race_cond_delay = race_cond_delay
         self._check_md5 = check_md5
 
+    def __hash__(self):
+        return (hash(self.server) ^
+                hash(self.project_id) ^
+                hash(self.cache_dir) ^
+                hash(self._race_cond_delay) ^
+                hash(self._check_md5))
+
     def __repr__(self):
         return ("{}(server={}, project_id={}, cache_dir={})"
                 .format(type(self).__name__,
@@ -91,7 +99,10 @@ class XnatRepository(BaseRepository):
         try:
             return (self.server == other.server and
                     self._cache_dir == other._cache_dir and
-                    self.project_id == other.project_id)
+                    self.project_id == other.project_id and
+                    self.cache_dir == other.cache_dir and
+                    self._race_cond_delay == other._race_cond_delay and
+                    self._check_md5 == other._check_md5)
         except AttributeError:
             return False  # For comparison with other types
 
@@ -234,7 +245,7 @@ class XnatRepository(BaseRepository):
                 json.dump(digests, f)
             # Upload to XNAT
             xdataset = self._login.classes.MrScanData(
-                type=dataset.basename(), parent=xsession)
+                type=dataset.name, parent=xsession)
             # Delete existing resource
             # TODO: probably should have check to see if we want to
             #       override it

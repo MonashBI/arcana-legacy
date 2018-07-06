@@ -11,7 +11,7 @@ from future.types import newstr
 logger = getLogger('Arcana')
 
 
-class BaseDatasetOrField(with_metaclass(ABCMeta, object)):
+class BaseData(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
                             'per_project')
@@ -78,7 +78,7 @@ class BaseDatasetOrField(with_metaclass(ABCMeta, object)):
                 'frequency': self.frequency}
 
 
-class BaseDataset(with_metaclass(ABCMeta, BaseDatasetOrField)):
+class BaseDataset(with_metaclass(ABCMeta, BaseData)):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a derived dataset.
@@ -135,7 +135,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatasetOrField)):
         return dct
 
 
-class BaseField(with_metaclass(ABCMeta, BaseDatasetOrField)):
+class BaseField(with_metaclass(ABCMeta, BaseData)):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived value.
