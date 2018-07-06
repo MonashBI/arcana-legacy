@@ -246,7 +246,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
         with self.study.repository:
             super(DatasetMatch, self)._bind_tree(tree, **kwargs)
 
-    def _filtered_matches(self, node, repository_login=None):
+    def _filtered_matches(self, node):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -276,8 +276,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
             filtered = []
             for dataset in matches:
                 values = dataset.dicom_values(
-                    list(self.dicom_tags.keys()),
-                    repository_login=repository_login)
+                    list(self.dicom_tags.keys()))
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:

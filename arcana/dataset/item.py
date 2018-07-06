@@ -277,7 +277,7 @@ class Dataset(BaseItem, BaseDataset):
             dcm = pydicom.dcmread(f)
         return dcm
 
-    def dicom_values(self, tags, repository_login=None):
+    def dicom_values(self, tags):
         """
         Returns a dictionary with the DICOM header fields corresponding
         to the given tag names
@@ -298,8 +298,7 @@ class Dataset(BaseItem, BaseDataset):
         try:
             if (self._path is None and self._repository is not None and
                     hasattr(self.repository, 'dicom_header')):
-                hdr = self.repository.dicom_header(
-                    self, prev_login=repository_login)
+                hdr = self.repository.dicom_header(self)
                 dct = {t: hdr[t] for t in tags}
             else:
                 # Get the DICOM object for the first file in the dataset

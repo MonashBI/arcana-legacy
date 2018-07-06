@@ -517,21 +517,7 @@ class Study(object):
         all_data = []
         for name in names:
             spec = self.spec(name)
-            if isinstance(spec, BaseMatch):
-                data = spec.matches
-            else:
-                if isinstance(spec, BaseDataset):
-                    data = chain(*(
-                        (d for d in n.datasets
-                         if d.name == spec.prefixed_name)
-                        for n in self.tree.nodes(spec.frequency)))
-                elif isinstance(spec, BaseField):
-                    data = chain(*(
-                        (f for f in n.fields
-                         if f.name == spec.prefixed_name)
-                        for n in self.tree.nodes(spec.frequency)))
-                else:
-                    assert False
+            data = spec.collection
             if subject_ids is not None and spec.frequency in (
                     'per_session', 'per_subject'):
                 data = [d for d in data if d.subject_id in subject_ids]
@@ -711,7 +697,7 @@ class Study(object):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.repository.source(self.inputs, study_name='cache')
+        source = self.repository.source(self.inputs)
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')

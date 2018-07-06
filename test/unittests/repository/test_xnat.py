@@ -230,7 +230,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                           cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
         local_repository = LocalRepository(self.project_dir)
-        project = local_repository.get_tree()
+        project = local_repository.tree()
         self._create_project()
         repo = XnatRepository(SERVER, self.project, '/tmp')
         with xnat.connect(SERVER) as xnat_login:
@@ -259,7 +259,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                         xsession.fields[field.name] = field.value
                 if subject.datasets or subject.fields:
                     xsubj_summary = xnat_login.classes.MrSessionData(
-                        label=repo.get_labels(
+                        label=repo._get_labels(
                             'per_subject', subject_id=subject.id)[1],
                         parent=xsubject)
                     for dataset in subject.datasets:
@@ -270,7 +270,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             for visit in project.visits:
                 if visit.datasets or visit.fields:
                     (summ_subj_name,
-                     summ_sess_name) = repo.get_labels(
+                     summ_sess_name) = repo._get_labels(
                         'per_visit', visit_id=visit.id)
                     xvisit_summary = xnat_login.classes.MrSessionData(
                         label=summ_sess_name,
@@ -283,7 +283,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                         xvisit_summary.fields[field.name] = field.value
             if project.datasets or project.fields:
                 (summ_subj_name,
-                 summ_sess_name) = repo.get_labels('per_project')
+                 summ_sess_name) = repo._get_labels('per_project')
                 xproj_summary = xnat_login.classes.MrSessionData(
                     label=summ_sess_name,
                     parent=xnat_login.classes.SubjectData(
@@ -476,8 +476,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
         inputnode.inputs.visit_id = str(self.VISIT)
-        source = repository.source(source_files,
-                                   study_name=self.STUDY_NAME)
+        source = repository.source(source_files)
         sink = repository.sink(sink_files,
                                study_name=self.STUDY_NAME)
         sink.inputs.name = 'repository-roundtrip-unittest'
@@ -502,9 +501,9 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(ls_with_md5_filter(self.session_cache()),
                          ['source1.txt', 'source2.txt',
                           'source3.txt', 'source4.txt'])
-        expected_sink_datasets = [self.STUDY_NAME + '_sink1',
-                                  self.STUDY_NAME + '_sink3',
-                                  self.STUDY_NAME + '_sink4']
+        expected_sink_datasets = ['sink1',
+                                  'sink3',
+                                  'sink4']
         self.assertEqual(
             ls_with_md5_filter(self.proc_session_cache()),
             [d + text_format.extension
@@ -526,8 +525,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         fields = [study.spec('field{}'.format(i)) for i in range(1, 4)]
         sink = repository.sink(
             outputs=fields,
-            name='fields_sink',
-            study_name='test')
+            name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
         sink.inputs.field3_field = field3 = str('3')
@@ -570,8 +568,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = repository.source([study.input(DATASET_NAME)],
-                                   name='delayed_source',
-                                   study_name='delayed_study')
+                                   name='delayed_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         result1 = source.run()
@@ -650,8 +647,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = repository.source([study.input(DATASET_NAME)],
-                                   name='digest_check_source',
-                                   study_name=STUDY_NAME)
+                                   name='digest_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
@@ -976,7 +972,7 @@ class TestDatasetCacheOnPathAccess(TestOnXnatMixin,
         repository = XnatRepository(
             project_id=self.project,
             server=SERVER, cache_dir=tmp_dir)
-        tree = repository.get_tree(
+        tree = repository.tree(
             subject_ids=[self.SUBJECT],
             visit_ids=[self.VISIT])
         # Get a dataset
@@ -1062,7 +1058,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                                       visit_id))
                 for inpt in study.inputs:
                     self.assertTrue(os.path.exists(os.path.join(
-                        sess_dir, inpt.fname))
+                        sess_dir, inpt.fname)))
 
     @property
     def base_name(self):
@@ -1070,13 +1066,13 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
 
 
 class TestProjectInfo(TestMultiSubjectOnXnatMixin,
-                      test_local.TestProjectInfo):
+                      test_local.TestLocalProjectInfo):
 
-    BASE_CLASS = test_local.TestProjectInfo
+    BASE_CLASS = test_local.TestLocalProjectInfo
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
-        tree = self.repository.get_tree()
+        tree = self.repository.tree()
         ref_tree = self.get_tree(self.repository, set_ids=True)
         self.assertEqual(
             tree, ref_tree,

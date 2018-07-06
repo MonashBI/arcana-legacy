@@ -168,7 +168,7 @@ class BaseTestCase(TestCase):
 
     @property
     def repository_tree(self):
-        return self.repository.get_tree()
+        return self.repository.tree()
 
     @property
     def xnat_session_name(self):

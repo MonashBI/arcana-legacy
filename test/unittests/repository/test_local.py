@@ -9,6 +9,7 @@ from arcana.dataset import (  # @IgnorePep8
 from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
+from arcana.testing import BaseTestCase  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -33,6 +34,18 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('resink3', text_format, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
+        pass
+
+
+class TestLocalRepository(BaseTestCase):
+
+    STUDY_NAME = 'local_repo'
+    INPUT_DATASETS = {'source1': '1',
+                      'source2': '2',
+                      'source3': '3',
+                      'source4': '4'}
+
+    def test_get_dataset(self):
         pass
 
 

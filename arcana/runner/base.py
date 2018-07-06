@@ -440,15 +440,15 @@ class BaseRunner(object):
             elif output.frequency == 'per_subject':
                 sessions_to_process.update(chain(*(
                     filter_sessions(s.sessions) for s in subjects
-                    if output.prefixed_name not in s.data_names)))
+                    if output.name not in s.data_names)))
             elif output.frequency == 'per_visit':
                 sessions_to_process.update(chain(*(
                     filter_sessions(v.sessions) for v in visits
-                    if (output.prefixed_name not in v.data_names))))
+                    if (output.name not in v.data_names))))
             elif output.frequency == 'per_session':
                 sessions_to_process.update(filter_sessions(
                     s for s in all_sessions
-                    if output.prefixed_name not in s.all_data_names))
+                    if output.name not in s.all_data_names))
             else:
                 assert False, ("Unrecognised frequency of {}"
                                .format(output))
