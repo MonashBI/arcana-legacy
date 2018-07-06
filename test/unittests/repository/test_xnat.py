@@ -477,8 +477,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         inputnode.inputs.subject_id = str(self.SUBJECT)
         inputnode.inputs.visit_id = str(self.VISIT)
         source = repository.source(source_files)
-        sink = repository.sink(sink_files,
-                               study_name=self.STUDY_NAME)
+        sink = repository.sink(sink_files)
         sink.inputs.name = 'repository-roundtrip-unittest'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -744,8 +743,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             study.spec('subject_sink')]
         subject_sink = repository.sink(
             subject_sink_files,
-            frequency='per_subject',
-            study_name=self.SUMMARY_STUDY_NAME)
+            frequency='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
