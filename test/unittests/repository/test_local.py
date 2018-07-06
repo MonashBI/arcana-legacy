@@ -1,28 +1,14 @@
 from future import standard_library
 standard_library.install_aliases()
 import os  # @IgnorePep8
-from unittest import TestCase  # @IgnorePep8
-import tempfile  # @IgnorePep8
 import os.path as op  # @IgnorePep8
-import shutil  # @IgnorePep8
-from nipype.pipeline import engine as pe  # @IgnorePep8
-from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.repository.local import (  # @IgnorePep8
-    LocalSource, LocalRepository, FIELDS_FNAME)  # @IgnorePep8
 from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.runner import LinearRunner  # @IgnorePep8
 from arcana.dataset import (  # @IgnorePep8
-    DatasetMatch, Dataset, DatasetSpec, Field, FieldSpec)  # @IgnorePep8
-from arcana.utils import PATH_SUFFIX  # @IgnorePep8
-from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
+    Dataset, DatasetSpec, Field)  # @IgnorePep8
+from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
-from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-if PY2:
-    import pickle as pkl  # @UnusedImport
-else:
-    import pickle as pkl  # @Reimport
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -50,7 +36,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         pass
 
 
-class TestProjectInfo(BaseMultiSubjectTestCase):
+class TestLocalProjectInfo(BaseMultiSubjectTestCase):
     """
     This unittest tests out that extracting the existing scans and
     fields in a project returned in a Project object.
@@ -217,32 +203,8 @@ class TestProjectInfo(BaseMultiSubjectTestCase):
              'w').close()
         open(op.join(op.join(self.project_dir, a_subj_dir,
                                        '.DS_Store')), 'w').close()
-        tree = self.repository.get_tree()
+        tree = self.repository.tree()
         self.assertEqual(
             tree, self.local_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(self.local_tree)))
-
-
-class TestLocalInterfacePickle(TestCase):
-
-    datasets = [DatasetSpec('a', text_format)]
-    fields = [FieldSpec('b', int)]
-
-    def setUp(self):
-        self.tmp_dir = tempfile.mkdtemp()
-        self.pkl_dir = tempfile.mkdtemp()
-
-    def tearDown(self):
-        shutil.rmtree(self.tmp_dir)
-        shutil.rmtree(self.pkl_dir)
-
-    def test_source(self):
-        source = LocalSource('a_study', self.datasets, self.fields,
-                             base_dir=self.tmp_dir)
-        fname = op.join(self.pkl_dir, 'source.pkl')
-        with open(fname, 'wb') as f:
-            pkl.dump(source, f)
-        with open(fname, 'rb') as f:
-            re_source = pkl.load(f)
-        self.assertEqual(source, re_source)

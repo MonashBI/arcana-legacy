@@ -178,6 +178,11 @@ class BaseTestCase(TestCase):
     def session_dir(self):
         return self.get_session_dir(self.SUBJECT, self.VISIT)
 
+    def derived_session_dir(self, study_name=None):
+        if study_name is None:
+            study_name = self.STUDY_NAME
+        return op.join(self.session_dir, study_name)
+
     @property
     def session(self):
         return self.repository_tree.subject(
@@ -385,7 +390,7 @@ class BaseTestCase(TestCase):
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
     def get_session_dir(self, subject=None, visit=None,
-                        frequency='per_session'):
+                        frequency='per_session', study_name=None):
         if subject is None and frequency in ('per_session', 'per_subject'):
             subject = self.SUBJECT
         if visit is None and frequency in ('per_session', 'per_visit'):
@@ -409,6 +414,8 @@ class BaseTestCase(TestCase):
             path = op.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
         else:
             assert False
+        if study_name is not None:
+            path = op.join(path, study_name)
         return op.abspath(path)
 
     @classmethod

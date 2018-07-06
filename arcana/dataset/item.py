@@ -194,7 +194,7 @@ class Dataset(BaseItem, BaseDataset):
     def path(self):
         if self._path is None:
             if self.repository is not None:
-                self._path = self.repository.cache(self)
+                self._path = self.repository.get_dataset(self)
             else:
                 raise ArcanaError(
                     "Neither path nor repository has been set for Dataset "

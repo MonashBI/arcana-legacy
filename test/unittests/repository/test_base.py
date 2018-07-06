@@ -3,7 +3,6 @@ standard_library.install_aliases()
 import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.repository.local import LocalRepository  # @IgnorePep8
 from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
 from arcana.runner import LinearRunner  # @IgnorePep8
 from arcana.dataset import (  # @IgnorePep8
@@ -91,12 +90,11 @@ class TestSinkAndSource(BaseTestCase):
         workflow.run()
         # Check local directory was created properly
         outputs = [
-            f for f in sorted(os.listdir(self.session_dir))
+            f for f in sorted(os.listdir(
+                self.get_session_dir(study_name=self.STUDY_NAME)))
             if f != FIELDS_FNAME]
         self.assertEqual(outputs,
-                         ['sink1.txt', 'sink3.txt', 'sink4.txt',
-                          'source1.txt', 'source2.txt',
-                          'source3.txt', 'source4.txt'])
+                         ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
@@ -190,15 +188,21 @@ class TestSinkAndSource(BaseTestCase):
             project_sink, 'project_sink' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
-        subject_dir = self.get_session_dir(frequency='per_subject')
+        subject_dir = self.get_session_dir(
+            frequency='per_subject',
+            study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_subject_sink.txt'])
-        visit_dir = self.get_session_dir(frequency='per_visit')
+                         ['subject_sink.txt'])
+        visit_dir = self.get_session_dir(
+            frequency='per_visit',
+            study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_visit_sink.txt'])
-        project_dir = self.get_session_dir(frequency='per_project')
+                         ['visit_sink.txt'])
+        project_dir = self.get_session_dir(
+            frequency='per_project',
+            study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [self.SUMMARY_STUDY_NAME + '_project_sink.txt'])
+                         ['project_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'visit_id']),
@@ -208,12 +212,10 @@ class TestSinkAndSource(BaseTestCase):
         reloadsource = self.repository.source(
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
-            name='reload_source',
-            study_name=self.SUMMARY_STUDY_NAME)
+            name='reload_source')
         reloadsink = self.repository.sink(
             [study.spec(n)
-             for n in ('resink1', 'resink2', 'resink3')],
-            study_name=self.SUMMARY_STUDY_NAME)
+             for n in ('resink1', 'resink2', 'resink3')])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary datasets")
@@ -241,11 +243,10 @@ class TestSinkAndSource(BaseTestCase):
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         outputs = [
-            f for f in sorted(os.listdir(self.session_dir))
+            f for f in sorted(os.listdir(
+                self.get_session_dir(study_name=self.SUMMARY_STUDY_NAME)))
             if f != FIELDS_FNAME]
         self.assertEqual(outputs,
-                         [self.SUMMARY_STUDY_NAME + '_resink1.txt',
-                          self.SUMMARY_STUDY_NAME + '_resink2.txt',
-                          self.SUMMARY_STUDY_NAME + '_resink3.txt',
-                          'source1.txt', 'source2.txt',
-                          'source3.txt', 'source4.txt'])
+                         ['resink1.txt',
+                          'resink2.txt',
+                          'resink3.txt'])

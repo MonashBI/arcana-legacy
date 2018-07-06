@@ -1,5 +1,4 @@
 from builtins import str
-from abc import abstractmethod
 import os
 import os.path as op
 from collections import defaultdict
@@ -263,21 +262,23 @@ class LocalRepository(BaseRepository):
 
     def session_dir(self, item):
         if item.frequency == 'per_project':
-            data_dir = op.join(
+            sess_dir = op.join(
                 self.base_dir, SUMMARY_NAME, SUMMARY_NAME)
         elif item.frequency.startswith('per_subject'):
-            data_dir = op.join(
+            sess_dir = op.join(
                 self.base_dir, str(item.subject_id), SUMMARY_NAME)
         elif item.frequency.startswith('per_visit'):
-            data_dir = op.join(
+            sess_dir = op.join(
                 self.base_dir, SUMMARY_NAME, str(item.visit_id))
         elif item.frequency.startswith('per_session'):
-            data_dir = op.join(
+            sess_dir = op.join(
                 self.base_dir, str(item.subject_id), str(item.visit_id))
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
-        return data_dir
+        if item.study_name is not None:
+            sess_dir = op.join(sess_dir, item.study_name)
+        return sess_dir
 
     def fields_json_path(self, field):
         return op.join(self.session_dir(field), FIELDS_FNAME)
