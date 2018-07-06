@@ -27,7 +27,8 @@ setup(
                       'pydicom>=1.0.2',
                       'networkx==1.9',
                       'fasteners>=0.7.0',
-                      'future>=0.16.0'],
+                      'future>=0.16.0',
+                      'pybids>=0.5.1'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",
