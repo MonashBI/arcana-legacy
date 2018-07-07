@@ -113,8 +113,7 @@ class LocalRepository(BaseRepository):
         sess_dir = self.session_dir(dataset)
         if not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-        target_path = op.join(self.session_dir(dataset),
-                              dataset.name + dataset.format.extension)
+        target_path = op.join(self.session_dir(dataset), dataset.fname)
         if op.isfile(dataset.path):
             shutil.copyfile(dataset.path, target_path)
         elif op.isdir(dataset.path):

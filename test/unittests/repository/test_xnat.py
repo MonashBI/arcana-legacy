@@ -1049,7 +1049,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                                       visit_id))
                 for inpt in study.inputs:
                     self.assertTrue(os.path.exists(os.path.join(
-                        sess_dir, inpt.fname)))
+                        sess_dir, inpt.name + input.format.extension)))
 
     @property
     def base_name(self):
@@ -1069,3 +1069,32 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(ref_tree)))
+
+
+class TestConnectDisconnect(TestCase):
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_connect_disconnect(self):
+        repository = XnatRepository(project_id='dummy',
+                                    server=SERVER,
+                                    cache_dir=tempfile.mkdtemp())
+        with repository:
+            self._test_open(repository)
+        self._test_closed(repository)
+
+        with repository:
+            self._test_open(repository)
+            with repository:
+                self._test_open(repository)
+            self._test_open(repository)
+        self._test_closed(repository)
+
+    def _test_open(self, repository):
+        repository._login.classes  # check connection
+
+    def _test_closed(self, repository):
+        self.assertRaises(
+            AttributeError,
+            getattr,
+            repository._login,
+            'classes')

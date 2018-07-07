@@ -139,6 +139,9 @@ class RepositorySinkOutputSpec(RepositorySinkSpec):
 
     out_fields = traits.List(
         traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
+    project_id = traits.Str(
+        desc=("No longer required except to be used to ensure that the "
+              "report nodes are run after the sink nodes"))
 
 
 class RepositorySink(BaseRepositoryInterface):

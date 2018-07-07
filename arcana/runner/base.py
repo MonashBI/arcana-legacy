@@ -386,7 +386,10 @@ class BaseRunner(object):
             workflow.connect(visit_output_summary, 'sessions',
                              output_summary, 'visits')
         elif freq == 'per_project':
-            workflow.connect(sink, 'project_id', output_summary, 'project')
+            # Only required to ensure that the report is run after the
+            # sink
+            workflow.connect(sink, 'project_id', output_summary,
+                             'project')
 
     def _sessions_to_process(self, pipeline, subject_ids=None,
                              visit_ids=None, reprocess=False):
@@ -432,7 +435,7 @@ class BaseRunner(object):
             # If there is a project output then all subjects and sessions need
             # to be reprocessed
             if output.frequency == 'per_project':
-                if output.prefixed_name not in tree.data_names:
+                if output.name not in tree.data_names:
                     # Return all filtered sessions
                     return all_sessions
             elif output.frequency == 'per_subject':

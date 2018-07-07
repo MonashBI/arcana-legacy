@@ -81,6 +81,7 @@ class XnatRepository(BaseRepository):
         self._password = password
         self._race_cond_delay = race_cond_delay
         self._check_md5 = check_md5
+        self._login = None
 
     def __hash__(self):
         return (hash(self.server) ^
@@ -137,6 +138,7 @@ class XnatRepository(BaseRepository):
 
     def disconnect(self):
         self._login.disconnect()
+        self._login = None
 
     def get_dataset(self, dataset):
         """
@@ -259,7 +261,7 @@ class XnatRepository(BaseRepository):
             val = oldstr(val)
         with self:
             xsession = self._get_xsession(field)
-            xsession.fields[field.prefixed_name] = val
+            xsession.fields[field.name] = val
 
     def tree(self, subject_ids=None, visit_ids=None):
         """

@@ -461,7 +461,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
-        tree = self.repository.get_tree()
+        tree = self.repository.tree()
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
