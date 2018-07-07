@@ -2,7 +2,7 @@ from builtins import zip
 from builtins import object
 from itertools import chain
 from collections import OrderedDict
-from arcana.exception import ArcanaNameError
+from arcana.exception import ArcanaNameError, ArcanaUsageError
 
 
 class TreeNode(object):
@@ -128,6 +128,9 @@ class Project(TreeNode):
         TreeNode.__init__(self, datasets, fields)
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
+        if not self._subjects or not self._visits:
+            raise ArcanaUsageError(
+                "Cannot create empty tree")
 
     def __eq__(self, other):
         return (super(Project, self).__eq__(other) and

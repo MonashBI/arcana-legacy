@@ -19,14 +19,12 @@ import arcana
 from arcana.dataset import Dataset
 from arcana.utils import classproperty
 from arcana.repository.local import (
-    LocalRepository, SUMMARY_NAME)
+    LocalRepository)
 from arcana.runner import LinearRunner
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException)
-from arcana.repository.local import (
-    SUMMARY_NAME as LOCAL_SUMMARY_NAME, FIELDS_FNAME)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
 
@@ -148,7 +146,8 @@ class BaseTestCase(TestCase):
                     "be either a Dataset or basestring object"
                     .format(dataset, self))
         if fields is not None:
-            with open(op.join(session_dir, FIELDS_FNAME), 'w',
+            with open(op.join(session_dir,
+                              LocalRepository.FIELDS_FNAME), 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fields, f)
 
@@ -286,17 +285,10 @@ class BaseTestCase(TestCase):
             inputs=inputs,
             **kwargs)
 
-    def assertDatasetCreated(self, dataset_name, study_name, subject=None,
-                             visit=None, frequency='per_session'):
-        output_dir = self.get_session_dir(subject, visit, frequency)
-        out_path = self.output_file_path(
-            dataset_name, study_name, subject, visit, frequency)
+    def assertDatasetCreated(self, dataset):
         self.assertTrue(
-            op.exists(out_path),
-            ("Dataset '{}' (expected at '{}') was not created by unittest"
-             " ('{}' found in '{}' instead)".format(
-                 dataset_name, out_path, "', '".join(os.listdir(output_dir)),
-                 output_dir)))
+            op.exists(dataset.path),
+            ("{} was not created by unittest".format(dataset)))
 
     def assertContentsEqual(self, dataset, reference, context=None):
         with open(dataset.path) as f:
@@ -318,7 +310,8 @@ class BaseTestCase(TestCase):
         esc_name = study_name + '_' + name
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
-            with open(op.join(output_dir, FIELDS_FNAME)) as f:
+            with open(op.join(output_dir,
+                              LocalRepository.FIELDS_FNAME)) as f:
                 fields = json.load(f, 'rb')
         except OSError as e:
             if e.errno == errno.ENOENT:
@@ -403,15 +396,19 @@ class BaseTestCase(TestCase):
             assert subject is not None
             assert visit is None
             path = op.join(
-                self.project_dir, subject, SUMMARY_NAME)
+                self.project_dir, subject,
+                LocalRepository.SUMMARY_NAME)
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
-            path = op.join(self.project_dir, SUMMARY_NAME, visit)
+            path = op.join(self.project_dir,
+                           LocalRepository.SUMMARY_NAME, visit)
         elif frequency == 'per_project':
             assert subject is None
             assert visit is None
-            path = op.join(self.project_dir, SUMMARY_NAME, SUMMARY_NAME)
+            path = op.join(self.project_dir,
+                           LocalRepository.SUMMARY_NAME,
+                           LocalRepository.SUMMARY_NAME)
         else:
             assert False
         if study_name is not None:
@@ -439,7 +436,7 @@ class BaseTestCase(TestCase):
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
-    SUMMARY_NAME = LOCAL_SUMMARY_NAME
+    SUMMARY_NAME = LocalRepository.SUMMARY_NAME
 
     def setUp(self):
         self.reset_dirs()
@@ -448,14 +445,15 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def add_sessions(self, project_dir):
         self.local_tree = deepcopy(self.input_tree)
         if project_dir is not None:  # For local repository
-            proj_summ_path = op.join(project_dir, SUMMARY_NAME,
-                                     SUMMARY_NAME)
+            proj_summ_path = op.join(project_dir, self.SUMMARY_NAME,
+                                     self.SUMMARY_NAME)
             for dataset in self.local_tree.datasets:
                 self.init_dataset(dataset, op.join(proj_summ_path,
                                                    dataset.fname))
             self.init_fields(proj_summ_path, self.local_tree.fields)
             for visit in self.local_tree.visits:
-                visit_summ_path = op.join(project_dir, SUMMARY_NAME,
+                visit_summ_path = op.join(project_dir,
+                                          self.SUMMARY_NAME,
                                           visit.id)
                 for dataset in visit.datasets:
                     self.init_dataset(dataset, op.join(visit_summ_path,
@@ -463,7 +461,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 self.init_fields(visit_summ_path, visit.fields)
             for subject in self.local_tree.subjects:
                 subj_summ_path = op.join(project_dir, subject.id,
-                                         SUMMARY_NAME)
+                                         self.SUMMARY_NAME)
                 for dataset in subject.datasets:
                     self.init_dataset(dataset, op.join(subj_summ_path,
                                                        dataset.fname))
@@ -504,7 +502,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def init_fields(self, dpath, fields):
         self._make_dir(dpath)
         dct = {f.name: f.value for f in fields}
-        with open(op.join(dpath, FIELDS_FNAME), 'w',
+        with open(op.join(dpath, LocalRepository.FIELDS_FNAME), 'w',
                   **JSON_ENCODING) as f:
             json.dump(dct, f)
 

@@ -19,11 +19,6 @@ from arcana.exception import (
 
 logger = logging.getLogger('arcana')
 
-SUMMARY_NAME = 'ALL'
-FIELDS_FNAME = 'fields.json'
-
-LOCK = '.lock'
-
 
 class LocalRepository(BaseRepository):
     """
@@ -37,6 +32,10 @@ class LocalRepository(BaseRepository):
     """
 
     type = 'local'
+    SUMMARY_NAME = '__ALL__'
+    FIELDS_FNAME = 'fields.json'
+    LOCK_SUFFIX = '.lock'
+    DERIVED_LABEL_FNAME = '.derived'
 
     def __init__(self, base_dir):
         super(LocalRepository, self).__init__()
@@ -89,7 +88,7 @@ class LocalRepository(BaseRepository):
         # locks (in my understanding at least).
         fpath = self.fields_json_path(field)
         try:
-            with InterProcessLock(fpath + LOCK,
+            with InterProcessLock(fpath + self.LOCK_SUFFIX,
                                   logger=logger), open(fpath, 'r') as f:
                 dct = json.load(f)
             return field.dtype(dct[field.name])
@@ -109,10 +108,6 @@ class LocalRepository(BaseRepository):
         """
         Inserts or updates a dataset in the repository
         """
-        # Make session dir
-        sess_dir = self.session_dir(dataset)
-        if not op.exists(sess_dir):
-            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
         target_path = op.join(self.session_dir(dataset), dataset.fname)
         if op.isfile(dataset.path):
             shutil.copyfile(dataset.path, target_path)
@@ -125,14 +120,10 @@ class LocalRepository(BaseRepository):
         """
         Inserts or updates a field in the repository
         """
-        # Make session dir
-        sess_dir = self.session_dir(field)
-        if not op.exists(sess_dir):
-            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
         fpath = self.fields_json_path(field)
         # Open fields JSON, locking to prevent other processes
         # reading or writing
-        with InterProcessLock(fpath + LOCK, logger=logger):
+        with InterProcessLock(fpath + self.LOCK_SUFFIX, logger=logger):
             try:
                 with open(fpath, 'r') as f:
                     dct = json.load(f)
@@ -174,8 +165,15 @@ class LocalRepository(BaseRepository):
             relpath = op.relpath(session_path, self.base_dir)
             path_parts = relpath.split(op.sep)
             depth = len(path_parts)
-            if depth > 2:
+            if depth > 3:
                 continue
+            if depth == 3:
+                if self.DERIVED_LABEL_FNAME in files:
+                    study_name = path_parts.pop()
+                else:
+                    continue  # Dataset directory
+            else:
+                study_name = None
             if depth < 2:
                 if any(not f.startswith('.') for f in files):
                     raise ArcanaBadlyFormattedLocalRepositoryError(
@@ -185,8 +183,8 @@ class LocalRepository(BaseRepository):
                             ('subject' if depth else 'project')))
                 continue  # Not a session directory
             subj_id, visit_id = path_parts
-            subj_id = subj_id if subj_id != SUMMARY_NAME else None
-            visit_id = visit_id if visit_id != SUMMARY_NAME else None
+            subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
+            visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
             if (subject_ids is not None and subj_id is not None and
                     subj_id not in subject_ids):
                 continue
@@ -206,21 +204,22 @@ class LocalRepository(BaseRepository):
             datasets = []
             fields = []
             for dname in sorted(dnames):
-                if dname.startswith(FIELDS_FNAME):
+                if dname.startswith(self.FIELDS_FNAME):
                     continue
                 datasets.append(
                     Dataset.from_path(
                         op.join(session_path, dname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
-                        repository=self))
-            if FIELDS_FNAME in dnames:
+                        repository=self,
+                        study_name=study_name))
+            if self.FIELDS_FNAME in dnames:
                 with open(op.join(session_path,
-                                  FIELDS_FNAME), 'r') as f:
+                                  self.FIELDS_FNAME), 'r') as f:
                     dct = json.load(f)
                 fields = [Field(name=k, value=v, frequency=frequency,
                                 subject_id=subj_id, visit_id=visit_id,
-                                repository=self)
+                                repository=self, study_name=study_name)
                           for k, v in list(dct.items())]
             datasets = sorted(datasets)
             fields = sorted(fields)
@@ -261,23 +260,34 @@ class LocalRepository(BaseRepository):
 
     def session_dir(self, item):
         if item.frequency == 'per_project':
-            sess_dir = op.join(
-                self.base_dir, SUMMARY_NAME, SUMMARY_NAME)
+            acq_dir = op.join(
+                self.base_dir, self.SUMMARY_NAME, self.SUMMARY_NAME)
         elif item.frequency.startswith('per_subject'):
-            sess_dir = op.join(
-                self.base_dir, str(item.subject_id), SUMMARY_NAME)
+            acq_dir = op.join(
+                self.base_dir, str(item.subject_id), self.SUMMARY_NAME)
         elif item.frequency.startswith('per_visit'):
-            sess_dir = op.join(
-                self.base_dir, SUMMARY_NAME, str(item.visit_id))
+            acq_dir = op.join(
+                self.base_dir, self.SUMMARY_NAME, str(item.visit_id))
         elif item.frequency.startswith('per_session'):
-            sess_dir = op.join(
+            acq_dir = op.join(
                 self.base_dir, str(item.subject_id), str(item.visit_id))
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
-        if item.study_name is not None:
-            sess_dir = op.join(sess_dir, item.study_name)
+        if item.study_name is None:
+            sess_dir = acq_dir
+        else:
+            # Append study-name to path (i.e. make a sub-directory to
+            # hold derived products)
+            sess_dir = op.join(acq_dir, item.study_name)
+        # Make session dir if required
+        if not op.exists(sess_dir):
+            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
+            # write breadcrumb file t
+            if item.study_name is not None:
+                open(op.join(sess_dir,
+                             self.DERIVED_LABEL_FNAME), 'w').close()
         return sess_dir
 
     def fields_json_path(self, field):
-        return op.join(self.session_dir(field), FIELDS_FNAME)
+        return op.join(self.session_dir(field), self.FIELDS_FNAME)

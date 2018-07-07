@@ -311,15 +311,12 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
-        list(study.data('derived4'))[0]
+        self.assertDatasetCreated(study.data('derived4'))
         for dataset in ExampleStudy.data_specs():
             if dataset.frequency == 'per_session' and dataset.derived:
                 for subject_id in self.SUBJECT_IDS:
                     for visit_id in self.VISIT_IDS:
-                        self.assertDatasetCreated(
-                            dataset.name + dataset.format.extension,
-                            study.name, subject=subject_id,
-                            visit=visit_id)
+                        self.assertDatasetCreated(dataset)
 
     def test_subject_summary(self):
         study = self.make_study()
@@ -609,9 +606,8 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        list(regen.data('ss2_out_dataset'))[0]
-        self.assertDatasetCreated('ss2_out_dataset.txt',
-                                  'multi_gen_cls')
+        ss2_out = list(regen.data('ss2_out_dataset'))[0]
+        self.assertDatasetCreated(ss2_out)
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
