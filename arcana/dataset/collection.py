@@ -58,6 +58,9 @@ class BaseCollection(object):
         else:
             return iter(self._collection.values())
 
+    def __len__(self):
+        return len(self._collection)
+
     @property
     def repository(self):
         return self._repository

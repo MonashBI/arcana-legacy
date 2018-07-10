@@ -12,7 +12,7 @@ from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
 from arcana.dataset import DatasetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.repository.local import FIELDS_FNAME  # @IgnorePep8
+from arcana.repository.local import LocalRepository  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -92,7 +92,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(study_name=self.STUDY_NAME)))
-            if f != FIELDS_FNAME]
+            if f != LocalRepository.FIELDS_FNAME]
         self.assertEqual(outputs,
                          ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 

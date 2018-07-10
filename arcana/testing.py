@@ -24,9 +24,10 @@ from arcana.runner import LinearRunner
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
-    ArcanaModulesNotInstalledException)
+    ArcanaModulesNotInstalledException, ArcanaUsageError)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
+from arcana.dataset import DatasetCollection
 
 logger = logging.getLogger('arcana')
 logger.setLevel(logging.INFO)
@@ -290,14 +291,38 @@ class BaseTestCase(TestCase):
             op.exists(dataset.path),
             ("{} was not created by unittest".format(dataset)))
 
-    def assertContentsEqual(self, dataset, reference, context=None):
-        with open(dataset.path) as f:
-            contents = f.read()
-        msg = ("Contents of {} ({}) do not match reference ({})"
-               .format(dataset, contents, reference))
-        if context is not None:
-            msg += 'for ' + context
-        self.assertEqual(contents, str(reference), msg)
+    def assertContentsEqual(self, collection, reference, context=None):
+        if isinstance(reference, (basestring, int, float)):
+            if len(collection) != 1:
+                raise ArcanaUsageError(
+                    "Multi-subject/visit collections cannot be compared"
+                    " against a single contents string (list or dict "
+                    "should be provided)")
+            references = [str(reference)]
+            datasets = list(collection)
+        elif isinstance(reference, dict):
+            references = []
+            datasets = []
+            for subj_id, subj_dct in references.items():
+                for visit_id, ref_value in subj_dct.items():
+                    references.append(ref_value)
+                    datasets.append(collection.item(subject_id=subj_id,
+                                                    visit_id=visit_id))
+        elif isinstance(reference, (list, tuple)):
+            references = reference
+            datasets = list(collection)
+        else:
+            raise ArcanaUsageError(
+                "Unrecognised format for reference ({})"
+                .format(reference))
+        for dataset, ref in zip(datasets, references):
+            with open(dataset.path) as f:
+                contents = f.read()
+            msg = ("Contents of {} ({}) do not match reference ({})"
+                   .format(dataset, contents, ref))
+            if context is not None:
+                msg += 'for ' + context
+            self.assertEqual(contents, ref, msg)
 
     def assertCreated(self, dataset):
         self.assertTrue(
