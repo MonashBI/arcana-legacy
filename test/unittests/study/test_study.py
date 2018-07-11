@@ -311,17 +311,13 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
-        self.assertDatasetCreated(study.data('derived4'))
-        for dataset in ExampleStudy.data_specs():
-            if dataset.frequency == 'per_session' and dataset.derived:
-                for subject_id in self.SUBJECT_IDS:
-                    for visit_id in self.VISIT_IDS:
-                        self.assertDatasetCreated(dataset)
+        self.assertContentsEqual(study.data('derived4'),
+                                 [2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
 
     def test_subject_summary(self):
         study = self.make_study()
         summaries = study.data('subject_summary')
-        ref = str(float(len(self.VISIT_IDS)))
+        ref = float(len(self.VISIT_IDS))
         for dataset in summaries:
             self.assertContentsEqual(dataset, ref,
                                      str(dataset.visit_id))
@@ -329,17 +325,15 @@ class TestStudy(BaseMultiSubjectTestCase):
     def test_visit_summary(self):
         study = self.make_study()
         summaries = study.data('visit_summary')
-        ref = str(float(len(self.SUBJECT_IDS)))
+        ref = float(len(self.SUBJECT_IDS))
         for dataset in summaries:
             self.assertContentsEqual(dataset, ref,
                                      str(dataset.visit_id))
 
     def test_project_summary(self):
         study = self.make_study()
-        study.data('project_summary')
-        summary = list(study.data('project_summary'))[0]
-        ref = str(float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS)))
-        self.assertContentsEqual(summary, ref)
+        ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
+        self.assertContentsEqual(study.data('project_summary'), ref)
 
     def test_subject_ids_access(self):
         study = self.make_study()
@@ -448,6 +442,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME, inputs=[
                 DatasetMatch('one', text_format, 'one')])
+        tree = self.repository.tree()
         study.data('thousand')
         targets = {
             'subject1': {
@@ -585,8 +580,7 @@ class TestGeneratedPickle(BaseTestCase):
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        list(regen.data('out_dataset'))[0]
-        self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
+        self.assertContentsEqual(regen.data('out_dataset'), 'foo')
 
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
@@ -606,8 +600,7 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        ss2_out = list(regen.data('ss2_out_dataset'))[0]
-        self.assertDatasetCreated(ss2_out)
+        self.assertContentsEqual(regen.data('ss2_out_dataset'), 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {

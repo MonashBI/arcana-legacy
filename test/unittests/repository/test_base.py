@@ -92,9 +92,10 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(study_name=self.STUDY_NAME)))
-            if f != LocalRepository.FIELDS_FNAME]
+            if not (f == LocalRepository.FIELDS_FNAME)]
         self.assertEqual(outputs,
-                         ['sink1.txt', 'sink3.txt', 'sink4.txt'])
+                         ['.derived', 'sink1.txt', 'sink3.txt',
+                          'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
@@ -192,17 +193,17 @@ class TestSinkAndSource(BaseTestCase):
             frequency='per_subject',
             study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         ['subject_sink.txt'])
+                         ['.derived', 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
             study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         ['visit_sink.txt'])
+                         ['.derived', 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_project',
             study_name=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         ['project_sink.txt'])
+                         ['.derived', 'project_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
                                                      'visit_id']),
@@ -245,8 +246,9 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(study_name=self.SUMMARY_STUDY_NAME)))
-            if f != FIELDS_FNAME]
+            if f != LocalRepository.FIELDS_FNAME]
         self.assertEqual(outputs,
-                         ['resink1.txt',
+                         ['.derived',
+                          'resink1.txt',
                           'resink2.txt',
                           'resink3.txt'])

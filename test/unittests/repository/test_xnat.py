@@ -148,17 +148,21 @@ class CreateXnatProjectMixin(object):
 
 class TestOnXnatMixin(CreateXnatProjectMixin):
 
-    def session_label(self, project=None, subject=None, visit=None):
+    def session_label(self, project=None, subject=None, visit=None,
+                      study_name=None):
         if project is None:
             project = self.project
         if subject is None:
             subject = self.SUBJECT
         if visit is None:
             visit = self.VISIT
-        return '_'.join((project, subject, visit))
+        label = '_'.join((project, subject, visit))
+        if study_name is not None:
+            label += '_' + study_name
+        return label
 
     def session_cache(self, base_dir=None, project=None, subject=None,
-                      visit=None):
+                      visit=None, study_name=None):
         if base_dir is None:
             base_dir = self.cache_dir
         if project is None:
@@ -168,11 +172,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         return os.path.join(
             base_dir, project, '{}_{}'.format(project, subject),
             self.session_label(project=project, subject=subject,
-                               visit=visit))
-
-    def proc_session_cache(self, *args, **kwargs):
-        return self.session_cache(
-            *args, **kwargs) + XnatRepository.PROCESSED_SUFFIX
+                               visit=visit, study_name=study_name))
 
     def setUp(self):
         BaseTestCase.setUp(self)
@@ -504,7 +504,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                   'sink3',
                                   'sink4']
         self.assertEqual(
-            ls_with_md5_filter(self.proc_session_cache()),
+            ls_with_md5_filter(self.session_cache(
+                study_name=self.STUDY_NAME)),
             [d + text_format.extension
              for d in expected_sink_datasets])
         with self._connect() as login:
@@ -695,10 +696,9 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
                       text_format.extension)
         sink_target_path = os.path.join(
-            (self.session_cache(
+            self.session_cache(
                 cache_dir, project=self.digest_sink_project,
-                subject=(self.SUBJECT)) +
-             XnatRepository.PROCESSED_SUFFIX),
+                subject=(self.SUBJECT), study_name=STUDY_NAME),
             sink_fpath)
         sink_md5_path = sink_target_path + XnatRepository.MD5_SUFFIX
         sink.run()
@@ -877,7 +877,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         reloadworkflow.run()
         # Check that the datasets
         self.assertEqual(
-            ls_with_md5_filter(self.proc_session_cache()),
+            ls_with_md5_filter(self.session_cache()),
             [self.SUMMARY_STUDY_NAME + '_resink1.txt',
              self.SUMMARY_STUDY_NAME + '_resink2.txt',
              self.SUMMARY_STUDY_NAME + '_resink3.txt'])
@@ -1049,7 +1049,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                                       visit_id))
                 for inpt in study.inputs:
                     self.assertTrue(os.path.exists(os.path.join(
-                        sess_dir, inpt.name + input.format.extension)))
+                        sess_dir, inpt.name + inpt.format.extension)))
 
     @property
     def base_name(self):

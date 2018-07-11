@@ -164,6 +164,14 @@ class Dataset(BaseItem, BaseDataset):
         else:
             return self.id < other.id
 
+    def __repr__(self):
+        return ("{}(name='{}', format={}, frequency='{}', derived={}, "
+                "subject_id={}, visit_id={}, study_name='{}', "
+                "repository={})".format(
+                    type(self).__name__, self.name, self.format,
+                    self.frequency, self.derived, self.subject_id,
+                    self.visit_id, self.study_name, self.repository))
+
     @property
     def fname(self):
         return self.name + self.format.ext_str
@@ -420,11 +428,12 @@ class Field(BaseItem, BaseField):
         return str(self.value)
 
     def __repr__(self):
-        return ("{}(name='{}', value={}, frequency='{}', derived={},"
-                " subject_id={}, visit_id={}, repository={})".format(
+        return ("{}(name='{}', value={}, frequency='{}', derived={}, "
+                "subject_id={}, visit_id={}, study_name='{}', "
+                "repository={})".format(
                     type(self).__name__, self.name, self.value,
                     self.frequency, self.derived, self.subject_id,
-                    self.visit_id, self.repository))
+                    self.visit_id, self.study_name, self.repository))
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name

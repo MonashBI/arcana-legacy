@@ -113,8 +113,7 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        study.data('twos')
-        self.assertDatasetCreated('twos.txt', study.name)
+        self.assertContentsEqual(study.data('twos'), 1)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")

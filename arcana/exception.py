@@ -37,6 +37,13 @@ class ArcanaNameError(ArcanaError):
         self.name = name
 
 
+class ArcanaIndexError(ArcanaError):
+
+    def __init__(self, index, msg):
+        super(ArcanaIndexError, self).__init__(msg)
+        self.index = index
+
+
 class ArcanaMissingDataException(ArcanaError):
     pass
 

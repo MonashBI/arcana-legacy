@@ -2,6 +2,11 @@ from past.builtins import basestring
 from builtins import object, str
 from itertools import chain
 import sys
+import os
+import os.path as op
+import shutil
+import errno
+import tempfile
 import types
 from logging import getLogger
 from arcana.exception import (
@@ -537,6 +542,36 @@ class Study(object):
                 return data
             all_data.append(data)
         return all_data
+
+    def save_workflow_graph_for(self, spec_name, fname, full=False,
+                                style='flat', **kwargs):
+        """
+        Saves a graph of the workflow to generate the requested spec_name
+
+        Parameters
+        ----------
+        spec_name : str
+            Name of the spec to generate the graph for
+        fname : str
+            The filename for the saved graph
+        style : str
+            The style of the graph, can be one of can be one of
+            'orig', 'flat', 'exec', 'hierarchical'
+        """
+        pipeline = self.spec(spec_name).pipeline
+        if full:
+            workflow = pe.Workflow(name='{}_gen'.format(spec_name),
+                                   base_dir=self.runner.work_dir)
+            self.runner._connect_to_repository(
+                pipeline, workflow, **kwargs)
+        else:
+            workflow = pipeline._workflow
+        fname = op.expanduser(fname)
+        if not fname.endswith('.png'):
+            fname += '.png'
+        dotfilename = fname[:-4] + '.dot'
+        workflow.write_graph(graph2use=style,
+                             dotfilename=dotfilename)
 
     def spec(self, name):
         """

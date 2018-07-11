@@ -204,6 +204,15 @@ class TestMulti(BaseTestCase):
              DatasetMatch('b', text_format, 'ones'),
              DatasetMatch('c', text_format, 'ones')],
             parameters=[Parameter('required_op', 'mul')])
+#         study.save_workflow_graph_for('d',
+#                                       '/Users/tclose/Desktop/d.graph',
+#                                       full=True)
+#         study.save_workflow_graph_for('e',
+#                                       '/Users/tclose/Desktop/e.graph',
+#                                       full=True)
+#         study.save_workflow_graph_for('f',
+#                                       '/Users/tclose/Desktop/f.graph',
+#                                       full=True)
         d, e, f = study.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
@@ -236,10 +245,9 @@ class TestMulti(BaseTestCase):
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
-        ss2_y = list(study.data('ss2_y'))[0]
         ss2_z = list(study.data('ss2_z'))[0]
         self.assertContentsEqual(ss1_z, 2.0)
-        self.assertContentsEqual(ss2_y, 3.0)
+        self.assertContentsEqual(study.data('ss2_y'), 3.0)
         self.assertContentsEqual(ss2_z, 6.0)
         # Test parameter values in MultiStudy
         self.assertEqual(study._get_parameter('p1').value, 1000)
@@ -271,9 +279,8 @@ class TestMulti(BaseTestCase):
              DatasetMatch('partial_b', text_format, 'ones'),
              DatasetMatch('partial_c', text_format, 'ones')],
             parameters=[Parameter('full_required_op', 'mul'),
-                     Parameter('partial_ss2_product_op', 'mul')])
-        g = list(study.data('g'))[0]
-        self.assertContentsEqual(g, 11.0)
+                        Parameter('partial_ss2_product_op', 'mul')])
+        self.assertContentsEqual(study.data('g'), 11.0)
         # Test parameter values in MultiStudy
         self.assertEqual(study._get_parameter('full_p1').value, 100)
         self.assertEqual(study._get_parameter('full_p2').value, '200')

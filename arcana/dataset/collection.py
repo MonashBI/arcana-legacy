@@ -1,4 +1,5 @@
-from arcana.exception import ArcanaError, ArcanaUsageError
+from arcana.exception import (
+    ArcanaError, ArcanaUsageError, ArcanaIndexError)
 from .base import BaseDataset, BaseField
 from .item import Dataset, Field
 from collections import OrderedDict
@@ -59,7 +60,11 @@ class BaseCollection(object):
             return iter(self._collection.values())
 
     def __len__(self):
-        return len(self._collection)
+        if self._frequency == 'per_project':
+            length = 1
+        else:
+            length = len(self._collection)
+        return length
 
     @property
     def repository(self):
@@ -95,21 +100,51 @@ class BaseCollection(object):
                 raise ArcanaError(
                     "The 'subject_id' and 'visit_id' must be provided "
                     "to get the match from {}".format(self))
-            dataset = self._collection[subject_id][visit_id]
+            try:
+                subj_dct = self._collection[subject_id]
+            except KeyError:
+                raise ArcanaIndexError(
+                    subject_id,
+                    "{} not a subject ID in '{}' collection ({})"
+                    .format(subject_id, self.name,
+                            ', '.join(self._collection.keys())))
+            try:
+                dataset = subj_dct[visit_id]
+            except KeyError:
+                raise ArcanaIndexError(
+                    visit_id,
+                    "{} not a visit ID in subject {} of '{}' "
+                    "collection ({})"
+                    .format(visit_id, subject_id, self.name,
+                            ', '.join(subj_dct.keys())))
         elif self.frequency == 'per_subject':
             if subject_id is None:
                 raise ArcanaError(
                     "The 'subject_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
-            dataset = self._collection[subject_id]
+            try:
+                dataset = self._collection[subject_id]
+            except KeyError:
+                raise ArcanaIndexError(
+                    subject_id,
+                    "{} not a subject ID in '{}' collection ({})"
+                    .format(subject_id, self.name,
+                            ', '.join(self._collection.keys())))
         elif self.frequency == 'per_visit':
             if visit_id is None:
                 raise ArcanaError(
                     "The 'visit_id' arg must be provided to get "
                     "the match from {}"
                     .format(self))
-            dataset = self._collection[visit_id]
+            try:
+                dataset = self._collection[visit_id]
+            except KeyError:
+                raise ArcanaIndexError(
+                    visit_id,
+                    "{} not a visit ID in '{}' collection ({})"
+                    .format(visit_id, self.name,
+                            ', '.join(self._collection.keys())))
         elif self.frequency == 'per_project':
             dataset = self._collection
         return dataset

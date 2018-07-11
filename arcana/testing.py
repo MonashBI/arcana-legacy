@@ -292,6 +292,8 @@ class BaseTestCase(TestCase):
             ("{} was not created by unittest".format(dataset)))
 
     def assertContentsEqual(self, collection, reference, context=None):
+        if isinstance(collection, Dataset):
+            collection = [collection]
         if isinstance(reference, (basestring, int, float)):
             if len(collection) != 1:
                 raise ArcanaUsageError(
@@ -305,12 +307,17 @@ class BaseTestCase(TestCase):
             datasets = []
             for subj_id, subj_dct in references.items():
                 for visit_id, ref_value in subj_dct.items():
-                    references.append(ref_value)
+                    references.append(str(ref_value))
                     datasets.append(collection.item(subject_id=subj_id,
                                                     visit_id=visit_id))
         elif isinstance(reference, (list, tuple)):
-            references = reference
+            references = [str(r) for r in reference]
             datasets = list(collection)
+            if len(references) != len(datasets):
+                raise ArcanaUsageError(
+                    "Number of provided references ({}) does not match"
+                    " size of collection ({})".format(len(references),
+                                                      len(datasets)))
         else:
             raise ArcanaUsageError(
                 "Unrecognised format for reference ({})"
@@ -451,8 +458,9 @@ class BaseTestCase(TestCase):
                          frequency='per_session', **kwargs):
         return op.join(
             self.get_session_dir(subject=subject, visit=visit,
-                                 frequency=frequency, **kwargs),
-            '{}_{}'.format(study_name, fname))
+                                 frequency=frequency,
+                                 study_name=study_name, **kwargs),
+            fname)
 
     def ref_file_path(self, fname, subject=None, session=None):
         return op.join(self.session_dir, fname,
@@ -513,9 +521,9 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def session_dir(self, subject, visit):
         return self.get_session_dir(subject, visit)
 
-    def get_session_dir(self, subject, visit, frequency='per_session'):
+    def get_session_dir(self, subject, visit, **kwargs):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
-            subject=subject, visit=visit, frequency=frequency)
+            subject=subject, visit=visit, **kwargs)
 
     def init_dataset(self, dataset, path):
         dataset._path = path
@@ -600,7 +608,7 @@ class TestMathInputSpec(TraitedSpec):
     x = traits.Either(traits.Float(), traits.File(exists=True),
                       traits.List(traits.Float),
                       traits.List(traits.File(exists=True)),
-                      mandatory=True, desc='first arg')
+                      desc='first arg')
     y = traits.Either(traits.Float(), traits.File(exists=True),
                       mandatory=False, desc='second arg')
     op = traits.Str(mandatory=True, desc='operation')
