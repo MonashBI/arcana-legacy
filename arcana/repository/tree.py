@@ -12,8 +12,12 @@ class TreeNode(object):
             datasets = []
         if fields is None:
             fields = []
-        self._datasets = OrderedDict((d.name, d) for d in datasets)
-        self._fields = OrderedDict((f.name, f) for f in fields)
+        # Save datasets and fields in ordered dictionary by name and
+        # name of study that generated them (if applicable)
+        self._datasets = OrderedDict(((d.name, d.study_name), d)
+                                     for d in datasets)
+        self._fields = OrderedDict(((f.name, f.study_name), f)
+                                   for f in fields)
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or
@@ -35,15 +39,15 @@ class TreeNode(object):
 
     @property
     def dataset_names(self):
-        return iter(self._datasets.keys())
+        return (k[0] for k in self._datasets.keys())
 
     @property
     def field_names(self):
-        return iter(self._fields.keys())
+        return (k[0] for k in self._fields.keys())
 
-    def dataset(self, name):
+    def dataset(self, name, study=None):
         try:
-            return self._datasets[name]
+            return self._datasets[(name, study)]
         except KeyError:
             raise ArcanaNameError(
                 name, ("{} doesn't have a dataset named '{}' "
@@ -51,9 +55,9 @@ class TreeNode(object):
                        .format(self, name,
                                "', '".join(self.dataset_names))))
 
-    def field(self, name):
+    def field(self, name, study=None):
         try:
-            return self._fields[name]
+            return self._fields[(name, study)]
         except KeyError:
             raise ArcanaNameError(
                 name, ("{} doesn't have a field named '{}' "
@@ -174,7 +178,28 @@ class Project(TreeNode):
                 id, ("{} doesn't have a visit named '{}'"
                        .format(self, id)))
 
-    def nodes(self, frequency):
+    def __iter__(self):
+        return self.nodes()
+
+    def nodes(self, frequency=None):
+        """
+        Returns an iterator over all nodes in the tree
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to iterate over. If None all
+            frequencies are returned
+        """
+        if frequency is None:
+            nodes = chain(*(self._nodes(f)
+                            for f in ('per_project', 'per_subject',
+                                      'per_visit', 'per_session')))
+        else:
+            nodes = self._nodes(frequency=frequency)
+        return nodes
+
+    def _nodes(self, frequency):
         if frequency == 'per_session':
             nodes = chain(*(s.sessions for s in self.subjects))
         elif frequency == 'per_subject':

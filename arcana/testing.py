@@ -473,40 +473,27 @@ class BaseMultiSubjectTestCase(BaseTestCase):
 
     def setUp(self):
         self.reset_dirs()
-        self.add_sessions(self.project_dir)
+        self.add_sessions()
 
-    def add_sessions(self, project_dir):
+    def add_sessions(self):
         self.local_tree = deepcopy(self.input_tree)
-        if project_dir is not None:  # For local repository
-            proj_summ_path = op.join(project_dir, self.SUMMARY_NAME,
-                                     self.SUMMARY_NAME)
-            for dataset in self.local_tree.datasets:
-                self.init_dataset(dataset, op.join(proj_summ_path,
-                                                   dataset.fname))
-            self.init_fields(proj_summ_path, self.local_tree.fields)
-            for visit in self.local_tree.visits:
-                visit_summ_path = op.join(project_dir,
-                                          self.SUMMARY_NAME,
-                                          visit.id)
-                for dataset in visit.datasets:
-                    self.init_dataset(dataset, op.join(visit_summ_path,
-                                                       dataset.fname))
-                self.init_fields(visit_summ_path, visit.fields)
-            for subject in self.local_tree.subjects:
-                subj_summ_path = op.join(project_dir, subject.id,
-                                         self.SUMMARY_NAME)
-                for dataset in subject.datasets:
-                    self.init_dataset(dataset, op.join(subj_summ_path,
-                                                       dataset.fname))
-                self.init_fields(subj_summ_path, subject.fields)
-                for session in subject.sessions:
-                    sess_path = op.join(project_dir, session.subject_id,
-                                        session.visit_id)
-                    for dataset in session.datasets:
-                        self.init_dataset(
-                            dataset, op.join(sess_path,
-                                             dataset.fname))
-                    self.init_fields(sess_path, session.fields)
+        for node in self.local_tree:
+            for dataset in node.datasets:
+                dataset._repository = self.local_repository
+                dataset._path = op.join(
+                    dataset.repository.session_dir(dataset), dataset.fname)
+                self._make_dir(op.dirname(dataset.path))
+                with open(dataset.path, 'w') as f:
+                    f.write(str(self.DATASET_CONTENTS[dataset.name]))
+            fields = list(node.fields)
+            if fields:
+                dpath = self.local_repository.session_dir(fields[0])
+                self._make_dir(dpath)
+                dct = {f.name: f.value for f in fields}
+                with open(op.join(dpath,
+                                  LocalRepository.FIELDS_FNAME), 'w',
+                          **JSON_ENCODING) as f:
+                    json.dump(dct, f)
 
     @property
     def subject_ids(self):
@@ -524,20 +511,6 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def get_session_dir(self, subject, visit, **kwargs):
         return super(BaseMultiSubjectTestCase, self).get_session_dir(
             subject=subject, visit=visit, **kwargs)
-
-    def init_dataset(self, dataset, path):
-        dataset._path = path
-        dataset._repository = self.repository
-        self._make_dir(op.dirname(dataset.path))
-        with open(dataset.path, 'w') as f:
-            f.write(str(self.DATASET_CONTENTS[dataset.name]))
-
-    def init_fields(self, dpath, fields):
-        self._make_dir(dpath)
-        dct = {f.name: f.value for f in fields}
-        with open(op.join(dpath, LocalRepository.FIELDS_FNAME), 'w',
-                  **JSON_ENCODING) as f:
-            json.dump(dct, f)
 
     def _make_dir(self, path):
         try:

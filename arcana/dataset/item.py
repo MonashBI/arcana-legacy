@@ -162,12 +162,21 @@ class Dataset(BaseItem, BaseDataset):
         elif isinstance(self.id, str) and isinstance(other.id, int):
             return False
         else:
-            return self.id < other.id
+            if self.id == other.id:
+                # If ids are equal order depending on study name
+                # with acquired (study_name==None) coming first
+                if self.study_name is None:
+                    return other.study_name is None
+                elif other.study_name is None:
+                    return False
+                else:
+                    return self.study_name < other.study_name
+            else:
+                return self.id < other.id
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency='{}', derived={}, "
-                "subject_id={}, visit_id={}, study_name='{}', "
-                "repository={})".format(
+                "subject_id={}, visit_id={}, study_name='{}')".format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.derived, self.subject_id,
                     self.visit_id, self.study_name, self.repository))
@@ -427,10 +436,22 @@ class Field(BaseItem, BaseField):
     def __str__(self):
         return str(self.value)
 
+    def __lt__(self, other):
+        if self.name == other.name:
+            # If ids are equal order depending on study name
+            # with acquired (study_name==None) coming first
+            if self.study_name is None:
+                return other.study_name is None
+            elif other.study_name is None:
+                return False
+            else:
+                return self.study_name < other.study_name
+        else:
+            return self.name < other.name
+
     def __repr__(self):
         return ("{}(name='{}', value={}, frequency='{}', derived={}, "
-                "subject_id={}, visit_id={}, study_name='{}', "
-                "repository={})".format(
+                "subject_id={}, visit_id={}, study_name='{}')".format(
                     type(self).__name__, self.name, self.value,
                     self.frequency, self.derived, self.subject_id,
                     self.visit_id, self.study_name, self.repository))

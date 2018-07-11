@@ -156,8 +156,7 @@ class LocalRepository(BaseRepository):
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
-        summaries = defaultdict(dict)
-        all_sessions = defaultdict(dict)
+        all_data = defaultdict(dict)
         all_visit_ids = set()
         for session_path, dirs, files in os.walk(self.base_dir):
             dnames = [d for d in chain(dirs, files)
@@ -167,13 +166,6 @@ class LocalRepository(BaseRepository):
             depth = len(path_parts)
             if depth > 3:
                 continue
-            if depth == 3:
-                if self.DERIVED_LABEL_FNAME in files:
-                    study_name = path_parts.pop()
-                else:
-                    continue  # Dataset directory
-            else:
-                study_name = None
             if depth < 2:
                 if any(not f.startswith('.') for f in files):
                     raise ArcanaBadlyFormattedLocalRepositoryError(
@@ -182,6 +174,13 @@ class LocalRepository(BaseRepository):
                             "', '".join(dnames),
                             ('subject' if depth else 'project')))
                 continue  # Not a session directory
+            if depth == 3:
+                if self.DERIVED_LABEL_FNAME in files:
+                    study_name = path_parts.pop()
+                else:
+                    continue  # Dataset directory
+            else:
+                study_name = None
             subj_id, visit_id = path_parts
             subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
             visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
@@ -201,8 +200,13 @@ class LocalRepository(BaseRepository):
             else:
                 frequency = 'per_session'
                 all_visit_ids.add(visit_id)
-            datasets = []
-            fields = []
+            try:
+                # Retrieve datasets and fields from other study directories
+                # or root acquired directory
+                datasets, fields = all_data[subj_id][visit_id]
+            except KeyError:
+                datasets = []
+                fields = []
             for dname in sorted(dnames):
                 if dname.startswith(self.FIELDS_FNAME):
                     continue
@@ -223,16 +227,21 @@ class LocalRepository(BaseRepository):
                           for k, v in list(dct.items())]
             datasets = sorted(datasets)
             fields = sorted(fields)
-            if frequency == 'per_session':
+            all_data[subj_id][visit_id] = (datasets, fields)
+        all_sessions = defaultdict(dict)
+        for subj_id, subj_data in all_data.items():
+            if subj_id is None:
+                continue  # Create Subject summaries later
+            for visit_id, (datasets, fields) in subj_data.items():
+                if visit_id is None:
+                    continue  # Create Visit summaries later
                 all_sessions[subj_id][visit_id] = Session(
                     subject_id=subj_id, visit_id=visit_id,
                     datasets=datasets, fields=fields)
-            else:
-                summaries[subj_id][visit_id] = (datasets, fields)
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
             try:
-                datasets, fields = summaries[subj_id][None]
+                datasets, fields = all_data[subj_id][None]
             except KeyError:
                 datasets = []
                 fields = []
@@ -244,14 +253,14 @@ class LocalRepository(BaseRepository):
             visit_sessions = list(chain(
                 sess[visit_id] for sess in list(all_sessions.values())))
             try:
-                datasets, fields = summaries[None][visit_id]
+                datasets, fields = all_data[None][visit_id]
             except KeyError:
                 datasets = []
                 fields = []
             visits.append(Visit(visit_id, sorted(visit_sessions),
                                 datasets, fields))
         try:
-            datasets, fields = summaries[None][None]
+            datasets, fields = all_data[None][None]
         except KeyError:
             datasets = []
             fields = []

@@ -412,9 +412,8 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             'visit2': ['one', 'ten'],
             'visit3': ['one', 'ten', 'hundred', 'thousand']}}
 
-    DATASET_CONTENTS = {'one': 1.0, 'study_ten': 10.0,
-                        'study_hundred': 100.0,
-                        'study_thousand': 1000.0}
+    DATASET_CONTENTS = {'one': 1.0, 'ten': 10.0, 'hundred': 100.0,
+                        'thousand': 1000.0}
 
     STUDY_NAME = 'study'
 
@@ -425,10 +424,11 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
             for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(('{}_{}'.format(self.STUDY_NAME, d)
-                             if d != 'one' else d),
-                            text_format, subject_id=subj_id,
-                            visit_id=visit_id) for d in datasets]))
+                    Dataset(d, text_format, subject_id=subj_id,
+                            visit_id=visit_id, study_name=(
+                                (self.STUDY_NAME
+                                 if d != 'one' else None)))
+                    for d in datasets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
@@ -442,7 +442,6 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME, inputs=[
                 DatasetMatch('one', text_format, 'one')])
-        tree = self.repository.tree()
         study.data('thousand')
         targets = {
             'subject1': {
@@ -457,18 +456,17 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
-                try:
-                    dataset = session.dataset('thousand')
-                except ArcanaNameError:
-                    if session.derived is None:
-                        derived_session = session
-                    else:
-                        derived_session = session.derived
-                    dataset = derived_session.dataset(
-                        '{}_thousand'.format(self.STUDY_NAME))
+                dataset = session.dataset('thousand',
+                                          study=self.STUDY_NAME)
                 self.assertContentsEqual(
                     dataset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
+                if subj_id == 'subject1' and visit_id == 'visit3':
+                    self.assertNotIn(
+                        'ten', list(session.dataset_names),
+                        "'ten' should not be generated for "
+                        "subject1:visit3 as hundred and thousand are "
+                        "already present")
 
 
 test1_format = FileFormat('test1', extension='.t1')
