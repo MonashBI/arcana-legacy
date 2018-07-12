@@ -281,7 +281,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     VISIT_IDS = ['VISITID1', 'VISITID2']
-    DATASET_CONTENTS = {'one': '1', 'ten': '10'}
+    DATASET_CONTENTS = {'one_input': '1', 'ten_input': '10'}
 
     @property
     def input_tree(self):
@@ -290,9 +290,10 @@ class TestStudy(BaseMultiSubjectTestCase):
             for visit_id in self.VISIT_IDS:
                 sessions.append(
                     Session(subj_id, visit_id, datasets=[
-                        Dataset('one', text_format,
+                        Dataset('one_input', text_format,
                                 subject_id=subj_id, visit_id=visit_id),
-                        Dataset('ten', text_format, subject_id=subj_id,
+                        Dataset('ten_input', text_format,
+                                subject_id=subj_id,
                                 visit_id=visit_id)]))
         subjects = [Subject(i, sessions=[s for s in sessions
                                           if s.subject_id == i])
@@ -305,8 +306,8 @@ class TestStudy(BaseMultiSubjectTestCase):
     def make_study(self):
         return self.create_study(
             ExampleStudy, 'dummy', inputs=[
-                DatasetMatch('one', text_format, 'one'),
-                DatasetMatch('ten', text_format, 'ten')],
+                DatasetMatch('one', text_format, 'one_input'),
+                DatasetMatch('ten', text_format, 'ten_input')],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):

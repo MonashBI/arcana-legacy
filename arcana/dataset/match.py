@@ -13,11 +13,13 @@ class BaseMatch(object):
     Base class for Dataset and Field Match classes
     """
 
-    def __init__(self, pattern, derived, order, study, is_regex):
+    def __init__(self, pattern, derived, order, study, study_name,
+                 is_regex):
         self._derived = derived
         self._order = order
         self._pattern = pattern
         self._study = study
+        self._study_name = study_name
         self._is_regex = is_regex
         self._collection = None
 
@@ -40,7 +42,21 @@ class BaseMatch(object):
         return self._derived
 
     @property
+    def study_name(self):
+        if self._study_name is None:
+            if self.derived:
+                study_name = self.study.name
+            else:
+                study_name = None
+        else:
+            study_name = self._study_name
+        return study_name
+
+    @property
     def study(self):
+        if self._study is None:
+            raise ArcanaUsageError(
+                "{} is not bound to a study".format(self))
         return self._study
 
     @property
@@ -179,6 +195,16 @@ class DatasetMatch(BaseMatch, BaseDataset):
         To be used to distinguish multiple datasets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
+    study_name : str
+        The name of the study that generated the derived dataset to match.
+        Is used to determine the location of the datasets in the
+        repository as the derived datasets and fields are grouped by
+        the name of the study that generated them.
+    is_regex : bool
+        Flags whether the pattern is a regular expression or not
+    study : Study
+        The study that the match is bound to. Not intended to be used
+        except when reconstructing the match object from pickle
     """
 
     is_spec = False
@@ -187,14 +213,14 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', derived=False, id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
-                 study=None):
+                 study_name=None, study=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
-                           is_regex)
+                           study_name, is_regex)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -257,6 +283,9 @@ class DatasetMatch(BaseMatch, BaseDataset):
                            if d.name == self.pattern]
         else:
             matches = list(node.datasets)
+        if self.study_name is not None:
+            matches = [d for d in matches
+                       if d.study_name == self.study_name]
         if not matches:
             raise ArcanaDatasetMatchError(
                 "No dataset names in {}:{} match '{}' pattern, found: {}"
@@ -316,16 +345,27 @@ class FieldMatch(BaseMatch, BaseField):
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
+    study_name : str
+        The name of the study that generated the derived field to match.
+        Is used to determine the location of the fields in the
+        repository as the derived datasets and fields are grouped by
+        the name of the study that generated them.
+    is_regex : bool
+        Flags whether the pattern is a regular expression or not
+    study : Study
+        The study that the match is bound to. Not intended to be used
+        except when reconstructing the match object from pickle
     """
 
     is_spec = False
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
-                 derived=False, order=None, is_regex=False, study=None):
+                 derived=False, order=None, is_regex=False,
+                 study_name=None, study=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseMatch.__init__(self, pattern, derived, order, study,
-                           is_regex)
+                           study_name, is_regex)
         super(FieldMatch, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
@@ -348,6 +388,9 @@ class FieldMatch(BaseMatch, BaseField):
         else:
             matches = [f for f in node.fields
                        if f.name == self.pattern]
+        if self.study_name is not None:
+            matches = [f for f in matches
+                       if f.study_name == self.study_name]
         if not matches:
             raise ArcanaDatasetMatchError(
                 "No field names in {} match '{}' pattern"

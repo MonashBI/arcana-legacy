@@ -282,7 +282,8 @@ class DatasetSpec(BaseDataset, BaseSpec):
                               subject_id=node.subject_id,
                               visit_id=node.visit_id,
                               repository=self.study.repository,
-                              derived=True, study_name=self.study.name)
+                              study_name=self.study.name,
+                              **kwargs)
         return dataset
 
 
@@ -351,5 +352,5 @@ class FieldSpec(BaseField, BaseSpec):
                           subject_id=node.subject_id,
                           visit_id=node.visit_id,
                           repository=self.study.repository,
-                          derived=True, study_name=self.study.name)
+                          study_name=self.study.name, **kwargs)
         return field

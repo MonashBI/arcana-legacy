@@ -64,6 +64,7 @@ class XnatRepository(BaseRepository):
     SUMMARY_NAME = 'ALL'
     PROCESSED_SUFFIX = '_PROC'
     MD5_SUFFIX = '.md5.json'
+    DERIVED_FROM_FIELD = '__derived_from__'
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30):
@@ -310,45 +311,47 @@ class XnatRepository(BaseRepository):
                 logger.debug("Getting info for subject '{}'"
                              .format(subj_id))
                 sessions = {}
-                derived_sessions = []
+                derived_sessions = defaultdict(dict)
                 # Get per_session datasets
                 for xsession in xsubject.experiments.values():
-                    visit_id = '_'.join(xsession.label.split('_')[2:])
+                    try:
+                        session_label = xsession.fields[
+                            self.DERIVED_FROM_FIELD]
+                        study_name = xsession.label[
+                            len(session_label) + 1:]
+                    except KeyError:
+                        session_label = xsession.label
+                        study_name = None
+                    visit_id = '_'.join(session_label.split('_')[2:])
                     if visit_id == XnatRepository.SUMMARY_NAME:
                         continue
                     if not (visit_ids is None or visit_id in visit_ids):
                         continue
-                    derived = xsession.label.endswith(
-                        self.PROCESSED_SUFFIX)
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
                                           xsession, 'per_session',
                                           subject_id=subj_id,
                                           visit_id=visit_id,
-                                          derived=derived),
+                                          study_name=study_name),
                                       fields=self._get_fields(
                                           xsession, 'per_session',
                                           subject_id=subj_id,
                                           visit_id=visit_id,
-                                          derived=derived),
-                                      derived=None)
-                    if derived:
-                        derived_sessions.append(session)
+                                          study_name=study_name))
+                    if study_name is not None:
+                        derived_sessions[visit_id][study_name] = session
                     else:
                         sessions[visit_id] = session
                         visit_sessions[visit_id].append(session)
-                for derived_session in derived_sessions:
-                    visit_id = derived_session.visit_id[:-len(
-                        self.PROCESSED_SUFFIX)]
-                    try:
-                        sessions[visit_id].derived = derived_session
-                    except KeyError:
-                        raise ArcanaError(
-                            "No matching acquired session for derived "
-                            "session '{}_{}_{}'".format(
-                                self.project_id,
-                                derived_session.subject_id,
-                                derived_session.visit_id))
+                for (visit_id, visit_sessions) in derived_sessions.items():
+                    for (study_name, sess) in visit_sessions.items():
+                        try:
+                            sessions[visit_id].derived[study_name] = sess
+                        except KeyError:
+                            raise ArcanaError(
+                                "Did not find acquired session "
+                                "(visit_id={}) for derived session ''"
+                                .format(visit_id, sess))
                 # Get per_subject datasets
                 subj_summary_name = self._get_labels(
                     'per_subject', self.project_id, subj_id)[1]
@@ -638,17 +641,21 @@ class XnatRepository(BaseRepository):
             except KeyError:
                 xsession = self._login.classes.MrSessionData(
                     label=sess_label, parent=xsubject)
+                if item.derived:
+                    xsession.fields[
+                        self.DERIVED_FROM_FIELD] = self._get_item_labels(
+                            item, no_study_name=True)[1]
         return xsession
 
-    def _get_item_labels(self, item):
+    def _get_item_labels(self, item, no_study_name=False):
         """
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
         """
         subj_label, sess_label = self._get_labels(
             item.frequency, item.subject_id, item.visit_id)
-        if item.study_name is not None:
-            sess_label += item.study_name
+        if not no_study_name and item.study_name is not None:
+            sess_label += '_' + item.study_name
         return (subj_label, sess_label)
 
     def _get_labels(self, frequency, subject_id=None, visit_id=None):

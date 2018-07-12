@@ -105,7 +105,7 @@ class RepositorySource(BaseRepositoryInterface):
 
     def _list_outputs(self):
         # Directory that holds session-specific
-        outputs = {}
+        outputs = self.output_spec().get()
         subject_id = (self.inputs.subject_id
                       if isdefined(self.inputs.subject_id) else None)
         visit_id = (self.inputs.visit_id
@@ -119,11 +119,11 @@ class RepositorySource(BaseRepositoryInterface):
             for dataset_collection in self.dataset_collections:
                 dataset = dataset_collection.item(subject_id, visit_id)
                 dataset.get()
-                outputs[dataset.name + PATH_SUFFIX] = dataset.path
+                outputs[dataset_collection.name + PATH_SUFFIX] = dataset.path
             for field_collection in self.field_collections:
                 field = field_collection.item(subject_id, visit_id)
                 field.get()
-                outputs[field.name + FIELD_SUFFIX] = field.value
+                outputs[field_collection.name + FIELD_SUFFIX] = field.value
         return outputs
 
 
@@ -182,7 +182,8 @@ class RepositorySink(BaseRepositoryInterface):
                 dataset = dataset_collection.item(
                     subject_id,
                     visit_id)
-                path = getattr(self.inputs, dataset.name + PATH_SUFFIX)
+                path = getattr(self.inputs,
+                               dataset_collection.name + PATH_SUFFIX)
                 if not isdefined(path):
                     missing_inputs.append(dataset.name)
                     continue  # skip the upload for this file
@@ -192,7 +193,8 @@ class RepositorySink(BaseRepositoryInterface):
                 field = field_collection.item(
                     subject_id,
                     visit_id)
-                value = getattr(self.inputs, field.name + FIELD_SUFFIX)
+                value = getattr(self.inputs,
+                                field_collection.name + FIELD_SUFFIX)
                 if not isdefined(value):
                     missing_inputs.append(field.name)
                     continue  # skip the upload for this file
