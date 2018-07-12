@@ -156,8 +156,8 @@ class LocalRepository(BaseRepository):
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
+        all_data = defaultdict(dict)
         all_visit_ids = set()
-        all_data = defaultdict(lambda: defaultdict(dict))
         for session_path, dirs, files in os.walk(self.base_dir):
             dnames = [d for d in chain(dirs, files)
                       if not d.startswith('.')]
@@ -200,7 +200,13 @@ class LocalRepository(BaseRepository):
             else:
                 frequency = 'per_session'
                 all_visit_ids.add(visit_id)
-            datasets = []
+            try:
+                # Retrieve datasets and fields from other study directories
+                # or root acquired directory
+                datasets, fields = all_data[subj_id][visit_id]
+            except KeyError:
+                datasets = []
+                fields = []
             for dname in sorted(dnames):
                 if dname.startswith(self.FIELDS_FNAME):
                     continue
@@ -221,20 +227,17 @@ class LocalRepository(BaseRepository):
                           for k, v in list(dct.items())]
             datasets = sorted(datasets)
             fields = sorted(fields)
-            all_data[subj_id][visit_id][study_name] = (datasets, fields)
+            all_data[subj_id][visit_id] = (datasets, fields)
         all_sessions = defaultdict(dict)
         for subj_id, subj_data in all_data.items():
             if subj_id is None:
                 continue  # Create Subject summaries later
-            for visit_id, session_data in subj_data.items():
+            for visit_id, (datasets, fields) in subj_data.items():
                 if visit_id is None:
                     continue  # Create Visit summaries later
-                # Get acquired data first to create base Session
-                datasets, fields = session_data[None]
-                acquired_sess = Session(
+                all_sessions[subj_id][visit_id] = Session(
                     subject_id=subj_id, visit_id=visit_id,
                     datasets=datasets, fields=fields)
-                for 
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
             try:
