@@ -329,12 +329,14 @@ class XnatRepository(BaseRepository):
                         continue
                     session = Session(subj_id, visit_id,
                                       datasets=self._get_datasets(
-                                          xsession, 'per_session',
+                                          xsession,
+                                          frequency='per_session',
                                           subject_id=subj_id,
                                           visit_id=visit_id,
                                           study_name=study_name),
                                       fields=self._get_fields(
-                                          xsession, 'per_session',
+                                          xsession,
+                                          frequency='per_session',
                                           subject_id=subj_id,
                                           visit_id=visit_id,
                                           study_name=study_name))
@@ -363,11 +365,15 @@ class XnatRepository(BaseRepository):
                     subj_fields = []
                 else:
                     subj_datasets = self._get_datasets(
-                        xsubj_summary, 'per_subject',
-                        subject_id=subj_id)
+                        xsubj_summary,
+                        frequency='per_subject',
+                        subject_id=subj_id,
+                        study_name=study_name)
                     subj_fields = self._get_fields(
-                        xsubj_summary, 'per_subject',
-                        subject_id=subj_id)
+                        xsubj_summary,
+                        frequency='per_subject',
+                        subject_id=subj_id,
+                        study_name=study_name)
                 subjects.append(Subject(subj_id,
                                         sorted(sessions.values()),
                                         datasets=subj_datasets,
@@ -386,9 +392,15 @@ class XnatRepository(BaseRepository):
                     visit_fields = {}
                 else:
                     visit_datasets = self._get_datasets(
-                        xvisit_summary, 'per_visit', visit_id=visit_id)
+                        xvisit_summary,
+                        frequency='per_visit',
+                        visit_id=visit_id,
+                        study_name=study_name)
                     visit_fields = self._get_fields(
-                        xvisit_summary, 'per_visit', visit_id=visit_id)
+                        xvisit_summary,
+                        frequency='per_visit',
+                        visit_id=visit_id,
+                        study_name=study_name)
                 visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
@@ -403,10 +415,14 @@ class XnatRepository(BaseRepository):
                 proj_datasets = []
                 proj_fields = []
             else:
-                proj_datasets = self._get_datasets(xproj_summary,
-                                                   'per_project')
-                proj_fields = self._get_fields(xproj_summary,
-                                               'per_project')
+                proj_datasets = self._get_datasets(
+                    xproj_summary,
+                    frequency='per_project',
+                    study_name=study_name)
+                proj_fields = self._get_fields(
+                    xproj_summary,
+                    frequency='per_project',
+                    study_name=study_name)
             if not subjects:
                 raise ArcanaError(
                     "Did not find any subjects matching the IDs '{}' in "
@@ -432,8 +448,7 @@ class XnatRepository(BaseRepository):
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
-    def _get_datasets(self, xsession, freq, subject_id=None,
-                      visit_id=None, derived=False):
+    def _get_datasets(self, xsession, **kwargs):
         """
         Returns a list of datasets within an XNAT session
 
@@ -461,14 +476,12 @@ class XnatRepository(BaseRepository):
                     "Ignoring '{}' as couldn't guess its file format:\n{}"
                     .format(xdataset.type, e))
             datasets.append(Dataset(
-                xdataset.type, format=file_format, derived=derived,  # @ReservedAssignment @IgnorePep8
-                frequency=freq, path=None, id=xdataset.id,
-                uri=xdataset.uri, subject_id=subject_id,
-                visit_id=visit_id, repository=self))
+                xdataset.type, format=file_format,  # @ReservedAssignment @IgnorePep8
+                id=xdataset.id, repository=self,
+                **kwargs))
         return sorted(datasets)
 
-    def _get_fields(self, xsession, freq, subject_id=None,
-                    visit_id=None, derived=False):
+    def _get_fields(self, xsession, **kwargs):
         """
         Returns a list of fields within an XNAT session
 
@@ -488,9 +501,8 @@ class XnatRepository(BaseRepository):
         fields = []
         for name, value in list(xsession.fields.items()):
             fields.append(Field(
-                name=name, value=value, derived=derived,
-                frequency=freq, subject_id=subject_id,
-                visit_id=visit_id, repository=self))
+                name=name, value=value, repository=self,
+                **kwargs))
         return sorted(fields)
 
     def dicom_header(self, dataset):
