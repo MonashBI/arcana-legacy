@@ -450,14 +450,12 @@ class Session(TreeNode):
         Sessions storing derived scans are stored for separate analyses
     """
 
-    def __init__(self, subject_id, visit_id, datasets=None, fields=None,
-                 derived=None):
+    def __init__(self, subject_id, visit_id, datasets=None, fields=None):
         TreeNode.__init__(self, datasets, fields)
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._subject = None
         self._visit = None
-        self._derived = derived if derived is not None else {}
 
     @property
     def visit_id(self):
@@ -470,14 +468,12 @@ class Session(TreeNode):
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self.derived == other.derived)
+                self.visit_id == other.visit_id)
 
     def __hash__(self):
         return (TreeNode.__hash__(self) ^
                 hash(self.subject_id) ^
-                hash(self.visit_id) ^
-                hash(self.derived))
+                hash(self.visit_id))
 
     def __lt__(self, other):
         if self.subject_id < other.subject_id:
@@ -501,50 +497,6 @@ class Session(TreeNode):
     def visit(self, visit):
         self._visit = visit
 
-    @property
-    def derived(self):
-        return self._derived
-
-    @property
-    def derived_datasets(self):
-        return chain(*(s.datasets for s in self.derived.values()))
-
-    @property
-    def derived_fields(self):
-        return chain(*(s.fields for s in self.derived.values()))
-
-    @property
-    def all_datasets(self):
-        return chain(self.datasets, self.derived_datasets)
-
-    @property
-    def all_fields(self):
-        return chain(self.fields, self.derived_fields)
-
-    @property
-    def derived_dataset_names(self):
-        return chain(*(s.dataset_names for s in self.derived.values()))
-
-    @property
-    def derived_field_names(self):
-        return chain(*(s.field_names for s in self.derived.values()))
-
-    @property
-    def derived_data_names(self):
-        return chain(*(s.data_names for s in self.derived.values()))
-
-    @property
-    def all_dataset_names(self):
-        return chain(self.dataset_names, self.derived_dataset_names)
-
-    @property
-    def all_field_names(self):
-        return chain(self.field_names, self.derived_field_names)
-
-    @property
-    def all_data_names(self):
-        return chain(self.data_names, self.derived_data_names)
-
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
@@ -556,16 +508,6 @@ class Session(TreeNode):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if sorted(self.derived.keys()) != sorted(other.derived.keys()):
-            mismatch += ('\n{indent}mismatching derived session keys '
-                         '\n{indent}  self={}\n{indent}  other={}'
-                         .format(sorted(self.derived.keys()),
-                                 sorted(self.derived.keys()),
-                                 indent=sub_indent))
-        elif self.derived != other.derived:
-            for study_name in self.derived:
-                mismatch += self.derived[study_name].find_mismatch(
-                    other.derived[study_name], indent=sub_indent)
         return mismatch
 
     def __ne__(self, other):
@@ -573,6 +515,6 @@ class Session(TreeNode):
 
     def __repr__(self):
         return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
-                "num_fields={}, num_derived={})".format(
+                "num_fields={})".format(
                     self.subject_id, self.visit_id, len(self._datasets),
-                    len(self._fields), len(self.derived)))
+                    len(self._fields))
