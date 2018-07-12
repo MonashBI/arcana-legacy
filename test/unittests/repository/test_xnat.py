@@ -5,7 +5,8 @@ from builtins import range
 from builtins import object
 import string
 import random
-import os.path
+import os
+import os.path as op
 import shutil
 import tempfile
 import re
@@ -35,18 +36,18 @@ import sys
 import logging
 from future.utils import with_metaclass
 # Import TestExistingPrereqs study to test it on XNAT
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..'))
+sys.path.insert(0, op.join(op.dirname(__file__), '..'))
 import test_dataset  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import TestExistingPrereqs study to test it on XNAT
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..',
+sys.path.insert(0, op.join(op.dirname(__file__), '..',
                                 'study'))
 import test_study  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
-sys.path.insert(0, os.path.join(os.path.dirname(__file__)))
+sys.path.insert(0, op.join(op.dirname(__file__)))
 import test_local  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
@@ -169,7 +170,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
             project = self.project
         if subject is None:
             subject = self.SUBJECT
-        return os.path.join(
+        return op.join(
             base_dir, project, '{}_{}'.format(project, subject),
             self.session_label(project=project, subject=subject,
                                visit=visit, study_name=study_name))
@@ -203,7 +204,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 if dataset.format.directory:
                     for fname in os.listdir(dataset.path):
                         resource.upload(
-                            os.path.join(dataset.path, fname), fname)
+                            op.join(dataset.path, fname), fname)
                 else:
                     resource.upload(dataset.path, dataset.fname)
             for field in self.session.fields:
@@ -306,12 +307,16 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             dataset.format.name.upper())
         if dataset.format.directory:
             for fname in os.listdir(dataset.path):
-                fpath = os.path.join(dataset.path, fname)
+                fpath = op.join(dataset.path, fname)
                 xresource.upload(fpath, fname)
         else:
+            if not op.exists(dataset.path):
+                raise ArcanaError(
+                    "Cannot upload dataset {} as path ({}) does "
+                    "not exist".format(dataset, fpath))
             xresource.upload(
                 dataset.path,
-                os.path.basename(dataset.path))
+                op.basename(dataset.path))
 
     @classmethod
     def _is_derived(cls, dataset):
@@ -341,7 +346,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     @property
     def project_dir(self):
-        return os.path.join(self.repository_path, self.base_name)
+        return op.join(self.repository_path, self.base_name)
 
     @property
     def output_cache_dir(self):
@@ -385,8 +390,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         session_id = '_'.join(parts)
         if derived:
             session_id += XnatRepository.PROCESSED_SUFFIX
-        session_path = os.path.join(self.output_cache_dir, session_id)
-        if not os.path.exists(session_path):
+        session_path = op.join(self.output_cache_dir, session_id)
+        if not op.exists(session_path):
             raise ArcanaError(
                 "Session path '{}' does not exist".format(session_path))
         return session_path
@@ -405,8 +410,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                 frequency=frequency, derived=True)
         except KeyError:
             proc_path = None
-        if acq_path is not None and os.path.exists(acq_path):
-            if os.path.exists(proc_path):
+        if acq_path is not None and op.exists(acq_path):
+            if op.exists(proc_path):
                 raise ArcanaError(
                     "Both acquired and derived paths were found for "
                     "'{}_{}' ({} and {})".format(study_name, fname, acq_path,
@@ -551,10 +556,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         Tests handling of race conditions where separate processes attempt to
         cache the same dataset
         """
-        cache_dir = os.path.join(self.work_dir,
+        cache_dir = op.join(self.work_dir,
                                  'cache-delayed-download')
         DATASET_NAME = 'source1'
-        target_path = os.path.join(self.session_cache(cache_dir),
+        target_path = op.join(self.session_cache(cache_dir),
                                    DATASET_NAME + text_format.extension)
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -571,7 +576,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         source.inputs.visit_id = self.VISIT
         result1 = source.run()
         source1_path = result1.outputs.source1_path
-        self.assertTrue(os.path.exists(source1_path))
+        self.assertTrue(op.exists(source1_path))
         self.assertEqual(source1_path, target_path,
                          "Output file path '{}' not equal to target path '{}'"
                          .format(source1_path, target_path))
@@ -589,7 +594,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         # Create tmp_dir before running interface, this time should wait for 1
         # second, check to see that the session hasn't been created and then
         # clear it and redownload the dataset.
-        internal_dir = os.path.join(tmp_dir, 'internal')
+        internal_dir = op.join(tmp_dir, 'internal')
         deleted_tmp_dir = tmp_dir + '.deleted'
 
         def simulate_download():
@@ -599,7 +604,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             # Modify a file in the temp dir to make the source download keep
             # waiting
             logger.info('Updating simulated download directory')
-            with open(os.path.join(internal_dir, 'download'), 'a') as f:
+            with open(op.join(internal_dir, 'download'), 'a') as f:
                 f.write('downloading')
             time.sleep(10)
             # Simulate the finalising of the download by copying the previously
@@ -615,7 +620,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         time.sleep(1)
         source.run()  # Run the local download
         p.join()
-        with open(os.path.join(deleted_tmp_dir, 'internal', 'download')) as f:
+        with open(op.join(deleted_tmp_dir, 'internal', 'download')) as f:
             d = f.read()
         self.assertEqual(d, 'downloading')
         with open(target_path) as f:
@@ -628,11 +633,11 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         Tests check of downloaded digests to see if file needs to be
         redownloaded
         """
-        cache_dir = os.path.join(self.work_dir, 'cache-digest-check')
+        cache_dir = op.join(self.work_dir, 'cache-digest-check')
         DATASET_NAME = 'source1'
         STUDY_NAME = 'digest_check_study'
         dataset_fpath = DATASET_NAME + text_format.extension
-        source_target_path = os.path.join(self.session_cache(cache_dir),
+        source_target_path = op.join(self.session_cache(cache_dir),
                                           dataset_fpath)
         md5_path = source_target_path + XnatRepository.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -649,8 +654,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
-        self.assertTrue(os.path.exists(md5_path))
-        self.assertTrue(os.path.exists(source_target_path))
+        self.assertTrue(op.exists(md5_path))
+        self.assertTrue(op.exists(source_target_path))
         with open(md5_path) as f:
             digests = json.load(f)
         # Stash the downloaded file in a new location and create a dummy
@@ -694,7 +699,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.inputs.sink1_path = source_target_path
         sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
                       text_format.extension)
-        sink_target_path = os.path.join(
+        sink_target_path = op.join(
             self.session_cache(
                 cache_dir, project=self.digest_sink_project,
                 subject=(self.SUBJECT), study_name=STUDY_NAME),
@@ -784,7 +789,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             # Check subject summary directories were created properly in cache
             expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
                                       '_subject_sink']
-            subject_dir = os.path.join(
+            subject_dir = op.join(
                 self.cache_dir, self.project,
                 '_'.join((self.project, self.SUBJECT)),
                 '_'.join((self.project, self.SUBJECT,
@@ -802,7 +807,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             # cache
             expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
                                        '_visit_sink']
-            visit_dir = os.path.join(
+            visit_dir = op.join(
                 self.cache_dir, self.project,
                 self.project + '_' + XnatRepository.SUMMARY_NAME,
                 (self.project + '_' + XnatRepository.SUMMARY_NAME +
@@ -820,7 +825,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             # Check project summary directories were created properly in cache
             expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
                                       '_project_sink']
-            project_dir = os.path.join(
+            project_dir = op.join(
                 self.cache_dir, self.project,
                 self.project + '_' + XnatRepository.SUMMARY_NAME,
                 self.project + '_' + XnatRepository.SUMMARY_NAME + '_' +
@@ -899,7 +904,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @property
     def ref_dir(self):
-        return os.path.join(
+        return op.join(
             self.ref_path, self._get_name(self.BASE_CLASS))
 
     def setUp(self):
@@ -968,7 +973,7 @@ class TestDatasetCacheOnPathAccess(TestOnXnatMixin,
         # Get a dataset
         dataset = next(next(next(tree.subjects).sessions).datasets)
         self.assertEqual(dataset._path, None)
-        target_path = os.path.join(
+        target_path = op.join(
             tmp_dir, self.project,
             '{}_{}'.format(self.project, self.SUBJECT),
             '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
@@ -1038,16 +1043,16 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
             repository=repository)
         study.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):
-            subj_dir = os.path.join(
+            subj_dir = op.join(
                 repository.cache_dir, self.project,
                 '{}_{}'.format(self.project, subject_id))
             for visit_id in visits:
-                sess_dir = os.path.join(
+                sess_dir = op.join(
                     subj_dir,
                     '{}_{}_{}'.format(self.project, subject_id,
                                       visit_id))
                 for inpt in study.inputs:
-                    self.assertTrue(os.path.exists(os.path.join(
+                    self.assertTrue(op.exists(op.join(
                         sess_dir, inpt.name + inpt.format.extension)))
 
     @property

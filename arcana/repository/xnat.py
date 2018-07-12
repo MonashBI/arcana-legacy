@@ -477,7 +477,7 @@ class XnatRepository(BaseRepository):
                     .format(xdataset.type, e))
             datasets.append(Dataset(
                 xdataset.type, format=file_format,  # @ReservedAssignment @IgnorePep8
-                id=xdataset.id, repository=self,
+                id=xdataset.id, uri=xdataset.uri, repository=self,
                 **kwargs))
         return sorted(datasets)
 

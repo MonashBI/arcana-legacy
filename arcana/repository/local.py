@@ -159,8 +159,16 @@ class LocalRepository(BaseRepository):
         all_data = defaultdict(dict)
         all_visit_ids = set()
         for session_path, dirs, files in os.walk(self.base_dir):
-            dnames = [d for d in chain(dirs, files)
+            # Filter out hidden files (i.e. starting with '.')
+            dnames = [d for d in files
                       if not d.startswith('.')]
+            # Filter out hidden directories (i.e. starting with '.')
+            # and derived study directories from dataset names
+            dnames.extend(
+                d for d in dirs
+                if not d.startswith('.') and (
+                    self.DERIVED_LABEL_FNAME not in os.listdir(
+                        op.join(session_path, d))))
             relpath = op.relpath(session_path, self.base_dir)
             path_parts = relpath.split(op.sep)
             depth = len(path_parts)
