@@ -76,8 +76,7 @@ class BaseSpec(object):
             nodes = []
             for subject in tree.subjects:
                 for sess in subject.sessions:
-                    nodes.append(sess.derived
-                                 if sess.derived is not None else sess)
+                    nodes.append(sess)
         elif self.frequency == 'per_subject':
             nodes = tree.subjects
         elif self.frequency == 'per_visit':

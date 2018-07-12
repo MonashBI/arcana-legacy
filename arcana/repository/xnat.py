@@ -284,15 +284,10 @@ class XnatRepository(BaseRepository):
             A hierarchical tree of subject, session and dataset
             information for the repository
         """
-        # Convert subject ids to strings if they are integers
-        if subject_ids is not None:
-            subject_ids = [
-                ('{:03d}'.format(s)
-                 if isinstance(s, int) else s) for s in subject_ids]
+        subject_ids = self.convert_subject_ids(subject_ids)
         # Add derived visit IDs to list of visit ids to filter
         if visit_ids is not None:
-            visit_ids = visit_ids + [i + self.PROCESSED_SUFFIX
-                                     for i in visit_ids]
+            visit_ids = visit_ids
         subjects = []
         sessions = defaultdict(list)
         with self:
@@ -300,9 +295,7 @@ class XnatRepository(BaseRepository):
             visit_sessions = defaultdict(list)
             # Create list of subjects
             for xsubject in xproject.subjects.values():
-                # This assumes that the subject ID is prepended with
-                # the project ID
-                subj_id = xsubject.label[(len(self.project_id) + 1):]
+                subj_id = self.extract_subject_id(xsubject.label)
                 if subj_id == XnatRepository.SUMMARY_NAME:
                     continue
                 if (subject_ids is not None and
@@ -310,8 +303,9 @@ class XnatRepository(BaseRepository):
                     continue
                 logger.debug("Getting info for subject '{}'"
                              .format(subj_id))
-                sessions = {}
-                derived_sessions = defaultdict(dict)
+                # Store datasets and field for every session in the
+                # subject, including summary
+                data = defaultdict(lambda: ([], []))
                 # Get per_session datasets
                 for xsession in xsubject.experiments.values():
                     try:
@@ -322,58 +316,39 @@ class XnatRepository(BaseRepository):
                     except KeyError:
                         session_label = xsession.label
                         study_name = None
-                    visit_id = '_'.join(session_label.split('_')[2:])
+                    visit_id = self.extract_visit_id(session_label)
                     if visit_id == XnatRepository.SUMMARY_NAME:
+                        visit_id = None
+                        frequency = 'per_subject'
+                    elif not (visit_ids is None or visit_id in visit_ids):
                         continue
-                    if not (visit_ids is None or visit_id in visit_ids):
-                        continue
-                    session = Session(subj_id, visit_id,
-                                      datasets=self._get_datasets(
-                                          xsession,
-                                          frequency='per_session',
-                                          subject_id=subj_id,
-                                          visit_id=visit_id,
-                                          study_name=study_name),
-                                      fields=self._get_fields(
-                                          xsession,
-                                          frequency='per_session',
-                                          subject_id=subj_id,
-                                          visit_id=visit_id,
-                                          study_name=study_name))
-                    if study_name is not None:
-                        derived_sessions[visit_id][study_name] = session
                     else:
-                        sessions[visit_id] = session
-                        visit_sessions[visit_id].append(session)
-                for (visit_id, visit_sessions) in derived_sessions.items():
-                    for (study_name, sess) in visit_sessions.items():
-                        try:
-                            sessions[visit_id].derived[study_name] = sess
-                        except KeyError:
-                            raise ArcanaError(
-                                "Did not find acquired session "
-                                "(visit_id={}) for derived session ''"
-                                .format(visit_id, sess))
-                # Get per_subject datasets
-                subj_summary_name = self._get_labels(
-                    'per_subject', self.project_id, subj_id)[1]
-                try:
-                    xsubj_summary = xsubject.experiments[
-                        subj_summary_name]
-                except KeyError:
-                    subj_datasets = []
-                    subj_fields = []
-                else:
-                    subj_datasets = self._get_datasets(
-                        xsubj_summary,
-                        frequency='per_subject',
+                        frequency = 'per_session'
+                    # Get datasets and fields previously loaded from
+                    # base "acquired" xsession or alternative derivative
+                    # xsessions
+                    datasets, fields = data[visit_id]
+                    datasets.extend(self._get_datasets(
+                        xsession,
+                        frequency=frequency,
                         subject_id=subj_id,
-                        study_name=study_name)
-                    subj_fields = self._get_fields(
-                        xsubj_summary,
-                        frequency='per_subject',
+                        visit_id=visit_id,
+                        study_name=study_name))
+                    fields.extend(self._get_fields(
+                        xsession,
+                        frequency=frequency,
                         subject_id=subj_id,
-                        study_name=study_name)
+                        visit_id=visit_id,
+                        study_name=study_name))
+                sessions = {}
+                for visit_id, (datasets, fields) in data.items():
+                    if visit_id is None:
+                        continue  # Hold off on the summary data
+                    sessions[visit_id] = session = Session(
+                        subject_id=subj_id, visit_id=visit_id,
+                        datasets=datasets, fields=fields)
+                    visit_sessions[visit_id].append(session)
+                subj_datasets, subj_fields = data[None]
                 subjects.append(Subject(subj_id,
                                         sorted(sessions.values()),
                                         datasets=subj_datasets,
@@ -381,15 +356,15 @@ class XnatRepository(BaseRepository):
             # Create list of visits
             visits = []
             for visit_id, v_sessions in visit_sessions.items():
-                (_, visit_summary_sess_name) = self._get_labels(
-                    'per_visit', self.project_id, visit_id=visit_id)
                 # Get 'per_visit' datasets
                 try:
                     xvisit_summary = xproject.experiments[
-                        visit_summary_sess_name]
+                        self._get_labels(
+                            'per_visit', self.project_id,
+                            visit_id=visit_id)[1]]
                 except KeyError:
                     visit_datasets = []
-                    visit_fields = {}
+                    visit_fields = []
                 else:
                     visit_datasets = self._get_datasets(
                         xvisit_summary,
@@ -405,12 +380,12 @@ class XnatRepository(BaseRepository):
                                     datasets=visit_datasets,
                                     fields=visit_fields))
             # Get 'per_project' datasets
-            (proj_summary_subj_name,
-             proj_summary_sess_name) = self._get_labels('per_project')
+            (summary_subj_name,
+             summary_sess_name) = self._get_labels('per_project')
             try:
                 xproj_summary = xproject.subjects[
-                    proj_summary_subj_name].experiments[
-                        proj_summary_sess_name]
+                    summary_subj_name].experiments[
+                        summary_sess_name]
             except KeyError:
                 proj_datasets = []
                 proj_fields = []
@@ -447,6 +422,31 @@ class XnatRepository(BaseRepository):
                         self.project_id))
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
+
+    def convert_subject_ids(self, subject_ids):
+        """
+        Convert subject ids to strings if they are integers
+        """
+        # TODO: need to make this generalisable via a
+        #       splitting+mapping function passed to the repository
+        if subject_ids is not None:
+            subject_ids = [
+                ('{:03d}'.format(s)
+                 if isinstance(s, int) else s) for s in subject_ids]
+        return subject_ids
+
+    def extract_subject_id(self, xsubject_label):
+        """
+        This assumes that the subject ID is prepended with
+        the project ID.
+        """
+        return xsubject_label[(len(self.project_id) + 1):]
+
+    def extract_visit_id(self, xsession_label):
+        """
+        This assumes that the session ID is preprended
+        """
+        return '_'.join(xsession_label.split('_')[2:])
 
     def _get_datasets(self, xsession, **kwargs):
         """

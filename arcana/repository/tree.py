@@ -517,4 +517,4 @@ class Session(TreeNode):
         return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
                 "num_fields={})".format(
                     self.subject_id, self.visit_id, len(self._datasets),
-                    len(self._fields))
+                    len(self._fields)))
