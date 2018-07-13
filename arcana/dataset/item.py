@@ -116,10 +116,10 @@ class Dataset(BaseItem, BaseDataset):
     bids_attr : Py
     """
 
-    def __init__(self, name, format=None, # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', path=None,
-                 id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 repository=None, from_study=None, bids_attr=None):
+    def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
+                 path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+                 visit_id=None, repository=None, from_study=None,
+                 bids_attr=None):
         BaseDataset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
