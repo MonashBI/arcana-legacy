@@ -70,8 +70,8 @@ class BidsDatasetMatch(DatasetMatch):
     def __init__(self, name, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
         DatasetMatch.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
-            derived=False, id=None, order=run, dicom_tags=None,
-            is_regex=False, study=None)
+            id=None, order=run, dicom_tags=None, is_regex=False,
+            from_study=None)
         self._type = type
         self._modality = modality
         self._run = run
@@ -148,8 +148,8 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
                  fieldmap_type=None, order=0):
         DatasetMatch.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
-            derived=False, id=None, order=order, dicom_tags=None,
-            is_regex=False, study=None)
+            id=None, order=order, dicom_tags=None, is_regex=False,
+            from_study=None)
         self._primary_match = primary_match
         self._association = association
         if fieldmap_type is not None and association != 'fieldmap':
