@@ -91,7 +91,7 @@ class TestSinkAndSource(BaseTestCase):
         # Check local directory was created properly
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(study_name=self.STUDY_NAME)))
+                self.get_session_dir(from_study=self.STUDY_NAME)))
             if not (f == LocalRepository.FIELDS_FNAME)]
         self.assertEqual(outputs,
                          ['.derived', 'sink1.txt', 'sink3.txt',
@@ -191,17 +191,17 @@ class TestSinkAndSource(BaseTestCase):
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(
             frequency='per_subject',
-            study_name=self.SUMMARY_STUDY_NAME)
+            from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          ['.derived', 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
-            study_name=self.SUMMARY_STUDY_NAME)
+            from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          ['.derived', 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_project',
-            study_name=self.SUMMARY_STUDY_NAME)
+            from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['.derived', 'project_sink.txt'])
         # Reload the data from the summary directories
@@ -245,7 +245,7 @@ class TestSinkAndSource(BaseTestCase):
         reloadworkflow.run()
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(study_name=self.SUMMARY_STUDY_NAME)))
+                self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
             if f != LocalRepository.FIELDS_FNAME]
         self.assertEqual(outputs,
                          ['.derived',

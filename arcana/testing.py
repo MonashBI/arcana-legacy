@@ -178,10 +178,10 @@ class BaseTestCase(TestCase):
     def session_dir(self):
         return self.get_session_dir(self.SUBJECT, self.VISIT)
 
-    def derived_session_dir(self, study_name=None):
-        if study_name is None:
-            study_name = self.STUDY_NAME
-        return op.join(self.session_dir, study_name)
+    def derived_session_dir(self, from_study=None):
+        if from_study is None:
+            from_study = self.STUDY_NAME
+        return op.join(self.session_dir, from_study)
 
     @property
     def session(self):
@@ -336,10 +336,10 @@ class BaseTestCase(TestCase):
             os.path.exists(dataset.path),
             "{} was not created".format(dataset))
 
-    def assertField(self, name, ref_value, study_name, subject=None,
+    def assertField(self, name, ref_value, from_study, subject=None,
                     visit=None, frequency='per_session',
                     to_places=None):
-        esc_name = study_name + '_' + name
+        esc_name = from_study + '_' + name
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir,
@@ -349,16 +349,16 @@ class BaseTestCase(TestCase):
             if e.errno == errno.ENOENT:
                 raise ArcanaError(
                     "No fields were created by pipeline in study '{}'"
-                    .format(study_name))
+                    .format(from_study))
         try:
             value = fields[esc_name]
         except KeyError:
             raise ArcanaError(
                 "Field '{}' was not created by pipeline in study '{}'. "
                 "Created fields were ('{}')"
-                .format(esc_name, study_name, "', '".join(fields)))
+                .format(esc_name, from_study, "', '".join(fields)))
         msg = ("Field value '{}' for study '{}', {}, does not match "
-               "reference value ({})".format(name, study_name, value,
+               "reference value ({})".format(name, from_study, value,
                                              ref_value))
         if to_places is not None:
             self.assertAlmostEqual(
@@ -374,7 +374,7 @@ class BaseTestCase(TestCase):
         self.assertTrue(filecmp.cmp(dataset1.path, dataset2.path,
                                     shallow=False), msg=msg)
 
-    def assertStatEqual(self, stat, dataset_name, target, study_name,
+    def assertStatEqual(self, stat, dataset_name, target, from_study,
                         subject=None, visit=None,
                         frequency='per_session'):
             try:
@@ -384,7 +384,7 @@ class BaseTestCase(TestCase):
             val = float(sp.check_output(
                 'mrstats {} -output {}'.format(
                     self.output_file_path(
-                        dataset_name, study_name,
+                        dataset_name, from_study,
                         subject=subject, visit=visit,
                         frequency=frequency),
                     stat),
@@ -397,8 +397,8 @@ class BaseTestCase(TestCase):
                             subject, visit)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
-                                stdev_threshold, study_name):
-        out_path = self.output_file_path(out, study_name)
+                                stdev_threshold, from_study):
+        out_path = self.output_file_path(out, from_study)
         ref_path = self.ref_file_path(ref)
         # Should probably look into ITK fuzzy matching methods
         cmd = ("mrcalc -quiet {a} {b} -subtract - | mrstats - | "
@@ -415,7 +415,7 @@ class BaseTestCase(TestCase):
                      thresh_stdev=stdev_threshold, a=out_path, b=ref_path)))
 
     def get_session_dir(self, subject=None, visit=None,
-                        frequency='per_session', study_name=None):
+                        frequency='per_session', from_study=None):
         if subject is None and frequency in ('per_session', 'per_subject'):
             subject = self.SUBJECT
         if visit is None and frequency in ('per_session', 'per_visit'):
@@ -443,8 +443,8 @@ class BaseTestCase(TestCase):
                            LocalRepository.SUMMARY_NAME)
         else:
             assert False
-        if study_name is not None:
-            path = op.join(path, study_name)
+        if from_study is not None:
+            path = op.join(path, from_study)
         return op.abspath(path)
 
     @classmethod
@@ -454,12 +454,12 @@ class BaseTestCase(TestCase):
             if study is None or fname.startswith(study + '_'):
                 os.remove(op.join(cls.get_session_dir(), fname))
 
-    def output_file_path(self, fname, study_name, subject=None, visit=None,
+    def output_file_path(self, fname, from_study, subject=None, visit=None,
                          frequency='per_session', **kwargs):
         return op.join(
             self.get_session_dir(subject=subject, visit=visit,
                                  frequency=frequency,
-                                 study_name=study_name, **kwargs),
+                                 from_study=from_study, **kwargs),
             fname)
 
     def ref_file_path(self, fname, subject=None, session=None):

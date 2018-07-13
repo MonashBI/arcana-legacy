@@ -14,9 +14,9 @@ class TreeNode(object):
             fields = []
         # Save datasets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
-        self._datasets = OrderedDict(((d.name, d.study_name), d)
+        self._datasets = OrderedDict(((d.name, d.from_study), d)
                                      for d in datasets)
-        self._fields = OrderedDict(((f.name, f.study_name), f)
+        self._fields = OrderedDict(((f.name, f.from_study), f)
                                    for f in fields)
 
     def __eq__(self, other):

@@ -150,7 +150,7 @@ class CreateXnatProjectMixin(object):
 class TestOnXnatMixin(CreateXnatProjectMixin):
 
     def session_label(self, project=None, subject=None, visit=None,
-                      study_name=None):
+                      from_study=None):
         if project is None:
             project = self.project
         if subject is None:
@@ -158,12 +158,12 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         if visit is None:
             visit = self.VISIT
         label = '_'.join((project, subject, visit))
-        if study_name is not None:
-            label += '_' + study_name
+        if from_study is not None:
+            label += '_' + from_study
         return label
 
     def session_cache(self, base_dir=None, project=None, subject=None,
-                      visit=None, study_name=None):
+                      visit=None, from_study=None):
         if base_dir is None:
             base_dir = self.cache_dir
         if project is None:
@@ -173,7 +173,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         return op.join(
             base_dir, project, '{}_{}'.format(project, subject),
             self.session_label(project=project, subject=subject,
-                               visit=visit, study_name=study_name))
+                               visit=visit, from_study=from_study))
 
     def setUp(self):
         BaseTestCase.setUp(self)
@@ -396,17 +396,17 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                 "Session path '{}' does not exist".format(session_path))
         return session_path
 
-    def output_file_path(self, fname, study_name, subject=None, visit=None,
+    def output_file_path(self, fname, from_study, subject=None, visit=None,
                          frequency='per_session'):
         try:
             acq_path = self.BASE_CLASS.output_file_path(
-                self, fname, study_name, subject=subject, visit=visit,
+                self, fname, from_study, subject=subject, visit=visit,
                 frequency=frequency, derived=False)
         except KeyError:
             acq_path = None
         try:
             proc_path = self.BASE_CLASS.output_file_path(
-                self, fname, study_name, subject=subject, visit=visit,
+                self, fname, from_study, subject=subject, visit=visit,
                 frequency=frequency, derived=True)
         except KeyError:
             proc_path = None
@@ -414,7 +414,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             if op.exists(proc_path):
                 raise ArcanaError(
                     "Both acquired and derived paths were found for "
-                    "'{}_{}' ({} and {})".format(study_name, fname, acq_path,
+                    "'{}_{}' ({} and {})".format(from_study, fname, acq_path,
                                                  proc_path))
             path = acq_path
         else:
@@ -510,12 +510,12 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                   'sink4']
         self.assertEqual(
             ls_with_md5_filter(self.session_cache(
-                study_name=self.STUDY_NAME)),
+                from_study=self.STUDY_NAME)),
             [d + text_format.extension
              for d in expected_sink_datasets])
         with self._connect() as login:
             dataset_names = list(login.experiments[self.session_cache(
-                study_name=self.STUDY_NAME)].scans.keys())
+                from_study=self.STUDY_NAME)].scans.keys())
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 
     @unittest.skipIf(*SKIP_ARGS)
@@ -702,7 +702,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink_target_path = op.join(
             self.session_cache(
                 cache_dir, project=self.digest_sink_project,
-                subject=(self.SUBJECT), study_name=STUDY_NAME),
+                subject=(self.SUBJECT), from_study=STUDY_NAME),
             sink_fpath)
         sink_md5_path = sink_target_path + XnatRepository.MD5_SUFFIX
         sink.run()

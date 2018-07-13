@@ -311,11 +311,11 @@ class XnatRepository(BaseRepository):
                     try:
                         session_label = xsession.fields[
                             self.DERIVED_FROM_FIELD]
-                        study_name = xsession.label[
+                        from_study = xsession.label[
                             len(session_label) + 1:]
                     except KeyError:
                         session_label = xsession.label
-                        study_name = None
+                        from_study = None
                     visit_id = self.extract_visit_id(session_label)
                     if visit_id == XnatRepository.SUMMARY_NAME:
                         visit_id = None
@@ -333,13 +333,13 @@ class XnatRepository(BaseRepository):
                         frequency=frequency,
                         subject_id=subj_id,
                         visit_id=visit_id,
-                        study_name=study_name))
+                        from_study=from_study))
                     fields.extend(self._get_fields(
                         xsession,
                         frequency=frequency,
                         subject_id=subj_id,
                         visit_id=visit_id,
-                        study_name=study_name))
+                        from_study=from_study))
                 sessions = {}
                 for visit_id, (datasets, fields) in data.items():
                     if visit_id is None:
@@ -370,12 +370,12 @@ class XnatRepository(BaseRepository):
                         xvisit_summary,
                         frequency='per_visit',
                         visit_id=visit_id,
-                        study_name=study_name)
+                        from_study=from_study)
                     visit_fields = self._get_fields(
                         xvisit_summary,
                         frequency='per_visit',
                         visit_id=visit_id,
-                        study_name=study_name)
+                        from_study=from_study)
                 visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
@@ -393,11 +393,11 @@ class XnatRepository(BaseRepository):
                 proj_datasets = self._get_datasets(
                     xproj_summary,
                     frequency='per_project',
-                    study_name=study_name)
+                    from_study=from_study)
                 proj_fields = self._get_fields(
                     xproj_summary,
                     frequency='per_project',
-                    study_name=study_name)
+                    from_study=from_study)
             if not subjects:
                 raise ArcanaError(
                     "Did not find any subjects matching the IDs '{}' in "
@@ -656,18 +656,18 @@ class XnatRepository(BaseRepository):
                 if item.derived:
                     xsession.fields[
                         self.DERIVED_FROM_FIELD] = self._get_item_labels(
-                            item, no_study_name=True)[1]
+                            item, no_from_study=True)[1]
         return xsession
 
-    def _get_item_labels(self, item, no_study_name=False):
+    def _get_item_labels(self, item, no_from_study=False):
         """
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
         """
         subj_label, sess_label = self._get_labels(
             item.frequency, item.subject_id, item.visit_id)
-        if not no_study_name and item.study_name is not None:
-            sess_label += '_' + item.study_name
+        if not no_from_study and item.from_study is not None:
+            sess_label += '_' + item.from_study
         return (subj_label, sess_label)
 
     def _get_labels(self, frequency, subject_id=None, visit_id=None):

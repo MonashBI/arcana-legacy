@@ -17,21 +17,21 @@ class BaseItem(object):
 
     is_spec = False
 
-    def __init__(self, subject_id, visit_id, repository, study_name):
+    def __init__(self, subject_id, visit_id, repository, from_study):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
-        self._study_name = study_name
+        self._from_study = from_study
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
-                self.study_name == other.study_name)
+                self.from_study == other.from_study)
 
     def __hash__(self):
         return (hash(self.subject_id) ^
                 hash(self.visit_id) ^
-                hash(self.study_name))
+                hash(self.from_study))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
@@ -44,15 +44,15 @@ class BaseItem(object):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if self.study_name != other.study_name:
-            mismatch += ('\n{}study_name: self={} v other={}'
-                         .format(sub_indent, self.study_name,
-                                 other.study_name))
+        if self.from_study != other.from_study:
+            mismatch += ('\n{}from_study: self={} v other={}'
+                         .format(sub_indent, self.from_study,
+                                 other.from_study))
         return mismatch
 
     @property
     def derived(self):
-        return self.study_name is not None
+        return self.from_study is not None
 
     @property
     def repository(self):
@@ -67,15 +67,15 @@ class BaseItem(object):
         return self._visit_id
 
     @property
-    def study_name(self):
-        return self._study_name
+    def from_study(self):
+        return self._from_study
 
     def initkwargs(self):
         dct = super(Dataset, self).initkwargs()
         dct['repository'] = self.repository
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
-        dct['study_name'] = self._study_name
+        dct['from_study'] = self._from_study
         return dct
 
 
@@ -111,7 +111,7 @@ class Dataset(BaseItem, BaseDataset):
         The id of the visit which the dataset belongs to
     repository : BaseRepository
         The repository which the dataset is stored
-    study_name : str
+    from_study : str
         Name of the Arcana study that that generated the field
     bids_attr : Py
     """
@@ -119,11 +119,11 @@ class Dataset(BaseItem, BaseDataset):
     def __init__(self, name, format=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', path=None,
                  id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 repository=None, study_name=None, bids_attr=None):
+                 repository=None, from_study=None, bids_attr=None):
         BaseDataset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          study_name)
+                          from_study)
         self._path = path
         self._uri = uri
         self._bids_attr = bids_attr
@@ -155,22 +155,22 @@ class Dataset(BaseItem, BaseDataset):
         else:
             if self.id == other.id:
                 # If ids are equal order depending on study name
-                # with acquired (study_name==None) coming first
-                if self.study_name is None:
-                    return other.study_name is None
-                elif other.study_name is None:
+                # with acquired (from_study==None) coming first
+                if self.from_study is None:
+                    return other.from_study is None
+                elif other.from_study is None:
                     return False
                 else:
-                    return self.study_name < other.study_name
+                    return self.from_study < other.from_study
             else:
                 return self.id < other.id
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency='{}', "
-                "subject_id={}, visit_id={}, study_name='{}')".format(
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
-                    self.visit_id, self.study_name))
+                    self.visit_id, self.from_study))
 
     @property
     def fname(self):
@@ -358,13 +358,13 @@ class Field(BaseItem, BaseField):
         The id of the visit which the field belongs to
     repository : BaseRepository
         The repository which the field is stored
-    study_name : str
+    from_study : str
         Name of the Arcana study that that generated the field
     """
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', subject_id=None,
-                 visit_id=None, repository=None, study_name=None):
+                 visit_id=None, repository=None, from_study=None):
         if dtype is None:
             if value is None:
                 raise ArcanaUsageError(
@@ -394,7 +394,7 @@ class Field(BaseItem, BaseField):
                 value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          study_name)
+                          from_study)
         self._value = value
 
     def __eq__(self, other):
@@ -429,22 +429,22 @@ class Field(BaseItem, BaseField):
     def __lt__(self, other):
         if self.name == other.name:
             # If ids are equal order depending on study name
-            # with acquired (study_name==None) coming first
-            if self.study_name is None:
-                return other.study_name is None
-            elif other.study_name is None:
+            # with acquired (from_study==None) coming first
+            if self.from_study is None:
+                return other.from_study is None
+            elif other.from_study is None:
                 return False
             else:
-                return self.study_name < other.study_name
+                return self.from_study < other.from_study
         else:
             return self.name < other.name
 
     def __repr__(self):
         return ("{}(name='{}', value={}, frequency='{}',  "
-                "subject_id={}, visit_id={}, study_name='{}')".format(
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self.value,
                     self.frequency, self.subject_id,
-                    self.visit_id, self.study_name))
+                    self.visit_id, self.from_study))
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name

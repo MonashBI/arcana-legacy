@@ -426,7 +426,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
                     Dataset(d, text_format, subject_id=subj_id,
-                            visit_id=visit_id, study_name=(
+                            visit_id=visit_id, from_study=(
                                 (self.STUDY_NAME
                                  if d != 'one' else None)))
                     for d in datasets]))
@@ -626,7 +626,7 @@ class TestGeneratedPickle(BaseTestCase):
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
-#             ExistingPrereqStudy, self.study_name, inputs=[
+#             ExistingPrereqStudy, self.from_study, inputs=[
 #                 DatasetMatch('ones', text_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
@@ -650,6 +650,6 @@ class TestGeneratedPickle(BaseTestCase):
 #             for visit_id in visits:
 #                 self.assertStatEqual('mean', 'thousands.mif',
 #                                      targets[subj_id][visit_id],
-#                                      self.study_name,
+#                                      self.from_study,
 #                                      subject=subj_id, session=visit_id,
 #                                      frequency='per_session')

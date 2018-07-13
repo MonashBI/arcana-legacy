@@ -184,11 +184,11 @@ class LocalRepository(BaseRepository):
                 continue  # Not a session directory
             if depth == 3:
                 if self.DERIVED_LABEL_FNAME in files:
-                    study_name = path_parts.pop()
+                    from_study = path_parts.pop()
                 else:
                     continue  # Dataset directory
             else:
-                study_name = None
+                from_study = None
             subj_id, visit_id = path_parts
             subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
             visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
@@ -224,14 +224,14 @@ class LocalRepository(BaseRepository):
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
-                        study_name=study_name))
+                        from_study=from_study))
             if self.FIELDS_FNAME in dnames:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:
                     dct = json.load(f)
                 fields = [Field(name=k, value=v, frequency=frequency,
                                 subject_id=subj_id, visit_id=visit_id,
-                                repository=self, study_name=study_name)
+                                repository=self, from_study=from_study)
                           for k, v in list(dct.items())]
             datasets = sorted(datasets)
             fields = sorted(fields)
@@ -291,17 +291,17 @@ class LocalRepository(BaseRepository):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
-        if item.study_name is None:
+        if item.from_study is None:
             sess_dir = acq_dir
         else:
             # Append study-name to path (i.e. make a sub-directory to
             # hold derived products)
-            sess_dir = op.join(acq_dir, item.study_name)
+            sess_dir = op.join(acq_dir, item.from_study)
         # Make session dir if required
         if not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
             # write breadcrumb file t
-            if item.study_name is not None:
+            if item.from_study is not None:
                 open(op.join(sess_dir,
                              self.DERIVED_LABEL_FNAME), 'w').close()
         return sess_dir
