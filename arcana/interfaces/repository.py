@@ -81,8 +81,6 @@ class RepositorySource(BaseRepositoryInterface):
         List of all datasets to be extracted from the repository
     fields: list
         List of all the fields that are to be extracted from the repository
-    study_name: str
-        Prefix prepended onto derived dataset "names"
     """
 
     input_spec = RepositorySourceSpec
