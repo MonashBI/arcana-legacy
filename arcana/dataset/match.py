@@ -14,27 +14,19 @@ class BaseMatch(object):
     Base class for Dataset and Field Match classes
     """
 
-    def __init__(self, pattern, is_regex, order, derived, from_study):
+    def __init__(self, pattern, is_regex, order, from_study):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
-        self._derived = derived
         self._from_study = from_study
-        if derived is not None and from_study is not None:
-            raise ArcanaUsageError(
-                "Cannot pass both 'derived' and 'from_study' to match "
-                "object {}. Passing 'from_study' implies derived from "
-                "a particular previous analysis, whereas derived "
-                "implies derived in the current analysis"
-                .format(self))
 
     def __eq__(self, other):
-        return (self.derived == other.derived and
+        return (self.from_study == other.from_study and
                 self.pattern == other.pattern and
                 self.order == other.order)
 
     def __hash__(self):
-        return (hash(self.derived) ^
+        return (hash(self.from_study) ^
                 hash(self.pattern) ^
                 hash(self.order))
 
@@ -44,7 +36,7 @@ class BaseMatch(object):
 
     @property
     def derived(self):
-        return self._derived
+        return self._from_study is not None
 
     @property
     def from_study(self):
@@ -65,7 +57,7 @@ class BaseMatch(object):
     def order(self):
         return self._order
 
-    def match(self, study, **kwargs):
+    def bind(self, study, **kwargs):
         if self.from_study is None and self.derived:
             from_study = study.name
         else:
@@ -132,7 +124,6 @@ class BaseMatch(object):
 
     def initkwargs(self):
         dct = {}
-        dct['derived'] = self.derived
         dct['from_study'] = self.from_study
         dct['pattern'] = self.pattern
         dct['order'] = self.order
@@ -176,10 +167,6 @@ class DatasetMatch(BaseMatch, BaseDataset):
         To be used to distinguish multiple datasets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
-    derived : bool
-        Whether the scan was generated or acquired. Depending on the repository
-        used to store the dataset this is used to determine the location of the
-        dataset.
     from_study : str
         The name of the study that generated the derived dataset to match.
         Is used to determine the location of the datasets in the
@@ -193,14 +180,14 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
-                 derived=False, from_study=None):
+                 from_study=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           derived, from_study)
+                           from_study)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -234,11 +221,11 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, id={}, dicom_tags={}, "
-                "derived={}, from_study={})"
+                "from_study={})"
                 .format(self.__class__.__name__, self.name, self.format,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self.id, self.dicom_tags,
-                        self.derived, self._from_study))
+                        self._from_study))
 
     @property
     def id(self):
@@ -326,8 +313,6 @@ class FieldMatch(BaseMatch, BaseField):
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
-    derived : bool
-        Whether or not the value belongs in the derived session or not
     from_study : str
         The name of the study that generated the derived field to match.
         Is used to determine the location of the fields in the
@@ -339,11 +324,10 @@ class FieldMatch(BaseMatch, BaseField):
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
-                 order=None, is_regex=False,
-                 derived=False, from_study=None):
+                 order=None, is_regex=False, from_study=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           derived, from_study)
+                           from_study)
         super(FieldMatch, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
@@ -377,7 +361,7 @@ class FieldMatch(BaseMatch, BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, frequency={}, pattern={}, "
-                "is_regex={}, order={}, derived={}, from_study={})"
+                "is_regex={}, order={}, from_study={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.frequency, self._pattern, self.is_regex,
-                        self.order, self.derived, self._from_study))
+                        self.order, self._from_study))
