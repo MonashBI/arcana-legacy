@@ -14,7 +14,7 @@ from arcana.exception import (
     ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
 
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 class Pipeline(object):

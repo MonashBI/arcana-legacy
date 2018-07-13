@@ -17,7 +17,7 @@ from arcana.interfaces.iterators import (
     VisitReport, SubjectSessionReport, SessionReport)
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 WORKFLOW_MAX_NAME_LEN = 100

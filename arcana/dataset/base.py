@@ -8,7 +8,7 @@ from arcana.exception import ArcanaError
 from future.utils import with_metaclass
 from future.types import newstr
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 class BaseData(with_metaclass(ABCMeta, object)):

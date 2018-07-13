@@ -18,6 +18,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         self._connection_depth = 0
+        self._cache = {}
 
     def __enter__(self):
         # This allows the repository to be used within nested contexts
@@ -144,6 +145,25 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             name = "{}_{}_sink".format(self.type, frequency)
         return Node(RepositorySink((o.collection for o in outputs),
                                    frequency), name=name)
+
+    def cached_tree(self, subject_ids=None, visit_ids=None):
+        """
+        Access the repository tree and caches it for subsequent
+        accesses
+        """
+        if subject_ids is not None:
+            subject_ids = frozenset(subject_ids)
+        if visit_ids is not None:
+            visit_ids = frozenset(visit_ids)
+        try:
+            tree = self._cache[(subject_ids, visit_ids)]
+        except KeyError:
+            tree = self._cache[(subject_ids, visit_ids)] = self.tree(
+                subject_ids=subject_ids, visit_ids=visit_ids)
+        return tree
+
+    def clear_cache(self):
+        self._cache = {}
 
     def __ne__(self, other):
         return not (self == other)

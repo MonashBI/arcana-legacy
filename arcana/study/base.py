@@ -1,12 +1,8 @@
 from past.builtins import basestring
-from builtins import object, str
+from builtins import object
 from itertools import chain
 import sys
-import os
 import os.path as op
-import shutil
-import errno
-import tempfile
 import types
 from logging import getLogger
 from arcana.exception import (
@@ -15,13 +11,13 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
-    BaseData, BaseMatch, BaseDataset, BaseField, DatasetSpec)
+    BaseData, BaseField, DatasetSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, Switch
 from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 class Study(object):
@@ -109,7 +105,6 @@ class Study(object):
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
-        self._tree_cache = None
         self._reprocess = reprocess
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
@@ -272,14 +267,8 @@ class Study(object):
 
     @property
     def tree(self):
-        if self._tree_cache is None:
-            self._tree_cache = self.repository.tree(
-                subject_ids=self._subject_ids,
-                visit_ids=self._visit_ids)
-        return self._tree_cache
-
-    def reset_tree(self):
-        self._tree_cache = None
+        return self.repository.cached_tree(subject_ids=self.subject_ids,
+                                           visit_ids=self.visit_ids)
 
     @property
     def runner(self):
