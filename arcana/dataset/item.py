@@ -113,7 +113,6 @@ class Dataset(BaseItem, BaseDataset):
         The repository which the dataset is stored
     from_study : str
         Name of the Arcana study that that generated the field
-    bids_attr : Py
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8

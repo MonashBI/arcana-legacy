@@ -2,6 +2,7 @@ from builtins import str
 from builtins import object
 import re
 from contextlib import ExitStack
+from copy import copy
 from itertools import chain
 from arcana.exception import (
     ArcanaUsageError, ArcanaDatasetMatchError)
@@ -14,21 +15,30 @@ class BaseMatch(object):
     Base class for Dataset and Field Match classes
     """
 
-    def __init__(self, pattern, is_regex, order, from_study):
+    def __init__(self, pattern, is_regex, order, from_study,
+                 repository=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
         self._from_study = from_study
+        self._repository = repository
+        # Collection is not intended to be provided to __init__
+        # except when recreating when using initkwargs
+        self._collection = collection_
 
     def __eq__(self, other):
         return (self.from_study == other.from_study and
                 self.pattern == other.pattern and
-                self.order == other.order)
+                self.is_regex == other.is_regex and
+                self.order == other.order and
+                self.repository == other.repository)
 
     def __hash__(self):
         return (hash(self.from_study) ^
                 hash(self.pattern) ^
-                hash(self.order))
+                hash(self.is_regex) ^
+                hash(self.order) ^
+                hash(self.repository))
 
     @property
     def pattern(self):
@@ -43,11 +53,15 @@ class BaseMatch(object):
         return self._from_study
 
     @property
-    def study(self):
-        if self._study is None:
+    def repository(self):
+        return self._repository
+
+    @property
+    def collection(self):
+        if self._collection is None:
             raise ArcanaUsageError(
-                "{} is not bound to a study".format(self))
-        return self._study
+                "{} has not been bound to a study".format(self))
+        return self._collection
 
     @property
     def is_regex(self):
@@ -58,11 +72,28 @@ class BaseMatch(object):
         return self._order
 
     def bind(self, study, **kwargs):
-        if self.from_study is None and self.derived:
-            from_study = study.name
+        if self._study == study:
+            bound = self
         else:
-            from_study = self.from_study
-        return self._match_tree(study.tree, from_study, **kwargs)
+            # Unless matching an output from a previously computed
+            # study
+            if self.from_study is None:
+                from_study = study.name
+            else:
+                from_study = self.from_study
+            bound = copy(self)
+            bound._study = study
+            # Use the default study repository if not explicitly
+            # provided to match
+            if self._repository is None:
+                repo = study.repository
+            else:
+                repo = self._repository
+            # Match against tree
+            self._collection = self._match_tree(
+                repo.cached_tree(subject_ids=study.subject_ids,
+                                 visit_ids=study.visit_ids),
+                from_study, **kwargs)
 
     @property
     def prefixed_name(self):
@@ -128,6 +159,7 @@ class BaseMatch(object):
         dct['pattern'] = self.pattern
         dct['order'] = self.order
         dct['is_regex'] = self.is_regex
+        dct['collection_'] = self._collection
         return dct
 
 
@@ -172,6 +204,9 @@ class DatasetMatch(BaseMatch, BaseDataset):
         Is used to determine the location of the datasets in the
         repository as the derived datasets and fields are grouped by
         the name of the study that generated them.
+    repository : BaseRepository | None
+        The repository to draw the matches from, if not the main repository
+        that is used to store the products of the current study.
     """
 
     is_spec = False
@@ -180,14 +215,14 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
-                 from_study=None):
+                 from_study=None, repository=None, collection_=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           from_study)
+                           from_study, repository, collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -318,16 +353,20 @@ class FieldMatch(BaseMatch, BaseField):
         Is used to determine the location of the fields in the
         repository as the derived datasets and fields are grouped by
         the name of the study that generated them.
+    repository : BaseRepository | None
+        The repository to draw the matches from, if not the main repository
+        that is used to store the products of the current study.
     """
 
     is_spec = False
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
-                 order=None, is_regex=False, from_study=None):
+                 order=None, is_regex=False, from_study=None,
+                 repository=None, collection_=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           from_study)
+                           from_study, repository, collection_)
         super(FieldMatch, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):

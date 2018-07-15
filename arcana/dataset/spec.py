@@ -48,7 +48,7 @@ class BaseSpec(object):
             A study to bind the dataset spec to (should happen in the
             study constructor)
         """
-        if self._study is not None:
+        if self._study == study:
             bound = self
         else:
             bound = copy(self)

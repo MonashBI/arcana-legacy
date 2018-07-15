@@ -149,6 +149,17 @@ class BaseCollection(object):
             dataset = self._collection
         return dataset
 
+    @property
+    def collection(self):
+        "Used for duck typing Collection objects with Spec and Match "
+        "in source and sink initiation"
+        return self
+
+    def bind(self, study):
+        "Used for duck typing Collection objects with Spec and Match "
+        "in source and sink initiation"
+        pass
+
 
 class DatasetCollection(BaseCollection, BaseDataset):
     """
