@@ -93,7 +93,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
 
         Returns
         -------
-        project : arcana.repository.Project
+        project : arcana.repository.Tree
             A hierarchical tree of subject, session and dataset
             information for the repository
         """

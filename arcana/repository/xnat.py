@@ -16,7 +16,7 @@ from zipfile import ZipFile, BadZipfile  # @IgnorePep8
 from collections import defaultdict  # @IgnorePep8
 from arcana.dataset import Dataset, Field  # @IgnorePep8
 from arcana.repository.base import BaseRepository  # @IgnorePep8
-from arcana.repository.tree import Session, Subject, Project, Visit  # @IgnorePep8
+from arcana.repository.tree import Session, Subject, Tree, Visit  # @IgnorePep8
 from arcana.dataset.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
@@ -280,7 +280,7 @@ class XnatRepository(BaseRepository):
 
         Returns
         -------
-        project : arcana.repository.Project
+        project : arcana.repository.Tree
             A hierarchical tree of subject, session and dataset
             information for the repository
         """
@@ -398,7 +398,7 @@ class XnatRepository(BaseRepository):
                     xproj_summary,
                     frequency='per_project',
                     from_study=from_study)
-        return Project(sorted(subjects), sorted(visits),
+        return Tree(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 
     def convert_subject_ids(self, subject_ids):

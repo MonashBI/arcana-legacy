@@ -10,7 +10,7 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from .tree import Project, Subject, Session, Visit
+from .tree import Tree, Subject, Session, Visit
 from arcana.dataset import Dataset, Field
 from arcana.exception import (
     ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
@@ -152,7 +152,7 @@ class LocalRepository(BaseRepository):
 
         Returns
         -------
-        project : arcana.repository.Project
+        project : arcana.repository.Tree
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
@@ -272,7 +272,7 @@ class LocalRepository(BaseRepository):
         except KeyError:
             datasets = []
             fields = []
-        return Project(sorted(subjects), sorted(visits), datasets,
+        return Tree(sorted(subjects), sorted(visits), datasets,
                        fields)
 
     def session_dir(self, item):

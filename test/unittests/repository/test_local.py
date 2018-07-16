@@ -7,7 +7,7 @@ from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.dataset import (  # @IgnorePep8
     Dataset, DatasetSpec, Field)  # @IgnorePep8
 from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
 
@@ -52,7 +52,7 @@ class TestLocalRepository(BaseTestCase):
 class TestLocalProjectInfo(BaseMultiSubjectTestCase):
     """
     This unittest tests out that extracting the existing scans and
-    fields in a project returned in a Project object.
+    fields in a project returned in a Tree object.
     """
 
     DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
@@ -123,7 +123,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                     Field('c', value='buggy',
                           subject_id='subject2', visit_id='visit2',
                           repository=repository)])]
-        project = Project(
+        project = Tree(
             subjects=[
                 Subject(
                     'subject1', sessions=[s for s in sessions

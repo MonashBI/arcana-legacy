@@ -19,7 +19,7 @@ from arcana.parameter import ParameterSpec  # @IgnorePep8
 from arcana.dataset.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
-from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from arcana.dataset import Dataset  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -301,7 +301,7 @@ class TestStudy(BaseMultiSubjectTestCase):
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                      for i in self.VISIT_IDS]
-        return Project(subjects=subjects, visits=visits)
+        return Tree(subjects=subjects, visits=visits)
 
     def make_study(self):
         return self.create_study(
@@ -437,7 +437,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                   for i in visit_ids]
-        return Project(subjects=subjects, visits=visits)
+        return Tree(subjects=subjects, visits=visits)
 
     def test_per_session_prereqs(self):
         study = self.create_study(

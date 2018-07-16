@@ -30,7 +30,7 @@ from arcana.dataset.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
 from arcana.dataset.file_format.standard import text_format
-from arcana.repository.tree import Project, Subject, Session, Visit
+from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.dataset import Dataset
 import sys
 import logging
@@ -1023,7 +1023,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                   for i in visit_ids]
-        return Project(subjects=subjects, visits=visits)
+        return Tree(subjects=subjects, visits=visits)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):

@@ -109,7 +109,7 @@ class TreeNode(object):
         return mismatch
 
 
-class Project(TreeNode):
+class Tree(TreeNode):
     """
     Represents a project tree as stored in a repository
 
@@ -152,7 +152,7 @@ class Project(TreeNode):
 #                 "Cannot create empty tree")
 
     def __eq__(self, other):
-        return (super(Project, self).__eq__(other) and
+        return (super(Tree, self).__eq__(other) and
                 self._subjects == other._subjects and
                 self._visits == other._visits)
 
@@ -231,7 +231,7 @@ class Project(TreeNode):
         """
         Used in debugging unittests
         """
-        mismatch = super(Project, self).find_mismatch(other, indent)
+        mismatch = super(Tree, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
         if len(list(self.subjects)) != len(list(other.subjects)):
             mismatch += ('\n{indent}mismatching subject lengths '
@@ -260,7 +260,7 @@ class Project(TreeNode):
         return mismatch
 
     def __repr__(self):
-        return ("Project(num_subjects={}, num_visits={}, "
+        return ("Tree(num_subjects={}, num_visits={}, "
                 "num_datasets={}, num_fields={})".format(
                     len(list(self.subjects)),
                     len(list(self.visits)),

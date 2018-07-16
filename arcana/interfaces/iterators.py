@@ -170,7 +170,7 @@ class PipelineReportInputSpec(TraitedSpec):
                            desc="Subjects from per-subject sink")
     visits = traits.List(traits.Str,
                              desc="Visits from per_visit sink")
-    project = traits.Str(desc="Project ID from per-project sink")
+    project = traits.Str(desc="Tree ID from per-project sink")
 
 
 class PipelineReportOutputSpec(TraitedSpec):
@@ -178,7 +178,7 @@ class PipelineReportOutputSpec(TraitedSpec):
         traits.Str, traits.Str),
         desc="Session & subject pairs from per-session sink")
     subjects = traits.List(traits.Str, desc="Subjects from per-subject sink")
-    project = traits.Str(desc="Project ID from per-project sink")
+    project = traits.Str(desc="Tree ID from per-project sink")
 
 
 class PipelineReport(BaseInterface):

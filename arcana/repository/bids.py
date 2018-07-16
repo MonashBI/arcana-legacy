@@ -7,7 +7,7 @@ import errno
 from .local import LocalRepository
 import logging
 from bids import grabbids as gb
-from .tree import Project, Subject, Session, Visit
+from .tree import Tree, Subject, Session, Visit
 from arcana.dataset import Dataset
 from arcana.exception import ArcanaNameError, ArcanaMissingDataException
 
@@ -79,7 +79,7 @@ class BidsRepository(LocalRepository):
 
         Returns
         -------
-        project : arcana.repository.Project
+        project : arcana.repository.Tree
             A hierarchical tree of subject, session and dataset information for
             the repository
         """
@@ -141,5 +141,5 @@ class BidsRepository(LocalRepository):
             visits.append(
                 Visit(visit_id, sorted(visit_sessions),
                       datasets, fields))
-        return Project(sorted(subjects), sorted(visits),
+        return Tree(sorted(subjects), sorted(visits),
                        derived_tree.datasets, derived_tree.fields)
