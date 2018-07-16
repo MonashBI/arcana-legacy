@@ -462,7 +462,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 self.assertContentsEqual(
                     dataset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
-# TODO: This should be reenabled after provenance is implemented
+# FIXME: This should be reenabled after provenance is implemented
 #                 if subj_id == 'subject1' and visit_id == 'visit3':
 #                     self.assertNotIn(
 #                         'ten', list(session.dataset_names),

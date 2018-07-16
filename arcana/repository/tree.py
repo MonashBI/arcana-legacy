@@ -37,41 +37,53 @@ class TreeNode(object):
     def fields(self):
         return iter(self._fields.values())
 
-    @property
-    def dataset_names(self):
-        return (k[0] for k in self._datasets.keys())
-
-    @property
-    def field_names(self):
-        return (k[0] for k in self._fields.keys())
-
     def dataset(self, name, study=None):
         try:
             return self._datasets[(name, study)]
         except KeyError:
+            available = [d.name for d in self.datasets
+                         if d.from_study == study]
+            other_studies = [d.from_study for d in self.datasets
+                             if d.name == name]
+            if other_studies:
+                msg = (". NB: matching dataset(s) found for '{}' study(ies)"
+                       .format(name, other_studies))
+            else:
+                msg = ''
             raise ArcanaNameError(
-                name, ("{} doesn't have a dataset named '{}' "
-                       "(available '{}')"
-                       .format(self, name,
-                               "', '".join(self.dataset_names))))
+                name,
+                ("{} doesn't have a dataset named '{}'{}"
+                   "(available '{}'){}"
+                   .format(self, name,
+                           ("for study '{}'"
+                            if study is not None else ''),
+                           "', '".join(available), other_studies), msg))
 
     def field(self, name, study=None):
         try:
             return self._fields[(name, study)]
         except KeyError:
+            available = [d.name for d in self.fields
+                         if d.from_study == study]
+            other_studies = [d.from_study for d in self.fields
+                             if d.name == name]
+            if other_studies:
+                msg = (". NB: matching field(s) found for '{}' study(ies)"
+                       .format(name, other_studies))
+            else:
+                msg = ''
             raise ArcanaNameError(
                 name, ("{} doesn't have a field named '{}' "
                        "(available '{}')"
-                       .format(self, name,
-                               "', '".join(self.field_names))))
+                       .format(
+                           self, name,
+                           ("for study '{}'"
+                            if study is not None else ''),
+                           "', '".join(available), other_studies), msg))
 
     @property
     def data(self):
         return chain(self.datasets, self.fields)
-
-    @property
-    def data_names(self):
-        return (d.name for d in self.data)
 
     def __ne__(self, other):
         return not (self == other)

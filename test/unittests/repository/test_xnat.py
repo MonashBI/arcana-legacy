@@ -782,54 +782,51 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         with self._connect() as login:
             # Check subject summary directories were created properly in cache
             expected_subj_datasets = ['subject_sink']
-            subject_dir = op.join(
-                self.cache_dir, self.project,
-                '_'.join((self.project, self.SUBJECT)),
-                '_'.join((self.project, self.SUBJECT,
-                         XnatRepository.SUMMARY_NAME)))
+            subject_dir = self.session_cache(
+                visit=XnatRepository.SUMMARY_NAME,
+                from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(ls_with_md5_filter(subject_dir),
                              [d + text_format.extension
                               for d in expected_subj_datasets])
             # and on XNAT
             subject_dataset_names = list(login.projects[
                 self.project].experiments[
-                    '_'.join((self.project, self.SUBJECT,
-                              XnatRepository.SUMMARY_NAME))].scans.keys())
+                    self.session_label(
+                        visit=XnatRepository.SUMMARY_NAME,
+                        from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check visit summary directories were created properly in
             # cache
             expected_visit_datasets = ['visit_sink']
-            visit_dir = op.join(
-                self.cache_dir, self.project,
-                self.project + '_' + XnatRepository.SUMMARY_NAME,
-                (self.project + '_' + XnatRepository.SUMMARY_NAME +
-                 '_' + self.VISIT))
+            visit_dir = self.session_cache(
+                subject=XnatRepository.SUMMARY_NAME,
+                from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(ls_with_md5_filter(visit_dir),
                              [d + text_format.extension
                               for d in expected_visit_datasets])
             # and on XNAT
             visit_dataset_names = list(login.projects[
                 self.project].experiments[
-                    '{}_{}_{}'.format(
-                        self.project, XnatRepository.SUMMARY_NAME,
-                        self.VISIT)].scans.keys())
+                    self.session_label(
+                        subject=XnatRepository.SUMMARY_NAME,
+                        from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
             expected_proj_datasets = ['project_sink']
-            project_dir = op.join(
-                self.cache_dir, self.project,
-                self.project + '_' + XnatRepository.SUMMARY_NAME,
-                self.project + '_' + XnatRepository.SUMMARY_NAME + '_' +
-                XnatRepository.SUMMARY_NAME)
+            project_dir = self.session_cache(
+                subject=XnatRepository.SUMMARY_NAME,
+                visit=XnatRepository.SUMMARY_NAME,
+                from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(ls_with_md5_filter(project_dir),
                              [d + text_format.extension
                               for d in expected_proj_datasets])
             # and on XNAT
             project_dataset_names = list(login.projects[
                 self.project].experiments[
-                    '{}_{sum}_{sum}'.format(
-                        self.project,
-                        sum=XnatRepository.SUMMARY_NAME)].scans.keys())
+                    self.session_label(
+                        subject=XnatRepository.SUMMARY_NAME,
+                        visit=XnatRepository.SUMMARY_NAME,
+                        from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_proj_datasets, project_dataset_names)
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(IdentityInterface(['subject_id',
@@ -871,14 +868,15 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         reloadworkflow.run()
         # Check that the datasets
         self.assertEqual(
-            ls_with_md5_filter(self.session_cache()),
+            ls_with_md5_filter(self.session_cache(
+                from_study=self.SUMMARY_STUDY_NAME)),
             ['resink1.txt', 'resink2.txt', 'resink3.txt'])
         # and on XNAT
         with self._connect() as login:
             resinked_dataset_names = list(login.projects[
                 self.project].experiments[
-                    self.session_label() +
-                    XnatRepository.PROCESSED_SUFFIX].scans.keys())
+                    self.session_label(
+                        from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(sorted(resinked_dataset_names),
                              ['resink1', 'resink2', 'resink3'])
 
