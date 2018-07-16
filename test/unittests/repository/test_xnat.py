@@ -650,7 +650,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME,
                                  repository=source_repository)],
-            subject_ids=['SUBJECT'], visit_ids=['VISIT'])
+            subject_ids=['SUBJECT'], visit_ids=['VISIT'],
+            fill_tree=True)
         source = study.source([DATASET_NAME],
                               name='digest_check_source')
         source.inputs.subject_id = self.SUBJECT
@@ -696,8 +697,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.inputs.subject_id = self.SUBJECT
         sink.inputs.visit_id = self.VISIT
         sink.inputs.sink1_path = source_target_path
-        sink_fpath = (STUDY_NAME + '_' + DATASET_NAME +
-                      text_format.extension)
+        sink_fpath = DATASET_NAME + text_format.extension
         sink_target_path = op.join(
             self.session_cache(
                 cache_dir, project=self.digest_sink_project,

@@ -2,7 +2,7 @@ from builtins import zip
 from builtins import object
 from itertools import chain
 from collections import OrderedDict
-from arcana.exception import ArcanaNameError, ArcanaUsageError
+from arcana.exception import ArcanaNameError
 
 
 class TreeNode(object):
@@ -126,30 +126,25 @@ class Tree(TreeNode):
     fields : List[Field]
         The fields that belong to the project, i.e. of 'per_project'
         frequency
-
-        Parameters
-        ----------
-        subject_ids : list[int] | None
-            Limit the subjects returned to those specified by the
-            supplied IDs
-        visit_ids : list[int] | None
-            Limit the visits returned to those specified by the
-            supplied IDs
-        fill : bool
-            Create empty sessions for any that are missing in the
-            subject_id x visit_id block. Typically only used if all
-            the inputs to the study are coming from different repositories
-            to the one that the derived products are stored in
+    fill_subjects : list[int] | None
+        Create empty sessions for any subjects that are missing
+        from the provided list. Typically only used if all
+        the inputs to the study are coming from different repositories
+        to the one that the derived products are stored in
+    fill_visits : list[int] | None
+        Create empty sessions for any visits that are missing
+        from the provided list. Typically only used if all
+        the inputs to the study are coming from different repositories
+        to the one that the derived products are stored in
     """
 
     def __init__(self, subjects, visits, datasets=None, fields=None,
-                 fill=False):
+                 fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
         TreeNode.__init__(self, datasets, fields)
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
-#         if not self._subjects or not self._visits:
-#             raise ArcanaUsageError(
-#                 "Cannot create empty tree")
+        if fill_subjects is not None or fill_visits is not None:
+            self._fill_empty_sessions(fill_subjects, fill_visits)
 
     def __eq__(self, other):
         return (super(Tree, self).__eq__(other) and
@@ -176,6 +171,11 @@ class Tree(TreeNode):
     @property
     def visits(self):
         return iter(self._visits.values())
+
+    @property
+    def full_visits(self):
+        max_num_sessions = max(len(v) for v in self.visits)
+        return (v for v in self.visits if len(v) == max_num_sessions)
 
     def subject(self, id):  # @ReservedAssignment
         try:
@@ -266,6 +266,34 @@ class Tree(TreeNode):
                     len(list(self.visits)),
                     len(list(self.datasets)), len(list(self.fields))))
 
+    def _fill_empty_sessions(self, fill_subjects, fill_visits):
+        """
+        Fill in tree with additional empty subjects and/or visits to
+        allow the study to pull its inputs from external repositories
+        """
+        if fill_subjects is None:
+            fill_subjects = [s.id for s in self.subjects]
+        if fill_visits is None:
+            fill_visits = [v.id for v in self.full_visits]
+        for subject_id in fill_subjects:
+            try:
+                subject = self.subject(subject_id)
+            except ArcanaNameError:
+                subject = self._subjects[subject_id] = Subject(
+                    subject_id, [], [], [])
+            for visit_id in fill_visits:
+                try:
+                    subject.session(visit_id)
+                except ArcanaNameError:
+                    session = Session(subject_id, visit_id, [], [])
+                    subject._sessions[visit_id] = session
+                    try:
+                        visit = self.visit(visit_id)
+                    except ArcanaNameError:
+                        visit = self._visits[visit_id] = Visit(
+                            visit_id, [], [], [])
+                    visit._sessions[subject_id] = session
+
 
 class Subject(TreeNode):
     """
@@ -317,6 +345,12 @@ class Subject(TreeNode):
         return (TreeNode.__hash__(self) ^
                 hash(self._id) ^
                 hash(tuple(self.sessions)))
+
+    def __len__(self):
+        return len(self._sessions)
+
+    def __iter__(self):
+        return self.sessions
 
     @property
     def sessions(self):
@@ -408,6 +442,12 @@ class Visit(TreeNode):
 
     def __lt__(self, other):
         return self._id < other._id
+
+    def __len__(self):
+        return len(self._sessions)
+
+    def __iter__(self):
+        return self.sessions
 
     @property
     def sessions(self):

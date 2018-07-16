@@ -64,6 +64,13 @@ class Study(object):
         different parameters and/or pipeline-versions. If False then
         and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
+    fill_tree : bool
+        Whether to fill the tree of the destination repository with the
+        provided subject and/or visit IDs. Only really useful if the
+        destination repository doesn't contain any of the the input
+        datasets/fields (which are stored in external repositories) and
+        so the sessions will need to be created in the destination
+        repository.
 
 
     Class Attrs
@@ -91,7 +98,7 @@ class Study(object):
 
     def __init__(self, name, repository, runner, inputs, parameters=None,
                  switches=None, subject_ids=None, visit_ids=None,
-                 enforce_inputs=True, reprocess=False):
+                 enforce_inputs=True, reprocess=False, fill_tree=False):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -110,7 +117,8 @@ class Study(object):
         self._visit_ids = visit_ids
         self._tree = self.repository.cached_tree(
             subject_ids=subject_ids,
-            visit_ids=visit_ids)
+            visit_ids=visit_ids,
+            fill=fill_tree)
         if not self.subject_ids:
             raise ArcanaUsageError(
                 "No subject IDs provided and destination repository "

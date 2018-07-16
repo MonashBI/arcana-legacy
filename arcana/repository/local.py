@@ -136,7 +136,7 @@ class LocalRepository(BaseRepository):
             with open(fpath, 'w') as f:
                 json.dump(dct, f)
 
-    def tree(self, subject_ids=None, visit_ids=None):
+    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return subject and session information for a project in the local
         repository
@@ -273,7 +273,7 @@ class LocalRepository(BaseRepository):
             datasets = []
             fields = []
         return Tree(sorted(subjects), sorted(visits), datasets,
-                       fields)
+                    fields, **kwargs)
 
     def session_dir(self, item):
         if item.frequency == 'per_project':

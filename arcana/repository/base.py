@@ -72,10 +72,32 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
-    def tree(self, subject_ids=None, visit_ids=None, fill=False):
+    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return the tree of subject and sessions information within a
         project in the XNAT repository
+
+        Parameters
+        ----------
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
+        visit_ids : list(str)
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
+
+        Returns
+        -------
+        project : arcana.repository.Tree
+            A hierarchical tree of subject, session and dataset
+            information for the repository
+        """
+
+    def cached_tree(self, subject_ids=None, visit_ids=None,
+                    fill=False):
+        """
+        Access the repository tree and caches it for subsequent
+        accesses
 
         Parameters
         ----------
@@ -90,30 +112,24 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             subject_id x visit_id block. Typically only used if all
             the inputs to the study are coming from different repositories
             to the one that the derived products are stored in
-
-        Returns
-        -------
-        project : arcana.repository.Tree
-            A hierarchical tree of subject, session and dataset
-            information for the repository
-        """
-
-    def cached_tree(self, subject_ids=None, visit_ids=None,
-                    **kwargs):
-        """
-        Access the repository tree and caches it for subsequent
-        accesses
         """
         if subject_ids is not None:
             subject_ids = frozenset(subject_ids)
         if visit_ids is not None:
             visit_ids = frozenset(visit_ids)
         try:
-            tree = self._cache[(subject_ids, visit_ids)]
+            tree = self._cache[(subject_ids, visit_ids, fill)]
         except KeyError:
+            fill_subjects = None
+            fill_visits = None
+            if fill:
+                if subject_ids is not None:
+                    fill_subjects = subject_ids
+                if visit_ids is not None:
+                    fill_visits = visit_ids
             tree = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
-                **kwargs)
+                fill_visits=fill_visits, fill_subjects=fill_subjects)
         return tree
 
     def clear_cache(self):

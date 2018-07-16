@@ -227,16 +227,17 @@ class XnatRepository(BaseRepository):
             if not os.path.exists(op.dirname(cache_path)):
                 os.makedirs(op.dirname(cache_path),
                             stat.S_IRWXU | stat.S_IRWXG)
+            digests = {}
             if op.isfile(dataset.path):
                 shutil.copyfile(dataset.path, cache_path)
+                self._calculate_digest(cache_path, digests)
             elif op.isdir(dataset.path):
                 shutil.copytree(dataset.path, cache_path)
+                for fname in os.listdir(dataset.path):
+                    self._calculate_digest(op.join(dataset.path, fname),
+                                           digests)
             else:
                 assert False
-
-            # Create md5 digest
-            with open(cache_path, 'rb') as f:
-                digests = {cache_path: hashlib.md5(f.read()).hexdigest()}
             with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
                 json.dump(digests, f)
@@ -264,7 +265,7 @@ class XnatRepository(BaseRepository):
             xsession = self._get_xsession(field)
             xsession.fields[field.name] = val
 
-    def tree(self, subject_ids=None, visit_ids=None):
+    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return the tree of subject and sessions information within a
         project in the XNAT repository
@@ -399,7 +400,8 @@ class XnatRepository(BaseRepository):
                     frequency='per_project',
                     from_study=from_study)
         return Tree(sorted(subjects), sorted(visits),
-                       datasets=proj_datasets, fields=proj_fields)
+                    datasets=proj_datasets, fields=proj_fields,
+                    **kwargs)
 
     def convert_subject_ids(self, subject_ids):
         """
@@ -718,3 +720,9 @@ class XnatRepository(BaseRepository):
                     "', '".join(f.label for f in dataset_formats),
                     xdataset.type))
         return next(iter(dataset_formats))
+
+    @classmethod
+    def _calculate_digest(cls, path, digests):
+        with open(path, 'rb') as f:
+            digests[op.basename(path)] = hashlib.md5(
+                f.read()).hexdigest()
