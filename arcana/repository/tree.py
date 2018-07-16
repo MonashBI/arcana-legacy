@@ -190,9 +190,28 @@ class Tree(TreeNode):
         return iter(self._visits.values())
 
     @property
-    def full_visits(self):
+    def sessions(self):
+        return chain(*(s.sessions for s in self.subjects))
+
+    @property
+    def complete_subjects(self):
+        max_num_sessions = max(len(s) for s in self.subjects)
+        return (s for s in self.subjects if len(s) == max_num_sessions)
+
+    @property
+    def complete_visits(self):
         max_num_sessions = max(len(v) for v in self.visits)
         return (v for v in self.visits if len(v) == max_num_sessions)
+
+    @property
+    def incomplete_subjects(self):
+        max_num_sessions = max(len(s) for s in self.subjects)
+        return (s for s in self.subjects if len(s) != max_num_sessions)
+
+    @property
+    def incomplete_visits(self):
+        max_num_sessions = max(len(v) for v in self.visits)
+        return (v for v in self.visits if len(v) != max_num_sessions)
 
     def subject(self, id):  # @ReservedAssignment
         try:
@@ -209,6 +228,9 @@ class Tree(TreeNode):
             raise ArcanaNameError(
                 id, ("{} doesn't have a visit named '{}'"
                        .format(self, id)))
+
+    def session(self, subject_id, visit_id):
+        return self.subject(subject_id).session(visit_id)
 
     def __iter__(self):
         return self.nodes()
@@ -291,7 +313,7 @@ class Tree(TreeNode):
         if fill_subjects is None:
             fill_subjects = [s.id for s in self.subjects]
         if fill_visits is None:
-            fill_visits = [v.id for v in self.full_visits]
+            fill_visits = [v.id for v in self.complete_visits]
         for subject_id in fill_subjects:
             try:
                 subject = self.subject(subject_id)

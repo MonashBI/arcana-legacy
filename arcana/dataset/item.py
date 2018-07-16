@@ -17,11 +17,13 @@ class BaseItem(object):
 
     is_spec = False
 
-    def __init__(self, subject_id, visit_id, repository, from_study):
+    def __init__(self, subject_id, visit_id, repository, from_study,
+                 exists):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
         self._from_study = from_study
+        self._exists = exists
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and
@@ -57,6 +59,10 @@ class BaseItem(object):
     @property
     def repository(self):
         return self._repository
+
+    @property
+    def exists(self):
+        return self._exists
 
     @property
     def subject_id(self):
@@ -118,11 +124,11 @@ class Dataset(BaseItem, BaseDataset):
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 bids_attr=None):
+                 exists=True, bids_attr=None):
         BaseDataset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study)
+                          from_study, exists)
         self._path = path
         self._uri = uri
         self._bids_attr = bids_attr
@@ -363,7 +369,8 @@ class Field(BaseItem, BaseField):
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', subject_id=None,
-                 visit_id=None, repository=None, from_study=None):
+                 visit_id=None, repository=None, from_study=None,
+                 exists=True):
         if dtype is None:
             if value is None:
                 raise ArcanaUsageError(
@@ -393,7 +400,7 @@ class Field(BaseItem, BaseField):
                 value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study)
+                          from_study, exists)
         self._value = value
 
     def __eq__(self, other):

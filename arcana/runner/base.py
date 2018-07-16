@@ -132,7 +132,7 @@ class BaseRunner(object):
         pipeline.assert_connected()
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
-        sessions_to_process = self._sessions_to_process(
+        sessions_to_process = self._to_process(
             pipeline, subject_ids=subject_ids, visit_ids=visit_ids)
         if not sessions_to_process:
             raise ArcanaNoRunRequiredException(
@@ -391,8 +391,8 @@ class BaseRunner(object):
             workflow.connect(sink, 'project_id', output_summary,
                              'project')
 
-    def _sessions_to_process(self, pipeline, subject_ids=None,
-                             visit_ids=None, reprocess=False):
+    def _to_process(self, pipeline, subject_ids=None,
+                    visit_ids=None, reprocess=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project repository, and make a list of the sessions and subjects
@@ -410,50 +410,84 @@ class BaseRunner(object):
             Whether to reprocess the pipeline outputs even if they
             exist.
         """
-        # Get list of available subjects and their associated sessions/datasets
-        # from the repository
-        def filter_sessions(sessions):  # @IgnorePep8
-            if visit_ids is None and subject_ids is None:
-                return sessions
-            return (
-                s for s in sessions
-                if ((visit_ids is None or s.visit_id in visit_ids) and
-                    (subject_ids is None or s.subject_id in subject_ids)))
         tree = self.study.tree
-        subjects = ([s for s in tree.subjects if s.id in subject_ids]
-                    if subject_ids is not None else list(tree.subjects))
-        visits = ([v for v in tree.visits if v.id in visit_ids]
-                    if visit_ids is not None else list(tree.visits))
-        # Get all filtered sessions
-        all_sessions = list(chain(*[filter_sessions(s.sessions)
-                                    for s in subjects]))
+        non_per_session = [
+            o for o in pipeline.outputs
+            if self.study.spec(o).frequency != 'per_session']
+        if non_per_session and list(tree.incomplete_subjects):
+            raise ArcanaUsageError(
+                "Can't process '{}' pipeline as it has non-'per_session'"
+                "outputs ({}) and subjects ({}) that are missing one "
+                "or more visits ({}). Please restrict the subject/visit "
+                "IDs in the study __init__ to continue the analysis"
+                .format(
+                    self.name,
+                    ', '.join(non_per_session),
+                    ', '.join(s.id for s in tree.incomplete_subjects),
+                    ', '.join(v.id for v in tree.incomplete_visits)))
+        sessions = set()
         if reprocess:
-            return all_sessions
-        sessions_to_process = set()
-        for output_spec in pipeline.outputs:
-            output = self.study.spec(output_spec)
-            # If there is a project output then all subjects and sessions need
-            # to be reprocessed
-            if output.frequency == 'per_project':
-                if output.name not in tree.data_names:
-                    # Return all filtered sessions
-                    return all_sessions
-            elif output.frequency == 'per_subject':
-                sessions_to_process.update(chain(*(
-                    filter_sessions(s.sessions) for s in subjects
-                    if output.name not in s.data_names)))
-            elif output.frequency == 'per_visit':
-                sessions_to_process.update(chain(*(
-                    filter_sessions(v.sessions) for v in visits
-                    if (output.name not in v.data_names))))
-            elif output.frequency == 'per_session':
-                sessions_to_process.update(filter_sessions(
-                    s for s in all_sessions
-                    if output.name not in s.data_names))
+            sessions.extend(tree.sessions)
+        for output in pipeline.outputs:
+            items = self.study.spec(output).collection
+            if items.frequency == 'per_project':
+                if subject_ids is not None:
+                    raise ArcanaUsageError(
+                        "Cannot process restricted subject "
+                        "IDs ({}) for '{}' pipeline as it has a "
+                        "'per_project' output ('{}')"
+                        .format(', '.join(str(i) for i in subject_ids),
+                                pipeline.name, output))
+                if visit_ids is not None:
+                    raise ArcanaUsageError(
+                        "Cannot process restricted visit "
+                        "IDs ({}) for '{}' pipeline as it has a "
+                        "'per_project' output ('{}')"
+                        .format(', '.join(str(i) for i in visit_ids),
+                                pipeline.name, output))
+                # If there is a project output that doesn't exists then
+                # all subjects and sessions need to be reprocessed
+                if not next(iter(items)).exists:
+                    return list(tree.sessions)
+            elif items.frequency == 'per_subject':
+                if visit_ids is not None:
+                    raise ArcanaUsageError(
+                        "Cannot process restricted visit "
+                        "IDs ({}) for '{}' pipeline as it has a "
+                        "'per_subject' output ('{}')"
+                        .format(', '.join(str(i) for i in visit_ids),
+                                pipeline.name, output))
+                for item in items:
+                    if (not item.exists and
+                        (subject_ids is None or
+                         item.subject_id in subject_ids)):
+                        sessions.update(tree.subject(item.subject_id).sessions)
+            elif items.frequency == 'per_visit':
+                if subject_ids is not None:
+                    raise ArcanaUsageError(
+                        "Cannot process restricted subject "
+                        "IDs ({}) for '{}' pipeline as it has a "
+                        "'per_visit' output ('{}')"
+                        .format(', '.join(str(i) for i in subject_ids),
+                                pipeline.name, output))
+                for item in items:
+                    if (not item.exists and
+                        (visit_ids is None or
+                         item.visit_id in visit_ids)):
+                        sessions.update(tree.visit(item.visit_id).sessions)
+            elif items.frequency == 'per_session':
+                for item in items:
+                    if (not item.exists and
+                        (subject_ids is None or
+                         item.subject_id in subject_ids) and
+                        (visit_ids is None or
+                         item.visit_id in visit_ids)):
+                        sessions.add(tree.session(item.subject_id,
+                                                  item.visit_id))
             else:
                 assert False, ("Unrecognised frequency of {}"
                                .format(output))
-        return list(sessions_to_process)
+        return list(sessions)
 
     def __repr__(self):
         return "{}(work_dir={})".format(
