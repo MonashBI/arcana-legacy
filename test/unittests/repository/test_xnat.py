@@ -509,7 +509,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             [d + text_format.extension
              for d in expected_sink_datasets])
         with self._connect() as login:
-            dataset_names = list(login.experiments[self.session_cache(
+            dataset_names = list(login.experiments[self.session_label(
                 from_study=self.STUDY_NAME)].scans.keys())
         self.assertEqual(sorted(dataset_names), expected_sink_datasets)
 

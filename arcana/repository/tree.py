@@ -3,6 +3,7 @@ from builtins import object
 from itertools import chain
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
+from arcana.dataset import BaseDataset, BaseField
 
 
 class TreeNode(object):
@@ -28,6 +29,10 @@ class TreeNode(object):
 
     def __hash__(self):
         return hash(tuple(self.datasets)) ^ hash(tuple(self._fields))
+
+    def __contains__(self, item):
+        if isinstance(item, BaseDataset):
+            return (item.name, item.from_study) in self._datasets
 
     @property
     def datasets(self):
