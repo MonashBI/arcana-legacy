@@ -502,9 +502,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(ls_with_md5_filter(self.session_cache()),
                          ['source1.txt', 'source2.txt',
                           'source3.txt', 'source4.txt'])
-        expected_sink_datasets = ['sink1',
-                                  'sink3',
-                                  'sink4']
+        expected_sink_datasets = ['sink1', 'sink3', 'sink4']
         self.assertEqual(
             ls_with_md5_filter(self.session_cache(
                 from_study=self.STUDY_NAME)),
@@ -690,7 +688,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         # stored in identical format
         DATASET_NAME = 'sink1'
         sink = study.sink(
-            [study.spec(DATASET_NAME)],
+            [DATASET_NAME],
             name='digest_check_sink')
         sink.inputs.name = 'digest_check_sink'
         sink.inputs.desc = "Tests the generation of MD5 digests"
@@ -755,8 +753,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
-        project_sink_files = [
-            study.spec('project_sink')]
+        project_sink_files = ['project_sink']
         project_sink = study.sink(
             project_sink_files,
             frequency='per_project')
@@ -784,8 +781,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         workflow.run()
         with self._connect() as login:
             # Check subject summary directories were created properly in cache
-            expected_subj_datasets = [self.SUMMARY_STUDY_NAME +
-                                      '_subject_sink']
+            expected_subj_datasets = ['subject_sink']
             subject_dir = op.join(
                 self.cache_dir, self.project,
                 '_'.join((self.project, self.SUBJECT)),
@@ -802,8 +798,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             self.assertEqual(expected_subj_datasets, subject_dataset_names)
             # Check visit summary directories were created properly in
             # cache
-            expected_visit_datasets = [self.SUMMARY_STUDY_NAME +
-                                       '_visit_sink']
+            expected_visit_datasets = ['visit_sink']
             visit_dir = op.join(
                 self.cache_dir, self.project,
                 self.project + '_' + XnatRepository.SUMMARY_NAME,
@@ -820,8 +815,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                         self.VISIT)].scans.keys())
             self.assertEqual(expected_visit_datasets, visit_dataset_names)
             # Check project summary directories were created properly in cache
-            expected_proj_datasets = [self.SUMMARY_STUDY_NAME +
-                                      '_project_sink']
+            expected_proj_datasets = ['project_sink']
             project_dir = op.join(
                 self.cache_dir, self.project,
                 self.project + '_' + XnatRepository.SUMMARY_NAME,
@@ -878,9 +872,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         # Check that the datasets
         self.assertEqual(
             ls_with_md5_filter(self.session_cache()),
-            [self.SUMMARY_STUDY_NAME + '_resink1.txt',
-             self.SUMMARY_STUDY_NAME + '_resink2.txt',
-             self.SUMMARY_STUDY_NAME + '_resink3.txt'])
+            ['resink1.txt', 'resink2.txt', 'resink3.txt'])
         # and on XNAT
         with self._connect() as login:
             resinked_dataset_names = list(login.projects[
@@ -888,9 +880,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                     self.session_label() +
                     XnatRepository.PROCESSED_SUFFIX].scans.keys())
             self.assertEqual(sorted(resinked_dataset_names),
-                             [self.SUMMARY_STUDY_NAME + '_resink1',
-                              self.SUMMARY_STUDY_NAME + '_resink2',
-                              self.SUMMARY_STUDY_NAME + '_resink3'])
+                             ['resink1', 'resink2', 'resink3'])
 
 
 class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
