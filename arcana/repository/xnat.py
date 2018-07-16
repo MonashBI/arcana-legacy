@@ -398,28 +398,6 @@ class XnatRepository(BaseRepository):
                     xproj_summary,
                     frequency='per_project',
                     from_study=from_study)
-            if not subjects:
-                raise ArcanaError(
-                    "Did not find any subjects matching the IDs '{}' in "
-                    "project '{}' (found '{}')"
-                    .format(
-                        ("', '".join(subject_ids)
-                         if subject_ids is not None else ''),
-                        self.project_id,
-                        "', '".join(
-                            s.label[(len(self.project_id) + 1):]
-                            for s in list(xproject.subjects.values()))))
-            if not sessions:
-                raise ArcanaError(
-                    "Did not find any sessions matching the visit IDs "
-                    "'{}' (in subjects '{}') for project '{}'"
-                    .format(
-                        ("', '".join(visit_ids)
-                         if visit_ids is not None else ''),
-                        "', '".join(
-                            s.label.split('_')[1]
-                            for s in list(xproject.experiments.values())),
-                        self.project_id))
         return Project(sorted(subjects), sorted(visits),
                        datasets=proj_datasets, fields=proj_fields)
 

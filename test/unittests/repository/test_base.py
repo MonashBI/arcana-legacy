@@ -59,17 +59,14 @@ class TestSinkAndSource(BaseTestCase):
                     DatasetMatch('source3', text_format, 'source3'),
                     DatasetMatch('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
-        source_files = [study.input(n)
-                        for n in ('source1', 'source2', 'source3',
-                                  'source4')]
-        sink_files = [study.spec(n)
-                      for n in ('sink1', 'sink3', 'sink4')]
+        source_files = ('source1', 'source2', 'source3', 'source4')
+        sink_files = ('sink1', 'sink3', 'sink4')
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = self.repository.source(source_files)
-        sink = self.repository.sink(sink_files)
+        source = study.source(source_files)
+        sink = study.sink(sink_files)
         sink.inputs.name = 'repository_sink'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -103,11 +100,8 @@ class TestSinkAndSource(BaseTestCase):
             STUDY_NAME, self.repository,
             runner=LinearRunner('a_dir'),
             inputs=[])
-        sink = self.repository.sink(
-            outputs=[
-                study.spec('field1'),
-                study.spec('field2'),
-                study.spec('field3')],
+        sink = study.sink(
+            outputs=['field1', 'field2', 'field3'],
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
@@ -117,11 +111,8 @@ class TestSinkAndSource(BaseTestCase):
         sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
-        source = self.repository.source(
-            inputs=[
-                study.spec('field1'),
-                study.spec('field2'),
-                study.spec('field3')],
+        source = study.source(
+            inputs=['field1', 'field2', 'field3'],
             name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
@@ -139,32 +130,29 @@ class TestSinkAndSource(BaseTestCase):
                     DatasetMatch('source2', text_format, 'source2'),
                     DatasetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
-        source_files = [study.input(n)
-                        for n in ('source1', 'source2', 'source3')]
+        source_files = ('source1', 'source2', 'source3')
         inputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = self.repository.source(source_files)
+        source = study.source(source_files)
         # Test subject sink
-        subject_sink_files = [
-            study.spec('subject_sink')]
+        subject_sink_files = ['subject_sink']
         subject_sink = self.repository.sink(
             subject_sink_files, frequency='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [study.spec('visit_sink')]
-        visit_sink = self.repository.sink(visit_sink_files,
+        visit_sink_files = ['visit_sink']
+        visit_sink = study.sink(visit_sink_files,
                                           frequency='per_visit')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide datasets")
         # Test project sink
-        project_sink_files = [
-            study.spec('project_sink')]
-        project_sink = self.repository.sink(project_sink_files,
+        project_sink_files = ['project_sink']
+        project_sink = study.sink(project_sink_files,
                                             frequency='per_project')
 
         project_sink.inputs.name = 'project_summary'
@@ -210,13 +198,12 @@ class TestSinkAndSource(BaseTestCase):
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = self.repository.source(
+        reloadsource = study.source(
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source')
-        reloadsink = self.repository.sink(
-            [study.spec(n)
-             for n in ('resink1', 'resink2', 'resink3')])
+        reloadsink = study.sink(
+            ['resink1', 'resink2', 'resink3'])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary datasets")

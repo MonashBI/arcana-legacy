@@ -22,7 +22,7 @@ class BaseMatch(object):
         self._order = order
         self._from_study = from_study
         self._repository = repository
-        # Collection is not intended to be provided to __init__
+        # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._study = study_
         self._collection = collection_
@@ -81,13 +81,13 @@ class BaseMatch(object):
             # Use the default study repository if not explicitly
             # provided to match
             if self._repository is None:
-                repo = study.repository
+                tree = study.tree
             else:
-                repo = self._repository
+                tree = self._repository.cached_tree(
+                    subject_ids=study.subject_ids,
+                    visit_ids=study.visit_ids)
             # Match against tree
-            bound._match_tree(
-                repo.cached_tree(subject_ids=study._subject_ids,
-                                 visit_ids=study._visit_ids), **kwargs)
+            bound._match_tree(tree, **kwargs)
         return bound
 
     @property
@@ -116,7 +116,9 @@ class BaseMatch(object):
                 self.frequency)
         self._collection = self.CollectionClass(
             self.name, (self._match_node(n, **kwargs)
-                        for n in nodes))
+                        for n in nodes),
+            frequency=self.frequency,
+            **self._specific_collection_kwargs)
 
     def _match_node(self, node, **kwargs):
         # Get names matching pattern
@@ -317,6 +319,10 @@ class DatasetMatch(BaseMatch, BaseDataset):
             matches = filtered
         return matches
 
+    @property
+    def _specific_collection_kwargs(self):
+        return {'format': self.format}
+
 
 class FieldMatch(BaseMatch, BaseField):
     """
@@ -402,3 +408,7 @@ class FieldMatch(BaseMatch, BaseField):
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self._from_study))
+
+    @property
+    def _specific_collection_kwargs(self):
+        return {'dtype': self.dtype}

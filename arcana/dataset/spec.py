@@ -87,7 +87,9 @@ class BaseSpec(object):
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
         self._collection = self.CollectionClass(
-            self.name, (self._bind_node(n, **kwargs) for n in nodes))
+            self.name, (self._bind_node(n, **kwargs) for n in nodes),
+            frequency=self.frequency,
+            **self._specific_collection_kwargs)
 
     def find_mismatch(self, other, indent=''):
         mismatch = ''
@@ -285,6 +287,10 @@ class DatasetSpec(BaseDataset, BaseSpec):
                               **kwargs)
         return dataset
 
+    @property
+    def _specific_collection_kwargs(self):
+        return {'format': self.format}
+
 
 class FieldSpec(BaseField, BaseSpec):
     """
@@ -353,3 +359,7 @@ class FieldSpec(BaseField, BaseSpec):
                           repository=self.study.repository,
                           from_study=self.study.name, **kwargs)
         return field
+
+    @property
+    def _specific_collection_kwargs(self):
+        return {'dtype': self.dtype}

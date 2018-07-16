@@ -126,15 +126,30 @@ class Project(TreeNode):
     fields : List[Field]
         The fields that belong to the project, i.e. of 'per_project'
         frequency
+
+        Parameters
+        ----------
+        subject_ids : list[int] | None
+            Limit the subjects returned to those specified by the
+            supplied IDs
+        visit_ids : list[int] | None
+            Limit the visits returned to those specified by the
+            supplied IDs
+        fill : bool
+            Create empty sessions for any that are missing in the
+            subject_id x visit_id block. Typically only used if all
+            the inputs to the study are coming from different repositories
+            to the one that the derived products are stored in
     """
 
-    def __init__(self, subjects, visits, datasets=None, fields=None):
+    def __init__(self, subjects, visits, datasets=None, fields=None,
+                 fill=False):
         TreeNode.__init__(self, datasets, fields)
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
-        if not self._subjects or not self._visits:
-            raise ArcanaUsageError(
-                "Cannot create empty tree")
+#         if not self._subjects or not self._visits:
+#             raise ArcanaUsageError(
+#                 "Cannot create empty tree")
 
     def __eq__(self, other):
         return (super(Project, self).__eq__(other) and

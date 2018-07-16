@@ -72,7 +72,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
-    def tree(self, subject_ids=None, visit_ids=None):
+    def tree(self, subject_ids=None, visit_ids=None, fill=False):
         """
         Return the tree of subject and sessions information within a
         project in the XNAT repository
@@ -85,6 +85,11 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         visit_ids : list(str)
             List of visit IDs with which to filter the tree with. If
             None all are returned
+        fill : bool
+            Create empty sessions for any that are missing in the
+            subject_id x visit_id block. Typically only used if all
+            the inputs to the study are coming from different repositories
+            to the one that the derived products are stored in
 
         Returns
         -------
@@ -93,7 +98,8 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             information for the repository
         """
 
-    def cached_tree(self, subject_ids=None, visit_ids=None):
+    def cached_tree(self, subject_ids=None, visit_ids=None,
+                    **kwargs):
         """
         Access the repository tree and caches it for subsequent
         accesses
@@ -105,8 +111,9 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         try:
             tree = self._cache[(subject_ids, visit_ids)]
         except KeyError:
-            tree = self._cache[(subject_ids, visit_ids)] = self.tree(
-                subject_ids=subject_ids, visit_ids=visit_ids)
+            tree = self.tree(
+                subject_ids=subject_ids, visit_ids=visit_ids,
+                **kwargs)
         return tree
 
     def clear_cache(self):

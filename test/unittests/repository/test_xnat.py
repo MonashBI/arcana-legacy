@@ -471,18 +471,15 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                     DatasetMatch('source3', text_format, 'source3'),
                     DatasetMatch('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
-        source_files = [study.input(n)
-                        for n in ('source1', 'source2', 'source3',
-                                  'source4')]
-        sink_files = [study.spec(n)
-                      for n in ('sink1', 'sink3', 'sink4')]
+        source_files = ['source1', 'source2', 'source3', 'source4']
+        sink_files = ['sink1', 'sink3', 'sink4']
         inputnode = pe.Node(IdentityInterface(['subject_id',
                                                'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
         inputnode.inputs.visit_id = str(self.VISIT)
-        source = repository.source(source_files)
-        sink = repository.sink(sink_files)
+        source = study.source(source_files)
+        sink = study.sink(sink_files)
         sink.inputs.name = 'repository-roundtrip-unittest'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -526,8 +523,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.STUDY_NAME, repository, runner=LinearRunner('a_dir'),
             inputs=[DatasetMatch('source1', text_format, 'source1')])
-        fields = [study.spec('field{}'.format(i)) for i in range(1, 4)]
-        sink = repository.sink(
+        fields = ['field{}'.format(i) for i in range(1, 4)]
+        sink = study.sink(
             outputs=fields,
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
@@ -538,7 +535,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
-        source = repository.source(
+        source = study.source(
             inputs=fields,
             name='fields_source')
         source.inputs.visit_id = self.VISIT
@@ -570,7 +567,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             self.STUDY_NAME, repository, LinearRunner('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
-        source = repository.source([study.input(DATASET_NAME)],
+        source = study.source([study.input(DATASET_NAME)],
                                    name='delayed_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
@@ -652,9 +649,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             STUDY_NAME, sink_repository, LinearRunner('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME,
-                                 repository=source_repository)])
-        source = sink_repository.source([study.input(DATASET_NAME)],
-                                        name='digest_check_source')
+                                 repository=source_repository)],
+            subject_ids=['SUBJECT'], visit_ids=['VISIT'])
+        source = study.source([DATASET_NAME],
+                              name='digest_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
@@ -690,7 +688,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         # Resink the source file and check that the generated MD5 digest is
         # stored in identical format
         DATASET_NAME = 'sink1'
-        sink = sink_repository.sink(
+        sink = study.sink(
             [study.spec(DATASET_NAME)],
             name='digest_check_sink')
         sink.inputs.name = 'digest_check_sink'
@@ -735,24 +733,22 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 DatasetMatch('source2', text_format, 'source2'),
                 DatasetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
-        source_files = [study.input(n)
-                        for n in ('source1', 'source2', 'source3')]
+        source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = repository.source(source_files)
-        subject_sink_files = [
-            study.spec('subject_sink')]
-        subject_sink = repository.sink(
+        source = study.source(source_files)
+        subject_sink_files = ['subject_sink']
+        subject_sink = study.sink(
             subject_sink_files,
             frequency='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide datasets")
         # Test visit sink
-        visit_sink_files = [study.spec('visit_sink')]
-        visit_sink = repository.sink(
+        visit_sink_files = ['visit_sink']
+        visit_sink = study.sink(
             visit_sink_files,
             frequency='per_visit')
         visit_sink.inputs.name = 'visit_summary'
@@ -761,7 +757,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         # Test project sink
         project_sink_files = [
             study.spec('project_sink')]
-        project_sink = repository.sink(
+        project_sink = study.sink(
             project_sink_files,
             frequency='per_project')
         project_sink.inputs.name = 'project_summary'
@@ -847,13 +843,12 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = repository.source(
+        reloadsource = study.source(
             (source_files + subject_sink_files + visit_sink_files +
              project_sink_files),
             name='reload_source')
-        reloadsink = repository.sink(
-            [study.spec(n)
-             for n in ('resink1', 'resink2', 'resink3')])
+        reloadsink = study.sink(
+            ['resink1', 'resink2', 'resink3'])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary datasets")

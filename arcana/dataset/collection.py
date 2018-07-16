@@ -17,16 +17,20 @@ class BaseCollection(object):
 
     def __init__(self, collection, frequency):
         self._frequency = frequency
-        self._repository = self._common_attr(collection, 'repository')
+        if collection:
+            self._repository = self._common_attr(collection,
+                                                 'repository')
+        else:
+            self._repository = None
         if frequency == 'per_project':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
-                if len(collection) != 1:
+                if len(collection) > 1:
                     raise ArcanaUsageError(
                         "More than one {} passed to {}"
                         .format(self.CONTAINED_CLASS.__name__,
                                 type(self).__name__))
-                collection = list(collection)[0]
+                collection = list(collection)
             self._collection = collection
         elif frequency == 'per_session':
             self._collection = OrderedDict()
@@ -52,7 +56,7 @@ class BaseCollection(object):
 
     def __iter__(self):
         if self._frequency == 'per_project':
-            return iter((self._collection,))
+            return iter(self._collection)
         elif self._frequency == 'per_session':
             return chain(*(c.values()
                            for c in self._collection.values()))
@@ -60,11 +64,7 @@ class BaseCollection(object):
             return iter(self._collection.values())
 
     def __len__(self):
-        if self._frequency == 'per_project':
-            length = 1
-        else:
-            length = len(self._collection)
-        return length
+        return len(self._collection)
 
     @property
     def repository(self):
@@ -146,7 +146,12 @@ class BaseCollection(object):
                     .format(visit_id, self.name,
                             ', '.join(self._collection.keys())))
         elif self.frequency == 'per_project':
-            dataset = self._collection
+            try:
+                dataset = self._collection[0]
+            except IndexError:
+                raise ArcanaIndexError(
+                    "'{}' Collection is empty so doesn't have a "
+                    "per_project node".format(self.name))
         return dataset
 
     @property
@@ -175,16 +180,37 @@ class DatasetCollection(BaseCollection, BaseDataset):
 
     CollectedClass = Dataset
 
-    def __init__(self, name, collection):
+    def __init__(self, name, collection, frequency=None,
+                 format=None):  # @ReservedAssignment
         collection = list(collection)
-        if not collection:
-            raise ArcanaError(
-                "DatasetCollection '{}' cannot be empty".format(name))
-        frequency = self._common_attr(collection, 'frequency')
+        if collection:
+            implicit_frequency = self._common_attr(collection,
+                                                   'frequency')
+            if frequency is None:
+                frequency = implicit_frequency
+            elif frequency != implicit_frequency:
+                raise ArcanaUsageError(
+                    "Implicit frequency '{}' does not match explicit "
+                    "frequency '{}' for '{}' DatasetCollection"
+                    .format(implicit_frequency, frequency, name))
+            implicit_format = self._common_attr(collection, 'format')
+            if format is None:
+                format = implicit_format  # @ReservedAssignment
+            elif format != implicit_format:
+                raise ArcanaUsageError(
+                    "Implicit format '{}' does not match explicit "
+                    "format '{}' for '{}' DatasetCollection"
+                    .format(implicit_format, format, name))
+        if frequency is None:
+            raise ArcanaUsageError(
+                "Need to provide explicit frequency for empty "
+                "DatasetCollection")
+        if format is None:
+            raise ArcanaUsageError(
+                "Need to provide explicit format for empty "
+                "DatasetCollection")
+        BaseDataset.__init__(self, name, format, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
-        BaseDataset.__init__(
-            self, name, format=self._common_attr(collection, 'format'),
-            frequency=frequency)
 
     def path(self, subject_id=None, visit_id=None):
         return self.item(
@@ -205,13 +231,33 @@ class FieldCollection(BaseCollection, BaseField):
 
     CollectedClass = Field
 
-    def __init__(self, name, collection):
+    def __init__(self, name, collection, frequency=None, dtype=None):
         collection = list(collection)
-        if not collection:
-            raise ArcanaError(
-                "FieldCollection '{}' cannot be empty".format(name))
-        frequency = self._common_attr(collection, 'frequency')
+        if collection:
+            implicit_frequency = self._common_attr(collection,
+                                                   'frequency')
+            if frequency is None:
+                frequency = implicit_frequency
+            elif frequency != implicit_frequency:
+                raise ArcanaUsageError(
+                    "Implicit frequency '{}' does not match explicit "
+                    "frequency '{}' for '{}' DatasetCollection"
+                    .dtype(implicit_frequency, frequency, name))
+            implicit_dtype = self._common_attr(collection, 'dtype')
+            if dtype is None:
+                dtype = implicit_dtype  # @ReservedAssignment
+            elif dtype != implicit_dtype:
+                raise ArcanaUsageError(
+                    "Implicit dtype '{}' does not match explicit "
+                    "dtype '{}' for '{}' DatasetCollection"
+                    .dtype(implicit_dtype, dtype, name))
+        if frequency is None:
+            raise ArcanaUsageError(
+                "Need to provide explicit frequency for empty "
+                "DatasetCollection")
+        if dtype is None:
+            raise ArcanaUsageError(
+                "Need to provide explicit dtype for empty "
+                "DatasetCollection")
+        BaseField.__init__(self, name, dtype=dtype, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
-        BaseField.__init__(
-            self, name, dtype=self._common_attr(collection, 'dtype'),
-            frequency=frequency)
