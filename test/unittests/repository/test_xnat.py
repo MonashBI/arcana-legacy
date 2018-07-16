@@ -491,11 +491,11 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', sink, 'subject_id')
         workflow.connect(inputnode, 'visit_id', sink, 'visit_id')
-        for source_file in source_files:
-            if source_file.name != 'source2':
-                sink_name = source_file.name.replace('source', 'sink')
+        for source_name in source_files:
+            if source_name != 'source2':
+                sink_name = source_name.replace('source', 'sink')
                 workflow.connect(
-                    source, source_file.name + PATH_SUFFIX,
+                    source, source_name + PATH_SUFFIX,
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check cache was created properly

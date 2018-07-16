@@ -109,7 +109,7 @@ class BaseRunner(object):
                             .format(pipeline.name))
         # Reset the cached tree of datasets in the repository as it will
         # change after the pipeline has run.
-        self.study.reset_tree()
+        self.study.repository.clear_cache()
         return workflow.run(plugin=self._plugin)
 
     def _connect_to_repository(self, pipeline, complete_workflow,
@@ -136,7 +136,7 @@ class BaseRunner(object):
             pipeline, subject_ids=subject_ids, visit_ids=visit_ids)
         if not sessions_to_process:
             raise ArcanaNoRunRequiredException(
-                "All outputs of '{}' are already present in project repository, "
+                "All outputs of '{}' are already present in project repository,"
                 "skipping".format(pipeline.name))
         # Set up workflow to run the pipeline, loading and saving from the
         # repository

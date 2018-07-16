@@ -771,7 +771,7 @@ class Study(object):
         return Node(RepositorySource(
             self.spec(i).collection for i in inputs), name=name)
 
-    def sink(self, outputs, frequency='per_session', name='sink'):
+    def sink(self, outputs, frequency='per_session', name=None):
         """
         Returns a NiPype node that puts the output data back to the repository
         system. The input spec of the node's interface should inherit from
@@ -791,6 +791,8 @@ class Study(object):
             study. Used for derived datasets only
 
         """
+        if name is None:
+            name = '{}_sink'.format(frequency)
         return Node(RepositorySink(
             (self.spec(o).collection for o in outputs),
             frequency), name=name)

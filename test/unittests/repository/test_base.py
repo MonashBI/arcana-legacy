@@ -77,9 +77,8 @@ class TestSinkAndSource(BaseTestCase):
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', sink, 'subject_id')
         workflow.connect(inputnode, 'visit_id', sink, 'visit_id')
-        for source_file in source_files:
-            if not source_file.name.endswith('2'):
-                source_name = source_file.name
+        for source_name in source_files:
+            if not source_name.endswith('2'):
                 sink_name = source_name.replace('source', 'sink')
                 workflow.connect(
                     source, source_name + PATH_SUFFIX,
@@ -130,7 +129,7 @@ class TestSinkAndSource(BaseTestCase):
                     DatasetMatch('source2', text_format, 'source2'),
                     DatasetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
-        source_files = ('source1', 'source2', 'source3')
+        source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
@@ -138,7 +137,7 @@ class TestSinkAndSource(BaseTestCase):
         source = study.source(source_files)
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        subject_sink = self.repository.sink(
+        subject_sink = study.sink(
             subject_sink_files, frequency='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
