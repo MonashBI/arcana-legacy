@@ -166,7 +166,7 @@ class Dataset(BaseItem, BaseDataset):
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency='{}', "
-                "subject_id={}, visit_id={}, from_study='{}')".format(
+                "subject_id={}, visit_id={}, from_study={})".format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))
@@ -440,7 +440,7 @@ class Field(BaseItem, BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', value={}, frequency='{}',  "
-                "subject_id={}, visit_id={}, from_study='{}')".format(
+                "subject_id={}, visit_id={}, from_study={})".format(
                     type(self).__name__, self.name, self.value,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))

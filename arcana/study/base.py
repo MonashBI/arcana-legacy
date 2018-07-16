@@ -267,8 +267,9 @@ class Study(object):
 
     @property
     def tree(self):
-        return self.repository.cached_tree(subject_ids=self.subject_ids,
-                                           visit_ids=self.visit_ids)
+        return self.repository.cached_tree(
+            subject_ids=self._subject_ids,
+            visit_ids=self._visit_ids)
 
     @property
     def runner(self):

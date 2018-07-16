@@ -120,7 +120,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseData)):
         return self._format
 
     def __repr__(self):
-        return ("{}(name='{}', format={}, frequency={})"
+        return ("{}(name='{}', format={}, frequency='{}')"
                 .format(self.__class__.__name__, self.name, self.format,
                         self.frequency))
 
@@ -185,3 +185,8 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
         dct = super(BaseField, self).initkwargs()
         dct['dtype'] = self.dtype
         return dct
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, frequency='{}')"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.frequency))

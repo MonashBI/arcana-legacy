@@ -642,15 +642,19 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         md5_path = source_target_path + XnatRepository.MD5_SUFFIX
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        repository = XnatRepository(
+        source_repository = XnatRepository(
             project_id=self.project,
             server=SERVER, cache_dir=cache_dir)
+        sink_repository = XnatRepository(
+            project_id=self.digest_sink_project, server=SERVER,
+            cache_dir=cache_dir)
         study = DummyStudy(
-            STUDY_NAME, repository, LinearRunner('ad'),
+            STUDY_NAME, sink_repository, LinearRunner('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
-                                 DATASET_NAME)])
-        source = repository.source([study.input(DATASET_NAME)],
-                                   name='digest_check_source')
+                                 DATASET_NAME,
+                                 repository=source_repository)])
+        source = sink_repository.source([study.input(DATASET_NAME)],
+                                        name='digest_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
@@ -685,9 +689,6 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(d, e)
         # Resink the source file and check that the generated MD5 digest is
         # stored in identical format
-        sink_repository = XnatRepository(
-            project_id=self.digest_sink_project, server=SERVER,
-            cache_dir=cache_dir)
         DATASET_NAME = 'sink1'
         sink = sink_repository.sink(
             [study.spec(DATASET_NAME)],

@@ -16,7 +16,7 @@ class BaseMatch(object):
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
-                 repository=None, collection_=None):
+                 repository=None, study_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
@@ -24,6 +24,7 @@ class BaseMatch(object):
         self._repository = repository
         # Collection is not intended to be provided to __init__
         # except when recreating when using initkwargs
+        self._study = study_
         self._collection = collection_
 
     def __eq__(self, other):
@@ -75,12 +76,6 @@ class BaseMatch(object):
         if self._study == study:
             bound = self
         else:
-            # Unless matching an output from a previously computed
-            # study
-            if self.from_study is None:
-                from_study = study.name
-            else:
-                from_study = self.from_study
             bound = copy(self)
             bound._study = study
             # Use the default study repository if not explicitly
@@ -90,10 +85,10 @@ class BaseMatch(object):
             else:
                 repo = self._repository
             # Match against tree
-            self._collection = self._match_tree(
-                repo.cached_tree(subject_ids=study.subject_ids,
-                                 visit_ids=study.visit_ids),
-                from_study, **kwargs)
+            bound._match_tree(
+                repo.cached_tree(subject_ids=study._subject_ids,
+                                 visit_ids=study._visit_ids), **kwargs)
+        return bound
 
     @property
     def prefixed_name(self):
@@ -106,7 +101,7 @@ class BaseMatch(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def _match_tree(self, tree, from_study, **kwargs):
+    def _match_tree(self, tree, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -120,15 +115,15 @@ class BaseMatch(object):
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
         self._collection = self.CollectionClass(
-            self.name, (self._match_node(n, from_study, **kwargs)
+            self.name, (self._match_node(n, **kwargs)
                         for n in nodes))
 
-    def _match_node(self, node, from_study, **kwargs):
+    def _match_node(self, node, **kwargs):
         # Get names matching pattern
         matches = self._filtered_matches(node, **kwargs)
         # Filter matches by study name
         matches = [d for d in matches
-                   if d.from_study == from_study]
+                   if d.from_study == self.from_study]
         # Select the dataset from the matches
         if self.order is not None:
             try:
@@ -159,6 +154,7 @@ class BaseMatch(object):
         dct['pattern'] = self.pattern
         dct['order'] = self.order
         dct['is_regex'] = self.is_regex
+        dct['study_'] = self._study
         dct['collection_'] = self._collection
         return dct
 
@@ -215,14 +211,15 @@ class DatasetMatch(BaseMatch, BaseDataset):
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment @IgnorePep8
                  order=None, dicom_tags=None, is_regex=False,
-                 from_study=None, repository=None, collection_=None):
+                 from_study=None, repository=None, study_=None,
+                 collection_=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "DatasetMatch constructor")
         BaseDataset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           from_study, repository, collection_)
+                           from_study, repository, study_, collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -363,10 +360,11 @@ class FieldMatch(BaseMatch, BaseField):
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
-                 repository=None, collection_=None):
+                 repository=None, study_=None, collection_=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
-                           from_study, repository, collection_)
+                           from_study, repository,
+                           study_, collection_)
         super(FieldMatch, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
