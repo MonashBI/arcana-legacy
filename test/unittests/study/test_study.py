@@ -465,7 +465,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 # FIXME: This should be reenabled after provenance is implemented
 #                 if subj_id == 'subject1' and visit_id == 'visit3':
 #                     self.assertNotIn(
-#                         'ten', list(session.dataset_names),
+#                         'ten', [d.name for d in session.datasets],
 #                         "'ten' should not be generated for "
 #                         "subject1:visit3 as hundred and thousand are "
 #                         "already present")

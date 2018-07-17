@@ -109,6 +109,10 @@ class XnatRepository(BaseRepository):
             return False  # For comparison with other types
 
     @property
+    def login(self):
+        return self._login
+
+    @property
     def project_id(self):
         return self._project_id
 
@@ -158,7 +162,7 @@ class XnatRepository(BaseRepository):
             raise ArcanaError(
                 "{} is not from {}".format(dataset, self))
         with self:  # Connect to the XNAT repository if haven't already
-            xsession = self._get_xsession(dataset)
+            xsession = self.get_xsession(dataset)
             scan_type = dataset.name
             xdataset = xsession.scans[scan_type]
             cache_path = self._cache_path(dataset)
@@ -211,7 +215,7 @@ class XnatRepository(BaseRepository):
 
     def get_field(self, field):
         with self:
-            xsession = self._get_xsession(field)
+            xsession = self.get_xsession(field)
             val = field.dtype(xsession.fields[field.name])
         return val
 
@@ -221,7 +225,7 @@ class XnatRepository(BaseRepository):
         # Open XNAT session
         with self:
             # Add session for derived scans if not present
-            xsession = self._get_xsession(dataset)
+            xsession = self.get_xsession(dataset)
             cache_path = self._cache_path(dataset)
             # Make session cache dir
             if not os.path.exists(op.dirname(cache_path)):
@@ -262,7 +266,7 @@ class XnatRepository(BaseRepository):
         if PY2 and isinstance(val, basestring):  # @UndefinedVariable
             val = oldstr(val)
         with self:
-            xsession = self._get_xsession(field)
+            xsession = self.get_xsession(field)
             xsession.fields[field.name] = val
 
     def tree(self, subject_ids=None, visit_ids=None, **kwargs):
@@ -615,7 +619,7 @@ class XnatRepository(BaseRepository):
                 tmp_dir, xresource, xdataset, dataset, session_label,
                 cache_path)
 
-    def _get_xsession(self, item):
+    def get_xsession(self, item):
         """
         Returns the XNAT session and cache dir corresponding to the
         item.

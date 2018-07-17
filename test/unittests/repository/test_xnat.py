@@ -231,70 +231,15 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                           cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
         local_repository = LocalRepository(self.project_dir)
-        project = local_repository.tree()
+        tree = local_repository.tree()
         self._create_project()
         repo = XnatRepository(SERVER, self.project, '/tmp')
-        with xnat.connect(SERVER) as xnat_login:
-            # Copy local repository to XNAT
-            xproject = xnat_login.projects[self.project]
-            for subject in project.subjects:
-                subj_id = self.project + '_' + subject.id
-                xsubject = xnat_login.classes.SubjectData(
-                    label=subj_id, parent=xproject)
-                for session in subject.sessions:
-                    sess_id = subj_id + '_' + session.visit_id
-                    xsession = xnat_login.classes.MrSessionData(
-                        label=sess_id,
-                        parent=xsubject)
-                    if any(self._is_derived(d) for d in session.datasets):
-                        xsession_proc = xnat_login.classes.MrSessionData(
-                            label=sess_id + XnatRepository.PROCESSED_SUFFIX,
-                            parent=xsubject)
-                    for dataset in session.datasets:
-                        if self._is_derived(dataset):
-                            xsess = xsession_proc
-                        else:
-                            xsess = xsession
-                        self._upload_datset(xnat_login, dataset, xsess)
-                    for field in session.fields:
-                        xsession.fields[field.name] = field.value
-                if subject.datasets or subject.fields:
-                    xsubj_summary = xnat_login.classes.MrSessionData(
-                        label=repo._get_labels(
-                            'per_subject', subject_id=subject.id)[1],
-                        parent=xsubject)
-                    for dataset in subject.datasets:
-                        self._upload_datset(xnat_login, dataset,
-                                            xsubj_summary)
-                    for field in subject.fields:
-                        xsubj_summary.fields[field.name] = field.value
-            for visit in project.visits:
-                if visit.datasets or visit.fields:
-                    (summ_subj_name,
-                     summ_sess_name) = repo._get_labels(
-                        'per_visit', visit_id=visit.id)
-                    xvisit_summary = xnat_login.classes.MrSessionData(
-                        label=summ_sess_name,
-                        parent=xnat_login.classes.SubjectData(
-                            label=summ_subj_name, parent=xproject))
-                    for dataset in visit.datasets:
-                        self._upload_datset(xnat_login, dataset,
-                                            xvisit_summary)
-                    for field in visit.fields:
-                        xvisit_summary.fields[field.name] = field.value
-            if project.datasets or project.fields:
-                (summ_subj_name,
-                 summ_sess_name) = repo._get_labels('per_project')
-                xproj_summary = xnat_login.classes.MrSessionData(
-                    label=summ_sess_name,
-                    parent=xnat_login.classes.SubjectData(
-                        label=summ_subj_name, parent=xproject))
-                for dataset in project.datasets:
-                    self._upload_datset(xnat_login, dataset,
-                                        xproj_summary)
-                for field in project.fields:
-                    xproj_summary.fields[field.name] = field.value
-        self._output_cache_dir = tempfile.mkdtemp()
+        with repo:
+            for node in tree:
+                for dataset in node.datasets:
+                    repo.put_dataset(dataset)
+                for field in node.fields:
+                    repo.put_field(field)
 
     def _upload_datset(self, xnat_login, dataset, xsession):
         if self._is_derived(dataset):

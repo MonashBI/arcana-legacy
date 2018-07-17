@@ -432,15 +432,15 @@ class BaseRunner(object):
             items = self.study.spec(output).collection
             if items.frequency == 'per_project':
                 if subject_ids is not None:
-                    raise ArcanaUsageError(
-                        "Cannot process restricted subject "
+                    logger.warning(
+                        "Cannot restrict processing to subject "
                         "IDs ({}) for '{}' pipeline as it has a "
                         "'per_project' output ('{}')"
                         .format(', '.join(str(i) for i in subject_ids),
                                 pipeline.name, output))
                 if visit_ids is not None:
-                    raise ArcanaUsageError(
-                        "Cannot process restricted visit "
+                    logger.warning(
+                        "Cannot restrict processing to visit "
                         "IDs ({}) for '{}' pipeline as it has a "
                         "'per_project' output ('{}')"
                         .format(', '.join(str(i) for i in visit_ids),
@@ -451,8 +451,8 @@ class BaseRunner(object):
                     return list(tree.sessions)
             elif items.frequency == 'per_subject':
                 if visit_ids is not None:
-                    raise ArcanaUsageError(
-                        "Cannot process restricted visit "
+                    logger.warning(
+                        "Cannot restrict processing to visit "
                         "IDs ({}) for '{}' pipeline as it has a "
                         "'per_subject' output ('{}')"
                         .format(', '.join(str(i) for i in visit_ids),
@@ -464,8 +464,8 @@ class BaseRunner(object):
                         sessions.update(tree.subject(item.subject_id).sessions)
             elif items.frequency == 'per_visit':
                 if subject_ids is not None:
-                    raise ArcanaUsageError(
-                        "Cannot process restricted subject "
+                    logger.warning(
+                        "Cannot restrict processing to subject "
                         "IDs ({}) for '{}' pipeline as it has a "
                         "'per_visit' output ('{}')"
                         .format(', '.join(str(i) for i in subject_ids),
