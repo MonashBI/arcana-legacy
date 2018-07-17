@@ -2,7 +2,8 @@ from __future__ import absolute_import
 oldstr = str
 from builtins import str  # @IgnorePep8 @UnusedImport
 from future.utils import PY2  # @IgnorePep8
-import os  # @IgnorePep8
+from arcana.utils import makedirs  # @IgnorePep8
+import os
 import os.path as op # @IgnorePep8
 import shutil  # @IgnorePep8
 import hashlib  # @IgnorePep8
@@ -72,12 +73,7 @@ class XnatRepository(BaseRepository):
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
-        try:
-            # Attempt to make cache if it doesn't already exist
-            os.makedirs(self._cache_dir)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        makedirs(self._cache_dir, exist_ok=True)
         self._user = user
         self._password = password
         self._race_cond_delay = race_cond_delay
@@ -169,7 +165,7 @@ class XnatRepository(BaseRepository):
             # Get resource to check its MD5 digest
             xresource = self._get_resource(xdataset, dataset)
             need_to_download = True
-            if os.path.exists(cache_path):
+            if op.exists(cache_path):
                 if self._check_md5:
                     md5_path = (cache_path +
                                 XnatRepository.MD5_SUFFIX)
@@ -545,13 +541,13 @@ class XnatRepository(BaseRepository):
     def _download_dataset(cls, tmp_dir, xresource, xdataset, dataset,
                           session_label, cache_path):
         # Download resource to zip file
-        zip_path = os.path.join(tmp_dir, 'download.zip')
+        zip_path = op.join(tmp_dir, 'download.zip')
         with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
         digests = cls._get_digests(xresource)
         # Extract downloaded zip file
-        expanded_dir = os.path.join(tmp_dir, 'expanded')
+        expanded_dir = op.join(tmp_dir, 'expanded')
         try:
             with ZipFile(zip_path) as zip_file:
                 zip_file.extractall(expanded_dir)
@@ -559,7 +555,7 @@ class XnatRepository(BaseRepository):
             raise ArcanaError(
                 "Could not unzip file '{}' ({})"
                 .format(xresource.id, e))
-        data_path = os.path.join(
+        data_path = op.join(
             expanded_dir, session_label, 'scans',
             (xdataset.id + '-' + special_char_re.sub('_', xdataset.type)),
             'resources', xresource.label, 'files')
@@ -574,7 +570,7 @@ class XnatRepository(BaseRepository):
                 if (lower(split_extension(f)[-1]) ==
                     lower(dataset.format.extension))]
             if len(match_fnames) == 1:
-                data_path = os.path.join(data_path, match_fnames[0])
+                data_path = op.join(data_path, match_fnames[0])
             else:
                 raise ArcanaMissingDataException(
                     "Did not find single file with extension '{}' "
@@ -595,7 +591,7 @@ class XnatRepository(BaseRepository):
                     .format(delay, cache_path))
         initial_mod_time = dir_modtime(tmp_dir)
         time.sleep(delay)
-        if os.path.exists(cache_path):
+        if op.exists(cache_path):
             logger.info("The download of '{}' has completed "
                         "successfully in the other process, continuing"
                         .format(cache_path))
@@ -691,11 +687,7 @@ class XnatRepository(BaseRepository):
         subj_dir, sess_dir = self._get_item_labels(dataset)
         cache_dir = op.join(self._cache_dir, self.project_id,
                             subj_dir, sess_dir)
-        try:
-            os.makedirs(cache_dir)
-        except IOError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        makedirs(cache_dir, exist_ok=True)
         return op.join(cache_dir, dataset.fname)
 
     @classmethod

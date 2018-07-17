@@ -1,9 +1,8 @@
 from __future__ import absolute_import
-import os
 import os.path as op
 from collections import defaultdict
 from itertools import chain
-import errno
+from arcana.utils import makedirs
 from .local import LocalRepository
 import logging
 from bids import grabbids as gb
@@ -32,11 +31,7 @@ class BidsRepository(LocalRepository):
         self._root_dir = root_dir
         derivatives_path = op.join(root_dir,
                                         self.DERIVATIVES_SUB_PATH)
-        try:
-            os.makedirs(derivatives_path)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        makedirs(derivatives_path, exist_ok=True)
         LocalRepository.__init__(derivatives_path)
         self._layout = gb.BIDSLayout(self.base_dir)
 

@@ -3,6 +3,7 @@ from builtins import str
 from past.builtins import basestring
 import os.path as op
 import os
+from arcana.utils import makedirs
 import subprocess as sp
 import operator
 import shutil
@@ -27,7 +28,6 @@ from arcana.exception import (
     ArcanaModulesNotInstalledException, ArcanaUsageError)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
-from arcana.dataset import DatasetCollection
 
 logger = logging.getLogger('arcana')
 logger.setLevel(logging.INFO)
@@ -61,11 +61,7 @@ class BaseTestCase(TestCase):
         except AttributeError:
             try:
                 cls._test_data_dir = os.environ['ARCANA_TEST_DATA']
-                try:
-                    os.makedirs(cls._test_data_dir)
-                except OSError as e:
-                    if e.errno != errno.EEXIST:
-                        raise
+                makedirs(cls._test_data_dir, exist_ok=True)
             except KeyError:
                 cls._test_data_dir = op.join(cls.BASE_TEST_DIR, 'data')
             return cls._test_data_dir
@@ -345,7 +341,7 @@ class BaseTestCase(TestCase):
             with open(op.join(output_dir,
                               LocalRepository.FIELDS_FNAME)) as f:
                 fields = json.load(f, 'rb')
-        except OSError as e:
+        except IOError as e:
             if e.errno == errno.ENOENT:
                 raise ArcanaError(
                     "No fields were created by pipeline in study '{}'"
@@ -513,11 +509,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
             subject=subject, visit=visit, **kwargs)
 
     def _make_dir(self, path):
-        try:
-            os.makedirs(path)
-        except OSError as e:
-            if e.errno != errno.EEXIST:
-                raise
+        makedirs(path, exist_ok=True)
         return path
 
 

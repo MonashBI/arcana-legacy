@@ -1,4 +1,5 @@
 import os.path
+import errno
 from future.utils import PY3, PY2
 if PY2:
     from contextlib2 import ExitStack  # @UnusedImport
@@ -64,6 +65,18 @@ def lower(s):
     if s is None:
         return None
     return s.lower()
+
+
+# Implement makedirs with 'exist_ok' kwarg for Python 2
+if PY2:
+    def makedirs(path, exist_ok=False, **kwargs):
+        try:
+            os.makedirs(path, **kwargs)
+        except OSError as e:
+            if not (exist_ok and e.errno == errno.EEXIST):
+                raise
+else:
+    from os import makedirs  # @UnusedImport
 
 
 if PY3:

@@ -1,9 +1,9 @@
 from builtins import str
 import os
+import errno
 import os.path as op
 from collections import defaultdict
 from itertools import chain
-import errno
 from .base import BaseRepository
 import stat
 import shutil
