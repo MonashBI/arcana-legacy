@@ -1,9 +1,9 @@
 import os.path
-from future.utils import PY3
-if PY3:
-    from contextlib import ExitStack  # @UnusedImport
+from future.utils import PY3, PY2
+if PY2:
+    from contextlib2 import ExitStack  # @UnusedImport
 else:
-    from contextlib2 import ExitStack  # @UnusedImport @Reimport
+    from contextlib import ExitStack  # @UnusedImport @Reimport
 
 
 PATH_SUFFIX = '_path'
