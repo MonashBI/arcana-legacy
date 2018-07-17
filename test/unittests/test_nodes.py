@@ -113,7 +113,7 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        self.assertContentsEqual(study.data('twos'), 1)
+        self.assertContentsEqual(study.data('twos'), 2.0)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")
@@ -121,10 +121,10 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        threes = list(study.data('threes'))[0].value
-        fours = list(study.data('fours'))[0].value
-        self.assertEqual(threes, 3)
-        self.assertEqual(fours, 4)
+        threes = study.data('threes')
+        fours = study.data('fours')
+        self.assertEqual(next(iter(threes)).value, 3)
+        self.assertEqual(next(iter(fours)).value, 4)
 
 
 class TestSlurmTemplate(TestCase):

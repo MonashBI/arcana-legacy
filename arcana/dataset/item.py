@@ -210,8 +210,8 @@ class Dataset(BaseItem, BaseDataset):
                 self._path = self.repository.get_dataset(self)
             else:
                 raise ArcanaError(
-                    "Neither path nor repository has been set for Dataset "
-                    "{}".format(self.name))
+                    "Neither path nor repository has been set for Dataset("
+                    "'{}')".format(self.name))
         return self._path
 
     @path.setter
@@ -457,6 +457,13 @@ class Field(BaseItem, BaseField):
 
     @property
     def value(self):
+        if self._value is None:
+            if self.repository is not None:
+                self._value = self.repository.get_field(self)
+            else:
+                raise ArcanaError(
+                    "Neither value nor repository has been set for Field("
+                    "'{}')".format(self.name))
         return self._value
 
     @value.setter
