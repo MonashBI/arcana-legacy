@@ -3,6 +3,7 @@ from builtins import object
 from itertools import chain
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
+from arcana.dataset import BaseDataset, BaseField
 
 
 class TreeNode(object):
@@ -12,8 +13,12 @@ class TreeNode(object):
             datasets = []
         if fields is None:
             fields = []
-        self._datasets = OrderedDict((d.name, d) for d in datasets)
-        self._fields = OrderedDict((f.name, f) for f in fields)
+        # Save datasets and fields in ordered dictionary by name and
+        # name of study that generated them (if applicable)
+        self._datasets = OrderedDict(((d.name, d.from_study), d)
+                                     for d in datasets)
+        self._fields = OrderedDict(((f.name, f.from_study), f)
+                                   for f in fields)
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or
@@ -25,6 +30,10 @@ class TreeNode(object):
     def __hash__(self):
         return hash(tuple(self.datasets)) ^ hash(tuple(self._fields))
 
+    def __contains__(self, item):
+        if isinstance(item, BaseDataset):
+            return (item.name, item.from_study) in self._datasets
+
     @property
     def datasets(self):
         return iter(self._datasets.values())
@@ -33,41 +42,53 @@ class TreeNode(object):
     def fields(self):
         return iter(self._fields.values())
 
-    @property
-    def dataset_names(self):
-        return iter(self._datasets.keys())
-
-    @property
-    def field_names(self):
-        return iter(self._fields.keys())
-
-    def dataset(self, name):
+    def dataset(self, name, study=None):
         try:
-            return self._datasets[name]
+            return self._datasets[(name, study)]
         except KeyError:
+            available = [d.name for d in self.datasets
+                         if d.from_study == study]
+            other_studies = [d.from_study for d in self.datasets
+                             if d.name == name]
+            if other_studies:
+                msg = (". NB: matching dataset(s) found for '{}' study(ies)"
+                       .format(name, other_studies))
+            else:
+                msg = ''
             raise ArcanaNameError(
-                name, ("{} doesn't have a dataset named '{}' "
-                       "(available '{}')"
-                       .format(self, name,
-                               "', '".join(self.dataset_names))))
+                name,
+                ("{} doesn't have a dataset named '{}'{}"
+                   "(available '{}'){}"
+                   .format(self, name,
+                           ("for study '{}'"
+                            if study is not None else ''),
+                           "', '".join(available), other_studies), msg))
 
-    def field(self, name):
+    def field(self, name, study=None):
         try:
-            return self._fields[name]
+            return self._fields[(name, study)]
         except KeyError:
+            available = [d.name for d in self.fields
+                         if d.from_study == study]
+            other_studies = [d.from_study for d in self.fields
+                             if d.name == name]
+            if other_studies:
+                msg = (". NB: matching field(s) found for '{}' study(ies)"
+                       .format(name, other_studies))
+            else:
+                msg = ''
             raise ArcanaNameError(
                 name, ("{} doesn't have a field named '{}' "
                        "(available '{}')"
-                       .format(self, name,
-                               "', '".join(self.field_names))))
+                       .format(
+                           self, name,
+                           ("for study '{}'"
+                            if study is not None else ''),
+                           "', '".join(available), other_studies), msg))
 
     @property
     def data(self):
         return chain(self.datasets, self.fields)
-
-    @property
-    def data_names(self):
-        return (d.name for d in self.data)
 
     def __ne__(self, other):
         return not (self == other)
@@ -105,7 +126,7 @@ class TreeNode(object):
         return mismatch
 
 
-class Project(TreeNode):
+class Tree(TreeNode):
     """
     Represents a project tree as stored in a repository
 
@@ -122,15 +143,28 @@ class Project(TreeNode):
     fields : List[Field]
         The fields that belong to the project, i.e. of 'per_project'
         frequency
+    fill_subjects : list[int] | None
+        Create empty sessions for any subjects that are missing
+        from the provided list. Typically only used if all
+        the inputs to the study are coming from different repositories
+        to the one that the derived products are stored in
+    fill_visits : list[int] | None
+        Create empty sessions for any visits that are missing
+        from the provided list. Typically only used if all
+        the inputs to the study are coming from different repositories
+        to the one that the derived products are stored in
     """
 
-    def __init__(self, subjects, visits, datasets=None, fields=None):
+    def __init__(self, subjects, visits, datasets=None, fields=None,
+                 fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
         TreeNode.__init__(self, datasets, fields)
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
+        if fill_subjects is not None or fill_visits is not None:
+            self._fill_empty_sessions(fill_subjects, fill_visits)
 
     def __eq__(self, other):
-        return (super(Project, self).__eq__(other) and
+        return (super(Tree, self).__eq__(other) and
                 self._subjects == other._subjects and
                 self._visits == other._visits)
 
@@ -140,12 +174,44 @@ class Project(TreeNode):
                 hash(tuple(self._visits)))
 
     @property
+    def subject_id(self):
+        return None
+
+    @property
+    def visit_id(self):
+        return None
+
+    @property
     def subjects(self):
         return iter(self._subjects.values())
 
     @property
     def visits(self):
         return iter(self._visits.values())
+
+    @property
+    def sessions(self):
+        return chain(*(s.sessions for s in self.subjects))
+
+    @property
+    def complete_subjects(self):
+        max_num_sessions = max(len(s) for s in self.subjects)
+        return (s for s in self.subjects if len(s) == max_num_sessions)
+
+    @property
+    def complete_visits(self):
+        max_num_sessions = max(len(v) for v in self.visits)
+        return (v for v in self.visits if len(v) == max_num_sessions)
+
+    @property
+    def incomplete_subjects(self):
+        max_num_sessions = max(len(s) for s in self.subjects)
+        return (s for s in self.subjects if len(s) != max_num_sessions)
+
+    @property
+    def incomplete_visits(self):
+        max_num_sessions = max(len(v) for v in self.visits)
+        return (v for v in self.visits if len(v) != max_num_sessions)
 
     def subject(self, id):  # @ReservedAssignment
         try:
@@ -163,7 +229,31 @@ class Project(TreeNode):
                 id, ("{} doesn't have a visit named '{}'"
                        .format(self, id)))
 
-    def nodes(self, frequency):
+    def session(self, subject_id, visit_id):
+        return self.subject(subject_id).session(visit_id)
+
+    def __iter__(self):
+        return self.nodes()
+
+    def nodes(self, frequency=None):
+        """
+        Returns an iterator over all nodes in the tree
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to iterate over. If None all
+            frequencies are returned
+        """
+        if frequency is None:
+            nodes = chain(*(self._nodes(f)
+                            for f in ('per_project', 'per_subject',
+                                      'per_visit', 'per_session')))
+        else:
+            nodes = self._nodes(frequency=frequency)
+        return nodes
+
+    def _nodes(self, frequency):
         if frequency == 'per_session':
             nodes = chain(*(s.sessions for s in self.subjects))
         elif frequency == 'per_subject':
@@ -180,7 +270,7 @@ class Project(TreeNode):
         """
         Used in debugging unittests
         """
-        mismatch = super(Project, self).find_mismatch(other, indent)
+        mismatch = super(Tree, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
         if len(list(self.subjects)) != len(list(other.subjects)):
             mismatch += ('\n{indent}mismatching subject lengths '
@@ -209,11 +299,39 @@ class Project(TreeNode):
         return mismatch
 
     def __repr__(self):
-        return ("Project(num_subjects={}, num_visits={}, "
+        return ("Tree(num_subjects={}, num_visits={}, "
                 "num_datasets={}, num_fields={})".format(
                     len(list(self.subjects)),
                     len(list(self.visits)),
                     len(list(self.datasets)), len(list(self.fields))))
+
+    def _fill_empty_sessions(self, fill_subjects, fill_visits):
+        """
+        Fill in tree with additional empty subjects and/or visits to
+        allow the study to pull its inputs from external repositories
+        """
+        if fill_subjects is None:
+            fill_subjects = [s.id for s in self.subjects]
+        if fill_visits is None:
+            fill_visits = [v.id for v in self.complete_visits]
+        for subject_id in fill_subjects:
+            try:
+                subject = self.subject(subject_id)
+            except ArcanaNameError:
+                subject = self._subjects[subject_id] = Subject(
+                    subject_id, [], [], [])
+            for visit_id in fill_visits:
+                try:
+                    subject.session(visit_id)
+                except ArcanaNameError:
+                    session = Session(subject_id, visit_id, [], [])
+                    subject._sessions[visit_id] = session
+                    try:
+                        visit = self.visit(visit_id)
+                    except ArcanaNameError:
+                        visit = self._visits[visit_id] = Visit(
+                            visit_id, [], [], [])
+                    visit._sessions[subject_id] = session
 
 
 class Subject(TreeNode):
@@ -246,6 +364,14 @@ class Subject(TreeNode):
     def id(self):
         return self._id
 
+    @property
+    def subject_id(self):
+        return self.id
+
+    @property
+    def visit_id(self):
+        return None
+
     def __lt__(self, other):
         return self._id < other._id
 
@@ -258,6 +384,12 @@ class Subject(TreeNode):
         return (TreeNode.__hash__(self) ^
                 hash(self._id) ^
                 hash(tuple(self.sessions)))
+
+    def __len__(self):
+        return len(self._sessions)
+
+    def __iter__(self):
+        return self.sessions
 
     @property
     def sessions(self):
@@ -329,6 +461,14 @@ class Visit(TreeNode):
     def id(self):
         return self._id
 
+    @property
+    def subject_id(self):
+        return None
+
+    @property
+    def visit_id(self):
+        return self.id
+
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
                 self._id == other._id and
@@ -341,6 +481,12 @@ class Visit(TreeNode):
 
     def __lt__(self, other):
         return self._id < other._id
+
+    def __len__(self):
+        return len(self._sessions)
+
+    def __iter__(self):
+        return self.sessions
 
     @property
     def sessions(self):
@@ -394,19 +540,16 @@ class Session(TreeNode):
         The visit ID of the session
     datasets : list(Dataset)
         The datasets found in the session
-    derived : Session
-        If derived scans are stored in a separate session, it is provided
-        here
+    derived : dict[str, Session]
+        Sessions storing derived scans are stored for separate analyses
     """
 
-    def __init__(self, subject_id, visit_id, datasets=None, fields=None,
-                 derived=None):
+    def __init__(self, subject_id, visit_id, datasets=None, fields=None):
         TreeNode.__init__(self, datasets, fields)
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._subject = None
         self._visit = None
-        self._derived = derived
 
     @property
     def visit_id(self):
@@ -419,14 +562,12 @@ class Session(TreeNode):
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
                 self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self.derived == other.derived)
+                self.visit_id == other.visit_id)
 
     def __hash__(self):
         return (TreeNode.__hash__(self) ^
                 hash(self.subject_id) ^
-                hash(self.visit_id) ^
-                hash(self.derived))
+                hash(self.visit_id))
 
     def __lt__(self, other):
         if self.subject_id < other.subject_id:
@@ -450,48 +591,6 @@ class Session(TreeNode):
     def visit(self, visit):
         self._visit = visit
 
-    @property
-    def derived(self):
-        return self._derived
-
-    @derived.setter
-    def derived(self, derived):
-        self._derived = derived
-
-    @property
-    def acquired(self):
-        """True if the session contains acquired scans"""
-        return not self._derived or self._derived is None
-
-    @property
-    def derived_dataset_names(self):
-        datasets = (self.datasets
-                    if self.derived is None else self.derived.datasets)
-        return (d.name for d in datasets)
-
-    @property
-    def derived_field_names(self):
-        fields = (self.fields
-                  if self.derived is None else self.derived.fields)
-        return (f.name for f in fields)
-
-    @property
-    def derived_data_names(self):
-        return chain(self.derived_dataset_names,
-                     self.derived_field_names)
-
-    @property
-    def all_dataset_names(self):
-        return chain(self.dataset_names, self.derived_dataset_names)
-
-    @property
-    def all_field_names(self):
-        return chain(self.field_names, self.derived_field_names)
-
-    @property
-    def all_data_names(self):
-        return chain(self.data_names, self.derived_data_names)
-
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
@@ -503,10 +602,6 @@ class Session(TreeNode):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
         return mismatch
 
     def __ne__(self, other):
@@ -514,6 +609,6 @@ class Session(TreeNode):
 
     def __repr__(self):
         return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
-                "num_fields={}, derived={})".format(
+                "num_fields={})".format(
                     self.subject_id, self.visit_id, len(self._datasets),
-                    len(self._fields), self.derived))
+                    len(self._fields)))

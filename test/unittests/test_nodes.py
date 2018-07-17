@@ -7,7 +7,7 @@ from arcana.exception import (ArcanaModulesNotInstalledException,
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
-from arcana.file_format import text_format
+from arcana.dataset.file_format.standard import text_format
 from arcana.node import Node
 from arcana.requirement import Requirement
 from future.utils import with_metaclass
@@ -113,8 +113,7 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        study.data('twos')
-        self.assertDatasetCreated('twos.txt', study.name)
+        self.assertContentsEqual(study.data('twos'), 2.0)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")
@@ -122,10 +121,10 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             [DatasetMatch('ones', text_format, 'ones')])
-        threes = study.data('threes')[0].value
-        fours = study.data('fours')[0].value
-        self.assertEqual(threes, 3)
-        self.assertEqual(fours, 4)
+        threes = study.data('threes')
+        fours = study.data('fours')
+        self.assertEqual(next(iter(threes)).value, 3)
+        self.assertEqual(next(iter(fours)).value, 4)
 
 
 class TestSlurmTemplate(TestCase):

@@ -1,18 +1,17 @@
 from past.builtins import basestring
 from builtins import object
-import os.path
 from abc import ABCMeta
-from arcana.file_format import FileFormat
+from .file_format import FileFormat
 from copy import copy
 from logging import getLogger
 from arcana.exception import ArcanaError
 from future.utils import with_metaclass
 from future.types import newstr
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
-class BaseDatum(with_metaclass(ABCMeta, object)):
+class BaseData(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
                             'per_project')
@@ -24,13 +23,8 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
         self._frequency = frequency
 
     def __eq__(self, other):
-        try:
-            return (self.name == other.name and
-                    self.frequency == other.frequency)
-        except AttributeError as e:
-            assert not e.message.startswith(
-                "'{}'".format(self.__class__.__name__))
-            return False
+        return (self.name == other.name and
+                self.frequency == other.frequency)
 
     def __hash__(self):
         return hash(self.name) ^ hash(self.frequency)
@@ -58,9 +52,6 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
     def __ne__(self, other):
         return not (self == other)
 
-    def __iter__(self):
-        return iter(self.to_tuple())
-
     @property
     def name(self):
         return self._name
@@ -82,7 +73,7 @@ class BaseDatum(with_metaclass(ABCMeta, object)):
                 'frequency': self.frequency}
 
 
-class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
+class BaseDataset(with_metaclass(ABCMeta, BaseData)):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a derived dataset.
@@ -98,6 +89,8 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
         specifying whether the dataset is present for each session, subject,
         visit or project.
+    bids_attr : BidsAttr
+        A collection of BIDS attributes for the dataset or spec
     """
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
@@ -126,17 +119,8 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
     def format(self):
         return self._format
 
-    def to_tuple(self):
-        return (self.name, self.format.name, self.frequency, self.derived,
-                self.is_spec)
-
-    def matches_filename(self, filename):
-        base, ext = os.path.splitext(filename)
-        return base == self.name and (ext == self.format.extension or
-                                      self.format is None)
-
     def __repr__(self):
-        return ("{}(name='{}', format={}, frequency={})"
+        return ("{}(name='{}', format={}, frequency='{}')"
                 .format(self.__class__.__name__, self.name, self.format,
                         self.frequency))
 
@@ -145,11 +129,8 @@ class BaseDataset(with_metaclass(ABCMeta, BaseDatum)):
         dct['format'] = self.format
         return dct
 
-    def fname(self, **kwargs):
-        return self.basename(**kwargs) + self.format.ext_str
 
-
-class BaseField(with_metaclass(ABCMeta, BaseDatum)):
+class BaseField(with_metaclass(ABCMeta, BaseData)):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived value.
@@ -204,3 +185,8 @@ class BaseField(with_metaclass(ABCMeta, BaseDatum)):
         dct = super(BaseField, self).initkwargs()
         dct['dtype'] = self.dtype
         return dct
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, frequency='{}')"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.frequency))

@@ -1,6 +1,10 @@
-from builtins import object
 import os.path
-from future.utils import PY3
+import errno
+from future.utils import PY3, PY2
+if PY2:
+    from contextlib2 import ExitStack  # @UnusedImport
+else:
+    from contextlib import ExitStack  # @UnusedImport @Reimport
 
 
 PATH_SUFFIX = '_path'
@@ -57,26 +61,22 @@ class classproperty(property):
         return self.fget.__get__(None, owner)()
 
 
-class NoContextWrapper(object):
-    """
-    Wraps an object, passing all calls through to the wrapped object
-    except the __enter__ and __exit__ method, which do nothing. Used
-    in cases where you want to use a file|connection handle within a
-    "with" statement, except when it passed to the method from the
-    calling code (presumably nested in another "with" statement).
-    """
+def lower(s):
+    if s is None:
+        return None
+    return s.lower()
 
-    def __init__(self, to_wrap):
-        self._to_wrap = to_wrap
 
-    def __getattr__(self, name):
-        return getattr(self._to_wrap, name)
-
-    def __enter__(self, *args, **kwargs):  # @UnusedVariable
-        return self
-
-    def __exit__(self, *args, **kwargs):
-        pass
+# Implement makedirs with 'exist_ok' kwarg for Python 2
+if PY2:
+    def makedirs(path, exist_ok=False, **kwargs):
+        try:
+            os.makedirs(path, **kwargs)
+        except OSError as e:
+            if not (exist_ok and e.errno == errno.EEXIST):
+                raise
+else:
+    from os import makedirs  # @UnusedImport
 
 
 if PY3:

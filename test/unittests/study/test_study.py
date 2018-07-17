@@ -5,7 +5,7 @@ import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.file_format import text_format  # @IgnorePep8
+from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -16,10 +16,10 @@ from arcana.study.multi import (  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.parameter import ParameterSpec  # @IgnorePep8
-from arcana.file_format import FileFormat, IdentityConverter  # @IgnorePep8
+from arcana.dataset.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
-from arcana.repository import Project, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from arcana.dataset import Dataset  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -281,7 +281,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     VISIT_IDS = ['VISITID1', 'VISITID2']
-    DATASET_CONTENTS = {'one': '1', 'ten': '10'}
+    DATASET_CONTENTS = {'one_input': '1', 'ten_input': '10'}
 
     @property
     def input_tree(self):
@@ -290,9 +290,10 @@ class TestStudy(BaseMultiSubjectTestCase):
             for visit_id in self.VISIT_IDS:
                 sessions.append(
                     Session(subj_id, visit_id, datasets=[
-                        Dataset('one', text_format,
+                        Dataset('one_input', text_format,
                                 subject_id=subj_id, visit_id=visit_id),
-                        Dataset('ten', text_format, subject_id=subj_id,
+                        Dataset('ten_input', text_format,
+                                subject_id=subj_id,
                                 visit_id=visit_id)]))
         subjects = [Subject(i, sessions=[s for s in sessions
                                           if s.subject_id == i])
@@ -300,31 +301,24 @@ class TestStudy(BaseMultiSubjectTestCase):
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                      for i in self.VISIT_IDS]
-        return Project(subjects=subjects, visits=visits)
+        return Tree(subjects=subjects, visits=visits)
 
     def make_study(self):
         return self.create_study(
             ExampleStudy, 'dummy', inputs=[
-                DatasetMatch('one', text_format, 'one'),
-                DatasetMatch('ten', text_format, 'ten')],
+                DatasetMatch('one', text_format, 'one_input'),
+                DatasetMatch('ten', text_format, 'ten_input')],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
         study = self.make_study()
-        study.data('derived4')[0]
-        for dataset in ExampleStudy.data_specs():
-            if dataset.frequency == 'per_session' and dataset.derived:
-                for subject_id in self.SUBJECT_IDS:
-                    for visit_id in self.VISIT_IDS:
-                        self.assertDatasetCreated(
-                            dataset.name + dataset.format.extension,
-                            study.name, subject=subject_id,
-                            visit=visit_id)
+        self.assertContentsEqual(study.data('derived4'),
+                                 [2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
 
     def test_subject_summary(self):
         study = self.make_study()
         summaries = study.data('subject_summary')
-        ref = str(float(len(self.VISIT_IDS)))
+        ref = float(len(self.VISIT_IDS))
         for dataset in summaries:
             self.assertContentsEqual(dataset, ref,
                                      str(dataset.visit_id))
@@ -332,17 +326,15 @@ class TestStudy(BaseMultiSubjectTestCase):
     def test_visit_summary(self):
         study = self.make_study()
         summaries = study.data('visit_summary')
-        ref = str(float(len(self.SUBJECT_IDS)))
+        ref = float(len(self.SUBJECT_IDS))
         for dataset in summaries:
             self.assertContentsEqual(dataset, ref,
                                      str(dataset.visit_id))
 
     def test_project_summary(self):
         study = self.make_study()
-        study.data('project_summary')
-        summary = study.data('project_summary')[0]
-        ref = str(float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS)))
-        self.assertContentsEqual(summary, ref)
+        ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
+        self.assertContentsEqual(study.data('project_summary'), ref)
 
     def test_subject_ids_access(self):
         study = self.make_study()
@@ -421,9 +413,8 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             'visit2': ['one', 'ten'],
             'visit3': ['one', 'ten', 'hundred', 'thousand']}}
 
-    DATASET_CONTENTS = {'one': 1.0, 'study_ten': 10.0,
-                        'study_hundred': 100.0,
-                        'study_thousand': 1000.0}
+    DATASET_CONTENTS = {'one': 1.0, 'ten': 10.0, 'hundred': 100.0,
+                        'thousand': 1000.0}
 
     STUDY_NAME = 'study'
 
@@ -434,10 +425,11 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
             for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(('{}_{}'.format(self.STUDY_NAME, d)
-                             if d != 'one' else d),
-                            text_format, subject_id=subj_id,
-                            visit_id=visit_id) for d in datasets]))
+                    Dataset(d, text_format, subject_id=subj_id,
+                            visit_id=visit_id, from_study=(
+                                (self.STUDY_NAME
+                                 if d != 'one' else None)))
+                    for d in datasets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
@@ -445,7 +437,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
                   for i in visit_ids]
-        return Project(subjects=subjects, visits=visits)
+        return Tree(subjects=subjects, visits=visits)
 
     def test_per_session_prereqs(self):
         study = self.create_study(
@@ -461,22 +453,21 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
-        tree = self.repository.get_tree()
+        tree = self.repository.tree()
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
-                try:
-                    dataset = session.dataset('thousand')
-                except ArcanaNameError:
-                    if session.derived is None:
-                        derived_session = session
-                    else:
-                        derived_session = session.derived
-                    dataset = derived_session.dataset(
-                        '{}_thousand'.format(self.STUDY_NAME))
+                dataset = session.dataset('thousand',
+                                          study=self.STUDY_NAME)
                 self.assertContentsEqual(
                     dataset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
+                if subj_id == 'subject1' and visit_id == 'visit3':
+                    self.assertNotIn(
+                        'ten', [d.name for d in session.datasets],
+                        "'ten' should not be generated for "
+                        "subject1:visit3 as hundred and thousand are "
+                        "already present")
 
 
 test1_format = FileFormat('test1', extension='.t1')
@@ -522,8 +513,12 @@ class TestInputValidation(BaseTestCase):
         self.reset_dirs()
         os.makedirs(self.session_dir)
         for spec in TestInputValidationStudy.data_specs():
+            if spec.format == test2_format:
+                ext = test1_format.ext
+            else:
+                ext = spec.format.ext
             with open(os.path.join(self.session_dir, spec.name) +
-                      spec.format.ext, 'w') as f:
+                      ext, 'w') as f:
                 f.write(spec.name)
 
     def test_input_validation(self):
@@ -535,6 +530,17 @@ class TestInputValidation(BaseTestCase):
                 DatasetMatch('b', test3_format, 'b'),
                 DatasetMatch('c', test1_format, 'a'),
                 DatasetMatch('d', test3_format, 'd')])
+
+
+class TestInputValidationFail(BaseTestCase):
+
+    def setUp(self):
+        self.reset_dirs()
+        os.makedirs(self.session_dir)
+        for spec in TestInputValidationStudy.data_specs():
+            with open(os.path.join(self.session_dir, spec.name) +
+                      test3_format.ext, 'w') as f:
+                f.write(spec.name)
 
     def test_input_validation_fail(self):
         self.assertRaises(
@@ -588,8 +594,7 @@ class TestGeneratedPickle(BaseTestCase):
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        regen.data('out_dataset')[0]
-        self.assertDatasetCreated('out_dataset.txt', 'gen_cls')
+        self.assertContentsEqual(regen.data('out_dataset'), 'foo')
 
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
@@ -609,9 +614,7 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        regen.data('ss2_out_dataset')[0]
-        self.assertDatasetCreated('ss2_out_dataset.txt',
-                                  'multi_gen_cls')
+        self.assertContentsEqual(regen.data('ss2_out_dataset'), 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
@@ -638,7 +641,7 @@ class TestGeneratedPickle(BaseTestCase):
 
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
-#             ExistingPrereqStudy, self.study_name, inputs=[
+#             ExistingPrereqStudy, self.from_study, inputs=[
 #                 DatasetMatch('ones', text_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
@@ -662,6 +665,6 @@ class TestGeneratedPickle(BaseTestCase):
 #             for visit_id in visits:
 #                 self.assertStatEqual('mean', 'thousands.mif',
 #                                      targets[subj_id][visit_id],
-#                                      self.study_name,
+#                                      self.from_study,
 #                                      subject=subj_id, session=visit_id,
 #                                      frequency='per_session')

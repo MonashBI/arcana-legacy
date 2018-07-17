@@ -14,7 +14,7 @@ from arcana.exception import (
     ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
 
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 class Pipeline(object):
@@ -564,6 +564,8 @@ class Pipeline(object):
             Whether to load and plot the graph after it has been written
         """
         fname = os.path.expanduser(fname)
+        if not fname.endswith('.png'):
+            fname += '.png'
         orig_dir = os.getcwd()
         tmpdir = tempfile.mkdtemp()
         os.chdir(tmpdir)

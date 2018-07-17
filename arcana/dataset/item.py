@@ -2,7 +2,8 @@ from builtins import str
 from past.builtins import basestring
 import os.path
 import pydicom
-from arcana.file_format import FileFormat, directory_format
+from arcana.dataset.file_format import FileFormat
+from arcana.dataset.file_format.standard import directory_format
 from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
@@ -12,7 +13,79 @@ from .base import BaseDataset, BaseField
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class Dataset(BaseDataset):
+class BaseItem(object):
+
+    is_spec = False
+
+    def __init__(self, subject_id, visit_id, repository, from_study,
+                 exists):
+        self._subject_id = subject_id
+        self._visit_id = visit_id
+        self._repository = repository
+        self._from_study = from_study
+        self._exists = exists
+
+    def __eq__(self, other):
+        return (self.subject_id == other.subject_id and
+                self.visit_id == other.visit_id and
+                self.from_study == other.from_study)
+
+    def __hash__(self):
+        return (hash(self.subject_id) ^
+                hash(self.visit_id) ^
+                hash(self.from_study))
+
+    def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
+        mismatch = ''
+        if self.subject_id != other.subject_id:
+            mismatch += ('\n{}subject_id: self={} v other={}'
+                         .format(sub_indent, self.subject_id,
+                                 other.subject_id))
+        if self.visit_id != other.visit_id:
+            mismatch += ('\n{}visit_id: self={} v other={}'
+                         .format(sub_indent, self.visit_id,
+                                 other.visit_id))
+        if self.from_study != other.from_study:
+            mismatch += ('\n{}from_study: self={} v other={}'
+                         .format(sub_indent, self.from_study,
+                                 other.from_study))
+        return mismatch
+
+    @property
+    def derived(self):
+        return self.from_study is not None
+
+    @property
+    def repository(self):
+        return self._repository
+
+    @property
+    def exists(self):
+        return self._exists
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
+
+    @property
+    def from_study(self):
+        return self._from_study
+
+    def initkwargs(self):
+        dct = super(Dataset, self).initkwargs()
+        dct['repository'] = self.repository
+        dct['subject_id'] = self.subject_id
+        dct['visit_id'] = self.visit_id
+        dct['from_study'] = self._from_study
+        return dct
+
+
+class Dataset(BaseItem, BaseDataset):
     """
     A representation of a dataset within the repository.
 
@@ -44,22 +117,21 @@ class Dataset(BaseDataset):
         The id of the visit which the dataset belongs to
     repository : BaseRepository
         The repository which the dataset is stored
+    from_study : str
+        Name of the Arcana study that that generated the field
     """
 
-    is_spec = False
-
-
-    def __init__(self, name, format=None, derived=False,  # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', path=None,
-                 id=None, uri=None, subject_id=None, visit_id=None,  # @ReservedAssignment @IgnorePep8
-                 repository=None):
-        super(Dataset, self).__init__(name, format, frequency)
-        self._derived = derived
+    def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
+                 path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+                 visit_id=None, repository=None, from_study=None,
+                 exists=True, bids_attr=None):
+        BaseDataset.__init__(self, name=name, format=format,
+                             frequency=frequency)
+        BaseItem.__init__(self, subject_id, visit_id, repository,
+                          from_study, exists)
         self._path = path
         self._uri = uri
-        self._subject_id = subject_id
-        self._visit_id = visit_id
-        self._repository = repository
+        self._bids_attr = bids_attr
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
                            [DICOM_SERIES_NUMBER_TAG])
@@ -67,20 +139,18 @@ class Dataset(BaseDataset):
             self._id = id
 
     def __eq__(self, other):
-        return (super(Dataset, self).__eq__(other) and
-                self.derived == other.derived and
+        return (BaseDataset.__eq__(self, other) and
+                BaseItem.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id and
-                self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+                self._bids_attr == other._bids_attr)
 
     def __hash__(self):
-        return (super(Dataset, self).__hash__() ^
-                hash(self.derived) ^
+        return (BaseDataset.__hash__(self) ^
+                BaseItem.__hash__(self) ^
                 hash(self._path) ^
                 hash(self.id) ^
-                hash(self.subject_id) ^
-                hash(self.visit_id))
+                hash(self._bids_attr))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, str):
@@ -88,15 +158,37 @@ class Dataset(BaseDataset):
         elif isinstance(self.id, str) and isinstance(other.id, int):
             return False
         else:
-            return self.id < other.id
+            if self.id == other.id:
+                # If ids are equal order depending on study name
+                # with acquired (from_study==None) coming first
+                if self.from_study is None:
+                    return other.from_study is None
+                elif other.from_study is None:
+                    return False
+                else:
+                    return self.from_study < other.from_study
+            else:
+                return self.id < other.id
+
+    def __repr__(self):
+        return ("{}(name='{}', format={}, frequency='{}', "
+                "subject_id={}, visit_id={}, from_study={})".format(
+                    type(self).__name__, self.name, self.format,
+                    self.frequency, self.subject_id,
+                    self.visit_id, self.from_study))
+
+    @property
+    def fname(self):
+        return self.name + self.format.ext_str
+
+    @property
+    def bids_attr(self):
+        return self._bids_attr
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(Dataset, self).find_mismatch(other, indent)
+        mismatch = BaseDataset.find_mismatch(self, other, indent)
+        mismatch += BaseItem.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
                          .format(sub_indent, self._path,
@@ -105,37 +197,29 @@ class Dataset(BaseDataset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
-        if self.subject_id != other.subject_id:
-            mismatch += ('\n{}subject_id: self={} v other={}'
-                         .format(sub_indent, self.subject_id,
-                                 other.subject_id))
-        if self.visit_id != other.visit_id:
-            mismatch += ('\n{}visit_id: self={} v other={}'
-                         .format(sub_indent, self.visit_id,
-                                 other.visit_id))
-        if self.repository != other.repository:
-            mismatch += ('\n{}repository: self={} v other={}'
-                         .format(sub_indent, self.repository,
-                                 other.repository))
+        if self._bids_attr != other._bids_attr:
+            mismatch += ('\n{}bids_attr: self={} v other={}'
+                         .format(sub_indent, self._bids_attr,
+                                 other._bids_attr))
         return mismatch
 
     @property
     def path(self):
         if self._path is None:
             if self.repository is not None:
-                self._path = self.repository.cache(self)
+                self._path = self.repository.get_dataset(self)
             else:
                 raise ArcanaError(
-                    "Neither path nor repository has been set for Dataset "
-                    "{}".format(self.name))
+                    "Neither path nor repository has been set for Dataset("
+                    "'{}')".format(self.name))
         return self._path
+
+    @path.setter
+    def path(self, path):
+        self._path = path
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
-
-    @property
-    def derived(self):
-        return self._derived
 
     @property
     def id(self):
@@ -148,21 +232,9 @@ class Dataset(BaseDataset):
     def uri(self):
         return self._uri
 
-    @property
-    def repository(self):
-        return self._repository
-
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def visit_id(self):
-        return self._visit_id
-
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  subject_id=None, visit_id=None, repository=None):
+                  **kwargs):
         if not os.path.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Dataset from path '{}' but it "
@@ -190,8 +262,7 @@ class Dataset(BaseDataset):
                         str(e) + ", which is required to identify the "
                         "format of the dataset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
-                   path=path, derived=False, subject_id=subject_id,
-                   visit_id=visit_id, repository=repository)
+                   path=path, **kwargs)
 
     def dicom(self, index):
         """
@@ -219,7 +290,7 @@ class Dataset(BaseDataset):
             dcm = pydicom.dcmread(f)
         return dcm
 
-    def dicom_values(self, tags, repository_login=None):
+    def dicom_values(self, tags):
         """
         Returns a dictionary with the DICOM header fields corresponding
         to the given tag names
@@ -240,8 +311,7 @@ class Dataset(BaseDataset):
         try:
             if (self._path is None and self._repository is not None and
                     hasattr(self.repository, 'dicom_header')):
-                hdr = self.repository.dicom_header(
-                    self, prev_login=repository_login)
+                hdr = self.repository.dicom_header(self)
                 dct = {t: hdr[t] for t in tags}
             else:
                 # Get the DICOM object for the first file in the dataset
@@ -254,16 +324,24 @@ class Dataset(BaseDataset):
         return dct
 
     def initkwargs(self):
-        dct = super(Dataset, self).initkwargs()
-        dct['derived'] = self.derived
+        dct = BaseDataset.initkwargs(self)
+        dct.update(BaseItem.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
-        dct['repository'] = self.repository
+        dct['bids_attr'] = self.bids_attr
         return dct
 
+    def get(self):
+        if self.repository is not None:
+            self._value = self.repository.get_dataset(self)
 
-class Field(BaseField):
+    def put(self):
+        if self.repository is not None:
+            self.repository.put_dataset(self)
+
+
+class Field(BaseItem, BaseField):
     """
     A representation of a value field in the repository.
 
@@ -285,75 +363,64 @@ class Field(BaseField):
         The id of the visit which the field belongs to
     repository : BaseRepository
         The repository which the field is stored
+    from_study : str
+        Name of the Arcana study that that generated the field
     """
 
-    def __init__(self, name, value, frequency='per_session',
-                 derived=False, subject_id=None, visit_id=None,
-                 repository=None):
-        if isinstance(value, int):
-            dtype = int
-        elif isinstance(value, float):
-            dtype = float
-        elif isinstance(value, basestring):
-            # Attempt to implicitly convert from string
-            try:
-                value = int(value)
+    def __init__(self, name, value=None, dtype=None,
+                 frequency='per_session', subject_id=None,
+                 visit_id=None, repository=None, from_study=None,
+                 exists=True):
+        if dtype is None:
+            if value is None:
+                raise ArcanaUsageError(
+                    "Either 'value' or 'dtype' must be provided to "
+                    "Field init")
+            if isinstance(value, int):
                 dtype = int
-            except ValueError:
+            elif isinstance(value, float):
+                dtype = float
+            elif isinstance(value, basestring):
+                # Attempt to implicitly convert from string
                 try:
-                    value = float(value)
-                    dtype = float
+                    value = int(value)
+                    dtype = int
                 except ValueError:
-                    dtype = str
+                    try:
+                        value = float(value)
+                        dtype = float
+                    except ValueError:
+                        dtype = str
+            else:
+                raise ArcanaUsageError(
+                    "Unrecognised field dtype {} (can be int, float or"
+                    " str)".format(value))
         else:
-            raise ArcanaError(
-                "Unrecognised field dtype {} (can be int, float or str)"
-                .format(value))
-        super(Field, self).__init__(
-            name, dtype, frequency=frequency)
+            if value is not None:
+                value = dtype(value)
+        BaseField.__init__(self, name, dtype, frequency)
+        BaseItem.__init__(self, subject_id, visit_id, repository,
+                          from_study, exists)
         self._value = value
-        self._derived = derived
-        self._subject_id = subject_id
-        self._visit_id = visit_id
-        self._repository = repository
 
     def __eq__(self, other):
-        return (super(Field, self).__eq__(other) and
-                self.derived == other.derived and
-                self.value == other.value and
-                self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id)
+        return (BaseField.__eq__(self, other) and
+                BaseItem.__eq__(self, other) and
+                self.value == other.value)
 
     def __hash__(self):
-        return (super(Field, self).__hash__() ^
-                hash(self.derived) ^
-                hash(self.value) ^
-                hash(self.subject_id) ^
-                hash(self.visit_id))
+        return (BaseField.__hash__(self) ^
+                BaseItem.__hash__(self) ^
+                hash(self.value))
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(Field, self).find_mismatch(other, indent)
+        mismatch = BaseField.find_mismatch(self, other, indent)
+        mismatch += BaseItem.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
-        if self.derived != other.derived:
-            mismatch += ('\n{}derived: self={} v other={}'
-                         .format(sub_indent, self.derived,
-                                 other.derived))
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
                          .format(sub_indent, self.value,
                                  other.value))
-        if self.subject_id != other.subject_id:
-            mismatch += ('\n{}subject_id: self={} v other={}'
-                         .format(sub_indent, self.subject_id,
-                                 other.subject_id))
-        if self.visit_id != other.visit_id:
-            mismatch += ('\n{}visit_id: self={} v other={}'
-                         .format(sub_indent, self.visit_id,
-                                 other.visit_id))
-        if self.repository != other.repository:
-            mismatch += ('\n{}repository: self={} v other={}'
-                         .format(sub_indent, self.repository,
-                                 other.repository))
         return mismatch
 
     def __int__(self):
@@ -365,41 +432,54 @@ class Field(BaseField):
     def __str__(self):
         return str(self.value)
 
-    def __repr__(self):
-        return ("{}(name='{}', value={}, frequency='{}', derived={},"
-                " subject_id={}, visit_id={}, repository={})".format(
-                    type(self).__name__, self.name, self.value,
-                    self.frequency, self.derived, self.subject_id,
-                    self.visit_id, self.repository))
+    def __lt__(self, other):
+        if self.name == other.name:
+            # If ids are equal order depending on study name
+            # with acquired (from_study==None) coming first
+            if self.from_study is None:
+                return other.from_study is None
+            elif other.from_study is None:
+                return False
+            else:
+                return self.from_study < other.from_study
+        else:
+            return self.name < other.name
 
-    @property
-    def derived(self):
-        return self._derived
+    def __repr__(self):
+        return ("{}(name='{}', value={}, frequency='{}',  "
+                "subject_id={}, visit_id={}, from_study={})".format(
+                    type(self).__name__, self.name, self.value,
+                    self.frequency, self.subject_id,
+                    self.visit_id, self.from_study))
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
 
     @property
-    def repository(self):
-        return self._repository
-
-    @property
     def value(self):
+        if self._value is None:
+            if self.repository is not None:
+                self._value = self.repository.get_field(self)
+            else:
+                raise ArcanaError(
+                    "Neither value nor repository has been set for Field("
+                    "'{}')".format(self.name))
         return self._value
 
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def visit_id(self):
-        return self._visit_id
+    @value.setter
+    def value(self, value):
+        self._value = self.dtype(value)
 
     def initkwargs(self):
-        dct = {}
-        dct['name'] = self.name
+        dct = BaseField.initkwargs(self)
+        dct.update(BaseItem.initkwargs(self))
         dct['value'] = self.value
-        dct['frequency'] = self.frequency
-        dct['derived'] = self.derived
-        dct['repository'] = self.repository
         return dct
+
+    def get(self):
+        if self.repository is not None:
+            self._value = self.repository.get_field(self)
+
+    def put(self):
+        if self.repository is not None:
+            self.repository.put_field(self)

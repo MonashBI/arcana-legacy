@@ -1,7 +1,8 @@
 from past.builtins import basestring
-from builtins import object, str
+from builtins import object
 from itertools import chain
 import sys
+import os.path as op
 import types
 from logging import getLogger
 from arcana.exception import (
@@ -10,13 +11,16 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.dataset import (
-    BaseDatum, BaseMatch, BaseDataset, BaseField, DatasetSpec)
+    BaseData, BaseField, DatasetSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, Switch
 from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
+from arcana.node import Node
+from arcana.interfaces.repository import (RepositorySource,
+                                          RepositorySink)
 
-logger = getLogger('Arcana')
+logger = getLogger('arcana')
 
 
 class Study(object):
@@ -60,6 +64,13 @@ class Study(object):
         different parameters and/or pipeline-versions. If False then
         and exception will be thrown if the repository already contains
         matching datasets|fields created with different parameters.
+    fill_tree : bool
+        Whether to fill the tree of the destination repository with the
+        provided subject and/or visit IDs. Only really useful if the
+        destination repository doesn't contain any of the the input
+        datasets/fields (which are stored in external repositories) and
+        so the sessions will need to be created in the destination
+        repository.
 
 
     Class Attrs
@@ -87,7 +98,7 @@ class Study(object):
 
     def __init__(self, name, repository, runner, inputs, parameters=None,
                  switches=None, subject_ids=None, visit_ids=None,
-                 enforce_inputs=True, reprocess=False):
+                 enforce_inputs=True, reprocess=False, fill_tree=False):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -104,7 +115,18 @@ class Study(object):
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
-        self._tree_cache = None
+        self._tree = self.repository.cached_tree(
+            subject_ids=subject_ids,
+            visit_ids=visit_ids,
+            fill=fill_tree)
+        if not self.subject_ids:
+            raise ArcanaUsageError(
+                "No subject IDs provided and destination repository "
+                "is empty")
+        if not self.visit_ids:
+            raise ArcanaUsageError(
+                "No visit IDs provided and destination repository "
+                "is empty")
         self._reprocess = reprocess
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
@@ -267,14 +289,7 @@ class Study(object):
 
     @property
     def tree(self):
-        if self._tree_cache is None:
-            self._tree_cache = self.repository.get_tree(
-                subject_ids=self._subject_ids,
-                visit_ids=self._visit_ids)
-        return self._tree_cache
-
-    def reset_tree(self):
-        self._tree_cache = None
+        return self._tree
 
     @property
     def runner(self):
@@ -517,21 +532,7 @@ class Study(object):
         all_data = []
         for name in names:
             spec = self.spec(name)
-            if isinstance(spec, BaseMatch):
-                data = spec.matches
-            else:
-                if isinstance(spec, BaseDataset):
-                    data = chain(*(
-                        (d for d in n.datasets
-                         if d.name == spec.prefixed_name)
-                        for n in self.tree.nodes(spec.frequency)))
-                elif isinstance(spec, BaseField):
-                    data = chain(*(
-                        (f for f in n.fields
-                         if f.name == spec.prefixed_name)
-                        for n in self.tree.nodes(spec.frequency)))
-                else:
-                    assert False
+            data = spec.collection
             if subject_ids is not None and spec.frequency in (
                     'per_session', 'per_subject'):
                 data = [d for d in data if d.subject_id in subject_ids]
@@ -546,11 +547,41 @@ class Study(object):
                 assert len(data) == 1
                 data = data[0]
             else:
-                data = list(data)
+                data = spec.CollectionClass(spec.name, data)
             if single_name:
                 return data
             all_data.append(data)
         return all_data
+
+    def save_workflow_graph_for(self, spec_name, fname, full=False,
+                                style='flat', **kwargs):
+        """
+        Saves a graph of the workflow to generate the requested spec_name
+
+        Parameters
+        ----------
+        spec_name : str
+            Name of the spec to generate the graph for
+        fname : str
+            The filename for the saved graph
+        style : str
+            The style of the graph, can be one of can be one of
+            'orig', 'flat', 'exec', 'hierarchical'
+        """
+        pipeline = self.spec(spec_name).pipeline
+        if full:
+            workflow = pe.Workflow(name='{}_gen'.format(spec_name),
+                                   base_dir=self.runner.work_dir)
+            self.runner._connect_to_repository(
+                pipeline, workflow, **kwargs)
+        else:
+            workflow = pipeline._workflow
+        fname = op.expanduser(fname)
+        if not fname.endswith('.png'):
+            fname += '.png'
+        dotfilename = fname[:-4] + '.dot'
+        workflow.write_graph(graph2use=style,
+                             dotfilename=dotfilename)
 
     def spec(self, name):
         """
@@ -560,10 +591,10 @@ class Study(object):
 
         Parameters
         ----------
-        name : Str | BaseDatum | Parameter
+        name : Str | BaseData | Parameter
             An parameter, dataset or field or name of one
         """
-        if isinstance(name, (BaseDatum, Parameter)):
+        if isinstance(name, (BaseData, Parameter)):
             name = name.name
         try:
             spec = self._inputs[name]
@@ -603,7 +634,7 @@ class Study(object):
         name : Str
             Name of the dataset_spec to return
         """
-        if isinstance(name, BaseDatum):
+        if isinstance(name, BaseData):
             name = name.name
         try:
             return cls._data_specs[name]
@@ -711,11 +742,60 @@ class Study(object):
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.repository.source(self.inputs, study_name='cache')
+        source = self.source(self.inputs)
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
         workflow.run()
+
+    def source(self, inputs, name='source'):
+        """
+        Returns a NiPype node that gets the input data from the repository
+        system. The input spec of the node's interface should inherit from
+        RepositorySourceInputSpec
+
+        Parameters
+        ----------
+        project_id : str
+            The ID of the project to return the sessions for
+        inputs : list(Dataset|Field)
+            An iterable of arcana.Dataset or arcana.Field
+            objects, which specify the datasets to extract from the
+            repository system
+        name : str
+            Name of the NiPype node
+        from_study: str
+            Prefix used to distinguish datasets generated by a particular
+            study. Used for derived datasets only
+        """
+        return Node(RepositorySource(
+            self.spec(i).collection for i in inputs), name=name)
+
+    def sink(self, outputs, frequency='per_session', name=None):
+        """
+        Returns a NiPype node that puts the output data back to the repository
+        system. The input spec of the node's interface should inherit from
+        RepositorySinkInputSpec
+
+        Parameters
+        ----------
+        project_id : str
+            The ID of the project to return the sessions for
+        outputs : List(BaseFile|Field) | list(
+            An iterable of arcana.Dataset arcana.Field objects,
+            which specify the datasets to put into the repository system
+        name : str
+            Name of the NiPype node
+        from_study: str
+            Prefix used to distinguish datasets generated by a particular
+            study. Used for derived datasets only
+
+        """
+        if name is None:
+            name = '{}_sink'.format(frequency)
+        return Node(RepositorySink(
+            (self.spec(o).collection for o in outputs),
+            frequency), name=name)
 
 
 class StudyMetaClass(type):
