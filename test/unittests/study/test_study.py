@@ -462,13 +462,12 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 self.assertContentsEqual(
                     dataset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
-# FIXME: This should be reenabled after provenance is implemented
-#                 if subj_id == 'subject1' and visit_id == 'visit3':
-#                     self.assertNotIn(
-#                         'ten', [d.name for d in session.datasets],
-#                         "'ten' should not be generated for "
-#                         "subject1:visit3 as hundred and thousand are "
-#                         "already present")
+                if subj_id == 'subject1' and visit_id == 'visit3':
+                    self.assertNotIn(
+                        'ten', [d.name for d in session.datasets],
+                        "'ten' should not be generated for "
+                        "subject1:visit3 as hundred and thousand are "
+                        "already present")
 
 
 test1_format = FileFormat('test1', extension='.t1')

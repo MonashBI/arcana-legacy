@@ -148,7 +148,9 @@ class BaseRunner(object):
         if pipeline.has_prerequisites:
             reports = []
             prereq_subject_ids = list(
-                set(s.subject.id for s in sessions_to_process))
+                set(s.subject_id for s in sessions_to_process))
+            prereq_visit_ids = list(
+                set(s.visit_id for s in sessions_to_process))
             for prereq in pipeline.prerequisites:
                 # NB: Even if reprocess==True, the prerequisite pipelines
                 # are not re-processed, they are only reprocessed if
@@ -157,7 +159,7 @@ class BaseRunner(object):
                     prereq_report = self._connect_to_repository(
                         prereq, complete_workflow=complete_workflow,
                         subject_ids=prereq_subject_ids,
-                        visit_ids=visit_ids,
+                        visit_ids=prereq_visit_ids,
                         already_connected=already_connected)
                     reports.append(prereq_report)
                 except ArcanaNoRunRequiredException:

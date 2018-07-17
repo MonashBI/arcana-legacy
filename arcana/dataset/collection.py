@@ -20,8 +20,11 @@ class BaseCollection(object):
         if collection:
             self._repository = self._common_attr(collection,
                                                  'repository')
+            self._from_study = self._common_attr(collection,
+                                                 'from_study')
         else:
             self._repository = None
+            self._from_study = None
         if frequency == 'per_project':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
@@ -69,6 +72,10 @@ class BaseCollection(object):
     @property
     def repository(self):
         return self._repository
+
+    @property
+    def from_study(self):
+        return self._from_study
 
     @classmethod
     def _common_attr(self, collection, attr_name):
