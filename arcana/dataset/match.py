@@ -1,7 +1,7 @@
 from builtins import str
 from builtins import object
 import re
-from contextlib import ExitStack
+from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exception import (

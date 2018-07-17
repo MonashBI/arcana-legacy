@@ -1,4 +1,4 @@
-from contextlib import ExitStack
+from arcana.utils import ExitStack
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
