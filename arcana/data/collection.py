@@ -1,7 +1,7 @@
 from arcana.exception import (
     ArcanaError, ArcanaUsageError, ArcanaIndexError)
-from .base import BaseDataset, BaseField
-from .item import Dataset, Field
+from .base import BaseFileset, BaseField
+from .item import Fileset, Field
 from collections import OrderedDict
 from operator import itemgetter
 from itertools import chain
@@ -173,7 +173,7 @@ class BaseCollection(object):
         pass
 
 
-class DatasetCollection(BaseCollection, BaseDataset):
+class FilesetCollection(BaseCollection, BaseFileset):
     """
     A collection of equivalent datasets (either within a repository)
 
@@ -181,11 +181,11 @@ class DatasetCollection(BaseCollection, BaseDataset):
     ----------
     name : str
         Name of the collection
-    collection : List[Dataset]
+    collection : List[Fileset]
         An iterable of equivalent datasets
     """
 
-    CollectedClass = Dataset
+    CollectedClass = Fileset
 
     def __init__(self, name, collection, frequency=None,
                  format=None):  # @ReservedAssignment
@@ -198,7 +198,7 @@ class DatasetCollection(BaseCollection, BaseDataset):
             elif frequency != implicit_frequency:
                 raise ArcanaUsageError(
                     "Implicit frequency '{}' does not match explicit "
-                    "frequency '{}' for '{}' DatasetCollection"
+                    "frequency '{}' for '{}' FilesetCollection"
                     .format(implicit_frequency, frequency, name))
             implicit_format = self._common_attr(collection, 'format')
             if format is None:
@@ -206,17 +206,17 @@ class DatasetCollection(BaseCollection, BaseDataset):
             elif format != implicit_format:
                 raise ArcanaUsageError(
                     "Implicit format '{}' does not match explicit "
-                    "format '{}' for '{}' DatasetCollection"
+                    "format '{}' for '{}' FilesetCollection"
                     .format(implicit_format, format, name))
         if frequency is None:
             raise ArcanaUsageError(
                 "Need to provide explicit frequency for empty "
-                "DatasetCollection")
+                "FilesetCollection")
         if format is None:
             raise ArcanaUsageError(
                 "Need to provide explicit format for empty "
-                "DatasetCollection")
-        BaseDataset.__init__(self, name, format, frequency=frequency)
+                "FilesetCollection")
+        BaseFileset.__init__(self, name, format, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):
@@ -232,7 +232,7 @@ class FieldCollection(BaseCollection, BaseField):
     ----------
     name : str
         Name of the collection
-    collection : List[Dataset]
+    collection : List[Fileset]
         An iterable of equivalent datasets
     """
 
@@ -248,7 +248,7 @@ class FieldCollection(BaseCollection, BaseField):
             elif frequency != implicit_frequency:
                 raise ArcanaUsageError(
                     "Implicit frequency '{}' does not match explicit "
-                    "frequency '{}' for '{}' DatasetCollection"
+                    "frequency '{}' for '{}' FilesetCollection"
                     .dtype(implicit_frequency, frequency, name))
             implicit_dtype = self._common_attr(collection, 'dtype')
             if dtype is None:
@@ -256,15 +256,15 @@ class FieldCollection(BaseCollection, BaseField):
             elif dtype != implicit_dtype:
                 raise ArcanaUsageError(
                     "Implicit dtype '{}' does not match explicit "
-                    "dtype '{}' for '{}' DatasetCollection"
+                    "dtype '{}' for '{}' FilesetCollection"
                     .dtype(implicit_dtype, dtype, name))
         if frequency is None:
             raise ArcanaUsageError(
                 "Need to provide explicit frequency for empty "
-                "DatasetCollection")
+                "FilesetCollection")
         if dtype is None:
             raise ArcanaUsageError(
                 "Need to provide explicit dtype for empty "
-                "DatasetCollection")
+                "FilesetCollection")
         BaseField.__init__(self, name, dtype=dtype, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)

@@ -15,7 +15,7 @@ import errno  # @IgnorePep8
 import json  # @IgnorePep8
 from zipfile import ZipFile, BadZipfile  # @IgnorePep8
 from collections import defaultdict  # @IgnorePep8
-from arcana.data import Dataset, Field  # @IgnorePep8
+from arcana.data import Fileset, Field  # @IgnorePep8
 from arcana.repository.base import BaseRepository  # @IgnorePep8
 from arcana.repository.tree import Session, Subject, Tree, Visit  # @IgnorePep8
 from arcana.data.file_format import FileFormat  # @IgnorePep8
@@ -148,7 +148,7 @@ class XnatRepository(BaseRepository):
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : Fileset
             The dataset to cache
         prev_login : xnat.XNATSession
             An XNATSession object to use for the connection. A new
@@ -444,7 +444,7 @@ class XnatRepository(BaseRepository):
 
         Returns
         -------
-        datasets : list(arcana.data.Dataset)
+        datasets : list(arcana.data.Fileset)
             List of datasets within an XNAT session
         """
         datasets = []
@@ -455,7 +455,7 @@ class XnatRepository(BaseRepository):
                 logger.warning(
                     "Ignoring '{}' as couldn't guess its file format:\n{}"
                     .format(xdataset.type, e))
-            datasets.append(Dataset(
+            datasets.append(Fileset(
                 xdataset.type, format=file_format,  # @ReservedAssignment @IgnorePep8
                 id=xdataset.id, uri=xdataset.uri, repository=self,
                 **kwargs))

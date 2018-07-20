@@ -7,7 +7,7 @@ from .local import LocalRepository
 import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit
-from arcana.data import Dataset
+from arcana.data import Fileset
 from arcana.exception import ArcanaNameError, ArcanaMissingDataException
 
 logger = logging.getLogger('arcana')
@@ -88,7 +88,7 @@ class BidsRepository(LocalRepository):
             visit_id = bids_obj.entities['session']
             if visit_ids is not None and visit_id not in visit_ids:
                 continue
-            bids_datasets[subj_id][visit_id] = Dataset.from_path(
+            bids_datasets[subj_id][visit_id] = Fileset.from_path(
                 bids_obj.path, frequency='per_session',
                 subject_id=subj_id, visit_id=visit_id, repository=self,
                 bids_attrs=bids_obj)

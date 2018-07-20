@@ -5,14 +5,14 @@ from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exception import (
-    ArcanaUsageError, ArcanaDatasetMatchError)
-from .base import BaseDataset, BaseField
-from .collection import DatasetCollection, FieldCollection
+    ArcanaUsageError, ArcanaFilesetMatchError)
+from .base import BaseFileset, BaseField
+from .collection import FilesetCollection, FieldCollection
 
 
 class BaseMatch(object):
     """
-    Base class for Dataset and Field Match classes
+    Base class for Fileset and Field Match classes
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
@@ -131,19 +131,19 @@ class BaseMatch(object):
             try:
                 match = matches[self.order]
             except IndexError:
-                raise ArcanaDatasetMatchError(
+                raise ArcanaFilesetMatchError(
                     "Did not find {} datasets names matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
             match = matches[0]
         elif matches:
-            raise ArcanaDatasetMatchError(
+            raise ArcanaFilesetMatchError(
                 "Found multiple matches for {} pattern in {} ({})"
                 .format(self.pattern, node,
                         ', '.join(str(m) for m in matches)))
         else:
-            raise ArcanaDatasetMatchError(
+            raise ArcanaFilesetMatchError(
                 "Did not find any matches for {} pattern in {} "
                 "(found {})"
                 .format(self.pattern, node,
@@ -161,7 +161,7 @@ class BaseMatch(object):
         return dct
 
 
-class DatasetMatch(BaseMatch, BaseDataset):
+class FilesetMatch(BaseMatch, BaseFileset):
     """
     A pattern that describes a single dataset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -208,7 +208,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
     """
 
     is_spec = False
-    CollectionClass = DatasetCollection
+    CollectionClass = FilesetCollection
 
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment @IgnorePep8
@@ -218,8 +218,8 @@ class DatasetMatch(BaseMatch, BaseDataset):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
-                "DatasetMatch constructor")
-        BaseDataset.__init__(self, name, format, frequency)
+                "FilesetMatch constructor")
+        BaseFileset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
                            from_study, repository, study_, collection_)
         if dicom_tags is not None and format.name != 'dicom':
@@ -234,19 +234,19 @@ class DatasetMatch(BaseMatch, BaseDataset):
         self._id = str(id) if id is not None else id
 
     def __eq__(self, other):
-        return (BaseDataset.__eq__(self, other) and
+        return (BaseFileset.__eq__(self, other) and
                 BaseMatch.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
     def __hash__(self):
-        return (BaseDataset.__hash__(self) ^
+        return (BaseFileset.__hash__(self) ^
                 BaseMatch.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id))
 
     def initkwargs(self):
-        dct = BaseDataset.initkwargs(self)
+        dct = BaseFileset.initkwargs(self)
         dct.update(BaseMatch.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
@@ -271,7 +271,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
             # to the repository may be required to query them.
             if self.dicom_tags is not None:
                 stack.enter(study.repository)
-            super(DatasetMatch, self).match(study, **kwargs)
+            super(FilesetMatch, self).match(study, **kwargs)
 
     @property
     def dicom_tags(self):
@@ -289,14 +289,14 @@ class DatasetMatch(BaseMatch, BaseDataset):
         else:
             matches = list(node.datasets)
         if not matches:
-            raise ArcanaDatasetMatchError(
+            raise ArcanaFilesetMatchError(
                 "No dataset names in {}:{} match '{}' pattern, found: {}"
                 .format(node.subject_id, node.visit_id, self.pattern,
                         ', '.join(d.name for d in node.datasets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
-                raise ArcanaDatasetMatchError(
+                raise ArcanaFilesetMatchError(
                     "Did not find datasets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
@@ -311,7 +311,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
                 if self.dicom_tags == values:
                     filtered.append(dataset)
             if not filtered:
-                raise ArcanaDatasetMatchError(
+                raise ArcanaFilesetMatchError(
                     "Did not find datasets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
@@ -397,7 +397,7 @@ class FieldMatch(BaseMatch, BaseField):
             matches = [f for f in matches
                        if f.from_study == self.from_study]
         if not matches:
-            raise ArcanaDatasetMatchError(
+            raise ArcanaFilesetMatchError(
                 "No field names in {} match '{}' pattern"
                 .format(node, self.pattern))
         return matches

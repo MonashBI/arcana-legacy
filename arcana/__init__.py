@@ -23,7 +23,7 @@ from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
     SubStudySpec)
 from .data import (
-    DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
+    FilesetSpec, FilesetMatch, FieldSpec, FieldMatch)
 from .data.file_format import FileFormat
 from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
 from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor

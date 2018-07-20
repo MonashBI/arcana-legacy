@@ -11,7 +11,7 @@ import logging
 import json
 from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
-from arcana.data import Dataset, Field
+from arcana.data import Fileset, Field
 from arcana.exception import (
     ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
     ArcanaMissingDataException)
@@ -186,7 +186,7 @@ class LocalRepository(BaseRepository):
                 if self.DERIVED_LABEL_FNAME in files:
                     from_study = path_parts.pop()
                 else:
-                    continue  # Dataset directory
+                    continue  # Fileset directory
             else:
                 from_study = None
             subj_id, visit_id = path_parts
@@ -219,7 +219,7 @@ class LocalRepository(BaseRepository):
                 if dname.startswith(self.FIELDS_FNAME):
                     continue
                 datasets.append(
-                    Dataset.from_path(
+                    Fileset.from_path(
                         op.join(session_path, dname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,

@@ -28,11 +28,11 @@ class Pipeline(object):
         The name of the pipeline
     study : Study
         The study from which the pipeline was created
-    inputs : List[DatasetSpec|FieldSpec]
+    inputs : List[FilesetSpec|FieldSpec]
         The list of input datasets required for the pipeline
         un/processed datasets, and the parameters used to generate them for
         unprocessed datasets
-    outputs : List[DatasetSpec|FieldSpec]
+    outputs : List[FilesetSpec|FieldSpec]
         The list of outputs (hard-coded names for un/processed datasets)
     desc : str
         The description of what the pipeline does
@@ -47,11 +47,11 @@ class Pipeline(object):
         in from a kwarg of the pipeline constructor method to allow
         multi-classes to alter the name of the pipeline to avoid name
         clashes
-    add_inputs : List[DatasetSpec|FieldSpec]
+    add_inputs : List[FilesetSpec|FieldSpec]
         Additional inputs to append to the inputs argument. Typically
         passed in from a kwarg of the pipeline constructor method to
         allow sub-classes to add additional inputs
-    add_outputs : List[DatasetSpec|FieldSpec]
+    add_outputs : List[FilesetSpec|FieldSpec]
         Additional outputs to append to the outputs argument. Typically
         passed in from a kwarg of the pipeline constructor method to
         allow sub-classes to add additional outputs
@@ -589,7 +589,7 @@ class Pipeline(object):
 #
 #         Parameters
 #         ----------
-#         input_spec : DatasetSpec
+#         input_spec : FilesetSpec
 #             Spec for the input to add to the pipeline
 #         """
 #         self.study.data_spec(input_spec.name)  # check valid name
@@ -603,7 +603,7 @@ class Pipeline(object):
 #
 #         Parameters
 #         ----------
-#         output_spec : DatasetSpec
+#         output_spec : FilesetSpec
 #             Spec of the output to add to the pipeline
 #         """
 #         spec = self.study.data_spec(output_spec.name)

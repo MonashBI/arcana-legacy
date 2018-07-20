@@ -1,6 +1,6 @@
 from arcana.testing import BaseTestCase, TestMath
 from arcana.interfaces.utils import Merge
-from arcana.data import DatasetMatch, DatasetSpec
+from arcana.data import FilesetMatch, FilesetSpec
 from arcana.data.file_format.standard import text_format
 from arcana.parameter import ParameterSpec
 from arcana.study.base import Study
@@ -13,9 +13,9 @@ from future.utils import with_metaclass
 class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('x', text_format),
-        DatasetSpec('y', text_format),
-        DatasetSpec('z', text_format, 'pipeline_alpha')]
+        FilesetSpec('x', text_format),
+        FilesetSpec('y', text_format),
+        FilesetSpec('z', text_format, 'pipeline_alpha')]
 
     add_parameter_specs = [
         ParameterSpec('o1', 1),
@@ -25,9 +25,9 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_alpha',
-            inputs=[DatasetSpec('x', text_format),
-                    DatasetSpec('y', text_format)],
-            outputs=[DatasetSpec('z', text_format)],
+            inputs=[FilesetSpec('x', text_format),
+                    FilesetSpec('y', text_format)],
+            outputs=[FilesetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
@@ -46,10 +46,10 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
 class StudyB(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('w', text_format),
-        DatasetSpec('x', text_format),
-        DatasetSpec('y', text_format, 'pipeline_beta'),
-        DatasetSpec('z', text_format, 'pipeline_beta')]
+        FilesetSpec('w', text_format),
+        FilesetSpec('x', text_format),
+        FilesetSpec('y', text_format, 'pipeline_beta'),
+        FilesetSpec('z', text_format, 'pipeline_beta')]
 
     add_parameter_specs = [
         ParameterSpec('o1', 10),
@@ -60,10 +60,10 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.create_pipeline(
             name='pipeline_beta',
-            inputs=[DatasetSpec('w', text_format),
-                    DatasetSpec('x', text_format)],
-            outputs=[DatasetSpec('y', text_format),
-                     DatasetSpec('z', text_format)],
+            inputs=[FilesetSpec('w', text_format),
+                    FilesetSpec('x', text_format)],
+            outputs=[FilesetSpec('y', text_format),
+                     FilesetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
             version=1,
             citations=[],
@@ -112,12 +112,12 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                       'required_op': 'product_op'})]
 
     add_data_specs = [
-        DatasetSpec('a', text_format),
-        DatasetSpec('b', text_format),
-        DatasetSpec('c', text_format),
-        DatasetSpec('d', text_format, 'pipeline_alpha_trans'),
-        DatasetSpec('e', text_format, 'pipeline_beta_trans'),
-        DatasetSpec('f', text_format, 'pipeline_beta_trans')]
+        FilesetSpec('a', text_format),
+        FilesetSpec('b', text_format),
+        FilesetSpec('c', text_format),
+        FilesetSpec('d', text_format, 'pipeline_alpha_trans'),
+        FilesetSpec('e', text_format, 'pipeline_beta_trans'),
+        FilesetSpec('f', text_format, 'pipeline_beta_trans')]
 
     add_parameter_specs = [
         ParameterSpec('p1', 100),
@@ -142,9 +142,9 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                      {'b': 'w', 'c': 'x', 'p1': 'o1'})]
 
     add_data_specs = [
-        DatasetSpec('a', text_format),
-        DatasetSpec('b', text_format),
-        DatasetSpec('c', text_format)]
+        FilesetSpec('a', text_format),
+        FilesetSpec('b', text_format),
+        FilesetSpec('c', text_format)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -161,7 +161,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         SubStudySpec('partial', PartialMultiStudy)]
 
     add_data_specs = [
-        DatasetSpec('g', text_format, 'combined_pipeline')]
+        FilesetSpec('g', text_format, 'combined_pipeline')]
 
     add_parameter_specs = [
         ParameterSpec('combined_op', 'add')]
@@ -169,10 +169,10 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
     def combined_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='combined',
-            inputs=[DatasetSpec('ss1_z', text_format),
-                    DatasetSpec('full_e', text_format),
-                    DatasetSpec('partial_ss2_z', text_format)],
-            outputs=[DatasetSpec('g', text_format)],
+            inputs=[FilesetSpec('ss1_z', text_format),
+                    FilesetSpec('full_e', text_format),
+                    FilesetSpec('partial_ss2_z', text_format)],
+            outputs=[FilesetSpec('g', text_format)],
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             version=1,
@@ -200,9 +200,9 @@ class TestMulti(BaseTestCase):
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full',
-            [DatasetMatch('a', text_format, 'ones'),
-             DatasetMatch('b', text_format, 'ones'),
-             DatasetMatch('c', text_format, 'ones')],
+            [FilesetMatch('a', text_format, 'ones'),
+             FilesetMatch('b', text_format, 'ones'),
+             FilesetMatch('c', text_format, 'ones')],
             parameters=[Parameter('required_op', 'mul')])
 #         study.save_workflow_graph_for('d',
 #                                       '/Users/tclose/Desktop/d.graph',
@@ -239,9 +239,9 @@ class TestMulti(BaseTestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial',
-            [DatasetMatch('a', text_format, 'ones'),
-             DatasetMatch('b', text_format, 'ones'),
-             DatasetMatch('c', text_format, 'ones')],
+            [FilesetMatch('a', text_format, 'ones'),
+             FilesetMatch('b', text_format, 'ones'),
+             FilesetMatch('c', text_format, 'ones')],
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
@@ -270,14 +270,14 @@ class TestMulti(BaseTestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [DatasetMatch('ss1_x', text_format, 'ones'),
-             DatasetMatch('ss1_y', text_format, 'ones'),
-             DatasetMatch('full_a', text_format, 'ones'),
-             DatasetMatch('full_b', text_format, 'ones'),
-             DatasetMatch('full_c', text_format, 'ones'),
-             DatasetMatch('partial_a', text_format, 'ones'),
-             DatasetMatch('partial_b', text_format, 'ones'),
-             DatasetMatch('partial_c', text_format, 'ones')],
+            [FilesetMatch('ss1_x', text_format, 'ones'),
+             FilesetMatch('ss1_y', text_format, 'ones'),
+             FilesetMatch('full_a', text_format, 'ones'),
+             FilesetMatch('full_b', text_format, 'ones'),
+             FilesetMatch('full_c', text_format, 'ones'),
+             FilesetMatch('partial_a', text_format, 'ones'),
+             FilesetMatch('partial_b', text_format, 'ones'),
+             FilesetMatch('partial_c', text_format, 'ones')],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
         self.assertContentsEqual(study.data('g'), 11.0)
@@ -324,14 +324,14 @@ class TestMulti(BaseTestCase):
         # 'product'
         missing_parameter_study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [DatasetMatch('ss1_x', text_format, 'ones'),
-             DatasetMatch('ss1_y', text_format, 'ones'),
-             DatasetMatch('full_a', text_format, 'ones'),
-             DatasetMatch('full_b', text_format, 'ones'),
-             DatasetMatch('full_c', text_format, 'ones'),
-             DatasetMatch('partial_a', text_format, 'ones'),
-             DatasetMatch('partial_b', text_format, 'ones'),
-             DatasetMatch('partial_c', text_format, 'ones')],
+            [FilesetMatch('ss1_x', text_format, 'ones'),
+             FilesetMatch('ss1_y', text_format, 'ones'),
+             FilesetMatch('full_a', text_format, 'ones'),
+             FilesetMatch('full_b', text_format, 'ones'),
+             FilesetMatch('full_c', text_format, 'ones'),
+             FilesetMatch('partial_a', text_format, 'ones'),
+             FilesetMatch('partial_b', text_format, 'ones'),
+             FilesetMatch('partial_c', text_format, 'ones')],
             parameters=[Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
             RuntimeError,

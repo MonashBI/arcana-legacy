@@ -4,7 +4,7 @@ from builtins import str  # @IgnorePep8
 import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.data import DatasetMatch, DatasetSpec  # @IgnorePep8
+from arcana.data import FilesetMatch, FilesetSpec  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
@@ -20,7 +20,7 @@ from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
-from arcana.data import Dataset  # @IgnorePep8
+from arcana.data import Fileset  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -32,26 +32,26 @@ else:
 class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('one', text_format),
-        DatasetSpec('ten', text_format),
-        DatasetSpec('derived1_1', text_format, 'pipeline1'),
-        DatasetSpec('derived1_2', text_format, 'pipeline1'),
-        DatasetSpec('derived2', text_format, 'pipeline2'),
-        DatasetSpec('derived3', text_format, 'pipeline3'),
-        DatasetSpec('derived4', text_format, 'pipeline4'),
-        DatasetSpec('subject_summary', text_format,
+        FilesetSpec('one', text_format),
+        FilesetSpec('ten', text_format),
+        FilesetSpec('derived1_1', text_format, 'pipeline1'),
+        FilesetSpec('derived1_2', text_format, 'pipeline1'),
+        FilesetSpec('derived2', text_format, 'pipeline2'),
+        FilesetSpec('derived3', text_format, 'pipeline3'),
+        FilesetSpec('derived4', text_format, 'pipeline4'),
+        FilesetSpec('subject_summary', text_format,
                     'subject_summary_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_summary', text_format,
+        FilesetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_summary', text_format,
+        FilesetSpec('project_summary', text_format,
                     'project_summary_pipeline',
                     frequency='per_study'),
-        DatasetSpec('subject_ids', text_format,
+        FilesetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('visit_ids', text_format,
+        FilesetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
@@ -61,9 +61,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline1(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline1',
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('derived1_1', text_format),
-                     DatasetSpec('derived1_2', text_format)],
+            inputs=[FilesetSpec('one', text_format)],
+            outputs=[FilesetSpec('derived1_1', text_format),
+                     FilesetSpec('derived1_2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -85,9 +85,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline2(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline2',
-            inputs=[DatasetSpec('one', text_format),
-                    DatasetSpec('derived1_1', text_format)],
-            outputs=[DatasetSpec('derived2', text_format)],
+            inputs=[FilesetSpec('one', text_format),
+                    FilesetSpec('derived1_1', text_format)],
+            outputs=[FilesetSpec('derived2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -108,8 +108,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline3(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline3',
-            inputs=[DatasetSpec('derived2', text_format)],
-            outputs=[DatasetSpec('derived3', text_format)],
+            inputs=[FilesetSpec('derived2', text_format)],
+            outputs=[FilesetSpec('derived3', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -125,9 +125,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline4(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline4',
-            inputs=[DatasetSpec('derived1_2', text_format),
-                    DatasetSpec('derived3', text_format)],
-            outputs=[DatasetSpec('derived4', text_format)],
+            inputs=[FilesetSpec('derived1_2', text_format),
+                    FilesetSpec('derived3', text_format)],
+            outputs=[FilesetSpec('derived4', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
             version=1,
             citations=[],
@@ -146,7 +146,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.create_pipeline(
             name='visit_ids_access',
             inputs=[],
-            outputs=[DatasetSpec('visit_ids', text_format)],
+            outputs=[FilesetSpec('visit_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
             version=1,
@@ -163,7 +163,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.create_pipeline(
             name='subject_ids_access',
             inputs=[],
-            outputs=[DatasetSpec('subject_ids', text_format)],
+            outputs=[FilesetSpec('subject_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
             version=1,
@@ -179,8 +179,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def subject_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="subject_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('subject_summary', text_format)],
+            inputs=[FilesetSpec('one', text_format)],
+            outputs=[FilesetSpec('subject_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
@@ -199,8 +199,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def visit_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="visit_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('visit_summary', text_format)],
+            inputs=[FilesetSpec('one', text_format)],
+            outputs=[FilesetSpec('visit_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
@@ -219,8 +219,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def project_summary_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name="project_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('project_summary', text_format)],
+            inputs=[FilesetSpec('one', text_format)],
+            outputs=[FilesetSpec('project_summary', text_format)],
             desc=("Test of project summary variables"),
             version=1,
             citations=[],
@@ -290,9 +290,9 @@ class TestStudy(BaseMultiSubjectTestCase):
             for visit_id in self.VISIT_IDS:
                 sessions.append(
                     Session(subj_id, visit_id, datasets=[
-                        Dataset('one_input', text_format,
+                        Fileset('one_input', text_format,
                                 subject_id=subj_id, visit_id=visit_id),
-                        Dataset('ten_input', text_format,
+                        Fileset('ten_input', text_format,
                                 subject_id=subj_id,
                                 visit_id=visit_id)]))
         subjects = [Subject(i, sessions=[s for s in sessions
@@ -306,8 +306,8 @@ class TestStudy(BaseMultiSubjectTestCase):
     def make_study(self):
         return self.create_study(
             ExampleStudy, 'dummy', inputs=[
-                DatasetMatch('one', text_format, 'one_input'),
-                DatasetMatch('ten', text_format, 'ten_input')],
+                FilesetMatch('one', text_format, 'one_input'),
+                FilesetMatch('ten', text_format, 'ten_input')],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
@@ -362,16 +362,16 @@ class TestStudy(BaseMultiSubjectTestCase):
 class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('one', text_format),
-        DatasetSpec('ten', text_format, 'tens_pipeline'),
-        DatasetSpec('hundred', text_format, 'hundreds_pipeline'),
-        DatasetSpec('thousand', text_format, 'thousands_pipeline')]
+        FilesetSpec('one', text_format),
+        FilesetSpec('ten', text_format, 'tens_pipeline'),
+        FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
+        FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.create_pipeline(
             name=output,
-            inputs=[DatasetSpec(input, text_format)],
-            outputs=[DatasetSpec(output, text_format)],
+            inputs=[FilesetSpec(input, text_format)],
+            outputs=[FilesetSpec(output, text_format)],
             desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             version=1,
@@ -425,7 +425,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
             for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(d, text_format, subject_id=subj_id,
+                    Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id, from_study=(
                                 (self.STUDY_NAME
                                  if d != 'one' else None)))
@@ -442,7 +442,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME, inputs=[
-                DatasetMatch('one', text_format, 'one')])
+                FilesetMatch('one', text_format, 'one')])
         study.data('thousand')
         targets = {
             'subject1': {
@@ -483,18 +483,18 @@ FileFormat.register(test3_format)
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('a', test2_format),
-        DatasetSpec('b', test3_format),
-        DatasetSpec('c', test2_format, 'identity_pipeline'),
-        DatasetSpec('d', test3_format, 'identity_pipeline')]
+        FilesetSpec('a', test2_format),
+        FilesetSpec('b', test3_format),
+        FilesetSpec('c', test2_format, 'identity_pipeline'),
+        FilesetSpec('d', test3_format, 'identity_pipeline')]
 
     def identity_pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('a', test2_format),
-                    DatasetSpec('b', test3_format)],
-            outputs=[DatasetSpec('c', test2_format),
-                     DatasetSpec('d', test3_format)],
+            inputs=[FilesetSpec('a', test2_format),
+                    FilesetSpec('b', test3_format)],
+            outputs=[FilesetSpec('c', test2_format),
+                     FilesetSpec('d', test3_format)],
             desc="A dummy pipeline used to test study input validation",
             version=1,
             citations=[],
@@ -526,10 +526,10 @@ class TestInputValidation(BaseTestCase):
             TestInputValidationStudy,
             'test_input_validation',
             inputs=[
-                DatasetMatch('a', test1_format, 'a'),
-                DatasetMatch('b', test3_format, 'b'),
-                DatasetMatch('c', test1_format, 'a'),
-                DatasetMatch('d', test3_format, 'd')])
+                FilesetMatch('a', test1_format, 'a'),
+                FilesetMatch('b', test3_format, 'b'),
+                FilesetMatch('c', test1_format, 'a'),
+                FilesetMatch('d', test3_format, 'd')])
 
 
 class TestInputValidationFail(BaseTestCase):
@@ -549,23 +549,23 @@ class TestInputValidationFail(BaseTestCase):
             TestInputValidationStudy,
             'test_validation_fail',
             inputs=[
-                DatasetMatch('a', test3_format, 'a'),
-                DatasetMatch('b', test3_format, 'b'),
-                DatasetMatch('c', test3_format, 'a'),
-                DatasetMatch('d', test3_format, 'd')])
+                FilesetMatch('a', test3_format, 'a'),
+                FilesetMatch('b', test3_format, 'b'),
+                FilesetMatch('c', test3_format, 'a'),
+                FilesetMatch('d', test3_format, 'd')])
 
 
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
-    add_data_specs = [DatasetSpec('dataset', text_format),
-                      DatasetSpec('out_dataset', text_format,
+    add_data_specs = [FilesetSpec('dataset', text_format),
+                      FilesetSpec('out_dataset', text_format,
                                   'pipeline')]
 
     def pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             'pipeline',
-            inputs=[DatasetSpec('dataset', text_format)],
-            outputs=[DatasetSpec('out_dataset', text_format)],
+            inputs=[FilesetSpec('dataset', text_format)],
+            outputs=[FilesetSpec('out_dataset', text_format)],
             desc='a dummy pipeline',
             citations=[],
             version=1,
@@ -587,7 +587,7 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
-            inputs=[DatasetMatch('dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('dataset', text_format, 'dataset')])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
@@ -606,8 +606,8 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
-                    DatasetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('ss1_dataset', text_format, 'dataset'),
+                    FilesetMatch('ss2_dataset', text_format, 'dataset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
@@ -628,8 +628,8 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
-                    DatasetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('ss1_dataset', text_format, 'dataset'),
+                    FilesetMatch('ss2_dataset', text_format, 'dataset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'w') as f:
             self.assertRaises(
@@ -642,7 +642,7 @@ class TestGeneratedPickle(BaseTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.from_study, inputs=[
-#                 DatasetMatch('ones', text_format, 'ones')])
+#                 FilesetMatch('ones', text_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
 #             'subject1': {

@@ -6,11 +6,11 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.processor import LinearProcessor  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    DatasetMatch, FieldSpec)  # @IgnorePep8
+    FilesetMatch, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
-from arcana.data import DatasetSpec  # @IgnorePep8
+from arcana.data import FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.repository.local import LocalRepository  # @IgnorePep8
 
@@ -18,22 +18,22 @@ from arcana.repository.local import LocalRepository  # @IgnorePep8
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('source1', text_format, optional=True),
-        DatasetSpec('source2', text_format, optional=True),
-        DatasetSpec('source3', text_format, optional=True),
-        DatasetSpec('source4', text_format, optional=True),
-        DatasetSpec('sink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink3', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink4', text_format, 'dummy_pipeline'),
-        DatasetSpec('subject_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('source1', text_format, optional=True),
+        FilesetSpec('source2', text_format, optional=True),
+        FilesetSpec('source3', text_format, optional=True),
+        FilesetSpec('source4', text_format, optional=True),
+        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
+        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
                     frequency='per_study'),
-        DatasetSpec('resink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink3', text_format, 'dummy_pipeline'),
         FieldSpec('field1', int, 'dummy_pipeline'),
         FieldSpec('field2', float, 'dummy_pipeline'),
         FieldSpec('field3', str, 'dummy_pipeline')]
@@ -54,10 +54,10 @@ class TestSinkAndSource(BaseTestCase):
     def test_repository_roundtrip(self):
         study = DummyStudy(
             self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    DatasetMatch('source2', text_format, 'source2'),
-                    DatasetMatch('source3', text_format, 'source3'),
-                    DatasetMatch('source4', text_format, 'source4')])
+            inputs=[FilesetMatch('source1', text_format, 'source1'),
+                    FilesetMatch('source2', text_format, 'source2'),
+                    FilesetMatch('source3', text_format, 'source3'),
+                    FilesetMatch('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -125,9 +125,9 @@ class TestSinkAndSource(BaseTestCase):
     def test_summary(self):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    DatasetMatch('source2', text_format, 'source2'),
-                    DatasetMatch('source3', text_format, 'source3')])
+            inputs=[FilesetMatch('source1', text_format, 'source1'),
+                    FilesetMatch('source2', text_format, 'source2'),
+                    FilesetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(

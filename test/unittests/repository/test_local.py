@@ -5,7 +5,7 @@ import os.path as op  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Dataset, DatasetSpec, Field)  # @IgnorePep8
+    Fileset, FilesetSpec, Field)  # @IgnorePep8
 from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -15,23 +15,23 @@ from arcana.testing import BaseTestCase  # @IgnorePep8
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('source1', text_format),
-        DatasetSpec('source2', text_format),
-        DatasetSpec('source3', text_format),
-        DatasetSpec('source4', text_format,
+        FilesetSpec('source1', text_format),
+        FilesetSpec('source2', text_format),
+        FilesetSpec('source3', text_format),
+        FilesetSpec('source4', text_format,
                     optional=True),
-        DatasetSpec('sink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink3', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink4', text_format, 'dummy_pipeline'),
-        DatasetSpec('subject_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
+        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
                     frequency='per_study'),
-        DatasetSpec('resink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline')]
+        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink3', text_format, 'dummy_pipeline')]
 
     def dummy_pipeline(self):
         pass
@@ -62,13 +62,13 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
         sessions = [
             Session(
                 'subject1', 'visit1', datasets=[
-                    Dataset('hundreds', text_format,
+                    Fileset('hundreds', text_format,
                             subject_id='subject1', visit_id='visit1',
                             repository=repository),
-                    Dataset('ones', text_format,
+                    Fileset('ones', text_format,
                             subject_id='subject1', visit_id='visit1',
                             repository=repository),
-                    Dataset('tens', text_format,
+                    Fileset('tens', text_format,
                             subject_id='subject1', visit_id='visit1',
                             repository=repository)],
                 fields=[
@@ -83,10 +83,10 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                           repository=repository)]),
             Session(
                 'subject1', 'visit2', datasets=[
-                    Dataset('ones', text_format,
+                    Fileset('ones', text_format,
                             subject_id='subject1', visit_id='visit2',
                             repository=repository),
-                    Dataset('tens', text_format,
+                    Fileset('tens', text_format,
                             subject_id='subject1', visit_id='visit2',
                             repository=repository)],
                 fields=[
@@ -98,19 +98,19 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                           repository=repository)]),
             Session(
                 'subject2', 'visit1', datasets=[
-                    Dataset('ones', text_format,
+                    Fileset('ones', text_format,
                             subject_id='subject2', visit_id='visit1',
                             repository=repository),
-                    Dataset('tens', text_format,
+                    Fileset('tens', text_format,
                             subject_id='subject2', visit_id='visit1',
                             repository=repository)],
                 fields=[]),
             Session(
                 'subject2', 'visit2', datasets=[
-                    Dataset('ones', text_format,
+                    Fileset('ones', text_format,
                             subject_id='subject2', visit_id='visit2',
                             repository=repository),
-                    Dataset('tens', text_format,
+                    Fileset('tens', text_format,
                             subject_id='subject2', visit_id='visit2',
                             repository=repository)],
                 fields=[
@@ -129,11 +129,11 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                     'subject1', sessions=[s for s in sessions
                                           if s.subject_id == 'subject1'],
                     datasets=[
-                        Dataset('ones', text_format,
+                        Fileset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
                                 repository=repository),
-                        Dataset('tens', text_format,
+                        Fileset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
                                 repository=repository)],
@@ -146,11 +146,11 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
                     datasets=[
-                        Dataset('ones', text_format,
+                        Fileset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
                                 repository=repository),
-                        Dataset('tens', text_format,
+                        Fileset('tens', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
                                 repository=repository)],
@@ -164,7 +164,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                     'visit1', sessions=[s for s in sessions
                                         if s.visit_id == 'visit1'],
                     datasets=[
-                        Dataset('ones', text_format,
+                        Fileset('ones', text_format,
                                 frequency='per_visit',
                                 visit_id='visit1',
                                 repository=repository)],
@@ -183,7 +183,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                               visit_id='visit2',
                               repository=repository)])],
             datasets=[
-                Dataset('ones', text_format,
+                Fileset('ones', text_format,
                         frequency='per_study',
                         repository=repository)],
             fields=[

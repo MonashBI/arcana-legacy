@@ -48,7 +48,7 @@ class ArcanaMissingDataException(ArcanaError):
     pass
 
 
-class ArcanaDatasetMatchError(ArcanaUsageError):
+class ArcanaFilesetMatchError(ArcanaUsageError):
     pass
 
 
@@ -63,7 +63,7 @@ class ArcanaFileFormatError(ArcanaError):
     pass
 
 
-class ArcanaDatasetNotCachedException(ArcanaException):
+class ArcanaFilesetNotCachedException(ArcanaException):
     pass
 
 

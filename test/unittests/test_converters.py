@@ -1,7 +1,7 @@
 import os
 import tempfile
 import os.path as op
-from arcana.data import DatasetSpec, DatasetMatch, Dataset
+from arcana.data import FilesetSpec, FilesetMatch, Fileset
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
@@ -14,22 +14,22 @@ from future.utils import with_metaclass
 class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('text', text_format),
-        DatasetSpec('directory', directory_format),
-        DatasetSpec('zip', zip_format),
-        DatasetSpec('text_from_text', text_format, 'pipeline'),
-        DatasetSpec('directory_from_zip', directory_format, 'pipeline'),
-        DatasetSpec('zip_from_directory', zip_format, 'pipeline')]
+        FilesetSpec('text', text_format),
+        FilesetSpec('directory', directory_format),
+        FilesetSpec('zip', zip_format),
+        FilesetSpec('text_from_text', text_format, 'pipeline'),
+        FilesetSpec('directory_from_zip', directory_format, 'pipeline'),
+        FilesetSpec('zip_from_directory', zip_format, 'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('text', text_format),
-                    DatasetSpec('directory', directory_format),
-                    DatasetSpec('zip', directory_format)],
-            outputs=[DatasetSpec('text_from_text', text_format),
-                     DatasetSpec('directory_from_zip', directory_format),
-                     DatasetSpec('zip_from_directory', directory_format)],
+            inputs=[FilesetSpec('text', text_format),
+                    FilesetSpec('directory', directory_format),
+                    FilesetSpec('zip', directory_format)],
+            outputs=[FilesetSpec('text_from_text', text_format),
+                     FilesetSpec('directory_from_zip', directory_format),
+                     FilesetSpec('zip_from_directory', directory_format)],
             desc=("A pipeline that tests out various data format "
                          "conversions"),
             version=1,
@@ -78,7 +78,7 @@ class TestFormatConversions(BaseTestCase):
             os.makedirs(path)
             with open(op.join(path, 'dummy.txt'), 'w') as f:
                 f.write('blah')
-        return Dataset.from_path(path)
+        return Fileset.from_path(path)
 
     @property
     def input_zip(self):
@@ -89,15 +89,15 @@ class TestFormatConversions(BaseTestCase):
             zipper.inputs.dirname = self.input_directory.path
             zipper.inputs.zipped = path
             zipper.run()
-        return Dataset.from_path(path)
+        return Fileset.from_path(path)
 
     def test_format_conversions(self):
         study = self.create_study(
             ConversionStudy, 'conversion', [
-                DatasetMatch('text', text_format, 'text'),
-                DatasetMatch('directory', directory_format,
+                FilesetMatch('text', text_format, 'text'),
+                FilesetMatch('directory', directory_format,
                              'directory'),
-                DatasetMatch('zip', zip_format, 'zip')])
+                FilesetMatch('zip', zip_format, 'zip')])
         self.assertCreated(list(study.data('text_from_text'))[0])
         self.assertCreated(list(study.data('directory_from_zip'))[0])
         self.assertCreated(list(study.data('zip_from_directory'))[0])

@@ -25,13 +25,13 @@ from arcana.repository.local import LocalRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
 from arcana.data import (
-    DatasetMatch, DatasetSpec, FieldSpec)
+    FilesetMatch, FilesetSpec, FieldSpec)
 from arcana.data.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
 from arcana.data.file_format.standard import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
-from arcana.data import Dataset
+from arcana.data import Fileset
 import sys
 import logging
 from future.utils import with_metaclass
@@ -69,22 +69,22 @@ SKIP_ARGS = (SERVER is None,
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('source1', text_format),
-        DatasetSpec('source2', text_format, optional=True),
-        DatasetSpec('source3', text_format, optional=True),
-        DatasetSpec('source4', text_format, optional=True),
-        DatasetSpec('sink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink3', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink4', text_format, 'dummy_pipeline'),
-        DatasetSpec('subject_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('source1', text_format),
+        FilesetSpec('source2', text_format, optional=True),
+        FilesetSpec('source3', text_format, optional=True),
+        FilesetSpec('source4', text_format, optional=True),
+        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
+        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
                     frequency='per_study'),
-        DatasetSpec('resink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink3', text_format, 'dummy_pipeline'),
         FieldSpec('field1', int, 'dummy_pipeline'),
         FieldSpec('field2', float, 'dummy_pipeline'),
         FieldSpec('field3', str, 'dummy_pipeline')]
@@ -96,10 +96,10 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 class TestStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('dataset1', text_format),
-        DatasetSpec('dataset2', text_format, optional=True),
-        DatasetSpec('dataset3', text_format),
-        DatasetSpec('dataset5', text_format, optional=True)]
+        FilesetSpec('dataset1', text_format),
+        FilesetSpec('dataset2', text_format, optional=True),
+        FilesetSpec('dataset3', text_format),
+        FilesetSpec('dataset5', text_format, optional=True)]
 
 
 def ls_with_md5_filter(path):
@@ -411,10 +411,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    DatasetMatch('source2', text_format, 'source2'),
-                    DatasetMatch('source3', text_format, 'source3'),
-                    DatasetMatch('source4', text_format, 'source4')])
+            inputs=[FilesetMatch('source1', text_format, 'source1'),
+                    FilesetMatch('source2', text_format, 'source2'),
+                    FilesetMatch('source3', text_format, 'source3'),
+                    FilesetMatch('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -465,7 +465,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[DatasetMatch('source1', text_format, 'source1')])
+            inputs=[FilesetMatch('source1', text_format, 'source1')])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         sink = study.sink(
             outputs=fields,
@@ -508,7 +508,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                     project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearProcessor('ad'),
-            inputs=[DatasetMatch(DATASET_NAME, text_format,
+            inputs=[FilesetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = study.source([study.input(DATASET_NAME)],
                                    name='delayed_source')
@@ -590,7 +590,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
-            inputs=[DatasetMatch(DATASET_NAME, text_format,
+            inputs=[FilesetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME,
                                  repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
@@ -672,9 +672,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[
-                DatasetMatch('source1', text_format, 'source1'),
-                DatasetMatch('source2', text_format, 'source2'),
-                DatasetMatch('source3', text_format, 'source3')])
+                FilesetMatch('source1', text_format, 'source1'),
+                FilesetMatch('source2', text_format, 'source2'),
+                FilesetMatch('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
@@ -873,8 +873,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
             inputs=[
-                DatasetMatch('gre_phase', dicom_format, id=7),
-                DatasetMatch('gre_mag', dicom_format, id=6)])
+                FilesetMatch('gre_phase', dicom_format, id=7),
+                FilesetMatch('gre_mag', dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -885,7 +885,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
         test_dataset.TestDicomTagMatch.test_order_match(self)
 
 
-class TestDatasetCacheOnPathAccess(TestOnXnatMixin,
+class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
                                    BaseTestCase):
 
     INPUT_DATASETS = {'dataset': '1'}
@@ -947,7 +947,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         for subj_id, visits in list(self.STRUCTURE.items()):
             for visit_id, datasets in list(visits.items()):
                 sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(d, text_format, subject_id=subj_id,
+                    Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in datasets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
@@ -967,8 +967,8 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         study = self.create_study(
             TestStudy, 'cache_download',
             inputs=[
-                DatasetMatch('dataset1', text_format, 'dataset1'),
-                DatasetMatch('dataset3', text_format, 'dataset3')],
+                FilesetMatch('dataset1', text_format, 'dataset1'),
+                FilesetMatch('dataset3', text_format, 'dataset3')],
             repository=repository)
         study.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):

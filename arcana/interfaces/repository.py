@@ -2,7 +2,7 @@ from arcana.utils import ExitStack
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
-from arcana.data import BaseField, BaseDataset
+from arcana.data import BaseField, BaseFileset
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 import logging
 
@@ -32,7 +32,7 @@ class BaseRepositoryInterface(BaseInterface):
         self.repositories = set(c.repository for c in collections
                                  if c.repository is not None)
         self.dataset_collections = [c for c in collections
-                                    if isinstance(c, BaseDataset)]
+                                    if isinstance(c, BaseFileset)]
         self.field_collections = [c for c in collections
                                   if isinstance(c, BaseField)]
 

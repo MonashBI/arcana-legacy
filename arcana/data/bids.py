@@ -1,5 +1,5 @@
-from arcana.exception import ArcanaDatasetMatchError, ArcanaUsageError
-from .match import DatasetMatch
+from arcana.exception import ArcanaFilesetMatchError, ArcanaUsageError
+from .match import FilesetMatch
 
 
 class BidsAttrs(object):
@@ -48,7 +48,7 @@ class BidsAttrs(object):
         return self._description
 
 
-class BidsDatasetMatch(DatasetMatch):
+class BidsFilesetMatch(FilesetMatch):
     """
     A match object for matching datasets from their 'bids_attr'
     attribute
@@ -68,7 +68,7 @@ class BidsDatasetMatch(DatasetMatch):
     """
 
     def __init__(self, name, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
-        DatasetMatch.__init__(
+        FilesetMatch.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
             id=None, order=run, dicom_tags=None, is_regex=False,
             from_study=None)
@@ -94,7 +94,7 @@ class BidsDatasetMatch(DatasetMatch):
             if (d.bids_attr.entities['type'] == self.type and
                 d.bids_attr.entities['modality'] == self.modality)]
         if not matches:
-            raise ArcanaDatasetMatchError(
+            raise ArcanaFilesetMatchError(
                 "No BIDS datasets for subject={}, visit={} match "
                 "modality '{}' and type '{}' found:\n{}"
                 .format(node.subject_id, node.visit_id, self.modality,
@@ -103,26 +103,26 @@ class BidsDatasetMatch(DatasetMatch):
         return matches
 
     def __eq__(self, other):
-        return (DatasetMatch.__eq__(self, other) and
+        return (FilesetMatch.__eq__(self, other) and
                 self.type == other.type and
                 self.modality == other.modality and
                 self.run == other.run)
 
     def __hash__(self):
-        return (DatasetMatch.__hash__(self) ^
+        return (FilesetMatch.__hash__(self) ^
                 hash(self.type) ^
                 hash(self.modality) ^
                 hash(self.run))
 
     def initkwargs(self):
-        dct = DatasetMatch.initkwargs(self)
+        dct = FilesetMatch.initkwargs(self)
         dct['type'] = self.type
         dct['modality'] = self.modality
         dct['run'] = self.run
         return dct
 
 
-class BidsAssociatedDatasetMatch(DatasetMatch):
+class BidsAssociatedFilesetMatch(FilesetMatch):
     """
     A match object for matching BIDS datasets that are associated with
     another BIDS datasets (e.g. field-maps, bvecs, bvals)
@@ -131,7 +131,7 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
     ----------
     name : str
         Name of the associated dataset
-    primary_match : BidsDatasetMatch
+    primary_match : BidsFilesetMatch
         The primary dataset which the dataset to match is associated with
     associated : str
         The name of the association between the dataset to match and the
@@ -146,7 +146,7 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
 
     def __init__(self, name, primary_match, format, association,  # @ReservedAssignment @IgnorePep8
                  fieldmap_type=None, order=0):
-        DatasetMatch.__init__(
+        FilesetMatch.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
             id=None, order=order, dicom_tags=None, is_regex=False,
             from_study=None)
@@ -187,7 +187,7 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
             try:
                 match = matches[0]
             except IndexError:
-                raise ArcanaDatasetMatchError(
+                raise ArcanaFilesetMatchError(
                     "Provided order to associated BIDS dataset match "
                     "{} is out of range")
         elif self._association == 'bvec':
@@ -198,19 +198,19 @@ class BidsAssociatedDatasetMatch(DatasetMatch):
         return matches
 
     def __eq__(self, other):
-        return (DatasetMatch.__eq__(self, other) and
+        return (FilesetMatch.__eq__(self, other) and
                 self.primary_match == other.primary_match and
                 self.association == other.association and
                 self.fieldmap_type == other.fieldmap_type)
 
     def __hash__(self):
-        return (DatasetMatch.__hash__(self) ^
+        return (FilesetMatch.__hash__(self) ^
                 hash(self.primary_match) ^
                 hash(self.association) ^
                 hash(self.fieldmap_type))
 
     def initkwargs(self):
-        dct = DatasetMatch.initkwargs(self)
+        dct = FilesetMatch.initkwargs(self)
         dct['primary_match'] = self.primary_match
         dct['association'] = self.association
         dct['fieldmap_type'] = self.fieldmap_type

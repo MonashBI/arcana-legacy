@@ -5,7 +5,7 @@ A basic toy example
 
 .. code-block:: python
 
-    from arcana.data import DatasetMatch, DatasetSpec
+    from arcana.data import FilesetMatch, FilesetSpec
     from arcana.data.file_format.standard import text_format
     from arcana.study.base import Study, StudyMetaClass
     from nipype.interfaces.base import (  # @IgnorePep8
@@ -18,12 +18,12 @@ A basic toy example
         __metaclass__ = StudyMetaClass
     
         add_data_specs = [
-            DatasetSpec('one', text_format),
-            DatasetSpec('ten', text_format),
-            DatasetSpec('derived1_1', text_format, 'pipeline1'),
-            DatasetSpec('derived1_2', text_format, 'pipeline1'),
-            DatasetSpec('derived2', text_format, 'pipeline2'),
-            DatasetSpec('subject_summary', text_format,
+            FilesetSpec('one', text_format),
+            FilesetSpec('ten', text_format),
+            FilesetSpec('derived1_1', text_format, 'pipeline1'),
+            FilesetSpec('derived1_2', text_format, 'pipeline1'),
+            FilesetSpec('derived2', text_format, 'pipeline2'),
+            FilesetSpec('subject_summary', text_format,
                         'subject_summary_pipeline',
                         frequency='per_subject')]
     
@@ -33,9 +33,9 @@ A basic toy example
         def pipeline1(self, **kwargs):
             pipeline = self.create_pipeline(
                 name='pipeline1',
-                inputs=[DatasetSpec('one', text_format)],
-                outputs=[DatasetSpec('derived1_1', text_format),
-                         DatasetSpec('derived1_2', text_format)],
+                inputs=[FilesetSpec('one', text_format)],
+                outputs=[FilesetSpec('derived1_1', text_format),
+                         FilesetSpec('derived1_2', text_format)],
                 desc="A dummy pipeline used to test 'run_pipeline' method",
                 version=1,
                 citations=[],
@@ -58,9 +58,9 @@ A basic toy example
         def pipeline2(self, **kwargs):
             pipeline = self.create_pipeline(
                 name='pipeline2',
-                inputs=[DatasetSpec('one', text_format),
-                        DatasetSpec('derived1_1', text_format)],
-                outputs=[DatasetSpec('derived2', text_format)],
+                inputs=[FilesetSpec('one', text_format),
+                        FilesetSpec('derived1_1', text_format)],
+                outputs=[FilesetSpec('derived2', text_format)],
                 desc="A dummy pipeline used to test 'run_pipeline' method",
                 version=1,
                 citations=[],
@@ -80,8 +80,8 @@ A basic toy example
         def subject_summary_pipeline(self, **kwargs):
             pipeline = self.create_pipeline(
                 name="subject_summary",
-                inputs=[DatasetSpec('one', text_format)],
-                outputs=[DatasetSpec('subject_summary', text_format)],
+                inputs=[FilesetSpec('one', text_format)],
+                outputs=[FilesetSpec('subject_summary', text_format)],
                 desc=("Test of project summary variables"),
                 version=1,
                 citations=[],
@@ -106,8 +106,8 @@ which can then be instantiated and used to generate 'derived2' with
         archive=LocalArchive('/path/to/local/archive'),
         processor=LinearProcessor('/my/work/dir'),
         inputs=[
-            DatasetMatch('one', text_format, 'one'),
-            DatasetMatch('ten', text_format, 'ten')],
+            FilesetMatch('one', text_format, 'one'),
+            FilesetMatch('ten', text_format, 'ten')],
         parameters={'pipeline_option': True})
     derived_datasets = study.data('derived2')
     for dataset in derived_datasets:

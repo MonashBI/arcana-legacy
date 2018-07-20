@@ -24,7 +24,7 @@ Meta-classes
 Specs
 -----
 
-.. autoclass:: arcana.data.DatasetSpec
+.. autoclass:: arcana.data.FilesetSpec
 
 .. autoclass:: arcana.data.FieldSpec
 

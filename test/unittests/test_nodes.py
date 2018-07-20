@@ -1,5 +1,5 @@
 from nipype.interfaces.utility import IdentityInterface, Merge, Split
-from arcana.data import DatasetSpec, DatasetMatch, FieldSpec
+from arcana.data import FilesetSpec, FilesetMatch, FieldSpec
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exception import (ArcanaModulesNotInstalledException,
                               ArcanaRequirementVersionException,
@@ -45,16 +45,16 @@ class TestMathWithReq(TestMath):
 class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('ones', text_format),
-        DatasetSpec('twos', text_format, 'pipeline'),
+        FilesetSpec('ones', text_format),
+        FilesetSpec('twos', text_format, 'pipeline'),
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('ones', text_format)],
-            outputs=[DatasetSpec('twos', text_format)],
+            inputs=[FilesetSpec('ones', text_format)],
+            outputs=[FilesetSpec('twos', text_format)],
             desc=("A pipeline that tests loading of requirements"),
             version=1,
             citations=[],)
@@ -74,8 +74,8 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline2(self):
         pipeline = self.create_pipeline(
             name='pipeline2',
-            inputs=[DatasetSpec('ones', text_format),
-                    DatasetSpec('twos', text_format)],
+            inputs=[FilesetSpec('ones', text_format),
+                    FilesetSpec('twos', text_format)],
             outputs=[FieldSpec('threes', float),
                      FieldSpec('fours', float)],
             desc=("A pipeline that tests loading of requirements in "
@@ -112,7 +112,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [DatasetMatch('ones', text_format, 'ones')])
+            [FilesetMatch('ones', text_format, 'ones')])
         self.assertContentsEqual(study.data('twos'), 2.0)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
@@ -120,7 +120,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [DatasetMatch('ones', text_format, 'ones')])
+            [FilesetMatch('ones', text_format, 'ones')])
         threes = study.data('threes')
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)

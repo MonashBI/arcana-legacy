@@ -10,7 +10,7 @@ from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaNoConverterError,
     ArcanaUsageError)
-from arcana.data.base import BaseDataset, BaseField
+from arcana.data.base import BaseFileset, BaseField
 from arcana.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)
@@ -201,7 +201,7 @@ class BaseProcessor(object):
         for input_spec in pipeline.inputs:
             # Get the dataset corresponding to the pipeline's input
             input = self.study.spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
-            if isinstance(input, BaseDataset):
+            if isinstance(input, BaseFileset):
                 if input.format != input_spec.format:
                     # Insert a format converter node into the workflow if the
                     # format of the dataset if it is not in the required format
@@ -258,7 +258,7 @@ class BaseProcessor(object):
                 output = self.study.spec(output_spec.name)
                 # Skip datasets which are already input datasets
                 if output.is_spec:
-                    if isinstance(output, BaseDataset):
+                    if isinstance(output, BaseFileset):
                         # Convert the format of the node if it doesn't match
                         if output.format != output_spec.format:
                             try:

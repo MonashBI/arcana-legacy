@@ -3,7 +3,7 @@ from builtins import object
 from itertools import chain
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
-from arcana.data import BaseDataset, BaseField
+from arcana.data import BaseFileset, BaseField
 
 
 class TreeNode(object):
@@ -31,7 +31,7 @@ class TreeNode(object):
         return hash(tuple(self.datasets)) ^ hash(tuple(self._fields))
 
     def __contains__(self, item):
-        if isinstance(item, BaseDataset):
+        if isinstance(item, BaseFileset):
             return (item.name, item.from_study) in self._datasets
 
     @property
@@ -137,7 +137,7 @@ class Tree(TreeNode):
     visits : List[Visits]
         List of visits in the project across subjects
         (i.e. timepoint 1, 2, 3)
-    datasets : List[Dataset]
+    datasets : List[Fileset]
         The datasets that belong to the project, i.e. of 'per_study'
         frequency
     fields : List[Field]
@@ -344,7 +344,7 @@ class Subject(TreeNode):
         The ID of the subject
     sessions : List[Session]
         The sessions in the subject
-    datasets : List[Dataset]
+    datasets : List[Fileset]
         The datasets that belong to the subject, i.e. of 'per_subject'
         frequency
     fields : List[Field]
@@ -442,7 +442,7 @@ class Visit(TreeNode):
         The ID of the visit
     sessions : List[Session]
         The sessions in the visit
-    datasets : List[Dataset]
+    datasets : List[Fileset]
         The datasets that belong to the visit, i.e. of 'per_visit'
         frequency
     fields : List[Field]
@@ -538,7 +538,7 @@ class Session(TreeNode):
         The subject ID of the session
     visit_id : str
         The visit ID of the session
-    datasets : list(Dataset)
+    datasets : list(Fileset)
         The datasets found in the session
     derived : dict[str, Session]
         Sessions storing derived scans are stored for separate analyses

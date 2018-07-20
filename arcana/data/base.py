@@ -73,7 +73,7 @@ class BaseData(with_metaclass(ABCMeta, object)):
                 'frequency': self.frequency}
 
 
-class BaseDataset(with_metaclass(ABCMeta, BaseData)):
+class BaseFileset(with_metaclass(ABCMeta, BaseData)):
     """
     An abstract base class representing either an acquired dataset or the
     specification for a derived dataset.
@@ -94,20 +94,20 @@ class BaseDataset(with_metaclass(ABCMeta, BaseData)):
     """
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
-        super(BaseDataset, self).__init__(name=name, frequency=frequency)
+        super(BaseFileset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format
 
     def __eq__(self, other):
-        return (super(BaseDataset, self).__eq__(other) and
+        return (super(BaseFileset, self).__eq__(other) and
                 self._format == other._format)
 
     def __hash__(self):
-        return (super(BaseDataset, self).__hash__() ^
+        return (super(BaseFileset, self).__hash__() ^
                 hash(self._format))
 
     def find_mismatch(self, other, indent=''):
-        mismatch = super(BaseDataset, self).find_mismatch(other, indent)
+        mismatch = super(BaseFileset, self).find_mismatch(other, indent)
         sub_indent = indent + '  '
         if self.format != other.format:
             mismatch += ('\n{}format: self={} v other={}'
@@ -125,7 +125,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseData)):
                         self.frequency))
 
     def initkwargs(self):
-        dct = super(BaseDataset, self).initkwargs()
+        dct = super(BaseFileset, self).initkwargs()
         dct['format'] = self.format
         return dct
 

@@ -4,8 +4,8 @@ standard_library.install_aliases()
 import os
 import shutil
 from arcana import (
-    StudyMetaClass, Study, LocalRepository, LinearProcessor, DatasetSpec,
-    DatasetMatch)
+    StudyMetaClass, Study, LocalRepository, LinearProcessor, FilesetSpec,
+    FilesetMatch)
 from arcana.data.file_format.standard import text_format
 import pickle as pkl
 import os.path as op
@@ -30,11 +30,11 @@ with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
 #         The name of the pipeline
 #     study : Study
 #         The study from which the pipeline was created
-#     inputs : List[DatasetSpec|FieldSpec]
+#     inputs : List[FilesetSpec|FieldSpec]
 #         The list of input datasets required for the pipeline
 #         un/processed datasets, and the parameters used to generate them for
 #         unprocessed datasets
-#     outputs : List[DatasetSpec|FieldSpec]
+#     outputs : List[FilesetSpec|FieldSpec]
 #         The list of outputs (hard-coded names for un/processed datasets)
 #     citations : List[Citation]
 #         List of citations that describe the workflow and should be cited in
@@ -47,11 +47,11 @@ with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
 #         in from a kwarg of the pipeline constructor method to allow
 #         multi-classes to alter the name of the pipeline to avoid name
 #         clashes
-#     add_inputs : List[DatasetSpec|FieldSpec]
+#     add_inputs : List[FilesetSpec|FieldSpec]
 #         Additional inputs to append to the inputs argument. Typically
 #         passed in from a kwarg of the pipeline constructor method to
 #         allow sub-classes to add additional inputs
-#     add_outputs : List[DatasetSpec|FieldSpec]
+#     add_outputs : List[FilesetSpec|FieldSpec]
 #         Additional outputs to append to the outputs argument. Typically
 #         passed in from a kwarg of the pipeline constructor method to
 #         allow sub-classes to add additional outputs
@@ -59,15 +59,15 @@ with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
 
 class NormalClass(with_metaclass(StudyMetaClass, Study)):
 
-    add_data_specs = [DatasetSpec('dataset', text_format),
-                      DatasetSpec('out_dataset', text_format,
+    add_data_specs = [FilesetSpec('dataset', text_format),
+                      FilesetSpec('out_dataset', text_format,
                                   'pipeline')]
 
     def pipeline(self):
         pipeline = self.create_pipeline(
             'pipeline',
-            inputs=[DatasetSpec('dataset', text_format)],
-            outputs=[DatasetSpec('out_dataset', text_format)],
+            inputs=[FilesetSpec('dataset', text_format)],
+            outputs=[FilesetSpec('out_dataset', text_format)],
             desc='a dummy pipeline',
             citations=[],
             version=1)
@@ -84,13 +84,13 @@ GeneratedClass = StudyMetaClass(
 
 norm = NormalClass('norm', LocalRepository(ARCHIVE_DIR),
                    LinearProcessor(WORK_DIR),
-                   inputs=[DatasetMatch('dataset', text_format,
+                   inputs=[FilesetMatch('dataset', text_format,
                                            'dataset')])
 
 
 gen = GeneratedClass('gen', LocalRepository(ARCHIVE_DIR),
                      LinearProcessor(WORK_DIR),
-                     inputs=[DatasetMatch('dataset', text_format,
+                     inputs=[FilesetMatch('dataset', text_format,
                                           'dataset')])
 
 print(norm)

@@ -8,7 +8,7 @@ from arcana.utils import split_extension
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
     ArcanaFileFormatNotRegisteredError, ArcanaNameError)
-from .base import BaseDataset, BaseField
+from .base import BaseFileset, BaseField
 
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
@@ -77,7 +77,7 @@ class BaseItem(object):
         return self._from_study
 
     def initkwargs(self):
-        dct = super(Dataset, self).initkwargs()
+        dct = super(Fileset, self).initkwargs()
         dct['repository'] = self.repository
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
@@ -85,7 +85,7 @@ class BaseItem(object):
         return dct
 
 
-class Dataset(BaseItem, BaseDataset):
+class Fileset(BaseItem, BaseFileset):
     """
     A representation of a dataset within the repository.
 
@@ -125,7 +125,7 @@ class Dataset(BaseItem, BaseDataset):
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
                  exists=True, bids_attr=None):
-        BaseDataset.__init__(self, name=name, format=format,
+        BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists)
@@ -139,14 +139,14 @@ class Dataset(BaseItem, BaseDataset):
             self._id = id
 
     def __eq__(self, other):
-        return (BaseDataset.__eq__(self, other) and
+        return (BaseFileset.__eq__(self, other) and
                 BaseItem.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id and
                 self._bids_attr == other._bids_attr)
 
     def __hash__(self):
-        return (BaseDataset.__hash__(self) ^
+        return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self._path) ^
                 hash(self.id) ^
@@ -186,7 +186,7 @@ class Dataset(BaseItem, BaseDataset):
         return self._bids_attr
 
     def find_mismatch(self, other, indent=''):
-        mismatch = BaseDataset.find_mismatch(self, other, indent)
+        mismatch = BaseFileset.find_mismatch(self, other, indent)
         mismatch += BaseItem.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self._path != other._path:
@@ -210,7 +210,7 @@ class Dataset(BaseItem, BaseDataset):
                 self._path = self.repository.get_dataset(self)
             else:
                 raise ArcanaError(
-                    "Neither path nor repository has been set for Dataset("
+                    "Neither path nor repository has been set for Fileset("
                     "'{}')".format(self.name))
         return self._path
 
@@ -237,7 +237,7 @@ class Dataset(BaseItem, BaseDataset):
                   **kwargs):
         if not os.path.exists(path):
             raise ArcanaUsageError(
-                "Attempting to read Dataset from path '{}' but it "
+                "Attempting to read Fileset from path '{}' but it "
                 "does not exist".format(path))
         if os.path.isdir(path):
             within_exts = frozenset(
@@ -270,7 +270,7 @@ class Dataset(BaseItem, BaseDataset):
 
         Parameters
         ----------
-        dataset : Dataset
+        dataset : Fileset
             The dataset to read a DICOM file from
         index : int
             The index of the DICOM file in the dataset to read
@@ -324,7 +324,7 @@ class Dataset(BaseItem, BaseDataset):
         return dct
 
     def initkwargs(self):
-        dct = BaseDataset.initkwargs(self)
+        dct = BaseFileset.initkwargs(self)
         dct.update(BaseItem.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id

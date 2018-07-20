@@ -1,7 +1,7 @@
-from .item import Dataset, Field
-from .collection import DatasetCollection, FieldCollection
-from .spec import DatasetSpec, FieldSpec, BaseSpec
-from .base import BaseField, BaseDataset, BaseData
-from .match import DatasetMatch, FieldMatch, BaseMatch
+from .item import Fileset, Field
+from .collection import FilesetCollection, FieldCollection
+from .spec import FilesetSpec, FieldSpec, BaseSpec
+from .base import BaseField, BaseFileset, BaseData
+from .match import FilesetMatch, FieldMatch, BaseMatch
 from .file_format import FileFormat, Converter, IdentityConverter
-from .bids import BidsDatasetMatch, BidsAssociatedDatasetMatch
+from .bids import BidsFilesetMatch, BidsAssociatedFilesetMatch

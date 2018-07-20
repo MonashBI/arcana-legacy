@@ -17,7 +17,7 @@ import filecmp
 from copy import deepcopy
 import logging
 import arcana
-from arcana.data import Dataset
+from arcana.data import Fileset
 from arcana.utils import classproperty
 from arcana.repository.local import (
     LocalRepository)
@@ -104,7 +104,7 @@ class BaseTestCase(TestCase):
             for fname in os.listdir(self.ref_dir):
                 if fname.startswith('.'):
                     continue
-                dataset = Dataset.from_path(op.join(self.ref_dir,
+                dataset = Fileset.from_path(op.join(self.ref_dir,
                                                     fname))
                 datasets[dataset.name] = dataset
         else:
@@ -125,7 +125,7 @@ class BaseTestCase(TestCase):
         session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
         for name, dataset in list(datasets.items()):
-            if isinstance(dataset, Dataset):
+            if isinstance(dataset, Fileset):
                 dst_path = op.join(session_dir,
                                    name + dataset.format.ext_str)
                 if dataset.format.directory:
@@ -140,7 +140,7 @@ class BaseTestCase(TestCase):
             else:
                 raise ArcanaError(
                     "Unrecognised dataset ({}) in {} test setup. Can "
-                    "be either a Dataset or basestring object"
+                    "be either a Fileset or basestring object"
                     .format(dataset, self))
         if fields is not None:
             with open(op.join(session_dir,
@@ -282,13 +282,13 @@ class BaseTestCase(TestCase):
             inputs=inputs,
             **kwargs)
 
-    def assertDatasetCreated(self, dataset):
+    def assertFilesetCreated(self, dataset):
         self.assertTrue(
             op.exists(dataset.path),
             ("{} was not created by unittest".format(dataset)))
 
     def assertContentsEqual(self, collection, reference, context=None):
-        if isinstance(collection, Dataset):
+        if isinstance(collection, Fileset):
             collection = [collection]
         if isinstance(reference, (basestring, int, float)):
             if len(collection) != 1:
@@ -363,7 +363,7 @@ class BaseTestCase(TestCase):
         else:
             self.assertEqual(value, ref_value, msg)
 
-    def assertDatasetsEqual(self, dataset1, dataset2, error_msg=None):
+    def assertFilesetsEqual(self, dataset1, dataset2, error_msg=None):
         msg = "{} does not match {}".format(dataset1, dataset2)
         if msg is not None:
             msg += ':\n' + error_msg
