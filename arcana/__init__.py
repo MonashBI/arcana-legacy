@@ -26,7 +26,7 @@ from .dataset import (
     DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
 from .dataset.file_format import FileFormat
 from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
-from .runner import LinearRunner, MultiProcRunner, SlurmRunner
+from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
 from .repository import LocalRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'

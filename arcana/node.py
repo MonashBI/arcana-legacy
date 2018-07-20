@@ -48,7 +48,7 @@ class ArcanaNodeMixin(object):
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
         'gpu': False,
-        'account': 'dq13'}  # Should get from runner
+        'account': 'dq13'}  # Should get from processor
 
     def __init__(self, *args, **kwargs):
         self._arcana_init(**kwargs)

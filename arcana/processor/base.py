@@ -1,6 +1,5 @@
 from builtins import str
 from builtins import object
-from itertools import chain
 from copy import copy, deepcopy
 from logging import getLogger
 from collections import defaultdict
@@ -24,7 +23,7 @@ logger = getLogger('arcana')
 WORKFLOW_MAX_NAME_LEN = 100
 
 
-class BaseRunner(object):
+class BaseProcessor(object):
     """
     A thin wrapper around the NiPype LinearPlugin used to connect
     runs pipelines on the local workstation

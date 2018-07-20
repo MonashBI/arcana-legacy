@@ -34,8 +34,8 @@ class Study(object):
     repository : Repository
         An Repository object that provides access to a DaRIS, XNAT or local file
         system
-    runner : Runner
-        A Runner to process the pipelines required to generate the
+    processor : Processor
+        A Processor to process the pipelines required to generate the
         requested derived datasets.
     inputs : Dict[str, DatasetMatch | DatasetSpec | FieldMatch | FieldSpec] | List[DatasetMatch | DatasetSpec | FieldMatch | FieldSpec]
         Either a list or a dictionary containing DatasetMatch,
@@ -96,7 +96,7 @@ class Study(object):
     implicit_cls_attrs = ['_data_specs', '_parameter_specs',
                           '_switch_specs']
 
-    def __init__(self, name, repository, runner, inputs, parameters=None,
+    def __init__(self, name, repository, processor, inputs, parameters=None,
                  switches=None, subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False, fill_tree=False):
         try:
@@ -111,7 +111,7 @@ class Study(object):
                 "the metaclass of all classes derived from Study")
         self._name = name
         self._repository = repository
-        self._runner = runner.bind(self)
+        self._processor = processor.bind(self)
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
@@ -292,8 +292,8 @@ class Study(object):
         return self._tree
 
     @property
-    def runner(self):
-        return self._runner
+    def processor(self):
+        return self._processor
 
     @property
     def inputs(self):
@@ -526,7 +526,7 @@ class Study(object):
                 pass  # Match objects don't have pipelines
         # Run all pipelines together
         if pipelines:
-            self.runner.run(
+            self.processor.run(
                 *pipelines, subject_ids=subject_ids,
                 visit_ids=visit_ids)
         all_data = []
@@ -571,8 +571,8 @@ class Study(object):
         pipeline = self.spec(spec_name).pipeline
         if full:
             workflow = pe.Workflow(name='{}_gen'.format(spec_name),
-                                   base_dir=self.runner.work_dir)
-            self.runner._connect_to_repository(
+                                   base_dir=self.processor.work_dir)
+            self.processor._connect_to_repository(
                 pipeline, workflow, **kwargs)
         else:
             workflow = pipeline._workflow
@@ -737,7 +737,7 @@ class Study(object):
         lead to timeout errors.
         """
         workflow = pe.Workflow(name='cache_download',
-                               base_dir=self.runner.work_dir)
+                               base_dir=self.processor.work_dir)
         subjects = pe.Node(InputSubjects(), name='subjects')
         sessions = pe.Node(InputSessions(), name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))

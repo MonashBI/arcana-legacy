@@ -4,7 +4,7 @@ standard_library.install_aliases()
 import os
 import shutil
 from arcana import (
-    StudyMetaClass, Study, LocalRepository, LinearRunner, DatasetSpec,
+    StudyMetaClass, Study, LocalRepository, LinearProcessor, DatasetSpec,
     DatasetMatch)
 from arcana.dataset.file_format.standard import text_format
 import pickle as pkl
@@ -83,13 +83,13 @@ GeneratedClass = StudyMetaClass(
 
 
 norm = NormalClass('norm', LocalRepository(ARCHIVE_DIR),
-                   LinearRunner(WORK_DIR),
+                   LinearProcessor(WORK_DIR),
                    inputs=[DatasetMatch('dataset', text_format,
                                            'dataset')])
 
 
 gen = GeneratedClass('gen', LocalRepository(ARCHIVE_DIR),
-                     LinearRunner(WORK_DIR),
+                     LinearProcessor(WORK_DIR),
                      inputs=[DatasetMatch('dataset', text_format,
                                           'dataset')])
 

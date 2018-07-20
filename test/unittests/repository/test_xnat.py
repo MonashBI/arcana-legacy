@@ -23,7 +23,7 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepository
 from arcana.repository.local import LocalRepository
 from arcana.study import Study, StudyMetaClass
-from arcana.runner import LinearRunner
+from arcana.processor import LinearProcessor
 from arcana.dataset import (
     DatasetMatch, DatasetSpec, FieldSpec)
 from arcana.dataset.file_format import FileFormat
@@ -410,7 +410,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project,
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
-            self.STUDY_NAME, repository, runner=LinearRunner('a_dir'),
+            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
             inputs=[DatasetMatch('source1', text_format, 'source1'),
                     DatasetMatch('source2', text_format, 'source2'),
                     DatasetMatch('source3', text_format, 'source3'),
@@ -464,7 +464,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, runner=LinearRunner('a_dir'),
+            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
             inputs=[DatasetMatch('source1', text_format, 'source1')])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         sink = study.sink(
@@ -507,7 +507,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepository(server=SERVER, cache_dir=cache_dir,
                                     project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, LinearRunner('ad'),
+            self.STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = study.source([study.input(DATASET_NAME)],
@@ -589,7 +589,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.digest_sink_project, server=SERVER,
             cache_dir=cache_dir)
         study = DummyStudy(
-            STUDY_NAME, sink_repository, LinearRunner('ad'),
+            STUDY_NAME, sink_repository, LinearProcessor('ad'),
             inputs=[DatasetMatch(DATASET_NAME, text_format,
                                  DATASET_NAME,
                                  repository=source_repository)],
@@ -670,7 +670,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, repository, LinearRunner('ad'),
+            self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[
                 DatasetMatch('source1', text_format, 'source1'),
                 DatasetMatch('source2', text_format, 'source2'),
@@ -857,7 +857,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             repository=XnatRepository(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            runner=LinearRunner(self.work_dir),
+            processor=LinearProcessor(self.work_dir),
             inputs=test_dataset.TestDicomTagMatch.DICOM_MATCH)
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
@@ -871,7 +871,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             repository=XnatRepository(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            runner=LinearRunner(self.work_dir),
+            processor=LinearProcessor(self.work_dir),
             inputs=[
                 DatasetMatch('gre_phase', dicom_format, id=7),
                 DatasetMatch('gre_mag', dicom_format, id=6)])

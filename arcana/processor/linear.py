@@ -1,8 +1,8 @@
-from .base import BaseRunner
+from .base import BaseProcessor
 from nipype.pipeline.plugins import LinearPlugin
 
 
-class LinearRunner(BaseRunner):
+class LinearProcessor(BaseProcessor):
     """
     A thin wrapper around the NiPype LinearPlugin used to
     run pipelines on the local workstation on a single process

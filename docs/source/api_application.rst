@@ -12,14 +12,14 @@ Archives
 .. autoclass:: arcana.archive.local.LocalArchive
 
 
-Runners
+Processors
 -------
 
-.. autoclass:: arcana.runner.LinearRunner
+.. autoclass:: arcana.processor.LinearProcessor
 
-.. autoclass:: arcana.runner.MultiProcRunner
+.. autoclass:: arcana.processor.MultiProcProcessor
 
-.. autoclass:: arcana.runner.SlurmRunner
+.. autoclass:: arcana.processor.SlurmProcessor
 
 
 Inputs

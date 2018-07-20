@@ -104,7 +104,7 @@ which can then be instantiated and used to generate 'derived2' with
     study = ExampleStudy(
         name='dummy',
         archive=LocalArchive('/path/to/local/archive'),
-        runner=LinearRunner('/my/work/dir'),
+        processor=LinearProcessor('/my/work/dir'),
         inputs=[
             DatasetMatch('one', text_format, 'one'),
             DatasetMatch('ten', text_format, 'ten')],

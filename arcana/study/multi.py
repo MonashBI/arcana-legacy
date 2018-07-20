@@ -22,8 +22,8 @@ class MultiStudy(Study):
     repository : Repository
         An Repository object that provides access to a DaRIS, XNAT or
         local file system
-    runner : Runner
-        The runner the processes the derived data when demanded
+    processor : Processor
+        The processor the processes the derived data when demanded
     inputs : Dict[str, Dataset|Field]
         A dict containing the a mapping between names of study data_specs
         and existing datasets (typically primary from the scanner but can
@@ -80,7 +80,7 @@ class MultiStudy(Study):
 
     implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
 
-    def __init__(self, name, repository, runner, inputs, parameters=None,
+    def __init__(self, name, repository, processor, inputs, parameters=None,
                  switches=None, **kwargs):
         try:
             # This works for PY3 as the metaclass inserts it itself if
@@ -94,7 +94,7 @@ class MultiStudy(Study):
                 "the metaclass of all classes derived from "
                 "MultiStudy")
         super(MultiStudy, self).__init__(
-            name, repository, runner, inputs, parameters=parameters,
+            name, repository, processor, inputs, parameters=parameters,
             switches=switches, **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
@@ -128,7 +128,7 @@ class MultiStudy(Study):
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
-                repository, runner, mapped_inputs,
+                repository, processor, mapped_inputs,
                 parameters=mapped_parameters, switches=mapped_switches,
                 enforce_inputs=False)
             # Append to dictionary of sub_studies
