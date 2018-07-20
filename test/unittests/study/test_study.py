@@ -4,8 +4,8 @@ from builtins import str  # @IgnorePep8
 import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
+from arcana.data import DatasetMatch, DatasetSpec  # @IgnorePep8
+from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -16,11 +16,11 @@ from arcana.study.multi import (  # @IgnorePep8
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.parameter import ParameterSpec  # @IgnorePep8
-from arcana.dataset.file_format import FileFormat, IdentityConverter  # @IgnorePep8
+from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
-from arcana.dataset import Dataset  # @IgnorePep8
+from arcana.data import Dataset  # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:

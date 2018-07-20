@@ -2,7 +2,7 @@ from arcana.utils import ExitStack
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
-from arcana.dataset import BaseField, BaseDataset
+from arcana.data import BaseField, BaseDataset
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 import logging
 

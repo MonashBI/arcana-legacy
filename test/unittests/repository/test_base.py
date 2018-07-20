@@ -3,14 +3,14 @@ standard_library.install_aliases()
 import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.processor import LinearProcessor  # @IgnorePep8
-from arcana.dataset import (  # @IgnorePep8
+from arcana.data import (  # @IgnorePep8
     DatasetMatch, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
-from arcana.dataset import DatasetSpec  # @IgnorePep8
+from arcana.data import DatasetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.repository.local import LocalRepository  # @IgnorePep8
 

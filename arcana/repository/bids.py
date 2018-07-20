@@ -7,7 +7,7 @@ from .local import LocalRepository
 import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit
-from arcana.dataset import Dataset
+from arcana.data import Dataset
 from arcana.exception import ArcanaNameError, ArcanaMissingDataException
 
 logger = logging.getLogger('arcana')

@@ -15,10 +15,10 @@ import errno  # @IgnorePep8
 import json  # @IgnorePep8
 from zipfile import ZipFile, BadZipfile  # @IgnorePep8
 from collections import defaultdict  # @IgnorePep8
-from arcana.dataset import Dataset, Field  # @IgnorePep8
+from arcana.data import Dataset, Field  # @IgnorePep8
 from arcana.repository.base import BaseRepository  # @IgnorePep8
 from arcana.repository.tree import Session, Subject, Tree, Visit  # @IgnorePep8
-from arcana.dataset.file_format import FileFormat  # @IgnorePep8
+from arcana.data.file_format import FileFormat  # @IgnorePep8
 from arcana.utils import split_extension  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
     ArcanaError, ArcanaFileFormatError, ArcanaMissingDataException)
@@ -444,7 +444,7 @@ class XnatRepository(BaseRepository):
 
         Returns
         -------
-        datasets : list(arcana.dataset.Dataset)
+        datasets : list(arcana.data.Dataset)
             List of datasets within an XNAT session
         """
         datasets = []
@@ -475,7 +475,7 @@ class XnatRepository(BaseRepository):
 
         Returns
         -------
-        fields : list(arcana.dataset.Field)
+        fields : list(arcana.data.Field)
             List of fields within an XNAT session
         """
         fields = []

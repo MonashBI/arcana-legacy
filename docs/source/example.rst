@@ -5,8 +5,8 @@ A basic toy example
 
 .. code-block:: python
 
-    from arcana.dataset import DatasetMatch, DatasetSpec
-    from arcana.dataset.file_format.standard import text_format
+    from arcana.data import DatasetMatch, DatasetSpec
+    from arcana.data.file_format.standard import text_format
     from arcana.study.base import Study, StudyMetaClass
     from nipype.interfaces.base import (  # @IgnorePep8
         BaseInterface, File, TraitedSpec, traits, isdefined)

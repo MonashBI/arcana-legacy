@@ -25,9 +25,9 @@ Processors
 Inputs
 ------
 
-.. autoclass:: arcana.dataset.DatasetMatch
+.. autoclass:: arcana.data.DatasetMatch
 
-.. autoclass:: arcana.dataset.FieldMatch
+.. autoclass:: arcana.data.FieldMatch
 
 .. autoclass:: arcana.option.Option
 
@@ -47,6 +47,6 @@ Project tree
 Datasets and Fields
 -------------------
 
-.. autoclass:: arcana.dataset.Dataset
+.. autoclass:: arcana.data.Dataset
 
-.. autoclass:: arcana.dataset.Field
+.. autoclass:: arcana.data.Field

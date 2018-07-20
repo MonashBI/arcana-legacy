@@ -24,9 +24,9 @@ Meta-classes
 Specs
 -----
 
-.. autoclass:: arcana.dataset.DatasetSpec
+.. autoclass:: arcana.data.DatasetSpec
 
-.. autoclass:: arcana.dataset.FieldSpec
+.. autoclass:: arcana.data.FieldSpec
 
 .. autoclass:: arcana.study.multi.SubStudySpec
 

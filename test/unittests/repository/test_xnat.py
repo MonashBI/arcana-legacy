@@ -24,14 +24,14 @@ from arcana.repository.xnat import XnatRepository
 from arcana.repository.local import LocalRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
-from arcana.dataset import (
+from arcana.data import (
     DatasetMatch, DatasetSpec, FieldSpec)
-from arcana.dataset.file_format import FileFormat
+from arcana.data.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
-from arcana.dataset.file_format.standard import text_format
+from arcana.data.file_format.standard import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
-from arcana.dataset import Dataset
+from arcana.data import Dataset
 import sys
 import logging
 from future.utils import with_metaclass

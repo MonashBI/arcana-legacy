@@ -10,7 +10,7 @@ from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaNoConverterError,
     ArcanaUsageError)
-from arcana.dataset.base import BaseDataset, BaseField
+from arcana.data.base import BaseDataset, BaseField
 from arcana.interfaces.iterators import (
     InputSessions, PipelineReport, InputSubjects, SubjectReport,
     VisitReport, SubjectSessionReport, SessionReport)

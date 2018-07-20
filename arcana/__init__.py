@@ -22,9 +22,9 @@ import os
 from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
     SubStudySpec)
-from .dataset import (
+from .data import (
     DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
-from .dataset.file_format import FileFormat
+from .data.file_format import FileFormat
 from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
 from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
 from .repository import LocalRepository, XnatRepository

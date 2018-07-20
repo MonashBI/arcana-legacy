@@ -2,9 +2,9 @@ from future import standard_library
 standard_library.install_aliases()
 import os  # @IgnorePep8
 import os.path as op  # @IgnorePep8
-from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.dataset import (  # @IgnorePep8
+from arcana.data import (  # @IgnorePep8
     Dataset, DatasetSpec, Field)  # @IgnorePep8
 from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8

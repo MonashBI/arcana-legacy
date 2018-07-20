@@ -1,8 +1,8 @@
 import os
 import tempfile
 import os.path as op
-from arcana.dataset import DatasetSpec, DatasetMatch, Dataset
-from arcana.dataset.file_format.standard import (
+from arcana.data import DatasetSpec, DatasetMatch, Dataset
+from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.testing import BaseTestCase

@@ -11,7 +11,7 @@ import logging
 import json
 from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
-from arcana.dataset import Dataset, Field
+from arcana.data import Dataset, Field
 from arcana.exception import (
     ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
     ArcanaMissingDataException)

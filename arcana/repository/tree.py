@@ -3,7 +3,7 @@ from builtins import object
 from itertools import chain
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
-from arcana.dataset import BaseDataset, BaseField
+from arcana.data import BaseDataset, BaseField
 
 
 class TreeNode(object):

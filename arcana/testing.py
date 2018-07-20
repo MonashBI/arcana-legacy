@@ -17,7 +17,7 @@ import filecmp
 from copy import deepcopy
 import logging
 import arcana
-from arcana.dataset import Dataset
+from arcana.data import Dataset
 from arcana.utils import classproperty
 from arcana.repository.local import (
     LocalRepository)
