@@ -48,7 +48,7 @@ class BidsAttrs(object):
         return self._description
 
 
-class BidsFilesetMatch(FilesetMatch):
+class BidsMatch(FilesetMatch):
     """
     A match object for matching filesets from their 'bids_attr'
     attribute
@@ -122,7 +122,7 @@ class BidsFilesetMatch(FilesetMatch):
         return dct
 
 
-class BidsAssociatedFilesetMatch(FilesetMatch):
+class BidsAssociatedMatch(FilesetMatch):
     """
     A match object for matching BIDS filesets that are associated with
     another BIDS filesets (e.g. field-maps, bvecs, bvals)
@@ -131,7 +131,7 @@ class BidsAssociatedFilesetMatch(FilesetMatch):
     ----------
     name : str
         Name of the associated fileset
-    primary_match : BidsFilesetMatch
+    primary_match : BidsMatch
         The primary fileset which the fileset to match is associated with
     associated : str
         The name of the association between the fileset to match and the
