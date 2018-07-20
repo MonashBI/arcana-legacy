@@ -106,7 +106,7 @@ class BaseProcessor(object):
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
-        # Reset the cached tree of datasets in the repository as it will
+        # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.repository.clear_cache()
         return workflow.run(plugin=self._plugin)
@@ -199,12 +199,12 @@ class BaseProcessor(object):
         complete_workflow.connect(sessions, 'visit_id',
                                   source, 'visit_id')
         for input_spec in pipeline.inputs:
-            # Get the dataset corresponding to the pipeline's input
+            # Get the fileset corresponding to the pipeline's input
             input = self.study.spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
             if isinstance(input, BaseFileset):
                 if input.format != input_spec.format:
                     # Insert a format converter node into the workflow if the
-                    # format of the dataset if it is not in the required format
+                    # format of the fileset if it is not in the required format
                     # for the study
                     try:
                         converter = input_spec.format.converter_from(
@@ -218,16 +218,16 @@ class BaseProcessor(object):
                                         pipeline.name, self.study.name)))
                     conv_node_name = '{}_{}_input_conversion'.format(
                         pipeline.name, input_spec.name)
-                    (dataset_source, conv_in_field,
-                     dataset_name) = converter.get_node(conv_node_name)
+                    (fileset_source, conv_in_field,
+                     fileset_name) = converter.get_node(conv_node_name)
                     complete_workflow.connect(
                         source, input.name + PATH_SUFFIX,
-                        dataset_source, conv_in_field)
+                        fileset_source, conv_in_field)
                 else:
-                    dataset_source = source
-                    dataset_name = input.name + PATH_SUFFIX
-                # Connect the dataset to the pipeline input
-                complete_workflow.connect(dataset_source, dataset_name,
+                    fileset_source = source
+                    fileset_name = input.name + PATH_SUFFIX
+                # Connect the fileset to the pipeline input
+                complete_workflow.connect(fileset_source, fileset_name,
                                           pipeline.inputnode, input_spec.name)
             else:
                 assert isinstance(input, BaseField)
@@ -254,9 +254,9 @@ class BaseProcessor(object):
                 complete_workflow.connect(sessions, 'visit_id',
                                           sink, 'visit_id')
             for output_spec in outputs:
-                # Get the dataset spec corresponding to the pipeline's output
+                # Get the fileset spec corresponding to the pipeline's output
                 output = self.study.spec(output_spec.name)
-                # Skip datasets which are already input datasets
+                # Skip filesets which are already input filesets
                 if output.is_spec:
                     if isinstance(output, BaseFileset):
                         # Convert the format of the node if it doesn't match
@@ -275,7 +275,7 @@ class BaseProcessor(object):
                             conv_node_name = (output_spec.name +
                                               '_output_conversion')
                             (output_node, conv_in_field,
-                             node_dataset_name) = converter.get_node(
+                             node_fileset_name) = converter.get_node(
                                  conv_node_name)
                             complete_workflow.connect(
                                 pipeline._outputnodes[freq],
@@ -283,9 +283,9 @@ class BaseProcessor(object):
                                 output_node, conv_in_field)
                         else:
                             output_node = pipeline._outputnodes[freq]
-                            node_dataset_name = output.name
+                            node_fileset_name = output.name
                         complete_workflow.connect(
-                            output_node, node_dataset_name,
+                            output_node, node_fileset_name,
                             sink, output.name + PATH_SUFFIX)
                     else:
                         assert isinstance(output, BaseField)

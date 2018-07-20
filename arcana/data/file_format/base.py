@@ -19,7 +19,7 @@ logger = logging.getLogger('arcana')
 
 class FileFormat(object):
     """
-    Defines a format for a dataset (e.g. DICOM, NIfTI, Matlab file)
+    Defines a format for a fileset (e.g. DICOM, NIfTI, Matlab file)
 
     Parameters
     ----------
@@ -287,7 +287,7 @@ class Converter(with_metaclass(ABCMeta, object)):
     @abstractmethod
     def get_node(self, name):
         """
-        Returns a NiPype node that converts a dataset from the input
+        Returns a NiPype node that converts a fileset from the input
         format to the output format
 
         Parameters

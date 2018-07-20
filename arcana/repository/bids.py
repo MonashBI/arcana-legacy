@@ -52,9 +52,9 @@ class BidsRepository(LocalRepository):
         except AttributeError:
             return False
 
-    def get_dataset(self, dataset):
+    def get_fileset(self, fileset):
         """
-        Set the path of the dataset from the repository
+        Set the path of the fileset from the repository
         """
         raise NotImplementedError
 
@@ -75,10 +75,10 @@ class BidsRepository(LocalRepository):
         Returns
         -------
         project : arcana.repository.Tree
-            A hierarchical tree of subject, session and dataset information for
+            A hierarchical tree of subject, session and fileset information for
             the repository
         """
-        bids_datasets = defaultdict(lambda: defaultdict(dict))
+        bids_filesets = defaultdict(lambda: defaultdict(dict))
         derived_tree = super(BidsRepository, self).tree(
             subject_ids=None, visit_ids=None)
         for bids_obj in self.layout.get(return_type='object'):
@@ -88,18 +88,18 @@ class BidsRepository(LocalRepository):
             visit_id = bids_obj.entities['session']
             if visit_ids is not None and visit_id not in visit_ids:
                 continue
-            bids_datasets[subj_id][visit_id] = Fileset.from_path(
+            bids_filesets[subj_id][visit_id] = Fileset.from_path(
                 bids_obj.path, frequency='per_session',
                 subject_id=subj_id, visit_id=visit_id, repository=self,
                 bids_attrs=bids_obj)
-        # Need to pull out all datasets and fields
+        # Need to pull out all filesets and fields
         all_sessions = defaultdict(dict)
         all_visit_ids = set()
-        for subj_id, visits in bids_datasets.items():
-            for visit_id, datasets in visits.items():
+        for subj_id, visits in bids_filesets.items():
+            for visit_id, filesets in visits.items():
                 session = Session(
                     subject_id=subj_id, visit_id=visit_id,
-                    datasets=datasets)
+                    filesets=filesets)
                 try:
                     session.derived = derived_tree.subject(
                         subj_id).visit(visit_id)
@@ -113,28 +113,28 @@ class BidsRepository(LocalRepository):
             try:
                 derived_subject = derived_tree.subject(subj_id)
             except ArcanaNameError:
-                datasets = []
+                filesets = []
                 fields = []
             else:
-                datasets = derived_subject.datasets
+                filesets = derived_subject.filesets
                 fields = derived_subject.fields
             subjects.append(Subject(
                 subj_id, sorted(subj_sessions.values()),
-                datasets, fields))
+                filesets, fields))
         visits = []
         for visit_id in all_visit_ids:
             try:
                 derived_visit = derived_tree.visit(subj_id)
             except ArcanaNameError:
-                datasets = []
+                filesets = []
                 fields = []
             else:
-                datasets = derived_visit.datasets
+                filesets = derived_visit.filesets
                 fields = derived_visit.fields
             visit_sessions = list(chain(
                 sess[visit_id] for sess in list(all_sessions.values())))
             visits.append(
                 Visit(visit_id, sorted(visit_sessions),
-                      datasets, fields))
+                      filesets, fields))
         return Tree(sorted(subjects), sorted(visits),
-                       derived_tree.datasets, derived_tree.fields)
+                       derived_tree.filesets, derived_tree.fields)

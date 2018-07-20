@@ -50,21 +50,21 @@ class BidsAttrs(object):
 
 class BidsFilesetMatch(FilesetMatch):
     """
-    A match object for matching datasets from their 'bids_attr'
+    A match object for matching filesets from their 'bids_attr'
     attribute
 
     Parameters
     ----------
     name : str
-        Name of the dataset
+        Name of the fileset
     type : str
-        Type of the dataset
+        Type of the fileset
     modality : str
-        Modality of the datasets
+        Modality of the filesets
     format : FileFormat
-        The file format of the dataset to match
+        The file format of the fileset to match
     run : int
-        Run number of the dataset
+        Run number of the fileset
     """
 
     def __init__(self, name, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
@@ -90,16 +90,16 @@ class BidsFilesetMatch(FilesetMatch):
 
     def _filtered_matches(self, node):
         matches = [
-            d for d in node.datasets
+            d for d in node.filesets
             if (d.bids_attr.entities['type'] == self.type and
                 d.bids_attr.entities['modality'] == self.modality)]
         if not matches:
             raise ArcanaFilesetMatchError(
-                "No BIDS datasets for subject={}, visit={} match "
+                "No BIDS filesets for subject={}, visit={} match "
                 "modality '{}' and type '{}' found:\n{}"
                 .format(node.subject_id, node.visit_id, self.modality,
                         self.type, '\n'.join(
-                            sorted(d.name for d in node.datasets))))
+                            sorted(d.name for d in node.filesets))))
         return matches
 
     def __eq__(self, other):
@@ -124,18 +124,18 @@ class BidsFilesetMatch(FilesetMatch):
 
 class BidsAssociatedFilesetMatch(FilesetMatch):
     """
-    A match object for matching BIDS datasets that are associated with
-    another BIDS datasets (e.g. field-maps, bvecs, bvals)
+    A match object for matching BIDS filesets that are associated with
+    another BIDS filesets (e.g. field-maps, bvecs, bvals)
 
     Parameters
     ----------
     name : str
-        Name of the associated dataset
+        Name of the associated fileset
     primary_match : BidsFilesetMatch
-        The primary dataset which the dataset to match is associated with
+        The primary fileset which the fileset to match is associated with
     associated : str
-        The name of the association between the dataset to match and the
-        primary dataset
+        The name of the association between the fileset to match and the
+        primary fileset
     fieldmap_type : str
         Key of the return fieldmap dictionary (if association=='fieldmap'
     order : int
@@ -188,7 +188,7 @@ class BidsAssociatedFilesetMatch(FilesetMatch):
                 match = matches[0]
             except IndexError:
                 raise ArcanaFilesetMatchError(
-                    "Provided order to associated BIDS dataset match "
+                    "Provided order to associated BIDS fileset match "
                     "{} is out of range")
         elif self._association == 'bvec':
             match = layout.get_bvec(primary_match.path)

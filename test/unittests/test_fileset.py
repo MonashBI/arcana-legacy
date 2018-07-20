@@ -27,7 +27,7 @@ FileFormat.register(dicom_format)
 
 class TestFilesetSpecPickle(TestCase):
 
-    datasets = []
+    filesets = []
     fields = []
 
     def setUp(self):
@@ -38,7 +38,7 @@ class TestFilesetSpecPickle(TestCase):
         shutil.rmtree(self.tmp_dir)
         shutil.rmtree(self.pkl_dir)
 
-    def test_dataset_and_field(self):
+    def test_fileset_and_field(self):
         objs = [FilesetSpec('a', text_format,
                             'dummy_pipeline1'),
                 FieldSpec('b', int, 'dummy_pipeline2')]

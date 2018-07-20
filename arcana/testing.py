@@ -44,7 +44,7 @@ class BaseTestCase(TestCase):
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
 
-    # Whether to copy reference datasets from reference directory
+    # Whether to copy reference filesets from reference directory
     INPUTS_FROM_REF_DIR = False
 
     # The path to the test directory, which should sit along side the
@@ -94,7 +94,7 @@ class BaseTestCase(TestCase):
     def setUp(self):
         self.reset_dirs()
         if self.INPUTS_FROM_REF_DIR:
-            datasets = {}
+            filesets = {}
             # Unzip reference directory if required
             if not os.path.exists(self.ref_dir) and os.path.exists(
                     self.ref_dir + '.tar.gz'):
@@ -104,44 +104,44 @@ class BaseTestCase(TestCase):
             for fname in os.listdir(self.ref_dir):
                 if fname.startswith('.'):
                     continue
-                dataset = Fileset.from_path(op.join(self.ref_dir,
+                fileset = Fileset.from_path(op.join(self.ref_dir,
                                                     fname))
-                datasets[dataset.name] = dataset
+                filesets[fileset.name] = fileset
         else:
-            datasets = getattr(self, 'INPUT_DATASETS', None)
-        self.add_session(datasets=datasets,
+            filesets = getattr(self, 'INPUT_DATASETS', None)
+        self.add_session(filesets=filesets,
                          fields=getattr(self, 'INPUT_FIELDS', None))
 
-    def add_session(self, datasets=None, fields=None, project_dir=None,
+    def add_session(self, filesets=None, fields=None, project_dir=None,
                     subject=None, visit=None):
         if project_dir is None:
             project_dir = self.project_dir
-        if datasets is None:
-            datasets = {}
+        if filesets is None:
+            filesets = {}
         if subject is None:
             subject = self.SUBJECT
         if visit is None:
             visit = self.VISIT
         session_dir = op.join(project_dir, subject, visit)
         os.makedirs(session_dir)
-        for name, dataset in list(datasets.items()):
-            if isinstance(dataset, Fileset):
+        for name, fileset in list(filesets.items()):
+            if isinstance(fileset, Fileset):
                 dst_path = op.join(session_dir,
-                                   name + dataset.format.ext_str)
-                if dataset.format.directory:
-                    shutil.copytree(dataset.path, dst_path)
+                                   name + fileset.format.ext_str)
+                if fileset.format.directory:
+                    shutil.copytree(fileset.path, dst_path)
                 else:
-                    shutil.copy(dataset.path, dst_path)
-            elif isinstance(dataset, basestring):
+                    shutil.copy(fileset.path, dst_path)
+            elif isinstance(fileset, basestring):
                 # Write string as text file
                 with open(op.join(session_dir,
                                   name + '.txt'), 'w') as f:
-                    f.write(dataset)
+                    f.write(fileset)
             else:
                 raise ArcanaError(
-                    "Unrecognised dataset ({}) in {} test setup. Can "
+                    "Unrecognised fileset ({}) in {} test setup. Can "
                     "be either a Fileset or basestring object"
-                    .format(dataset, self))
+                    .format(fileset, self))
         if fields is not None:
             with open(op.join(session_dir,
                               LocalRepository.FIELDS_FNAME), 'w',
@@ -185,8 +185,8 @@ class BaseTestCase(TestCase):
             self.SUBJECT).session(self.VISIT)
 
     @property
-    def datasets(self):
-        return self.session.datasets
+    def filesets(self):
+        return self.session.filesets
 
     @property
     def fields(self):
@@ -282,10 +282,10 @@ class BaseTestCase(TestCase):
             inputs=inputs,
             **kwargs)
 
-    def assertFilesetCreated(self, dataset):
+    def assertFilesetCreated(self, fileset):
         self.assertTrue(
-            op.exists(dataset.path),
-            ("{} was not created by unittest".format(dataset)))
+            op.exists(fileset.path),
+            ("{} was not created by unittest".format(fileset)))
 
     def assertContentsEqual(self, collection, reference, context=None):
         if isinstance(collection, Fileset):
@@ -297,40 +297,40 @@ class BaseTestCase(TestCase):
                     " against a single contents string (list or dict "
                     "should be provided)")
             references = [str(reference)]
-            datasets = list(collection)
+            filesets = list(collection)
         elif isinstance(reference, dict):
             references = []
-            datasets = []
+            filesets = []
             for subj_id, subj_dct in references.items():
                 for visit_id, ref_value in subj_dct.items():
                     references.append(str(ref_value))
-                    datasets.append(collection.item(subject_id=subj_id,
+                    filesets.append(collection.item(subject_id=subj_id,
                                                     visit_id=visit_id))
         elif isinstance(reference, (list, tuple)):
             references = [str(r) for r in reference]
-            datasets = list(collection)
-            if len(references) != len(datasets):
+            filesets = list(collection)
+            if len(references) != len(filesets):
                 raise ArcanaUsageError(
                     "Number of provided references ({}) does not match"
                     " size of collection ({})".format(len(references),
-                                                      len(datasets)))
+                                                      len(filesets)))
         else:
             raise ArcanaUsageError(
                 "Unrecognised format for reference ({})"
                 .format(reference))
-        for dataset, ref in zip(datasets, references):
-            with open(dataset.path) as f:
+        for fileset, ref in zip(filesets, references):
+            with open(fileset.path) as f:
                 contents = f.read()
             msg = ("Contents of {} ({}) do not match reference ({})"
-                   .format(dataset, contents, ref))
+                   .format(fileset, contents, ref))
             if context is not None:
                 msg += 'for ' + context
             self.assertEqual(contents, ref, msg)
 
-    def assertCreated(self, dataset):
+    def assertCreated(self, fileset):
         self.assertTrue(
-            os.path.exists(dataset.path),
-            "{} was not created".format(dataset))
+            os.path.exists(fileset.path),
+            "{} was not created".format(fileset))
 
     def assertField(self, name, ref_value, from_study, subject=None,
                     visit=None, frequency='per_session',
@@ -363,14 +363,14 @@ class BaseTestCase(TestCase):
         else:
             self.assertEqual(value, ref_value, msg)
 
-    def assertFilesetsEqual(self, dataset1, dataset2, error_msg=None):
-        msg = "{} does not match {}".format(dataset1, dataset2)
+    def assertFilesetsEqual(self, fileset1, fileset2, error_msg=None):
+        msg = "{} does not match {}".format(fileset1, fileset2)
         if msg is not None:
             msg += ':\n' + error_msg
-        self.assertTrue(filecmp.cmp(dataset1.path, dataset2.path,
+        self.assertTrue(filecmp.cmp(fileset1.path, fileset2.path,
                                     shallow=False), msg=msg)
 
-    def assertStatEqual(self, stat, dataset_name, target, from_study,
+    def assertStatEqual(self, stat, fileset_name, target, from_study,
                         subject=None, visit=None,
                         frequency='per_session'):
             try:
@@ -380,7 +380,7 @@ class BaseTestCase(TestCase):
             val = float(sp.check_output(
                 'mrstats {} -output {}'.format(
                     self.output_file_path(
-                        dataset_name, from_study,
+                        fileset_name, from_study,
                         subject=subject, visit=visit,
                         frequency=frequency),
                     stat),
@@ -389,7 +389,7 @@ class BaseTestCase(TestCase):
                 val, target, (
                     "{} value of '{}' ({}) does not equal target ({}) "
                     "for subject {} visit {}"
-                    .format(stat, dataset_name, val, target,
+                    .format(stat, fileset_name, val, target,
                             subject, visit)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
@@ -445,7 +445,7 @@ class BaseTestCase(TestCase):
 
     @classmethod
     def remove_generated_files(cls, study=None):
-        # Remove derived datasets
+        # Remove derived filesets
         for fname in os.listdir(cls.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
                 os.remove(op.join(cls.get_session_dir(), fname))
@@ -474,13 +474,13 @@ class BaseMultiSubjectTestCase(BaseTestCase):
     def add_sessions(self):
         self.local_tree = deepcopy(self.input_tree)
         for node in self.local_tree:
-            for dataset in node.datasets:
-                dataset._repository = self.local_repository
-                dataset._path = op.join(
-                    dataset.repository.session_dir(dataset), dataset.fname)
-                self._make_dir(op.dirname(dataset.path))
-                with open(dataset.path, 'w') as f:
-                    f.write(str(self.DATASET_CONTENTS[dataset.name]))
+            for fileset in node.filesets:
+                fileset._repository = self.local_repository
+                fileset._path = op.join(
+                    fileset.repository.session_dir(fileset), fileset.fname)
+                self._make_dir(op.dirname(fileset.path))
+                with open(fileset.path, 'w') as f:
+                    f.write(str(self.DATASET_CONTENTS[fileset.name]))
             fields = list(node.fields)
             if fields:
                 dpath = self.local_repository.session_dir(fields[0])

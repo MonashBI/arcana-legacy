@@ -141,14 +141,14 @@ class TestSinkAndSource(BaseTestCase):
             subject_sink_files, frequency='per_subject')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
-            "Tests the sinking of subject-wide datasets")
+            "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
         visit_sink = study.sink(visit_sink_files,
                                           frequency='per_visit')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
-            "Tests the sinking of visit-wide datasets")
+            "Tests the sinking of visit-wide filesets")
         # Test project sink
         project_sink_files = ['project_sink']
         project_sink = study.sink(project_sink_files,
@@ -156,7 +156,7 @@ class TestSinkAndSource(BaseTestCase):
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
-            "Tests the sinking of project-wide datasets")
+            "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
@@ -205,7 +205,7 @@ class TestSinkAndSource(BaseTestCase):
             ['resink1', 'resink2', 'resink3'])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
-            "Tests the reloading of subject and project summary datasets")
+            "Tests the reloading of subject and project summary filesets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)
         reloadworkflow.connect(reloadinputnode, 'subject_id',

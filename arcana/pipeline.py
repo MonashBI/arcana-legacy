@@ -29,11 +29,11 @@ class Pipeline(object):
     study : Study
         The study from which the pipeline was created
     inputs : List[FilesetSpec|FieldSpec]
-        The list of input datasets required for the pipeline
-        un/processed datasets, and the parameters used to generate them for
-        unprocessed datasets
+        The list of input filesets required for the pipeline
+        un/processed filesets, and the parameters used to generate them for
+        unprocessed filesets
     outputs : List[FilesetSpec|FieldSpec]
-        The list of outputs (hard-coded names for un/processed datasets)
+        The list of outputs (hard-coded names for un/processed filesets)
     desc : str
         The description of what the pipeline does
     citations : List[Citation]
@@ -73,7 +73,7 @@ class Pipeline(object):
         self._check_spec_names(inputs, 'input')
         if any(i.name in self.iterfields for i in inputs):
             raise ArcanaError(
-                "Cannot have a dataset spec named '{}' as it clashes with "
+                "Cannot have a fileset spec named '{}' as it clashes with "
                 "iterable field of that name".format(i.name))
         self._inputs = inputs
         self._inputnode = self.create_node(
@@ -202,16 +202,16 @@ class Pipeline(object):
 
     def connect_input(self, spec_name, node, node_input):
         """
-        Connects a study dataset_spec as an input to the provided node
+        Connects a study fileset_spec as an input to the provided node
 
         Parameters
         ----------
         spec_name : str
-            Name of the study dataset spec to join to the node
+            Name of the study fileset spec to join to the node
         node : nipype.pipeline.BaseNode
             A NiPype node to connect the input to
         node_input : str
-            Name of the input on the node to connect the dataset spec to
+            Name of the input on the node to connect the fileset spec to
         """
         assert spec_name in self.input_names, (
             "'{}' is not a valid input for '{}' pipeline ('{}')"
@@ -223,16 +223,16 @@ class Pipeline(object):
 
     def connect_output(self, spec_name, node, node_output):
         """
-        Connects an output to a study dataset spec
+        Connects an output to a study fileset spec
 
         Parameters
         ----------
         spec_name : str
-            Name of the study dataset spec to connect to
+            Name of the study fileset spec to connect to
         node : nipype.pipeline.BaseNode
             A NiPype to connect the output from
         node_output : str
-            Name of the output on the node to connect to the dataset
+            Name of the output on the node to connect to the fileset
         """
         if spec_name not in self.output_names:
             raise ArcanaDesignError(
@@ -505,7 +505,7 @@ class Pipeline(object):
         ----------
         frequency : str
             One of 'per_session', 'per_subject', 'per_visit' and
-            'per_study', specifying whether the dataset is present for each
+            'per_study', specifying whether the fileset is present for each
             session, subject, visit or project.
         """
         return self._outputnodes[frequency]

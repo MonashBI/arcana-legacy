@@ -126,13 +126,13 @@ class BaseMatch(object):
         # Filter matches by study name
         matches = [d for d in matches
                    if d.from_study == self.from_study]
-        # Select the dataset from the matches
+        # Select the fileset from the matches
         if self.order is not None:
             try:
                 match = matches[self.order]
             except IndexError:
                 raise ArcanaFilesetMatchError(
-                    "Did not find {} datasets names matching pattern {}"
+                    "Did not find {} filesets names matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
@@ -147,7 +147,7 @@ class BaseMatch(object):
                 "Did not find any matches for {} pattern in {} "
                 "(found {})"
                 .format(self.pattern, node,
-                        ', '.join(str(d) for d in node.datasets)))
+                        ', '.join(str(d) for d in node.filesets)))
         return match
 
     def initkwargs(self):
@@ -163,44 +163,44 @@ class BaseMatch(object):
 
 class FilesetMatch(BaseMatch, BaseFileset):
     """
-    A pattern that describes a single dataset (typically acquired
+    A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
 
     Parameters
     ----------
     name : str
-        The name of the dataset, typically left None and set in Study
+        The name of the fileset, typically left None and set in Study
     format : FileFormat
-        The file format used to store the dataset. Can be one of the
+        The file format used to store the fileset. Can be one of the
         recognised formats
     pattern : str
-        A regex pattern to match the dataset names with. Must match
-        one and only one dataset per <frequency>. If None, the name
+        A regex pattern to match the fileset names with. Must match
+        one and only one fileset per <frequency>. If None, the name
         is used instead.
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     id : int | None
-        To be used to distinguish multiple datasets that match the
-        pattern in the same session. The ID of the dataset within the
+        To be used to distinguish multiple filesets that match the
+        pattern in the same session. The ID of the fileset within the
         session.
     order : int | None
-        To be used to distinguish multiple datasets that match the
-        pattern in the same session. The order of the dataset within the
+        To be used to distinguish multiple filesets that match the
+        pattern in the same session. The order of the fileset within the
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
     dicom_tags : dct(str | str)
-        To be used to distinguish multiple datasets that match the
+        To be used to distinguish multiple filesets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
     from_study : str
-        The name of the study that generated the derived dataset to match.
-        Is used to determine the location of the datasets in the
-        repository as the derived datasets and fields are grouped by
+        The name of the study that generated the derived fileset to match.
+        Is used to determine the location of the filesets in the
+        repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
     repository : BaseRepository | None
         The repository to draw the matches from, if not the main repository
@@ -229,7 +229,7 @@ class FilesetMatch(BaseMatch, BaseFileset):
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
-                "Cannot provide both 'order' and 'id' to a dataset"
+                "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
         self._id = str(id) if id is not None else id
 
@@ -281,23 +281,23 @@ class FilesetMatch(BaseMatch, BaseFileset):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
-                matches = [d for d in node.datasets
+                matches = [d for d in node.filesets
                            if pattern_re.match(d.name)]
             else:
-                matches = [d for d in node.datasets
+                matches = [d for d in node.filesets
                            if d.name == self.pattern]
         else:
-            matches = list(node.datasets)
+            matches = list(node.filesets)
         if not matches:
             raise ArcanaFilesetMatchError(
-                "No dataset names in {}:{} match '{}' pattern, found: {}"
+                "No fileset names in {}:{} match '{}' pattern, found: {}"
                 .format(node.subject_id, node.visit_id, self.pattern,
-                        ', '.join(d.name for d in node.datasets)))
+                        ', '.join(d.name for d in node.filesets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
                 raise ArcanaFilesetMatchError(
-                    "Did not find datasets names matching pattern {} "
+                    "Did not find filesets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
@@ -305,14 +305,14 @@ class FilesetMatch(BaseMatch, BaseFileset):
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
             filtered = []
-            for dataset in matches:
-                values = dataset.dicom_values(
+            for fileset in matches:
+                values = fileset.dicom_values(
                     list(self.dicom_tags.keys()))
                 if self.dicom_tags == values:
-                    filtered.append(dataset)
+                    filtered.append(fileset)
             if not filtered:
                 raise ArcanaFilesetMatchError(
-                    "Did not find datasets names matching pattern {}"
+                    "Did not find filesets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
                             ', '.join(str(m) for m in matches), node))
@@ -332,29 +332,29 @@ class FieldMatch(BaseMatch, BaseField):
     Parameters
     ----------
     name : str
-        The name of the dataset
+        The name of the fileset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     pattern : str
         A regex pattern to match the field names with. Must match
-        one and only one dataset per <frequency>. If None, the name
+        one and only one fileset per <frequency>. If None, the name
         is used instead.
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     order : int | None
-        To be used to distinguish multiple datasets that match the
-        pattern in the same session. The order of the dataset within the
+        To be used to distinguish multiple filesets that match the
+        pattern in the same session. The order of the fileset within the
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
     from_study : str
         The name of the study that generated the derived field to match.
         Is used to determine the location of the fields in the
-        repository as the derived datasets and fields are grouped by
+        repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
     repository : BaseRepository | None
         The repository to draw the matches from, if not the main repository

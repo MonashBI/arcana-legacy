@@ -75,22 +75,22 @@ class BaseData(with_metaclass(ABCMeta, object)):
 
 class BaseFileset(with_metaclass(ABCMeta, BaseData)):
     """
-    An abstract base class representing either an acquired dataset or the
-    specification for a derived dataset.
+    An abstract base class representing either an acquired fileset or the
+    specification for a derived fileset.
 
     Parameters
     ----------
     name : str
-        The name of the dataset
+        The name of the fileset
     format : FileFormat
-        The file format used to store the dataset. Can be one of the
+        The file format used to store the fileset. Can be one of the
         recognised formats
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     bids_attr : BidsAttr
-        A collection of BIDS attributes for the dataset or spec
+        A collection of BIDS attributes for the fileset or spec
     """
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
@@ -138,12 +138,12 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
     Parameters
     ----------
     name : str
-        The name of the dataset
+        The name of the fileset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     """
 

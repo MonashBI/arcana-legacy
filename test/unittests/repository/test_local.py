@@ -45,7 +45,7 @@ class TestLocalRepository(BaseTestCase):
                       'source3': '3',
                       'source4': '4'}
 
-    def test_get_dataset(self):
+    def test_get_fileset(self):
         pass
 
 
@@ -61,7 +61,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
     def get_tree(self, repository, set_ids=False):
         sessions = [
             Session(
-                'subject1', 'visit1', datasets=[
+                'subject1', 'visit1', filesets=[
                     Fileset('hundreds', text_format,
                             subject_id='subject1', visit_id='visit1',
                             repository=repository),
@@ -82,7 +82,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                           subject_id='subject1', visit_id='visit1',
                           repository=repository)]),
             Session(
-                'subject1', 'visit2', datasets=[
+                'subject1', 'visit2', filesets=[
                     Fileset('ones', text_format,
                             subject_id='subject1', visit_id='visit2',
                             repository=repository),
@@ -97,7 +97,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                           subject_id='subject1', visit_id='visit2',
                           repository=repository)]),
             Session(
-                'subject2', 'visit1', datasets=[
+                'subject2', 'visit1', filesets=[
                     Fileset('ones', text_format,
                             subject_id='subject2', visit_id='visit1',
                             repository=repository),
@@ -106,7 +106,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                             repository=repository)],
                 fields=[]),
             Session(
-                'subject2', 'visit2', datasets=[
+                'subject2', 'visit2', filesets=[
                     Fileset('ones', text_format,
                             subject_id='subject2', visit_id='visit2',
                             repository=repository),
@@ -128,7 +128,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                 Subject(
                     'subject1', sessions=[s for s in sessions
                                           if s.subject_id == 'subject1'],
-                    datasets=[
+                    filesets=[
                         Fileset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject1',
@@ -145,7 +145,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                 Subject(
                     'subject2', sessions=[s for s in sessions
                                           if s.subject_id == 'subject2'],
-                    datasets=[
+                    filesets=[
                         Fileset('ones', text_format,
                                 frequency='per_subject',
                                 subject_id='subject2',
@@ -163,7 +163,7 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                 Visit(
                     'visit1', sessions=[s for s in sessions
                                         if s.visit_id == 'visit1'],
-                    datasets=[
+                    filesets=[
                         Fileset('ones', text_format,
                                 frequency='per_visit',
                                 visit_id='visit1',
@@ -176,13 +176,13 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                 Visit(
                     'visit2', sessions=[s for s in sessions
                                         if s.visit_id == 'visit2'],
-                    datasets=[],
+                    filesets=[],
                     fields=[
                         Field('f', value='cat',
                               frequency='per_visit',
                               visit_id='visit2',
                               repository=repository)])],
-            datasets=[
+            filesets=[
                 Fileset('ones', text_format,
                         frequency='per_study',
                         repository=repository)],
@@ -191,17 +191,17 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                       frequency='per_study',
                       repository=repository)])
         if set_ids:  # For xnat repository
-            for dataset in project.datasets:
-                dataset._id = dataset.name
+            for fileset in project.filesets:
+                fileset._id = fileset.name
             for visit in project.visits:
-                for dataset in visit.datasets:
-                    dataset._id = dataset.name
+                for fileset in visit.filesets:
+                    fileset._id = fileset.name
             for subject in project.subjects:
-                for dataset in subject.datasets:
-                    dataset._id = dataset.name
+                for fileset in subject.filesets:
+                    fileset._id = fileset.name
                 for session in subject.sessions:
-                    for dataset in session.datasets:
-                        dataset._id = dataset.name
+                    for fileset in session.filesets:
+                        fileset._id = fileset.name
         return project
 
     @property

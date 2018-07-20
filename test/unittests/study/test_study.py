@@ -289,7 +289,7 @@ class TestStudy(BaseMultiSubjectTestCase):
         for subj_id in self.SUBJECT_IDS:
             for visit_id in self.VISIT_IDS:
                 sessions.append(
-                    Session(subj_id, visit_id, datasets=[
+                    Session(subj_id, visit_id, filesets=[
                         Fileset('one_input', text_format,
                                 subject_id=subj_id, visit_id=visit_id),
                         Fileset('ten_input', text_format,
@@ -319,17 +319,17 @@ class TestStudy(BaseMultiSubjectTestCase):
         study = self.make_study()
         summaries = study.data('subject_summary')
         ref = float(len(self.VISIT_IDS))
-        for dataset in summaries:
-            self.assertContentsEqual(dataset, ref,
-                                     str(dataset.visit_id))
+        for fileset in summaries:
+            self.assertContentsEqual(fileset, ref,
+                                     str(fileset.visit_id))
 
     def test_visit_summary(self):
         study = self.make_study()
         summaries = study.data('visit_summary')
         ref = float(len(self.SUBJECT_IDS))
-        for dataset in summaries:
-            self.assertContentsEqual(dataset, ref,
-                                     str(dataset.visit_id))
+        for fileset in summaries:
+            self.assertContentsEqual(fileset, ref,
+                                     str(fileset.visit_id))
 
     def test_project_summary(self):
         study = self.make_study()
@@ -423,13 +423,13 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         sessions = []
         visit_ids = set()
         for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
-            for visit_id, datasets in list(visits.items()):
-                sessions.append(Session(subj_id, visit_id, datasets=[
+            for visit_id, filesets in list(visits.items()):
+                sessions.append(Session(subj_id, visit_id, filesets=[
                     Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id, from_study=(
                                 (self.STUDY_NAME
                                  if d != 'one' else None)))
-                    for d in datasets]))
+                    for d in filesets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
@@ -457,14 +457,14 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
-                dataset = session.dataset('thousand',
+                fileset = session.fileset('thousand',
                                           study=self.STUDY_NAME)
                 self.assertContentsEqual(
-                    dataset, targets[subj_id][visit_id],
+                    fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
                 if subj_id == 'subject1' and visit_id == 'visit3':
                     self.assertNotIn(
-                        'ten', [d.name for d in session.datasets],
+                        'ten', [d.name for d in session.filesets],
                         "'ten' should not be generated for "
                         "subject1:visit3 as hundred and thousand are "
                         "already present")
@@ -557,29 +557,29 @@ class TestInputValidationFail(BaseTestCase):
 
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
-    add_data_specs = [FilesetSpec('dataset', text_format),
-                      FilesetSpec('out_dataset', text_format,
+    add_data_specs = [FilesetSpec('fileset', text_format),
+                      FilesetSpec('out_fileset', text_format,
                                   'pipeline')]
 
     def pipeline(self, **kwargs):
         pipeline = self.create_pipeline(
             'pipeline',
-            inputs=[FilesetSpec('dataset', text_format)],
-            outputs=[FilesetSpec('out_dataset', text_format)],
+            inputs=[FilesetSpec('fileset', text_format)],
+            outputs=[FilesetSpec('out_fileset', text_format)],
             desc='a dummy pipeline',
             citations=[],
             version=1,
             **kwargs)
-        ident = pipeline.create_node(IdentityInterface(['dataset']),
+        ident = pipeline.create_node(IdentityInterface(['fileset']),
                                      name='ident')
-        pipeline.connect_input('dataset', ident, 'dataset')
-        pipeline.connect_output('out_dataset', ident, 'dataset')
+        pipeline.connect_input('fileset', ident, 'fileset')
+        pipeline.connect_output('out_fileset', ident, 'fileset')
         return pipeline
 
 
 class TestGeneratedPickle(BaseTestCase):
 
-    INPUT_DATASETS = {'dataset': 'foo'}
+    INPUT_DATASETS = {'fileset': 'foo'}
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(
@@ -587,14 +587,14 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
-            inputs=[FilesetMatch('dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('out_dataset'), 'foo')
+        self.assertContentsEqual(regen.data('out_fileset'), 'foo')
 
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
@@ -606,30 +606,30 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[FilesetMatch('ss1_dataset', text_format, 'dataset'),
-                    FilesetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('ss1_fileset', text_format, 'fileset'),
+                    FilesetMatch('ss2_fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('ss2_out_dataset'), 'foo')
+        self.assertContentsEqual(regen.data('ss2_out_fileset'), 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
             'add_sub_study_specs': [
                 SubStudySpec('ss1', BasicTestClass),
                 SubStudySpec('ss2', BasicTestClass)],
-            'default_dataset_pipeline': MultiStudy.translate(
+            'default_fileset_pipeline': MultiStudy.translate(
                 'ss1', 'pipeline')}
         MultiGeneratedClass = MultiStudyMetaClass(
             'MultiGeneratedClass', (MultiStudy,), cls_dct)
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[FilesetMatch('ss1_dataset', text_format, 'dataset'),
-                    FilesetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetMatch('ss1_fileset', text_format, 'fileset'),
+                    FilesetMatch('ss2_fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'w') as f:
             self.assertRaises(

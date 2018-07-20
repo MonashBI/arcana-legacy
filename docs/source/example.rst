@@ -109,9 +109,9 @@ which can then be instantiated and used to generate 'derived2' with
             FilesetMatch('one', text_format, 'one'),
             FilesetMatch('ten', text_format, 'ten')],
         parameters={'pipeline_option': True})
-    derived_datasets = study.data('derived2')
-    for dataset in derived_datasets:
-        print("Generated derived file '{}'.format(dataset.path))
+    derived_filesets = study.data('derived2')
+    for fileset in derived_filesets:
+        print("Generated derived file '{}'.format(fileset.path))
             
 where *TestMath* is defined (in typical NiPype fashion as)
 

@@ -46,23 +46,23 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
-    def get_dataset(self, dataset):
+    def get_fileset(self, fileset):
         """
-        If the repository is remote, cache the dataset here
+        If the repository is remote, cache the fileset here
         """
         pass
 
     @abstractmethod
     def get_field(self, field):
         """
-        If the repository is remote, cache the dataset here
+        If the repository is remote, cache the fileset here
         """
         pass
 
     @abstractmethod
-    def put_dataset(self, dataset):
+    def put_fileset(self, fileset):
         """
-        Inserts or updates the dataset into the repository
+        Inserts or updates the fileset into the repository
         """
 
     @abstractmethod
@@ -89,7 +89,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         Returns
         -------
         project : arcana.repository.Tree
-            A hierarchical tree of subject, session and dataset
+            A hierarchical tree of subject, session and fileset
             information for the repository
         """
 

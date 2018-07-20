@@ -8,15 +8,15 @@ from arcana.data import BaseFileset, BaseField
 
 class TreeNode(object):
 
-    def __init__(self, datasets, fields):
-        if datasets is None:
-            datasets = []
+    def __init__(self, filesets, fields):
+        if filesets is None:
+            filesets = []
         if fields is None:
             fields = []
-        # Save datasets and fields in ordered dictionary by name and
+        # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
-        self._datasets = OrderedDict(((d.name, d.from_study), d)
-                                     for d in datasets)
+        self._filesets = OrderedDict(((d.name, d.from_study), d)
+                                     for d in filesets)
         self._fields = OrderedDict(((f.name, f.from_study), f)
                                    for f in fields)
 
@@ -24,40 +24,40 @@ class TreeNode(object):
         if not (isinstance(other, type(self)) or
                 isinstance(self, type(other))):
             return False
-        return (self._datasets == other._datasets and
+        return (self._filesets == other._filesets and
                 self._fields == other._fields)
 
     def __hash__(self):
-        return hash(tuple(self.datasets)) ^ hash(tuple(self._fields))
+        return hash(tuple(self.filesets)) ^ hash(tuple(self._fields))
 
     def __contains__(self, item):
         if isinstance(item, BaseFileset):
-            return (item.name, item.from_study) in self._datasets
+            return (item.name, item.from_study) in self._filesets
 
     @property
-    def datasets(self):
-        return iter(self._datasets.values())
+    def filesets(self):
+        return iter(self._filesets.values())
 
     @property
     def fields(self):
         return iter(self._fields.values())
 
-    def dataset(self, name, study=None):
+    def fileset(self, name, study=None):
         try:
-            return self._datasets[(name, study)]
+            return self._filesets[(name, study)]
         except KeyError:
-            available = [d.name for d in self.datasets
+            available = [d.name for d in self.filesets
                          if d.from_study == study]
-            other_studies = [d.from_study for d in self.datasets
+            other_studies = [d.from_study for d in self.filesets
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching dataset(s) found for '{}' study(ies)"
+                msg = (". NB: matching fileset(s) found for '{}' study(ies)"
                        .format(name, other_studies))
             else:
                 msg = ''
             raise ArcanaNameError(
                 name,
-                ("{} doesn't have a dataset named '{}'{}"
+                ("{} doesn't have a fileset named '{}'{}"
                    "(available '{}'){}"
                    .format(self, name,
                            ("for study '{}'"
@@ -88,7 +88,7 @@ class TreeNode(object):
 
     @property
     def data(self):
-        return chain(self.datasets, self.fields)
+        return chain(self.filesets, self.fields)
 
     def __ne__(self, other):
         return not (self == other)
@@ -99,17 +99,17 @@ class TreeNode(object):
         else:
             mismatch = ''
         sub_indent = indent + '  '
-        if len(list(self.datasets)) != len(list(other.datasets)):
-            mismatch += ('\n{indent}mismatching summary dataset lengths '
+        if len(list(self.filesets)) != len(list(other.filesets)):
+            mismatch += ('\n{indent}mismatching summary fileset lengths '
                          '(self={} vs other={}): '
                          '\n{indent}  self={}\n{indent}  other={}'
-                         .format(len(list(self.datasets)),
-                                 len(list(other.datasets)),
-                                 list(self.datasets),
-                                 list(other.datasets),
+                         .format(len(list(self.filesets)),
+                                 len(list(other.filesets)),
+                                 list(self.filesets),
+                                 list(other.filesets),
                                  indent=sub_indent))
         else:
-            for s, o in zip(self.datasets, other.datasets):
+            for s, o in zip(self.filesets, other.filesets):
                 mismatch += s.find_mismatch(o, indent=sub_indent)
         if len(list(self.fields)) != len(list(other.fields)):
             mismatch += ('\n{indent}mismatching summary field lengths '
@@ -137,8 +137,8 @@ class Tree(TreeNode):
     visits : List[Visits]
         List of visits in the project across subjects
         (i.e. timepoint 1, 2, 3)
-    datasets : List[Fileset]
-        The datasets that belong to the project, i.e. of 'per_study'
+    filesets : List[Fileset]
+        The filesets that belong to the project, i.e. of 'per_study'
         frequency
     fields : List[Field]
         The fields that belong to the project, i.e. of 'per_study'
@@ -155,9 +155,9 @@ class Tree(TreeNode):
         to the one that the derived products are stored in
     """
 
-    def __init__(self, subjects, visits, datasets=None, fields=None,
+    def __init__(self, subjects, visits, filesets=None, fields=None,
                  fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
-        TreeNode.__init__(self, datasets, fields)
+        TreeNode.__init__(self, filesets, fields)
         self._subjects = {s.id: s for s in subjects}
         self._visits = {v.id: v for v in visits}
         if fill_subjects is not None or fill_visits is not None:
@@ -300,10 +300,10 @@ class Tree(TreeNode):
 
     def __repr__(self):
         return ("Tree(num_subjects={}, num_visits={}, "
-                "num_datasets={}, num_fields={})".format(
+                "num_filesets={}, num_fields={})".format(
                     len(list(self.subjects)),
                     len(list(self.visits)),
-                    len(list(self.datasets)), len(list(self.fields))))
+                    len(list(self.filesets)), len(list(self.fields))))
 
     def _fill_empty_sessions(self, fill_subjects, fill_visits):
         """
@@ -344,17 +344,17 @@ class Subject(TreeNode):
         The ID of the subject
     sessions : List[Session]
         The sessions in the subject
-    datasets : List[Fileset]
-        The datasets that belong to the subject, i.e. of 'per_subject'
+    filesets : List[Fileset]
+        The filesets that belong to the subject, i.e. of 'per_subject'
         frequency
     fields : List[Field]
         The fields that belong to the subject, i.e. of 'per_subject'
         frequency
     """
 
-    def __init__(self, subject_id, sessions, datasets=None,
+    def __init__(self, subject_id, sessions, filesets=None,
                  fields=None):
-        TreeNode.__init__(self, datasets, fields)
+        TreeNode.__init__(self, filesets, fields)
         self._id = subject_id
         self._sessions = {s.visit_id: s for s in sessions}
         for session in self.sessions:
@@ -442,16 +442,16 @@ class Visit(TreeNode):
         The ID of the visit
     sessions : List[Session]
         The sessions in the visit
-    datasets : List[Fileset]
-        The datasets that belong to the visit, i.e. of 'per_visit'
+    filesets : List[Fileset]
+        The filesets that belong to the visit, i.e. of 'per_visit'
         frequency
     fields : List[Field]
         The fields that belong to the visit, i.e. of 'per_visit'
         frequency
     """
 
-    def __init__(self, visit_id, sessions, datasets=None, fields=None):
-        TreeNode.__init__(self, datasets, fields)
+    def __init__(self, visit_id, sessions, filesets=None, fields=None):
+        TreeNode.__init__(self, filesets, fields)
         self._id = visit_id
         self._sessions = {s.subject_id: s for s in sessions}
         for session in sessions:
@@ -538,14 +538,14 @@ class Session(TreeNode):
         The subject ID of the session
     visit_id : str
         The visit ID of the session
-    datasets : list(Fileset)
-        The datasets found in the session
+    filesets : list(Fileset)
+        The filesets found in the session
     derived : dict[str, Session]
         Sessions storing derived scans are stored for separate analyses
     """
 
-    def __init__(self, subject_id, visit_id, datasets=None, fields=None):
-        TreeNode.__init__(self, datasets, fields)
+    def __init__(self, subject_id, visit_id, filesets=None, fields=None):
+        TreeNode.__init__(self, filesets, fields)
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._subject = None
@@ -608,7 +608,7 @@ class Session(TreeNode):
         return not (self == other)
 
     def __repr__(self):
-        return ("Session(subject_id='{}', visit_id='{}', num_datasets={}, "
+        return ("Session(subject_id='{}', visit_id='{}', num_filesets={}, "
                 "num_fields={})".format(
-                    self.subject_id, self.visit_id, len(self._datasets),
+                    self.subject_id, self.visit_id, len(self._filesets),
                     len(self._fields)))

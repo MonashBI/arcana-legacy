@@ -12,7 +12,7 @@ DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 class BaseCollection(object):
     """
-    Base class for collection of datasets and field items
+    Base class for collection of filesets and field items
     """
 
     def __init__(self, collection, frequency):
@@ -88,7 +88,7 @@ class BaseCollection(object):
 
     def item(self, subject_id=None, visit_id=None):
         """
-        Returns a particular dataset|field in the collection corresponding to
+        Returns a particular fileset|field in the collection corresponding to
         the given subject and visit_ids. subject_id and visit_id must be
         provided for relevant frequencies. Note that subject_id/visit_id can
         also be provided for non-relevant frequencies, they will just be
@@ -116,7 +116,7 @@ class BaseCollection(object):
                     .format(subject_id, self.name,
                             ', '.join(self._collection.keys())))
             try:
-                dataset = subj_dct[visit_id]
+                fileset = subj_dct[visit_id]
             except KeyError:
                 raise ArcanaIndexError(
                     visit_id,
@@ -131,7 +131,7 @@ class BaseCollection(object):
                     "the match from {}"
                     .format(self))
             try:
-                dataset = self._collection[subject_id]
+                fileset = self._collection[subject_id]
             except KeyError:
                 raise ArcanaIndexError(
                     subject_id,
@@ -145,7 +145,7 @@ class BaseCollection(object):
                     "the match from {}"
                     .format(self))
             try:
-                dataset = self._collection[visit_id]
+                fileset = self._collection[visit_id]
             except KeyError:
                 raise ArcanaIndexError(
                     visit_id,
@@ -154,12 +154,12 @@ class BaseCollection(object):
                             ', '.join(self._collection.keys())))
         elif self.frequency == 'per_study':
             try:
-                dataset = self._collection[0]
+                fileset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
                     "'{}' Collection is empty so doesn't have a "
                     "per_study node".format(self.name))
-        return dataset
+        return fileset
 
     @property
     def collection(self):
@@ -175,14 +175,14 @@ class BaseCollection(object):
 
 class FilesetCollection(BaseCollection, BaseFileset):
     """
-    A collection of equivalent datasets (either within a repository)
+    A collection of equivalent filesets (either within a repository)
 
     Parameters
     ----------
     name : str
         Name of the collection
     collection : List[Fileset]
-        An iterable of equivalent datasets
+        An iterable of equivalent filesets
     """
 
     CollectedClass = Fileset
@@ -226,14 +226,14 @@ class FilesetCollection(BaseCollection, BaseFileset):
 
 class FieldCollection(BaseCollection, BaseField):
     """
-    A collection of equivalent datasets (either within a repository)
+    A collection of equivalent filesets (either within a repository)
 
     Parameters
     ----------
     name : str
         Name of the collection
     collection : List[Fileset]
-        An iterable of equivalent datasets
+        An iterable of equivalent filesets
     """
 
     CollectedClass = Field

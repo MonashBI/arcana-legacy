@@ -87,36 +87,36 @@ class BaseItem(object):
 
 class Fileset(BaseItem, BaseFileset):
     """
-    A representation of a dataset within the repository.
+    A representation of a fileset within the repository.
 
     Parameters
     ----------
     name : str
-        The name of the dataset
+        The name of the fileset
     format : FileFormat
-        The file format used to store the dataset. Can be one of the
+        The file format used to store the fileset. Can be one of the
         recognised formats
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     derived : bool
         Whether the scan was generated or acquired. Depending on the repository
-        used to store the dataset this is used to determine the location of the
-        dataset.
+        used to store the fileset this is used to determine the location of the
+        fileset.
     path : str | None
-        The path to the dataset (for repositorys on the local system)
+        The path to the fileset (for repositorys on the local system)
     id : int | None
-        The ID of the dataset in the session. To be used to
-        distinguish multiple datasets with the same scan type in the
+        The ID of the fileset in the session. To be used to
+        distinguish multiple filesets with the same scan type in the
         same session, e.g. scans taken before and after a task. For
         repositorys where this isn't stored (i.e. Local), id can be None
     subject_id : int | str | None
-        The id of the subject which the dataset belongs to
+        The id of the subject which the fileset belongs to
     visit_id : int | str | None
-        The id of the visit which the dataset belongs to
+        The id of the visit which the fileset belongs to
     repository : BaseRepository
-        The repository which the dataset is stored
+        The repository which the fileset is stored
     from_study : str
         Name of the Arcana study that that generated the field
     """
@@ -207,7 +207,7 @@ class Fileset(BaseItem, BaseFileset):
     def path(self):
         if self._path is None:
             if self.repository is not None:
-                self._path = self.repository.get_dataset(self)
+                self._path = self.repository.get_fileset(self)
             else:
                 raise ArcanaError(
                     "Neither path nor repository has been set for Fileset("
@@ -260,7 +260,7 @@ class Fileset(BaseItem, BaseFileset):
                 except ArcanaFileFormatNotRegisteredError as e:
                     raise ArcanaFileFormatNotRegisteredError(
                         str(e) + ", which is required to identify the "
-                        "format of the dataset at '{}'".format(path))
+                        "format of the fileset at '{}'".format(path))
         return cls(name, format, frequency=frequency,
                    path=path, **kwargs)
 
@@ -270,10 +270,10 @@ class Fileset(BaseItem, BaseFileset):
 
         Parameters
         ----------
-        dataset : Fileset
-            The dataset to read a DICOM file from
+        fileset : Fileset
+            The fileset to read a DICOM file from
         index : int
-            The index of the DICOM file in the dataset to read
+            The index of the DICOM file in the fileset to read
 
         Returns
         -------
@@ -314,7 +314,7 @@ class Fileset(BaseItem, BaseFileset):
                 hdr = self.repository.dicom_header(self)
                 dct = {t: hdr[t] for t in tags}
             else:
-                # Get the DICOM object for the first file in the dataset
+                # Get the DICOM object for the first file in the fileset
                 dcm = self.dicom(0)
                 dct = {t: dcm[t].value for t in tags}
         except KeyError as e:
@@ -334,11 +334,11 @@ class Fileset(BaseItem, BaseFileset):
 
     def get(self):
         if self.repository is not None:
-            self._value = self.repository.get_dataset(self)
+            self._value = self.repository.get_fileset(self)
 
     def put(self):
         if self.repository is not None:
-            self.repository.put_dataset(self)
+            self.repository.put_fileset(self)
 
 
 class Field(BaseItem, BaseField):
@@ -348,12 +348,12 @@ class Field(BaseItem, BaseField):
     Parameters
     ----------
     name : str
-        The name of the dataset
+        The name of the fileset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
-        specifying whether the dataset is present for each session, subject,
+        specifying whether the fileset is present for each session, subject,
         visit or project.
     derived : bool
         Whether or not the value belongs in the derived session or not

@@ -62,20 +62,20 @@ class LocalRepository(BaseRepository):
     def base_dir(self):
         return self._base_dir
 
-    def get_dataset(self, dataset):
+    def get_fileset(self, fileset):
         """
-        Set the path of the dataset from the repository
+        Set the path of the fileset from the repository
         """
-        # Don't need to cache dataset as it is already local as long
+        # Don't need to cache fileset as it is already local as long
         # as the path is set
-        if dataset._path is None:
-            path = op.join(self.session_dir(dataset), dataset.fname)
+        if fileset._path is None:
+            path = op.join(self.session_dir(fileset), fileset.fname)
             if not op.exists(path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in the local repository {}"
-                    .format(dataset, self))
+                    .format(fileset, self))
         else:
-            path = dataset.path
+            path = fileset.path
         return path
 
     def get_field(self, field):
@@ -104,15 +104,15 @@ class LocalRepository(BaseRepository):
                 "{} does not exist in the local repository {}"
                 .foramt(field, self))
 
-    def put_dataset(self, dataset):
+    def put_fileset(self, fileset):
         """
-        Inserts or updates a dataset in the repository
+        Inserts or updates a fileset in the repository
         """
-        target_path = op.join(self.session_dir(dataset), dataset.fname)
-        if op.isfile(dataset.path):
-            shutil.copyfile(dataset.path, target_path)
-        elif op.isdir(dataset.path):
-            shutil.copytree(dataset.path, target_path)
+        target_path = op.join(self.session_dir(fileset), fileset.fname)
+        if op.isfile(fileset.path):
+            shutil.copyfile(fileset.path, target_path)
+        elif op.isdir(fileset.path):
+            shutil.copytree(fileset.path, target_path)
         else:
             assert False
 
@@ -153,7 +153,7 @@ class LocalRepository(BaseRepository):
         Returns
         -------
         project : arcana.repository.Tree
-            A hierarchical tree of subject, session and dataset information for
+            A hierarchical tree of subject, session and fileset information for
             the repository
         """
         all_data = defaultdict(dict)
@@ -163,7 +163,7 @@ class LocalRepository(BaseRepository):
             dnames = [d for d in files
                       if not d.startswith('.')]
             # Filter out hidden directories (i.e. starting with '.')
-            # and derived study directories from dataset names
+            # and derived study directories from fileset names
             dnames.extend(
                 d for d in dirs
                 if not d.startswith('.') and (
@@ -209,16 +209,16 @@ class LocalRepository(BaseRepository):
                 frequency = 'per_session'
                 all_visit_ids.add(visit_id)
             try:
-                # Retrieve datasets and fields from other study directories
+                # Retrieve filesets and fields from other study directories
                 # or root acquired directory
-                datasets, fields = all_data[subj_id][visit_id]
+                filesets, fields = all_data[subj_id][visit_id]
             except KeyError:
-                datasets = []
+                filesets = []
                 fields = []
             for dname in sorted(dnames):
                 if dname.startswith(self.FIELDS_FNAME):
                     continue
-                datasets.append(
+                filesets.append(
                     Fileset.from_path(
                         op.join(session_path, dname),
                         frequency=frequency,
@@ -233,46 +233,46 @@ class LocalRepository(BaseRepository):
                                 subject_id=subj_id, visit_id=visit_id,
                                 repository=self, from_study=from_study)
                           for k, v in list(dct.items())]
-            datasets = sorted(datasets)
+            filesets = sorted(filesets)
             fields = sorted(fields)
-            all_data[subj_id][visit_id] = (datasets, fields)
+            all_data[subj_id][visit_id] = (filesets, fields)
         all_sessions = defaultdict(dict)
         for subj_id, subj_data in all_data.items():
             if subj_id is None:
                 continue  # Create Subject summaries later
-            for visit_id, (datasets, fields) in subj_data.items():
+            for visit_id, (filesets, fields) in subj_data.items():
                 if visit_id is None:
                     continue  # Create Visit summaries later
                 all_sessions[subj_id][visit_id] = Session(
                     subject_id=subj_id, visit_id=visit_id,
-                    datasets=datasets, fields=fields)
+                    filesets=filesets, fields=fields)
         subjects = []
         for subj_id, subj_sessions in list(all_sessions.items()):
             try:
-                datasets, fields = all_data[subj_id][None]
+                filesets, fields = all_data[subj_id][None]
             except KeyError:
-                datasets = []
+                filesets = []
                 fields = []
             subjects.append(Subject(
-                subj_id, sorted(subj_sessions.values()), datasets,
+                subj_id, sorted(subj_sessions.values()), filesets,
                 fields))
         visits = []
         for visit_id in all_visit_ids:
             visit_sessions = list(chain(
                 sess[visit_id] for sess in list(all_sessions.values())))
             try:
-                datasets, fields = all_data[None][visit_id]
+                filesets, fields = all_data[None][visit_id]
             except KeyError:
-                datasets = []
+                filesets = []
                 fields = []
             visits.append(Visit(visit_id, sorted(visit_sessions),
-                                datasets, fields))
+                                filesets, fields))
         try:
-            datasets, fields = all_data[None][None]
+            filesets, fields = all_data[None][None]
         except KeyError:
-            datasets = []
+            filesets = []
             fields = []
-        return Tree(sorted(subjects), sorted(visits), datasets,
+        return Tree(sorted(subjects), sorted(visits), filesets,
                     fields, **kwargs)
 
     def session_dir(self, item):
