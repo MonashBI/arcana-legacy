@@ -6,11 +6,11 @@ A basic toy example
 .. code-block:: python
 
     from arcana.dataset import DatasetMatch, DatasetSpec
-    from arcana.data_format import text_format
+    from arcana.dataset.file_format.standard import text_format
     from arcana.study.base import Study, StudyMetaClass
     from nipype.interfaces.base import (  # @IgnorePep8
         BaseInterface, File, TraitedSpec, traits, isdefined)
-    from arcana.option import OptionSpec
+    from arcana.parameter import ParameterSpec
     from nipype.interfaces.utility import IdentityInterface
 
     class ExampleStudy(Study):
@@ -27,8 +27,8 @@ A basic toy example
                         'subject_summary_pipeline',
                         frequency='per_subject')]
     
-        add_option_specs = [
-            OptionSpec('pipeline_option', False)]
+        add_parameter_specs = [
+            ParameterSpec('pipeline_option', False)]
     
         def pipeline1(self, **kwargs):
             pipeline = self.create_pipeline(
@@ -40,7 +40,7 @@ A basic toy example
                 version=1,
                 citations=[],
                 **kwargs)
-            if not pipeline.option('pipeline_option'):
+            if not self.parameter('pipeline_option'):
                 raise Exception("Pipeline option was not cascaded down to "
                                 "pipeline1")
             ident = pipeline.create_node(IdentityInterface(['file']),
@@ -65,7 +65,7 @@ A basic toy example
                 version=1,
                 citations=[],
                 **kwargs)
-            if not pipeline.option('pipeline_option'):
+            if not self.parameter('pipeline_option'):
                 raise Exception("Pipeline option was not cascaded down to "
                                 "pipeline2")
             math = pipeline.create_node(TestMath(), name="math")
@@ -108,7 +108,7 @@ which can then be instantiated and used to generate 'derived2' with
         inputs=[
             DatasetMatch('one', text_format, 'one'),
             DatasetMatch('ten', text_format, 'ten')],
-        options={'pipeline_option': True})
+        parameters={'pipeline_option': True})
     derived_datasets = study.data('derived2')
     for dataset in derived_datasets:
         print("Generated derived file '{}'.format(dataset.path))
