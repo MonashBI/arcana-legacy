@@ -10,7 +10,7 @@ source.inputs.project_id = 'MMH004'
 source.inputs.subject_id = 'MMH004_001'
 source.inputs.visit_id = 'MRPT01'
 source.inputs.datasets = [
-    ('rsfPET_training_set', 'dicom', 'per_project', False, False)]
+    ('rsfPET_training_set', 'dicom', 'per_study', False, False)]
 source.inputs.fields = []
 
 source.run()

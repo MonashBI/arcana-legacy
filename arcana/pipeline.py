@@ -505,7 +505,7 @@ class Pipeline(object):
         ----------
         frequency : str
             One of 'per_session', 'per_subject', 'per_visit' and
-            'per_project', specifying whether the dataset is present for each
+            'per_study', specifying whether the dataset is present for each
             session, subject, visit or project.
         """
         return self._outputnodes[frequency]

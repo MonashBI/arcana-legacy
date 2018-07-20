@@ -30,7 +30,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
         DatasetSpec('project_sink', text_format, 'dummy_pipeline',
-                    frequency='per_project'),
+                    frequency='per_study'),
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
         DatasetSpec('resink3', text_format, 'dummy_pipeline'),
@@ -152,7 +152,7 @@ class TestSinkAndSource(BaseTestCase):
         # Test project sink
         project_sink_files = ['project_sink']
         project_sink = study.sink(project_sink_files,
-                                            frequency='per_project')
+                                            frequency='per_study')
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
@@ -187,7 +187,7 @@ class TestSinkAndSource(BaseTestCase):
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          ['.derived', 'visit_sink.txt'])
         project_dir = self.get_session_dir(
-            frequency='per_project',
+            frequency='per_study',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['.derived', 'project_sink.txt'])

@@ -109,7 +109,7 @@ class BaseMatch(object):
             nodes = tree.subjects
         elif self.frequency == 'per_visit':
             nodes = tree.visits
-        elif self.frequency == 'per_project':
+        elif self.frequency == 'per_study':
             nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(
@@ -180,7 +180,7 @@ class DatasetMatch(BaseMatch, BaseDataset):
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     id : int | None
@@ -342,7 +342,7 @@ class FieldMatch(BaseMatch, BaseField):
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     order : int | None

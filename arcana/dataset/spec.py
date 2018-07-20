@@ -83,7 +83,7 @@ class BaseSpec(object):
             nodes = tree.subjects
         elif self.frequency == 'per_visit':
             nodes = tree.visits
-        elif self.frequency == 'per_project':
+        elif self.frequency == 'per_study':
             nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(
@@ -198,7 +198,7 @@ class BaseSpec(object):
             node = self.study.tree.subject(subject_id)
         elif self.frequency == 'per_visit':
             node = self.study.tree.visit(visit_id)
-        elif self.frequency == 'per_project':
+        elif self.frequency == 'per_study':
             node = self.study.tree
         else:
             assert False
@@ -230,7 +230,7 @@ class DatasetSpec(BaseDataset, BaseSpec):
         Name of the method in the study that is used to generate the
         dataset. If None the dataset is assumed to be acq
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     desc : str
@@ -308,7 +308,7 @@ class FieldSpec(BaseField, BaseSpec):
     pipeline_name : str
         Name of the method that generates values for the specified field.
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     desc : str

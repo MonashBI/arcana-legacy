@@ -431,7 +431,7 @@ class BaseTestCase(TestCase):
             assert subject is None
             path = op.join(self.project_dir,
                            LocalRepository.SUMMARY_NAME, visit)
-        elif frequency == 'per_project':
+        elif frequency == 'per_study':
             assert subject is None
             assert visit is None
             path = op.join(self.project_dir,

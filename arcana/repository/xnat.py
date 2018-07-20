@@ -380,9 +380,9 @@ class XnatRepository(BaseRepository):
                 visits.append(Visit(visit_id, sorted(v_sessions),
                                     datasets=visit_datasets,
                                     fields=visit_fields))
-            # Get 'per_project' datasets
+            # Get 'per_study' datasets
             (summary_subj_name,
-             summary_sess_name) = self._get_labels('per_project')
+             summary_sess_name) = self._get_labels('per_study')
             try:
                 xproj_summary = xproject.subjects[
                     summary_subj_name].experiments[
@@ -393,11 +393,11 @@ class XnatRepository(BaseRepository):
             else:
                 proj_datasets = self._get_datasets(
                     xproj_summary,
-                    frequency='per_project',
+                    frequency='per_study',
                     from_study=from_study)
                 proj_fields = self._get_fields(
                     xproj_summary,
-                    frequency='per_project',
+                    frequency='per_study',
                     from_study=from_study)
         return Tree(sorted(subjects), sorted(visits),
                     datasets=proj_datasets, fields=proj_fields,
@@ -438,7 +438,7 @@ class XnatRepository(BaseRepository):
             The XNAT session to extract the datasets from
         freq : str
             The frequency of the returned datasets (either 'per_session',
-            'per_subject', 'per_visit', or 'per_project')
+            'per_subject', 'per_visit', or 'per_study')
         derived : bool
             Whether the session is derived or not
 
@@ -471,7 +471,7 @@ class XnatRepository(BaseRepository):
             The XNAT session to extract the fields from
         freq : str
             The frequency of the returned fields (either 'per_session',
-            'per_subject', 'per_visit', or 'per_project')
+            'per_subject', 'per_visit', or 'per_study')
 
         Returns
         -------
@@ -673,7 +673,7 @@ class XnatRepository(BaseRepository):
             sess_label = '{}_{}_{}'.format(self.project_id,
                                            self.SUMMARY_NAME,
                                            visit_id)
-        elif frequency == 'per_project':
+        elif frequency == 'per_study':
             subj_label = '{}_{}'.format(self.project_id,
                                         self.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(self.project_id,

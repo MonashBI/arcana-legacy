@@ -25,7 +25,7 @@ class BaseCollection(object):
         else:
             self._repository = None
             self._from_study = None
-        if frequency == 'per_project':
+        if frequency == 'per_study':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
                 if len(collection) > 1:
@@ -58,7 +58,7 @@ class BaseCollection(object):
                     "Invalid class {} in {}".format(datum, self))
 
     def __iter__(self):
-        if self._frequency == 'per_project':
+        if self._frequency == 'per_study':
             return iter(self._collection)
         elif self._frequency == 'per_session':
             return chain(*(c.values()
@@ -152,13 +152,13 @@ class BaseCollection(object):
                     "{} not a visit ID in '{}' collection ({})"
                     .format(visit_id, self.name,
                             ', '.join(self._collection.keys())))
-        elif self.frequency == 'per_project':
+        elif self.frequency == 'per_study':
             try:
                 dataset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
                     "'{}' Collection is empty so doesn't have a "
-                    "per_project node".format(self.name))
+                    "per_study node".format(self.name))
         return dataset
 
     @property

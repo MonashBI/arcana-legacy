@@ -14,7 +14,7 @@ logger = getLogger('arcana')
 class BaseData(with_metaclass(ABCMeta, object)):
 
     MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
-                            'per_project')
+                            'per_study')
 
     def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         assert name is None or isinstance(name, basestring)
@@ -86,7 +86,7 @@ class BaseDataset(with_metaclass(ABCMeta, BaseData)):
         The file format used to store the dataset. Can be one of the
         recognised formats
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     bids_attr : BidsAttr
@@ -142,7 +142,7 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     """

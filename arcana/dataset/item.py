@@ -97,7 +97,7 @@ class Dataset(BaseItem, BaseDataset):
         The file format used to store the dataset. Can be one of the
         recognised formats
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     derived : bool
@@ -352,7 +352,7 @@ class Field(BaseItem, BaseField):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_project',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the dataset is present for each session, subject,
         visit or project.
     derived : bool

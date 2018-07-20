@@ -47,7 +47,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     frequency='per_visit'),
         DatasetSpec('project_summary', text_format,
                     'project_summary_pipeline',
-                    frequency='per_project'),
+                    frequency='per_study'),
         DatasetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
                     frequency='per_visit'),

@@ -241,7 +241,7 @@ class BaseProcessor(object):
         # Connect all outputs to the repository sink
         for freq, outputs in pipeline._outputs.items():
             # Create a new sink for each frequency level (i.e 'per_session',
-            # 'per_subject', 'per_visit', or 'per_project')
+            # 'per_subject', 'per_visit', or 'per_study')
             sink = self.study.sink(
                 outputs, frequency=freq,
                 name='{}_{}_sink'.format(pipeline.name, freq))
@@ -386,7 +386,7 @@ class BaseProcessor(object):
                              visit_output_summary, 'sessions')
             workflow.connect(visit_output_summary, 'sessions',
                              output_summary, 'visits')
-        elif freq == 'per_project':
+        elif freq == 'per_study':
             # Only required to ensure that the report is run after the
             # sink
             workflow.connect(sink, 'project_id', output_summary,
@@ -431,19 +431,19 @@ class BaseProcessor(object):
             sessions.extend(tree.sessions)
         for output in pipeline.outputs:
             items = self.study.spec(output).collection
-            if items.frequency == 'per_project':
+            if items.frequency == 'per_study':
                 if subject_ids is not None:
                     logger.warning(
                         "Cannot restrict processing to subject "
                         "IDs ({}) for '{}' pipeline as it has a "
-                        "'per_project' output ('{}')"
+                        "'per_study' output ('{}')"
                         .format(', '.join(str(i) for i in subject_ids),
                                 pipeline.name, output))
                 if visit_ids is not None:
                     logger.warning(
                         "Cannot restrict processing to visit "
                         "IDs ({}) for '{}' pipeline as it has a "
-                        "'per_project' output ('{}')"
+                        "'per_study' output ('{}')"
                         .format(', '.join(str(i) for i in visit_ids),
                                 pipeline.name, output))
                 # If there is a project output that doesn't exists then

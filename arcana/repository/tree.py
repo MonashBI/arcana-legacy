@@ -138,10 +138,10 @@ class Tree(TreeNode):
         List of visits in the project across subjects
         (i.e. timepoint 1, 2, 3)
     datasets : List[Dataset]
-        The datasets that belong to the project, i.e. of 'per_project'
+        The datasets that belong to the project, i.e. of 'per_study'
         frequency
     fields : List[Field]
-        The fields that belong to the project, i.e. of 'per_project'
+        The fields that belong to the project, i.e. of 'per_study'
         frequency
     fill_subjects : list[int] | None
         Create empty sessions for any subjects that are missing
@@ -247,7 +247,7 @@ class Tree(TreeNode):
         """
         if frequency is None:
             nodes = chain(*(self._nodes(f)
-                            for f in ('per_project', 'per_subject',
+                            for f in ('per_study', 'per_subject',
                                       'per_visit', 'per_session')))
         else:
             nodes = self._nodes(frequency=frequency)
@@ -260,7 +260,7 @@ class Tree(TreeNode):
             nodes = self.subjects
         elif frequency == 'per_visit':
             nodes = self.visits
-        elif frequency == 'per_project':
+        elif frequency == 'per_study':
             nodes = [self]
         else:
             assert False

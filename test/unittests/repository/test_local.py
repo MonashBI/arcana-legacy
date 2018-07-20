@@ -28,7 +28,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
         DatasetSpec('project_sink', text_format, 'dummy_pipeline',
-                    frequency='per_project'),
+                    frequency='per_study'),
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
         DatasetSpec('resink3', text_format, 'dummy_pipeline')]
@@ -184,11 +184,11 @@ class TestLocalProjectInfo(BaseMultiSubjectTestCase):
                               repository=repository)])],
             datasets=[
                 Dataset('ones', text_format,
-                        frequency='per_project',
+                        frequency='per_study',
                         repository=repository)],
             fields=[
                 Field('g', value=100,
-                      frequency='per_project',
+                      frequency='per_study',
                       repository=repository)])
         if set_ids:  # For xnat repository
             for dataset in project.datasets:

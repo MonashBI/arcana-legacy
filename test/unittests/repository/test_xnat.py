@@ -81,7 +81,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
         DatasetSpec('project_sink', text_format, 'dummy_pipeline',
-                    frequency='per_project'),
+                    frequency='per_study'),
         DatasetSpec('resink1', text_format, 'dummy_pipeline'),
         DatasetSpec('resink2', text_format, 'dummy_pipeline'),
         DatasetSpec('resink3', text_format, 'dummy_pipeline'),
@@ -325,7 +325,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             assert visit is not None
             assert subject is None
             parts = [self.project, XnatRepository.SUMMARY_NAME, visit]
-        elif frequency == 'per_project':
+        elif frequency == 'per_study':
             assert subject is None
             assert visit is None
             parts = [self.project, XnatRepository.SUMMARY_NAME,
@@ -701,7 +701,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         project_sink_files = ['project_sink']
         project_sink = study.sink(
             project_sink_files,
-            frequency='per_project')
+            frequency='per_study')
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
             "Tests the sinking of project-wide datasets")

@@ -199,7 +199,7 @@ class LocalRepository(BaseRepository):
                     visit_id not in visit_ids):
                 continue
             if (subj_id, visit_id) == (None, None):
-                frequency = 'per_project'
+                frequency = 'per_study'
             elif subj_id is None:
                 frequency = 'per_visit'
                 all_visit_ids.add(visit_id)
@@ -276,7 +276,7 @@ class LocalRepository(BaseRepository):
                     fields, **kwargs)
 
     def session_dir(self, item):
-        if item.frequency == 'per_project':
+        if item.frequency == 'per_study':
             acq_dir = op.join(
                 self.base_dir, self.SUMMARY_NAME, self.SUMMARY_NAME)
         elif item.frequency.startswith('per_subject'):
