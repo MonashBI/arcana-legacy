@@ -23,8 +23,7 @@ studies) built on Nipype_.
 Arcana_ interacts closely with a repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
 subsequent analyses. Repositories can either be XNAT_ repositories or
-local directories organised by subject and visit,
-and a BIDS_ module is under development. 
+plain file system directories, and a BIDS_ module is under development. 
 
 Analysis workflows are constructed and executed using the Nipype_
 package, and can either be run locally or submitted to HPC
