@@ -18,7 +18,7 @@ Arcana
 
 Abstraction of Repository-Centric ANAlysis (Arcana) is Python framework
 for "repository-centric" analyses of study groups (e.g. NeuroImaging
-studies)
+studies) built on Nipype_.
 
 Arcana interacts closely with a repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
@@ -59,3 +59,4 @@ Arcana can be installed using *pip*::
 
     $ pip install arcana
 
+.. _Nipype: http://nipype.readthedocs.io
