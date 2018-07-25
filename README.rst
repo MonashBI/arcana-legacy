@@ -20,31 +20,30 @@ Abstraction of Repository-Centric ANAlysis (Arcana) is Python framework
 for "repository-centric" analyses of study groups (e.g. NeuroImaging
 studies) built on Nipype_.
 
-Arcana interacts closely with a repository, storing intermediate
+Arcana_ interacts closely with a repository, storing intermediate
 outputs, along with the parameters used to derive them, for reuse by
-subsequent analyses. Repositories can either be XNAT repositories or
-(http://xnat.org) local directories organised by subject and visit,
-and a BIDS module (http://bids.neuroimaging.io/) is planned as future
-work. 
+subsequent analyses. Repositories can either be XNAT_ repositories or
+local directories organised by subject and visit,
+and a BIDS_ module is under development. 
 
-Analysis workflows are constructed and executed using the Nipype
+Analysis workflows are constructed and executed using the Nipype_
 package, and can either be run locally or submitted to HPC
-schedulers using Nipype’s execution plugins. For a requested analysis
+schedulers using Nipype_’s execution plugins. For a requested analysis
 output, Arcana determines the required processing steps by querying
 the repository to check for missing intermediate outputs before
 constructing the workflow graph. When running in an environment
-with `the modules package <http://modules.sourceforge.net>`_ installed,
+with `Environment Modules`_ installed,
 Arcana manages the loading and unloading of software modules per
 pipeline node.
 
 Design
 ------
 
-Arcana is designed with an object-oriented philosophy, with
+Arcana_ is designed with an object-oriented philosophy, with
 the acquired and derived data sets along with the analysis pipelines
 used to derive the derived data sets encapsulated within "Study" classes.
 
-The Arcana package itself only provides the abstract *Study* and
+The Arcana_ package itself only provides the abstract *Study* and
 *MultiStudy* base classes, which are designed to be sub-classed to
 provide specialised classes representing the analysis that can be performed
 on specific types of data (e.g. FmriStudy, PetStudy). These specific classes
@@ -59,4 +58,8 @@ Arcana can be installed using *pip*::
 
     $ pip install arcana
 
+.. _Arcana: http://arcana.readthedocs.io
 .. _Nipype: http://nipype.readthedocs.io
+.. _XNAT: http://xnat.org
+.. _BIDS: http://bids.neuroimaging.io/
+.. _`Environment Modules`: http://modules.sourceforge.net
