@@ -16,7 +16,7 @@ Arcana
   :alt: Documentation Status
 
 
-Abstraction of Repository-Centric ANAlysis (Arcana) is Python framework
+Abstraction of Repository-Centric ANAlysis (Arcana_) is Python framework
 for "repository-centric" analyses of study groups (e.g. NeuroImaging
 studies) built on Nipype_.
 
