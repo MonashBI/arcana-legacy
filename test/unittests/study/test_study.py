@@ -10,7 +10,7 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
-    ArcanaNameError, ArcanaCantPickleStudyError)  # @IgnorePep8
+    ArcanaCantPickleStudyError)  # @IgnorePep8
 from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8

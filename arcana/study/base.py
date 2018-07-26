@@ -797,6 +797,18 @@ class Study(object):
             (self.spec(o).collection for o in outputs),
             frequency), name=name)
 
+    @classmethod
+    def print_specs(cls):
+        print('Available data:')
+        for spec in cls.data_specs():
+            print(spec)
+        print('\nAvailable parameters:')
+        for spec in cls.parameter_specs():
+            print(spec)
+        print('\nAvailable switches:')
+        for spec in cls.switches_specs():
+            print(spec)
+
 
 class StudyMetaClass(type):
     """
