@@ -153,7 +153,7 @@ class FileFormat(object):
         except KeyError:
             raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}, available:\n{}"
-                .format(self, file_format,
+                .format(file_format, self,
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
