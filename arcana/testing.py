@@ -197,12 +197,12 @@ class BaseTestCase(TestCase):
         return self.simple_repository
 
     @property
-    def local_repository(self):
+    def simple_repository(self):
         try:
-            return self._local_repository
+            return self._simple_repository
         except AttributeError:
-            self._local_repository = SimpleRepository(self.project_dir)
-            return self._local_repository
+            self._simple_repository = SimpleRepository(self.project_dir)
+            return self._simple_repository
 
     @property
     def processor(self):
