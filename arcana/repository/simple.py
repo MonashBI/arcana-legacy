@@ -29,6 +29,10 @@ class SimpleRepository(BaseRepository):
     ----------
     base_dir : str (path)
         Path to local directory containing data
+    depth : int
+        The number of sub-directories under the base directory. For
+        example, if depth == 0 then the base directory contains the
+        data files and data.
     """
 
     type = 'local'
@@ -36,14 +40,17 @@ class SimpleRepository(BaseRepository):
     FIELDS_FNAME = 'fields.json'
     LOCK_SUFFIX = '.lock'
     DERIVED_LABEL_FNAME = '.derived'
+    DEFAULT_SUBJECT_ID = 'SUBJECT'
+    DEFAULT_VISIT_ID = 'VISIT'
 
-    def __init__(self, base_dir):
+    def __init__(self, base_dir, depth=2):
         super(SimpleRepository, self).__init__()
         if not op.exists(base_dir):
             raise ArcanaError(
                 "Base directory for SimpleRepository '{}' does not exist"
                 .format(base_dir))
         self._base_dir = op.abspath(base_dir)
+        self._depth = depth
 
     def __repr__(self):
         return "{}(base_dir='{}')".format(type(self).__name__,
@@ -172,24 +179,34 @@ class SimpleRepository(BaseRepository):
             relpath = op.relpath(session_path, self.base_dir)
             path_parts = relpath.split(op.sep)
             depth = len(path_parts)
-            if depth > 3:
-                continue
-            if depth < 2:
-                if any(not f.startswith('.') for f in files):
-                    raise ArcanaBadlyFormattedSimpleRepositoryError(
-                        "Files ('{}') not permitted at {} level in "
-                        "local repository".format(
-                            "', '".join(dnames),
-                            ('subject' if depth else 'project')))
-                continue  # Not a session directory
-            if depth == 3:
-                if self.DERIVED_LABEL_FNAME in files:
-                    from_study = path_parts.pop()
-                else:
-                    continue  # Fileset directory
-            else:
+            if depth == self._depth:
+                # Load input data
                 from_study = None
-            subj_id, visit_id = path_parts
+            elif (depth == (self._depth + 1) and
+                  self.DERIVED_LABEL_FNAME in files):
+                # Load study output
+                from_study = path_parts.pop()
+            elif (depth < self._depth and
+                  any(not f.startswith('.') for f in files)):
+                # Check to see if there are files in upper level
+                # directories, which shouldn't be there (ignoring
+                # "hidden" files that start with '.')
+                raise ArcanaBadlyFormattedSimpleRepositoryError(
+                    "Files ('{}') not permitted at {} level in local "
+                    "repository".format("', '".join(dnames),
+                                        ('subject'
+                                         if depth else 'project')))
+            else:
+                # Not a directory that contains data files or directories
+                continue
+            if len(path_parts) == 2:
+                subj_id, visit_id = path_parts
+            elif len(path_parts) == 1:
+                subj_id = path_parts[0]
+                visit_id = self.DEFAULT_SUBJECT_ID
+            else:
+                subj_id = self.DEFAULT_SUBJECT_ID
+                visit_id = self.DEFAULT_VISIT_ID
             subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
             visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
             if (subject_ids is not None and subj_id is not None and
