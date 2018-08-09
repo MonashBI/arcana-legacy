@@ -13,14 +13,14 @@ from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
 from arcana.exception import (
-    ArcanaError, ArcanaBadlyFormattedLocalRepositoryError,
+    ArcanaError, ArcanaBadlyFormattedSimpleRepositoryError,
     ArcanaMissingDataException)
 
 
 logger = logging.getLogger('arcana')
 
 
-class LocalRepository(BaseRepository):
+class SimpleRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
@@ -38,10 +38,10 @@ class LocalRepository(BaseRepository):
     DERIVED_LABEL_FNAME = '.derived'
 
     def __init__(self, base_dir):
-        super(LocalRepository, self).__init__()
+        super(SimpleRepository, self).__init__()
         if not op.exists(base_dir):
             raise ArcanaError(
-                "Base directory for LocalRepository '{}' does not exist"
+                "Base directory for SimpleRepository '{}' does not exist"
                 .format(base_dir))
         self._base_dir = op.abspath(base_dir)
 
@@ -176,7 +176,7 @@ class LocalRepository(BaseRepository):
                 continue
             if depth < 2:
                 if any(not f.startswith('.') for f in files):
-                    raise ArcanaBadlyFormattedLocalRepositoryError(
+                    raise ArcanaBadlyFormattedSimpleRepositoryError(
                         "Files ('{}') not permitted at {} level in "
                         "local repository".format(
                             "', '".join(dnames),

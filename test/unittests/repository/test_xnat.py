@@ -21,7 +21,7 @@ from arcana.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepository
-from arcana.repository.local import LocalRepository
+from arcana.repository.local import SimpleRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
 from arcana.data import (
@@ -230,7 +230,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                           server=SERVER,
                                           cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
-        local_repository = LocalRepository(self.project_dir)
+        local_repository = SimpleRepository(self.project_dir)
         tree = local_repository.tree()
         self._create_project()
         repo = XnatRepository(SERVER, self.project, '/tmp')
