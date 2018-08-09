@@ -40,6 +40,13 @@ class FileFormat(object):
         A dictionary mapping names of alternative data formats
         to Converter objects that can convert from the alternative
         format to this format.
+    alternate_names : List[str]
+        A list of alternate names to use to load the file format with
+        (when the format is saved by format name, e.g. XNAT, instead
+        of a file with an extension)
+    array_loader : Function
+        A function that takes the fileset path in the given format and
+        returns a data array
     """
 
     # To hold registered data formats
@@ -49,7 +56,8 @@ class FileFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None, alternate_names=None):
+                 converters=None, alternate_names=None,
+                 array_loader=None, header_loader=None):
         if not name.islower():
             raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
@@ -72,6 +80,8 @@ class FileFormat(object):
         self._converters = converters if converters is not None else {}
         self._alternate_names = (tuple(alternate_names)
                                  if alternate_names is not None else ())
+        self._array_loader = array_loader
+        self._header_loader = header_loader
 
     def __eq__(self, other):
         try:
@@ -241,6 +251,30 @@ class FileFormat(object):
                     within_exts,
                     ', '.format(repr(f)
                                 for f in list(cls.by_within_exts.values()))))
+
+    def get_array(self, path):
+        """
+        Returns array data associated with the given path for the
+        file format
+        """
+        if self._array_loader is None:
+            raise ArcanaUsageError(
+                "Cannot load array data for '{}' as '{}' file format "
+                "doesn't have a registered array loader".format(
+                    path, self.name))
+        return self._array_loader(path)
+
+    def get_header(self, path):
+        """
+        Returns header data associated with the given path for the
+        file format
+        """
+        if self._header_loader is None:
+            raise ArcanaUsageError(
+                "Cannot load header for '{}' as '{}' file format "
+                "doesn't have a registered header loader".format(
+                    path, self.name))
+        return self._header_loader(path)
 
 
 class Converter(with_metaclass(ABCMeta, object)):

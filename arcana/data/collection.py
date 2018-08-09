@@ -105,8 +105,9 @@ class BaseCollection(object):
         if self.frequency == 'per_session':
             if subject_id is None or visit_id is None:
                 raise ArcanaError(
-                    "The 'subject_id' and 'visit_id' must be provided "
-                    "to get the match from {}".format(self))
+                    "The 'subject_id' ({}) and 'visit_id' ({}) must be "
+                    "provided to get an item from {}".format(
+                        subject_id, visit_id, self))
             try:
                 subj_dct = self._collection[subject_id]
             except KeyError:

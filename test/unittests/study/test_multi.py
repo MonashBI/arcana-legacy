@@ -23,7 +23,7 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o3', 3.0)]
 
     def pipeline_alpha(self, **kwargs):  # @UnusedVariable
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline_alpha',
             inputs=[FilesetSpec('x', text_format),
                     FilesetSpec('y', text_format)],
@@ -58,7 +58,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
 
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline_beta',
             inputs=[FilesetSpec('w', text_format),
                     FilesetSpec('x', text_format)],
@@ -167,7 +167,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         ParameterSpec('combined_op', 'add')]
 
     def combined_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='combined',
             inputs=[FilesetSpec('ss1_z', text_format),
                     FilesetSpec('full_e', text_format),

@@ -348,7 +348,7 @@ class Study(object):
         "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
         return self._repository
 
-    def create_pipeline(self, *args, **kwargs):
+    def new_pipeline(self, *args, **kwargs):
         """
         Creates a Pipeline object, passing the study (self) as the first
         argument

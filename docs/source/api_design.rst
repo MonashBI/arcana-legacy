@@ -9,7 +9,7 @@ Study
 -----
 
 .. autoclass:: arcana.study.Study
-    :members: data, pre_option, create_pipeline
+    :members: data, pre_option, new_pipeline
 
 .. autoclass:: arcana.study.MultiStudy
 

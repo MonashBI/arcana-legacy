@@ -51,7 +51,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('fours', float, 'pipeline2')]
 
     def pipeline(self):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline',
             inputs=[FilesetSpec('ones', text_format)],
             outputs=[FilesetSpec('twos', text_format)],
@@ -72,7 +72,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline2',
             inputs=[FilesetSpec('ones', text_format),
                     FilesetSpec('twos', text_format)],

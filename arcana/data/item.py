@@ -340,6 +340,12 @@ class Fileset(BaseItem, BaseFileset):
         if self.repository is not None:
             self.repository.put_fileset(self)
 
+    def get_array(self):
+        return self.format.get_array(self.path)
+
+    def get_header(self):
+        return self.format.get_header(self.path)
+
 
 class Field(BaseItem, BaseField):
     """

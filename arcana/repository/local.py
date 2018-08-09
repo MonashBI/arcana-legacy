@@ -102,7 +102,7 @@ class LocalRepository(BaseRepository):
                 pass
             raise ArcanaMissingDataException(
                 "{} does not exist in the local repository {}"
-                .foramt(field, self))
+                .format(field, self))
 
     def put_fileset(self, fileset):
         """

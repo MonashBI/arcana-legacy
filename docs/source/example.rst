@@ -31,7 +31,7 @@ A basic toy example
             ParameterSpec('pipeline_option', False)]
     
         def pipeline1(self, **kwargs):
-            pipeline = self.create_pipeline(
+            pipeline = self.new_pipeline(
                 name='pipeline1',
                 inputs=[FilesetSpec('one', text_format)],
                 outputs=[FilesetSpec('derived1_1', text_format),
@@ -56,7 +56,7 @@ A basic toy example
             return pipeline
     
         def pipeline2(self, **kwargs):
-            pipeline = self.create_pipeline(
+            pipeline = self.new_pipeline(
                 name='pipeline2',
                 inputs=[FilesetSpec('one', text_format),
                         FilesetSpec('derived1_1', text_format)],
@@ -78,7 +78,7 @@ A basic toy example
             return pipeline
     
         def subject_summary_pipeline(self, **kwargs):
-            pipeline = self.create_pipeline(
+            pipeline = self.new_pipeline(
                 name="subject_summary",
                 inputs=[FilesetSpec('one', text_format)],
                 outputs=[FilesetSpec('subject_summary', text_format)],

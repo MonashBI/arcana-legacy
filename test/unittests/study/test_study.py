@@ -59,7 +59,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline1',
             inputs=[FilesetSpec('one', text_format)],
             outputs=[FilesetSpec('derived1_1', text_format),
@@ -83,7 +83,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline2',
             inputs=[FilesetSpec('one', text_format),
                     FilesetSpec('derived1_1', text_format)],
@@ -106,7 +106,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline3',
             inputs=[FilesetSpec('derived2', text_format)],
             outputs=[FilesetSpec('derived3', text_format)],
@@ -123,7 +123,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline4(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline4',
             inputs=[FilesetSpec('derived1_2', text_format),
                     FilesetSpec('derived3', text_format)],
@@ -143,7 +143,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def visit_ids_access_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='visit_ids_access',
             inputs=[],
             outputs=[FilesetSpec('visit_ids', text_format)],
@@ -160,7 +160,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def subject_ids_access_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='subject_ids_access',
             inputs=[],
             outputs=[FilesetSpec('subject_ids', text_format)],
@@ -177,7 +177,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def subject_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name="subject_summary",
             inputs=[FilesetSpec('one', text_format)],
             outputs=[FilesetSpec('subject_summary', text_format)],
@@ -197,7 +197,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def visit_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name="visit_summary",
             inputs=[FilesetSpec('one', text_format)],
             outputs=[FilesetSpec('visit_summary', text_format)],
@@ -217,7 +217,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def project_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name="project_summary",
             inputs=[FilesetSpec('one', text_format)],
             outputs=[FilesetSpec('project_summary', text_format)],
@@ -368,7 +368,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name=output,
             inputs=[FilesetSpec(input, text_format)],
             outputs=[FilesetSpec(output, text_format)],
@@ -489,7 +489,7 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('d', test3_format, 'identity_pipeline')]
 
     def identity_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline',
             inputs=[FilesetSpec('a', test2_format),
                     FilesetSpec('b', test3_format)],
@@ -562,7 +562,7 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
                                   'pipeline')]
 
     def pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+        pipeline = self.new_pipeline(
             'pipeline',
             inputs=[FilesetSpec('fileset', text_format)],
             outputs=[FilesetSpec('out_fileset', text_format)],
