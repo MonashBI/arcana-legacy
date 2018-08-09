@@ -21,7 +21,7 @@ from arcana.testing import (
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepository
-from arcana.repository.local import SimpleRepository
+from arcana.repository.simple import SimpleRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
 from arcana.data import (

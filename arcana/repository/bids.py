@@ -3,7 +3,7 @@ import os.path as op
 from collections import defaultdict
 from itertools import chain
 from arcana.utils import makedirs
-from .local import SimpleRepository
+from .simple import SimpleRepository
 import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit

@@ -23,7 +23,7 @@ package_path = op.abspath(
 print(package_path)
 sys.path.insert(0, package_path)
 from arcana.version_ import __version__  # @UnresolvedImport @IgnorePep8
-import arcana.repository.local  # @UnusedImport @IgnorePep8
+import arcana.repository.simple  # @UnusedImport @IgnorePep8
 import arcana.repository.xnat  # @UnusedImport @IgnorePep8
 import arcana.processor  # @UnusedImport @IgnorePep8
 import arcana.study  # @UnusedImport @IgnorePep8

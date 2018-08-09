@@ -19,7 +19,7 @@ import logging
 import arcana
 from arcana.data import Fileset
 from arcana.utils import classproperty
-from arcana.repository.local import (
+from arcana.repository.simple import (
     SimpleRepository)
 from arcana.processor import LinearProcessor
 from arcana.exception import ArcanaError
@@ -194,7 +194,7 @@ class BaseTestCase(TestCase):
 
     @property
     def repository(self):
-        return self.local_repository
+        return self.simple_repository
 
     @property
     def local_repository(self):
@@ -472,10 +472,10 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         self.add_sessions()
 
     def add_sessions(self):
-        self.local_tree = deepcopy(self.input_tree)
-        for node in self.local_tree:
+        self.simple_tree = deepcopy(self.input_tree)
+        for node in self.simple_tree:
             for fileset in node.filesets:
-                fileset._repository = self.local_repository
+                fileset._repository = self.simple_repository
                 fileset._path = op.join(
                     fileset.repository.session_dir(fileset), fileset.fname)
                 self._make_dir(op.dirname(fileset.path))
@@ -483,7 +483,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     f.write(str(self.DATASET_CONTENTS[fileset.name]))
             fields = list(node.fields)
             if fields:
-                dpath = self.local_repository.session_dir(fields[0])
+                dpath = self.simple_repository.session_dir(fields[0])
                 self._make_dir(dpath)
                 dct = {f.name: f.value for f in fields}
                 with open(op.join(dpath,

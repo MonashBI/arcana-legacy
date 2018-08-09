@@ -9,7 +9,7 @@ Archives
 
 .. autoclass:: arcana.archive.xnat.XnatArchive
 
-.. autoclass:: arcana.archive.local.LocalArchive
+.. autoclass:: arcana.archive.simple.LocalArchive
 
 
 Processors
