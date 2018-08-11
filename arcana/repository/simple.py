@@ -36,7 +36,7 @@ class SimpleRepository(BaseRepository):
         data files and data.
     """
 
-    type = 'local'
+    type = 'simple'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
     LOCK_SUFFIX = '.lock'
@@ -44,13 +44,15 @@ class SimpleRepository(BaseRepository):
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
 
-    def __init__(self, root_dir, depth=2):
+    def __init__(self, root_dir, depth=None):
         super(SimpleRepository, self).__init__()
         if not op.exists(root_dir):
             raise ArcanaError(
                 "Base directory for SimpleRepository '{}' does not exist"
                 .format(root_dir))
         self._root_dir = op.abspath(root_dir)
+        if depth is None:
+            depth = self.guess_depth(root_dir)
         self._depth = depth
 
     def __repr__(self):
@@ -317,8 +319,6 @@ class SimpleRepository(BaseRepository):
 
     @classmethod
     def guess_depth(cls, root_dir):
-        depth = None
-        first_path = None
         for path, dirs, files in os.walk(root_dir):
             for name in cls._filter_files(files, dirs, path):
                 try:
@@ -326,16 +326,12 @@ class SimpleRepository(BaseRepository):
                 except Exception:
                     continue
                 else:
-                    new_depth = len(op.split(path))
-                    if depth is None:
-                        depth = new_depth
-                        first_path = path
-                    elif new_depth != depth:
-                        raise ArcanaUsageError(
-                            "Inconsistent session dir depths found in "
-                            "'{}' directory structure ({} and {})"
-                            .format(first_path, path))
-        return depth
+                    return len(op.split(path))
+        raise ArcanaUsageError(
+            "Could not guess depth of '{}' repository as did not find "
+            "a valid session directory within sub-directories of '{}' "
+            "directory structure ({} and {})"
+            .format(root_dir))
 
     @classmethod
     def _filter_files(cls, files, dirs, base_dir):

@@ -17,6 +17,8 @@ from arcana.parameter import Parameter, Switch
 from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
 from arcana.node import Node
+from arcana.repository import SimpleRepository
+from arcana.processor import LinearProcessor
 from arcana.interfaces.repository import (RepositorySource,
                                           RepositorySink)
 
@@ -109,6 +111,10 @@ class Study(object):
             raise ArcanaUsageError(
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
+        if isinstance(repository, basestring):
+            repository = SimpleRepository(repository)
+        if isinstance(processor, basestring):
+            processor = LinearProcessor(processor)
         self._name = name
         self._repository = repository
         self._processor = processor.bind(self)
