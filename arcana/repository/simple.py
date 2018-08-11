@@ -13,21 +13,22 @@ from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
 from arcana.exception import (
-    ArcanaError, ArcanaBadlyFormattedSimpleRepositoryError,
+    ArcanaError, ArcanaUsageError,
+    ArcanaBadlyFormattedDirRepositoryError,
     ArcanaMissingDataException)
 
 
 logger = logging.getLogger('arcana')
 
 
-class SimpleRepository(BaseRepository):
+class DirRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
 
     Parameters
     ----------
-    base_dir : str (path)
+    root_dir : str (path)
         Path to local directory containing data
     depth : int
         The number of sub-directories under the base directory. For
@@ -43,31 +44,31 @@ class SimpleRepository(BaseRepository):
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
 
-    def __init__(self, base_dir, depth=2):
-        super(SimpleRepository, self).__init__()
-        if not op.exists(base_dir):
+    def __init__(self, root_dir, depth=2):
+        super(DirRepository, self).__init__()
+        if not op.exists(root_dir):
             raise ArcanaError(
-                "Base directory for SimpleRepository '{}' does not exist"
-                .format(base_dir))
-        self._base_dir = op.abspath(base_dir)
+                "Base directory for DirRepository '{}' does not exist"
+                .format(root_dir))
+        self._root_dir = op.abspath(root_dir)
         self._depth = depth
 
     def __repr__(self):
-        return "{}(base_dir='{}')".format(type(self).__name__,
-                                          self.base_dir)
+        return "{}(root_dir='{}')".format(type(self).__name__,
+                                          self.root_dir)
 
     def __eq__(self, other):
         try:
-            return self.base_dir == other.base_dir
+            return self.root_dir == other.root_dir
         except AttributeError:
             return False
 
     def __hash__(self):
-        return hash(self.base_dir)
+        return hash(self.root_dir)
 
     @property
-    def base_dir(self):
-        return self._base_dir
+    def root_dir(self):
+        return self._root_dir
 
     def get_fileset(self, fileset):
         """
@@ -165,18 +166,8 @@ class SimpleRepository(BaseRepository):
         """
         all_data = defaultdict(dict)
         all_visit_ids = set()
-        for session_path, dirs, files in os.walk(self.base_dir):
-            # Filter out hidden files (i.e. starting with '.')
-            dnames = [d for d in files
-                      if not d.startswith('.')]
-            # Filter out hidden directories (i.e. starting with '.')
-            # and derived study directories from fileset names
-            dnames.extend(
-                d for d in dirs
-                if not d.startswith('.') and (
-                    self.DERIVED_LABEL_FNAME not in os.listdir(
-                        op.join(session_path, d))))
-            relpath = op.relpath(session_path, self.base_dir)
+        for session_path, dirs, files in os.walk(self.root_dir):
+            relpath = op.relpath(session_path, self.root_dir)
             path_parts = relpath.split(op.sep)
             depth = len(path_parts)
             if depth == self._depth:
@@ -191,9 +182,9 @@ class SimpleRepository(BaseRepository):
                 # Check to see if there are files in upper level
                 # directories, which shouldn't be there (ignoring
                 # "hidden" files that start with '.')
-                raise ArcanaBadlyFormattedSimpleRepositoryError(
+                raise ArcanaBadlyFormattedDirRepositoryError(
                     "Files ('{}') not permitted at {} level in local "
-                    "repository".format("', '".join(dnames),
+                    "repository".format("', '".join(files),
                                         ('subject'
                                          if depth else 'project')))
             else:
@@ -232,17 +223,15 @@ class SimpleRepository(BaseRepository):
             except KeyError:
                 filesets = []
                 fields = []
-            for dname in sorted(dnames):
-                if dname.startswith(self.FIELDS_FNAME):
-                    continue
+            for fname in self._filter_files(files, dirs, session_path):
                 filesets.append(
                     Fileset.from_path(
-                        op.join(session_path, dname),
+                        op.join(session_path, fname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
                         from_study=from_study))
-            if self.FIELDS_FNAME in dnames:
+            if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:
                     dct = json.load(f)
@@ -295,16 +284,16 @@ class SimpleRepository(BaseRepository):
     def session_dir(self, item):
         if item.frequency == 'per_study':
             acq_dir = op.join(
-                self.base_dir, self.SUMMARY_NAME, self.SUMMARY_NAME)
+                self.root_dir, self.SUMMARY_NAME, self.SUMMARY_NAME)
         elif item.frequency.startswith('per_subject'):
             acq_dir = op.join(
-                self.base_dir, str(item.subject_id), self.SUMMARY_NAME)
+                self.root_dir, str(item.subject_id), self.SUMMARY_NAME)
         elif item.frequency.startswith('per_visit'):
             acq_dir = op.join(
-                self.base_dir, self.SUMMARY_NAME, str(item.visit_id))
+                self.root_dir, self.SUMMARY_NAME, str(item.visit_id))
         elif item.frequency.startswith('per_session'):
             acq_dir = op.join(
-                self.base_dir, str(item.subject_id), str(item.visit_id))
+                self.root_dir, str(item.subject_id), str(item.visit_id))
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
@@ -325,3 +314,38 @@ class SimpleRepository(BaseRepository):
 
     def fields_json_path(self, field):
         return op.join(self.session_dir(field), self.FIELDS_FNAME)
+
+    @classmethod
+    def guess_depth(cls, root_dir):
+        depth = None
+        first_path = None
+        for path, dirs, files in os.walk(root_dir):
+            for name in cls._filter_files(files, dirs, path):
+                try:
+                    Fileset.from_path(name)
+                except Exception:
+                    continue
+                else:
+                    new_depth = len(op.split(path))
+                    if depth is None:
+                        depth = new_depth
+                        first_path = path
+                    elif new_depth != depth:
+                        raise ArcanaUsageError(
+                            "Inconsistent session dir depths found in "
+                            "'{}' directory structure ({} and {})"
+                            .format(first_path, path))
+        return depth
+
+    @classmethod
+    def _filter_files(cls, files, dirs, base_dir):
+        # Filter out hidden files (i.e. starting with '.')
+        files = [op.join(base_dir, f) for f in files
+                 if not (f.startswith('.') or f == cls.FIELDS_FNAME)]
+        # Filter out hidden directories (i.e. starting with '.')
+        # and derived study directories from fileset names
+        files.extend(op.join(base_dir, d) for d in dirs
+                     if not (d.startswith('.') or (
+                         cls.DERIVED_LABEL_FNAME not in os.listdir(
+                             op.join(base_dir, d)))))
+        return files

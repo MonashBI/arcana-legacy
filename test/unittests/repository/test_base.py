@@ -12,7 +12,7 @@ from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.repository.simple import SimpleRepository  # @IgnorePep8
+from arcana.repository.simple import DirRepository  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -88,7 +88,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.STUDY_NAME)))
-            if not (f == SimpleRepository.FIELDS_FNAME)]
+            if not (f == DirRepository.FIELDS_FNAME)]
         self.assertEqual(outputs,
                          ['.derived', 'sink1.txt', 'sink3.txt',
                           'sink4.txt'])
@@ -232,7 +232,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
-            if f != SimpleRepository.FIELDS_FNAME]
+            if f != DirRepository.FIELDS_FNAME]
         self.assertEqual(outputs,
                          ['.derived',
                           'resink1.txt',

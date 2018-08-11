@@ -18,7 +18,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedSimpleRepositoryError(ArcanaError):
+class ArcanaBadlyFormattedDirRepositoryError(ArcanaError):
     pass
 
 

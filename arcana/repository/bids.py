@@ -3,7 +3,7 @@ import os.path as op
 from collections import defaultdict
 from itertools import chain
 from arcana.utils import makedirs
-from .simple import SimpleRepository
+from .simple import DirRepository
 import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit
@@ -13,7 +13,7 @@ from arcana.exception import ArcanaNameError, ArcanaMissingDataException
 logger = logging.getLogger('arcana')
 
 
-class BidsRepository(SimpleRepository):
+class BidsRepository(DirRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
@@ -32,7 +32,7 @@ class BidsRepository(SimpleRepository):
         derivatives_path = op.join(root_dir,
                                         self.DERIVATIVES_SUB_PATH)
         makedirs(derivatives_path, exist_ok=True)
-        SimpleRepository.__init__(derivatives_path)
+        DirRepository.__init__(derivatives_path)
         self._layout = gb.BIDSLayout(self.base_dir)
 
     @property
