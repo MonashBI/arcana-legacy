@@ -112,7 +112,7 @@ class Study(object):
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
         if isinstance(repository, basestring):
-            repository = SimpleRepository(repository)
+            repository = SimpleRepository(repository, depth=None)
         if isinstance(processor, basestring):
             processor = LinearProcessor(processor)
         self._name = name

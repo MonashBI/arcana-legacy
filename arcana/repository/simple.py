@@ -44,7 +44,7 @@ class SimpleRepository(BaseRepository):
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
 
-    def __init__(self, root_dir, depth=None):
+    def __init__(self, root_dir, depth=2):
         super(SimpleRepository, self).__init__()
         if not op.exists(root_dir):
             raise ArcanaError(
@@ -285,20 +285,28 @@ class SimpleRepository(BaseRepository):
 
     def session_dir(self, item):
         if item.frequency == 'per_study':
-            acq_dir = op.join(
-                self.root_dir, self.SUMMARY_NAME, self.SUMMARY_NAME)
+            subj_dir = self.SUMMARY_NAME
+            visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_subject'):
-            acq_dir = op.join(
-                self.root_dir, str(item.subject_id), self.SUMMARY_NAME)
+            subj_dir = str(item.subject_id)
+            visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_visit'):
-            acq_dir = op.join(
-                self.root_dir, self.SUMMARY_NAME, str(item.visit_id))
+            subj_dir = self.SUMMARY_NAME
+            visit_dir = str(item.visit_id)
         elif item.frequency.startswith('per_session'):
-            acq_dir = op.join(
-                self.root_dir, str(item.subject_id), str(item.visit_id))
+            subj_dir = str(item.subject_id)
+            visit_dir = str(item.visit_id)
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
+        if self.depth == 2:
+            acq_dir = op.join(self.root_dir, subj_dir, visit_dir)
+        elif self.depth == 1:
+            acq_dir = op.join(self.root_dir, subj_dir)
+        elif self.depth == 0:
+            acq_dir = self.root_dir
+        else:
+            assert False
         if item.from_study is None:
             sess_dir = acq_dir
         else:
@@ -329,8 +337,7 @@ class SimpleRepository(BaseRepository):
                     return len(op.split(path))
         raise ArcanaUsageError(
             "Could not guess depth of '{}' repository as did not find "
-            "a valid session directory within sub-directories of '{}' "
-            "directory structure ({} and {})"
+            "a valid session directory within sub-directories."
             .format(root_dir))
 
     @classmethod
@@ -342,6 +349,6 @@ class SimpleRepository(BaseRepository):
         # and derived study directories from fileset names
         files.extend(op.join(base_dir, d) for d in dirs
                      if not (d.startswith('.') or (
-                         cls.DERIVED_LABEL_FNAME not in os.listdir(
+                         cls.DERIVED_LABEL_FNAME in os.listdir(
                              op.join(base_dir, d)))))
         return files
