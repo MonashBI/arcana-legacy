@@ -23,17 +23,25 @@ logger = logging.getLogger('arcana')
 
 class DirectoryRepository(BaseRepository):
     """
-    An 'Repository' class for directories on the local file system organised
-    into sub-directories by subject and then visit.
+    An 'Repository' class for data stored simply in file-system
+    directories. Can be a single directory if it contains only one subject
+    and visit, otherwise if sub-directories are present (that aren't
+    recognised as single filesets) then they are assumed to be
+    separate subjects. For multi-visit datasets an additional
+    layer of sub-directories for each visit is required within each
+    subject sub-directory.
 
     Parameters
     ----------
     root_dir : str (path)
         Path to local directory containing data
     depth : int
-        The number of sub-directories under the base directory. For
-        example, if depth == 0 then the base directory contains the
-        data files and data.
+        The number of sub-directory layers under the base directory. For
+        example, if depth == 0, then the base directory contains the
+        data files and data, if depth == 1, then there is a layer of
+        sub-directories for each subject, and if depth == 2 there is
+        an additional layer of sub-directories for each visit of each
+        subject.
     """
 
     type = 'simple'
