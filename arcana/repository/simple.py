@@ -14,14 +14,14 @@ from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
-    ArcanaBadlyFormattedSimpleRepositoryError,
+    ArcanaBadlyFormattedDirectoryRepositoryError,
     ArcanaMissingDataException)
 
 
 logger = logging.getLogger('arcana')
 
 
-class SimpleRepository(BaseRepository):
+class DirectoryRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
@@ -45,10 +45,10 @@ class SimpleRepository(BaseRepository):
     DEFAULT_VISIT_ID = 'VISIT'
 
     def __init__(self, root_dir, depth=2):
-        super(SimpleRepository, self).__init__()
+        super(DirectoryRepository, self).__init__()
         if not op.exists(root_dir):
             raise ArcanaError(
-                "Base directory for SimpleRepository '{}' does not exist"
+                "Base directory for DirectoryRepository '{}' does not exist"
                 .format(root_dir))
         self._root_dir = op.abspath(root_dir)
         if depth is None:
@@ -188,7 +188,7 @@ class SimpleRepository(BaseRepository):
                 # Check to see if there are files in upper level
                 # directories, which shouldn't be there (ignoring
                 # "hidden" files that start with '.')
-                raise ArcanaBadlyFormattedSimpleRepositoryError(
+                raise ArcanaBadlyFormattedDirectoryRepositoryError(
                     "Files ('{}') not permitted at {} level in local "
                     "repository".format("', '".join(files),
                                         ('subject'

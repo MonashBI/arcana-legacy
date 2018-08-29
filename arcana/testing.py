@@ -20,7 +20,7 @@ import arcana
 from arcana.data import Fileset
 from arcana.utils import classproperty
 from arcana.repository.simple import (
-    SimpleRepository)
+    DirectoryRepository)
 from arcana.processor import LinearProcessor
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
@@ -144,7 +144,7 @@ class BaseTestCase(TestCase):
                     .format(fileset, self))
         if fields is not None:
             with open(op.join(session_dir,
-                              SimpleRepository.FIELDS_FNAME), 'w',
+                              DirectoryRepository.FIELDS_FNAME), 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fields, f)
 
@@ -201,7 +201,7 @@ class BaseTestCase(TestCase):
         try:
             return self._simple_repository
         except AttributeError:
-            self._simple_repository = SimpleRepository(self.project_dir)
+            self._simple_repository = DirectoryRepository(self.project_dir)
             return self._simple_repository
 
     @property
@@ -339,7 +339,7 @@ class BaseTestCase(TestCase):
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir,
-                              SimpleRepository.FIELDS_FNAME)) as f:
+                              DirectoryRepository.FIELDS_FNAME)) as f:
                 fields = json.load(f, 'rb')
         except IOError as e:
             if e.errno == errno.ENOENT:
@@ -425,18 +425,18 @@ class BaseTestCase(TestCase):
             assert visit is None
             path = op.join(
                 self.project_dir, subject,
-                SimpleRepository.SUMMARY_NAME)
+                DirectoryRepository.SUMMARY_NAME)
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
             path = op.join(self.project_dir,
-                           SimpleRepository.SUMMARY_NAME, visit)
+                           DirectoryRepository.SUMMARY_NAME, visit)
         elif frequency == 'per_study':
             assert subject is None
             assert visit is None
             path = op.join(self.project_dir,
-                           SimpleRepository.SUMMARY_NAME,
-                           SimpleRepository.SUMMARY_NAME)
+                           DirectoryRepository.SUMMARY_NAME,
+                           DirectoryRepository.SUMMARY_NAME)
         else:
             assert False
         if from_study is not None:
@@ -465,7 +465,7 @@ class BaseTestCase(TestCase):
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
-    SUMMARY_NAME = SimpleRepository.SUMMARY_NAME
+    SUMMARY_NAME = DirectoryRepository.SUMMARY_NAME
 
     def setUp(self):
         self.reset_dirs()
@@ -487,7 +487,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 self._make_dir(dpath)
                 dct = {f.name: f.value for f in fields}
                 with open(op.join(dpath,
-                                  SimpleRepository.FIELDS_FNAME), 'w',
+                                  DirectoryRepository.FIELDS_FNAME), 'w',
                           **JSON_ENCODING) as f:
                     json.dump(dct, f)
 

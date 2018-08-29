@@ -27,6 +27,6 @@ from .data import (
 from .data.file_format import FileFormat
 from .parameter import Parameter, ParameterSpec, SwitchSpec
 from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
-from .repository import SimpleRepository, XnatRepository
+from .repository import DirectoryRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
