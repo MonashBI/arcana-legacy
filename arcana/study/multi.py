@@ -33,10 +33,6 @@ class MultiStudy(Study):
         either as a dictionary of key-value pairs or as a list of
         'Parameter' objects. The name and dtype must match ParameterSpecs in
         the _parameter_spec class attribute (see 'add_parameter_specs').
-    switches : List[Switch] | Dict[str, str]
-        Switches that are used to specify which analysis branches to
-        follow, i.e. which method to select out of several comparable
-        methods
     subject_ids : List[(int|str)]
         List of subject IDs to restrict the analysis to
     visit_ids : List[(int|str)]
@@ -80,8 +76,8 @@ class MultiStudy(Study):
 
     implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
 
-    def __init__(self, name, repository, processor, inputs, parameters=None,
-                 switches=None, **kwargs):
+    def __init__(self, name, repository, processor, inputs,
+                 parameters=None, **kwargs):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -95,7 +91,7 @@ class MultiStudy(Study):
                 "MultiStudy")
         super(MultiStudy, self).__init__(
             name, repository, processor, inputs, parameters=parameters,
-            switches=switches, **kwargs)
+            **kwargs)
         self._sub_studies = {}
         for sub_study_spec in self.sub_study_specs():
             sub_study_cls = sub_study_spec.study_class
@@ -119,18 +115,11 @@ class MultiStudy(Study):
                 mapped_name = sub_study_spec.inverse_map(param_name)
                 parameter = self._get_parameter(mapped_name)
                 mapped_parameters[param_name] = parameter
-            # Map switches to the sub_study
-            mapped_switches = {}
-            for switch_name in sub_study_cls.switch_spec_names():
-                mapped_name = sub_study_spec.inverse_map(switch_name)
-                switch = self._get_switch(mapped_name)
-                mapped_switches[switch_name] = switch
             # Create sub-study
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
                 repository, processor, mapped_inputs,
-                parameters=mapped_parameters, switches=mapped_switches,
-                enforce_inputs=False)
+                parameters=mapped_parameters, enforce_inputs=False)
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise ArcanaNameError(
@@ -279,8 +268,8 @@ class SubStudySpec(object):
                 raise ArcanaNameError(
                     name,
                     "'{}' has a matching prefix '{}_' but '{}' doesn't"
-                    " match any filesets, fields, parameters or switches "
-                    " in the study class {} ('{}')"
+                    " match any filesets, fields, parameters "
+                    "in the study class {} ('{}')"
                     .format(name, self.name, mapped,
                             self.study_class.__name__,
                             "', '".join(self.study_class.spec_names())))
@@ -294,7 +283,7 @@ class SubStudySpec(object):
                 raise ArcanaNameError(
                     name,
                     "'{}' doesn't match any filesets, fields, "
-                    "parameters, or switches in the study class {} ('{}')"
+                    "or parameters in the study class {} ('{}')"
                     .format(name, self.study_class.__name__,
                             "', '".join(
                                 self.study_class.spec_names())))
@@ -329,16 +318,6 @@ class SubStudySpec(object):
         in the name map
         """
         for spec in self.study_class.parameter_specs():
-            if spec.name not in self._inv_map:
-                yield spec
-
-    @property
-    def auto_switch_specs(self):
-        """
-        Parameter pecs in the sub-study class that are not explicitly provided
-        in the name map
-        """
-        for spec in self.study_class.switch_specs():
             if spec.name not in self._inv_map:
                 yield spec
 
@@ -461,7 +440,6 @@ class TranslatedPipeline(Pipeline):
         self._version = pipeline._version
         self._desc = pipeline._desc
         self._used_parameters = set()
-        self._used_switches = set()
 
 
 class MultiStudyMetaClass(StudyMetaClass):
@@ -525,13 +503,6 @@ class MultiStudyMetaClass(StudyMetaClass):
                     renamed_spec = param_spec.renamed(trans_sname)
                     cls._parameter_specs[
                         renamed_spec.name] = renamed_spec
-            # Map switch specs
-            for switch_spec in sub_study_spec.auto_switch_specs:
-                trans_sname = sub_study_spec.apply_prefix(
-                    switch_spec.name)
-                if trans_sname not in cls.switch_spec_names():
-                    renamed_spec = switch_spec.renamed(trans_sname)
-                    cls._switch_specs[renamed_spec.name] = renamed_spec
         # Check all names in name-map correspond to data or parameter
         # specs
         for sub_study_spec in list(sub_study_specs.values()):

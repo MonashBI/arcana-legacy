@@ -77,9 +77,8 @@ class ParameterSpec(Parameter):
         default value
     """
 
-    def __init__(self, name, default, choices=None, desc=None, dtype=None):
+    def __init__(self, name, default, desc=None, dtype=None):
         super(ParameterSpec, self).__init__(name, default)
-        self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
         if dtype is not None:
             if self.default is not None and not isinstance(self.default,
@@ -98,10 +97,6 @@ class ParameterSpec(Parameter):
         return self._value
 
     @property
-    def choices(self):
-        return self._choices
-
-    @property
     def desc(self):
         return self._desc
 
@@ -110,50 +105,17 @@ class ParameterSpec(Parameter):
                 "desc='{}')".format(self.name, self.default,
                                     self.choices, self.desc))
 
-
-class Switch(object):
-    """
-    A special type parameter that signifies a branch of
-    analysis to follow.
-
-    Parameters
-    ----------
-    name : str
-        Name of the parameter
-    value : list[str]
-        The value of the switch
-    """
-
-    def __init__(self, name, value):
-        self._name = name
-        if not isinstance(value, (basestring, bool)):
+    def check_valid(self, parameter, context=None):
+        context = 'in ' + context if context is not None else ''
+        if not isinstance(parameter.value, self.dtype):
             raise ArcanaUsageError(
-                "Value of '{}' switch needs to be of type str or bool"
-                "(provided {})".format(name, value))
-        self._value = value
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def value(self):
-        return self._value
-
-    def __repr__(self):
-        return "Switch(name='{}', value={})".format(self.name,
-                                                    self.value)
-
-    def renamed(self, name):
-        """
-        Duplicate the Parameter and rename it
-        """
-        duplicate = copy(self)
-        duplicate._name = name
-        return duplicate
+                "Incorrect datatype for '{}' parameter provided "
+                "({}){}, Should be {}"
+                .format(parameter.name, type(parameter.value),
+                        context, self.dtype))
 
 
-class SwitchSpec(Switch):
+class SwitchSpec(ParameterSpec):
     """
     Specifies a special parameter that switches between different
     methods and/or pipeline input/outputs. Typically used to select
@@ -173,8 +135,10 @@ class SwitchSpec(Switch):
         A description of the parameter
     """
 
-    def __init__(self, name, default, choices=None, desc=None):
-        super(SwitchSpec, self).__init__(name, default)
+    def __init__(self, name, default, choices=None, desc=None,
+                 dtype=None):
+        super(SwitchSpec, self).__init__(name, default, desc=desc,
+                                         dtype=dtype)
         if self.is_boolean:
             if choices is not None:
                 raise ArcanaUsageError(
@@ -205,6 +169,7 @@ class SwitchSpec(Switch):
         return self._choices
 
     def check_valid(self, switch, context=''):
+        super(SwitchSpec, self).check_valid(switch, context=context)
         if self.is_boolean:
             if not isinstance(switch.value, bool):
                 raise ArcanaUsageError(

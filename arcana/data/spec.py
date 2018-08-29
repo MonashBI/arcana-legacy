@@ -144,28 +144,23 @@ class BaseSpec(object):
             raise ArcanaError(
                 "There is no pipeline method named '{}' in present in "
                 "'{}' study".format(self.pipeline_name, self.study))
-        # Set up study to record which parameters and switches are
+        # Set up study to record which parameters
         # referenced during the pipeline generation
         self.study._pipeline_to_generate = self.pipeline_name
         self.study._referenced_parameters = set()
-        self.study._referenced_switches = set()
         try:
             pipeline = getter()
-            # Copy referenced parameters and switches to pipeline
+            # Copy referenced parameters to pipeline
             pipeline._referenced_parameters = (
                 self.study._referenced_parameters)
-            pipeline._referenced_switches = (
-                self.study._referenced_switches)
         except AttributeError as e:
             # Need to capture this as exception to avoid it getting
             # confused with specs that don't have pipelines
             raise ArcanaError("AttributeError was thrown: {}".format(e))
         finally:
-            # Reset referenced parameters and switches after generating
-            # pipeline
+            # Reset referenced parameters after generating pipeline
             self.study._pipeline_to_generate = None
             self.study._referenced_parameters = None
-            self.study._referenced_switches = None
         if self.name not in pipeline.output_names:
             raise ArcanaOutputNotProducedException(
                 "'{}' is not produced by {} class given the provided "

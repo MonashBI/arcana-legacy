@@ -103,12 +103,11 @@ class Pipeline(object):
             "Duplicate outputs found in '{}'"
             .format("', '".join(self.output_names)))
         self._citations = citations
-        # For recording which parameters and switches are accessed
+        # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
         # provenance
         self._referenced_parameters = None
-        self._referenced_switches = None
 
     def _check_spec_names(self, specs, spec_type):
         # Check for unrecognised inputs/outputs
@@ -474,10 +473,6 @@ class Pipeline(object):
     @property
     def referenced_parameters(self):
         return iter(self._referenced_parameters)
-
-    @property
-    def referenced_switches(self):
-        return iter(self._referenced_switches)
 
     @property
     def all_parameters(self):

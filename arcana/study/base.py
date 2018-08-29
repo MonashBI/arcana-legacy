@@ -13,7 +13,7 @@ from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseField, FilesetSpec)
 from nipype.pipeline import engine as pe
-from arcana.parameter import Parameter, Switch
+from arcana.parameter import Parameter, SwitchSpec
 from arcana.interfaces.iterators import (
     InputSessions, InputSubjects)
 from arcana.node import Node
@@ -50,10 +50,6 @@ class Study(object):
         either as a dictionary of key-value pairs or as a list of
         'Parameter' objects. The name and dtype must match ParameterSpecs in
         the _parameter_spec class attribute (see 'add_parameter_specs').
-    switches : List[Switch] | Dict[str, str]
-        Switches that are used to specify which analysis branches to
-        follow, i.e. which method to select out of several comparable
-        methods
     subject_ids : List[(int|str)]
         List of subject IDs to restrict the analysis to
     visit_ids : List[(int|str)]
@@ -85,21 +81,15 @@ class Study(object):
         Adds specs to the '_parameter_specs' class attribute,
         which is a dictionary that maps the names of parameters that are
         provided to pipelines in the study
-    add_switch_specs : List[SwitchSpec]
-        Adds switch specs to the '_switch_specs' class attribute,
-        which is a dictionary that maps the names of switches that are
-        used to switch between comparable pipeline methods.
     """
 
     _data_specs = {}
     _parameter_specs = {}
-    _switch_specs = {}
 
-    implicit_cls_attrs = ['_data_specs', '_parameter_specs',
-                          '_switch_specs']
+    implicit_cls_attrs = ['_data_specs', '_parameter_specs']
 
-    def __init__(self, name, repository, processor, inputs, parameters=None,
-                 switches=None, subject_ids=None, visit_ids=None,
+    def __init__(self, name, repository, processor, inputs,
+                 parameters=None, subject_ids=None, visit_ids=None,
                  enforce_inputs=True, reprocess=False, fill_tree=False):
         try:
             # This works for PY3 as the metaclass inserts it itself if
@@ -187,27 +177,6 @@ class Study(object):
                                 "run")
                 else:
                     self._bound_specs[spec.name] = spec.bind(self)
-        # Set switches
-        if switches is None:
-            switches = {}
-        elif not isinstance(switches, dict):
-            switches = {s.name: s for s in switches}
-        self._switches = {}
-        # Set switches
-        for switch_name, switch in list(switches.items()):
-            if not isinstance(switch, Switch):
-                switch = Switch(switch_name, switch)
-            try:
-                switch_spec = self._switch_specs[switch_name]
-            except KeyError:
-                raise ArcanaNameError(
-                    "Provided switch '{}' is not present in the "
-                    "allowable switches for {} classes ('{}')"
-                    .format(switch_name, type(self).__name__,
-                            "', '".join(self.default_switches)))
-            switch_spec.check_valid(switch, ' provided to {}'
-                                    .format(self))
-            self._switches[switch_name] = switch
         # Set parameters
         if parameters is None:
             parameters = {}
@@ -227,31 +196,15 @@ class Study(object):
                     "allowable parameters for {} classes ('{}')"
                     .format(param_name, type(self).__name__,
                             "', '".join(self.parameter_spec_names())))
-            if param.value is not None and not isinstance(
-                    param.value, param_spec.dtype):
-                raise ArcanaUsageError(
-                    "Incorrect datatype for '{}' parameter provided "
-                    "to {}(name='{}') (as '{}'), ({}). Should be {}"
-                    .format(param.name, type(self).__name__, name,
-                            param_name, type(param.value),
-                            param_spec.dtype))
-            if (param_spec.choices is not None and
-                    param.value not in param_spec.choices):
-                raise ArcanaUsageError(
-                    "Provided value for '{}' parameter in {}(name='{}') "
-                    "(as '{}') , {}, is not a valid choice. Can be one "
-                    "of {}"
-                    .format(param.name, type(self).__name__, name,
-                            param_name, param.value,
-                            ','.join(param_spec.choices)))
+            param_spec.check_valid(param, context='{}(name={})'.format(
+                type(self).__name__, name))
             self._parameters[param_name] = param
-        # For recording which parameters and switches are accessed
+        # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
         # provenance
         self._pipeline_to_generate = None
         self._referenced_parameters = None
-        self._referenced_switches = None
 
     def __repr__(self):
         """String representation of the study"""
@@ -376,20 +329,6 @@ class Study(object):
                         "', '".join(self.parameter_spec_names())))
         return parameter
 
-    def _get_switch(self, name):
-        try:
-            switch = self._switches[name]
-        except KeyError:
-            try:
-                switch = self._switch_specs[name]
-            except KeyError:
-                raise ArcanaNameError(
-                    name,
-                    "Invalid switch, '{}', in {} (valid '{}')".format(
-                        name, self._param_error_location,
-                        "', '".join(self.switch_spec_names())))
-        return switch
-
     def parameter(self, name):
         """
         Retrieves the value of the parameter and registers the parameter
@@ -404,21 +343,7 @@ class Study(object):
             self._referenced_parameters.add(name)
         return self._get_parameter(name).value
 
-    def switch(self, name):  # @UnusedVariable @IgnorePep8
-        """
-        Retrieves the value of the switch and registers the parameter
-        as being used by this pipeline for use in provenance capture
-
-        Parameters
-        ----------
-        name : str
-            The name of the parameter to retrieve
-        """
-        if self._referenced_switches is not None:
-            self._referenced_switches.add(name)
-        return self._get_switch(name).value
-
-    def branch(self, name, values):  # @UnusedVariable @IgnorePep8
+    def branch(self, name, values=None):  # @UnusedVariable @IgnorePep8
         """
         Checks whether the given switch matches the value provided
 
@@ -427,29 +352,41 @@ class Study(object):
         name : str
             The name of the parameter to retrieve
         value : str | None
-            The value of the switch to match if a non-boolean switch
+            The value(s) of the switch to match if a non-boolean switch
         """
         if isinstance(values, basestring):
             values = [values]
-        spec = self.switch_spec(name)
+        spec = self.parameter_spec(name)
+        if not isinstance(spec, SwitchSpec):
+            raise ArcanaUsageError(
+                "{} is standard parameter not a switch".format(spec))
+        switch = self._get_parameter(name)
         if spec.is_boolean:
-            raise ArcanaDesignError(
-                "Boolean switch '{}' in {} should not be used in a "
-                "'branch' call".format(
-                    name, self._param_error_location))
-        switch = self._get_switch(name)
-        # Register parameter as being used by the pipeline
-        unrecognised_values = set(values) - set(spec.choices)
-        if unrecognised_values:
-            raise ArcanaDesignError(
-                "Provided value(s) ('{}') for switch '{}' in {} "
-                "is not a valid option ('{}')".format(
-                    "', '".join(unrecognised_values), name,
-                    self._param_error_location,
-                    "', '".join(spec.choices)))
-        if self._referenced_switches is not None:
-            self._referenced_switches.add(name)
-        return switch.value in values
+            if values is not None:
+                raise ArcanaDesignError(
+                    "Should not provide values ({}) to boolean switch "
+                    "'{}' in {}".format(
+                        values, name, self._param_error_location))
+            in_branch = switch.value
+        else:
+            if values is None:
+                raise ArcanaDesignError(
+                    "Value(s) need(s) to be provided non-boolean switch"
+                    " '{}' in {}".format(
+                        name, self._param_error_location))
+            # Register parameter as being used by the pipeline
+            unrecognised_values = set(values) - set(spec.choices)
+            if unrecognised_values:
+                raise ArcanaDesignError(
+                    "Provided value(s) ('{}') for switch '{}' in {} "
+                    "is not a valid option ('{}')".format(
+                        "', '".join(unrecognised_values), name,
+                        self._param_error_location,
+                        "', '".join(spec.choices)))
+            in_branch = switch.value in values
+        if self._referenced_parameters is not None:
+            self._referenced_parameters.add(name)
+        return in_branch
 
     def unhandled_branch(self, name):
         """
@@ -465,7 +402,7 @@ class Study(object):
         """
         raise ArcanaDesignError(
             "'{}' value of '{}' switch in {} is not handled"
-            .format(self._get_switch(name), name,
+            .format(self._get_parameter(name), name,
                     self._param_error_location))
 
     @property
@@ -480,8 +417,9 @@ class Study(object):
 
     @property
     def switches(self):
-        for name in self._switch_specs:
-            yield self._get_switch(name)
+        for name in self._parameter_specs:
+            if isinstance(self.spec(name), SwitchSpec):
+                yield self._get_parameter(name)
 
     def data(self, name, subject_id=None, visit_id=None):
         """
@@ -617,16 +555,13 @@ class Study(object):
                     try:
                         spec = self._parameter_specs[name]
                     except KeyError:
-                        try:
-                            spec = self._switch_specs[name]
-                        except KeyError:
-                            raise ArcanaNameError(
-                                name,
-                                "'{}' is not a recognised spec name "
-                                "for {} studies:\n{}."
-                                .format(name, self.__class__.__name__,
-                                        '\n'.join(sorted(
-                                            self.spec_names()))))
+                        raise ArcanaNameError(
+                            name,
+                            "'{}' is not a recognised spec name "
+                            "for {} studies:\n{}."
+                            .format(name, self.__class__.__name__,
+                                    '\n'.join(sorted(
+                                        self.spec_names()))))
         return spec
 
     @classmethod
@@ -663,17 +598,6 @@ class Study(object):
                                "', '".join(list(cls._parameter_specs.keys()))))
 
     @classmethod
-    def switch_spec(cls, name):
-        try:
-            return cls._switch_specs[name]
-        except KeyError:
-            raise ArcanaNameError(
-                name,
-                "No switch spec named '{}' in {} (available: "
-                "'{}')".format(name, cls.__name__,
-                               "', '".join(list(cls._switch_specs.keys()))))
-
-    @classmethod
     def data_specs(cls):
         """Lists all data_specs defined in the study class"""
         return iter(cls._data_specs.values())
@@ -681,10 +605,6 @@ class Study(object):
     @classmethod
     def parameter_specs(cls):
         return iter(cls._parameter_specs.values())
-
-    @classmethod
-    def switch_specs(cls):
-        return iter(cls._switch_specs.values())
 
     @classmethod
     def data_spec_names(cls):
@@ -697,15 +617,9 @@ class Study(object):
         return iter(cls._parameter_specs.keys())
 
     @classmethod
-    def switch_spec_names(cls):
-        """Lists the names of all switch_specs defined in the study"""
-        return iter(cls._switch_specs.keys())
-
-    @classmethod
     def spec_names(cls):
         return chain(cls.data_spec_names(),
-                     cls.parameter_spec_names(),
-                     cls.switch_spec_names())
+                     cls.parameter_spec_names())
 
     @classmethod
     def acquired_data_specs(cls):
@@ -811,9 +725,6 @@ class Study(object):
         print('\nAvailable parameters:')
         for spec in cls.parameter_specs():
             print(spec)
-        print('\nAvailable switches:')
-        for spec in cls.switches_specs():
-            print(spec)
 
 
 class StudyMetaClass(type):
@@ -821,7 +732,7 @@ class StudyMetaClass(type):
     Metaclass for all study classes that collates data specs from
     bases and checks pipeline method names.
 
-    Combines specifications in add_(data|parameter|switch)_specs from
+    Combines specifications in add_(data|parameter)_specs from
     the class to be created with its base classes, overriding matching
     specs in the order of the bases.
     """
@@ -839,14 +750,9 @@ class StudyMetaClass(type):
             add_parameter_specs = dct['add_parameter_specs']
         except KeyError:
             add_parameter_specs = []
-        try:
-            add_switch_specs = dct['add_switch_specs']
-        except KeyError:
-            add_switch_specs = []
         combined_attrs = set()
         combined_data_specs = {}
         combined_parameter_specs = {}
-        combined_switch_specs = {}
         for base in reversed(bases):
             # Get the combined class dictionary including base dicts
             # excluding auto-added properties for data and parameter specs
@@ -863,17 +769,10 @@ class StudyMetaClass(type):
                     (p.name, p) for p in base.parameter_specs())
             except AttributeError:
                 pass
-            try:
-                combined_switch_specs.update(
-                    (s.name, s) for s in base.switch_specs())
-            except AttributeError:
-                pass
         combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_parameter_specs.update(
             (p.name, p) for p in add_parameter_specs)
-        combined_switch_specs.update(
-            (s.name, s) for s in add_switch_specs)
         # Check that the pipeline names in data specs correspond to a
         # pipeline method in the class
         for spec in add_data_specs:
@@ -885,15 +784,13 @@ class StudyMetaClass(type):
                         spec.name, spec.pipeline_name, name))
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
-                             set(combined_parameter_specs) &
-                             set(combined_switch_specs))
+                             set(combined_parameter_specs))
         if spec_name_clashes:
             raise ArcanaUsageError(
                 "'{}' name both data and parameter specs in '{}' class"
                 .format("', '".join(spec_name_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_parameter_specs'] = combined_parameter_specs
-        dct['_switch_specs'] = combined_switch_specs
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
         return type(name, bases, dct)

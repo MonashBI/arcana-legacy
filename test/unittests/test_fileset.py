@@ -125,7 +125,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('requires_foo', text_format, 'pipeline5'),
         FilesetSpec('requires_bar', text_format, 'pipeline5')]
 
-    add_switch_specs = [
+    add_parameter_specs =[
         SwitchSpec('switch', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
@@ -161,7 +161,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     def pipeline3(self, **kwargs):
         outputs = [FilesetSpec('another_derivable', text_format)]
-        if self.switch('switch'):
+        if self.branch('switch'):
             outputs.append(FilesetSpec('requires_switch', text_format))
         pipeline = self.new_pipeline(
             'pipeline3',
@@ -175,7 +175,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
         pipeline.connect_output('another_derivable', identity, 'a')
-        if self.switch('switch'):
+        if self.branch('switch'):
             pipeline.connect_output('requires_switch', identity, 'b')
         return pipeline
 
@@ -246,7 +246,7 @@ class TestDerivable(BaseTestCase):
             TestDerivableStudy,
             'study_with_switch',
             inputs=[FilesetMatch('required', text_format, 'required')],
-            switches={'switch': True})
+            parameters={'switch': True})
         self.assertTrue(
             study_with_switch.spec('requires_switch').derivable)
         self.assertTrue(
@@ -256,7 +256,7 @@ class TestDerivable(BaseTestCase):
             TestDerivableStudy,
             'study_bar_branch',
             inputs=[FilesetMatch('required', text_format, 'required')],
-            switches={'branch': 'bar'})
+            parameters={'branch': 'bar'})
         self.assertFalse(study_bar_branch.spec('requires_foo').derivable)
         self.assertTrue(study_bar_branch.spec('requires_bar').derivable)
         # Test study with optional input
@@ -271,7 +271,7 @@ class TestDerivable(BaseTestCase):
             TestDerivableStudy,
             'study_unhandled',
             inputs=[FilesetMatch('required', text_format, 'required')],
-            switches={'branch': 'wee'})
+            parameters={'branch': 'wee'})
         self.assertRaises(
             ArcanaDesignError,
             getattr,
