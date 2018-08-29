@@ -72,6 +72,10 @@ class SimpleRepository(BaseRepository):
     def root_dir(self):
         return self._root_dir
 
+    @property
+    def depth(self):
+        return self._depth
+
     def get_fileset(self, fileset):
         """
         Set the path of the fileset from the repository
@@ -344,7 +348,8 @@ class SimpleRepository(BaseRepository):
     def _filter_files(cls, files, dirs, base_dir):
         # Filter out hidden files (i.e. starting with '.')
         files = [op.join(base_dir, f) for f in files
-                 if not (f.startswith('.') or f == cls.FIELDS_FNAME)]
+                 if not (f.startswith('.') or
+                         f.startswith(cls.FIELDS_FNAME))]
         # Filter out hidden directories (i.e. starting with '.')
         # and derived study directories from fileset names
         files.extend(op.join(base_dir, d) for d in dirs
