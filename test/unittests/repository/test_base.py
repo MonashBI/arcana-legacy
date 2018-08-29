@@ -12,7 +12,7 @@ from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.repository.simple import DirectoryRepository  # @IgnorePep8
+from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):

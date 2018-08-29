@@ -19,8 +19,7 @@ import logging
 import arcana
 from arcana.data import Fileset
 from arcana.utils import classproperty
-from arcana.repository.simple import (
-    DirectoryRepository)
+from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
