@@ -168,5 +168,17 @@ class Requirement(object):
 
 
 class RequirementManager(object):
+    """
+    Checks to see if requirements are satisfiable by the current
+    computing environment. Subclasses can also manage the loading and
+    unloading of modules
+    """
 
-    pass
+    def satisfiable(self, req):
+        raise NotImplementedError
+
+    def load(self, req):
+        pass
+
+    def unload(self, req):
+        pass
