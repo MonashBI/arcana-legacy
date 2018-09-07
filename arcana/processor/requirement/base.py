@@ -1,41 +1,14 @@
+from __future__ import division
 from builtins import str
 from builtins import object
-import re
+import logging
 from itertools import zip_longest
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
-import logging
+from .utils import split_version
+
 
 logger = logging.getLogger('arcana')
-
-
-def split_version(version_str):
-    logger.debug("splitting version string '{}'"
-                 .format(version_str))
-    try:
-        sanitized_ver_str = re.match(r'[^\d]*(\d+(?:\.\d+)*)[^\d]*',
-                                     version_str).group(1)
-        return tuple(
-            int(p) for p in sanitized_ver_str.split('.'))
-    except (ValueError, AttributeError) as e:
-        raise ArcanaRequirementVersionException(
-            "Could not parse version string '{}': {}".format(
-                version_str, e))
-
-
-def date_split(version_str):
-    try:
-        return tuple(int(p) for p in version_str.split('-'))
-    except ValueError as e:
-        raise ArcanaRequirementVersionException(str(e))
-
-
-def matlab_version_split(version_str):
-    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
-    if match is None:
-        raise ArcanaRequirementVersionException(
-            "Do not understand Matlab version '{}'".format(version_str))
-    return int(match.group(1)), match.group(2).lower()
 
 
 class Requirement(object):
@@ -192,3 +165,8 @@ class Requirement(object):
         # combined messages from all parameters.
         raise ArcanaRequirementVersionException(
             ' and '.join(str(e) for e in ver_exceptions))
+
+
+class RequirementManager(object):
+
+    pass

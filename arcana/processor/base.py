@@ -42,8 +42,8 @@ class BaseProcessor(object):
 
     default_plugin_args = {}
 
-    def __init__(self, work_dir, max_process_time=None,
-                 reprocess=False, **kwargs):
+    def __init__(self, work_dir, requirement_manager=None,
+                 max_process_time=None, reprocess=False, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
@@ -135,8 +135,8 @@ class BaseProcessor(object):
             pipeline, subject_ids=subject_ids, visit_ids=visit_ids)
         if not sessions_to_process:
             raise ArcanaNoRunRequiredException(
-                "All outputs of '{}' are already present in project repository,"
-                "skipping".format(pipeline.name))
+                "All outputs of '{}' are already present in project "
+                "repository, skipping".format(pipeline.name))
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
         complete_workflow.add_nodes([pipeline._workflow])
