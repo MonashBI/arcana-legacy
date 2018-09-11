@@ -13,7 +13,7 @@ from .base import RequirementManager, Requirement
 logger = logging.getLogger('arcana')
 
 
-class ModulesManager(RequirementManager):
+class ModulesRequirementManager(RequirementManager):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
