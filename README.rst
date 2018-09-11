@@ -1,10 +1,10 @@
 Arcana
 ======
 
-.. image:: https://travis-ci.org/monashbiomedicalimaging/arcana.svg?branch=master
-  :target: https://travis-ci.org/monashbiomedicalimaging/arcana
-.. image:: https://codecov.io/gh/monashbiomedicalimaging/arcana/branch/master/graph/badge.svg
-  :target: https://codecov.io/gh/monashbiomedicalimaging/arcana
+.. image:: https://travis-ci.org/MonashBI/arcana.svg?branch=master
+  :target: https://travis-ci.org/MonashBI/arcana
+.. image:: https://codecov.io/gh/MonashBI/arcana/branch/master/graph/badge.svg
+  :target: https://codecov.io/gh/MonashBI/arcana
 .. image:: https://img.shields.io/pypi/pyversions/arcana.svg
   :target: https://pypi.python.org/pypi/arcana/
   :alt: Supported Python versions
