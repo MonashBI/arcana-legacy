@@ -212,7 +212,11 @@ class XnatRepository(BaseRepository):
     def get_field(self, field):
         with self:
             xsession = self.get_xsession(field)
-            val = field.dtype(xsession.fields[field.name])
+            val_str = xsession.fields[field.name]
+            if field.array:
+                val = [field.dtype(v) for v in val_str.split(',')]
+            else:
+                val = field.dtype(val_str)
         return val
 
     def put_fileset(self, fileset):
@@ -259,6 +263,8 @@ class XnatRepository(BaseRepository):
 
     def put_field(self, field):
         val = field.value
+        if field.array:
+            val = ','.join(val)
         if PY2 and isinstance(val, basestring):  # @UndefinedVariable
             val = oldstr(val)
         with self:

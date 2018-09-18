@@ -113,7 +113,11 @@ class DirectoryRepository(BaseRepository):
             with InterProcessLock(fpath + self.LOCK_SUFFIX,
                                   logger=logger), open(fpath, 'r') as f:
                 dct = json.load(f)
-            return field.dtype(dct[field.name])
+            val = dct[field.name]
+            if field.array:
+                val = [field.dtype(v) for v in val]
+            else:
+                val = field.dtype(val)
         except (KeyError, IOError) as e:
             try:
                 # Check to see if the IOError wasn't just because of a
@@ -125,6 +129,7 @@ class DirectoryRepository(BaseRepository):
             raise ArcanaMissingDataException(
                 "{} does not exist in the local repository {}"
                 .format(field, self))
+        return val
 
     def put_fileset(self, fileset):
         """
@@ -154,7 +159,10 @@ class DirectoryRepository(BaseRepository):
                     dct = {}
                 else:
                     raise
-            dct[field.name] = field.value
+            if field.array:
+                dct[field.name] = list(field.value)
+            else:
+                dct[field.name] = field.value
             with open(fpath, 'w') as f:
                 json.dump(dct, f)
 
