@@ -145,24 +145,29 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,
         visit or project.
+    array : bool
+        Whether the field contains scalar or array data
     """
 
     dtypes = (int, float, str)
 
-    def __init__(self, name, dtype, frequency):
+    def __init__(self, name, dtype, frequency, array=False):
         super(BaseField, self).__init__(name, frequency)
         if dtype not in self.dtypes + (newstr,):
             raise ArcanaError(
                 "Invalid dtype {}, can be one of {}".format(
                     dtype, ', '.join(self._dtype_names())))
         self._dtype = dtype
+        self._array = array
 
     def __eq__(self, other):
         return (super(BaseField, self).__eq__(other) and
-                self.dtype == other.dtype)
+                self.dtype == other.dtype and
+                self.array == other.array)
 
     def __hash__(self):
-        return (super(BaseField, self).__hash__() ^ hash(self.dtype))
+        return (super(BaseField, self).__hash__() ^ hash(self.dtype) ^
+                hash(self.array))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseField, self).find_mismatch(other, indent)
@@ -171,11 +176,19 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
             mismatch += ('\n{}dtype: self={} v other={}'
                          .format(sub_indent, self.dtype,
                                  other.dtype))
+        if self.array != other.array:
+            mismatch += ('\n{}array: self={} v other={}'
+                         .format(sub_indent, self.array,
+                                 other.array))
         return mismatch
 
     @property
     def dtype(self):
         return self._dtype
+
+    @property
+    def array(self):
+        return self._array
 
     @classmethod
     def _dtype_names(cls):
@@ -184,9 +197,10 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
     def initkwargs(self):
         dct = super(BaseField, self).initkwargs()
         dct['dtype'] = self.dtype
+        dct['array'] = self.array
         return dct
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, frequency='{}')"
+        return ("{}(name='{}', dtype={}, frequency='{}', array={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.frequency))
+                        self.frequency, self.array))
