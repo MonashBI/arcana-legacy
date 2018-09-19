@@ -52,7 +52,7 @@ class DirectoryRepository(BaseRepository):
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
 
-    def __init__(self, root_dir, depth=2):
+    def __init__(self, root_dir, depth=None):
         super(DirectoryRepository, self).__init__()
         if not op.exists(root_dir):
             raise ArcanaError(
@@ -190,7 +190,10 @@ class DirectoryRepository(BaseRepository):
         all_visit_ids = set()
         for session_path, dirs, files in os.walk(self.root_dir):
             relpath = op.relpath(session_path, self.root_dir)
-            path_parts = relpath.split(op.sep)
+            if relpath == '.':
+                path_parts = []
+            else:
+                path_parts = relpath.split(op.sep)
             depth = len(path_parts)
             if depth == self._depth:
                 # Load input data
@@ -345,16 +348,19 @@ class DirectoryRepository(BaseRepository):
     def fields_json_path(self, field):
         return op.join(self.session_dir(field), self.FIELDS_FNAME)
 
-    @classmethod
-    def guess_depth(cls, root_dir):
+    def guess_depth(self, root_dir):
+        """
+        Find the first directory where we can parse a fileset
+        and return its depth
+        """
         for path, dirs, files in os.walk(root_dir):
-            for name in cls._filter_files(files, dirs, path):
+            for name in self._filter_files(files, dirs, path):
                 try:
                     Fileset.from_path(name)
                 except Exception:
                     continue
                 else:
-                    return len(op.split(path))
+                    return self.path_depth(path)
         raise ArcanaUsageError(
             "Could not guess depth of '{}' repository as did not find "
             "a valid session directory within sub-directories."
@@ -373,3 +379,6 @@ class DirectoryRepository(BaseRepository):
                          cls.DERIVED_LABEL_FNAME in os.listdir(
                              op.join(base_dir, d)))))
         return files
+
+    def path_depth(self, dpath):
+        return op.relpath(op.dirname(dpath), self.root_dir).count(op.sep)
