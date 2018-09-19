@@ -51,6 +51,7 @@ class BaseProcessor(object):
         self._plugin_args.update(kwargs)
         self._init_plugin()
         self._study = None
+        self._requirement_manager = requirement_manager
 
     def _init_plugin(self):
         self._plugin = self.nipype_plugin_cls(**self._plugin_args)
@@ -58,6 +59,10 @@ class BaseProcessor(object):
     @property
     def study(self):
         return self._study
+
+    @property
+    def requirement_manager(self):
+        return self._requirement_manager
 
     def bind(self, study):
         cpy = deepcopy(self)

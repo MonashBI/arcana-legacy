@@ -146,8 +146,9 @@ class Study(object):
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
                     try:
-                        spec.format.converter_from(inpt.format,
-                                                   processor=self.processor)
+                        # FIXME: should provide requirement manager to
+                        # converter_from but it hasn't been implemented yet
+                        spec.format.converter_from(inpt.format)
                     except ArcanaNoConverterError as e:
                         raise ArcanaNoConverterError(
                             "{}, which is requried to convert:\n{} "
@@ -796,6 +797,7 @@ class Study(object):
         def method(self, **name_maps):
             return self.construct_basic_pipeline(*args, name_maps=name_maps,
                                                  **kwargs)
+        return method
 
 
 class StudyMetaClass(type):

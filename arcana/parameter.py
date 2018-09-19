@@ -101,18 +101,18 @@ class ParameterSpec(Parameter):
         return self._desc
 
     def __repr__(self):
-        return ("ParameterSpec(name='{}', default={}, choices={}, "
-                "desc='{}')".format(self.name, self.default,
-                                    self.choices, self.desc))
+        return "ParameterSpec(name='{}', default={}, desc='{}')".format(
+            self.name, self.default, self.desc)
 
     def check_valid(self, parameter, context=None):
-        context = 'in ' + context if context is not None else ''
-        if not isinstance(parameter.value, self.dtype):
-            raise ArcanaUsageError(
-                "Incorrect datatype for '{}' parameter provided "
-                "({}){}, Should be {}"
-                .format(parameter.name, type(parameter.value),
-                        context, self.dtype))
+        if parameter.value is not None:
+            context = 'in ' + context if context is not None else ''
+            if not isinstance(parameter.value, self.dtype):
+                raise ArcanaUsageError(
+                    "Incorrect datatype for '{}' parameter provided "
+                    "({}){}, Should be {}"
+                    .format(parameter.name, type(parameter.value),
+                            context, self.dtype))
 
 
 class SwitchSpec(ParameterSpec):
