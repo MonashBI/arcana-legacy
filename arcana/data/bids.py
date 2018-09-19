@@ -5,7 +5,7 @@ from .match import FilesetMatch
 class BidsAttrs(object):
 
     def __init__(self, type=None, modality=None, run=None, metadata=None,  # @ReservedAssignment @IgnorePep8
-                 field_maps=None, bvec=None, bval=None, description=None):
+                 field_maps=None, bvec=None, bval=None, desc=None):
         self._type = type
         self._modality = modality
         self._run = run
@@ -13,7 +13,7 @@ class BidsAttrs(object):
         self._bval = bval
         self._bvec = bvec
         self._field_maps = field_maps
-        self._description = description
+        self._desc = desc
 
     @property
     def type(self):
@@ -44,8 +44,8 @@ class BidsAttrs(object):
         return self._field_maps
 
     @property
-    def description(self):
-        return self._description
+    def desc(self):
+        return self._desc
 
 
 class BidsMatch(FilesetMatch):
