@@ -333,8 +333,8 @@ class FieldSpec(BaseField, BaseSpec):
 
     def __init__(self, name, dtype, pipeline_name=None,
                  frequency='per_session', desc=None, optional=False,
-                 default=None):
-        BaseField.__init__(self, name, dtype, frequency)
+                 default=None, array=None):
+        BaseField.__init__(self, name, dtype, frequency, array=array)
         BaseSpec.__init__(self, name, pipeline_name, desc,
                           optional=optional, default=default)
 
@@ -352,9 +352,9 @@ class FieldSpec(BaseField, BaseSpec):
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, pipeline_name={}, "
-                "frequency={})".format(
+                "frequency={}, array={})".format(
                     self.__class__.__name__, self.name, self.dtype,
-                    self.pipeline_name, self.frequency))
+                    self.pipeline_name, self.frequency, self.array))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
