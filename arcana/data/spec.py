@@ -13,7 +13,7 @@ from .collection import FilesetCollection, FieldCollection
 class BaseSpec(object):
 
     def __init__(self, name, pipeline_name=None, desc=None,
-                 optional=False):
+                 optional=False, default=None):
         if pipeline_name is not None:
             if not isinstance(pipeline_name, basestring):
                 raise ArcanaUsageError(
@@ -28,15 +28,17 @@ class BaseSpec(object):
         self._study = None
         self._optional = optional
         self._collection = None
+        self._default = default
 
     def __eq__(self, other):
         return (self.pipeline_name == other.pipeline_name and
                 self.desc == other.desc and
-                self.optional == other.optional)
+                self.optional == other.optional and
+                self.default == other.default)
 
     def __hash__(self):
         return (hash(self.pipeline_name) ^ hash(self.desc) ^
-                hash(self.optional))
+                hash(self.optional) ^ hash(self.default))
 
     def bind(self, study):
         """
@@ -183,6 +185,10 @@ class BaseSpec(object):
         return self._study
 
     @property
+    def default(self):
+        return self._default
+
+    @property
     def desc(self):
         return self._desc
 
@@ -204,6 +210,7 @@ class BaseSpec(object):
         dct['pipeline_name'] = self.pipeline_name
         dct['desc'] = self.desc
         dct['optional'] = self.optional
+        dct['default'] = self.default
         return dct
 
 
@@ -233,6 +240,9 @@ class FilesetSpec(BaseFileset, BaseSpec):
     optional : bool
         Whether the specification is optional or not. Only valid for
         "acquired" fileset specs.
+    default : FilesetCollection
+        The default value to be passed as an input to this spec if none are
+        provided
     """
 
     is_spec = True
@@ -240,10 +250,11 @@ class FilesetSpec(BaseFileset, BaseSpec):
     CollectionClass = FilesetCollection
 
     def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', desc=None, optional=False):
+                 frequency='per_session', desc=None, optional=False,
+                 default=None):
         BaseFileset.__init__(self, name, format, frequency)
         BaseSpec.__init__(self, name, pipeline_name, desc,
-                          optional=optional)
+                          optional=optional, default=default)
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -308,6 +319,12 @@ class FieldSpec(BaseField, BaseSpec):
         visit or project.
     desc : str
         Description of what the field represents
+    optional : bool
+        Whether the specification is optional or not. Only valid for
+        "acquired" fileset specs.
+    default : FilesetCollection
+        The default value to be passed as an input to this spec if none are
+        provided
     """
 
     is_spec = True
@@ -315,10 +332,11 @@ class FieldSpec(BaseField, BaseSpec):
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_name=None,
-                 frequency='per_session', desc=None, optional=False):
+                 frequency='per_session', desc=None, optional=False,
+                 default=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseSpec.__init__(self, name, pipeline_name, desc,
-                          optional=optional)
+                          optional=optional, default=default)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
