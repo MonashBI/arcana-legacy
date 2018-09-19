@@ -2,7 +2,8 @@ from __future__ import absolute_import
 from builtins import next
 from builtins import str
 from builtins import range
-import os.path
+import os
+import os.path as op
 import re
 import shutil
 from nipype.interfaces.base import (
@@ -19,21 +20,13 @@ from nipype.interfaces.base import OutputMultiPath, InputMultiPath
 import numpy as np
 
 
-zip_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), 'resources', 'bash',
-                 'zip.sh'))
-targz_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), 'resources', 'bash',
-                 'targz.sh'))
-cp_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), 'resources', 'bash',
-                 'copy_file.sh'))
-cp_dir_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), 'resources', 'bash',
-                 'copy_dir.sh'))
-mkdir_path = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), 'resources', 'bash',
-                 'make_dir.sh'))
+bash_resources = op.abspath(op.join(op.dirname(__file__), 'resources', 'bash'))
+
+zip_path = op.join(bash_resources, 'zip.sh')
+targz_path = op.join(bash_resources, 'targz.sh')
+cp_path = op.join(bash_resources, 'copy_file.sh')
+cp_dir_path = op.join(bash_resources, 'copy_dir.sh')
+mkdir_path = op.join(bash_resources, 'make_dir.sh')
 
 
 special_char_re = re.compile(r'[^\w]')
@@ -150,7 +143,7 @@ class Chain(IdentityInterface):
 
 
 def dicom_fname_sort_key(fname):
-    in_parts = special_char_re.split(os.path.basename(fname))
+    in_parts = special_char_re.split(op.basename(fname))
     out_parts = []
     for part in in_parts:
         try:
@@ -178,7 +171,7 @@ class JoinPath(BaseInterface):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['path'] = os.path.join(self.inputs.dirname,
+        outputs['path'] = op.join(self.inputs.dirname,
                                        self.inputs.filename)
         return outputs
 
@@ -210,13 +203,13 @@ class CopyFile(CommandLine):
     def _list_outputs(self):
         outputs = self._outputs().get()
 
-        outputs['copied'] = os.path.join(self.inputs.base_dir, self.inputs.dst)
-        outputs['basedir'] = os.path.join(self.inputs.base_dir)
+        outputs['copied'] = op.join(self.inputs.base_dir, self.inputs.dst)
+        outputs['basedir'] = op.join(self.inputs.base_dir)
         return outputs
 
     def _gen_filename(self, name):
         if name == 'copied':
-            fname = os.path.basename(self.inputs.dst)
+            fname = op.basename(self.inputs.dst)
         else:
             assert False
         return fname
@@ -247,17 +240,17 @@ class CopyDir(CommandLine):
     def _list_outputs(self):
         outputs = self._outputs().get()
         if self.inputs.method == 1:
-            outputs['copied'] = os.path.join(self.inputs.base_dir)
-            outputs['basedir'] = os.path.join(self.inputs.base_dir)
+            outputs['copied'] = op.join(self.inputs.base_dir)
+            outputs['basedir'] = op.join(self.inputs.base_dir)
         elif self.inputs.method == 2:
-            outputs['copied'] = os.path.join(self.inputs.base_dir,
+            outputs['copied'] = op.join(self.inputs.base_dir,
                                              self._gen_filename('copied'))
-            outputs['basedir'] = os.path.join(self.inputs.base_dir)
+            outputs['basedir'] = op.join(self.inputs.base_dir)
         return outputs
 
     def _gen_filename(self, name):
         if name == 'copied':
-            fname = os.path.basename(self.inputs.dst)
+            fname = op.basename(self.inputs.dst)
         else:
             assert False
         return fname
@@ -283,13 +276,13 @@ class MakeDir(CommandLine):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['new_dir'] = os.path.join(self.inputs.base_dir)
+        outputs['new_dir'] = op.join(self.inputs.base_dir)
 #                                           self._gen_filename('new_dir'))
         return outputs
 
     def _gen_filename(self, name):
         if name == 'new_dir':
-            fname = os.path.basename(self.inputs.name_dir)
+            fname = op.basename(self.inputs.name_dir)
         else:
             assert False
         return fname
@@ -320,7 +313,7 @@ class ZipDir(CommandLine):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['zipped'] = os.path.abspath(
+        outputs['zipped'] = op.abspath(
             self._gen_filename('zipped'))
         return outputs
 
@@ -329,7 +322,7 @@ class ZipDir(CommandLine):
             if isdefined(self.inputs.zipped):
                 fname = self.inputs.zipped
             else:
-                fname = (os.path.basename(self.inputs.dirname) +
+                fname = (op.basename(self.inputs.dirname) +
                          self.inputs.ext_prefix + self.zip_ext)
         else:
             assert False
@@ -368,7 +361,7 @@ class UnzipDir(CommandLine):
         except StopIteration:
             raise ArcanaUsageError(
                 "No files or directories found in unzipped directory")
-        outputs['unzipped'] = os.path.join(os.getcwd(), unzipped)
+        outputs['unzipped'] = op.join(os.getcwd(), unzipped)
         return outputs
 
 
@@ -398,15 +391,15 @@ class CopyToDir(BaseInterface):
         os.makedirs(dirname)
         ext = self.inputs.extension
         for i, f in enumerate(self.inputs.in_files):
-            if os.path.isdir(f):
+            if op.isdir(f):
                 out_name = f.split('/')[-1]
                 if ext:
                     out_name = '{0}_{1}'.format(
                         out_name, ext+str(i).zfill(3))
                 shutil.copytree(f, dirname+'/{}'.format(out_name))
-            elif os.path.isfile(f):
+            elif op.isfile(f):
                 if ext == '.dcm':
-                    fname = os.path.join(dirname, str(i).zfill(4)) + ext
+                    fname = op.join(dirname, str(i).zfill(4)) + ext
                 else:
                     fname = dirname
                 shutil.copy(f, fname)
@@ -428,12 +421,14 @@ class CopyToDir(BaseInterface):
         if isdefined(self.inputs.out_dir):
             dpath = self.inputs.out_dir
         else:
-            dpath = os.path.join(os.getcwd(), 'store_dir')
+            dpath = op.join(os.getcwd(), 'store_dir')
         return dpath
 
 
 class ListDirInputSpec(TraitedSpec):
     directory = File(mandatory=True, desc='directory to read')
+    filter = traits.Function(
+        desc=("A function used to filter the filenames"))
     sort_key = traits.Function(
         desc=("A function that generates a key from the listed filenames with "
               "which to sort them with"))
@@ -459,11 +454,15 @@ class ListDir(BaseInterface):
         dname = self.inputs.directory
         outputs = self._outputs().get()
         key = self.inputs.sort_key if isdefined(self.inputs.sort_key) else None
-        outputs['files'] = sorted((os.path.join(dname, f)
-                                   for f in os.listdir(dname)
-                                   if os.path.isfile(os.path.join(dname, f))),
-                                  key=key)
+        files = []
+        for fname in os.listdir(dname):
+            path = op.join(dname, fname)
+            if op.isfile(path) and (not isdefined(self.inputs.filter) or
+                                    self.inputs.filter(fname)):
+                files.append(path)
+        outputs['files'] = sorted(files, key=key)
         return outputs
+
 
 class TarGzDirInputSpec(CommandLineInputSpec):
     dirname = Directory(mandatory=True, desc='directory name', argstr='%s',
@@ -486,13 +485,12 @@ class TarGzDir(CommandLine):
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['zipped'] = os.path.join(os.getcwd(),
-                                         self._gen_filename('zipped'))
+        outputs['zipped'] = op.join(os.getcwd(), self._gen_filename('zipped'))
         return outputs
 
     def _gen_filename(self, name):
         if name == 'zipped':
-            fname = os.path.basename(self.inputs.dirname) + self.targz_ext
+            fname = op.basename(self.inputs.dirname) + self.targz_ext
         else:
             assert False
         return fname
@@ -531,7 +529,7 @@ class UnTarGzDir(CommandLine):
         except StopIteration:
             raise ArcanaUsageError(
                 "No files or directories found in unzipped directory")
-        outputs['gunzipped'] = os.path.join(os.getcwd(), unzipped)
+        outputs['gunzipped'] = op.join(os.getcwd(), unzipped)
         return outputs
 
 
