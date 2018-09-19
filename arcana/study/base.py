@@ -146,7 +146,8 @@ class Study(object):
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
                     try:
-                        spec.format.converter_from(inpt.format)
+                        spec.format.converter_from(inpt.format,
+                                                   processor=self.processor)
                     except ArcanaNoConverterError as e:
                         raise ArcanaNoConverterError(
                             "{}, which is requried to convert:\n{} "
@@ -167,7 +168,9 @@ class Study(object):
                     # provided for an "acquired fileset"
                     msg = (" acquired fileset '{}' was not given as"
                            " an input of {}.".format(spec.name, self))
-                    if spec.optional:
+                    if spec.default is not None:
+                        self._inputs[spec.name] = spec.default
+                    elif spec.optional:
                         logger.info('Optional' + msg)
                     else:
                         if enforce_inputs:

@@ -155,7 +155,7 @@ class FileFormat(object):
         "Lists acceptable XNAT resource names in order of preference"
         return (self.name.upper(),) + self.alternate_names
 
-    def converter_from(self, file_format):
+    def converter_from(self, file_format, processor=None):
         if file_format == self:
             return IdentityConverter(file_format, self)
         try:
@@ -167,7 +167,7 @@ class FileFormat(object):
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
-        return converter_cls(file_format, self)
+        return converter_cls(file_format, self, processor=processor)
 
     @classmethod
     def register(cls, file_format):
@@ -289,22 +289,24 @@ class Converter(with_metaclass(ABCMeta, object)):
         The output format to convert to
     """
 
-    def __init__(self, input_format, output_format):
+    def __init__(self, input_format, output_format, processor=None):
         self._input_format = input_format
         self._output_format = output_format
-        try:
-            available_modules = Node.available_modules()
-            for possible_reqs in self.requirements:
-                Requirement.best_requirement(possible_reqs,
-                                             available_modules)
-        except ArcanaRequirementVersionException:
-            raise ArcanaConverterNotAvailableError(
-                "Module(s) required for converter {} ({}) are not "
-                "available".format(
-                    self,
-                    ', '.join(r.name for r in self.requirements)))
-        except ArcanaModulesNotInstalledException:
-            pass
+        self._processor = processor
+        if processor is not None:
+            try:
+                available_modules = processor.available_modules()
+                for possible_reqs in self.requirements:
+                    Requirement.best_requirement(possible_reqs,
+                                                 available_modules)
+            except ArcanaRequirementVersionException:
+                raise ArcanaConverterNotAvailableError(
+                    "Module(s) required for converter {} ({}) are not "
+                    "available".format(
+                        self,
+                        ', '.join(r.name for r in self.requirements)))
+            except ArcanaModulesNotInstalledException:
+                pass
 
     def __eq__(self, other):
         return (self.input_format == self.input_format and
@@ -317,6 +319,10 @@ class Converter(with_metaclass(ABCMeta, object)):
     @property
     def output_format(self):
         return self._output_format
+
+    @property
+    def processor(self):
+        return self._processor
 
     @abstractmethod
     def get_node(self, name):
