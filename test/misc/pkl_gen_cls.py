@@ -42,7 +42,7 @@ with open(op.join(SESS_DIR, 'fileset.txt'), 'w') as f:
 #     version : int
 #         A version number for the pipeline to be incremented whenever the output
 #         of the pipeline
-#     name_prefix : str
+#     prefix : str
 #         Prefix prepended to the name of the pipeline. Typically passed
 #         in from a kwarg of the pipeline constructor method to allow
 #         multi-classes to alter the name of the pipeline to avoid name

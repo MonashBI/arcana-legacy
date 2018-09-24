@@ -174,11 +174,37 @@ class RequirementManager(object):
     unloading of modules
     """
 
-    def satisfiable(self, req):
+    def satisfiable(self, *requirements):
+        """
+        Checks whether the given requirements are satisfiable within the given
+        execution context
+
+        Parameter
+        ---------
+        requirements : list(Requirement)
+            List of requirements to check whether they are satisfiable
+        """
         raise NotImplementedError
 
-    def load(self, req):
+    def load(self, *requirements):
+        """
+        Loads the given requirements if necessary
+
+        Parameter
+        ---------
+        requirements : list(Requirement)
+            List of requirements to load
+        """
+
         pass
 
-    def unload(self, req):
+    def unload(self, *requirements):
+        """
+        Unloads the given requirements if necessary
+
+        Parameter
+        ---------
+        requirements : list(Requirement)
+            List of requirements to unload
+        """
         pass

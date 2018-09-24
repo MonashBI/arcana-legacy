@@ -15,4 +15,4 @@ class TempDir(object):
         return tempdir
 
 
-nipype.pipeline.engine.tests.test_join.test_name_prefix_join(TempDir())
+nipype.pipeline.engine.tests.test_join.test_prefix_join(TempDir())

@@ -6,6 +6,7 @@ import logging
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
     MapNode as NipypeMapNode)
+from arcana.requirement import RequirementChecker
 
 logger = logging.getLogger('arcana')
 
@@ -35,6 +36,7 @@ class ArcanaNodeMixin(object):
 
     arcana_params = {
         'requirements': [],
+        'requirement_manager': RequirementChecker(),
         'nthreads': 1,
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
@@ -51,18 +53,18 @@ class ArcanaNodeMixin(object):
         self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
-        self._load_modules()
+        self.requirement_manager.load(self.requirements)
         result = self.nipype_cls._load_results(self, *args, **kwargs)
-        self._unload_modules()
+        self.requirement_manager.unload(self.requirements)
         return result
 
     def _run_command(self, *args, **kwargs):
         start_time = time.time()
         try:
-            self._load_modules()
+            self.requirement_manager.load(self.requirements)
             result = self.nipype_cls._run_command(self, *args, **kwargs)
         finally:
-            self._unload_modules()
+            self.requirement_manager.unload(self.requirements)
         end_time = time.time()
         run_time = (end_time - start_time) // 60
         if run_time > self.wall_time:

@@ -1,7 +1,5 @@
 from past.builtins import basestring
-from future.utils import PY3
 from builtins import object
-from itertools import chain
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError)
@@ -198,12 +196,12 @@ class MultiStudy(Study):
         """
         assert isinstance(sub_study_name, basestring)
         assert isinstance(pipeline_name, basestring)
-        def translated_getter(self, name_prefix='',  # @IgnorePep8
+        def translated_getter(self, prefix='',  # @IgnorePep8
                               add_inputs=add_inputs,
                               add_outputs=add_outputs, **kwargs):
             trans_pipeline = TranslatedPipeline(
                 self, self.sub_study(sub_study_name),
-                pipeline_name, name_prefix=name_prefix,
+                pipeline_name, prefix=prefix,
                 add_inputs=add_inputs, add_outputs=add_outputs,
                 **kwargs)
             trans_pipeline.assert_connected()
@@ -335,7 +333,7 @@ class TranslatedPipeline(Pipeline):
         Sub-study pipeline to translate
     combined_study : MultiStudy
         Study to translate the pipeline to
-    name_prefix : str
+    prefix : str
         Prefix to prepend to the pipeline name to avoid name clashes
     add_inputs : list[str]
         List of additional inputs to add to the translated pipeline
@@ -348,17 +346,17 @@ class TranslatedPipeline(Pipeline):
     """
 
     def __init__(self, combined_study, sub_study, pipeline_name,
-                 name_prefix='', add_inputs=None, add_outputs=None,
+                 prefix='', add_inputs=None, add_outputs=None,
                  **kwargs):
         # Get the relative name of the sub-study (i.e. without the
         # combined study name prefixed)
         ss_name = sub_study.name[(len(combined_study.name) + 1):]
-        name_prefix += ss_name + '_'
+        prefix += ss_name + '_'
         # Create pipeline and overriding its name to include prefix
         # Copy across default parameters and override with extra
         # provided
         pipeline_getter = getattr(sub_study, pipeline_name)
-        pipeline = pipeline_getter(name_prefix=name_prefix, **kwargs)
+        pipeline = pipeline_getter(prefix=prefix, **kwargs)
         try:
             assert isinstance(pipeline, Pipeline)
         except Exception:

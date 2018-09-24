@@ -15,6 +15,8 @@ class BaseCollection(object):
     Base class for collection of filesets and field items
     """
 
+    is_spec = False  # For duck-typing with *Spec and *Selector objects
+
     def __init__(self, collection, frequency):
         self._frequency = frequency
         if collection:

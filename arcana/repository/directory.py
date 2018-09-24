@@ -353,18 +353,25 @@ class DirectoryRepository(BaseRepository):
         Find the first directory where we can parse a fileset
         and return its depth
         """
+        deepest = -1
         for path, dirs, files in os.walk(root_dir):
+            valid_session = True
             for name in self._filter_files(files, dirs, path):
                 try:
                     Fileset.from_path(name)
-                except Exception:
-                    continue
-                else:
-                    return self.path_depth(path)
-        raise ArcanaUsageError(
-            "Could not guess depth of '{}' repository as did not find "
-            "a valid session directory within sub-directories."
-            .format(root_dir))
+                except ArcanaError:
+                    valid_session = False
+                    break
+            if valid_session:
+                depth = self.path_depth(path)
+                if depth > deepest:
+                    deepest = depth
+        if deepest == -1:
+            raise ArcanaUsageError(
+                "Could not guess depth of '{}' repository as did not find "
+                "a valid session directory within sub-directories."
+                .format(root_dir))
+        return deepest
 
     @classmethod
     def _filter_files(cls, files, dirs, base_dir):
@@ -381,4 +388,13 @@ class DirectoryRepository(BaseRepository):
         return files
 
     def path_depth(self, dpath):
-        return op.relpath(op.dirname(dpath), self.root_dir).count(op.sep)
+        relpath = op.relpath(dpath, self.root_dir)
+        if '..' in relpath:
+            raise ArcanaUsageError(
+                "Path '{}' is not a sub-directory of '{}'".format(
+                    dpath, self.root_dir))
+        elif relpath == '.':
+            depth = 0
+        else:
+            depth = relpath.count(op.sep) + 1
+        return depth

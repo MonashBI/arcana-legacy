@@ -42,7 +42,7 @@ class Pipeline(object):
     version : int
         A version number for the pipeline to be incremented whenever the output
         of the pipeline
-    name_prefix : str
+    prefix : str
         Prefix prepended to the name of the pipeline. Typically passed
         in from a kwarg of the pipeline constructor method to allow
         multi-classes to alter the name of the pipeline to avoid name
@@ -60,9 +60,9 @@ class Pipeline(object):
     iterfields = ('subject_id', 'visit_id')
 
     def __init__(self, study, name, inputs, outputs, desc,
-                 citations, version, name_prefix='',
+                 citations, version, prefix='',
                  add_inputs=[], add_outputs=[]):
-        self._name = name_prefix + name
+        self._name = prefix + name
         inputs = list(inputs) + list(add_inputs)
         outputs = list(outputs) + list(add_outputs)
         self._study = study
