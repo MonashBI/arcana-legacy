@@ -125,7 +125,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('requires_foo', text_format, 'pipeline5'),
         FilesetSpec('requires_bar', text_format, 'pipeline5')]
 
-    add_parameter_specs =[
+    add_parameter_specs = [
         SwitchSpec('switch', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 

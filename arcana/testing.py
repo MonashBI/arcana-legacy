@@ -193,15 +193,16 @@ class BaseTestCase(TestCase):
 
     @property
     def repository(self):
-        return self.simple_repository
+        return self.local_repository
 
     @property
-    def simple_repository(self):
+    def local_repository(self):
         try:
-            return self._simple_repository
+            return self._local_repository
         except AttributeError:
-            self._simple_repository = DirectoryRepository(self.project_dir)
-            return self._simple_repository
+            self._local_repository = DirectoryRepository(self.project_dir,
+                                                         depth=2)
+            return self._local_repository
 
     @property
     def processor(self):
@@ -471,10 +472,10 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         self.add_sessions()
 
     def add_sessions(self):
-        self.simple_tree = deepcopy(self.input_tree)
-        for node in self.simple_tree:
+        self.local_tree = deepcopy(self.input_tree)
+        for node in self.local_tree:
             for fileset in node.filesets:
-                fileset._repository = self.simple_repository
+                fileset._repository = self.local_repository
                 fileset._path = op.join(
                     fileset.repository.session_dir(fileset), fileset.fname)
                 self._make_dir(op.dirname(fileset.path))
@@ -482,7 +483,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     f.write(str(self.DATASET_CONTENTS[fileset.name]))
             fields = list(node.fields)
             if fields:
-                dpath = self.simple_repository.session_dir(fields[0])
+                dpath = self.local_repository.session_dir(fields[0])
                 self._make_dir(dpath)
                 dct = {f.name: f.value for f in fields}
                 with open(op.join(dpath,

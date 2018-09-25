@@ -51,6 +51,7 @@ class DirectoryRepository(BaseRepository):
     DERIVED_LABEL_FNAME = '.derived'
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
+    MAX_DEPTH = 2
 
     def __init__(self, root_dir, depth=None):
         super(DirectoryRepository, self).__init__()
@@ -248,7 +249,8 @@ class DirectoryRepository(BaseRepository):
             except KeyError:
                 filesets = []
                 fields = []
-            for fname in self._filter_files(files, dirs, session_path):
+            for fname in chain(self._filter_files(files, session_path),
+                               self._filter_dirs(dirs, session_path)):
                 filesets.append(
                     Fileset.from_path(
                         op.join(session_path, fname),
@@ -350,42 +352,68 @@ class DirectoryRepository(BaseRepository):
 
     def guess_depth(self, root_dir):
         """
-        Find the first directory where we can parse a fileset
-        and return its depth
+        Try to guess the depth of a directory repository (i.e. whether it has
+        sub-folders for multiple subjects or visits, depending on where files
+        and/or derived label files are found in the hierarchy of
+        sub-directories under the root dir.
+
+        Parameters
+        ----------
+        root_dir : str
+            Path to the root directory of the repository
         """
         deepest = -1
         for path, dirs, files in os.walk(root_dir):
-            valid_session = True
-            for name in self._filter_files(files, dirs, path):
-                try:
-                    Fileset.from_path(name)
-                except ArcanaError:
-                    valid_session = False
-                    break
-            if valid_session:
-                depth = self.path_depth(path)
+            depth = self.path_depth(path)
+            filtered_files = self._filter_files(files, path)
+            if filtered_files:
+                logger.info("Guessing depth of directory repository at '{}' is"
+                            " {} due to unfiltered files ('{}') in '{}'"
+                            .format(root_dir, depth,
+                                    "', '".join(filtered_files), path))
+                return depth
+            if self.DERIVED_LABEL_FNAME in files:
+                depth_to_return = max(depth - 1, 0)
+                logger.info("Guessing depth of directory repository at '{}' is"
+                            "{} due to \"Derived label file\" in '{}'"
+                            .format(root_dir, depth_to_return, path))
+                return depth_to_return
+            if depth >= self.MAX_DEPTH:
+                logger.info("Guessing depth of directory repository at '{}' is"
+                            " {} as '{}' is already at maximum depth"
+                            .format(root_dir, self.MAX_DEPTH, path))
+                return self.MAX_DEPTH
+            try:
+                for fpath in chain(filtered_files,
+                                   self._filter_dirs(dirs, path)):
+                    Fileset.from_path(fpath)
+            except ArcanaError:
+                pass
+            else:
                 if depth > deepest:
                     deepest = depth
         if deepest == -1:
-            raise ArcanaUsageError(
+            raise ArcanaBadlyFormattedDirectoryRepositoryError(
                 "Could not guess depth of '{}' repository as did not find "
                 "a valid session directory within sub-directories."
                 .format(root_dir))
         return deepest
 
     @classmethod
-    def _filter_files(cls, files, dirs, base_dir):
+    def _filter_files(cls, files, base_dir):
         # Filter out hidden files (i.e. starting with '.')
-        files = [op.join(base_dir, f) for f in files
+        return [op.join(base_dir, f) for f in files
                  if not (f.startswith('.') or
                          f.startswith(cls.FIELDS_FNAME))]
+
+    @classmethod
+    def _filter_dirs(cls, dirs, base_dir):
         # Filter out hidden directories (i.e. starting with '.')
         # and derived study directories from fileset names
-        files.extend(op.join(base_dir, d) for d in dirs
-                     if not (d.startswith('.') or (
-                         cls.DERIVED_LABEL_FNAME in os.listdir(
-                             op.join(base_dir, d)))))
-        return files
+        return [
+            op.join(base_dir, d) for d in dirs
+            if not (d.startswith('.') or (
+                cls.DERIVED_LABEL_FNAME in os.listdir(op.join(base_dir, d))))]
 
     def path_depth(self, dpath):
         relpath = op.relpath(dpath, self.root_dir)

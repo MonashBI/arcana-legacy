@@ -48,7 +48,7 @@ sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__)))
-import test_local  # @UnresolvedImport @IgnorePep8
+import test_directory  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
@@ -230,8 +230,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                           server=SERVER,
                                           cache_dir=self.cache_dir)
         self.BASE_CLASS.setUp(self)
-        simple_repository = DirectoryRepository(self.project_dir)
-        tree = simple_repository.tree()
+        local_repository = DirectoryRepository(self.project_dir)
+        tree = local_repository.tree()
         self._create_project()
         repo = XnatRepository(SERVER, self.project, '/tmp')
         with repo:
@@ -990,9 +990,9 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
 
 
 class TestProjectInfo(TestMultiSubjectOnXnatMixin,
-                      test_local.TestLocalProjectInfo):
+                      test_directory.TestDirectoryProjectInfo):
 
-    BASE_CLASS = test_local.TestLocalProjectInfo
+    BASE_CLASS = test_directory.TestDirectoryProjectInfo
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
