@@ -1,7 +1,6 @@
 from __future__ import division
 from builtins import object
 import time
-import math
 import logging
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
@@ -31,15 +30,18 @@ class ArcanaNodeMixin(object):
         Preferred number of threads (ignored if processed in single node)
     gpu : bool
         Flags whether a GPU compute node is preferred
+    processor : Processor | None
+        The processor to be used to execute the node (automatically added by
+        Arcana infrastructure)
     """
 
     arcana_params = {
         'requirements': [],
-        'processor': None,
         'nthreads': 1,
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
-        'gpu': False}
+        'gpu': False,
+        'processor': None}
 
     def __init__(self, *args, **kwargs):
         self._arcana_init(**kwargs)
