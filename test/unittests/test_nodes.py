@@ -29,7 +29,7 @@ else:
 class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
-        loaded_modules = self.processor.requirement_manager.preloaded()
+        loaded_modules = ModulesRequirementManager.preloaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "Mrtrix module was not loaded in Node")
