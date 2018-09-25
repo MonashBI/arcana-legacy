@@ -39,8 +39,7 @@ class ArcanaNodeMixin(object):
         'nthreads': 1,
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
-        'gpu': False,
-        'account': 'dq13'}  # Should get from processor
+        'gpu': False}
 
     def __init__(self, *args, **kwargs):
         self._arcana_init(**kwargs)
@@ -82,30 +81,6 @@ class ArcanaNodeMixin(object):
         if self.processor is not None:
             self.processor.unload_requirements(*self.requirements, **kwargs)
 
-    @property
-    def slurm_template(self):
-        additional = ''
-        if self.gpu:
-            additional += '#SBATCH --gres=gpu:1\n'
-        if self.account is not None:
-            additional += '#SBATCH --account={}'.format(self.account)
-        return sbatch_template.format(
-            wall_time=self.wall_time_str, ntasks=self.nthreads,
-            memory=self.memory,
-            partition=('m3c' if self.gpu else 'm3a'),
-            additional=additional)
-
-    @property
-    def wall_time_str(self):
-        """
-        Returns the wall time in the format required for the sbatch script
-        """
-        days = int(self.wall_time // 1440)
-        hours = int((self.wall_time - days * 1440) // 60)
-        minutes = int(math.floor(self.wall_time - days * 1440 - hours * 60))
-        seconds = int((self.wall_time - math.floor(self.wall_time)) * 60)
-        return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
-
 
 class Node(ArcanaNodeMixin, NipypeNode):
 
@@ -132,29 +107,3 @@ class MapNode(ArcanaNodeMixin, NipypeMapNode):
             node._arcana_init(
                 **{n: getattr(self, n) for n in self.arcana_params})
             yield i, node
-
-
-sbatch_template = """#!/bin/bash
-
-# Set the partition to run the job on
-#SBATCH --partition={partition}
-
-# Request CPU resource for a parallel job, for example:
-#   4 Nodes each with 12 Cores/MPI processes
-#SBATCH --ntasks={ntasks}
-# SBATCH --ntasks-per-node=12
-# SBATCH --cpus-per-task=1
-
-# Memory usage (MB)
-#SBATCH --mem-per-cpu={memory}
-
-# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
-#SBATCH --time={wall_time}
-
-# Kill job if dependencies fail
-#SBATCH --kill-on-invalid-dep=yes
-
-# Use reserved node to run job when a node reservation is made for you already
-# SBATCH --reservation=reservation_name
-{additional}
-"""

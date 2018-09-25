@@ -1,4 +1,5 @@
 from builtins import zip
+import math
 import os
 from arcana.exception import (
     ArcanaError, ArcanaJobSubmittedException)
@@ -8,6 +9,10 @@ from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin
 
 class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
 
+    def __init__(self, *args, **kwargs):
+        self._processor = kwargs.pop('processor')
+        super(ArcanaSlurmGraphPlugin, self).__init__(*args, **kwargs)
+
     def _get_args(self, node, keywords):
         """
         Intercept calls to get template and return our own node-specific
@@ -16,9 +21,13 @@ class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
         args = super(ArcanaSlurmGraphPlugin, self)._get_args(
             node, keywords)
         # Substitute the template arg with the node-specific one
-        args = tuple((node.slurm_template if k == 'template' else a)
-                     for k, a in zip(keywords, args))
-        return args
+        new_args = []
+        for name, arg in zip(keywords, args):
+            if name == 'template':
+                new_args.append(self._processor.slurm_template(node))
+            else:
+                new_args.append(arg)
+        return tuple(new_args)
 
 
 class SlurmProcessor(BaseProcessor):
@@ -30,9 +39,18 @@ class SlurmProcessor(BaseProcessor):
     ----------
     work_dir : str
         A directory in which to run the nipype workflows
+    partition : str | function
+        Either a string naming the partition to use for the jobs or a function
+        that takes a node as an argument and returns the name of the partition
+        to use for that particular node.
+    account : str
+        Name of the account to submit the jobs against.
     email : str | None
         The email address to send alerts to. If not provided the 'EMAIL'
         environment variable needs to be set
+    generic_resources : function
+        A function that takes a node as an argument and returns the list of
+        generic resources (e.g. GPU, bandwidth) required
     mail_on : List[str]
         Conditions on which to send mail (default 'FAIL')
     max_process_time : float
@@ -45,8 +63,9 @@ class SlurmProcessor(BaseProcessor):
 
     nipype_plugin_cls = ArcanaSlurmGraphPlugin
 
-    def __init__(self, work_dir, email=None, mail_on=('FAIL',),
-                 **kwargs):
+    def __init__(self, work_dir, partition=None, account=None, email=None,
+                 mail_on=('FAIL',), generic_resources=None,
+                 ntasks_per_node=None, cpus_per_task=None, **kwargs):
         if email is None:
             try:
                 email = os.environ['EMAIL']
@@ -56,14 +75,13 @@ class SlurmProcessor(BaseProcessor):
                     " if 'EMAIL' environment variable not set")
         self._email = email
         self._mail_on = mail_on
-        pargs = [('mail-user', email)]
-        for mo in mail_on:
-            pargs.append(('mail-type', mo))
-        super(SlurmProcessor, self).__init__(
-            work_dir, plugin_args={
-                'sbatch_args': ' '.join(
-                    '--{}={}'.format(*a) for a in pargs)},
-            **kwargs)
+        self._account = account
+        self._partition = partition
+        self._ntasks_per_node = ntasks_per_node
+        self._cpus_per_task = cpus_per_task
+        self._generic_resources = generic_resources
+        super(SlurmProcessor, self).__init__(work_dir, processor=self,
+                                             **kwargs)
 
     @property
     def email(self):
@@ -73,9 +91,72 @@ class SlurmProcessor(BaseProcessor):
     def mail_on(self):
         return self._mail_on
 
+    @property
+    def account(self):
+        return self._account
+
     def run(self, pipeline, **kwargs):
         super(SlurmProcessor, self).run(pipeline, **kwargs)
         raise ArcanaJobSubmittedException(
             "Pipeline '{}' has been submitted to SLURM scheduler "
             "for processing. Please run script again after the jobs "
             "have been successful.")
+
+    def slurm_template(self, node):
+        sbatch = self.sbatch_template.format(
+            wall_time=self.wall_time_str(node.wall_time), ntasks=node.nthreads,
+            memory=node.memory,
+            email=self.email,
+            account=self.account)
+        if self.account is not None:
+            sbatch += ("\n# Set the account\n"
+                       "#SBATCH --account={}\n".format(self.account))
+        if self._partition is not None:
+            sbatch += ("\n# Set the partition to run the job on\n"
+                       "#SBATCH --partition={}\n".format(
+                           self._partition(node) if callable(self._partition)
+                           else self._partition))
+        if self._generic_resources is not None:
+            sbatch += ("\n# Request generic resources\n")
+            for gres in self._generic_resources(node):
+                sbatch += '#SBATCH --gres={}\n'.format(gres)
+        if self._mail_on:
+            sbatch += ("\n# Set mail triggers\n")
+            for mo in self._mail_on:
+                sbatch += '#SBATCH --mail-type={}\n'.format(mo)
+        sbatch += "\n# Node and CPU options\n"
+        if self._cpus_per_task is not None:
+            sbatch += "#SBATCH --cpus-per-task={}\n".format(
+                self._cpus_per_task)
+        if self._ntasks_per_node is not None:
+            sbatch += "#SBATCH --ntasks-per-node={}\n".format(
+                self._ntasks_per_node)
+        return sbatch
+
+    def wall_time_str(self, wall_time):
+        """
+        Returns the wall time in the format required for the sbatch script
+        """
+        days = int(wall_time // 1440)
+        hours = int((wall_time - days * 1440) // 60)
+        minutes = int(math.floor(wall_time - days * 1440 - hours * 60))
+        seconds = int((wall_time - math.floor(wall_time)) * 60)
+        return "{}-{:0>2}:{:0>2}:{:0>2}".format(days, hours, minutes, seconds)
+
+    sbatch_template = """#!/bin/bash
+
+# Set the email
+#SBATCH --email={email}
+
+# Request CPU resource for a parallel job
+#SBATCH --ntasks={ntasks}
+
+# Memory usage (MB)
+#SBATCH --mem-per-cpu={memory}
+
+# Set your minimum acceptable walltime, format: day-hours:minutes:seconds
+#SBATCH --time={wall_time}
+
+# Kill job if dependencies fail
+#SBATCH --kill-on-invalid-dep=yes
+"""
