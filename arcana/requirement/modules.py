@@ -14,7 +14,7 @@ from .base import RequirementManager, Requirement
 logger = logging.getLogger('arcana')
 
 
-class EnvModulesRequirementManager(RequirementManager):
+class ModulesRequirementManager(RequirementManager):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
@@ -25,7 +25,7 @@ class EnvModulesRequirementManager(RequirementManager):
     """
 
     def __init__(self, *args, **kwargs):
-        super(EnvModulesRequirementManager, self).__init__(*args, **kwargs)
+        super(ModulesRequirementManager, self).__init__(*args, **kwargs)
         self._loaded = {}
         self._avail_cache = None
         self._preload_cache = None

@@ -9,7 +9,7 @@ from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
 from arcana.data.file_format.standard import text_format
 from arcana.node import Node
-from arcana.requirement import Requirement, EnvModulesRequirementManager
+from arcana.requirement import Requirement, ModulesRequirementManager
 from future.utils import with_metaclass
 
 
@@ -19,7 +19,7 @@ first_req = Requirement('firstmodule', min_version=(0, 15, 9))
 second_req = Requirement('secondmodule', min_version=(1, 0, 2))
 
 try:
-    EnvModulesRequirementManager._run_module_cmd('avail')
+    ModulesRequirementManager._run_module_cmd('avail')
 except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
