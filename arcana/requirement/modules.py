@@ -53,13 +53,12 @@ class ModulesRequirementManager(RequirementManager):
 
     @classmethod
     def preloaded(cls):
-        if cls._preloaded is None:
-            cls._preloaded = {}
-            loaded = os.environ.get('LOADEDMODULES', [])
-            for modstr in loaded.split(':'):
-                name, versionstr = modstr.split('/')
-                cls._preloaded[name] = versionstr
-        return cls._preloaded
+        preloaded = {}
+        loaded = os.environ.get('LOADEDMODULES', [])
+        for modstr in loaded.split(':'):
+            name, versionstr = modstr.split('/')
+            preloaded[name] = versionstr
+        return preloaded
 
     @classmethod
     def available(cls):
@@ -68,10 +67,11 @@ class ModulesRequirementManager(RequirementManager):
         for l in out_text.split('\n'):
             if not l.startswith('-'):
                 sanitized.append(l)
-        cls._available = defaultdict(list)
+        available = defaultdict(list)
         for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
                                       ' '.join(sanitized)):
-            cls._available[module.lower()].append(ver)
+            available[module.lower()].append(ver)
+        return available
 
     @property
     def _preloaded_cache(self):

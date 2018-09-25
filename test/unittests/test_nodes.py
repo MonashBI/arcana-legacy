@@ -1,14 +1,11 @@
-from nipype.interfaces.utility import IdentityInterface, Merge, Split
+from nipype.interfaces.utility import Merge, Split
 from arcana.data import FilesetSpec, FilesetMatch, FieldSpec
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exception import (ArcanaModulesNotInstalledException,
-                              ArcanaRequirementVersionException,
                               ArcanaError)
 import unittest
 from arcana.testing import BaseTestCase, TestMath
-from unittest import TestCase
 from arcana.data.file_format.standard import text_format
-from arcana.node import Node
 from arcana.requirement import Requirement, ModulesRequirementManager
 from future.utils import with_metaclass
 
