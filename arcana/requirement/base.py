@@ -207,7 +207,7 @@ class CLIRequirement(Requirement):
         requirement
     """
 
-    def __init__(self, name, min_version, test_cmd, **kwargs):
+    def __init__(self, name, min_version, test_cmd=None, **kwargs):
         super(CLIRequirement, self).__init__(name, min_version, **kwargs)
         self._test_cmd = test_cmd
 
@@ -245,8 +245,8 @@ class MatlabRequirement(Requirement):
         requirement
     """
 
-    def __init__(self, name, min_version, test_func, **kwargs):
-        super(CLIRequirement, self).__init__(name, min_version, **kwargs)
+    def __init__(self, name, min_version, test_func=None, **kwargs):
+        super(MatlabRequirement, self).__init__(name, min_version, **kwargs)
         self._test_func = test_func
 
     @property

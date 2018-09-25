@@ -2,14 +2,9 @@ from builtins import object
 from abc import ABCMeta, abstractmethod
 from arcana.node import Node
 from arcana.exception import (
-    ArcanaRequirementVersionException,
-    ArcanaModulesNotInstalledException,
-    ArcanaUsageError, ArcanaFileFormatClashError,
-    ArcanaNoConverterError,
-    ArcanaConverterNotAvailableError,
+    ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError)
 from nipype.interfaces.utility import IdentityInterface
-from arcana.requirement import Requirement
 import logging
 from future.utils import with_metaclass
 
@@ -294,19 +289,7 @@ class Converter(with_metaclass(ABCMeta, object)):
         self._output_format = output_format
         self._processor = processor
         if processor is not None:
-            try:
-                available_modules = processor.available_modules()
-                for possible_reqs in self.requirements:
-                    Requirement.best_requirement(possible_reqs,
-                                                 available_modules)
-            except ArcanaRequirementVersionException:
-                raise ArcanaConverterNotAvailableError(
-                    "Module(s) required for converter {} ({}) are not "
-                    "available".format(
-                        self,
-                        ', '.join(r.name for r in self.requirements)))
-            except ArcanaModulesNotInstalledException:
-                pass
+            processor.requirements_satisfiable(*self.requirements)
 
     def __eq__(self, other):
         return (self.input_format == self.input_format and
