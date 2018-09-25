@@ -31,7 +31,6 @@ class ModulesRequirementManager(RequirementManager):
         self._preload_cache = None
 
     def load(self, *requirements):
-
         for req in requirements:
             # Get best requirement from list of possible options
             name, version = Requirement.best_requirement(
@@ -49,20 +48,22 @@ class ModulesRequirementManager(RequirementManager):
                     raise ArcanaEnvModuleNotLoadedError(
                         "Could not unload module ({}) as it wasn't loaded"
                         .format(req))
-        self._run_module_cmd('unload', module_id)
+            else:
+                self._run_module_cmd('unload', module_id)
 
     @classmethod
     def preloaded(cls):
         preloaded = {}
-        loaded = os.environ.get('LOADEDMODULES', [])
-        for modstr in loaded.split(':'):
-            parts = modstr.split('/')
-            if len(parts) == 2:
-                name, versionstr = parts
-            else:
-                name = parts[0]
-                versionstr = None
-            preloaded[name] = versionstr
+        loaded = os.environ.get('LOADEDMODULES', '')
+        if loaded:
+            for modstr in loaded.split(':'):
+                parts = modstr.split('/')
+                if len(parts) == 2:
+                    name, versionstr = parts
+                else:
+                    name = parts[0]
+                    versionstr = None
+                preloaded[name] = versionstr
         return preloaded
 
     @classmethod

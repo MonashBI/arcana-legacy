@@ -58,6 +58,7 @@ class ArcanaNodeMixin(object):
         return result
 
     def _run_command(self, *args, **kwargs):
+        print("Processor: {}".format(self.processor))
         start_time = time.time()
         try:
             self._load_reqs()
