@@ -14,7 +14,7 @@ from .base import RequirementManager, Requirement
 logger = logging.getLogger('arcana')
 
 
-class EnvModulesManager(RequirementManager):
+class EnvModulesRequirementManager(RequirementManager):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
@@ -25,17 +25,17 @@ class EnvModulesManager(RequirementManager):
     """
 
     def __init__(self, *args, **kwargs):
-        super(EnvModulesManager, self).__init__(*args, **kwargs)
+        super(EnvModulesRequirementManager, self).__init__(*args, **kwargs)
         self._loaded = {}
-        self._available = None
-        self._preloaded = None
+        self._avail_cache = None
+        self._preload_cache = None
 
     def load(self, *requirements):
 
         for req in requirements:
             # Get best requirement from list of possible options
             name, version = Requirement.best_requirement(
-                req, self.available, self.preloaded)
+                req, self._available_cache, self._preloaded_cache)
             module_id = name + ('/' + version if version is not None else '')
             self._run_module_cmd('load', module_id)
             self._loaded[req] = module_id
@@ -51,29 +51,39 @@ class EnvModulesManager(RequirementManager):
                         .format(req))
         self._run_module_cmd('unload', module_id)
 
-    @property
-    def preloaded(self):
-        if self._preloaded is None:
-            self._preloaded = {}
+    @classmethod
+    def preloaded(cls):
+        if cls._preloaded is None:
+            cls._preloaded = {}
             loaded = os.environ.get('LOADEDMODULES', [])
             for modstr in loaded.split(':'):
                 name, versionstr = modstr.split('/')
-                self._preloaded[name] = versionstr
-        return self._preloaded
+                cls._preloaded[name] = versionstr
+        return cls._preloaded
+
+    @classmethod
+    def available(cls):
+        out_text = cls._run_module_cmd('avail')
+        sanitized = []
+        for l in out_text.split('\n'):
+            if not l.startswith('-'):
+                sanitized.append(l)
+        cls._available = defaultdict(list)
+        for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
+                                      ' '.join(sanitized)):
+            cls._available[module.lower()].append(ver)
 
     @property
-    def available(self):
-        if self._available is None:
-            out_text = self._run_module_cmd('avail')
-            sanitized = []
-            for l in out_text.split('\n'):
-                if not l.startswith('-'):
-                    sanitized.append(l)
-            self._available = defaultdict(list)
-            for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
-                                          ' '.join(sanitized)):
-                self._available[module.lower()].append(ver)
-        return self._available
+    def _preloaded_cache(self):
+        if self._preload_cache is None:
+            self._preload_cache = self.preloaded()
+        return self._preload_cache
+
+    @property
+    def _available_cache(self):
+        if self._avail_cache is None:
+            self._avail_cache = self.available()
+        return self._avail_cache
 
     @classmethod
     def _run_module_cmd(cls, *args):

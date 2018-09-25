@@ -1,4 +1,3 @@
 from .base import Requirement
-from .env_modules import EnvModulesManager
-from .checker import RequirementChecker
+from .env_modules import EnvModulesRequirementManager
 from .utils import split_version, matlab_version_split, date_split

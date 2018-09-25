@@ -9,7 +9,7 @@ from arcana.testing import BaseTestCase, TestMath
 from unittest import TestCase
 from arcana.data.file_format.standard import text_format
 from arcana.node import Node
-from arcana.requirement import Requirement
+from arcana.requirement import Requirement, EnvModulesRequirementManager
 from future.utils import with_metaclass
 
 
@@ -19,11 +19,8 @@ first_req = Requirement('firstmodule', min_version=(0, 15, 9))
 second_req = Requirement('secondmodule', min_version=(1, 0, 2))
 
 try:
-    avail_modules = Node.available_modules()
-    for req in (first_req, second_req):
-        Requirement.best_requirement([req], avail_modules)
-except (ArcanaModulesNotInstalledException,
-        ArcanaRequirementVersionException):
+    EnvModulesRequirementManager._run_module_cmd('avail')
+except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
     MODULES_NOT_INSTALLED = False
@@ -32,7 +29,7 @@ else:
 class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
-        loaded_modules = Node.preloaded_modules()
+        loaded_modules = self.processor.requirement_manager.preloaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "Mrtrix module was not loaded in Node")

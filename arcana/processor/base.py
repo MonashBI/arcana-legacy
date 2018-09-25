@@ -64,6 +64,15 @@ class BaseProcessor(object):
     def requirement_manager(self):
         return self._requirement_manager
 
+    def requirements_satisfiable(self, *requirements):
+        self.requirement_manager.satisfiable(*requirements)
+
+    def load_requirements(self, *requirements):
+        self.requirement_manager.load(*requirements)
+
+    def unload_requirements(self, *requirements):
+        self.requirement_manager.unload(*requirements)
+
     def bind(self, study):
         cpy = deepcopy(self)
         cpy._study = study

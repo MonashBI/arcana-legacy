@@ -6,7 +6,6 @@ import logging
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
     MapNode as NipypeMapNode)
-from arcana.requirement import RequirementChecker
 
 logger = logging.getLogger('arcana')
 
@@ -36,7 +35,7 @@ class ArcanaNodeMixin(object):
 
     arcana_params = {
         'requirements': [],
-        'requirement_manager': RequirementChecker(),
+        'processor': None,
         'nthreads': 1,
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
@@ -50,21 +49,20 @@ class ArcanaNodeMixin(object):
     def _arcana_init(self, **kwargs):
         for name, value in list(self.arcana_params.items()):
             setattr(self, name, kwargs.pop(name, value))
-        self._loaded_modules = []
 
     def _load_results(self, *args, **kwargs):
-        self.requirement_manager.load(self.requirements)
+        self._load_reqs()
         result = self.nipype_cls._load_results(self, *args, **kwargs)
-        self.requirement_manager.unload(self.requirements)
+        self._unload_reqs()
         return result
 
     def _run_command(self, *args, **kwargs):
         start_time = time.time()
         try:
-            self.requirement_manager.load(self.requirements)
+            self._load_reqs()
             result = self.nipype_cls._run_command(self, *args, **kwargs)
         finally:
-            self.requirement_manager.unload(self.requirements)
+            self._unload_reqs(not_loaded_ok=True)
         end_time = time.time()
         run_time = (end_time - start_time) // 60
         if run_time > self.wall_time:
@@ -75,6 +73,14 @@ class ArcanaNodeMixin(object):
             logger.info("Executed '{}' node in {} minutes"
                         .format(self.name, run_time))
         return result
+
+    def _load_reqs(self, **kwargs):
+        if self.processor is not None:
+            self.processor.load_requirements(*self.requirements, **kwargs)
+
+    def _unload_reqs(self, **kwargs):
+        if self.processor is not None:
+            self.processor.unload_requirements(*self.requirements, **kwargs)
 
     @property
     def slurm_template(self):
