@@ -56,7 +56,12 @@ class ModulesRequirementManager(RequirementManager):
         preloaded = {}
         loaded = os.environ.get('LOADEDMODULES', [])
         for modstr in loaded.split(':'):
-            name, versionstr = modstr.split('/')
+            parts = modstr.split('/')
+            if len(parts) == 2:
+                name, versionstr = parts
+            else:
+                name = parts[0]
+                versionstr = None
             preloaded[name] = versionstr
         return preloaded
 
