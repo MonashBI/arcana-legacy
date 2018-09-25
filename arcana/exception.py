@@ -10,6 +10,14 @@ class ArcanaError(ArcanaException):
     pass
 
 
+class ArcanaRequirementNotSatisfiedError(ArcanaError):
+    pass
+
+
+class ArcanaEnvModuleNotLoadedError(ArcanaError):
+    pass
+
+
 class ArcanaMissingInputError(ArcanaException):
     pass
 

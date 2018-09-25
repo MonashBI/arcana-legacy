@@ -6,7 +6,8 @@ import logging
 import subprocess as sp
 from collections import defaultdict
 from arcana.exception import (
-    ArcanaError, ArcanaModulesNotInstalledException)
+    ArcanaError, ArcanaModulesNotInstalledException,
+    ArcanaEnvModuleNotLoadedError)
 from .base import RequirementManager, Requirement
 
 
@@ -23,68 +24,56 @@ class EnvModulesManager(RequirementManager):
         Administration Conference (LISA V), (1), 141–152.
     """
 
-    def _load_modules(self):
-        try:
-            preloaded = self.preloaded_modules()
-            available = self.available_modules()
-            logger.debug("Loading required modules {} for '{}'"
-                         .format(self.requirements, self.name))
-            for possible_reqs in self.requirements:
-                # Get best requirement from list of possible options
-                req_name, req_ver = Requirement.best_requirement(
-                    possible_reqs, available, preloaded)
-                # Load best requirement
-                self.load_module(name=req_name, version=req_ver)
-                # Register best requirement
-                self._loaded_modules.append((req_name, req_ver))
-        except ArcanaModulesNotInstalledException as e:
-            logger.debug("Skipping loading modules as '{}' is not set"
-                         .format(e))
+    def __init__(self, *args, **kwargs):
+        super(EnvModulesManager, self).__init__(*args, **kwargs)
+        self._loaded = {}
+        self._available = None
+        self._preloaded = None
 
-    def _unload_modules(self):
-        try:
-            for name, ver in self._loaded_modules:
-                self.unload_module(name, ver)
-        except ArcanaModulesNotInstalledException as e:
-            logger.debug("Skipping unloading modules as '{}' is not set"
-                         .format(e))
+    def load(self, *requirements):
 
-    @classmethod
-    def preloaded_modules(cls):
-        loaded = os.environ.get('LOADEDMODULES', [])
-        if not loaded:
-            modules = {}
-        else:
-            modules = {}
+        for req in requirements:
+            # Get best requirement from list of possible options
+            name, version = Requirement.best_requirement(
+                req, self.available, self.preloaded)
+            module_id = name + ('/' + version if version is not None else '')
+            self._run_module_cmd('load', module_id)
+            self._loaded[req] = module_id
+
+    def unload(self, *requirements, not_loaded_ok=False):
+        for req in requirements:
+            try:
+                module_id = self._loaded[req]
+            except KeyError:
+                if not not_loaded_ok:
+                    raise ArcanaEnvModuleNotLoadedError(
+                        "Could not unload module ({}) as it wasn't loaded"
+                        .format(req))
+        self._run_module_cmd('unload', module_id)
+
+    @property
+    def preloaded(self):
+        if self._preloaded is None:
+            self._preloaded = {}
+            loaded = os.environ.get('LOADEDMODULES', [])
             for modstr in loaded.split(':'):
                 name, versionstr = modstr.split('/')
-                modules[name] = versionstr
-        return modules
+                self._preloaded[name] = versionstr
+        return self._preloaded
 
-    @classmethod
-    def available_modules(cls):
-        out_text = cls._run_module_cmd('avail')
-        sanitized = []
-        for l in out_text.split('\n'):
-            if not l.startswith('-'):
-                sanitized.append(l)
-        avail = defaultdict(list)
-        for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
-                                      ' '.join(sanitized)):
-            avail[module.lower()].append(ver)
-        return avail
-
-    @classmethod
-    def load_module(cls, name, version=None):
-        cls._run_module_cmd('load', cls._version_str(name, version))
-
-    @classmethod
-    def unload_module(cls, name, version=None):
-        cls._run_module_cmd('unload', cls._version_str(name, version))
-
-    @classmethod
-    def _version_str(cls, name, version=None):
-        return name + ('/' + version if version is not None else '')
+    @property
+    def available(self):
+        if self._available is None:
+            out_text = self._run_module_cmd('avail')
+            sanitized = []
+            for l in out_text.split('\n'):
+                if not l.startswith('-'):
+                    sanitized.append(l)
+            self._available = defaultdict(list)
+            for module, ver in re.findall(r'(\w+)/([\w\d\.\-\_]+)',
+                                          ' '.join(sanitized)):
+                self._available[module.lower()].append(ver)
+        return self._available
 
     @classmethod
     def _run_module_cmd(cls, *args):

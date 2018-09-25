@@ -3,9 +3,12 @@ from builtins import str
 from builtins import object
 import logging
 from itertools import zip_longest
+from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
 from .utils import split_version
+import subprocess as sp
+from arcana.exception import ArcanaRequirementNotSatisfiedError
 
 
 logger = logging.getLogger('arcana')
@@ -25,10 +28,19 @@ class Requirement(object):
         The minimum version required by the node
     max_version : tuple(int|str) | None
         The maximum version that is compatible with the Node
+    version_split : function
+        A function that splits the version string into major/minor/micro
+        parts or equivalent
+    references : list[Citation]
+        A list of references that should be cited when using this software
+        requirement
+    website : str
+        Address of the website detailing the software
     """
 
     def __init__(self, name, min_version, max_version=None,
-                 version_split=split_version, citations=None):
+                 version_split=split_version, references=None,
+                 website=None):
         self._name = name.lower()
         self._min_ver = tuple(min_version)
         if max_version is not None:
@@ -40,7 +52,8 @@ class Requirement(object):
         else:
             self._max_ver = None
         self._version_split = version_split
-        self._citations = citations if citations is not None else []
+        self._references = references if references is not None else []
+        self._website = website
 
     @property
     def name(self):
@@ -57,8 +70,12 @@ class Requirement(object):
         return self._min_ver
 
     @property
-    def citations(self):
-        return iter(self._citations)
+    def references(self):
+        return iter(self._references)
+
+    @property
+    def website(self):
+        return self._website
 
     @property
     def max_version(self):
@@ -167,6 +184,90 @@ class Requirement(object):
             ' and '.join(str(e) for e in ver_exceptions))
 
 
+class CLIRequirement(Requirement):
+    """
+    Defines a software package that is available on the command line
+
+    Parameters
+    ----------
+    name : str
+        Name of the package
+    min_version : tuple(int|str)
+        The minimum version required by the node
+    max_version : tuple(int|str) | None
+        The maximum version that is compatible with the Node
+    test_cmd : str
+        The name of a command that should be available when the
+        requirement is satisfied.
+    version_split : function
+        A function that splits the version string into major/minor/micro
+        parts or equivalent
+    references : list[Citation]
+        A list of references that should be cited when using this software
+        requirement
+    """
+
+    def __init__(self, name, min_version, test_cmd, **kwargs):
+        super(CLIRequirement, self).__init__(name, min_version, **kwargs)
+        self._test_cmd = test_cmd
+
+    @property
+    def satisfied(self):
+        if self.test_cmd is None:
+            return True  # No test available
+        return sp.call(self.test_cmd, shell=True) == 127
+
+    @property
+    def test_cmd(self):
+        return self._test_cmd
+
+
+class MatlabRequirement(Requirement):
+    """
+    Defines a software package within Matlab
+
+    Parameters
+    ----------
+    name : str
+        Name of the package
+    min_version : tuple(int|str)
+        The minimum version required by the node
+    max_version : tuple(int|str) | None
+        The maximum version that is compatible with the Node
+    test_func : str
+        The name of a function that should be available when the
+        requirement is satisfied.
+    version_split : function
+        A function that splits the version string into major/minor/micro
+        parts or equivalent
+    references : list[Citation]
+        A list of references that should be cited when using this software
+        requirement
+    """
+
+    def __init__(self, name, min_version, test_func, **kwargs):
+        super(CLIRequirement, self).__init__(name, min_version, **kwargs)
+        self._test_func = test_func
+
+    @property
+    def satisfied(self):
+        if self.test_func is None:
+            return True  # No test available
+        script = (
+            "try\n"
+            "    {}\n"
+            "catch E\n"
+            "    fprintf(E.identifier);\n"
+            "end\n".format(self.test_func))
+        result = MatlabCommand(script=script, mfile=True).run()
+        output = result.runtime.stdout
+        return output != 'MATLAB:UndefinedFunction'
+
+    @property
+    def test_func(self):
+        return self._test_func
+
+
 class RequirementManager(object):
     """
     Checks to see if requirements are satisfiable by the current
@@ -184,7 +285,13 @@ class RequirementManager(object):
         requirements : list(Requirement)
             List of requirements to check whether they are satisfiable
         """
-        raise NotImplementedError
+        self.load(*requirements)
+        not_satisfied = [r for r in requirements if not r.satisfied]
+        if not_satisfied:
+            raise ArcanaRequirementNotSatisfiedError(
+                "Could not satisfy the following requirements:\n"
+                .format('\n'.join(str(r) for r in not_satisfied)))
+        self.unload(*requirements)
 
     def load(self, *requirements):
         """
@@ -195,8 +302,7 @@ class RequirementManager(object):
         requirements : list(Requirement)
             List of requirements to load
         """
-
-        pass
+        pass  # Nothing is done in the basic case
 
     def unload(self, *requirements):
         """
@@ -207,4 +313,4 @@ class RequirementManager(object):
         requirements : list(Requirement)
             List of requirements to unload
         """
-        pass
+        pass  # Nothing is done in the basic case
