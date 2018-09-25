@@ -6,6 +6,7 @@ from collections import defaultdict
 from nipype.pipeline import engine as pe
 from arcana.node import JoinNode
 from arcana.interfaces.utils import Merge
+from arcana.requirement import RequirementManager
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaNoConverterError,
@@ -51,7 +52,24 @@ class BaseProcessor(object):
         self._plugin_args.update(kwargs)
         self._init_plugin()
         self._study = None
-        self._requirement_manager = requirement_manager
+        self._requirement_manager = (
+            requirement_manager if requirement_manager is not None
+            else RequirementManager())
+
+    def __repr__(self):
+        return "{}(work_dir={})".format(
+            type(self).__name__, self._work_dir)
+
+    def __eq__(self, other):
+        try:
+            return (
+                self._work_dir == other._work_dir and
+                self._max_process_time == other._max_process_time and
+                self._requirement_manager == other._requirement_manager and
+                self._reprocess == other._reprocess and
+                self._plugin_args == other._plugin_args)
+        except AttributeError:
+            return False
 
     def _init_plugin(self):
         self._plugin = self.nipype_plugin_cls(**self._plugin_args)
@@ -64,14 +82,14 @@ class BaseProcessor(object):
     def requirement_manager(self):
         return self._requirement_manager
 
-    def requirements_satisfiable(self, *requirements):
-        self.requirement_manager.satisfiable(*requirements)
+    def requirements_satisfiable(self, *requirements, **kwargs):
+        self.requirement_manager.satisfiable(*requirements, **kwargs)
 
-    def load_requirements(self, *requirements):
-        self.requirement_manager.load(*requirements)
+    def load_requirements(self, *requirements, **kwargs):
+        self.requirement_manager.load(*requirements, **kwargs)
 
-    def unload_requirements(self, *requirements):
-        self.requirement_manager.unload(*requirements)
+    def unload_requirements(self, *requirements, **kwargs):
+        self.requirement_manager.unload(*requirements, **kwargs)
 
     def bind(self, study):
         cpy = deepcopy(self)
@@ -503,19 +521,6 @@ class BaseProcessor(object):
                 assert False, ("Unrecognised frequency of {}"
                                .format(output))
         return list(sessions)
-
-    def __repr__(self):
-        return "{}(work_dir={})".format(
-            type(self).__name__, self._work_dir)
-
-    def __eq__(self, other):
-        try:
-            return (self._work_dir == other._work_dir and
-                    (self._max_process_time ==
-                     other._max_process_time) and
-                    self._plugin_args == other._plugin_args)
-        except AttributeError:
-            return False
 
     @property
     def work_dir(self):

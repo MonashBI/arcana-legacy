@@ -299,7 +299,8 @@ class Pipeline(object):
         account : str
             Name of the account to submit slurm scripts to
         """
-        node = Node(interface, name="{}_{}".format(self._name, name), **kwargs)
+        node = Node(interface, name="{}_{}".format(self._name, name),
+                    processor=self.study.processor, **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -328,7 +329,7 @@ class Pipeline(object):
             Name of the account to submit slurm scripts to
         """
         node = MapNode(interface, name="{}_{}".format(self._name, name),
-                       **kwargs)
+                       processor=self.study.processor, **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -365,7 +366,8 @@ class Pipeline(object):
         node = JoinNode(interface,
                         name="{}_{}".format(self._name, name),
                         joinsource=joinsource,
-                        joinfield=joinfield, **kwargs)
+                        joinfield=joinfield, processor=self.study.processor,
+                        **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -399,7 +401,8 @@ class Pipeline(object):
         node = JoinNode(interface,
                         joinsource='{}_sessions'.format(self.name),
                         joinfield=joinfield,
-                        name="{}_{}".format(self._name, name), **kwargs)
+                        name="{}_{}".format(self._name, name),
+                        processor=self.study.processor, **kwargs)
         self._workflow.add_nodes([node])
         return node
 
@@ -434,7 +437,8 @@ class Pipeline(object):
         node = JoinNode(interface,
                         joinsource='{}_subjects'.format(self.name),
                         joinfield=joinfield,
-                        name='{}_{}'.format(self._name, name), **kwargs)
+                        name='{}_{}'.format(self._name, name),
+                        processor=self.study.processor, **kwargs)
         self._workflow.add_nodes([node])
         return node
 

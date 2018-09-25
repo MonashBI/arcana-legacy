@@ -80,8 +80,11 @@ class SlurmProcessor(BaseProcessor):
         self._ntasks_per_node = ntasks_per_node
         self._cpus_per_task = cpus_per_task
         self._generic_resources = generic_resources
-        super(SlurmProcessor, self).__init__(work_dir, processor=self,
-                                             **kwargs)
+        super(SlurmProcessor, self).__init__(work_dir, **kwargs)
+
+    def _init_plugin(self):
+        self._plugin = self.nipype_plugin_cls(processor=self,
+                                              **self._plugin_args)
 
     @property
     def email(self):
