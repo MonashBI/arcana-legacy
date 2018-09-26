@@ -4,6 +4,7 @@ from copy import copy, deepcopy
 from logging import getLogger
 from collections import defaultdict
 from nipype.pipeline import engine as pe
+from nipype.interfaces.utility import IdentityInterface
 from arcana.node import JoinNode
 from arcana.interfaces.utils import Merge
 from arcana.requirement import RequirementManager
@@ -11,10 +12,10 @@ from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaNoConverterError,
     ArcanaUsageError)
-from arcana.data.base import BaseFileset, BaseField
-from arcana.interfaces.iterators import (
-    InputSessions, PipelineReport, InputSubjects, SubjectReport,
-    VisitReport, SubjectSessionReport, SessionReport)
+from arcana.data.base import BaseFileset, BaseField, FilesetSpec
+# from arcana.interfaces.iterators import (
+#     InputSessions, PipelineReport, InputSubjects, SubjectReport,
+#     VisitReport, SubjectSessionReport, SessionReport)
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
 
@@ -173,7 +174,7 @@ class BaseProcessor(object):
         # repository
         complete_workflow.add_nodes([pipeline._workflow])
         # Get iterator nodes over subjects and sessions to be processed
-        subjects, sessions = self._subject_and_session_iterators(
+        subjects, visits, sessions = self._subject_and_session_iterators(
             pipeline, sessions_to_process, complete_workflow)
         # Prepend prerequisite pipelines to complete workflow if required
         if pipeline.has_prerequisites:
@@ -230,100 +231,52 @@ class BaseProcessor(object):
                                   source, 'subject_id')
         complete_workflow.connect(sessions, 'visit_id',
                                   source, 'visit_id')
-        for input_spec in pipeline.inputs:
-            # Get the fileset corresponding to the pipeline's input
-            input = self.study.spec(input_spec.name)  # @ReservedAssignment @IgnorePep8
-            if isinstance(input, BaseFileset):
-                if input.format != input_spec.format:
-                    # Insert a format converter node into the workflow if the
-                    # format of the fileset if it is not in the required format
-                    # for the study
-                    try:
-                        converter = input_spec.format.converter_from(
-                            input.format)
-                    except ArcanaNoConverterError as e:
-                        raise ArcanaNoConverterError(
-                            str(e) + (
-                                " required to convert {} to {} "
-                                " in '{}' pipeline, in study '{}"
-                                .format(input.name, input_spec.name,
-                                        pipeline.name, self.study.name)))
-                    conv_node_name = '{}_{}_input_conversion'.format(
-                        pipeline.name, input_spec.name)
-                    (fileset_source, conv_in_field,
-                     fileset_name) = converter.get_node(conv_node_name)
-                    complete_workflow.connect(
-                        source, input.name + PATH_SUFFIX,
-                        fileset_source, conv_in_field)
-                else:
-                    fileset_source = source
-                    fileset_name = input.name + PATH_SUFFIX
-                # Connect the fileset to the pipeline input
-                complete_workflow.connect(fileset_source, fileset_name,
-                                          pipeline.inputnode, input_spec.name)
-            else:
-                assert isinstance(input, BaseField)
+        for freq in pipeline.input_frequencies:
+            inputs = pipeline.frequency_inputs(freq)
+            inputnode = pipeline.inputnode(freq)
+            source = self.study.source(
+                [o.name for o in inputs], frequency=freq,
+                name='{}_{}_source'.format(pipeline.name, freq))
+            if pipeline.iterates_over(freq, pipeline.SUBJECT_ITERFIELD):
+                complete_workflow.connect(subjects, pipeline.SUBJECT_ITERFIELD,
+                                          source, pipeline.SUBJECT_ITERFIELD)
+            if pipeline.iterates_over(freq, pipeline.VISIT_ITERFIELD):
+                complete_workflow.connect(visits, pipeline.VISIT_ITERFIELD,
+                                          source, pipeline.VISIT_ITERFIELD)
+            for input in inputs:  # @ReservedAssignment
+                in_name = input.name + (
+                    PATH_SUFFIX if isinstance(input, FilesetSpec) else
+                    FIELD_SUFFIX)
                 complete_workflow.connect(
-                    source, input.name + FIELD_SUFFIX,
-                    pipeline.inputnode, input_spec.name)
+                    source, in_name,
+                    inputnode, input.name)
         # Create a report node for holding a summary of all the sessions/
         # subjects that were sunk. This is used to connect with dependent
         # pipelines into one large connected pipeline.
         report = pipeline.create_node(PipelineReport(), 'report')
-        # Connect all outputs to the repository sink
-        for freq, outputs in pipeline._outputs.items():
-            # Create a new sink for each frequency level (i.e 'per_session',
-            # 'per_subject', 'per_visit', or 'per_study')
+        # Connect all outputs to the repository sink, creating a new sink for
+        # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',
+        # or 'per_study')
+        for freq in pipeline.output_frequencies:
+            outputs = pipeline.frequency_outputs(freq)
+            outputnode = pipeline.outputnode(freq)
             sink = self.study.sink(
-                outputs, frequency=freq,
+                [o.name for o in outputs], frequency=freq,
                 name='{}_{}_sink'.format(pipeline.name, freq))
-#             sink.inputs.desc = pipeline.desc
-#             sink.inputs.name = pipeline._study.name
-            if freq in ('per_session', 'per_subject'):
-                complete_workflow.connect(sessions, 'subject_id',
-                                          sink, 'subject_id')
-            if freq in ('per_session', 'per_visit'):
-                complete_workflow.connect(sessions, 'visit_id',
-                                          sink, 'visit_id')
-            for output_spec in outputs:
-                # Get the fileset spec corresponding to the pipeline's output
-                output = self.study.spec(output_spec.name)
-                # Skip filesets which are already input filesets
-                if output.is_spec:
-                    if isinstance(output, BaseFileset):
-                        # Convert the format of the node if it doesn't match
-                        if output.format != output_spec.format:
-                            try:
-                                converter = output.format.converter_from(
-                                    output_spec.format)
-                            except ArcanaNoConverterError as e:
-                                raise ArcanaNoConverterError(
-                                    str(e) + (
-                                        " required to convert {} to {} "
-                                        " in '{}' pipeline, in study '{}"
-                                        .format(
-                                            input.name, input_spec.name,
-                                            pipeline.name, self.study.name)))
-                            conv_node_name = (output_spec.name +
-                                              '_output_conversion')
-                            (output_node, conv_in_field,
-                             node_fileset_name) = converter.get_node(
-                                 conv_node_name)
-                            complete_workflow.connect(
-                                pipeline._outputnodes[freq],
-                                output_spec.name,
-                                output_node, conv_in_field)
-                        else:
-                            output_node = pipeline._outputnodes[freq]
-                            node_fileset_name = output.name
-                        complete_workflow.connect(
-                            output_node, node_fileset_name,
-                            sink, output.name + PATH_SUFFIX)
-                    else:
-                        assert isinstance(output, BaseField)
-                        complete_workflow.connect(
-                            pipeline._outputnodes[freq], output.name, sink,
-                            output.name + FIELD_SUFFIX)
+            if pipeline.iterates_over(freq, pipeline.SUBJECT_ITERFIELD):
+                complete_workflow.connect(subjects, pipeline.SUBJECT_ITERFIELD,
+                                          sink, pipeline.SUBJECT_ITERFIELD)
+            if pipeline.iterates_over(freq, pipeline.VISIT_ITERFIELD):
+                complete_workflow.connect(visits, pipeline.VISIT_ITERFIELD,
+                                          sink, pipeline.VISIT_ITERFIELD)
+            for output in outputs:
+                if output.is_spec:  # Skip outputs that are study inputs
+                    out_name = output.name + (
+                        PATH_SUFFIX if isinstance(output, FilesetSpec) else
+                        FIELD_SUFFIX)
+                    complete_workflow.connect(
+                        outputnode, output.name,
+                        sink, out_name)
             self._connect_to_reports(
                 pipeline, sink, report, freq, subjects, sessions,
                 complete_workflow)
@@ -339,10 +292,15 @@ class BaseProcessor(object):
         """
         # Create nodes to control the iteration over subjects and sessions in
         # the project
-        subjects = pipeline.create_node(
-            InputSubjects(), 'subjects', wall_time=10, memory=1000)
-        sessions = pipeline.create_node(
-            InputSessions(), 'sessions', wall_time=10, memory=4000)
+        subjects = pipeline.add(
+            'subjects', IdentityInterface([pipeline.VISIT_ITERFIELD]),
+            wall_time=10, memory=1000)
+        visits = pipeline.add(
+            'visits', IdentityInterface([pipeline.VISIT_ITERFIELD]),
+            wall_time=10, memory=1000)
+        sessions = pipeline.add(
+            'sessions', IdentityInterface([pipeline.ITERFIELDS]),
+            wall_time=10, memory=4000)
         # Construct iterable over all subjects to process
         subjects_to_process = set(s.subject for s in sessions_to_process)
         subject_ids_to_process = set(s.id for s in subjects_to_process)
@@ -371,7 +329,7 @@ class BaseProcessor(object):
             sessions.iterables = ('visit_id', subject_sessions)
         # Connect subject and session nodes together
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
-        return subjects, sessions
+        return subjects, visits, sessions
 
     def _connect_to_reports(self, pipeline, sink, output_summary, freq,
                             subjects, sessions, workflow):

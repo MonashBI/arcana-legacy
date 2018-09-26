@@ -87,6 +87,7 @@ class Study(object):
     _parameter_specs = {}
 
     implicit_cls_attrs = ['_data_specs', '_parameter_specs']
+    reserved_spec_names = ['subject_id', 'visit_id']
 
     def __init__(self, name, repository, processor, inputs,
                  parameters=None, subject_ids=None, visit_ids=None,
@@ -862,6 +863,12 @@ class StudyMetaClass(type):
             raise ArcanaUsageError(
                 "'{}' name both data and parameter specs in '{}' class"
                 .format("', '".join(spec_name_clashes), name))
+        reserved_clashes = [n for n in combined_data_specs
+                            if n in dct['reserved_spec_names']]
+        if reserved_clashes:
+            raise ArcanaUsageError(
+                "'{}' data spec names clash with reserved names"
+                .format("', '".join(reserved_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_parameter_specs'] = combined_parameter_specs
         if '__metaclass__' not in dct:
