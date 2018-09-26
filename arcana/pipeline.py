@@ -306,6 +306,10 @@ class Pipeline(object):
         return self._workflow
 
     @property
+    def references(self):
+        return self._references
+
+    @property
     def inputs(self):
         return (self.study.input(i) for i in self._input_conns)
 
@@ -498,21 +502,8 @@ class Pipeline(object):
 #             freq = freqs[0]
 #         return freq
 
-    @property
-    def references(self):
-        return self._references
-
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))
-
-    @property
-    def suffix(self):
-        """
-        A suffixed appended to output filenames when they are repositoryd to
-        identify the parameters used to generate them
-        """
-        return '__'.join('{}_{}'.format(k, v)
-                         for k, v in self.parameters.items())
 
     def save_graph(self, fname, style='flat'):
         """
