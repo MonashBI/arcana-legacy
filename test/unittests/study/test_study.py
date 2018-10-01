@@ -59,7 +59,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='pipeline1',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
@@ -79,7 +79,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='pipeline2',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
@@ -98,7 +98,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='pipeline3',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
@@ -112,7 +112,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline4(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='pipeline4',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
@@ -128,7 +128,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def visit_ids_access_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='visit_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
@@ -143,7 +143,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def subject_ids_access_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='subject_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
@@ -158,7 +158,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def subject_summary_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name="subject_summary",
             desc=("Test of project summary variables"),
             references=[],
@@ -175,7 +175,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def visit_summary_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name="visit_summary",
             desc=("Test of project summary variables"),
             references=[],
@@ -192,7 +192,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def project_summary_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name="project_summary",
             desc=("Test of project summary variables"),
             references=[],
@@ -340,7 +340,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name=output,
             desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
@@ -458,7 +458,7 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('d', test3_format, 'identity_pipeline')]
 
     def identity_pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             name='pipeline',
             desc="A dummy pipeline used to test study input validation",
             references=[],
@@ -526,7 +526,7 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
                                   'pipeline')]
 
     def pipeline(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline',
             desc='a dummy pipeline',
             references=[],

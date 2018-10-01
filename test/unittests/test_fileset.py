@@ -130,7 +130,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
     def pipeline1(self):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline1',
             inputs=[FilesetSpec('required', text_format)],
             outputs=[FilesetSpec('derivable', text_format)],
@@ -144,7 +144,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline2',
             inputs=[FilesetSpec('required', text_format),
                     FilesetSpec('optional', text_format)],
@@ -163,7 +163,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         outputs = [FilesetSpec('another_derivable', text_format)]
         if self.branch('switch'):
             outputs.append(FilesetSpec('requires_switch', text_format))
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline3',
             inputs=[FilesetSpec('required', text_format)],
             outputs=outputs,
@@ -180,7 +180,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline4(self, **kwargs):
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline4',
             inputs=[FilesetSpec('requires_switch', text_format)],
             outputs=[FilesetSpec('requires_switch2', text_format)],
@@ -201,7 +201,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             outputs.append(FilesetSpec('requires_bar', text_format))
         else:
             self.unhandled_branch('branch')
-        pipeline = self.new_pipeline(
+        pipeline = self.pipeline(
             'pipeline5',
             inputs=[FilesetSpec('required', text_format)],
             outputs=outputs,
