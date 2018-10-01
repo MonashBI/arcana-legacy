@@ -342,8 +342,6 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.new_pipeline(
             name=output,
-            inputs=[FilesetSpec(input, text_format)],
-            outputs=[FilesetSpec(output, text_format)],
             desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
             references=[])
@@ -462,10 +460,6 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
     def identity_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name='pipeline',
-            inputs=[FilesetSpec('a', test2_format),
-                    FilesetSpec('b', test3_format)],
-            outputs=[FilesetSpec('c', test2_format),
-                     FilesetSpec('d', test3_format)],
             desc="A dummy pipeline used to test study input validation",
             references=[],
             **kwargs)

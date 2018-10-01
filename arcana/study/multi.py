@@ -199,16 +199,20 @@ class MultiStudy(Study):
                 new_input_map = input_map + prefix
             elif isinstance(input_map, dict):
                 new_input_map = {k: prefix + v for k, v in input_map.items()}
-            else:
+            elif callable(input_map):
                 def new_input_map(n):
                     return prefix + input_map(n)
+            else:
+                input_map = None
             if isinstance(output_map, basestring):
                 new_output_map = output_map + prefix
             elif isinstance(output_map, dict):
                 new_output_map = {k: prefix + v for k, v in output_map.items()}
-            else:
+            elif callable(output_map):
                 def new_output_map(n):
                     return prefix + output_map(n)
+            else:
+                output_map = None
             return pipeline_getter(name_prefix=new_name_prefix,
                                    input_map=new_input_map,
                                    output_map=new_output_map,

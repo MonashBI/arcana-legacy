@@ -280,8 +280,10 @@ class Pipeline(object):
             mapped = mapper + '_' + name
         elif isinstance(mapper, dict):
             mapped = mapper[name]
-        else:
+        elif callable(mapper):
             mapped = mapper(name)
+        else:
+            mapped = name
         return mapped
 
     def connect(self, *args, **kwargs):

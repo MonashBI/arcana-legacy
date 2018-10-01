@@ -525,7 +525,7 @@ class BaseProcessor(object):
                     ', '.join(s.id for s in tree.incomplete_subjects),
                     ', '.join(v.id for v in tree.incomplete_visits)))
         # Initialise an array of sessions to process
-        to_process = np.zeros(len(subject_inds), len(visit_inds), dtype=bool)
+        to_process = np.zeros((len(subject_inds), len(visit_inds)), dtype=bool)
         for output in pipeline.frequency_outputs('per_study'):
             collection = self.study.spec(output).collection
             # Include all sessions if a per-study output needs to be
