@@ -32,8 +32,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
                      FilesetSpec('zip_from_directory', directory_format)],
             desc=("A pipeline that tests out various data format "
                          "conversions"),
-            version=1,
-            citations=[],)
+            references=[],)
         # No conversion from text to text format
         text_from_text = pipeline.create_node(
             IdentityInterface(fields=['file']), 'text_from_text')

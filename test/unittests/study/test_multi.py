@@ -29,10 +29,9 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
                     FilesetSpec('y', text_format)],
             outputs=[FilesetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -60,17 +59,12 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
     def pipeline_beta(self, **kwargs):  # @UnusedVariable
         pipeline = self.new_pipeline(
             name='pipeline_beta',
-            inputs=[FilesetSpec('w', text_format),
-                    FilesetSpec('x', text_format)],
-            outputs=[FilesetSpec('y', text_format),
-                     FilesetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        add1 = pipeline.create_node(TestMath(), name="add1")
-        add2 = pipeline.create_node(TestMath(), name="add2")
-        prod = pipeline.create_node(TestMath(), name="product")
+        add1 = pipeline.add("add1", TestMath())
+        add2 = pipeline.add("add2", TestMath())
+        prod = pipeline.add("product", TestMath())
         add1.inputs.op = 'add'
         add2.inputs.op = 'add'
         prod.inputs.op = self.parameter('product_op')
@@ -175,11 +169,10 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
             outputs=[FilesetSpec('g', text_format)],
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
         merge = pipeline.create_node(Merge(3), name="merge")
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.op = self.parameter('combined_op')
         math.inputs.as_file = True
         # Connect inputs

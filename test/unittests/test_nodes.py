@@ -51,8 +51,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('ones', text_format)],
             outputs=[FilesetSpec('twos', text_format)],
             desc=("A pipeline that tests loading of requirements"),
-            version=1,
-            citations=[],)
+            references=[],)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
             TestMathWithReq(), "maths", requirements=[
@@ -75,8 +74,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
                      FieldSpec('fours', float)],
             desc=("A pipeline that tests loading of requirements in "
                   "map nodes"),
-            version=1,
-            citations=[],)
+            references=[],)
         # Convert from DICOM to NIfTI.gz format on input
         merge = pipeline.create_node(Merge(2), "merge")
         maths = pipeline.create_map_node(

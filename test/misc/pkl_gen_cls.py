@@ -69,7 +69,7 @@ class NormalClass(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('fileset', text_format)],
             outputs=[FilesetSpec('out_fileset', text_format)],
             desc='a dummy pipeline',
-            citations=[],
+            references=[],
             version=1)
         ident = pipeline.create_node(IdentityInterface(['fileset']),
                                      name='ident')

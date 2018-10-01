@@ -771,7 +771,6 @@ class Study(object):
             inputs=[self.spec(n) for n in inputs],
             outputs=[self.spec(n) for n in outputs],
             desc=desc,
-            version=1,
             citations=citations,
             **name_maps)
         node = pipeline.add(name=name + '_node', interface=interface(),

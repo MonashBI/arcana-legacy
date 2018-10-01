@@ -61,12 +61,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline1(self, **kwargs):
         pipeline = self.new_pipeline(
             name='pipeline1',
-            inputs=[FilesetSpec('one', text_format)],
-            outputs=[FilesetSpec('derived1_1', text_format),
-                     FilesetSpec('derived1_2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not accessible")
@@ -85,17 +81,13 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline2(self, **kwargs):
         pipeline = self.new_pipeline(
             name='pipeline2',
-            inputs=[FilesetSpec('one', text_format),
-                    FilesetSpec('derived1_1', text_format)],
-            outputs=[FilesetSpec('derived2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -108,11 +100,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline3(self, **kwargs):
         pipeline = self.new_pipeline(
             name='pipeline3',
-            inputs=[FilesetSpec('derived2', text_format)],
-            outputs=[FilesetSpec('derived3', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
         indent = pipeline.create_node(IdentityInterface(['file']),
                                       name="ident")
@@ -125,14 +114,10 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline4(self, **kwargs):
         pipeline = self.new_pipeline(
             name='pipeline4',
-            inputs=[FilesetSpec('derived1_2', text_format),
-                    FilesetSpec('derived3', text_format)],
-            outputs=[FilesetSpec('derived4', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        math = pipeline.create_node(TestMath(), name="mrcat")
+        math = pipeline.add("mrcat", TestMath())
         math.inputs.op = 'mul'
         math.inputs.as_file = True
         # Connect inputs
@@ -145,16 +130,14 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def visit_ids_access_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name='visit_ids_access',
-            inputs=[],
-            outputs=[FilesetSpec('visit_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        sessions_to_file = pipeline.create_join_visits_node(
-            IteratorToFile(), name='sess_to_file', joinfield='ids')
-        pipeline.connect_visit_id(sessions_to_file, 'ids')
+        sessions_to_file = pipeline.add(
+            'sess_to_file', IteratorToFile(), joinsource='visits',
+            joinfield='ids')
+        pipeline.connect('visit_id', sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file,
                                 'out_file')
         return pipeline
@@ -162,16 +145,14 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def subject_ids_access_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name='subject_ids_access',
-            inputs=[],
-            outputs=[FilesetSpec('subject_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        subjects_to_file = pipeline.create_join_subjects_node(
-            IteratorToFile(), name='subjects_to_file', joinfield='ids')
-        pipeline.connect_subject_id(subjects_to_file, 'ids')
+        subjects_to_file = pipeline.add(
+            'subjects_to_file', IteratorToFile(), joinfield='ids',
+            joinsource='subjects')
+        pipeline.connect_input('subject_id', subjects_to_file, 'ids')
         pipeline.connect_output('subject_ids', subjects_to_file,
                                 'out_file')
         return pipeline
@@ -179,14 +160,11 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def subject_summary_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name="subject_summary",
-            inputs=[FilesetSpec('one', text_format)],
-            outputs=[FilesetSpec('subject_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        math = pipeline.create_join_visits_node(
-            TestMath(), joinfield='x', name='math')
+        math = pipeline.add(
+            TestMath(), joinfield='x', joinsource='visits', name='math')
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -199,14 +177,11 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def visit_summary_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name="visit_summary",
-            inputs=[FilesetSpec('one', text_format)],
-            outputs=[FilesetSpec('visit_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        math = pipeline.create_join_subjects_node(
-            TestMath(), joinfield='x', name='math')
+        math = pipeline.add('math', TestMath(), joinfield='x',
+                            joinsource='subjects')
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -219,16 +194,13 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     def project_summary_pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             name="project_summary",
-            inputs=[FilesetSpec('one', text_format)],
-            outputs=[FilesetSpec('project_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
-        math1 = pipeline.create_join_visits_node(
-            TestMath(), joinfield='x', name='math1')
-        math2 = pipeline.create_join_subjects_node(
-            TestMath(), joinfield='x', name='math2')
+        math1 = pipeline.add(
+            'math1', TestMath(), joinfield='x', joinsource='visits')
+        math2 = pipeline.add(
+            'math2', TestMath(), joinfield='x', joinsource='subjects')
         math1.inputs.op = 'add'
         math2.inputs.op = 'add'
         math1.inputs.as_file = True
@@ -374,10 +346,9 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
             outputs=[FilesetSpec(output, text_format)],
             desc=(
                 "A dummy pipeline used to test 'partial-complete' method"),
-            version=1,
-            citations=[])
+            references=[])
         # Nodes
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.y = incr
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -496,8 +467,7 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
             outputs=[FilesetSpec('c', test2_format),
                      FilesetSpec('d', test3_format)],
             desc="A dummy pipeline used to test study input validation",
-            version=1,
-            citations=[],
+            references=[],
             **kwargs)
         identity = pipeline.create_node(IdentityInterface(['a', 'b']),
                                         name='identity')
@@ -564,11 +534,8 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
     def pipeline(self, **kwargs):
         pipeline = self.new_pipeline(
             'pipeline',
-            inputs=[FilesetSpec('fileset', text_format)],
-            outputs=[FilesetSpec('out_fileset', text_format)],
             desc='a dummy pipeline',
-            citations=[],
-            version=1,
+            references=[],
             **kwargs)
         ident = pipeline.create_node(IdentityInterface(['fileset']),
                                      name='ident')

@@ -41,7 +41,7 @@ class Pipeline(object):
         it. Typically passed in from a kwarg of a pipeline constructor in a
         sub-class (or multi-study) to create a slightly modified version of the
         pipeline
-    input_map : str | dict[str,str] | function[str]
+    input_map : str | dict[str,str] | function[str] | None
         Applied to the input names used by the pipeline to map them to new
         entries of the data specification in modified pipeline constructors.
         Often used in a sub-class or multi-study. If a string, the map is
@@ -49,7 +49,7 @@ class Pipeline(object):
         pipeline, if it is a dictionary the names are mapped explicitly, and
         if it is callable (e.g. a function) then it is expected to accept the
         name of the original input and return the new name.
-    output_map : str | dict[str,str] | function[str]
+    output_map : str | dict[str,str] | function[str] | None
         Same as the input map but applied to outputs instead of inputs to the
         pipeline.
     """
@@ -57,7 +57,7 @@ class Pipeline(object):
     VISIT_ITERFIELD = 'visit_id'
     ITERFIELDS = (SUBJECT_ITERFIELD, VISIT_ITERFIELD)
 
-    def __init__(self, study, name, desc, references=None, name_prefix=None,
+    def __init__(self, study, name, desc, references=None, name_prefix='',
                  input_map=None, output_map=None):
         self._name = name_prefix + name
         self._input_map = input_map

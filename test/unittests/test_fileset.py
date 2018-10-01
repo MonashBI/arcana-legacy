@@ -135,7 +135,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('required', text_format)],
             outputs=[FilesetSpec('derivable', text_format)],
             desc="",
-            citations=[],
+            references=[],
             version=1)
         identity = pipeline.create_node(IdentityInterface(['a']),
                                         'identity')
@@ -150,7 +150,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
                     FilesetSpec('optional', text_format)],
             outputs=[FilesetSpec('missing_input', text_format)],
             desc="",
-            citations=[],
+            references=[],
             version=1)
         identity = pipeline.create_node(IdentityInterface(['a', 'b']),
                                         'identity')
@@ -168,7 +168,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('required', text_format)],
             outputs=outputs,
             desc="",
-            citations=[],
+            references=[],
             version=1)
         identity = pipeline.create_node(IdentityInterface(['a', 'b']),
                                         'identity')
@@ -185,7 +185,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('requires_switch', text_format)],
             outputs=[FilesetSpec('requires_switch2', text_format)],
             desc="",
-            citations=[],
+            references=[],
             version=1, **kwargs)
         identity = pipeline.create_node(IdentityInterface(['a']),
                                         'identity')
@@ -206,7 +206,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             inputs=[FilesetSpec('required', text_format)],
             outputs=outputs,
             desc="",
-            citations=[],
+            references=[],
             version=1, **kwargs)
         identity = pipeline.create_node(IdentityInterface(['a']),
                                         'identity')
