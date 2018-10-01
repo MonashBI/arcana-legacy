@@ -71,6 +71,8 @@ class RepositorySourceSpec(DynamicTraitedSpec):
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
                           desc="The visit ID")
+    link = traits.Bool(desc=("dummy field used to connect source to initial "
+                             "node of pipeline"))
 
 
 class RepositorySource(BaseRepositoryInterface):
@@ -137,9 +139,6 @@ class RepositorySinkOutputSpec(RepositorySinkSpec):
 
     out_fields = traits.List(
         traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
-    project_id = traits.Str(
-        desc=("No longer required except to be used to ensure that the "
-              "report nodes are run after the sink nodes"))
 
 
 class RepositorySink(BaseRepositoryInterface):

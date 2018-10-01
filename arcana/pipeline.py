@@ -11,7 +11,7 @@ import errno
 from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
-from arcana.data.base import BaseFileset, BaseField, FilesetSpec
+from arcana.data import BaseFileset
 from arcana.exception import (
     ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
 
@@ -65,7 +65,9 @@ class Pipeline(object):
         self._workflow = pe.Workflow(name=self.name)
         self._desc = desc
         self._input_conns = defaultdict(list)
+        self._iterator_conns = defaultdict(list)
         self._output_conns = {}
+        self._iterator_joins = set()
         # Set up inputs
 #         self._check_spec_names(inputs, 'input')
 #         if any(i.name in self.iterfields for i in inputs):
@@ -166,7 +168,7 @@ class Pipeline(object):
         return chain((i for i in self.inputs if not i.derived),
                      *(p.study_inputs for p in self.prerequisites))
 
-    def add(self, name, interface, node_type=None, **kwargs):
+    def add(self, name, interface, **kwargs):
         """
         Adds a processing Node to the pipeline
 
@@ -200,16 +202,23 @@ class Pipeline(object):
         node : Node
             The Node object that has been added to the pipeline
         """
-        if node_type == 'map':
-            node_cls = MapNode
-        elif node_type in ('join', 'join_subjects', 'join_visits'):
+        if 'joinsource' in kwargs:
+            if 'iterfield' in kwargs:
+                raise ArcanaDesignError(
+                    "Cannot provide both joinsource and iterfield to when "
+                    "attempting to add '{}' node to '{}' pipeline in {} class"
+                    .foramt(name, self.name, type(self.study).__name__))
             node_cls = JoinNode
+            joinsource = kwargs['joinsource']
+            if joinsource == 'subjects':
+                self._iterator_joins.add(self.SUBJECT_ITERFIELD)
+            elif joinsource == 'visits':
+                self._iterator_joins.add(self.VISIT_ITERFIELD)
+            kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
+        elif 'iterfield' in kwargs:
+            node_cls = MapNode
         else:
             node_cls = Node
-        if node_type == 'join_subjects':
-            kwargs['joinsource'] = '{}_subjects'.format(self.name)
-        elif node_type == 'join_visits':
-            kwargs['joinsource'] = '{}_sessions'.format(self.name)
         node = node_cls(interface, name="{}_{}".format(self._name, name),
                         processor=self.study.processor, **kwargs)
         self._workflow.add_nodes([node])
@@ -234,16 +243,25 @@ class Pipeline(object):
             conversion is performed. If None the file format in the data spec
             is assumed
         """
-        name = self._map_name(spec_name, self._input_map)
-        if name not in self.study.data_spec_names():
-            raise ArcanaDesignError(
-                "Proposed input '{}' to '{}' pipeline is not a valid spec "
-                "name for {} studies ('{}')"
-                .format(name, self.name, self.study.__class__.__name__,
-                        "', '".join(self.study.data_spec_names())))
-        self._input_conns[name].append((node, node_input, format, kwargs))
+        if spec_name in self.ITERFIELDS:
+            if format is not None:
+                raise ArcanaDesignError(
+                    "Format doesn't make sense to connect iterator input '{}' "
+                    "in '{}' pipeline of {} study".format(
+                        spec_name, self.name, type(self.study).__class__))
+            self._iterator_conns[spec_name] = (node, node_input)
+        else:
+            name = self._map_name(spec_name, self._input_map)
+            if name not in self.study.data_spec_names():
+                raise ArcanaDesignError(
+                    "Proposed input '{}' to '{}' pipeline is not a valid spec "
+                    "name for {} studies ('{}')"
+                    .format(name, self.name, self.study.__class__.__name__,
+                            "', '".join(self.study.data_spec_names())))
+            self._input_conns[name].append((node, node_input, format, kwargs))
 
-    def connect_output(self, spec_name, node, node_output, format=None, **kwargs):  # @ReservedAssignment @IgnorePep8
+    def connect_output(self, spec_name, node, node_output, format=None,   # @ReservedAssignment @IgnorePep8
+                       **kwargs):
         """
         Connects an output to a study fileset spec
 
@@ -326,18 +344,33 @@ class Pipeline(object):
         return self._output_conns.keys()
 
     @property
+    def joins_subjects(self):
+        "Iterators that are joined within the pipeline"
+        return self.SUBJECT_ITERFIELD in self._iterator_joins
+
+    @property
+    def joins_visits(self):
+        "Iterators that are joined within the pipeline"
+        return self.VISIT_ITERFIELD in self._iterator_joins
+
+    @property
     def input_frequencies(self):
-        return set(i.frequency for i in self.inputs)
+        freqs = set(i.frequency for i in self.inputs)
+        if self.SUBJECT_ITERFIELD in self._iterator_conns:
+            freqs.add('per_subject')
+        if self.VISIT_ITERFIELD in self._iterator_conns:
+            freqs.add('per_visit')
+        return freqs
 
     @property
     def output_frequencies(self):
         return set(o.frequency for o in self.ouputs)
 
     def frequency_inputs(self, frequency):
-        return (i for i in self._input_conns if i.frequency == frequency)
+        return (i for i in self.inputs if i.frequency == frequency)
 
     def frequency_outputs(self, frequency):
-        return (o for o in self._output_conns if o.frequency == frequency)
+        return (o for o in self.outputs if o.frequency == frequency)
 
     @property
     def referenced_parameters(self):
@@ -359,9 +392,8 @@ class Pipeline(object):
 
     def inputnode(self, frequency):
         """
-        Returns the input node for the given frequency, generating if it
-        hasn't been already. It also adds implicit file format conversion nodes
-        to the pipeline.
+        Generates an input node for the given frequency. It also adds implicit
+        file format conversion nodes to the pipeline.
 
         Parameters
         ----------
@@ -379,49 +411,45 @@ class Pipeline(object):
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
         for iterfield in self.ITERFIELDS:
-            if self.iterates_over(frequency, iterfield):
+            if self.iterates_over(iterfield, frequency):
                 input_names.append(iterfield)
-        try:
-            # Check to see whether the input node has already been created
-            inputnode = self._inputnodes[frequency]
-            if sorted(inputnode.inputs) != sorted(input_names):
-                raise ArcanaError(
-                    "Pipeline '{}' has been altered since its input node was "
-                    "created.".format(self.name))
-        except KeyError:
-            # Generate input node and connect it to appropriate nodes
-            inputnode = self._inputnodes[frequency] = self.add(
-                '{}_inputnode'.format(frequency), IdentityInterface(
-                    fields=input_names))
-            # Loop through list of nodes connected to study data specs and
-            # connect them to the newly created input node
-            for input in inputs:  # @ReservedAssignment
-                conv_cache = {}
-                for (node, node_in,
-                     format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
-                    # If fileset formats differ between study and pipeline
-                    # inputs create converter node (if one hasn't been already)
-                    # and connect input to that before connecting to inputnode
-                    if isinstance(input, BaseFileset) and (format !=
-                                                           input.format):
-                        if format.name not in conv_cache:
-                            conv_cache[format.name] = format.converter_from(
-                                input.format, **conv_kwargs)
-                        (conv_node,
-                         conv_in, conv_out) = conv_cache[format.name].get_node(
-                            '{}_{}_{}_to_{}_conversion'.format(
-                                self.name, input.name, input.format.name,
-                                format.name))
-                        self.connect(inputnode, input.name, conv_node, conv_in)
-                        self.connect(conv_node, conv_out, node, node_in)
-                    else:
-                        self.connect(inputnode, input.name, node, node_in)
+        # Generate input node and connect it to appropriate nodes
+        inputnode = self._inputnodes[frequency] = self.add(
+            '{}_inputnode'.format(frequency), IdentityInterface(
+                fields=input_names))
+        # Loop through list of nodes connected to study data specs and
+        # connect them to the newly created input node
+        for input in inputs:  # @ReservedAssignment
+            conv_cache = {}
+            for (node, node_in,
+                 format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
+                # If fileset formats differ between study and pipeline
+                # inputs create converter node (if one hasn't been already)
+                # and connect input to that before connecting to inputnode
+                if isinstance(input, BaseFileset) and (format !=
+                                                       input.format):
+                    if format.name not in conv_cache:
+                        conv_cache[format.name] = format.converter_from(
+                            input.format, **conv_kwargs)
+                    (conv_node,
+                     conv_in, conv_out) = conv_cache[format.name].get_node(
+                        '{}_{}_{}_to_{}_conversion'.format(
+                            self.name, input.name, input.format.name,
+                            format.name))
+                    self.connect(inputnode, input.name, conv_node, conv_in)
+                    self.connect(conv_node, conv_out, node, node_in)
+                else:
+                    self.connect(inputnode, input.name, node, node_in)
+        # Connect iterator inputs
+        for iterfield, conns in self._iterator_conns.items():
+            for node, node_in in conns:
+                self.connect(inputnode, iterfield, node, node_in)
         return inputnode
 
     def outputnode(self, frequency):
         """
-        Returns the output node for the given frequency, generating if it
-        hasn't been already
+        Generates an output node for the given frequency. It also adds implicit
+        file format conversion nodes to the pipeline.
 
         Parameters
         ----------
@@ -439,68 +467,36 @@ class Pipeline(object):
         # to hold iterator IDs
         output_names = [i.name for i in outputs]
         for iterfield in self.ITERFIELDS:
-            if self.iterates_over(frequency, iterfield):
+            if self.iterates_over(iterfield, frequency):
                 output_names.append(iterfield)
-        try:
-            # Check to see whether the output node has already been created
-            outputnode = self._outputnodes[frequency]
-            if sorted(outputnode.outputs) != sorted(output_names):
-                raise ArcanaError(
-                    "Pipeline '{}' has been altered since its output node was "
-                    "created.".format(self.name))
-        except KeyError:
-            # Generate output node and connect it to appropriate nodes
-            outputnode = self._outputnodes[frequency] = self.add(
-                '{}_outputnode'.format(frequency), IdentityInterface(
-                    fields=output_names))
-            # Loop through list of nodes connected to study data specs and
-            # connect them to the newly created output node
-            for output in outputs:  # @ReservedAssignment
-                conv_cache = {}
-                (node, node_out,
-                 format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
-                # If fileset formats differ between study and pipeline
-                # outputs create converter node (if one hasn't been already)
-                # and connect output to that before connecting to outputnode
-                if isinstance(output, BaseFileset) and (format !=
-                                                        output.format):
-                    if format.name not in conv_cache:
-                        conv_cache[format.name] = output.format.converter_from(
-                            format, **conv_kwargs)
-                    (conv_node,
-                     conv_in, conv_out) = conv_cache[format.name].get_node(
-                        '{}_{}_{}_to_{}_conversion'.format(
-                            self.name, output.name, output.format.name,
-                            format.name))
-                self.connect(node, node_out, conv_node, conv_in)
-                self.connect(conv_node, conv_out, outputnode, output.name)
-            else:
-                self.connect(node, node_out, outputnode, output.name)
+        # Generate output node and connect it to appropriate nodes
+        outputnode = self._outputnodes[frequency] = self.add(
+            '{}_outputnode'.format(frequency), IdentityInterface(
+                fields=output_names))
+        # Loop through list of nodes connected to study data specs and
+        # connect them to the newly created output node
+        for output in outputs:  # @ReservedAssignment
+            conv_cache = {}
+            (node, node_out,
+             format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
+            # If fileset formats differ between study and pipeline
+            # outputs create converter node (if one hasn't been already)
+            # and connect output to that before connecting to outputnode
+            if isinstance(output, BaseFileset) and (format !=
+                                                    output.format):
+                if format.name not in conv_cache:
+                    conv_cache[format.name] = output.format.converter_from(
+                        format, **conv_kwargs)
+                (conv_node,
+                 conv_in, conv_out) = conv_cache[format.name].get_node(
+                    '{}_{}_{}_to_{}_conversion'.format(
+                        self.name, output.name, output.format.name,
+                        format.name))
+            self.connect(node, node_out, conv_node, conv_in)
+            self.connect(conv_node, conv_out, outputnode, output.name)
+        else:
+            self.connect(node, node_out, outputnode, output.name)
         return outputnode
-
-
-#     @property
-#     def frequencies(self):
-#         "The frequencies present in the pipeline outputs"
-#         return iter(self._outputs.keys())
-# 
-#     def frequency_outputs(self, freq):
-#         return iter(self._outputs[freq])
-# 
-#     def frequency_output_names(self, freq):
-#         return (o.name for o in self.frequency_outputs(freq))
-# 
-#     def frequency(self, output):
-#         freqs = [m for m, outputs in self._outputs.values()
-#                  if output in outputs]
-#         if not freqs:
-#             raise KeyError(
-#                 "'{}' is not an output of pipeline '{}'".format(output,
-#                                                                 self.name))
-#         else:
-#             assert len(freqs) == 1
-#             freq = freqs[0]
-#         return freq
 
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))
@@ -538,13 +534,66 @@ class Pipeline(object):
                 raise
         shutil.rmtree(tmpdir)
 
-    @classmethod
-    def iterates_over(cls, frequency, iterfield):  # @ReservedAssignment
-        if iterfield == cls.SUBJECT_ITERFIELD:
-            iterates = (frequency in ('per_session', 'per_subject'))
-        elif iterfield == cls.VISIT_ITERFIELD:
-            iterates = (frequency in ('per_session', 'per_visit'))
+    def iterfields(self, frequency=None):
+        """
+        Returns the iterfields (i.e. subject_id, visit_id) that the pipeline
+        iterates over
+
+        Parameters
+        ----------
+        frequency : str | None
+            A selected data frequency to use to determine which iterfields are
+            required. If None, all input frequencies of the pipeline are
+            assumed
+        """
+        iterfields = set()
+        if frequency is None:
+            input_freqs = list(self.input_frequencies)
         else:
-            raise ArcanaError("Unrecognised iterfield '{}', can be one of '{}'"
-                              .format(iterfield, "', '".join(cls.ITERFIELDS)))
-        return iterates
+            input_freqs = [frequency]
+        if 'per_session' in input_freqs:
+            iterfields.add(self.ITERFIELDS)
+        if 'per_visit' in input_freqs:
+            iterfields.add(self.VISIT_ITERFIELD)
+        if 'per_subject' in input_freqs:
+            iterfields.add(self.SUBJECT_ITERFIELD)
+        return iterfields
+
+    @classmethod
+    def iterates_over(cls, self, iterfield, freq):
+        """
+        Checks to see if the given frequency requires iteration over the
+        given iterfield
+
+        Parameters
+        ----------
+        iterfield : str
+            The iterfield to check
+        freq : str
+            The frequency to check
+        """
+        assert iterfield in self.ITERFIELDS
+        return (freq == 'per_session' or
+                freq == 'per_visit' and iterfield == self.VISIT_ITERFIELD or
+                freq == 'per_subject' and iterfield == self.SUBJECT_ITERFIELD)
+
+    def to_process(self, item, force=False):
+        """
+        Determines whether the given derivative dataset needs to be
+        (re)processed or not, checking the item's provenance against the
+        parameters used by the pipeline.
+
+        Parameters
+        ----------
+        item : Fileset | Field
+            The item to check for reprocessing
+        reprocess : bool
+            A flag which determines whether reprocessing should be forced
+
+        Returns
+        -------
+        to_process : bool
+            Whether to (re)process the given item
+        """
+        # TODO: Add provenance checking for items that exist
+        return force or not item.exists

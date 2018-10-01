@@ -385,9 +385,9 @@ class TranslatedPipeline(Pipeline):
             self._unconnected_inputs.update(i.name
                                             for i in add_inputs)
         # Create new input node
-        self._inputnode = self.create_node(
-            IdentityInterface(fields=list(self.input_names)),
-            name="{}_inputnode_wrapper".format(ss_name))
+        self._inputnode = self.add(
+            name="{}_inputnode_wrapper".format(ss_name),
+            IdentityInterface(fields=list(self.input_names)))
         # Connect to sub-study input node
         for input_name in pipeline.input_names:
             self.workflow.connect(
@@ -420,12 +420,11 @@ class TranslatedPipeline(Pipeline):
         # Create output nodes for each frequency
         self._outputnodes = {}
         for freq in pipeline.frequencies:
-            self._outputnodes[freq] = self.create_node(
-                IdentityInterface(
-                    fields=list(
-                        self.frequency_output_names(freq))),
+            self._outputnodes[freq] = self.add(
                 name="{}_{}_outputnode_wrapper".format(ss_name,
-                                                       freq))
+                                                       freq),
+                IdentityInterface(
+                    fields=list(self.frequency_output_names(freq))))
             # Connect sub-study outputs
             for output_name in pipeline.frequency_output_names(freq):
                 self.workflow.connect(

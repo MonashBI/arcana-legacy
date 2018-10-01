@@ -521,7 +521,7 @@ class Study(object):
         if full:
             workflow = pe.Workflow(name='{}_gen'.format(spec_name),
                                    base_dir=self.processor.work_dir)
-            self.processor._connect_to_repository(
+            self.processor._connect_pipeline(
                 pipeline, workflow, **kwargs)
         else:
             workflow = pipeline._workflow
@@ -775,10 +775,8 @@ class Study(object):
             version=1,
             citations=citations,
             **name_maps)
-        node = pipeline.create_node(interface=interface(),
-                                     name=name + '_node',
-                                     requirements=requirements,
-                                     wall_time=wall_time)
+        node = pipeline.add(name=name + '_node', interface=interface(),
+                            requirements=requirements, wall_time=wall_time)
 
         # Set registration parameters
         for param_name, node_input in parameters.items():

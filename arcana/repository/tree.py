@@ -1,10 +1,12 @@
 from builtins import zip
 from builtins import object
 from itertools import chain
+from operator import attrgetter
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
 from arcana.data import BaseFileset, BaseField
 
+id_getter = attrgetter('id')
 
 class TreeNode(object):
 
@@ -183,11 +185,11 @@ class Tree(TreeNode):
 
     @property
     def subjects(self):
-        return iter(self._subjects.values())
+        return iter(sorted(self._subjects.values(), key=id_getter))
 
     @property
     def visits(self):
-        return iter(self._visits.values())
+        return iter(sorted(self._visits.values(), key=id_getter))
 
     @property
     def sessions(self):
@@ -393,7 +395,8 @@ class Subject(TreeNode):
 
     @property
     def sessions(self):
-        return iter(self._sessions.values())
+        return iter(sorted(self._sessions.values(),
+                           key=attrgetter('visit_id')))
 
     def session(self, visit_id):
         try:
@@ -490,7 +493,8 @@ class Visit(TreeNode):
 
     @property
     def sessions(self):
-        return iter(self._sessions.values())
+        return iter(sorted(self._sessions.values(),
+                           key=attrgetter('subject_id')))
 
     def session(self, subject_id):
         try:
