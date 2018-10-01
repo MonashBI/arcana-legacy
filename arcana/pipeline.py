@@ -36,10 +36,11 @@ class Pipeline(object):
     references : List[Citation]
         List of scientific papers that describe the workflow and should be
         cited in publications that use it
-    prefix : str
+    name_prefix : str
         Prefix prepended to the name of the pipeline and all node names within
         it. Typically passed in from a kwarg of a pipeline constructor in a
-        sub-class or multi-study to create a duplicate of the pipeline
+        sub-class (or multi-study) to create a slightly modified version of the
+        pipeline
     input_map : str | dict[str,str] | function[str]
         Applied to the input names used by the pipeline to map them to new
         entries of the data specification in modified pipeline constructors.
@@ -56,9 +57,9 @@ class Pipeline(object):
     VISIT_ITERFIELD = 'visit_id'
     ITERFIELDS = (SUBJECT_ITERFIELD, VISIT_ITERFIELD)
 
-    def __init__(self, study, name, desc, references=None, prefix=None,
+    def __init__(self, study, name, desc, references=None, name_prefix=None,
                  input_map=None, output_map=None):
-        self._name = prefix + name
+        self._name = name_prefix + name
         self._input_map = input_map
         self._output_map = output_map
         self._study = study
@@ -69,28 +70,6 @@ class Pipeline(object):
         self._output_conns = {}
         self._iterator_joins = set()
         # Set up inputs
-#         self._check_spec_names(inputs, 'input')
-#         if any(i.name in self.iterfields for i in inputs):
-#             raise ArcanaError(
-#                 "Cannot have a fileset spec named '{}' as it clashes with "
-#                 "iterable field of that name".format(i.name))
-#         self._inputs = inputs
-#         self._inputnode = self.create_node(
-#             IdentityInterface(fields=(
-#                 tuple(self.input_names) + self.iterfields)),
-#             name="inputnode", wall_time=10, memory=1000)
-#         # Set up outputs
-#         self._check_spec_names(outputs, 'output')
-#         self._outputs = defaultdict(list)
-#         for output in outputs:
-#             freq = self._study.data_spec(output).frequency
-#             self._outputs[freq].append(output)
-#         for freq in self._outputs:
-#             self._outputnodes[freq] = self.create_node(
-#                 IdentityInterface(
-#                     fields=[o.name for o in self._outputs[freq]]),
-#                 name="{}_outputnode".format(freq), wall_time=10,
-#                 memory=1000)
         self._references = references if references is not None else []
         # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the

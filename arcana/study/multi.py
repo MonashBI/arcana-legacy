@@ -166,8 +166,7 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name)
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_name, add_inputs=None,
-                  add_outputs=None, auto_added=False):
+    def translate(cls, sub_study_name, pipeline_name, auto_added=False):
         """
         A "decorator" (although not intended to be used with @) for
         translating pipeline getter methods from a sub-study of a
@@ -181,14 +180,6 @@ class MultiStudy(Study):
             Name of the sub-study
         pipeline_name : str
             Unbound method used to create the pipeline in the sub-study
-        add_inputs : list[str]
-            List of additional inputs to add to the translated pipeline
-            to be connected manually in combined-study getter (i.e. not
-            using translate_getter decorator).
-        add_outputs : list[str]
-            List of additional outputs to add to the translated pipeline
-            to be connected manually in combined-study getter (i.e. not
-            using translate_getter decorator).
         auto_added : bool
             Signify that a method was automatically added by the
             MultiStudyMetaClass. Used in checks when pickling Study
@@ -196,16 +187,32 @@ class MultiStudy(Study):
         """
         assert isinstance(sub_study_name, basestring)
         assert isinstance(pipeline_name, basestring)
-        def translated_getter(self, prefix='',  # @IgnorePep8
-                              add_inputs=add_inputs,
-                              add_outputs=add_outputs, **kwargs):
-            trans_pipeline = TranslatedPipeline(
-                self, self.sub_study(sub_study_name),
-                pipeline_name, prefix=prefix,
-                add_inputs=add_inputs, add_outputs=add_outputs,
-                **kwargs)
-            trans_pipeline.assert_connected()
-            return trans_pipeline
+        def translated_getter(self, name_prefix='', input_map='', output_map='', **kwargs):  # @IgnorePep8
+            pipeline_getter = getattr(self.sub_study(sub_study_name),
+                                      pipeline_name)
+            # Create prefix from sub-study name to differentiate pipeline,
+            # inputs and outputs from different sub-studies
+            prefix = sub_study_name + '_'
+            # Prepend prefix to name_prefix, input_map and output_map
+            new_name_prefix = name_prefix + prefix
+            if isinstance(input_map, basestring):
+                new_input_map = input_map + prefix
+            elif isinstance(input_map, dict):
+                new_input_map = {k: prefix + v for k, v in input_map.items()}
+            else:
+                def new_input_map(n):
+                    return prefix + input_map(n)
+            if isinstance(output_map, basestring):
+                new_output_map = output_map + prefix
+            elif isinstance(output_map, dict):
+                new_output_map = {k: prefix + v for k, v in output_map.items()}
+            else:
+                def new_output_map(n):
+                    return prefix + output_map(n)
+            return pipeline_getter(name_prefix=new_name_prefix,
+                                   input_map=new_input_map,
+                                   output_map=new_output_map,
+                                   **kwargs)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter
@@ -320,123 +327,123 @@ class SubStudySpec(object):
                 yield spec
 
 
-class TranslatedPipeline(Pipeline):
-    """
-    A pipeline that is translated from a sub-study to the combined
-    study.
-
-    Parameters
-    ----------
-    name : str
-        Name of the translated pipeline
-    pipeline : Pipeline
-        Sub-study pipeline to translate
-    combined_study : MultiStudy
-        Study to translate the pipeline to
-    prefix : str
-        Prefix to prepend to the pipeline name to avoid name clashes
-    add_inputs : list[str]
-        List of additional inputs to add to the translated pipeline
-        to be connected manually in combined-study getter (i.e. not
-        using translate_getter decorator).
-    add_outputs : list[str]
-        List of additional outputs to add to the translated pipeline
-        to be connected manually in combined-study getter (i.e. not
-        using translate_getter decorator).
-    """
-
-    def __init__(self, combined_study, sub_study, pipeline_name,
-                 prefix='', add_inputs=None, add_outputs=None,
-                 **kwargs):
-        # Get the relative name of the sub-study (i.e. without the
-        # combined study name prefixed)
-        ss_name = sub_study.name[(len(combined_study.name) + 1):]
-        prefix += ss_name + '_'
-        # Create pipeline and overriding its name to include prefix
-        # Copy across default parameters and override with extra
-        # provided
-        pipeline_getter = getattr(sub_study, pipeline_name)
-        pipeline = pipeline_getter(prefix=prefix, **kwargs)
-        try:
-            assert isinstance(pipeline, Pipeline)
-        except Exception:
-            raise
-        self._name = pipeline.name
-        self._study = combined_study
-        self._workflow = pipeline.workflow
-        sub_study_spec = combined_study.sub_study_spec(ss_name)
-        assert isinstance(pipeline.study, sub_study_spec.study_class)
-        # Translate inputs from sub-study pipeline
-        try:
-            self._inputs = [
-                i.renamed(sub_study_spec.inverse_map(i.name))
-                for i in pipeline.inputs]
-        except ArcanaNameError as e:
-            raise ArcanaMissingDataException(
-                "'{}' input required for pipeline '{}' in '{}' study "
-                " is not present in inverse fileset map:\n{}".format(
-                    e.name, pipeline.name, ss_name,
-                    sorted(sub_study_spec.name_map.values())))
-        # Add additional inputs
-        self._unconnected_inputs = set()
-        if add_inputs is not None:
-            self._check_spec_names(add_inputs, 'additional inputs')
-            self._inputs.extend(add_inputs)
-            self._unconnected_inputs.update(i.name
-                                            for i in add_inputs)
-        # Create new input node
-        self._inputnode = self.add(
-            name="{}_inputnode_wrapper".format(ss_name),
-            IdentityInterface(fields=list(self.input_names)))
-        # Connect to sub-study input node
-        for input_name in pipeline.input_names:
-            self.workflow.connect(
-                self._inputnode,
-                sub_study_spec.inverse_map(input_name),
-                pipeline.inputnode, input_name)
-        # Translate outputs from sub-study pipeline
-        self._outputs = {}
-        for freq in pipeline.frequencies:
-            try:
-                self._outputs[freq] = [
-                    o.renamed(sub_study_spec.inverse_map(o.name))
-                    for o in pipeline.frequency_outputs(freq)]
-            except ArcanaNameError as e:
-                raise ArcanaMissingDataException(
-                    "'{}' output required for pipeline '{}' in '{}' "
-                    "study is not present in inverse fileset map:\n{}"
-                    .format(
-                        e.name, pipeline.name, ss_name,
-                        sorted(sub_study_spec.name_map.values())))
-        # Add additional outputs
-        self._unconnected_outputs = set()
-        if add_outputs is not None:
-            self._check_spec_names(add_outputs, 'additional outputs')
-            for output in add_outputs:
-                combined_study.data_spec(output).frequency
-                self._outputs[freq].append(output)
-            self._unconnected_outputs.update(o.name
-                                             for o in add_outputs)
-        # Create output nodes for each frequency
-        self._outputnodes = {}
-        for freq in pipeline.frequencies:
-            self._outputnodes[freq] = self.add(
-                name="{}_{}_outputnode_wrapper".format(ss_name,
-                                                       freq),
-                IdentityInterface(
-                    fields=list(self.frequency_output_names(freq))))
-            # Connect sub-study outputs
-            for output_name in pipeline.frequency_output_names(freq):
-                self.workflow.connect(
-                    pipeline.outputnode(freq),
-                    output_name,
-                    self._outputnodes[freq],
-                    sub_study_spec.inverse_map(output_name))
-        # Copy additional info fields
-        self._citations = pipeline._citations
-        self._version = pipeline._version
-        self._desc = pipeline._desc
-        self._used_parameters = set()
+# class TranslatedPipeline(Pipeline):
+#     """
+#     A pipeline that is translated from a sub-study to the combined
+#     study.
+ 
+#     Parameters
+#     ----------
+#     name : str
+#         Name of the translated pipeline
+#     pipeline : Pipeline
+#         Sub-study pipeline to translate
+#     combined_study : MultiStudy
+#         Study to translate the pipeline to
+#     prefix : str
+#         Prefix to prepend to the pipeline name to avoid name clashes
+#     add_inputs : list[str]
+#         List of additional inputs to add to the translated pipeline
+#         to be connected manually in combined-study getter (i.e. not
+#         using translate_getter decorator).
+#     add_outputs : list[str]
+#         List of additional outputs to add to the translated pipeline
+#         to be connected manually in combined-study getter (i.e. not
+#         using translate_getter decorator).
+#     """
+# 
+#     def __init__(self, combined_study, sub_study, pipeline_name,
+#                  prefix='', add_inputs=None, add_outputs=None,
+#                  **kwargs):
+#         # Get the relative name of the sub-study (i.e. without the
+#         # combined study name prefixed)
+#         ss_name = sub_study.name[(len(combined_study.name) + 1):]
+#         prefix += ss_name + '_'
+#         # Create pipeline and overriding its name to include prefix
+#         # Copy across default parameters and override with extra
+#         # provided
+#         pipeline_getter = getattr(sub_study, pipeline_name)
+#         pipeline = pipeline_getter(prefix=prefix, **kwargs)
+#         try:
+#             assert isinstance(pipeline, Pipeline)
+#         except Exception:
+#             raise
+#         self._name = pipeline.name
+#         self._study = combined_study
+#         self._workflow = pipeline.workflow
+#         sub_study_spec = combined_study.sub_study_spec(ss_name)
+#         assert isinstance(pipeline.study, sub_study_spec.study_class)
+#         # Translate inputs from sub-study pipeline
+#         try:
+#             self._inputs = [
+#                 i.renamed(sub_study_spec.inverse_map(i.name))
+#                 for i in pipeline.inputs]
+#         except ArcanaNameError as e:
+#             raise ArcanaMissingDataException(
+#                 "'{}' input required for pipeline '{}' in '{}' study "
+#                 " is not present in inverse fileset map:\n{}".format(
+#                     e.name, pipeline.name, ss_name,
+#                     sorted(sub_study_spec.name_map.values())))
+#         # Add additional inputs
+#         self._unconnected_inputs = set()
+#         if add_inputs is not None:
+#             self._check_spec_names(add_inputs, 'additional inputs')
+#             self._inputs.extend(add_inputs)
+#             self._unconnected_inputs.update(i.name
+#                                             for i in add_inputs)
+#         # Create new input node
+#         self._inputnode = self.add(
+#             name="{}_inputnode_wrapper".format(ss_name),
+#             IdentityInterface(fields=list(self.input_names)))
+#         # Connect to sub-study input node
+#         for input_name in pipeline.input_names:
+#             self.workflow.connect(
+#                 self._inputnode,
+#                 sub_study_spec.inverse_map(input_name),
+#                 pipeline.inputnode, input_name)
+#         # Translate outputs from sub-study pipeline
+#         self._outputs = {}
+#         for freq in pipeline.frequencies:
+#             try:
+#                 self._outputs[freq] = [
+#                     o.renamed(sub_study_spec.inverse_map(o.name))
+#                     for o in pipeline.frequency_outputs(freq)]
+#             except ArcanaNameError as e:
+#                 raise ArcanaMissingDataException(
+#                     "'{}' output required for pipeline '{}' in '{}' "
+#                     "study is not present in inverse fileset map:\n{}"
+#                     .format(
+#                         e.name, pipeline.name, ss_name,
+#                         sorted(sub_study_spec.name_map.values())))
+#         # Add additional outputs
+#         self._unconnected_outputs = set()
+#         if add_outputs is not None:
+#             self._check_spec_names(add_outputs, 'additional outputs')
+#             for output in add_outputs:
+#                 combined_study.data_spec(output).frequency
+#                 self._outputs[freq].append(output)
+#             self._unconnected_outputs.update(o.name
+#                                              for o in add_outputs)
+#         # Create output nodes for each frequency
+#         self._outputnodes = {}
+#         for freq in pipeline.frequencies:
+#             self._outputnodes[freq] = self.add(
+#                 name="{}_{}_outputnode_wrapper".format(ss_name,
+#                                                        freq),
+#                 IdentityInterface(
+#                     fields=list(self.frequency_output_names(freq))))
+#             # Connect sub-study outputs
+#             for output_name in pipeline.frequency_output_names(freq):
+#                 self.workflow.connect(
+#                     pipeline.outputnode(freq),
+#                     output_name,
+#                     self._outputnodes[freq],
+#                     sub_study_spec.inverse_map(output_name))
+#         # Copy additional info fields
+#         self._citations = pipeline._citations
+#         self._version = pipeline._version
+#         self._desc = pipeline._desc
+#         self._used_parameters = set()
 
 
 class MultiStudyMetaClass(StudyMetaClass):
