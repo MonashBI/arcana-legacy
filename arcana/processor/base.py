@@ -3,22 +3,14 @@ from builtins import object
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
-from collections import defaultdict
-from operator import attrgetter
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from arcana.node import JoinNode
-from arcana.interfaces.utils import Merge
 from arcana.requirement import RequirementManager
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError)
 from arcana.data import BaseFileset
-from arcana.interfaces.iterators import (
-    PipelineReport, SubjectReport,
-    VisitReport, SubjectSessionReport, SessionReport)
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
-from arcana.node import Node
 
 
 logger = getLogger('arcana')
@@ -122,10 +114,13 @@ class BaseProcessor(object):
         session_ids : list[str,str]
             The same as 'subject_ids' and 'visit_ids', except specifies a set
             of specific combinations in tuples of (subject ID, visit ID).
-        force : bool
+        force : bool | 'all'
             A flag to force the reprocessing of all sessions in the filter
             array, regardless of whether the parameters|pipeline used
-            to generate them matches the current ones.
+            to generate them matches the current ones. NB: if True only the
+            final pipeline will be reprocessed (prerequisite pipelines won't
+            run unless they don't match provenance). To process all
+            prerequisite pipelines 'all' should be passed to force.
 
         Returns
         -------
@@ -478,20 +473,22 @@ class BaseProcessor(object):
                     force=False):
         """
         Check whether the outputs of the pipeline are present in all sessions
-        in the project repository, and make a list of the sessions and subjects
-        that need to be reprocessed if they aren't.
+        in the project repository and were generated with matching parameters
+        and pipelines. Return an 2D boolean array (subjects: rows,
+        visits: cols) with the sessions to process marked True.
 
         Parameters
         ----------
         pipeline : Pipeline
             The pipeline to determine the sessions to process
         filter_array : 2-D numpy.array[bool]
-            A two-dimensional boolean array, where rows correspond to
-            subjects and columns correspond to visits in the repository. True
-            values represent a combination of subject & visit ID to include
+            A two-dimensional boolean array, where rows and columns correspond
+            correspond to subjects and visits in the repository tree. True
+            values represent a subject/visit ID pairs to include
             in the current round of processing. Note that if the 'force'
             flag is not set, sessions won't be reprocessed unless the
-            save provenance doesn't match that of the given pipeline.
+            parameters and pipeline version saved in the provenance doesn't
+            match that of the given pipeline.
         subject_inds : dict[str,int]
             Mapping from subject ID to index in filter|to_process arrays
         visit_inds : dict[str,int]
@@ -504,8 +501,7 @@ class BaseProcessor(object):
         to_process : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows correspond to
             subjects and columns correspond to visits in the repository. True
-            values represent a combination of subject & visit ID to process
-            the session for
+            values represent subject/visit ID pairs to run the pipeline for
         """
         # Check to see if the pipeline has any low frequency outputs, because
         # if not then each session can be processed indepdently. Otherwise,
@@ -532,6 +528,10 @@ class BaseProcessor(object):
         to_process = np.zeros(len(subject_inds), len(visit_inds), dtype=bool)
         for output in pipeline.frequency_outputs('per_study'):
             collection = self.study.spec(output).collection
+            # Include all sessions if a per-study output needs to be
+            # reprocessed. Note that this will almost always be the case if
+            # any other output needs to be reprocessed.
+            #
             # NB: Filter array should always have at least one true value at
             # this point
             if pipeline.to_process(collection.item(), force=force):
@@ -540,6 +540,9 @@ class BaseProcessor(object):
             collection = self.study.spec(output).collection
             for item in collection:
                 i = subject_inds[item.subject_id]
+                # NB: The output will be reprocessed using data from every
+                # visit of each subject. However, the visits to include in the
+                # analysis can be specified the initialisation of the Study.
                 if pipeline.to_process(item, force) and filter_array[i,
                                                                      :].any():
                     to_process[i, :] = True
@@ -547,6 +550,9 @@ class BaseProcessor(object):
             collection = self.study.spec(output).collection
             for item in collection:
                 j = visit_inds[item.visit_id]
+                # NB: The output will be reprocessed using data from every
+                # subject of each vist. However, the subject to include in the
+                # analysis can be specified the initialisation of the Study.
                 if pipeline.to_process(item, force) and filter_array[:,
                                                                      j].any():
                     to_process[:, j] = True
