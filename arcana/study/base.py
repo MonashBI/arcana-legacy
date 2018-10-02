@@ -5,6 +5,7 @@ import sys
 import os.path as op
 import types
 from logging import getLogger
+from nipype.interfaces.utility import IdentityInterface
 from arcana.exception import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
@@ -14,8 +15,6 @@ from arcana.data import (
     BaseData, BaseField, FilesetSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, SwitchSpec
-from arcana.interfaces.iterators import (
-    InputSessions, InputSubjects)
 from arcana.node import Node
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
@@ -662,8 +661,9 @@ class Study(object):
         """
         workflow = pe.Workflow(name='cache_download',
                                base_dir=self.processor.work_dir)
-        subjects = pe.Node(InputSubjects(), name='subjects')
-        sessions = pe.Node(InputSessions(), name='sessions')
+        subjects = pe.Node(IdentityInterface(['subject_id']), name='subjects')
+        sessions = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
+                           name='sessions')
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
         source = self.source(self.inputs)

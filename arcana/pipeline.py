@@ -10,7 +10,6 @@ import errno
 from .node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
-from arcana.data import BaseFileset
 from arcana.exception import (
     ArcanaDesignError, ArcanaNameError, ArcanaError,
     ArcanaOutputNotProducedException)
@@ -53,9 +52,9 @@ class Pipeline(object):
         Same as the input map but applied to outputs instead of inputs to the
         pipeline.
     """
-    SUBJECT_ITERFIELD = 'subject_id'
-    VISIT_ITERFIELD = 'visit_id'
-    ITERFIELDS = (SUBJECT_ITERFIELD, VISIT_ITERFIELD)
+    SUBJECT_ID = 'subject_id'
+    VISIT_ID = 'visit_id'
+    ITERFIELDS = (SUBJECT_ID, VISIT_ID)
 
     def __init__(self, study, name, desc, references=None, name_prefix='',
                  input_map=None, output_map=None):
@@ -191,9 +190,9 @@ class Pipeline(object):
             node_cls = JoinNode
             joinsource = kwargs['joinsource']
             if joinsource == 'subjects':
-                self._iterator_joins.add(self.SUBJECT_ITERFIELD)
+                self._iterator_joins.add(self.SUBJECT_ID)
             elif joinsource == 'visits':
-                self._iterator_joins.add(self.VISIT_ITERFIELD)
+                self._iterator_joins.add(self.VISIT_ID)
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
         elif 'iterfield' in kwargs:
             node_cls = MapNode
@@ -332,19 +331,19 @@ class Pipeline(object):
     @property
     def joins_subjects(self):
         "Iterators that are joined within the pipeline"
-        return self.SUBJECT_ITERFIELD in self._iterator_joins
+        return self.SUBJECT_ID in self._iterator_joins
 
     @property
     def joins_visits(self):
         "Iterators that are joined within the pipeline"
-        return self.VISIT_ITERFIELD in self._iterator_joins
+        return self.VISIT_ID in self._iterator_joins
 
     @property
     def input_frequencies(self):
         freqs = set(i.frequency for i in self.inputs)
-        if self.SUBJECT_ITERFIELD in self._iterator_conns:
+        if self.SUBJECT_ID in self._iterator_conns:
             freqs.add('per_subject')
-        if self.VISIT_ITERFIELD in self._iterator_conns:
+        if self.VISIT_ID in self._iterator_conns:
             freqs.add('per_visit')
         return freqs
 
@@ -548,9 +547,9 @@ class Pipeline(object):
         if 'per_session' in input_freqs:
             iterfields.update(self.ITERFIELDS)
         if 'per_visit' in input_freqs:
-            iterfields.add(self.VISIT_ITERFIELD)
+            iterfields.add(self.VISIT_ID)
         if 'per_subject' in input_freqs:
-            iterfields.add(self.SUBJECT_ITERFIELD)
+            iterfields.add(self.SUBJECT_ID)
         return iterfields
 
     @classmethod
@@ -568,8 +567,8 @@ class Pipeline(object):
         """
         assert iterfield in cls.ITERFIELDS
         return (freq == 'per_session' or
-                freq == 'per_visit' and iterfield == cls.VISIT_ITERFIELD or
-                freq == 'per_subject' and iterfield == cls.SUBJECT_ITERFIELD)
+                freq == 'per_visit' and iterfield == cls.VISIT_ID or
+                freq == 'per_subject' and iterfield == cls.SUBJECT_ID)
 
     def to_process(self, item, force=False):
         """

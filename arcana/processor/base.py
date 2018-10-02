@@ -5,7 +5,7 @@ from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
-from nipype.interfaces.utility import IdentityInterface
+from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.requirement import RequirementManager
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
@@ -251,17 +251,17 @@ class BaseProcessor(object):
         # repository
         workflow.add_nodes([pipeline._workflow])
         # Prepend prerequisite pipelines to complete workflow if required
-        prereq_finals = {}
+        final_nodes = []
         for prereq in pipeline.prerequisites:
             # NB: Even if reprocess==True, the prerequisite pipelines
             # are not re-processed, they are only reprocessed if
             # reprocess == 'all'
             try:
-                prereq_finals[prereq.name] = self._connect_pipeline(
+                final_nodes.append(self._connect_pipeline(
                     prereq, workflow, subject_inds, visit_inds,
                     filter_array=to_process,
                     already_connected=already_connected,
-                    force=(force if force == 'all' else False))
+                    force=(force if force == 'all' else False)))
             except ArcanaNoRunRequiredException:
                 logger.info(
                     "Not running '{}' pipeline as a "
@@ -271,11 +271,12 @@ class BaseProcessor(object):
         # If prerequisite pipelines need to be processed, connect their
         # "final" nodes to the initial node of this pipeline to ensure that
         # they are all processed before this pipeline is run.
-        initial = pipeline.add(
-            'initial', IdentityInterface([n + '_link' for n in prereq_finals] +
-                                         ['link']))
-        for name, final in prereq_finals.items():
-            workflow.connect(final, 'link', initial, name + '_link')
+        if final_nodes:
+            prereqs = pipeline.add('prereqs', Merge(len(final_nodes)))
+            for i, final_node in enumerate(final_nodes, start=1):
+                workflow.connect(final_node, 'out', prereqs, 'in{}'.format(i))
+        else:
+            prereqs = None
         # Construct iterator structure over subjects and sessions to be
         # processed
         iterators = self._iterate(pipeline, to_process, subject_inds,
@@ -299,7 +300,8 @@ class BaseProcessor(object):
                 name='{}_{}_source'.format(pipeline.name, freq))
             # Connect source node to initial node of pipeline to ensure
             # they are run after any prerequisites
-            workflow.connect(initial, 'link', source, 'link')
+            if prereqs is not None:
+                workflow.connect(prereqs, 'out', source, 'prereqs')
             # Connect iterators to source and input nodes
             for iterfield in pipeline.iterfields(freq):
                 workflow.connect(iterators[iterfield], iterfield, source,
@@ -336,33 +338,28 @@ class BaseProcessor(object):
             # Set the sink and subject_id as the default deiterator if there
             # are no deiterates (i.e. per_study) or to use as the upstream
             # node to connect the first deiterator for every frequency
-            deiterators[freq] = sink, pipeline.SUBJECT_ITERFIELD
+            deiterators[freq] = sink
             if list(pipeline.iterfields(freq)):
                 for iterfield in pipeline.iterfields(freq):
-                    joinsource = ('subjects'
-                                  if iterfield == pipeline.SUBJECT_ITERFIELD
-                                  else 'visits')
+                    joinsource = (
+                        'subjects' if iterfield == pipeline.SUBJECT_ID else
+                        'visits')
                     deiterator = pipeline.add(
                         '{}_{}_deiterator'.format(freq, iterfield),
-                        IdentityInterface(list(pipeline.iterfields(freq)),
-                                          mandatory_inputs=False),
-                        joinsource=joinsource, joinfield=iterfield)
+                        IdentityInterface(['combined']),
+                        joinsource=joinsource, joinfield='combined')
                     # Connect to previous deiterator or sink
-                    upstream, _ = deiterators[freq]
-                    pipeline.connect(upstream, iterfield, deiterator,
-                                     iterfield)
-                    deiterators[freq] = deiterator, iterfield
+                    upstream = deiterators[freq]
+                    pipeline.connect(upstream, 'combined', deiterator,
+                                     'combined')
+                    deiterators[freq] = deiterator
         # Create a final node, which is used to connect with dependent
         # pipelines into large workflows
-        final = pipeline.add(
-            'final', IdentityInterface(fields=list(deiterators) + ['link']))
-        # The name of the pipeline is used to connect with downstream
-        # pipelines (i.e. ones that this pipeline is a prerequisite)
-        final.inputs.name = pipeline.name
-        for freq, (deiterator, iterfield) in deiterators.items():
+        final = pipeline.add('final', Merge(len(deiterators)))
+        for i, deiterator in enumerate(deiterators.values(), start=1):
             # Connect the output summary of the prerequisite to the
             # pipeline to ensure that the prerequisite is run first.
-            workflow.connect(deiterator, iterfield, final, freq)
+            workflow.connect(deiterator, 'combined', final, 'in{}'.format(i))
         # Register pipeline as being connected to prevent duplicates
         already_connected[pipeline.name] = (pipeline, final)
         return final
@@ -435,46 +432,46 @@ class BaseProcessor(object):
         visit_ids = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iterators = {}
-        if pipeline.SUBJECT_ITERFIELD in pipeline.iterfields():
-            fields = [pipeline.SUBJECT_ITERFIELD]
+        if pipeline.SUBJECT_ID in pipeline.iterfields():
+            fields = [pipeline.SUBJECT_ID]
             if dependent == 'subjects':
-                fields += pipeline.VISIT_ITERFIELD
+                fields += pipeline.VISIT_ID
             subj_it = pipeline.add('subjects', IdentityInterface(fields))
             if dependent == 'subjects':
                 # Subjects iterator is dependent on visit iterator (because of
                 # non-factorizable IDs)
-                subj_it.itersource = ('visits', pipeline.VISIT_ITERFIELD)
+                subj_it.itersource = ('visits', pipeline.VISIT_ID)
                 subj_it.iterables = [(
-                    pipeline.SUBJECT_ITERFIELD,
+                    pipeline.SUBJECT_ID,
                     {visit_ids[n]: [subj_ids[m] for m in col.nonzero()[0]]
                      for n, col in enumerate(to_process.T)})]
-                pipeline.connect('visits', pipeline.VISIT_ITERFIELD,
-                                 'subjects', pipeline.VISIT_ITERFIELD)
+                pipeline.connect('visits', pipeline.VISIT_ID,
+                                 'subjects', pipeline.VISIT_ID)
             else:
                 subj_it.iterables = (
-                    pipeline.SUBJECT_ITERFIELD,
+                    pipeline.SUBJECT_ID,
                     [subj_ids[n] for n in to_process.any(axis=1).nonzero()[0]])
-            iterators[pipeline.SUBJECT_ITERFIELD] = subj_it
+            iterators[pipeline.SUBJECT_ID] = subj_it
         # Create iterator for visits
-        if pipeline.VISIT_ITERFIELD in pipeline.iterfields():
-            fields = [pipeline.VISIT_ITERFIELD]
+        if pipeline.VISIT_ID in pipeline.iterfields():
+            fields = [pipeline.VISIT_ID]
             if dependent == 'visits':
-                fields += pipeline.SUBJECT_ITERFIELD
+                fields += pipeline.SUBJECT_ID
             visit_it = pipeline.add('visits', IdentityInterface(fields))
             if dependent == 'visits':
-                visit_it.itersource = ('subjects', pipeline.SUBJECT_ITERFIELD)
+                visit_it.itersource = ('subjects', pipeline.SUBJECT_ID)
                 visit_it.iterables = [(
-                    pipeline.VISIT_ITERFIELD,
+                    pipeline.VISIT_ID,
                     {subj_ids[m]: [visit_ids[n] for n in row.nonzero()[0]]
                      for n, row in enumerate(to_process)})]
-                pipeline.connect('subjects', pipeline.VISIT_ITERFIELD,
-                                 'visits', pipeline.VISIT_ITERFIELD)
+                pipeline.connect('subjects', pipeline.VISIT_ID,
+                                 'visits', pipeline.VISIT_ID)
             else:
                 visit_it.iterables = (
-                    pipeline.VISIT_ITERFIELD,
+                    pipeline.VISIT_ID,
                     [visit_ids[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
-            iterators[pipeline.VISIT_ITERFIELD] = visit_it
+            iterators[pipeline.VISIT_ID] = visit_it
         return iterators
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,

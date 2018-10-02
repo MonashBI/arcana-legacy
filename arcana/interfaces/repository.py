@@ -71,8 +71,11 @@ class RepositorySourceSpec(DynamicTraitedSpec):
     subject_id = traits.Str(mandatory=True, desc="The subject ID")
     visit_id = traits.Str(mandatory=True, usedefult=True,
                           desc="The visit ID")
-    link = traits.Bool(desc=("dummy field used to connect source to initial "
-                             "node of pipeline"))
+    prereqs = traits.List(
+        desc=("A list of lists of iterator IDs used in prerequisite pipelines."
+              " Only passed here to ensure that prerequisites are processed "
+              "before this source is run (so that their outputs exist in the "
+              "repository)"))
 
 
 class RepositorySource(BaseRepositoryInterface):
@@ -136,10 +139,13 @@ class RepositorySinkSpec(DynamicTraitedSpec):
 
 class RepositorySinkOutputSpec(RepositorySinkSpec):
 
-    out_files = traits.List(PATH_TRAIT, desc='Output filesets')
+    files = traits.List(PATH_TRAIT, desc='Output filesets')
 
-    out_fields = traits.List(
+    fields = traits.List(
         traits.Tuple(traits.Str, FIELD_TRAIT), desc='Output fields')
+    combined = traits.List(
+        traits.Either(PATH_TRAIT, traits.Tuple(traits.Str, FIELD_TRAIT)),
+        desc="Combined fileset and field outputs")
 
 
 class RepositorySink(BaseRepositoryInterface):
@@ -207,6 +213,7 @@ class RepositorySink(BaseRepositoryInterface):
                 "Missing inputs '{}' in RepositorySink".format(
                     "', '".join(missing_inputs)))
         # Return cache file paths
-        outputs['out_files'] = out_files
-        outputs['out_fields'] = out_fields
+        outputs['files'] = out_files
+        outputs['fields'] = out_fields
+        outputs['combined'] = out_files + out_fields
         return outputs
