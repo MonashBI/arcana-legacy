@@ -168,11 +168,9 @@ class MultiStudy(Study):
     @classmethod
     def translate(cls, sub_study_name, pipeline_name, auto_added=False):
         """
-        A "decorator" (although not intended to be used with @) for
-        translating pipeline getter methods from a sub-study of a
-        MultiStudy. Returns a new method that calls the getter on
-        the specified sub-study then translates the pipeline to the
-        MultiStudy.
+        A method for translating pipeline constructors from a sub-study to the
+        namespace of a multi-study. Returns a new method that calls the
+        sub-study pipeline constructor with appropriate keyword arguments
 
         Parameters
         ----------
@@ -187,36 +185,17 @@ class MultiStudy(Study):
         """
         assert isinstance(sub_study_name, basestring)
         assert isinstance(pipeline_name, basestring)
-        def translated_getter(self, name_prefix='', input_map='', output_map='', **kwargs):  # @IgnorePep8
-            pipeline_getter = getattr(self.sub_study(sub_study_name),
-                                      pipeline_name)
-            # Create prefix from sub-study name to differentiate pipeline,
-            # inputs and outputs from different sub-studies
-            prefix = sub_study_name + '_'
-            # Prepend prefix to name_prefix, input_map and output_map
-            new_name_prefix = name_prefix + prefix
-            if isinstance(input_map, basestring):
-                new_input_map = input_map + prefix
-            elif isinstance(input_map, dict):
-                new_input_map = {k: prefix + v for k, v in input_map.items()}
-            elif callable(input_map):
-                def new_input_map(n):
-                    return prefix + input_map(n)
-            else:
-                input_map = None
-            if isinstance(output_map, basestring):
-                new_output_map = output_map + prefix
-            elif isinstance(output_map, dict):
-                new_output_map = {k: prefix + v for k, v in output_map.items()}
-            elif callable(output_map):
-                def new_output_map(n):
-                    return prefix + output_map(n)
-            else:
-                output_map = None
-            return pipeline_getter(name_prefix=new_name_prefix,
-                                   input_map=new_input_map,
-                                   output_map=new_output_map,
-                                   **kwargs)
+
+        def translated_getter(self, **mods):
+            sub_study_spec = self.sub_study_spec(sub_study_name)
+            # Invert name map in sub-study spec
+            name_map = {v: k for k, v in sub_study_spec.name_map.items()}
+            # Combine mapping of names of sub-study specs with
+            return getattr(self.sub_study(sub_study_name), pipeline_name)(
+                prefix=sub_study_name + '_',
+                input_map=name_map,
+                output_map=name_map,
+                study=self, mods=mods)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter

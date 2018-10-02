@@ -1,6 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 import os
+from copy import deepcopy
 import tempfile
 import shutil
 from itertools import chain
@@ -30,35 +31,63 @@ class Pipeline(object):
         The study from which the pipeline was created
     name : str
         The name of the pipeline
+    mods : dict
+        A dictionary containing several modifying keyword arguments that
+        manipulate way the pipeline is constructed (e.g. map inputs and outputs
+        to new entries in the data specification table). Typically names of
+        inputs, outputs and the pipeline itself. Intended to allow secondary
+        pipeline constructors to call a constructor, and return a modified
+        version of the pipeline it returns.
+
+        It should be passed directly from wildcard keyword args passed to the
+        pipeline constructor, e.g.
+
+        def my_pipeline(**mods):
+            pipeline = self.pipeline('my_pipeline', mods)
+            pipeline.add('a_node', MyInterface())
+
+            ...
+
+            return pipeline
+
+        The keywords in 'name_mods' used in pipeline construction are:
+
+        name : str
+            A new name for the pipeline
+        prefix : str
+            Prefix prepended to the original name of the pipeline. Typically
+            only one of name and prefix is used at each nested level, but they
+            can be used in conjunction.
+        input_map : str | dict[str,str]
+            Applied to the input names used by the pipeline to map them to new
+            entries of the data specification in modified pipeline
+            constructors. Typically used in sub-class or multi-study. If a
+            string, the map is interpreted as a prefix applied to the names
+            given in the original pipeline, if it is a dictionary the names are
+            mapped explicitly.
+        output_map : str | dict[str,str]
+            Same as the input map but applied to outputs instead of inputs to
+            the pipeline.
+        mods : dict
+            Name modifications from nested pipeline constructors
+        study : Study
+            A different study to bind the pipeline to from the one containing
+            the inner pipeline constructor. Intended to be used with
+            multi-studies.
     desc : str
         A description of what the pipeline does
     references : List[Citation]
         List of scientific papers that describe the workflow and should be
         cited in publications that use it
-    name_prefix : str
-        Prefix prepended to the name of the pipeline and all node names within
-        it. Typically passed in from a kwarg of a pipeline constructor in a
-        sub-class (or multi-study) to create a slightly modified version of the
-        pipeline
-    input_map : str | dict[str,str] | function[str] | None
-        Applied to the input names used by the pipeline to map them to new
-        entries of the data specification in modified pipeline constructors.
-        Often used in a sub-class or multi-study. If a string, the map is
-        interpreted as a prefix applied to the names given in the original
-        pipeline, if it is a dictionary the names are mapped explicitly, and
-        if it is callable (e.g. a function) then it is expected to accept the
-        name of the original input and return the new name.
-    output_map : str | dict[str,str] | function[str] | None
-        Same as the input map but applied to outputs instead of inputs to the
-        pipeline.
     """
     SUBJECT_ID = 'subject_id'
     VISIT_ID = 'visit_id'
     ITERFIELDS = (SUBJECT_ID, VISIT_ID)
 
-    def __init__(self, study, name, desc, references=None, name_prefix='',
-                 input_map=None, output_map=None):
-        self._name = name_prefix + name
+    def __init__(self, study, name, mods, desc=None, references=None):
+        name, study, input_map, output_map = self._unwrap_mods(mods, name,
+                                                               study=study)
+        self._name = name
         self._input_map = input_map
         self._output_map = output_map
         self._study = study
@@ -75,6 +104,106 @@ class Pipeline(object):
         # pipeline after it is generated (and then saved in the
         # provenance
         self._referenced_parameters = None
+
+    def _unwrap_mods(self, mods, name, study=None, **inner_maps):
+        """
+        Unwraps potentially nested modification dictionaries to get values
+        for name, input_map, output_map and study
+
+        Parameters
+        ----------
+        mods : dict
+            A dictionary containing the modifications to apply to the values
+        name : str
+            Name passed from inner pipeline constructor
+        study : Study
+            The study to bind the pipeline to. Will be overridden by any values
+            in the mods dict
+        inner_maps : dict[str, dict[str,str]]
+            input and output maps from inner pipeline constructors
+
+        Returns
+        -------
+        name : str
+            Potentially modified name of the pipeline
+        study : Study
+            Potentially modified study
+        input_map : dict[str,str]
+            Potentially modifed input map
+        output_map : dict[str,str]
+            Potentially modifed output map
+        """
+        # Unwrap nested modifications if present
+        if 'name' in mods:
+            name = mods['name']
+        if 'prefix' in mods:
+            name = mods['prefix'] + name
+        if 'study' in mods:
+            study = mods['study']
+        # Flatten input and output maps, combining maps from inner nests with
+        # those in the "mods" dictionary
+        maps = {}
+        for mtype in ('input_map', 'output_map'):
+            try:
+                inner_map = inner_maps[mtype]
+            except KeyError:
+                try:
+                    maps[mtype] = mods[mtype]  # Only outer map
+                except KeyError:
+                    pass  # No maps
+            else:
+                try:
+                    outer_map = mods[mtype]
+                except KeyError:
+                    maps[mtype] = inner_map  # Only inner map
+                else:
+                    # Work through different combinations of  inner and outer
+                    # map types (i.e. str & str, str & dict, dict & str, and
+                    # dict & dict) and combine into a single map
+                    if isinstance(outer_map, str):
+                        if isinstance(inner_map, str):
+                            # Concatenate prefixes
+                            maps[mtype] = outer_map + inner_map
+                        elif isinstance(inner_map, dict):
+                            # Add outer_map prefix to all values in inner map
+                            # dictionary
+                            maps[mtype] = {k: outer_map + v
+                                           for k, v in inner_map.items()}
+                        else:
+                            raise ArcanaDesignError(
+                                "Unrecognised type for name map in '{}' "
+                                "pipeline can be str or dict[str,str]: {}"
+                                .format(name, inner_map))
+                    elif isinstance(outer_map, dict):
+                        if isinstance(inner_map, str):
+                            # Strip inner map prefix from outer dictionary
+                            # (which should have prefix included). This should
+                            # be an unlikely case I imagine
+                            maps[mtype] = {k[len(inner_map):]: v
+                                           for k, v in outer_map.items()}
+                        elif isinstance(inner_map, dict):
+                            # Chain outer_map dictionary to inner map
+                            # dictionary
+                            maps[mtype] = deepcopy(outer_map)
+                            maps[mtype].update(
+                                {k: outer_map.get(v, v)
+                                 for k, v in inner_map.items()})
+                        else:
+                            raise ArcanaDesignError(
+                                "Unrecognised type for name map in '{}' "
+                                "pipeline can be str or dict[str,str]: {}"
+                                .format(name, inner_map))
+                    else:
+                        raise ArcanaDesignError(
+                            "Unrecognised type for name map in '{}' "
+                            "pipeline can be str or dict[str,str]: {}"
+                            .format(name, outer_map))
+        if 'mods' in mods:
+            name, study, input_map, output_map = self._unwrap_mods(
+                mods['mods'], name=name, study=study, **maps)
+        else:
+            input_map, output_map = maps['input_map'], maps['output_map']
+        return name, study, input_map, output_map
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -277,11 +406,9 @@ class Pipeline(object):
         Maps a spec name to a new value based on the provided mapper
         """
         if isinstance(mapper, basestring):
-            mapped = mapper + '_' + name
+            mapped = mapper + name
         elif isinstance(mapper, dict):
             mapped = mapper[name]
-        elif callable(mapper):
-            mapped = mapper(name)
         else:
             mapped = name
         return mapped

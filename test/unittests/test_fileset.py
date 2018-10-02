@@ -129,49 +129,39 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         SwitchSpec('switch', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
-    def pipeline1(self):
+    def pipeline1(self, **mods):
         pipeline = self.pipeline(
             'pipeline1',
-            inputs=[FilesetSpec('required', text_format)],
-            outputs=[FilesetSpec('derivable', text_format)],
             desc="",
             references=[],
-            version=1)
-        identity = pipeline.create_node(IdentityInterface(['a']),
-                                        'identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_output('derivable', identity, 'a')
         return pipeline
 
-    def pipeline2(self):
+    def pipeline2(self, **mods):
         pipeline = self.pipeline(
             'pipeline2',
-            inputs=[FilesetSpec('required', text_format),
-                    FilesetSpec('optional', text_format)],
-            outputs=[FilesetSpec('missing_input', text_format)],
             desc="",
             references=[],
-            version=1)
-        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
-                                        'identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('optional', identity, 'b')
         pipeline.connect_output('missing_input', identity, 'a')
         return pipeline
 
-    def pipeline3(self, **kwargs):
+    def pipeline3(self, **mods):
         outputs = [FilesetSpec('another_derivable', text_format)]
         if self.branch('switch'):
             outputs.append(FilesetSpec('requires_switch', text_format))
         pipeline = self.pipeline(
             'pipeline3',
-            inputs=[FilesetSpec('required', text_format)],
-            outputs=outputs,
             desc="",
             references=[],
-            version=1)
-        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
-                                        'identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
         pipeline.connect_output('another_derivable', identity, 'a')
@@ -179,21 +169,18 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             pipeline.connect_output('requires_switch', identity, 'b')
         return pipeline
 
-    def pipeline4(self, **kwargs):
+    def pipeline4(self, **mods):
         pipeline = self.pipeline(
             'pipeline4',
-            inputs=[FilesetSpec('requires_switch', text_format)],
-            outputs=[FilesetSpec('requires_switch2', text_format)],
             desc="",
             references=[],
-            version=1, **kwargs)
-        identity = pipeline.create_node(IdentityInterface(['a']),
-                                        'identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('requires_switch', identity, 'a')
         pipeline.connect_output('requires_switch2', identity, 'a')
         return pipeline
 
-    def pipeline5(self, **kwargs):
+    def pipeline5(self, **mods):
         outputs = []
         if self.branch('branch', 'foo'):
             outputs.append(FilesetSpec('requires_foo', text_format))
@@ -203,13 +190,10 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             self.unhandled_branch('branch')
         pipeline = self.pipeline(
             'pipeline5',
-            inputs=[FilesetSpec('required', text_format)],
-            outputs=outputs,
             desc="",
             references=[],
-            version=1, **kwargs)
-        identity = pipeline.create_node(IdentityInterface(['a']),
-                                        'identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         if self.branch('branch', 'foo'):
             pipeline.connect_output('requires_foo', identity, 'a')

@@ -137,22 +137,19 @@ class TestSinkAndSource(BaseTestCase):
         source = study.source(source_files)
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        subject_sink = study.sink(
-            subject_sink_files, frequency='per_subject')
+        subject_sink = study.sink(subject_sink_files)
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
-        visit_sink = study.sink(visit_sink_files,
-                                          frequency='per_visit')
+        visit_sink = study.sink(visit_sink_files)
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
         project_sink_files = ['project_sink']
-        project_sink = study.sink(project_sink_files,
-                                            frequency='per_study')
+        project_sink = study.sink(project_sink_files)
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (

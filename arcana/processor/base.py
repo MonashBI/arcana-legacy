@@ -134,9 +134,9 @@ class BaseProcessor(object):
                 "No pipelines provided to {}.run"
                 .format(self))
         # Get filter kwargs  (NB: in Python 3 they could be in the arg list)
-        subject_ids = kwargs.pop('subject_ids', None)
-        visit_ids = kwargs.pop('visit_ids', None)
-        session_ids = kwargs.pop('session_ids', None)
+        subject_ids = kwargs.pop('subject_ids', [])
+        visit_ids = kwargs.pop('visit_ids', [])
+        session_ids = kwargs.pop('session_ids', [])
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         # Trim the end of very large names to avoid problems with
@@ -151,7 +151,7 @@ class BaseProcessor(object):
         # them in the filter array
         subject_inds = {s.id: i for i, s in enumerate(tree.subjects)}
         visit_inds = {v.id: i for i, v in enumerate(tree.visits)}
-        if subject_ids is None and visit_ids is None and session_ids is None:
+        if not subject_ids and not visit_ids and not session_ids:
             # No filters applied so create a full filter array
             filter_array = np.ones((len(subject_inds), len(visit_inds)),
                                    dtype=bool)
@@ -404,18 +404,18 @@ class BaseProcessor(object):
         dependent = None
         if not factorizable:
             input_freqs = list(pipeline.input_frequencies)
+            # By default pick iterator the one with the most IDs to
+            # iterate to be the dependent in order to reduce the number of
+            # nodes created and any duplication of download attempts across
+            # the nodes (if both 'per_visit' and 'per_subject' inputs are
+            # required
+            num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=1)].shape
+            if num_subjs > num_visits:
+                dependent = 'subjects'
+            else:
+                dependent = 'visits'
             if 'per_visit' in input_freqs:
                 if 'per_subject' in input_freqs:
-                    # If both per_visit and per_subject inputs are used by
-                    # the pipeline then pick the one with the most IDs to
-                    # iterate to be the dependent to reduce the number of
-                    # duplication of download attempts across the nodes
-                    (num_subjs,
-                     num_visits) = nz_rows[:, nz_rows.any(axis=1)].shape
-                    if num_subjs > num_visits:
-                        dependent = 'subjects'
-                    else:
-                        dependent = 'visits'
                     logger.warning(
                         "Cannot factorize sessions to process into independent"
                         " subject and visit iterators and both 'per_visit' and"
@@ -424,8 +424,7 @@ class BaseProcessor(object):
                             dependent[:-1]))
                 else:
                     dependent = 'subjects'
-            else:
-                assert 'per_subject' in input_freqs
+            elif 'per_subject' in input_freqs:
                 dependent = 'visits'
         # Invert the index dictionaries to get index-to-ID maps
         subj_ids = {v: k for k, v in subject_inds.items()}

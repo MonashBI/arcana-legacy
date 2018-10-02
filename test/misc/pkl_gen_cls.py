@@ -71,8 +71,7 @@ class NormalClass(with_metaclass(StudyMetaClass, Study)):
             desc='a dummy pipeline',
             references=[],
             version=1)
-        ident = pipeline.create_node(IdentityInterface(['fileset']),
-                                     name='ident')
+        ident = pipeline.add('ident', IdentityInterface(['fileset']))
         pipeline.connect_input('fileset', ident, 'fileset')
         pipeline.connect_output('out_fileset', ident, 'fileset')
         return pipeline

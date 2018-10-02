@@ -22,15 +22,12 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o2', '2'),
         ParameterSpec('o3', 3.0)]
 
-    def pipeline_alpha(self, **kwargs):  # @UnusedVariable
+    def pipeline_alpha(self, **mods):  # @UnusedVariable
         pipeline = self.pipeline(
             name='pipeline_alpha',
-            inputs=[FilesetSpec('x', text_format),
-                    FilesetSpec('y', text_format)],
-            outputs=[FilesetSpec('z', text_format)],
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            **kwargs)
+            mods=mods)
         math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -56,12 +53,12 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o3', 30.0),
         ParameterSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
 
-    def pipeline_beta(self, **kwargs):  # @UnusedVariable
+    def pipeline_beta(self, **mods):  # @UnusedVariable
         pipeline = self.pipeline(
             name='pipeline_beta',
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            **kwargs)
+            mods=mods)
         add1 = pipeline.add("add1", TestMath())
         add2 = pipeline.add("add2", TestMath())
         prod = pipeline.add("product", TestMath())
@@ -160,18 +157,14 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
     add_parameter_specs = [
         ParameterSpec('combined_op', 'add')]
 
-    def combined_pipeline(self, **kwargs):
+    def combined_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='combined',
-            inputs=[FilesetSpec('ss1_z', text_format),
-                    FilesetSpec('full_e', text_format),
-                    FilesetSpec('partial_ss2_z', text_format)],
-            outputs=[FilesetSpec('g', text_format)],
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             references=[],
-            **kwargs)
-        merge = pipeline.create_node(Merge(3), name="merge")
+            mods=mods)
+        merge = pipeline.add("merge", Merge(3))
         math = pipeline.add("math", TestMath())
         math.inputs.op = self.parameter('combined_op')
         math.inputs.as_file = True

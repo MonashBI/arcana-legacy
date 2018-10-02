@@ -58,12 +58,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
     add_parameter_specs = [
         ParameterSpec('pipeline_parameter', False)]
 
-    def pipeline1(self, **kwargs):
+    def pipeline1(self, **mods):
         pipeline = self.pipeline(
             name='pipeline1',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
-            **kwargs)
+            mods=mods)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not accessible")
         indent = pipeline.add("ident1", IdentityInterface(['file']))
@@ -76,12 +76,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived1_2', indent2, 'file')
         return pipeline
 
-    def pipeline2(self, **kwargs):
+    def pipeline2(self, **mods):
         pipeline = self.pipeline(
             name='pipeline2',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
-            **kwargs)
+            mods=mods)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
@@ -95,12 +95,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived2', math, 'z')
         return pipeline
 
-    def pipeline3(self, **kwargs):
+    def pipeline3(self, **mods):
         pipeline = self.pipeline(
             name='pipeline3',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
-            **kwargs)
+            mods=mods)
         indent = pipeline.add('ident', IdentityInterface(['file']))
         # Connect inputs
         pipeline.connect_input('derived2', indent, 'file')
@@ -108,12 +108,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived3', indent, 'file')
         return pipeline
 
-    def pipeline4(self, **kwargs):
+    def pipeline4(self, **mods):
         pipeline = self.pipeline(
             name='pipeline4',
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
-            **kwargs)
+            mods=mods)
         math = pipeline.add("mrcat", TestMath())
         math.inputs.op = 'mul'
         math.inputs.as_file = True
@@ -124,13 +124,13 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived4', math, 'z')
         return pipeline
 
-    def visit_ids_access_pipeline(self, **kwargs):
+    def visit_ids_access_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='visit_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
             references=[],
-            **kwargs)
+            mods=mods)
         sessions_to_file = pipeline.add(
             'sess_to_file', IteratorToFile(), joinsource='visits',
             joinfield='ids')
@@ -139,13 +139,13 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                                 'out_file')
         return pipeline
 
-    def subject_ids_access_pipeline(self, **kwargs):
+    def subject_ids_access_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='subject_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
             references=[],
-            **kwargs)
+            mods=mods)
         subjects_to_file = pipeline.add(
             'subjects_to_file', IteratorToFile(), joinfield='ids',
             joinsource='subjects')
@@ -154,12 +154,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                                 'out_file')
         return pipeline
 
-    def subject_summary_pipeline(self, **kwargs):
+    def subject_summary_pipeline(self, **mods):
         pipeline = self.pipeline(
             name="subject_summary",
             desc=("Test of project summary variables"),
             references=[],
-            **kwargs)
+            mods=mods)
         math = pipeline.add(
             'math', TestMath(), joinfield='x', joinsource='visits')
         math.inputs.op = 'add'
@@ -170,12 +170,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('subject_summary', math, 'z')
         return pipeline
 
-    def visit_summary_pipeline(self, **kwargs):
+    def visit_summary_pipeline(self, **mods):
         pipeline = self.pipeline(
             name="visit_summary",
             desc=("Test of project summary variables"),
             references=[],
-            **kwargs)
+            mods=mods)
         math = pipeline.add('math', TestMath(), joinfield='x',
                             joinsource='subjects')
         math.inputs.op = 'add'
@@ -186,12 +186,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('visit_summary', math, 'z')
         return pipeline
 
-    def project_summary_pipeline(self, **kwargs):
+    def project_summary_pipeline(self, **mods):
         pipeline = self.pipeline(
             name="project_summary",
             desc=("Test of project summary variables"),
             references=[],
-            **kwargs)
+            mods=mods)
         math1 = pipeline.add(
             'math1', TestMath(), joinfield='x', joinsource='visits')
         math2 = pipeline.add(
@@ -333,11 +333,11 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
         FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
-    def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
+    def pipeline_factory(self, incr, input, output, mods):  # @ReservedAssignment
         pipeline = self.pipeline(
             name=output,
             desc="A dummy pipeline used to test 'partial-complete' method",
-            references=[])
+            references=[], mods=mods)
         # Nodes
         math = pipeline.add("math", TestMath())
         math.inputs.y = incr
@@ -349,14 +349,14 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output(output, math, 'z')
         return pipeline
 
-    def tens_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(10, 'one', 'ten')
+    def tens_pipeline(self, **mods):  # @UnusedVariable
+        return self.pipeline_factory(10, 'one', 'ten', mods=mods)
 
-    def hundreds_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(100, 'ten', 'hundred')
+    def hundreds_pipeline(self, **mods):  # @UnusedVariable
+        return self.pipeline_factory(100, 'ten', 'hundred', mods=mods)
 
-    def thousands_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(1000, 'hundred', 'thousand')
+    def thousands_pipeline(self, **mods):  # @UnusedVariable
+        return self.pipeline_factory(1000, 'hundred', 'thousand', mods=mods)
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):
@@ -450,14 +450,13 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('c', test2_format, 'identity_pipeline'),
         FilesetSpec('d', test3_format, 'identity_pipeline')]
 
-    def identity_pipeline(self, **kwargs):
+    def identity_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='pipeline',
             desc="A dummy pipeline used to test study input validation",
             references=[],
-            **kwargs)
-        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
-                                        name='identity')
+            mods=mods)
+        identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('a', identity, 'a')
         pipeline.connect_input('b', identity, 'b')
         pipeline.connect_output('c', identity, 'a')
@@ -518,14 +517,13 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
                       FilesetSpec('out_fileset', text_format,
                                   'pipeline')]
 
-    def a_pipeline(self, **kwargs):
+    def a_pipeline(self, **mods):
         pipeline = self.pipeline(
             'a_pipeline',
             desc='a dummy pipeline',
             references=[],
-            **kwargs)
-        ident = pipeline.create_node(IdentityInterface(['fileset']),
-                                     name='ident')
+            mods=mods)
+        ident = pipeline.add('ident', IdentityInterface(['fileset']))
         pipeline.connect_input('fileset', ident, 'fileset')
         pipeline.connect_output('out_fileset', ident, 'fileset')
         return pipeline
