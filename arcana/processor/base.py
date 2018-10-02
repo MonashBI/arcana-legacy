@@ -246,24 +246,23 @@ class BaseProcessor(object):
         # repository
         workflow.add_nodes([pipeline._workflow])
         # Prepend prerequisite pipelines to complete workflow if required
-        if pipeline.has_prerequisites:
-            prereq_finals = {}
-            for prereq in pipeline.prerequisites:
-                # NB: Even if reprocess==True, the prerequisite pipelines
-                # are not re-processed, they are only reprocessed if
-                # reprocess == 'all'
-                try:
-                    prereq_finals[prereq.name] = self._connect_pipeline(
-                        prereq, workflow, subject_inds, visit_inds,
-                        filter_array=to_process,
-                        already_connected=already_connected,
-                        force=(force if force == 'all' else False))
-                except ArcanaNoRunRequiredException:
-                    logger.info(
-                        "Not running '{}' pipeline as a "
-                        "prerequisite of '{}' as the required "
-                        "outputs are already present in the repository"
-                        .format(prereq.name, pipeline.name))
+        prereq_finals = {}
+        for prereq in pipeline.prerequisites:
+            # NB: Even if reprocess==True, the prerequisite pipelines
+            # are not re-processed, they are only reprocessed if
+            # reprocess == 'all'
+            try:
+                prereq_finals[prereq.name] = self._connect_pipeline(
+                    prereq, workflow, subject_inds, visit_inds,
+                    filter_array=to_process,
+                    already_connected=already_connected,
+                    force=(force if force == 'all' else False))
+            except ArcanaNoRunRequiredException:
+                logger.info(
+                    "Not running '{}' pipeline as a "
+                    "prerequisite of '{}' as the required "
+                    "outputs are already present in the repository"
+                    .format(prereq.name, pipeline.name))
         # If prerequisite pipelines need to be processed, connect their
         # "final" nodes to the initial node of this pipeline to ensure that
         # they are all processed before this pipeline is run.
@@ -274,8 +273,8 @@ class BaseProcessor(object):
             workflow.connect(final, 'link', initial, name + '_link')
         # Construct iterator structure over subjects and sessions to be
         # processed
-        iterators = self._iterate(workflow, pipeline, to_process, subject_inds,
-                                  visit_inds, initial)
+        iterators = self._iterate(pipeline, to_process, subject_inds,
+                                  visit_inds)
         # Loop through each frequency present in the pipeline inputs and
         # create a corresponding source node
         for freq in pipeline.input_frequencies:

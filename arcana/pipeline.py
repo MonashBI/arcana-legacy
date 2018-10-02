@@ -13,7 +13,8 @@ from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.data import BaseFileset
 from arcana.exception import (
-    ArcanaDesignError, ArcanaError, ArcanaOutputNotProducedException)
+    ArcanaDesignError, ArcanaNameError, ArcanaError,
+    ArcanaOutputNotProducedException)
 
 
 logger = getLogger('arcana')
@@ -310,7 +311,11 @@ class Pipeline(object):
 
     @property
     def inputs(self):
-        return (self.study.input(i) for i in self._input_conns)
+        for inpt in self._input_conns:
+            try:
+                yield self.study.input(inpt)
+            except ArcanaNameError:
+                yield self.study.data_spec(inpt)
 
     @property
     def outputs(self):

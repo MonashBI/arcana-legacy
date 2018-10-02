@@ -66,10 +66,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             **kwargs)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not accessible")
-        indent = pipeline.create_node(IdentityInterface(['file']),
-                                      name="ident1")
-        indent2 = pipeline.create_node(IdentityInterface(['file']),
-                                       name="ident2")
+        indent = pipeline.add("ident1", IdentityInterface(['file']))
+        indent2 = pipeline.add("ident2", IdentityInterface(['file']))
         # Connect inputs
         pipeline.connect_input('one', indent, 'file')
         pipeline.connect_input('one', indent2, 'file')
@@ -103,8 +101,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             desc="A dummy pipeline used to test 'run_pipeline' method",
             references=[],
             **kwargs)
-        indent = pipeline.create_node(IdentityInterface(['file']),
-                                      name="ident")
+        indent = pipeline.add('ident', IdentityInterface(['file']))
         # Connect inputs
         pipeline.connect_input('derived2', indent, 'file')
         # Connect outputs
@@ -164,14 +161,13 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             references=[],
             **kwargs)
         math = pipeline.add(
-            TestMath(), joinfield='x', joinsource='visits', name='math')
+            'math', TestMath(), joinfield='x', joinsource='visits')
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('one', math, 'x')
         # Connect outputs
         pipeline.connect_output('subject_summary', math, 'z')
-        pipeline.assert_connected()
         return pipeline
 
     def visit_summary_pipeline(self, **kwargs):
@@ -188,7 +184,6 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('one', math, 'x')
         # Connect outputs
         pipeline.connect_output('visit_summary', math, 'z')
-        pipeline.assert_connected()
         return pipeline
 
     def project_summary_pipeline(self, **kwargs):
@@ -210,7 +205,6 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect(math1, 'z', math2, 'x')
         # Connect outputs
         pipeline.connect_output('project_summary', math2, 'z')
-        pipeline.assert_connected()
         return pipeline
 
 
@@ -342,8 +336,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
         pipeline = self.pipeline(
             name=output,
-            desc=(
-                "A dummy pipeline used to test 'partial-complete' method"),
+            desc="A dummy pipeline used to test 'partial-complete' method",
             references=[])
         # Nodes
         math = pipeline.add("math", TestMath())

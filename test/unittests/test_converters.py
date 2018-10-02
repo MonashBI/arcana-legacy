@@ -51,7 +51,6 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('directory', zip_from_directory, 'file')
         pipeline.connect_output('zip_from_directory',
                                 zip_from_directory, 'file')
-        pipeline.assert_connected()
         return pipeline
 
 

@@ -62,7 +62,6 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         maths.inputs.y = 1
         pipeline.connect_input('ones', maths, 'x')
         pipeline.connect_output('twos', maths, 'z')
-        pipeline.assert_connected()
         return pipeline
 
     def pipeline2(self):
@@ -92,7 +91,6 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect(maths, 'z', split, 'inlist')
         pipeline.connect_output('threes', split, 'out1')
         pipeline.connect_output('fours', split, 'out2')
-        pipeline.assert_connected()
         return pipeline
 
 
