@@ -131,12 +131,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                 "A dummy pipeline used to test access to 'session' IDs"),
             references=[],
             mods=mods)
-        sessions_to_file = pipeline.add(
-            'sess_to_file', IteratorToFile(), joinsource='visits',
+        visits_to_file = pipeline.add(
+            'visits_to_file', IteratorToFile(), joinsource='visits',
             joinfield='ids')
-        pipeline.connect_input('visit_id', sessions_to_file, 'ids')
-        pipeline.connect_output('visit_ids', sessions_to_file,
-                                'out_file')
+        pipeline.connect_input(pipeline.VISIT_ID, visits_to_file, 'ids')
+        pipeline.connect_input(pipeline.SUBJECT_ID, visits_to_file, 'fixed_id')
+        pipeline.connect_output('visit_ids', visits_to_file, 'out_file')
         return pipeline
 
     def subject_ids_access_pipeline(self, **mods):
@@ -149,9 +149,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         subjects_to_file = pipeline.add(
             'subjects_to_file', IteratorToFile(), joinfield='ids',
             joinsource='subjects')
-        pipeline.connect_input('subject_id', subjects_to_file, 'ids')
-        pipeline.connect_output('subject_ids', subjects_to_file,
-                                'out_file')
+        pipeline.connect_input(pipeline.SUBJECT_ID, subjects_to_file, 'ids')
+        pipeline.connect_input(pipeline.VISIT_ID, subjects_to_file, 'fixed_id')
+        pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
         return pipeline
 
     def subject_summary_pipeline(self, **mods):
@@ -210,6 +210,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
 
 class IteratorToFileInputSpec(TraitedSpec):
     ids = traits.List(traits.Str(), desc="ID of the iterable")
+    fixed_id = traits.Str(desc="The other ID that will remain fixed")
     out_file = File(genfile=True, desc="The name of the generated file")
 
 

@@ -516,6 +516,10 @@ class Pipeline(object):
         # Get list of input names for the requested frequency, addding fields
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
+        if frequency == 'per_subject':
+            input_names.append(self.SUBJECT_ID)
+        elif frequency == 'per_visit':
+            input_names.append(self.VISIT_ID)
         for iterfield in self.ITERFIELDS:
             if self.iterates_over(iterfield, frequency):
                 input_names.append(iterfield)
@@ -549,9 +553,14 @@ class Pipeline(object):
                 else:
                     self.connect(inputnode, input.name, node, node_in)
         # Connect iterator inputs
-        for iterfield, conns in self._iterator_conns.items():
-            for node, node_in in conns:
-                self.connect(inputnode, iterfield, node, node_in)
+        if frequency == 'per_subject' and (self.SUBJECT_ID in
+                                           self._iterator_conns):
+            for node, node_in in self._iterator_conns[self.SUBJECT_ID]:
+                self.connect(inputnode, self.SUBJECT_ID, node, node_in)
+        elif frequency == 'per_visit' and (self.VISIT_ID in
+                                           self._iterator_conns):
+            for node, node_in in self._iterator_conns[self.VISIT_ID]:
+                self.connect(inputnode, self.VISIT_ID, node, node_in)
         return inputnode
 
     def outputnode(self, frequency):

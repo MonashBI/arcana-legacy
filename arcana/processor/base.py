@@ -9,7 +9,7 @@ from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.requirement import RequirementManager
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
-    ArcanaNoRunRequiredException, ArcanaUsageError)
+    ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError)
 from arcana.data import BaseFileset
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 
@@ -306,8 +306,9 @@ class BaseProcessor(object):
             for iterfield in pipeline.iterfields(freq):
                 workflow.connect(iterators[iterfield], iterfield, source,
                                  iterfield)
-                workflow.connect(iterators[iterfield], iterfield, inputnode,
-                                 iterfield)
+                if freq in ('per_subject', 'per_visit'):
+                    workflow.connect(iterators[iterfield], iterfield,
+                                     inputnode, iterfield)
             for input in inputs:  # @ReservedAssignment
                 in_name = input.name + (
                     PATH_SUFFIX if isinstance(input, BaseFileset) else
@@ -319,6 +320,12 @@ class BaseProcessor(object):
         # or 'per_study')
         for freq in pipeline.output_frequencies:
             outputs = list(pipeline.frequency_outputs(freq))
+            if pipeline.iterfields(freq) - pipeline.iterfields():
+                raise ArcanaDesignError(
+                    "Doesn't make sense to output '{}', which are of '{}' "
+                    "frequency, when the pipeline only iterates over '{}'"
+                    .format("', '".join(o.name for o in outputs), freq,
+                            "', '".join(pipeline.iterfields())))
             outputnode = pipeline.outputnode(freq)
             sink = self.study.sink(
                 [o.name for o in outputs],
