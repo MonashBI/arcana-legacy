@@ -1,5 +1,6 @@
 from builtins import str
 from builtins import object
+import os
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
@@ -180,7 +181,7 @@ class BaseProcessor(object):
                     "  visit_ids: {}\n".format(', '.join(visit_inds)))
         for pipeline in pipelines:
             try:
-                self._connect_pipeline(deepcopy(pipeline), workflow,
+                self._connect_pipeline(pipeline, workflow,
                                        subject_inds, visit_inds, filter_array,
                                        already_connected=already_connected,
                                        **kwargs)
@@ -191,6 +192,8 @@ class BaseProcessor(object):
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.repository.clear_cache()
+        workflow.write_graph(graph2use='flat')
+        print('Graph saved in {} directory'.format(os.getcwd()))
         return workflow.run(plugin=self._plugin)
 
     def _connect_pipeline(self, pipeline, workflow, subject_inds, visit_inds,
@@ -228,16 +231,18 @@ class BaseProcessor(object):
         if already_connected is None:
             already_connected = {}
         try:
-            (prev_connected, final) = already_connected[pipeline.name]
+            prev_connected, final = already_connected[pipeline.name]
+        except KeyError:
+            # Pipeline hasn't been connected already, continue to connect
+            # the pipeline to repository
+            pass
+        else:
             if prev_connected == pipeline:
                 return final
             else:
                 raise ArcanaError(
                     "Name clash between {} and {} non-matching "
-                    "prerequisite pipelines".format(prev_connected,
-                                                    pipeline))
-        except KeyError:
-            pass  # Continue to connect pipeline to repository
+                    "prerequisite pipelines".format(prev_connected, pipeline))
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         to_process = self._to_process(
@@ -269,7 +274,7 @@ class BaseProcessor(object):
         initial = pipeline.add(
             'initial', IdentityInterface([n + '_link' for n in prereq_finals] +
                                          ['link']))
-        for name, final in prereq_finals:
+        for name, final in prereq_finals.items():
             workflow.connect(final, 'link', initial, name + '_link')
         # Construct iterator structure over subjects and sessions to be
         # processed
@@ -287,18 +292,19 @@ class BaseProcessor(object):
                 raise ArcanaMissingDataException(
                     str(e) + ", which is required for pipeline '{}'".format(
                         pipeline.name))
-            inputs = pipeline.frequency_inputs(freq)
+            inputs = list(pipeline.frequency_inputs(freq))
             inputnode = pipeline.inputnode(freq)
             source = self.study.source(
-                [o.name for o in inputs], frequency=freq,
+                [o.name for o in inputs],
                 name='{}_{}_source'.format(pipeline.name, freq))
             # Connect source node to initial node of pipeline to ensure
             # they are run after any prerequisites
             workflow.connect(initial, 'link', source, 'link')
             # Connect iterators to source and input nodes
             for iterfield in pipeline.iterfields(freq):
-                workflow.connect(iterators[freq], iterfield, source, iterfield)
-                workflow.connect(iterators[freq], iterfield, inputnode,
+                workflow.connect(iterators[iterfield], iterfield, source,
+                                 iterfield)
+                workflow.connect(iterators[iterfield], iterfield, inputnode,
                                  iterfield)
             for input in inputs:  # @ReservedAssignment
                 in_name = input.name + (
@@ -310,13 +316,14 @@ class BaseProcessor(object):
         # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',
         # or 'per_study')
         for freq in pipeline.output_frequencies:
-            outputs = pipeline.frequency_outputs(freq)
+            outputs = list(pipeline.frequency_outputs(freq))
             outputnode = pipeline.outputnode(freq)
             sink = self.study.sink(
-                [o.name for o in outputs], frequency=freq,
+                [o.name for o in outputs],
                 name='{}_{}_sink'.format(pipeline.name, freq))
-            for iterfield in pipeline.iterfields:
-                workflow.connect(iterators[freq], iterfield, sink, iterfield)
+            for iterfield in pipeline.iterfields():
+                workflow.connect(iterators[iterfield], iterfield, sink,
+                                 iterfield)
             for output in outputs:
                 if output.is_spec:  # Skip outputs that are study inputs
                     out_name = output.name + (
@@ -336,8 +343,9 @@ class BaseProcessor(object):
                                   if iterfield == pipeline.SUBJECT_ITERFIELD
                                   else 'visits')
                     deiterator = pipeline.add(
-                        '{}_{}_deiterator'.foramt(freq, iterfield),
-                        IdentityInterface(list(pipeline.iterfields(freq))),
+                        '{}_{}_deiterator'.format(freq, iterfield),
+                        IdentityInterface(list(pipeline.iterfields(freq)),
+                                          mandatory_inputs=False),
                         joinsource=joinsource, joinfield=iterfield)
                     # Connect to previous deiterator or sink
                     upstream, _ = deiterators[freq]
@@ -389,8 +397,8 @@ class BaseProcessor(object):
         # i.e. all subjects to process have the same visits to process and
         # vice-versa.
         factorizable = True
-        if len(list(pipeline.iterfields)) == 2:
-            nz_rows = to_process[to_process.any(axis=0), :]
+        if len(list(pipeline.iterfields())) == 2:
+            nz_rows = to_process[to_process.any(axis=1), :]
             ref_row = nz_rows[0, :]
             factorizable = all((r == ref_row).all() for r in nz_rows)
         # If the subject/visit IDs to process cannot be factorized into
@@ -427,7 +435,7 @@ class BaseProcessor(object):
         visit_ids = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iterators = {}
-        if pipeline.SUBJECT_ITERFIELD in pipeline.iterfields:
+        if pipeline.SUBJECT_ITERFIELD in pipeline.iterfields():
             fields = [pipeline.SUBJECT_ITERFIELD]
             if dependent == 'subjects':
                 fields += pipeline.VISIT_ITERFIELD
@@ -445,10 +453,10 @@ class BaseProcessor(object):
             else:
                 subj_it.iterables = (
                     pipeline.SUBJECT_ITERFIELD,
-                    [subj_ids[n] for n in to_process.any(axis=0).nonzero()[0]])
-            iterators['subject'] = subj_it
+                    [subj_ids[n] for n in to_process.any(axis=1).nonzero()[0]])
+            iterators[pipeline.SUBJECT_ITERFIELD] = subj_it
         # Create iterator for visits
-        if pipeline.VISIT_ITERFIELD in pipeline.iterfields:
+        if pipeline.VISIT_ITERFIELD in pipeline.iterfields():
             fields = [pipeline.VISIT_ITERFIELD]
             if dependent == 'visits':
                 fields += pipeline.SUBJECT_ITERFIELD
@@ -465,7 +473,8 @@ class BaseProcessor(object):
                 visit_it.iterables = (
                     pipeline.VISIT_ITERFIELD,
                     [visit_ids[n]
-                     for n in to_process.any(axis=1).nonzero()[0]])
+                     for n in to_process.any(axis=0).nonzero()[0]])
+            iterators[pipeline.VISIT_ITERFIELD] = visit_it
         return iterators
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,

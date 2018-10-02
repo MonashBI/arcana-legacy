@@ -134,7 +134,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         sessions_to_file = pipeline.add(
             'sess_to_file', IteratorToFile(), joinsource='visits',
             joinfield='ids')
-        pipeline.connect('visit_id', sessions_to_file, 'ids')
+        pipeline.connect_input('visit_id', sessions_to_file, 'ids')
         pipeline.connect_output('visit_ids', sessions_to_file,
                                 'out_file')
         return pipeline
@@ -518,9 +518,9 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
                       FilesetSpec('out_fileset', text_format,
                                   'pipeline')]
 
-    def pipeline(self, **kwargs):
+    def a_pipeline(self, **kwargs):
         pipeline = self.pipeline(
-            'pipeline',
+            'a_pipeline',
             desc='a dummy pipeline',
             references=[],
             **kwargs)

@@ -41,13 +41,13 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         FilesetSpec('ones', text_format),
-        FilesetSpec('twos', text_format, 'pipeline'),
+        FilesetSpec('twos', text_format, 'pipeline1'),
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
 
-    def pipeline(self):
+    def pipeline1(self):
         pipeline = self.pipeline(
-            name='pipeline',
+            name='pipeline1',
             inputs=[FilesetSpec('ones', text_format)],
             outputs=[FilesetSpec('twos', text_format)],
             desc=("A pipeline that tests loading of requirements"),

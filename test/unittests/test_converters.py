@@ -17,13 +17,13 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('text', text_format),
         FilesetSpec('directory', directory_format),
         FilesetSpec('zip', zip_format),
-        FilesetSpec('text_from_text', text_format, 'pipeline'),
-        FilesetSpec('directory_from_zip', directory_format, 'pipeline'),
-        FilesetSpec('zip_from_directory', zip_format, 'pipeline')]
+        FilesetSpec('text_from_text', text_format, 'conv_pipeline'),
+        FilesetSpec('directory_from_zip', directory_format, 'conv_pipeline'),
+        FilesetSpec('zip_from_directory', zip_format, 'conv_pipeline')]
 
-    def pipeline(self):
+    def conv_pipeline(self):
         pipeline = self.pipeline(
-            name='pipeline',
+            name='conv_pipeline',
             inputs=[FilesetSpec('text', text_format),
                     FilesetSpec('directory', directory_format),
                     FilesetSpec('zip', directory_format)],

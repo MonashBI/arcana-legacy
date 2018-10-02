@@ -61,11 +61,11 @@ class NormalClass(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [FilesetSpec('fileset', text_format),
                       FilesetSpec('out_fileset', text_format,
-                                  'pipeline')]
+                                  'a_pipeline')]
 
-    def pipeline(self):
+    def a_pipeline(self):
         pipeline = self.pipeline(
-            'pipeline',
+            'a_pipeline',
             inputs=[FilesetSpec('fileset', text_format)],
             outputs=[FilesetSpec('out_fileset', text_format)],
             desc='a dummy pipeline',

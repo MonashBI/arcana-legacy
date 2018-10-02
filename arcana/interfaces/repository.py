@@ -114,6 +114,7 @@ class RepositorySource(BaseRepositoryInterface):
         outputs['visit_id'] = self.inputs.visit_id
         # Source filesets
         with ExitStack() as stack:
+            # Connect to set of repositories that the collections come from
             for repository in self.repositories:
                 stack.enter_context(repository)
             for fileset_collection in self.fileset_collections:
@@ -146,9 +147,8 @@ class RepositorySink(BaseRepositoryInterface):
     input_spec = RepositorySinkSpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections, frequency):
+    def __init__(self, collections):
         super(RepositorySink, self).__init__(collections)
-        self._frequency = frequency
         # Add input filesets
         for fileset_collection in self.fileset_collections:
             self._add_trait(self.inputs,
@@ -173,6 +173,7 @@ class RepositorySink(BaseRepositoryInterface):
         out_fields = []
         missing_inputs = []
         with ExitStack() as stack:
+            # Connect to set of repositories that the collections come from
             for repository in self.repositories:
                 stack.enter_context(repository)
             for fileset_collection in self.fileset_collections:
