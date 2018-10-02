@@ -409,7 +409,7 @@ class BaseProcessor(object):
             # nodes created and any duplication of download attempts across
             # the nodes (if both 'per_visit' and 'per_subject' inputs are
             # required
-            num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=1)].shape
+            num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=0)].shape
             if num_subjs > num_visits:
                 dependent = 'subjects'
             else:
@@ -439,13 +439,12 @@ class BaseProcessor(object):
             if dependent == 'subjects':
                 # Subjects iterator is dependent on visit iterator (because of
                 # non-factorizable IDs)
-                subj_it.itersource = ('visits', pipeline.VISIT_ID)
+                subj_it.itersource = ('{}_visits'.format(pipeline.name),
+                                      pipeline.VISIT_ID)
                 subj_it.iterables = [(
                     pipeline.SUBJECT_ID,
                     {visit_ids[n]: [subj_ids[m] for m in col.nonzero()[0]]
                      for n, col in enumerate(to_process.T)})]
-                pipeline.connect('visits', pipeline.VISIT_ID,
-                                 'subjects', pipeline.VISIT_ID)
             else:
                 subj_it.iterables = (
                     pipeline.SUBJECT_ID,
@@ -458,19 +457,24 @@ class BaseProcessor(object):
                 fields += pipeline.SUBJECT_ID
             visit_it = pipeline.add('visits', IdentityInterface(fields))
             if dependent == 'visits':
-                visit_it.itersource = ('subjects', pipeline.SUBJECT_ID)
+                visit_it.itersource = ('{}_subjects'.format(pipeline.name),
+                                       pipeline.SUBJECT_ID)
                 visit_it.iterables = [(
                     pipeline.VISIT_ID,
                     {subj_ids[m]: [visit_ids[n] for n in row.nonzero()[0]]
-                     for n, row in enumerate(to_process)})]
-                pipeline.connect('subjects', pipeline.VISIT_ID,
-                                 'visits', pipeline.VISIT_ID)
+                     for m, row in enumerate(to_process)})]
             else:
                 visit_it.iterables = (
                     pipeline.VISIT_ID,
                     [visit_ids[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
             iterators[pipeline.VISIT_ID] = visit_it
+        if dependent == 'subjects':
+            pipeline.connect(visit_it, pipeline.VISIT_ID,
+                             subj_it, pipeline.VISIT_ID)
+        if dependent == 'visits':
+            pipeline.connect(subj_it, pipeline.SUBJECT_ID,
+                             visit_it, pipeline.SUBJECT_ID)
         return iterators
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,

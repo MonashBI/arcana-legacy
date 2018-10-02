@@ -68,9 +68,8 @@ class RepositorySourceSpec(DynamicTraitedSpec):
     """
     Base class for repository sink and source input specifications.
     """
-    subject_id = traits.Str(mandatory=True, desc="The subject ID")
-    visit_id = traits.Str(mandatory=True, usedefult=True,
-                          desc="The visit ID")
+    subject_id = traits.Str(desc="The subject ID")
+    visit_id = traits.Str(desc="The visit ID")
     prereqs = traits.List(
         desc=("A list of lists of iterator IDs used in prerequisite pipelines."
               " Only passed here to ensure that prerequisites are processed "
