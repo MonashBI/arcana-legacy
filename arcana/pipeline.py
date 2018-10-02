@@ -85,11 +85,10 @@ class Pipeline(object):
     ITERFIELDS = (SUBJECT_ID, VISIT_ID)
 
     def __init__(self, study, name, mods, desc=None, references=None):
-        name, study, input_map, output_map = self._unwrap_mods(mods, name,
-                                                               study=study)
+        name, study, maps = self._unwrap_mods(mods, name, study=study)
         self._name = name
-        self._input_map = input_map
-        self._output_map = output_map
+        self._input_map = maps.get('input_map', None)
+        self._output_map = maps.get('output_map', None)
         self._study = study
         self._workflow = pe.Workflow(name=self.name)
         self._desc = desc
@@ -199,11 +198,9 @@ class Pipeline(object):
                             "pipeline can be str or dict[str,str]: {}"
                             .format(name, outer_map))
         if 'mods' in mods:
-            name, study, input_map, output_map = self._unwrap_mods(
+            name, study, maps = self._unwrap_mods(
                 mods['mods'], name=name, study=study, **maps)
-        else:
-            input_map, output_map = maps['input_map'], maps['output_map']
-        return name, study, input_map, output_map
+        return name, study, maps
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -357,7 +354,7 @@ class Pipeline(object):
                     "Format doesn't make sense to connect iterator input '{}' "
                     "in '{}' pipeline of {} study".format(
                         spec_name, self.name, type(self.study).__class__))
-            self._iterator_conns[spec_name] = (node, node_input)
+            self._iterator_conns[spec_name].append((node, node_input))
         else:
             name = self._map_name(spec_name, self._input_map)
             if name not in self.study.data_spec_names():
@@ -392,7 +389,7 @@ class Pipeline(object):
             raise ArcanaDesignError(
                 "Proposed output '{}' to '{}' pipeline is not a valid spec "
                 "name for {} studies ('{}')"
-                .format(name, self.study.__class__.__name__,
+                .format(name, self.name, self.study.__class__.__name__,
                         "', '".join(self.study.data_spec_names())))
         if name in self._output_conns:
             raise ArcanaDesignError(
@@ -405,13 +402,14 @@ class Pipeline(object):
         """
         Maps a spec name to a new value based on the provided mapper
         """
-        if isinstance(mapper, basestring):
-            mapped = mapper + name
-        elif isinstance(mapper, dict):
-            mapped = mapper[name]
-        else:
-            mapped = name
-        return mapped
+        if mapper is not None:
+            if isinstance(mapper, basestring):
+                name = mapper + name
+            try:
+                name = mapper[name]
+            except KeyError:
+                pass
+        return name
 
     def connect(self, *args, **kwargs):
         """
@@ -515,16 +513,16 @@ class Pipeline(object):
         """
         # Check to see whether there are any outputs for the given frequency
         inputs = list(self.frequency_inputs(frequency))
-        if not inputs:
-            raise ArcanaError(
-                "No inputs to '{}' pipeline for requested freqency '{}'"
-                .format(self.name, frequency))
         # Get list of input names for the requested frequency, addding fields
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
         for iterfield in self.ITERFIELDS:
             if self.iterates_over(iterfield, frequency):
                 input_names.append(iterfield)
+        if not input_names:
+            raise ArcanaError(
+                "No inputs to '{}' pipeline for requested freqency '{}'"
+                .format(self.name, frequency))
         # Generate input node and connect it to appropriate nodes
         inputnode = self.add('{}_inputnode'.format(frequency),
                              IdentityInterface(fields=input_names))
@@ -575,10 +573,7 @@ class Pipeline(object):
                 .format(self.name, frequency))
         # Get list of output names for the requested frequency, addding fields
         # to hold iterator IDs
-        output_names = [i.name for i in outputs]
-        for iterfield in self.ITERFIELDS:
-            if self.iterates_over(iterfield, frequency):
-                output_names.append(iterfield)
+        output_names = [o.name for o in outputs]
         # Generate output node and connect it to appropriate nodes
         outputnode = self.add('{}_outputnode'.format(frequency),
                               IdentityInterface(fields=output_names))

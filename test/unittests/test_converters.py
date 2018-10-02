@@ -18,39 +18,60 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('directory', directory_format),
         FilesetSpec('zip', zip_format),
         FilesetSpec('text_from_text', text_format, 'conv_pipeline'),
-        FilesetSpec('directory_from_zip', directory_format, 'conv_pipeline'),
-        FilesetSpec('zip_from_directory', zip_format, 'conv_pipeline')]
+        FilesetSpec('directory_from_zip_on_input', directory_format,
+                    'conv_pipeline'),
+        FilesetSpec('zip_from_directory_on_input', zip_format,
+                    'conv_pipeline'),
+        FilesetSpec('directory_from_zip_on_output', directory_format,
+                    'conv_pipeline'),
+        FilesetSpec('zip_from_directory_on_output', zip_format,
+                    'conv_pipeline')]
 
-    def conv_pipeline(self):
+    def conv_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='conv_pipeline',
-            inputs=[FilesetSpec('text', text_format),
-                    FilesetSpec('directory', directory_format),
-                    FilesetSpec('zip', directory_format)],
-            outputs=[FilesetSpec('text_from_text', text_format),
-                     FilesetSpec('directory_from_zip', directory_format),
-                     FilesetSpec('zip_from_directory', directory_format)],
+            mods=mods,
             desc=("A pipeline that tests out various data format "
-                         "conversions"),
-            references=[],)
+                         "conversions"))
         # No conversion from text to text format
-        text_from_text = pipeline.create_node(
-            IdentityInterface(fields=['file']), 'text_from_text')
-        pipeline.connect_input('text', text_from_text, 'file')
+        text_from_text = pipeline.add('text_from_text',
+                                      IdentityInterface(fields=['file']))
+        pipeline.connect_input('text', text_from_text, 'file',
+                               format=text_format)
         pipeline.connect_output('text_from_text', text_from_text,
                                 'file')
         # Convert from zip file to directory format on input
-        directory_from_zip = pipeline.create_node(
-            IdentityInterface(fields=['file']), 'directory_from_zip')
-        pipeline.connect_input('zip', directory_from_zip, 'file')
-        pipeline.connect_output('directory_from_zip', directory_from_zip,
-                                'file')
-        # Convert from NIfTI.gz to MRtrix format on output
-        zip_from_directory = pipeline.create_node(
-            IdentityInterface(fields=['file']), 'zip_from_directory')
-        pipeline.connect_input('directory', zip_from_directory, 'file')
-        pipeline.connect_output('zip_from_directory',
-                                zip_from_directory, 'file')
+        directory_from_zip_on_input = pipeline.add(
+            'directory_from_zip_on_input', IdentityInterface(fields=['file']))
+        pipeline.connect_input('zip', directory_from_zip_on_input, 'file',
+                               format=directory_format)
+        pipeline.connect_output('directory_from_zip_on_input',
+                                directory_from_zip_on_input,
+                                'file', format=directory_format)
+        # Convert from zip file to directory format on input
+        directory_from_zip_on_output = pipeline.add(
+            'directory_from_zip_on_output', IdentityInterface(fields=['file']))
+        pipeline.connect_input('zip', directory_from_zip_on_output, 'file',
+                               format=zip_format)
+        pipeline.connect_output('directory_from_zip_on_output',
+                                directory_from_zip_on_output,
+                                'file', format=zip_format)
+        # Convert from directory to zip format on input
+        zip_from_directory_on_input = pipeline.add(
+            'zip_from_directory_on_input', IdentityInterface(fields=['file']))
+        pipeline.connect_input('directory', zip_from_directory_on_input,
+                               'file', format=zip_format)
+        pipeline.connect_output('zip_from_directory_on_input',
+                                zip_from_directory_on_input, 'file',
+                                format=zip_format)
+        # Convert from directory to zip format on input
+        zip_from_directory_on_output = pipeline.add(
+            'zip_from_directory_on_output', IdentityInterface(fields=['file']))
+        pipeline.connect_input('directory', zip_from_directory_on_output,
+                               'file', format=directory_format)
+        pipeline.connect_output('zip_from_directory_on_output',
+                                zip_from_directory_on_output, 'file',
+                                format=directory_format)
         return pipeline
 
 
@@ -97,5 +118,7 @@ class TestFormatConversions(BaseTestCase):
                              'directory'),
                 FilesetMatch('zip', zip_format, 'zip')])
         self.assertCreated(list(study.data('text_from_text'))[0])
-        self.assertCreated(list(study.data('directory_from_zip'))[0])
-        self.assertCreated(list(study.data('zip_from_directory'))[0])
+        self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
+        self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])
+        self.assertCreated(list(study.data('directory_from_zip_on_output'))[0])
+        self.assertCreated(list(study.data('zip_from_directory_on_output'))[0])

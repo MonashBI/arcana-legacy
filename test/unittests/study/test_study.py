@@ -514,8 +514,7 @@ class TestInputValidationFail(BaseTestCase):
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [FilesetSpec('fileset', text_format),
-                      FilesetSpec('out_fileset', text_format,
-                                  'pipeline')]
+                      FilesetSpec('out_fileset', text_format, 'a_pipeline')]
 
     def a_pipeline(self, **mods):
         pipeline = self.pipeline(

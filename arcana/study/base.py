@@ -844,8 +844,12 @@ class StudyMetaClass(type):
         # pipeline method in the class
         for spec in add_data_specs:
             pipe_name = spec.pipeline_name
+            if pipe_name == 'pipeline':
+                raise ArcanaDesignError(
+                    "Cannot use the name 'pipeline' for the name of a "
+                    "pipeline constructor in class {}".format(name))
             if pipe_name is not None and pipe_name not in combined_attrs:
-                raise ArcanaUsageError(
+                raise ArcanaDesignError(
                     "Pipeline to generate '{}', '{}', is not present"
                     " in '{}' class".format(
                         spec.name, spec.pipeline_name, name))
@@ -853,13 +857,13 @@ class StudyMetaClass(type):
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_parameter_specs))
         if spec_name_clashes:
-            raise ArcanaUsageError(
+            raise ArcanaDesignError(
                 "'{}' name both data and parameter specs in '{}' class"
                 .format("', '".join(spec_name_clashes), name))
         reserved_clashes = [n for n in combined_data_specs
                             if n in Pipeline.ITERFIELDS]
         if reserved_clashes:
-            raise ArcanaUsageError(
+            raise ArcanaDesignError(
                 "'{}' data spec names clash with reserved names"
                 .format("', '".join(reserved_clashes), name))
         dct['_data_specs'] = combined_data_specs

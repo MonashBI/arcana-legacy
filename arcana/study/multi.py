@@ -191,11 +191,14 @@ class MultiStudy(Study):
             # Invert name map in sub-study spec
             name_map = {v: k for k, v in sub_study_spec.name_map.items()}
             # Combine mapping of names of sub-study specs with
-            return getattr(self.sub_study(sub_study_name), pipeline_name)(
-                prefix=sub_study_name + '_',
-                input_map=name_map,
-                output_map=name_map,
-                study=self, mods=mods)
+            try:
+                return getattr(self.sub_study(sub_study_name), pipeline_name)(
+                    prefix=sub_study_name + '_',
+                    input_map=name_map,
+                    output_map=name_map,
+                    study=self, mods=mods)
+            except:
+                raise
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter
