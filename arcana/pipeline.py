@@ -104,104 +104,6 @@ class Pipeline(object):
         # provenance
         self._referenced_parameters = None
 
-    def _unwrap_mods(self, mods, name, study=None, **inner_maps):
-        """
-        Unwraps potentially nested modification dictionaries to get values
-        for name, input_map, output_map and study
-
-        Parameters
-        ----------
-        mods : dict
-            A dictionary containing the modifications to apply to the values
-        name : str
-            Name passed from inner pipeline constructor
-        study : Study
-            The study to bind the pipeline to. Will be overridden by any values
-            in the mods dict
-        inner_maps : dict[str, dict[str,str]]
-            input and output maps from inner pipeline constructors
-
-        Returns
-        -------
-        name : str
-            Potentially modified name of the pipeline
-        study : Study
-            Potentially modified study
-        input_map : dict[str,str]
-            Potentially modifed input map
-        output_map : dict[str,str]
-            Potentially modifed output map
-        """
-        # Unwrap nested modifications if present
-        if 'name' in mods:
-            name = mods['name']
-        if 'prefix' in mods:
-            name = mods['prefix'] + name
-        if 'study' in mods:
-            study = mods['study']
-        # Flatten input and output maps, combining maps from inner nests with
-        # those in the "mods" dictionary
-        maps = {}
-        for mtype in ('input_map', 'output_map'):
-            try:
-                inner_map = inner_maps[mtype]
-            except KeyError:
-                try:
-                    maps[mtype] = mods[mtype]  # Only outer map
-                except KeyError:
-                    pass  # No maps
-            else:
-                try:
-                    outer_map = mods[mtype]
-                except KeyError:
-                    maps[mtype] = inner_map  # Only inner map
-                else:
-                    # Work through different combinations of  inner and outer
-                    # map types (i.e. str & str, str & dict, dict & str, and
-                    # dict & dict) and combine into a single map
-                    if isinstance(outer_map, str):
-                        if isinstance(inner_map, str):
-                            # Concatenate prefixes
-                            maps[mtype] = outer_map + inner_map
-                        elif isinstance(inner_map, dict):
-                            # Add outer_map prefix to all values in inner map
-                            # dictionary
-                            maps[mtype] = {k: outer_map + v
-                                           for k, v in inner_map.items()}
-                        else:
-                            raise ArcanaDesignError(
-                                "Unrecognised type for name map in '{}' "
-                                "pipeline can be str or dict[str,str]: {}"
-                                .format(name, inner_map))
-                    elif isinstance(outer_map, dict):
-                        if isinstance(inner_map, str):
-                            # Strip inner map prefix from outer dictionary
-                            # (which should have prefix included). This should
-                            # be an unlikely case I imagine
-                            maps[mtype] = {k[len(inner_map):]: v
-                                           for k, v in outer_map.items()}
-                        elif isinstance(inner_map, dict):
-                            # Chain outer_map dictionary to inner map
-                            # dictionary
-                            maps[mtype] = deepcopy(outer_map)
-                            maps[mtype].update(
-                                {k: outer_map.get(v, v)
-                                 for k, v in inner_map.items()})
-                        else:
-                            raise ArcanaDesignError(
-                                "Unrecognised type for name map in '{}' "
-                                "pipeline can be str or dict[str,str]: {}"
-                                .format(name, inner_map))
-                    else:
-                        raise ArcanaDesignError(
-                            "Unrecognised type for name map in '{}' "
-                            "pipeline can be str or dict[str,str]: {}"
-                            .format(name, outer_map))
-        if 'mods' in mods:
-            name, study, maps = self._unwrap_mods(
-                mods['mods'], name=name, study=study, **maps)
-        return name, study, maps
-
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
                                       self.name)
@@ -255,10 +157,10 @@ class Pipeline(object):
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
-                    "Output(s) '{}', required for '{}' pipeline, will "
+                    "Output(s) '{}', required for {}, will "
                     "not be created by prerequisite pipeline '{}' "
                     "with parameters: {}".format(
-                        "', '".join(missing_outputs), self.name,
+                        "', '".join(missing_outputs), self._error_msg_loc,
                         pipeline.name,
                         '\n'.join('{}={}'.format(o.name, o.value)
                                   for o in self.study.parameters)))
@@ -273,7 +175,7 @@ class Pipeline(object):
         return chain((i for i in self.inputs if not i.derived),
                      *(p.study_inputs for p in self.prerequisites))
 
-    def add(self, name, interface, **kwargs):
+    def add(self, name, interface, inputs=None, **kwargs):
         """
         Adds a processing Node to the pipeline
 
@@ -283,13 +185,26 @@ class Pipeline(object):
             Name for the node
         interface : nipype.Interface
             The interface to use for the node
-        node_type : str | None
-            The type of node to create. Can be one of 'map', 'join',
-            'join_subjects', 'join_visits', or None. If 'map' a MapNode is
-            used, if starts with 'join' a JoinNode is used. The special join
-            nodes 'join_subjects' and 'join_visits' join on the iterator nodes
-            for subjects and visits, respectively. If None then a regular Node
-            is used.
+        inputs : dict[str, *] | dict[str, (Node, str)]
+            A dictionary containing the inputs to connect to the node. If the
+            a value in the dictionary is a 2-tuple with the first item a
+            Node object and the second a string, then the string will be
+            interpreted as the field of the node object to connect to the
+            newly added node. Otherwise the value in the dictionary will
+            be set as a fixed input of the node.
+
+            Note that inputs can also be specified outside of the 'add'
+            using typical Nipype syntax
+            (i.e. my_node.inputs.my_field = my_value) or the 'connect' method.
+        iterfield : str
+            Name of field to be passed an iterable to iterator over.
+            If present, a MapNode will be created instead of a regular node
+        joinsource : str
+            Name of iterator field to join. Typically one of the implicit
+            iterators (i.e. Pipeline.SUBJECT_ID or Pipeline.VISIT_ID)
+            to join over the subjects and/or visits
+        joinfield : str
+            Name of field to pass the joined list when creating a JoinNode
         requirements : list(Requirement)
             List of required packages need for the node to run (default: [])
         wall_time : float
@@ -307,24 +222,42 @@ class Pipeline(object):
         node : Node
             The Node object that has been added to the pipeline
         """
-        if 'joinsource' in kwargs:
-            if 'iterfield' in kwargs:
+        if 'iterfield' in kwargs:
+            if 'joinfield' in kwargs or 'joinsource' in kwargs:
                 raise ArcanaDesignError(
                     "Cannot provide both joinsource and iterfield to when "
-                    "attempting to add '{}' node to '{}' pipeline in {} class"
-                    .foramt(name, self.name, type(self.study).__name__))
-            node_cls = JoinNode
+                    "attempting to add '{}' node to {}"
+                    .foramt(name, self._error_msg_loc))
+            node_cls = MapNode
+        elif 'joinsource' in kwargs or 'joinfield' in kwargs:
+            if not ('joinfield' in kwargs and 'joinsource' in kwargs):
+                raise ArcanaDesignError(
+                    "Both joinsource and joinfield kwargs are required to "
+                    "create a JoinNode (see {})".format(name,
+                                                        self._error_msg_loc))
             joinsource = kwargs['joinsource']
-            # Record joins over iterators for logic to check output frequencies
             if joinsource in self.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
+            node_cls = JoinNode
+            # Prepend name of pipeline of joinsource to match name of nodes
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
-        elif 'iterfield' in kwargs:
-            node_cls = MapNode
         else:
             node_cls = Node
         node = node_cls(interface, name="{}_{}".format(self._name, name),
                         processor=self.study.processor, **kwargs)
+        if inputs is not None:
+            for inpt_name, inpt_value in inputs:
+                try:
+                    # Check to see whether input is a node/field-name pair,
+                    # and if so connect to current node. Otherwise interpret
+                    # input as a fixed field
+                    inpt_node, inpt_field = inpt_value
+                    if not isinstance(inpt_node, Node):
+                        raise ValueError
+                except (ValueError, TypeError):
+                    setattr(node, inpt_name, inpt_value)
+                else:
+                    self.connect(inpt_node, inpt_field, node, inpt_name)
         self._workflow.add_nodes([node])
         return node
 
@@ -351,16 +284,14 @@ class Pipeline(object):
             if format is not None:
                 raise ArcanaDesignError(
                     "Format doesn't make sense to connect iterator input '{}' "
-                    "in '{}' pipeline of {} study".format(
-                        spec_name, self.name, type(self.study).__class__))
+                    "in {}".format(spec_name, self._error_msg_loc))
             self._iterator_conns[spec_name].append((node, node_input))
         else:
             name = self._map_name(spec_name, self._input_map)
             if name not in self.study.data_spec_names():
                 raise ArcanaDesignError(
-                    "Proposed input '{}' to '{}' pipeline is not a valid spec "
-                    "name for {} studies ('{}')"
-                    .format(name, self.name, self.study.__class__.__name__,
+                    "Proposed input '{}' to {} is not a valid spec name ('{}')"
+                    .format(name, self._error_msg_loc,
                             "', '".join(self.study.data_spec_names())))
             self._input_conns[name].append((node, node_input, format, kwargs))
 
@@ -386,15 +317,13 @@ class Pipeline(object):
         name = self._map_name(spec_name, self._output_map)
         if name not in self.study.data_spec_names():
             raise ArcanaDesignError(
-                "Proposed output '{}' to '{}' pipeline is not a valid spec "
-                "name for {} studies ('{}')"
-                .format(name, self.name, self.study.__class__.__name__,
+                "Proposed output '{}' to {} is not a valid spec name ('{}')"
+                .format(name, self._error_msg_loc,
                         "', '".join(self.study.data_spec_names())))
         if name in self._output_conns:
             raise ArcanaDesignError(
-                "'{}' output of '{} pipeline of {} study has already been "
-                "connected".format(name, self.name,
-                                   self.study.__class__.__name__))
+                "'{}' output of {} has already been connected"
+                .format(name, self._error_msg_loc))
         self._output_conns[name] = (node, node_output, format, kwargs)
 
     def _map_name(self, name, mapper):
@@ -700,7 +629,7 @@ class Pipeline(object):
                 freq == 'per_visit' and iterfield == cls.VISIT_ID or
                 freq == 'per_subject' and iterfield == cls.SUBJECT_ID)
 
-    def to_process(self, item, force=False):
+    def metadata_mismatch(self, item):
         """
         Determines whether the given derivative dataset needs to be
         (re)processed or not, checking the item's provenance against the
@@ -710,8 +639,6 @@ class Pipeline(object):
         ----------
         item : Fileset | Field
             The item to check for reprocessing
-        reprocess : bool
-            A flag which determines whether reprocessing should be forced
 
         Returns
         -------
@@ -719,4 +646,105 @@ class Pipeline(object):
             Whether to (re)process the given item
         """
         # TODO: Add provenance checking for items that exist
-        return force or not item.exists
+        return not item.exists
+
+    def _unwrap_mods(self, mods, name, study=None, **inner_maps):
+        """
+        Unwraps potentially nested modification dictionaries to get values
+        for name, input_map, output_map and study. Unsed in __init__.
+
+        Parameters
+        ----------
+        mods : dict
+            A dictionary containing the modifications to apply to the values
+        name : str
+            Name passed from inner pipeline constructor
+        study : Study
+            The study to bind the pipeline to. Will be overridden by any values
+            in the mods dict
+        inner_maps : dict[str, dict[str,str]]
+            input and output maps from inner pipeline constructors
+
+        Returns
+        -------
+        name : str
+            Potentially modified name of the pipeline
+        study : Study
+            Potentially modified study
+        maps : dict[str, dict[str,str]]
+            Potentially modifed input and output maps
+        """
+        # Unwrap nested modifications if present
+        if 'name' in mods:
+            name = mods['name']
+        if 'prefix' in mods:
+            name = mods['prefix'] + name
+        if 'study' in mods:
+            study = mods['study']
+        # Flatten input and output maps, combining maps from inner nests with
+        # those in the "mods" dictionary
+        maps = {}
+        for mtype in ('input_map', 'output_map'):
+            try:
+                inner_map = inner_maps[mtype]
+            except KeyError:
+                try:
+                    maps[mtype] = mods[mtype]  # Only outer map
+                except KeyError:
+                    pass  # No maps
+            else:
+                try:
+                    outer_map = mods[mtype]
+                except KeyError:
+                    maps[mtype] = inner_map  # Only inner map
+                else:
+                    # Work through different combinations of  inner and outer
+                    # map types (i.e. str & str, str & dict, dict & str, and
+                    # dict & dict) and combine into a single map
+                    if isinstance(outer_map, str):
+                        if isinstance(inner_map, str):
+                            # Concatenate prefixes
+                            maps[mtype] = outer_map + inner_map
+                        elif isinstance(inner_map, dict):
+                            # Add outer_map prefix to all values in inner map
+                            # dictionary
+                            maps[mtype] = {k: outer_map + v
+                                           for k, v in inner_map.items()}
+                        else:
+                            raise ArcanaDesignError(
+                                "Unrecognised type for name map in '{}' "
+                                "pipeline can be str or dict[str,str]: {}"
+                                .format(name, inner_map))
+                    elif isinstance(outer_map, dict):
+                        if isinstance(inner_map, str):
+                            # Strip inner map prefix from outer dictionary
+                            # (which should have prefix included). This should
+                            # be an unlikely case I imagine
+                            maps[mtype] = {k[len(inner_map):]: v
+                                           for k, v in outer_map.items()}
+                        elif isinstance(inner_map, dict):
+                            # Chain outer_map dictionary to inner map
+                            # dictionary
+                            maps[mtype] = deepcopy(outer_map)
+                            maps[mtype].update(
+                                {k: outer_map.get(v, v)
+                                 for k, v in inner_map.items()})
+                        else:
+                            raise ArcanaDesignError(
+                                "Unrecognised type for name map in '{}' "
+                                "pipeline can be str or dict[str,str]: {}"
+                                .format(name, inner_map))
+                    else:
+                        raise ArcanaDesignError(
+                            "Unrecognised type for name map in '{}' "
+                            "pipeline can be str or dict[str,str]: {}"
+                            .format(name, outer_map))
+        if 'mods' in mods:
+            name, study, maps = self._unwrap_mods(
+                mods['mods'], name=name, study=study, **maps)
+        return name, study, maps
+
+    @property
+    def _error_msg_loc(self):
+        return "'{}' pipeline in {} class".format(self.name,
+                                                  type(self.study).__name__)

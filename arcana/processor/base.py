@@ -245,8 +245,8 @@ class BaseProcessor(object):
                     "prerequisite pipelines".format(prev_connected, pipeline))
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
-        to_process = self._to_process(
-            pipeline, filter_array, subject_inds, visit_inds, force=force)
+        to_process = self._to_process(pipeline, filter_array, subject_inds,
+                                      visit_inds, force)
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
         workflow.add_nodes([pipeline._workflow])
@@ -498,7 +498,7 @@ class BaseProcessor(object):
         return iterators
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,
-                    force=False):
+                    force):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project repository and were generated with matching parameters
@@ -562,8 +562,10 @@ class BaseProcessor(object):
             #
             # NB: Filter array should always have at least one true value at
             # this point
-            if pipeline.to_process(collection.item(), force=force):
+            if pipeline.metadata_mismatch(collection.item()) or force:
                 to_process[:] = True
+                # No point continuing since to_process array is already full
+                return to_process
         for output in pipeline.frequency_outputs('per_subject'):
             collection = self.study.spec(output).collection
             for item in collection:
@@ -571,8 +573,8 @@ class BaseProcessor(object):
                 # NB: The output will be reprocessed using data from every
                 # visit of each subject. However, the visits to include in the
                 # analysis can be specified the initialisation of the Study.
-                if pipeline.to_process(item, force) and filter_array[i,
-                                                                     :].any():
+                if ((pipeline.metadata_mismatch(item) or force) and
+                        filter_array[i, :].any()):
                     to_process[i, :] = True
         for output in pipeline.frequency_outputs('per_visit'):
             collection = self.study.spec(output).collection
@@ -581,15 +583,16 @@ class BaseProcessor(object):
                 # NB: The output will be reprocessed using data from every
                 # subject of each vist. However, the subject to include in the
                 # analysis can be specified the initialisation of the Study.
-                if pipeline.to_process(item, force) and filter_array[:,
-                                                                     j].any():
+                if ((pipeline.metadata_mismatch(item) or force) and
+                        filter_array[:, j].any()):
                     to_process[:, j] = True
         for output in pipeline.frequency_outputs('per_session'):
             collection = self.study.spec(output).collection
             for item in collection:
                 i = subject_inds[item.subject_id]
                 j = visit_inds[item.visit_id]
-                if pipeline.to_process(item, force) and filter_array[i, j]:
+                if ((pipeline.metadata_mismatch(item) or force) and
+                        filter_array[i, j]):
                     to_process[i, j] = True
         if not to_process.any():
             raise ArcanaNoRunRequiredException(
