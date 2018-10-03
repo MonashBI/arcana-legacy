@@ -315,10 +315,9 @@ class Pipeline(object):
                     .foramt(name, self.name, type(self.study).__name__))
             node_cls = JoinNode
             joinsource = kwargs['joinsource']
-            if joinsource == 'subjects':
-                self._iterator_joins.add(self.SUBJECT_ID)
-            elif joinsource == 'visits':
-                self._iterator_joins.add(self.VISIT_ID)
+            # Record joins over iterators for logic to check output frequencies
+            if joinsource in self.ITERFIELDS:
+                self._iterator_joins.add(joinsource)
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
         elif 'iterfield' in kwargs:
             node_cls = MapNode

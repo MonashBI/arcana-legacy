@@ -132,7 +132,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             references=[],
             mods=mods)
         visits_to_file = pipeline.add(
-            'visits_to_file', IteratorToFile(), joinsource='visits',
+            'visits_to_file', IteratorToFile(), joinsource=pipeline.VISIT_ID,
             joinfield='ids')
         pipeline.connect_input(pipeline.VISIT_ID, visits_to_file, 'ids')
         pipeline.connect_input(pipeline.SUBJECT_ID, visits_to_file, 'fixed_id')
@@ -148,7 +148,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             mods=mods)
         subjects_to_file = pipeline.add(
             'subjects_to_file', IteratorToFile(), joinfield='ids',
-            joinsource='subjects')
+            joinsource=pipeline.SUBJECT_ID)
         pipeline.connect_input(pipeline.SUBJECT_ID, subjects_to_file, 'ids')
         pipeline.connect_input(pipeline.VISIT_ID, subjects_to_file, 'fixed_id')
         pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
@@ -161,7 +161,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             references=[],
             mods=mods)
         math = pipeline.add(
-            'math', TestMath(), joinfield='x', joinsource='visits')
+            'math', TestMath(), joinfield='x', joinsource=pipeline.VISIT_ID)
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -177,7 +177,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             references=[],
             mods=mods)
         math = pipeline.add('math', TestMath(), joinfield='x',
-                            joinsource='subjects')
+                            joinsource=pipeline.SUBJECT_ID)
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -193,9 +193,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             references=[],
             mods=mods)
         math1 = pipeline.add(
-            'math1', TestMath(), joinfield='x', joinsource='visits')
+            'math1', TestMath(), joinfield='x', joinsource=pipeline.VISIT_ID)
         math2 = pipeline.add(
-            'math2', TestMath(), joinfield='x', joinsource='subjects')
+            'math2', TestMath(), joinfield='x', joinsource=pipeline.SUBJECT_ID)
         math1.inputs.op = 'add'
         math2.inputs.op = 'add'
         math1.inputs.as_file = True

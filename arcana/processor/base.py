@@ -315,6 +315,16 @@ class BaseProcessor(object):
                     FIELD_SUFFIX)
                 workflow.connect(source, in_name, inputnode, input.name)
         deiterators = {}
+
+        def deiterator_sort_key(ifield):
+            """
+            If there are two iterators (i.e. both subject and visit ID) and
+            one depends on the other (i.e. if the visit IDs per subject
+            vary and vice-versa) we need to ensure that the dependent
+            iterator is deiterated (joined) first.
+            """
+            return iterators[ifield].itersource is None
+
         # Connect all outputs to the repository sink, creating a new sink for
         # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',
         # or 'per_study')
@@ -346,20 +356,17 @@ class BaseProcessor(object):
             # are no deiterates (i.e. per_study) or to use as the upstream
             # node to connect the first deiterator for every frequency
             deiterators[freq] = sink
-            if list(pipeline.iterfields(freq)):
-                for iterfield in pipeline.iterfields(freq):
-                    joinsource = (
-                        'subjects' if iterfield == pipeline.SUBJECT_ID else
-                        'visits')
-                    deiterator = pipeline.add(
-                        '{}_{}_deiterator'.format(freq, iterfield),
-                        IdentityInterface(['combined']),
-                        joinsource=joinsource, joinfield='combined')
-                    # Connect to previous deiterator or sink
-                    upstream = deiterators[freq]
-                    pipeline.connect(upstream, 'combined', deiterator,
-                                     'combined')
-                    deiterators[freq] = deiterator
+            for iterfield in sorted(pipeline.iterfields(freq),
+                                    key=deiterator_sort_key):
+                deiterator = pipeline.add(
+                    '{}_{}_deiterator'.format(freq, iterfield),
+                    IdentityInterface(['combined']),
+                    joinsource=iterfield, joinfield='combined')
+                # Connect to previous deiterator or sink
+                upstream = deiterators[freq]
+                pipeline.connect(upstream, 'combined', deiterator,
+                                 'combined')
+                deiterators[freq] = deiterator
         # Create a final node, which is used to connect with dependent
         # pipelines into large workflows
         final = pipeline.add('final', Merge(len(deiterators)))
@@ -418,9 +425,9 @@ class BaseProcessor(object):
             # required
             num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=0)].shape
             if num_subjs > num_visits:
-                dependent = 'subjects'
+                dependent = pipeline.SUBJECT_ID
             else:
-                dependent = 'visits'
+                dependent = pipeline.VISIT_ID
             if 'per_visit' in input_freqs:
                 if 'per_subject' in input_freqs:
                     logger.warning(
@@ -430,9 +437,9 @@ class BaseProcessor(object):
                         " per_{} inputs may be cached twice".format(
                             dependent[:-1]))
                 else:
-                    dependent = 'subjects'
+                    dependent = pipeline.SUBJECT_ID
             elif 'per_subject' in input_freqs:
-                dependent = 'visits'
+                dependent = pipeline.VISIT_ID
         # Invert the index dictionaries to get index-to-ID maps
         subj_ids = {v: k for k, v in subject_inds.items()}
         visit_ids = {v: k for k, v in visit_inds.items()}
@@ -440,13 +447,16 @@ class BaseProcessor(object):
         iterators = {}
         if pipeline.SUBJECT_ID in pipeline.iterfields():
             fields = [pipeline.SUBJECT_ID]
-            if dependent == 'subjects':
-                fields += pipeline.VISIT_ID
-            subj_it = pipeline.add('subjects', IdentityInterface(fields))
-            if dependent == 'subjects':
+            if dependent == pipeline.SUBJECT_ID:
+                fields.append(pipeline.VISIT_ID)
+            # Add iterator node named after subject iterfield
+            subj_it = pipeline.add(pipeline.SUBJECT_ID,
+                                   IdentityInterface(fields))
+            if dependent == pipeline.SUBJECT_ID:
                 # Subjects iterator is dependent on visit iterator (because of
                 # non-factorizable IDs)
-                subj_it.itersource = ('{}_visits'.format(pipeline.name),
+                subj_it.itersource = ('{}_{}'.format(pipeline.name,
+                                                     pipeline.VISIT_ID),
                                       pipeline.VISIT_ID)
                 subj_it.iterables = [(
                     pipeline.SUBJECT_ID,
@@ -460,11 +470,14 @@ class BaseProcessor(object):
         # Create iterator for visits
         if pipeline.VISIT_ID in pipeline.iterfields():
             fields = [pipeline.VISIT_ID]
-            if dependent == 'visits':
-                fields += pipeline.SUBJECT_ID
-            visit_it = pipeline.add('visits', IdentityInterface(fields))
-            if dependent == 'visits':
-                visit_it.itersource = ('{}_subjects'.format(pipeline.name),
+            if dependent == pipeline.VISIT_ID:
+                fields.append(pipeline.SUBJECT_ID)
+            # Add iterator node named after visit iterfield
+            visit_it = pipeline.add(pipeline.VISIT_ID,
+                                    IdentityInterface(fields))
+            if dependent == pipeline.VISIT_ID:
+                visit_it.itersource = ('{}_{}'.format(pipeline.name,
+                                                      pipeline.SUBJECT_ID),
                                        pipeline.SUBJECT_ID)
                 visit_it.iterables = [(
                     pipeline.VISIT_ID,
@@ -476,10 +489,10 @@ class BaseProcessor(object):
                     [visit_ids[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
             iterators[pipeline.VISIT_ID] = visit_it
-        if dependent == 'subjects':
+        if dependent == pipeline.SUBJECT_ID:
             pipeline.connect(visit_it, pipeline.VISIT_ID,
                              subj_it, pipeline.VISIT_ID)
-        if dependent == 'visits':
+        if dependent == pipeline.VISIT_ID:
             pipeline.connect(subj_it, pipeline.SUBJECT_ID,
                              visit_it, pipeline.SUBJECT_ID)
         return iterators
