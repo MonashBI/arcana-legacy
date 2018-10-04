@@ -1,5 +1,6 @@
 from past.builtins import basestring
 from builtins import object
+from operator import attrgetter
 from copy import copy
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
@@ -10,45 +11,153 @@ from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseSpec(object):
+class BaseAcquiredSpec(object):
 
-    def __init__(self, name, pipeline_name=None, desc=None,
-                 optional=False, default=None):
-        if pipeline_name is not None:
-            if not isinstance(pipeline_name, basestring):
-                raise ArcanaUsageError(
-                    "Pipeline name for {} '{}' is not a string "
-                    "'{}'".format(name, pipeline_name))
-            if optional:
-                raise ArcanaUsageError(
-                    "Derived filesets cannot be optional ('{}')"
-                    .format(name))
-        self._pipeline_name = pipeline_name
+    derived = False
+
+    def __init__(self, name, desc=None, optional=False, default=None):
+        if optional and default is not None:
+            raise ArcanaUsageError(
+                "'optional' doesn't make sense for specs ('{}') with default "
+                "values"
+                .format(name))
         self._desc = desc
         self._study = None
         self._optional = optional
-        self._collection = None
         self._default = default
 
     def __eq__(self, other):
-        return (self.pipeline_name == other.pipeline_name and
-                self.desc == other.desc and
+        return (self.desc == other.desc and
                 self.optional == other.optional and
                 self.default == other.default)
 
     def __hash__(self):
-        return (hash(self.pipeline_name) ^ hash(self.desc) ^
-                hash(self.optional) ^ hash(self.default))
+        return (hash(self.desc) ^ hash(self.optional) ^ hash(self.default))
+
+    def initkwargs(self):
+        dct = {}
+        dct['desc'] = self.desc
+        dct['optional'] = self.optional
+        dct['default'] = self.default
+        return dct
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = ''
+        sub_indent = indent + '  '
+        if self.optional != other.optional:
+            mismatch += ('\n{}optional: self={} v other={}'
+                         .format(sub_indent, self.optional,
+                                 other.optional))
+        if self.default != other.default:
+            mismatch += ('\n{}default: self={} v other={}'
+                         .format(sub_indent, self.default,
+                                 other.default))
+        if self.desc != other.desc:
+            mismatch += ('\n{}desc: self={} v other={}'
+                         .format(sub_indent, self.desc, other.desc))
+        return mismatch
 
     def bind(self, study):
         """
-        Returns a copy of the FilesetSpec bound to the given study
+        Returns a copy of the AcquiredSpec bound to the given study
 
         Parameters
         ----------
         study : Study
             A study to bind the fileset spec to (should happen in the
-            study constructor)
+            study __init__)
+        """
+        if self.default is None:
+            raise ArcanaError(
+                "Attempted to bind '{}' to {} but only acquired specs with "
+                "a default value should be bound to studies{})".format(
+                    self.name, study))
+        if self.default.study is not None:
+            # Avoid rebinding specs in sub-studies that have already
+            # been bound to MultiStudy
+            bound = self
+        else:
+            bound = copy(self)
+            bound._default = self.default.bind(study)
+        return bound
+
+    @property
+    def optional(self):
+        return self._optional
+
+    @property
+    def study(self):
+        if self._study is None:
+            raise ArcanaError(
+                "{} is not bound to a study".format(self))
+        return self._study
+
+    @property
+    def default(self):
+        return self._default
+
+    @property
+    def desc(self):
+        return self._desc
+
+    @property
+    def collection(self):
+        if self._study is None:
+            raise ArcanaUsageError(
+                "{} needs to be bound to a study before accessing "
+                "the corresponding collection".format(self))
+        return self.default.collection
+
+
+class BaseSpec(object):
+
+    derived = True
+
+    def __init__(self, name, pipeline_name, desc=None):
+        if pipeline_name is not None:
+            if not isinstance(pipeline_name, basestring):
+                raise ArcanaUsageError(
+                    "Pipeline name for {} '{}' is not a string "
+                    "'{}'".format(name, pipeline_name))
+        self._pipeline_name = pipeline_name
+        self._desc = desc
+        self._study = None
+        self._collection = None
+
+    def __eq__(self, other):
+        return (self.pipeline_name == other.pipeline_name and
+                self.desc == other.desc)
+
+    def __hash__(self):
+        return (hash(self.pipeline_name) ^ hash(self.desc))
+
+    def initkwargs(self):
+        dct = {}
+        dct['pipeline_name'] = self.pipeline_name
+        dct['desc'] = self.desc
+        return dct
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = ''
+        sub_indent = indent + '  '
+        if self.pipeline_name != other.pipeline_name:
+            mismatch += ('\n{}pipeline_name: self={} v other={}'
+                         .format(sub_indent, self.pipeline_name,
+                                 other.pipeline_name))
+        if self.desc != other.desc:
+            mismatch += ('\n{}desc: self={} v other={}'
+                         .format(sub_indent, self.desc, other.desc))
+        return mismatch
+
+    def bind(self, study):
+        """
+        Returns a copy of the Spec bound to the given study
+
+        Parameters
+        ----------
+        study : Study
+            A study to bind the fileset spec to (should happen in the
+            study __init__)
         """
         if self._study is not None:
             # Avoid rebinding specs in sub-studies that have already
@@ -57,8 +166,7 @@ class BaseSpec(object):
         else:
             bound = copy(self)
             bound._study = study
-            if (self.pipeline_name is not None and
-                    not hasattr(study, self.pipeline_name)):
+            if not hasattr(study, self.pipeline_name):
                 raise ArcanaError(
                     "{} does not have a method named '{}' required to "
                     "derive {}".format(study, self.pipeline_name,
@@ -95,19 +203,6 @@ class BaseSpec(object):
             frequency=self.frequency,
             **self._specific_collection_kwargs)
 
-    def find_mismatch(self, other, indent=''):
-        mismatch = ''
-        sub_indent = indent + '  '
-        if self.pipeline_name != other.pipeline_name:
-            mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(sub_indent, self.pipeline,
-                                 other.pipeline))
-        if self.desc != other.desc:
-            mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(sub_indent, self.pipeline,
-                                 other.pipeline))
-        return mismatch
-
     @property
     def derivable(self):
         """
@@ -129,10 +224,6 @@ class BaseSpec(object):
     @property
     def pipeline_name(self):
         return self._pipeline_name
-
-    @property
-    def optional(self):
-        return self._optional
 
     @property
     def pipeline(self):
@@ -174,19 +265,11 @@ class BaseSpec(object):
         return pipeline
 
     @property
-    def derived(self):
-        return self.pipeline_name is not None
-
-    @property
     def study(self):
         if self._study is None:
             raise ArcanaError(
                 "{} is not bound to a study".format(self))
         return self._study
-
-    @property
-    def default(self):
-        return self._default
 
     @property
     def desc(self):
@@ -205,32 +288,18 @@ class BaseSpec(object):
             assert False
         return node
 
-    def initkwargs(self):
-        dct = {}
-        dct['pipeline_name'] = self.pipeline_name
-        dct['desc'] = self.desc
-        dct['optional'] = self.optional
-        dct['default'] = self.default
-        return dct
 
-
-class FilesetSpec(BaseFileset, BaseSpec):
+class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
     """
-    A specification for a fileset within a study, which
-    can either be an "acquired" fileset (e.g from the scanner)
-    externally, or a "generated" fileset, derived from a processing
-    pipeline.
+    A specification for an "acquired" fileset (e.g from the scanner or
+    standard atlas)
 
     Parameters
     ----------
     name : str
         The name of the fileset
-    format : FileFormat
-        The file format used to store the fileset. Can be one of the
-        recognised formats
-    pipeline_name : str
-        Name of the method in the study that is used to generate the
-        fileset. If None the fileset is assumed to be acq
+    valid_formats : FileFormat | list[FileFormat]
+        The acceptable file formats for input filesets to match this spec
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,
@@ -249,15 +318,91 @@ class FilesetSpec(BaseFileset, BaseSpec):
     """
 
     is_spec = True
-    ParticularClass = Fileset
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format=None, pipeline_name=None,  # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', desc=None, optional=False,
-                 default=None):
+    def __init__(self, name, valid_formats, frequency='per_session', # @ReservedAssignment @IgnorePep8
+                 desc=None, optional=False, default=None):
+        # Ensure allowed formats is a list
+        try:
+            valid_formats = sorted(valid_formats, key=attrgetter('name'))
+        except TypeError:
+            valid_formats = [valid_formats]
+        else:
+            if not valid_formats:
+                raise ArcanaError(
+                    "'{}' spec doesn't have any allowed formats".format(name))
+        BaseFileset.__init__(self, name, valid_formats[0], frequency)
+        BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
+                                  default=default)
+
+    @property
+    def valid_formats(self):
+        return iter(self._valid_formats)
+
+    def __eq__(self, other):
+        return (BaseFileset.__eq__(self, other) and
+                BaseAcquiredSpec.__eq__(self, other) and
+                self._valid_formats == other._valid_formats)
+
+    def __hash__(self):
+        return (BaseFileset.__hash__(self) ^
+                BaseAcquiredSpec.__hash__(self) and
+                hash(self.valid_formats))
+
+    def initkwargs(self):
+        dct = BaseFileset.initkwargs(self)
+        del dct['format']
+        dct.update(BaseAcquiredSpec.initkwargs(self))
+        dct['valid_formats'] = self._valid_formats
+        return dct
+
+    def __repr__(self):
+        return ("FilesetSpec(name='{}', valid_formats={}, pipeline_name={}, "
+                "frequency={})".format(
+                    self.name, self.valid_formats, self.pipeline_name,
+                    self.frequency))
+
+    def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
+        mismatch = BaseFileset.find_mismatch(self, other, indent)
+        mismatch += BaseAcquiredSpec.find_mismatch(self, other, indent)
+        if self.valid_formats != other.valid_formats:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, self.valid_formats,
+                                 other.valid_formats))
+        return mismatch
+
+
+class FilesetSpec(BaseFileset, BaseSpec):
+    """
+    A specification for a fileset within a study to be derived from a
+    processing pipeline.
+
+    Parameters
+    ----------
+    name : str
+        The name of the fileset
+    format : FileFormat
+        The file format used to store the fileset. Can be one of the
+        recognised formats
+    pipeline_name : str
+        Name of the method in the study that is used to generate the
+        fileset. If None the fileset is assumed to be acq
+    frequency : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        specifying whether the fileset is present for each session, subject,
+        visit or project.
+    desc : str
+        Description of what the field represents
+    """
+
+    is_spec = True
+    CollectionClass = FilesetCollection
+
+    def __init__(self, name, format, pipeline_name, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
+                 desc=None):
         BaseFileset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, desc,
-                          optional=optional, default=default)
+        BaseSpec.__init__(self, name, pipeline_name, desc)
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -266,6 +411,11 @@ class FilesetSpec(BaseFileset, BaseSpec):
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseSpec.__hash__(self))
+
+    def initkwargs(self):
+        dct = BaseFileset.initkwargs(self)
+        dct.update(BaseSpec.initkwargs(self))
+        return dct
 
     def __repr__(self):
         return ("FilesetSpec(name='{}', format={}, pipeline_name={}, "
@@ -277,11 +427,6 @@ class FilesetSpec(BaseFileset, BaseSpec):
         mismatch = BaseFileset.find_mismatch(self, other, indent)
         mismatch += BaseSpec.find_mismatch(self, other, indent)
         return mismatch
-
-    def initkwargs(self):
-        dct = BaseFileset.initkwargs(self)
-        dct.update(BaseSpec.initkwargs(self))
-        return dct
 
     def _bind_node(self, node, **kwargs):
         try:
@@ -303,10 +448,9 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return {'format': self.format}
 
 
-class FieldSpec(BaseField, BaseSpec):
+class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
     """
-    An abstract base class representing either an acquired value or the
-    specification for a derived fileset.
+    An abstract base class representing an acquired field
 
     Parameters
     ----------
@@ -314,8 +458,6 @@ class FieldSpec(BaseField, BaseSpec):
         The name of the fileset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    pipeline_name : str
-        Name of the method that generates values for the specified field.
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,
@@ -334,15 +476,65 @@ class FieldSpec(BaseField, BaseSpec):
     """
 
     is_spec = True
-    ParticularClass = Field
+    CollectionClass = FieldCollection
+
+    def __init__(self, name, dtype, frequency='per_session', desc=None,
+                 optional=False, default=None, array=None):
+        BaseField.__init__(self, name, dtype, frequency, array=array)
+        BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
+                                  default=default)
+
+    def __eq__(self, other):
+        return (BaseField.__eq__(self, other) and
+                BaseAcquiredSpec.__eq__(self, other))
+
+    def __hash__(self):
+        return (BaseField.__hash__(self) ^ BaseAcquiredSpec.__hash__(self))
+
+    def find_mismatch(self, other, indent=''):
+        mismatch = BaseField.find_mismatch(self, other, indent)
+        mismatch += BaseAcquiredSpec.find_mismatch(self, other, indent)
+        return mismatch
+
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, frequency={}, array={})".format(
+            self.__class__.__name__, self.name, self.dtype,
+            self.frequency, self.array))
+
+    def initkwargs(self):
+        dct = BaseField.initkwargs(self)
+        dct.update(BaseAcquiredSpec.initkwargs(self))
+        return dct
+
+
+class FieldSpec(BaseField, BaseSpec):
+    """
+    An abstract base class representing the specification for a derived
+    fileset.
+
+    Parameters
+    ----------
+    name : str
+        The name of the fileset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    pipeline_name : str
+        Name of the method that generates values for the specified field.
+    frequency : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        specifying whether the fileset is present for each session, subject,
+        visit or project.
+    desc : str
+        Description of what the field represents
+    """
+
+    is_spec = True
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_name=None,
-                 frequency='per_session', desc=None, optional=False,
-                 default=None, array=None):
+                 frequency='per_session', desc=None, array=None):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseSpec.__init__(self, name, pipeline_name, desc,
-                          optional=optional, default=default)
+        BaseSpec.__init__(self, name, pipeline_name, desc)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
