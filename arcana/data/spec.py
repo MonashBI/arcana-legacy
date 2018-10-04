@@ -240,9 +240,12 @@ class FilesetSpec(BaseFileset, BaseSpec):
     optional : bool
         Whether the specification is optional or not. Only valid for
         "acquired" fileset specs.
-    default : FilesetCollection
+    default : FilesetCollection | object
         The default value to be passed as an input to this spec if none are
-        provided
+        provided. Can either be an explicit FilesetCollection or any object
+        with a 'collection' property that will return a default collection.
+        This object should also implement a 'bind(self, study)' method to
+        allow the study to be bound to it.
     """
 
     is_spec = True
@@ -322,9 +325,12 @@ class FieldSpec(BaseField, BaseSpec):
     optional : bool
         Whether the specification is optional or not. Only valid for
         "acquired" fileset specs.
-    default : FilesetCollection
+    default : FieldCollection | callable
         The default value to be passed as an input to this spec if none are
-        provided
+        provided. Can either be an explicit FieldCollection or any object
+        with a 'collection' property that will return a default collection.
+        This object should also implement a 'bind(self, study)' method to
+        allow the study to be bound to it.
     """
 
     is_spec = True

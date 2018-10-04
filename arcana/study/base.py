@@ -123,6 +123,28 @@ class Study(object):
                 "No visit IDs provided and destination repository "
                 "is empty")
         self._reprocess = reprocess
+        # Set parameters
+        if parameters is None:
+            parameters = {}
+        elif not isinstance(parameters, dict):
+            # Convert list of parameters into dictionary
+            parameters = {o.name: o for o in parameters}
+        self._parameters = {}
+        for param_name, param in list(parameters.items()):
+            if not isinstance(param, Parameter):
+                param = Parameter(param_name, param)
+            try:
+                param_spec = self._parameter_specs[param_name]
+            except KeyError:
+                raise ArcanaNameError(
+                    param_name,
+                    "Provided parameter '{}' is not present in the "
+                    "allowable parameters for {} classes ('{}')"
+                    .format(param_name, type(self).__name__,
+                            "', '".join(self.parameter_spec_names())))
+            param_spec.check_valid(param, context='{}(name={})'.format(
+                type(self).__name__, name))
+            self._parameters[param_name] = param
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
@@ -163,14 +185,12 @@ class Study(object):
         self._bound_specs = {}
         for spec in self.data_specs():
             if spec.name not in self.input_names:
-                if not spec.derived:
+                if not spec.derived and spec.default is not None:
                     # Emit a warning if an acquired fileset has not been
                     # provided for an "acquired fileset"
                     msg = (" acquired fileset '{}' was not given as"
                            " an input of {}.".format(spec.name, self))
-                    if spec.default is not None:
-                        self._inputs[spec.name] = spec.default
-                    elif spec.optional:
+                    if spec.optional:
                         logger.info('Optional' + msg)
                     else:
                         if enforce_inputs:
@@ -180,28 +200,6 @@ class Study(object):
                                 "run")
                 else:
                     self._bound_specs[spec.name] = spec.bind(self)
-        # Set parameters
-        if parameters is None:
-            parameters = {}
-        elif not isinstance(parameters, dict):
-            # Convert list of parameters into dictionary
-            parameters = {o.name: o for o in parameters}
-        self._parameters = {}
-        for param_name, param in list(parameters.items()):
-            if not isinstance(param, Parameter):
-                param = Parameter(param_name, param)
-            try:
-                param_spec = self._parameter_specs[param_name]
-            except KeyError:
-                raise ArcanaNameError(
-                    param_name,
-                    "Provided parameter '{}' is not present in the "
-                    "allowable parameters for {} classes ('{}')"
-                    .format(param_name, type(self).__name__,
-                            "', '".join(self.parameter_spec_names())))
-            param_spec.check_valid(param, context='{}(name={})'.format(
-                type(self).__name__, name))
-            self._parameters[param_name] = param
         # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the

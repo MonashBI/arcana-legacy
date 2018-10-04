@@ -178,7 +178,7 @@ class BaseCollection(object):
 
 class FilesetCollection(BaseCollection, BaseFileset):
     """
-    A collection of equivalent filesets (either within a repository)
+    A collection of filesets across a study (typically within a repository)
 
     Parameters
     ----------
@@ -186,6 +186,11 @@ class FilesetCollection(BaseCollection, BaseFileset):
         Name of the collection
     collection : List[Fileset]
         An iterable of equivalent filesets
+    frequency : str
+        The frequency of the collection
+    format : FileFormat | None
+        The file format of the collection (will be determined from filesets
+        if not provided).
     """
 
     CollectedClass = Fileset

@@ -31,7 +31,7 @@ class Pipeline(object):
         The study from which the pipeline was created
     name : str
         The name of the pipeline
-    mods : dict
+    modifications : dict
         A dictionary containing several modifying keyword arguments that
         manipulate way the pipeline is constructed (e.g. map inputs and outputs
         to new entries in the data specification table). Typically names of
@@ -68,8 +68,8 @@ class Pipeline(object):
         output_map : str | dict[str,str]
             Same as the input map but applied to outputs instead of inputs to
             the pipeline.
-        mods : dict
-            Name modifications from nested pipeline constructors
+        modifications : dict
+            Modifications from nested pipeline constructors
         study : Study
             A different study to bind the pipeline to from the one containing
             the inner pipeline constructor. Intended to be used with
@@ -84,8 +84,8 @@ class Pipeline(object):
     VISIT_ID = 'visit_id'
     ITERFIELDS = (SUBJECT_ID, VISIT_ID)
 
-    def __init__(self, study, name, mods, desc=None, references=None):
-        name, study, maps = self._unwrap_mods(mods, name, study=study)
+    def __init__(self, study, name, modifications, desc=None, references=None):
+        name, study, maps = self._unwrap_mods(modifications, name, study=study)
         self._name = name
         self._input_map = maps.get('input_map', None)
         self._output_map = maps.get('output_map', None)
@@ -175,7 +175,8 @@ class Pipeline(object):
         return chain((i for i in self.inputs if not i.derived),
                      *(p.study_inputs for p in self.prerequisites))
 
-    def add(self, name, interface, inputs=None, **kwargs):
+    def add(self, name, interface, inputs=None, outputs=None, internal=None,
+            **kwargs):
         """
         Adds a processing Node to the pipeline
 
@@ -185,17 +186,27 @@ class Pipeline(object):
             Name for the node
         interface : nipype.Interface
             The interface to use for the node
-        inputs : dict[str, *] | dict[str, (Node, str)]
-            A dictionary containing the inputs to connect to the node. If the
-            a value in the dictionary is a 2-tuple with the first item a
-            Node object and the second a string, then the string will be
-            interpreted as the field of the node object to connect to the
-            newly added node. Otherwise the value in the dictionary will
-            be set as a fixed input of the node.
-
-            Note that inputs can also be specified outside of the 'add'
-            using typical Nipype syntax
-            (i.e. my_node.inputs.my_field = my_value) or the 'connect' method.
+        inputs : dict[str, str | (str, FileFormat)]
+            Connections from inputs of the pipeline to fields of the interface.
+            The keys of the dictionary are the field names and the values
+            are the the name of the data spec or a tuple containing the name
+            of the spec and the data format it is expected in. Note that input
+            connections can also be specified using the 'connect_input'
+            method.
+        outputs : dict[str, str | (str, FileFormat)]
+            Connections to outputs of the pipeline from fields of the
+            interface. The keys of the dictionary are the field names and the
+            values are the the name of the data spec or a tuple containing the
+            name of the spec and the data format it is produced in. Note that
+            output connections can also be specified using the 'connect_output'
+            method.
+        internal : dict[str, (Node, str)]
+            A dictionary containing the internal connections within the
+            pipeline to the node to be added. The values of the dictionary are
+            2-tuples with the first item an input Node object and the name of
+            an output of the the input node to connect to the field. Note that
+            inputs can also be specified outside this method using the
+            'connect' method.
         iterfield : str
             Name of field to be passed an iterable to iterator over.
             If present, a MapNode will be created instead of a regular node
@@ -245,20 +256,18 @@ class Pipeline(object):
             node_cls = Node
         node = node_cls(interface, name="{}_{}".format(self._name, name),
                         processor=self.study.processor, **kwargs)
-        if inputs is not None:
-            for inpt_name, inpt_value in inputs:
-                try:
-                    # Check to see whether input is a node/field-name pair,
-                    # and if so connect to current node. Otherwise interpret
-                    # input as a fixed field
-                    inpt_node, inpt_field = inpt_value
-                    if not isinstance(inpt_node, Node):
-                        raise ValueError
-                except (ValueError, TypeError):
-                    setattr(node, inpt_name, inpt_value)
-                else:
-                    self.connect(inpt_node, inpt_field, node, inpt_name)
+        # Ensure node is added to workflow
         self._workflow.add_nodes([node])
+        # Connect inputs, outputs and internal connections
+        if inputs is not None:
+            for node_input, (input, input_format) in inputs.items():  # @ReservedAssignment @IgnorePep8
+                self.connect_input(input, node, node_input, input_format)
+        if outputs is not None:
+            for node_input, (output, output_format) in outputs.items():
+                self.connect_output(output, node, node_input, output_format)
+        if internal is not None:
+            for node_input, (conn_node, conn_field) in internal.items():
+                self.connect(conn_node, conn_field, node, node_input)
         return node
 
     def connect_input(self, spec_name, node, node_input, format=None, **kwargs):  # @ReservedAssignment @IgnorePep8

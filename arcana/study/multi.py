@@ -195,7 +195,7 @@ class MultiStudy(Study):
                 prefix=sub_study_name + '_',
                 input_map=name_map,
                 output_map=name_map,
-                study=self, mods=mods)
+                study=self, modifications=mods)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter
