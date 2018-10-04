@@ -12,7 +12,7 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseField, FilesetSpec)
+    BaseData, BaseField, BaseFileset)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, SwitchSpec
 from arcana.node import Node
@@ -123,6 +123,12 @@ class Study(object):
                 "No visit IDs provided and destination repository "
                 "is empty")
         self._reprocess = reprocess
+        # For recording which parameters are accessed
+        # during pipeline generation so they can be attributed to the
+        # pipeline after it is generated (and then saved in the
+        # provenance
+        self._pipeline_to_generate = None
+        self._referenced_parameters = None
         # Set parameters
         if parameters is None:
             parameters = {}
@@ -161,19 +167,29 @@ class Study(object):
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
             else:
-                if isinstance(spec, FilesetSpec):
+                if isinstance(spec, BaseFileset):
                     if isinstance(inpt, BaseField):
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
-                    try:
-                        # FIXME: should provide requirement manager to
-                        # converter_from but it hasn't been implemented yet
-                        spec.format.converter_from(inpt.format)
-                    except ArcanaNoConverterError as e:
-                        raise ArcanaNoConverterError(
-                            "{}, which is requried to convert:\n{} "
-                            "to\n{}.".format(e, inpt, spec))
+                    if spec.derived:
+                        try:
+                            # FIXME: should provide requirement manager to
+                            # converter_from but it hasn't been implemented yet
+                            spec.format.converter_from(inpt.format)
+                        except ArcanaNoConverterError as e:
+                            raise ArcanaNoConverterError(
+                                "{}, which is requried to convert:\n{} "
+                                "to\n{}.".format(e, inpt, spec))
+                    else:
+                        if inpt.format not in spec.valid_formats:
+                            raise ArcanaUsageError(
+                                "Cannot pass {} as an input to {} as it is "
+                                "not in one of the valid formats ('{}')"
+                                .format(
+                                    inpt, spec,
+                                    "', '".join(
+                                        f.name for f in spec.valid_formats)))
                 elif not isinstance(inpt, BaseField):
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
@@ -185,7 +201,7 @@ class Study(object):
         self._bound_specs = {}
         for spec in self.data_specs():
             if spec.name not in self.input_names:
-                if not spec.derived and spec.default is not None:
+                if not spec.derived and spec.default is None:
                     # Emit a warning if an acquired fileset has not been
                     # provided for an "acquired fileset"
                     msg = (" acquired fileset '{}' was not given as"
@@ -200,12 +216,7 @@ class Study(object):
                                 "run")
                 else:
                     self._bound_specs[spec.name] = spec.bind(self)
-        # For recording which parameters are accessed
-        # during pipeline generation so they can be attributed to the
-        # pipeline after it is generated (and then saved in the
-        # provenance
-        self._pipeline_to_generate = None
-        self._referenced_parameters = None
+        
 
     def __repr__(self):
         """String representation of the study"""
@@ -841,16 +852,18 @@ class StudyMetaClass(type):
         # Check that the pipeline names in data specs correspond to a
         # pipeline method in the class
         for spec in add_data_specs:
-            pipe_name = spec.pipeline_name
-            if pipe_name == 'pipeline':
-                raise ArcanaDesignError(
-                    "Cannot use the name 'pipeline' for the name of a "
-                    "pipeline constructor in class {}".format(name))
-            if pipe_name is not None and pipe_name not in combined_attrs:
-                raise ArcanaDesignError(
-                    "Pipeline to generate '{}', '{}', is not present"
-                    " in '{}' class".format(
-                        spec.name, spec.pipeline_name, name))
+            if spec.derived:
+                if spec.pipeline_name == 'pipeline':
+                    raise ArcanaDesignError(
+                        "Cannot use the name 'pipeline' for the name of a "
+                        "pipeline constructor in class {} as it clashes "
+                        "with base method to create pipelines"
+                        .format(name))
+                if spec.pipeline_name not in combined_attrs:
+                    raise ArcanaDesignError(
+                        "Pipeline to generate '{}', '{}', is not present"
+                        " in '{}' class".format(
+                            spec.name, spec.pipeline_name, name))
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_parameter_specs))

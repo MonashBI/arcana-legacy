@@ -268,6 +268,12 @@ class BaseProcessor(object):
                     "prerequisite of '{}' as the required "
                     "outputs are already present in the repository"
                     .format(prereq.name, pipeline.name))
+            except ArcanaMissingDataException as e:
+                raise ArcanaMissingDataException(
+                    "{}, which in turn is required by the '{}' pipeline to "
+                    "produce '{}'"
+                    .format(e, pipeline.name,
+                            "', '".join(pipeline.required_outputs)))
         # If prerequisite pipelines need to be processed, connect their
         # "final" nodes to the initial node of this pipeline to ensure that
         # they are all processed before this pipeline is run.

@@ -1,12 +1,13 @@
 from builtins import zip
 from builtins import object
 from itertools import chain
-from operator import attrgetter
+from operator import attrgetter, itemgetter
 from collections import OrderedDict
 from arcana.exception import ArcanaNameError
-from arcana.data import BaseFileset, BaseField
+from arcana.data import BaseFileset
 
 id_getter = attrgetter('id')
+
 
 class TreeNode(object):
 
@@ -160,8 +161,10 @@ class Tree(TreeNode):
     def __init__(self, subjects, visits, filesets=None, fields=None,
                  fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
         TreeNode.__init__(self, filesets, fields)
-        self._subjects = {s.id: s for s in subjects}
-        self._visits = {v.id: v for v in visits}
+        self._subjects = OrderedDict(sorted(
+            ((s.id, s) for s in subjects), key=itemgetter(0)))
+        self._visits = OrderedDict(sorted(
+            ((v.id, v) for v in visits), key=itemgetter(0)))
         if fill_subjects is not None or fill_visits is not None:
             self._fill_empty_sessions(fill_subjects, fill_visits)
 
@@ -185,15 +188,27 @@ class Tree(TreeNode):
 
     @property
     def subjects(self):
-        return iter(sorted(self._subjects.values(), key=id_getter))
+        return self._subjects.values()
 
     @property
     def visits(self):
-        return iter(sorted(self._visits.values(), key=id_getter))
+        return self._visits.values()
 
     @property
     def sessions(self):
         return chain(*(s.sessions for s in self.subjects))
+
+    @property
+    def subject_ids(self):
+        return self._subjects.keys()
+
+    @property
+    def visit_ids(self):
+        return self._visits.keys()
+
+    @property
+    def session_ids(self):
+        return ((s.subject_id, s.visit_id) for s in sessions)
 
     @property
     def complete_subjects(self):
@@ -358,7 +373,8 @@ class Subject(TreeNode):
                  fields=None):
         TreeNode.__init__(self, filesets, fields)
         self._id = subject_id
-        self._sessions = {s.visit_id: s for s in sessions}
+        self._sessions = OrderedDict(sorted(
+            ((s.visit_id, s) for s in sessions), key=itemgetter(0)))
         for session in self.sessions:
             session.subject = self
 
@@ -395,8 +411,11 @@ class Subject(TreeNode):
 
     @property
     def sessions(self):
-        return iter(sorted(self._sessions.values(),
-                           key=attrgetter('visit_id')))
+        return self._sessions.values()
+
+    @property
+    def visit_ids(self):
+        return self._sessions.values()
 
     def session(self, visit_id):
         try:
@@ -456,7 +475,8 @@ class Visit(TreeNode):
     def __init__(self, visit_id, sessions, filesets=None, fields=None):
         TreeNode.__init__(self, filesets, fields)
         self._id = visit_id
-        self._sessions = {s.subject_id: s for s in sessions}
+        self._sessions = OrderedDict(sorted(
+            ((s.subject_id, s) for s in sessions), key=itemgetter(0)))
         for session in sessions:
             session.visit = self
 
@@ -493,8 +513,7 @@ class Visit(TreeNode):
 
     @property
     def sessions(self):
-        return iter(sorted(self._sessions.values(),
-                           key=attrgetter('subject_id')))
+        return self._sessions.values()
 
     def session(self, subject_id):
         try:

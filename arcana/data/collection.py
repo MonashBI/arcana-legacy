@@ -171,9 +171,52 @@ class BaseCollection(object):
         return self
 
     def bind(self, study):
-        "Used for duck typing Collection objects with Spec and Match "
-        "in source and sink initiation"
-        pass
+        """
+        Used for duck typing Collection objects with Spec and Match
+        in source and sink initiation. Checks IDs match sessions in study.
+        """
+        if self.frequency == 'per_subject':
+            tree_subject_ids = list(study.tree.subject_ids)
+            subject_ids = list(self._collection.keys())
+            if tree_subject_ids != subject_ids:
+                raise ArcanaUsageError(
+                    "Subject IDs in collection provided to '{}' ('{}') "
+                    "do not match Study tree ('{}')".format(
+                        self.name, "', '".join(subject_ids),
+                        "', '".join(tree_subject_ids)))
+        elif self.frequency == 'per_visit':
+            tree_visit_ids = list(study.tree.visit_ids)
+            visit_ids = list(self._collection.keys())
+            if tree_visit_ids != visit_ids:
+                raise ArcanaUsageError(
+                    "Subject IDs in collection provided to '{}' ('{}') "
+                    "do not match Study tree ('{}')".format(
+                        self.name, "', '".join(visit_ids),
+                        "', '".join(tree_visit_ids)))
+        elif self.frequency == 'per_session':
+            for subject in study.tree.subjects:
+                if subject.id not in self._collection:
+                    raise ArcanaUsageError(
+                        "Study subject ID '{}' was not found in colleciton "
+                        "provided to '{}' (found '{}')".format(
+                            subject.id, self.name,
+                            "', '".join(self._collection.keys())))
+                for session in subject.sessions:
+                    if session.visit_id not in self._collection[subject.id]:
+                        raise ArcanaUsageError(
+                            "Study visit ID '{}' for subject '{}' was not "
+                            "found in colleciton provided to '{}' (found '{}')"
+                            .format(subject.id, self.name,
+                                    "', '".join(
+                                        self._collection[subject.id].keys())))
+
+    @property
+    def name(self):
+        return self._name
+
+    @name.setter
+    def name(self, name):
+        self._name = name
 
 
 class FilesetCollection(BaseCollection, BaseFileset):

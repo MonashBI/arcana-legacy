@@ -13,7 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
     ArcanaDesignError, ArcanaNameError, ArcanaError,
-    ArcanaOutputNotProducedException)
+    ArcanaOutputNotProducedException, ArcanaMissingDataException)
 
 
 logger = getLogger('arcana')
@@ -103,6 +103,7 @@ class Pipeline(object):
         # pipeline after it is generated (and then saved in the
         # provenance
         self._referenced_parameters = None
+        self._required_outputs = set()
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -140,20 +141,27 @@ class Pipeline(object):
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
-        pipelines = set()
-        required_outputs = defaultdict(set)
+        pipelines = {}
         for input in self.inputs:  # @ReservedAssignment
-            spec = self._study.spec(input)
+            try:
+                spec = self._study.spec(input)
+            except ArcanaMissingDataException as e:
+                raise ArcanaMissingDataException(
+                    "{}, which is required as an input of the '{}' pipeline"
+                    .format(e, self.name))
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
-                pipelines.add(spec.pipeline)
-                required_outputs[spec.pipeline_name].add(input.name)
+                try:
+                    pipeline = pipelines[spec.pipeline_name]
+                except KeyError:
+                    pipeline = pipelines[spec.pipeline_name] = spec.pipeline
+                pipeline._required_outputs.add(input.name)
         # Call pipeline-getter instance method on study with provided
         # parameters to generate pipeline to run
-        for pipeline in pipelines:
+        for pipeline in pipelines.values():
             # Check that the required outputs are created with the given
             # parameters
-            missing_outputs = required_outputs[pipeline.name] - set(
+            missing_outputs = pipeline._required_outputs - set(
                 d.name for d in pipeline.outputs)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
@@ -432,6 +440,10 @@ class Pipeline(object):
     def non_default_parameters(self):
         return ((k, v) for k, v in self.parameters.items()
                 if v != self.default_parameters[k])
+
+    @property
+    def required_outputs(self):
+        return self._required_outputs
 
     @property
     def desc(self):

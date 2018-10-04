@@ -1,9 +1,9 @@
 from past.builtins import basestring
 from builtins import object
 from operator import attrgetter
-from copy import copy
+from copy import copy, deepcopy
 from arcana.exception import (
-    ArcanaError, ArcanaUsageError,
+    ArcanaError, ArcanaUsageError, ArcanaDesignError,
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException, ArcanaNameError)
 from .base import BaseFileset, BaseField
@@ -24,6 +24,16 @@ class BaseAcquiredSpec(object):
         self._desc = desc
         self._study = None
         self._optional = optional
+        # Set the name of the default collection-like object so it matches
+        # the name of the spec
+        if default is not None:
+            if default.frequency != self.frequency:
+                raise ArcanaUsageError(
+                    "Frequency of default collection-like object passed to "
+                    "'{}' spec ('{}'), does not match spec ('{}')".format(
+                        name, default.freqency, self.frequency))
+            default = deepcopy(default)
+            default.name = name
         self._default = default
 
     def __eq__(self, other):
@@ -72,12 +82,13 @@ class BaseAcquiredSpec(object):
                 "Attempted to bind '{}' to {} but only acquired specs with "
                 "a default value should be bound to studies{})".format(
                     self.name, study))
-        if self.default.study is not None:
+        if self._study is not None:
             # Avoid rebinding specs in sub-studies that have already
             # been bound to MultiStudy
             bound = self
         else:
             bound = copy(self)
+            bound._study = study
             bound._default = self.default.bind(study)
         return bound
 
@@ -243,6 +254,11 @@ class BaseSpec(object):
         self.study._referenced_parameters = set()
         try:
             pipeline = getter()
+            if pipeline is None:
+                raise ArcanaDesignError(
+                    "'{}' pipeline constructor in {} is missing return "
+                    "statement (should return a Pipeline object)".format(
+                        self.pipeline_name, self.study))
             # Copy referenced parameters to pipeline
             pipeline._referenced_parameters = (
                 self.study._referenced_parameters)
@@ -331,6 +347,7 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
             if not valid_formats:
                 raise ArcanaError(
                     "'{}' spec doesn't have any allowed formats".format(name))
+        self._valid_formats = valid_formats
         BaseFileset.__init__(self, name, valid_formats[0], frequency)
         BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
                                   default=default)
@@ -357,10 +374,9 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
         return dct
 
     def __repr__(self):
-        return ("FilesetSpec(name='{}', valid_formats={}, pipeline_name={}, "
-                "frequency={})".format(
-                    self.name, self.valid_formats, self.pipeline_name,
-                    self.frequency))
+        return ("{}(name='{}', valid_formats={}, frequency={})"
+                .format(type(self).__name__, self.name,
+                        list(self.valid_formats), self.frequency))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
@@ -368,8 +384,8 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
         mismatch += BaseAcquiredSpec.find_mismatch(self, other, indent)
         if self.valid_formats != other.valid_formats:
             mismatch += ('\n{}pipeline: self={} v other={}'
-                         .format(sub_indent, self.valid_formats,
-                                 other.valid_formats))
+                         .format(sub_indent, list(self.valid_formats),
+                                 list(other.valid_formats)))
         return mismatch
 
 

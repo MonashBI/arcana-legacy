@@ -467,7 +467,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if trans_sname not in cls.data_spec_names():
                     initkwargs = data_spec.initkwargs()
                     initkwargs['name'] = trans_sname
-                    if data_spec.pipeline_name is not None:
+                    if data_spec.derived:
                         trans_pname = sub_study_spec.apply_prefix(
                             data_spec.pipeline_name)
                         initkwargs['pipeline_name'] = trans_pname
