@@ -270,8 +270,8 @@ class BaseProcessor(object):
                     .format(prereq.name, pipeline.name))
             except ArcanaMissingDataException as e:
                 raise ArcanaMissingDataException(
-                    "{}, which in turn is required by the '{}' pipeline to "
-                    "produce '{}'"
+                    "{},\n which in turn is required as an input of the '{}' "
+                    "pipeline to produce '{}'"
                     .format(e, pipeline.name,
                             "', '".join(pipeline.required_outputs)))
         # If prerequisite pipelines need to be processed, connect their

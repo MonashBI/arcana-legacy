@@ -88,7 +88,7 @@ class BaseAcquiredSpec(object):
         else:
             bound = copy(self)
             bound._study = study
-            bound._default = bound.bind(study)
+            bound._default = bound.default.bind(study)
         return bound
 
     @property
@@ -108,7 +108,7 @@ class BaseAcquiredSpec(object):
         # accessed properly by the source node
         if self._default is not None:
             # FIXME: Should use setter but throwing an error for some reason
-            self._default._name = self.name
+            self._default.name = self.name
         return self._default
 
     @property
@@ -121,7 +121,7 @@ class BaseAcquiredSpec(object):
             raise ArcanaUsageError(
                 "{} needs to be bound to a study before accessing "
                 "the corresponding collection".format(self))
-        return self._default.collection
+        return self.default.collection
 
 
 class BaseSpec(object):

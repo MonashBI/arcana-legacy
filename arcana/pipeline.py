@@ -147,8 +147,9 @@ class Pipeline(object):
                 spec = self._study.spec(input)
             except ArcanaMissingDataException as e:
                 raise ArcanaMissingDataException(
-                    "{}, which is required as an input of the '{}' pipeline"
-                    .format(e, self.name))
+                    "{}, which is required as an input of the '{}' pipeline to"
+                    " produce '{}'"
+                    .format(e, self.name, "', '".join(self.required_outputs)))
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
                 try:

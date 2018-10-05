@@ -216,7 +216,6 @@ class Study(object):
                                 "run")
                 else:
                     self._bound_specs[spec.name] = spec.bind(self)
-        
 
     def __repr__(self):
         """String representation of the study"""
@@ -477,7 +476,9 @@ class Study(object):
         pipelines = []
         for name in names:
             try:
-                pipelines.append(self.spec(name).pipeline)
+                pipeline = self.spec(name).pipeline
+                pipeline.required_outputs.add(name)
+                pipelines.append(pipeline)
             except AttributeError:
                 pass  # Match objects don't have pipelines
         # Run all pipelines together
