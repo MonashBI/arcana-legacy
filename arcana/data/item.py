@@ -374,40 +374,99 @@ class Field(BaseItem, BaseField):
     """
 
     def __init__(self, name, value=None, dtype=None,
-                 frequency='per_session', subject_id=None,
+                 frequency='per_session', array=None, subject_id=None,
                  visit_id=None, repository=None, from_study=None,
                  exists=True):
-        if dtype is None:
-            if value is None:
+        # Try to determine dtype and array from value if they haven't
+        # been provided.
+        if value is None:
+            if dtype is None:
                 raise ArcanaUsageError(
                     "Either 'value' or 'dtype' must be provided to "
                     "Field init")
-            if isinstance(value, int):
-                dtype = int
-            elif isinstance(value, float):
-                dtype = float
-            elif isinstance(value, basestring):
-                # Attempt to implicitly convert from string
-                try:
-                    value = int(value)
-                    dtype = int
-                except ValueError:
-                    try:
-                        value = float(value)
-                        dtype = float
-                    except ValueError:
-                        dtype = str
-            else:
+            if array is None:
                 raise ArcanaUsageError(
-                    "Unrecognised field dtype {} (can be int, float or"
-                    " str)".format(value))
+                    "Either 'value' or 'array' must be provided to "
+                    "Field init")
         else:
-            if value is not None:
+            if isinstance(value, str):
+                # Split array strings delimted by commas
+                if ',' in value:
+                    value = value.split(',')
+            else:
+                # Attempt to convert to an list to catch all iterables
+                try:
+                    value = list(value)
+                except TypeError:
+                    pass
+            if isinstance(value, list):
+                if array is False:
+                    raise ArcanaUsageError(
+                        "Array value passed to '{}', which is explicitly not "
+                        "an array ({})".format(name, value))
+                array = True
+            else:
+                if array:
+                    raise ArcanaUsageError(
+                        "Non-array value ({}) passed to '{}', which expects "
+                        "array{}".format(value, name,
+                                         ('of type {}'.format(dtype)
+                                          if dtype is not None else '')))
+                array = False
+            if dtype is None:
+                if array:
+                    dtypes = set(self._get_dtype(v) for v in value)
+                    if dtypes == set((int, float)):
+                        dtype = float  # Cast stray ints to float
+                    elif len(dtypes) > 1:
+                        raise ArcanaUsageError(
+                            "Inconsistent datatypes in array passed to '{}' "
+                            "field:\n{}".format(name, value))
+                    else:
+                        dtype = next(iter(dtypes))
+                else:
+                    dtype = self._get_dtype(value)
+            # Ensure everything is cast to the correct type
+            if array:
+                value = [dtype(v) for v in value]
+            else:
                 value = dtype(value)
-        BaseField.__init__(self, name, dtype, frequency)
+        BaseField.__init__(self, name, dtype, frequency, array)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists)
         self._value = value
+
+    def _get_dtype(self, value):
+        if isinstance(value, int):
+            dtype = int
+        elif isinstance(value, float):
+            dtype = float
+        elif isinstance(value, basestring):
+            # Attempt to implicitly convert from string
+            try:
+                value = int(value)
+            except ValueError:
+                try:
+                    value = float(value)
+                except ValueError:
+                    dtype = str
+                else:
+                    dtype = float
+            else:
+                dtype = int
+        return dtype
+
+    def _get_dtypes(self, values):
+        try:
+            values = list(values)
+        except TypeError:
+            raise ArcanaUsageError(
+                "Expected array value for field '{}' but got {}"
+                .format(self.name, values))
+        else:
+            dtypes = [self._get_dtype(v) for v in values]
+            if any(dtypes != dtypes[0]):
+                raise 
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
@@ -474,7 +533,10 @@ class Field(BaseItem, BaseField):
 
     @value.setter
     def value(self, value):
-        self._value = self.dtype(value)
+        if self.array:
+            self._value = [self.dtype(v) for v in value]
+        else:
+            self._value = self.dtype(value)
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

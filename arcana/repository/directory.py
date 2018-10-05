@@ -129,7 +129,7 @@ class DirectoryRepository(BaseRepository):
                 pass
             raise ArcanaMissingDataException(
                 "{} does not exist in the local repository {}"
-                .format(field, self))
+                .format(field.name, self))
         return val
 
     def put_fileset(self, fileset):

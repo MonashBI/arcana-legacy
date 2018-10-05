@@ -289,7 +289,8 @@ class FieldCollection(BaseCollection, BaseField):
 
     CollectedClass = Field
 
-    def __init__(self, name, collection, frequency=None, dtype=None):
+    def __init__(self, name, collection, frequency=None, dtype=None,
+                 array=None):
         collection = list(collection)
         if collection:
             implicit_frequency = self._common_attr(collection,
@@ -309,6 +310,14 @@ class FieldCollection(BaseCollection, BaseField):
                     "Implicit dtype '{}' does not match explicit "
                     "dtype '{}' for '{}' FilesetCollection"
                     .dtype(implicit_dtype, dtype, name))
+            implicit_array = self._common_attr(collection, 'array')
+            if array is None:
+                array = implicit_array
+            elif array != implicit_array:
+                raise ArcanaUsageError(
+                    "Implicit array '{}' does not match explicit "
+                    "array '{}' for '{}' FilesetCollection"
+                    .dtype(implicit_array, array, name))
         if frequency is None:
             raise ArcanaUsageError(
                 "Need to provide explicit frequency for empty "
@@ -317,5 +326,6 @@ class FieldCollection(BaseCollection, BaseField):
             raise ArcanaUsageError(
                 "Need to provide explicit dtype for empty "
                 "FilesetCollection")
-        BaseField.__init__(self, name, dtype=dtype, frequency=frequency)
+        BaseField.__init__(self, name, dtype=dtype, frequency=frequency,
+                           array=array)
         BaseCollection.__init__(self, collection, frequency)

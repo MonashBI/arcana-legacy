@@ -501,7 +501,7 @@ class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, frequency='per_session', desc=None,
-                 optional=False, default=None, array=None):
+                 optional=False, default=None, array=False):
         BaseField.__init__(self, name, dtype, frequency, array=array)
         BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
                                   default=default)
@@ -554,7 +554,7 @@ class FieldSpec(BaseField, BaseSpec):
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_name=None,
-                 frequency='per_session', desc=None, array=None):
+                 frequency='per_session', desc=None, array=False):
         BaseField.__init__(self, name, dtype, frequency, array=array)
         BaseSpec.__init__(self, name, pipeline_name, desc)
 
@@ -592,9 +592,11 @@ class FieldSpec(BaseField, BaseSpec):
                           visit_id=node.visit_id,
                           repository=self.study.repository,
                           from_study=self.study.name,
+                          array=self.array,
                           exists=False, **kwargs)
         return field
 
     @property
     def _specific_collection_kwargs(self):
-        return {'dtype': self.dtype}
+        return {'dtype': self.dtype,
+                'array': self.array}

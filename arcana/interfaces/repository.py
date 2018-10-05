@@ -9,7 +9,9 @@ import logging
 logger = logging.getLogger('arcana')
 
 PATH_TRAIT = traits.Either(File(exists=True), Directory(exists=True))
-FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str)
+FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str,
+                            traits.List(traits.Int), traits.List(traits.Float),
+                            traits.List(traits.Str))
 
 
 class BaseRepositoryInterface(BaseInterface):
@@ -63,6 +65,14 @@ class BaseRepositoryInterface(BaseInterface):
         # so I have also done it here
         getattr(spec, name)
 
+    @classmethod
+    def field_trait(cls, field):
+        if field.array:
+            trait = traits.List(field.dtype)
+        else:
+            trait = field.dtype
+        return trait
+
 
 class RepositorySourceSpec(DynamicTraitedSpec):
     """
@@ -100,9 +110,10 @@ class RepositorySource(BaseRepositoryInterface):
                             PATH_TRAIT)
         # Add output fields
         for field_collection in self.field_collections:
+
             self._add_trait(outputs,
                             field_collection.name + FIELD_SUFFIX,
-                            field_collection.dtype)
+                            self.field_trait(field_collection))
         return outputs
 
     def _list_outputs(self):
@@ -163,7 +174,7 @@ class RepositorySink(BaseRepositoryInterface):
         for field_collection in self.field_collections:
             self._add_trait(self.inputs,
                             field_collection.name + FIELD_SUFFIX,
-                            field_collection.dtype)
+                            self.field_trait(field_collection))
 
     def _list_outputs(self):
         outputs = self.output_spec().get()

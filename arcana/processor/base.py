@@ -1,6 +1,8 @@
 from builtins import str
 from builtins import object
 import os
+import os.path as op
+import shutil
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
@@ -35,12 +37,16 @@ class BaseProcessor(object):
         A flag which determines whether to rerun the processing for this
         step. If set to 'all' then pre-requisite pipelines will also be
         reprocessed.
+    clean_work_dir_between_runs : bool
+        Whether to clean the working directory between runs (can avoid problems
+        if debugging the analysis but may take longer to reach the same point)
     """
 
     default_plugin_args = {}
 
     def __init__(self, work_dir, requirement_manager=None,
-                 max_process_time=None, reprocess=False, **kwargs):
+                 max_process_time=None, reprocess=False,
+                 clean_work_dir_between_runs=True, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
@@ -48,6 +54,7 @@ class BaseProcessor(object):
         self._plugin_args.update(kwargs)
         self._init_plugin()
         self._study = None
+        self._clean_work_dir_between_runs = clean_work_dir_between_runs
         self._requirement_manager = (
             requirement_manager if requirement_manager is not None
             else RequirementManager())
@@ -137,11 +144,15 @@ class BaseProcessor(object):
         subject_ids = kwargs.pop('subject_ids', [])
         visit_ids = kwargs.pop('visit_ids', [])
         session_ids = kwargs.pop('session_ids', [])
+        clean_work_dir = kwargs.pop('clean_work_dir',
+                                    self._clean_work_dir_between_runs)
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         # Trim the end of very large names to avoid problems with
-        # work-dir paths exceeding system limits.
+        # workflow names exceeding system limits.
         name = name[:WORKFLOW_MAX_NAME_LEN]
+        if clean_work_dir:
+            self._clean_work_dir()
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
         already_connected = {}
         # Generate filter array to optionally restrict the run to certain
@@ -192,8 +203,8 @@ class BaseProcessor(object):
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.repository.clear_cache()
-        workflow.write_graph(graph2use='flat')
-        print('Graph saved in {} directory'.format(os.getcwd()))
+#         workflow.write_graph(graph2use='flat')
+#         print('Graph saved in {} directory'.format(os.getcwd()))
         return workflow.run(plugin=self._plugin)
 
     def _connect_pipeline(self, pipeline, workflow, subject_inds, visit_inds,
@@ -619,3 +630,11 @@ class BaseProcessor(object):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._init_plugin()
+
+    def _clean_work_dir(self):
+        for basename in os.listdir(self.work_dir):
+            path = op.join(self.work_dir, basename)
+            if op.isdir(path):
+                shutil.rmtree(path)
+            else:
+                os.remove(path)
