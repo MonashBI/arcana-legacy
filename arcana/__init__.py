@@ -25,6 +25,7 @@ from .study import (
 from .data import (
     FilesetSpec, FilesetMatch, FieldSpec, FieldMatch)
 from .data.file_format import FileFormat
+from .data import Fileset, Field, FilesetCollection, FieldCollection
 from .parameter import Parameter, ParameterSpec, SwitchSpec
 from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
 from .repository import DirectoryRepository, XnatRepository

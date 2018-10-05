@@ -33,7 +33,6 @@ class BaseAcquiredSpec(object):
                     "'{}' spec ('{}'), does not match spec ('{}')".format(
                         name, default.freqency, self.frequency))
             default = deepcopy(default)
-            default.name = name
         self._default = default
 
     def __eq__(self, other):
@@ -48,7 +47,7 @@ class BaseAcquiredSpec(object):
         dct = {}
         dct['desc'] = self.desc
         dct['optional'] = self.optional
-        dct['default'] = self.default
+        dct['default'] = deepcopy(self.default)
         return dct
 
     def find_mismatch(self, other, indent=''):
@@ -83,13 +82,13 @@ class BaseAcquiredSpec(object):
                 "a default value should be bound to studies{})".format(
                     self.name, study))
         if self._study is not None:
-            # Avoid rebinding specs in sub-studies that have already
-            # been bound to MultiStudy
+            # This avoids rebinding specs to sub-studies that have already
+            # been bound to the multi-study
             bound = self
         else:
             bound = copy(self)
             bound._study = study
-            bound._default = self.default.bind(study)
+            bound._default = bound.bind(study)
         return bound
 
     @property
@@ -105,6 +104,11 @@ class BaseAcquiredSpec(object):
 
     @property
     def default(self):
+        # Ensure the default has the same name as the spec to it can be
+        # accessed properly by the source node
+        if self._default is not None:
+            # FIXME: Should use setter but throwing an error for some reason
+            self._default._name = self.name
         return self._default
 
     @property
@@ -117,7 +121,7 @@ class BaseAcquiredSpec(object):
             raise ArcanaUsageError(
                 "{} needs to be bound to a study before accessing "
                 "the corresponding collection".format(self))
-        return self.default.collection
+        return self._default.collection
 
 
 class BaseSpec(object):
@@ -374,9 +378,11 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
         return dct
 
     def __repr__(self):
-        return ("{}(name='{}', valid_formats={}, frequency={})"
+        return ("{}(name='{}', valid_formats={}, frequency={}, default={}, "
+                "optional={})"
                 .format(type(self).__name__, self.name,
-                        list(self.valid_formats), self.frequency))
+                        list(f.name for f in self.valid_formats),
+                        self.frequency, self.default, self.optional))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
