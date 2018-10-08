@@ -146,13 +146,13 @@ class BaseProcessor(object):
         session_ids = kwargs.pop('session_ids', [])
         clean_work_dir = kwargs.pop('clean_work_dir',
                                     self._clean_work_dir_between_runs)
+        if clean_work_dir:
+            self._clean_work_dir()
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         # Trim the end of very large names to avoid problems with
         # workflow names exceeding system limits.
         name = name[:WORKFLOW_MAX_NAME_LEN]
-        if clean_work_dir:
-            self._clean_work_dir()
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
         already_connected = {}
         # Generate filter array to optionally restrict the run to certain

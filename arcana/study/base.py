@@ -432,7 +432,7 @@ class Study(object):
             if isinstance(self.spec(name), SwitchSpec):
                 yield self._get_parameter(name)
 
-    def data(self, name, subject_id=None, visit_id=None):
+    def data(self, name, subject_id=None, visit_id=None, **kwargs):
         """
         Returns the Fileset or Field associated with the name,
         generating derived filesets as required. Multiple names in a
@@ -485,7 +485,7 @@ class Study(object):
         if pipelines:
             self.processor.run(
                 *pipelines, subject_ids=subject_ids,
-                visit_ids=visit_ids)
+                visit_ids=visit_ids, **kwargs)
         all_data = []
         for name in names:
             spec = self.spec(name)

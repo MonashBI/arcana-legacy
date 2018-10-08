@@ -395,8 +395,8 @@ class CopyToDir(BaseInterface):
                 out_name = f.split('/')[-1]
                 if ext:
                     out_name = '{0}_{1}'.format(
-                        out_name, ext+str(i).zfill(3))
-                shutil.copytree(f, dirname+'/{}'.format(out_name))
+                        out_name, ext + str(i).zfill(3))
+                shutil.copytree(f, dirname + '/{}'.format(out_name))
             elif op.isfile(f):
                 if ext == '.dcm':
                     fname = op.join(dirname, str(i).zfill(4)) + ext
@@ -427,11 +427,11 @@ class CopyToDir(BaseInterface):
 
 class ListDirInputSpec(TraitedSpec):
     directory = File(mandatory=True, desc='directory to read')
-    filter = traits.Function(
-        desc=("A function used to filter the filenames"))
-    sort_key = traits.Function(
-        desc=("A function that generates a key from the listed filenames with "
-              "which to sort them with"))
+    filter = traits.Callable(
+        desc=("A callable (e.g. function) used to filter the filenames"))
+    sort_key = traits.Callable(
+        desc=("A callable (e.g. function) that generates a key from the "
+              "listed filenames with which to sort them with"))
 
 
 class ListDirOutputSpec(TraitedSpec):
@@ -459,8 +459,8 @@ class ListDir(BaseInterface):
             path = op.join(dname, fname)
             if op.isfile(path) and (not isdefined(self.inputs.filter) or
                                     self.inputs.filter(fname)):
-                files.append(path)
-        outputs['files'] = sorted(files, key=key)
+                files.append(fname)
+        outputs['files'] = [op.join(dname, f) for f in sorted(files, key=key)]
         return outputs
 
 
