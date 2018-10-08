@@ -6,12 +6,40 @@ from itertools import zip_longest
 from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
-from .utils import split_version
 import subprocess as sp
-from arcana.exception import ArcanaRequirementNotSatisfiedError
+import re
 
 
 logger = logging.getLogger('arcana')
+
+
+def split_version(version_str):
+    logger.debug("splitting version string '{}'"
+                 .format(version_str))
+    try:
+        sanitized_ver_str = re.match(r'[^\d]*(\d+(?:\.\d+)*)[^\d]*',
+                                     version_str).group(1)
+        return tuple(
+            int(p) for p in sanitized_ver_str.split('.'))
+    except (ValueError, AttributeError) as e:
+        raise ArcanaRequirementVersionException(
+            "Could not parse version string '{}': {}".format(
+                version_str, e))
+
+
+def date_split(version_str):
+    try:
+        return tuple(int(p) for p in version_str.split('-'))
+    except ValueError as e:
+        raise ArcanaRequirementVersionException(str(e))
+
+
+def matlab_version_split(version_str):
+    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
+    if match is None:
+        raise ArcanaRequirementVersionException(
+            "Do not understand Matlab version '{}'".format(version_str))
+    return int(match.group(1)), match.group(2).lower()
 
 
 class Requirement(object):
@@ -266,54 +294,3 @@ class MatlabRequirement(Requirement):
     @property
     def test_func(self):
         return self._test_func
-
-
-class RequirementManager(object):
-    """
-    Checks to see if requirements are satisfiable by the current
-    computing environment. Subclasses can also manage the loading and
-    unloading of modules
-    """
-
-    def __eq__(self, other):
-        return type(self) == type(other)
-
-    def satisfiable(self, *requirements, **kwargs):
-        """
-        Checks whether the given requirements are satisfiable within the given
-        execution context
-
-        Parameter
-        ---------
-        requirements : list(Requirement)
-            List of requirements to check whether they are satisfiable
-        """
-        self.load(*requirements, **kwargs)
-        not_satisfied = [r for r in requirements if not r.satisfied]
-        if not_satisfied:
-            raise ArcanaRequirementNotSatisfiedError(
-                "Could not satisfy the following requirements:\n"
-                .format('\n'.join(str(r) for r in not_satisfied)))
-        self.unload(*requirements, **kwargs)
-
-    def load(self, *requirements, **kwargs):
-        """
-        Loads the given requirements if necessary
-
-        Parameter
-        ---------
-        requirements : list(Requirement)
-            List of requirements to load
-        """
-        pass  # Nothing is done in the basic case
-
-    def unload(self, *requirements, **kwargs):
-        """
-        Unloads the given requirements if necessary
-
-        Parameter
-        ---------
-        requirements : list(Requirement)
-            List of requirements to unload
-        """
-        pass  # Nothing is done in the basic case

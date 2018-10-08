@@ -8,13 +8,14 @@ from collections import defaultdict
 from arcana.exception import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaEnvModuleNotLoadedError)
-from .base import RequirementManager, Requirement
+from .static import StaticEnvironment
+from .requirement import Requirement
 
 
 logger = logging.getLogger('arcana')
 
 
-class ModulesRequirementManager(RequirementManager):
+class ModulesEnvironment(StaticEnvironment):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
@@ -25,7 +26,7 @@ class ModulesRequirementManager(RequirementManager):
     """
 
     def __init__(self, *args, **kwargs):
-        super(ModulesRequirementManager, self).__init__(*args, **kwargs)
+        super(ModulesEnvironment, self).__init__(*args, **kwargs)
         self._loaded = {}
         self._avail_cache = None
         self._preload_cache = None

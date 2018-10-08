@@ -2,7 +2,7 @@ import os.path
 import errno
 from future.utils import PY3, PY2
 if PY2:
-    from contextlib2 import ExitStack  # @UnusedImport
+    from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
 else:
     from contextlib import ExitStack  # @UnusedImport @Reimport
 
