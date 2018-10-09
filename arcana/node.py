@@ -30,9 +30,9 @@ class ArcanaNodeMixin(object):
         Preferred number of threads (ignored if processed in single node)
     gpu : bool
         Flags whether a GPU compute node is preferred
-    processor : Processor | None
-        The processor to be used to execute the node (automatically added by
-        Arcana infrastructure)
+    environment : Environment | None
+        The environment within which to execute the node (automatically added
+        by Arcana)
     """
 
     arcana_params = {
@@ -41,7 +41,7 @@ class ArcanaNodeMixin(object):
         'wall_time': DEFAULT_WALL_TIME,
         'memory': DEFAULT_MEMORY,
         'gpu': False,
-        'processor': None}
+        'environment': None}
 
     def __init__(self, *args, **kwargs):
         self._arcana_init(**kwargs)
@@ -58,7 +58,6 @@ class ArcanaNodeMixin(object):
         return result
 
     def _run_command(self, *args, **kwargs):
-        print("Processor: {}".format(self.processor))
         start_time = time.time()
         try:
             self._load_reqs()
@@ -77,12 +76,12 @@ class ArcanaNodeMixin(object):
         return result
 
     def _load_reqs(self, **kwargs):
-        if self.processor is not None:
-            self.processor.load_requirements(*self.requirements, **kwargs)
+        if self.environment is not None:
+            self.environment.load(*self.requirements, **kwargs)
 
     def _unload_reqs(self, **kwargs):
-        if self.processor is not None:
-            self.processor.unload_requirements(*self.requirements, **kwargs)
+        if self.environment is not None:
+            self.environment.unload(*self.requirements, **kwargs)
 
 
 class Node(ArcanaNodeMixin, NipypeNode):

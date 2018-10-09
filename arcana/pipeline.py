@@ -263,7 +263,7 @@ class Pipeline(object):
         else:
             node_cls = Node
         node = node_cls(interface, name="{}_{}".format(self._name, name),
-                        processor=self.study.processor, **kwargs)
+                        environment=self.study.environment, **kwargs)
         # Ensure node is added to workflow
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections

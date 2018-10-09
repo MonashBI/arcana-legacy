@@ -1,14 +1,13 @@
 from __future__ import division
 import logging
 from arcana.exception import ArcanaRequirementNotSatisfiedError
-from .base import BaseEnvironment
 from .requirement import Requirement
 
 
 logger = logging.getLogger('arcana')
 
 
-class StaticEnvironment(BaseEnvironment):
+class StaticEnvironment(object):
     """
     Checks to see if requirements are satisfiable by the current
     computing environment. Subclasses can also manage the loading and

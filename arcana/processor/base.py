@@ -8,7 +8,6 @@ from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
-from arcana.requirement import RequirementManager
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError)
@@ -44,8 +43,7 @@ class BaseProcessor(object):
 
     default_plugin_args = {}
 
-    def __init__(self, work_dir, requirement_manager=None,
-                 max_process_time=None, reprocess=False,
+    def __init__(self, work_dir, max_process_time=None, reprocess=False,
                  clean_work_dir_between_runs=True, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
@@ -55,9 +53,6 @@ class BaseProcessor(object):
         self._init_plugin()
         self._study = None
         self._clean_work_dir_between_runs = clean_work_dir_between_runs
-        self._requirement_manager = (
-            requirement_manager if requirement_manager is not None
-            else RequirementManager())
 
     def __repr__(self):
         return "{}(work_dir={})".format(
@@ -68,7 +63,6 @@ class BaseProcessor(object):
             return (
                 self._work_dir == other._work_dir and
                 self._max_process_time == other._max_process_time and
-                self._requirement_manager == other._requirement_manager and
                 self._reprocess == other._reprocess and
                 self._plugin_args == other._plugin_args)
         except AttributeError:
@@ -80,19 +74,6 @@ class BaseProcessor(object):
     @property
     def study(self):
         return self._study
-
-    @property
-    def requirement_manager(self):
-        return self._requirement_manager
-
-    def requirements_satisfiable(self, *requirements, **kwargs):
-        self.requirement_manager.satisfiable(*requirements, **kwargs)
-
-    def load_requirements(self, *requirements, **kwargs):
-        self.requirement_manager.load(*requirements, **kwargs)
-
-    def unload_requirements(self, *requirements, **kwargs):
-        self.requirement_manager.unload(*requirements, **kwargs)
 
     def bind(self, study):
         cpy = deepcopy(self)
