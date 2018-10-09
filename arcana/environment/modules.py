@@ -23,13 +23,27 @@ class ModulesEnvironment(StaticEnvironment):
         Furlani, J. (1991). Modules: Providing a flexible user
         environment. Proceedings of the Fifth Large Installation Systems
         Administration Conference (LISA V), (1), 141–152.
+
+    Parameters
+    ----------
+    packages_map : dct[str, Requirement] | callable
+        A Mapping from the name a module installed on the system to a
+        requirement
+    versions_map : dct[str, str] | callable
+        A Mapping from the name of the version to the standarding versioning
+        conventions assumed by the corresponding requirement
     """
 
-    def __init__(self, *args, **kwargs):
-        super(ModulesEnvironment, self).__init__(*args, **kwargs)
+    def __init__(self, packages_map=None, versions_map=None):
         self._loaded = {}
+        if packages_map is None:
+            packages_map = {}
+        if versions_map is None:
+            versions_map = {}
         self._avail_cache = None
         self._preload_cache = None
+        self._packages_map = packages_map
+        self._versions_map = versions_map
 
     def load(self, *requirements):
         for req in requirements:

@@ -11,13 +11,14 @@ from nipype.interfaces.base import (
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
     BaseInterfaceInputSpec)
 from arcana.exception import ArcanaUsageError
-from itertools import chain
+from itertools import chain, groupby
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface
 from nipype.interfaces.io import IOBase, add_traits
 from nipype.utils.filemanip import filename_to_list
 from nipype.interfaces.base import OutputMultiPath, InputMultiPath
 import numpy as np
+from arcana.exception import ArcanaError
 
 
 bash_resources = op.abspath(op.join(op.dirname(__file__), 'resources', 'bash'))
@@ -354,8 +355,8 @@ class UnzipDir(CommandLine):
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
             raise ArcanaUsageError(
-                "Zip repositorys can only contain a single directory, found '{}'"
-                .format("', '".join(new_files)))
+                "Zip repositorys can only contain a single directory, found "
+                "'{}'".format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))
         except StopIteration:
@@ -366,12 +367,15 @@ class UnzipDir(CommandLine):
 
 
 class CopyToDirInputSpec(TraitedSpec):
-    in_files = traits.List(traits.Either(File(exists=True),
-                                         Directory(exists=True)), mandatory=True,
-                           desc='input dicom files')
-    out_dir = File(genfile=True, desc='the output dicom file')
+    in_files = traits.List(
+        traits.Either(File(exists=True), Directory(exists=True)),
+        mandatory=True, desc='input dicom files')
+    out_dir = File(desc='the output dicom file')
     extension = traits.Str(desc='specify the extention for the copied file.',
                            default='', usedefault=True)
+    file_names = traits.List(
+        traits.Str, desc=("The filenames to use to save the files with within "
+                          "the directory"))
 
 
 class CopyToDirOutputSpec(TraitedSpec):
@@ -390,38 +394,49 @@ class CopyToDir(BaseInterface):
         dirname = self._gen_outdirname()
         os.makedirs(dirname)
         ext = self.inputs.extension
+        if isdefined(self.inputs.file_names):
+            if len(self.inputs.file_names) != len(self.inputs.in_files):
+                raise ArcanaError(
+                    "Number of provided filenames ({}) does not match number "
+                    "of provided files ({})".format(
+                        len(self.inputs.file_names),
+                        len(self.inputs.in_files)))
         for i, f in enumerate(self.inputs.in_files):
-            if op.isdir(f):
-                out_name = f.split('/')[-1]
-                if ext:
-                    out_name = '{0}_{1}'.format(
-                        out_name, ext + str(i).zfill(3))
-                shutil.copytree(f, dirname + '/{}'.format(out_name))
-            elif op.isfile(f):
-                if ext == '.dcm':
-                    fname = op.join(dirname, str(i).zfill(4)) + ext
+            if isdefined(self.inputs.file_names):
+                path = op.join(self.out_dir,
+                               op.basename(self.inputs.file_names[i]))
+                if op.isdir(f):
+                    shutil.copytree(f, path)
                 else:
-                    fname = dirname
-                shutil.copy(f, fname)
+                    shutil.copy(f, path)
+            else:
+                # Not quite sure what is going on here, probably should
+                # ask Francesco what this logic is for
+                if op.isdir(f):
+                    out_name = f.split('/')[-1]
+                    if ext:
+                        out_name = '{0}_{1}'.format(
+                            out_name, ext + str(i).zfill(3))
+                    shutil.copytree(f, dirname + '/{}'.format(out_name))
+                elif op.isfile(f):
+                    if ext == '.dcm':
+                        fname = op.join(dirname, str(i).zfill(4)) + ext
+                    else:
+                        fname = dirname
+                    shutil.copy(f, fname)
         return runtime
 
     def _list_outputs(self):
         outputs = self._outputs().get()
-        outputs['out_dir'] = self._gen_outdirname()
+        outputs['out_dir'] = self.out_dir
         return outputs
 
-    def _gen_filename(self, name):
-        if name == 'out_dir':
-            fname = self._gen_outdirname()
-        else:
-            assert False
-        return fname
-
-    def _gen_outdirname(self):
+    @property
+    def out_dir(self):
         if isdefined(self.inputs.out_dir):
             dpath = self.inputs.out_dir
         else:
-            dpath = op.join(os.getcwd(), 'store_dir')
+            dpath = op.abspath('store_dir')
         return dpath
 
 
@@ -432,11 +447,16 @@ class ListDirInputSpec(TraitedSpec):
     sort_key = traits.Callable(
         desc=("A callable (e.g. function) that generates a key from the "
               "listed filenames with which to sort them with"))
+    group_key = traits.Callable(
+        desc=("A callable (e.g. function) that generates a key with which to"
+              "group the filenames"))
 
 
 class ListDirOutputSpec(TraitedSpec):
     files = traits.List(File(exists=True),
                         desc='The files present in the directory')
+    groups = traits.Dict(traits.Str, traits.List(File(exists=True)),
+                         desc="The files grouped by the 'group_key' function")
 
 
 class ListDir(BaseInterface):
@@ -460,7 +480,12 @@ class ListDir(BaseInterface):
             if op.isfile(path) and (not isdefined(self.inputs.filter) or
                                     self.inputs.filter(fname)):
                 files.append(fname)
-        outputs['files'] = [op.join(dname, f) for f in sorted(files, key=key)]
+        files = [op.join(dname, f) for f in sorted(files, key=key)]
+        if isdefined(self.inputs.group_key):
+            outputs['groups'] = dict(
+                (k, list(values))
+                for k, values in groupby(files, key=self.inputs.group_key))
+        outputs['files'] = files
         return outputs
 
 
