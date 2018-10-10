@@ -7,9 +7,9 @@ when applying the designed workflows.
 Archives
 --------
 
-.. autoclass:: arcana.archive.xnat.XnatArchive
+.. autoclass:: arcana.archive.xnat.XnatRepository
 
-.. autoclass:: arcana.archive.simple.LocalArchive
+.. autoclass:: arcana.archive.directory.DirectoryRepository
 
 
 Processors
@@ -25,9 +25,9 @@ Processors
 Inputs
 ------
 
-.. autoclass:: arcana.data.FilesetMatch
+.. autoclass:: arcana.data.FilesetSelector
 
-.. autoclass:: arcana.data.FieldMatch
+.. autoclass:: arcana.data.FieldSelector
 
 .. autoclass:: arcana.option.Option
 

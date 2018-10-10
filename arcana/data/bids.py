@@ -1,5 +1,5 @@
-from arcana.exception import ArcanaFilesetMatchError, ArcanaUsageError
-from .match import FilesetMatch
+from arcana.exception import ArcanaFilesetSelectorError, ArcanaUsageError
+from .match import FilesetSelector
 
 
 class BidsAttrs(object):
@@ -48,7 +48,7 @@ class BidsAttrs(object):
         return self._desc
 
 
-class BidsMatch(FilesetMatch):
+class BidsMatch(FilesetSelector):
     """
     A match object for matching filesets from their 'bids_attr'
     attribute
@@ -68,7 +68,7 @@ class BidsMatch(FilesetMatch):
     """
 
     def __init__(self, name, type, modality, format, run=None):  # @ReservedAssignment @IgnorePep8
-        FilesetMatch.__init__(
+        FilesetSelector.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
             id=None, order=run, dicom_tags=None, is_regex=False,
             from_study=None)
@@ -94,7 +94,7 @@ class BidsMatch(FilesetMatch):
             if (d.bids_attr.entities['type'] == self.type and
                 d.bids_attr.entities['modality'] == self.modality)]
         if not matches:
-            raise ArcanaFilesetMatchError(
+            raise ArcanaFilesetSelectorError(
                 "No BIDS filesets for subject={}, visit={} match "
                 "modality '{}' and type '{}' found:\n{}"
                 .format(node.subject_id, node.visit_id, self.modality,
@@ -103,26 +103,26 @@ class BidsMatch(FilesetMatch):
         return matches
 
     def __eq__(self, other):
-        return (FilesetMatch.__eq__(self, other) and
+        return (FilesetSelector.__eq__(self, other) and
                 self.type == other.type and
                 self.modality == other.modality and
                 self.run == other.run)
 
     def __hash__(self):
-        return (FilesetMatch.__hash__(self) ^
+        return (FilesetSelector.__hash__(self) ^
                 hash(self.type) ^
                 hash(self.modality) ^
                 hash(self.run))
 
     def initkwargs(self):
-        dct = FilesetMatch.initkwargs(self)
+        dct = FilesetSelector.initkwargs(self)
         dct['type'] = self.type
         dct['modality'] = self.modality
         dct['run'] = self.run
         return dct
 
 
-class BidsAssociatedMatch(FilesetMatch):
+class BidsAssociatedMatch(FilesetSelector):
     """
     A match object for matching BIDS filesets that are associated with
     another BIDS filesets (e.g. field-maps, bvecs, bvals)
@@ -146,7 +146,7 @@ class BidsAssociatedMatch(FilesetMatch):
 
     def __init__(self, name, primary_match, format, association,  # @ReservedAssignment @IgnorePep8
                  fieldmap_type=None, order=0):
-        FilesetMatch.__init__(
+        FilesetSelector.__init__(
             self, name, format, pattern=None, frequency='per_session',   # @ReservedAssignment @IgnorePep8
             id=None, order=order, dicom_tags=None, is_regex=False,
             from_study=None)
@@ -187,7 +187,7 @@ class BidsAssociatedMatch(FilesetMatch):
             try:
                 match = matches[0]
             except IndexError:
-                raise ArcanaFilesetMatchError(
+                raise ArcanaFilesetSelectorError(
                     "Provided order to associated BIDS fileset match "
                     "{} is out of range")
         elif self._association == 'bvec':
@@ -198,19 +198,19 @@ class BidsAssociatedMatch(FilesetMatch):
         return matches
 
     def __eq__(self, other):
-        return (FilesetMatch.__eq__(self, other) and
+        return (FilesetSelector.__eq__(self, other) and
                 self.primary_match == other.primary_match and
                 self.association == other.association and
                 self.fieldmap_type == other.fieldmap_type)
 
     def __hash__(self):
-        return (FilesetMatch.__hash__(self) ^
+        return (FilesetSelector.__hash__(self) ^
                 hash(self.primary_match) ^
                 hash(self.association) ^
                 hash(self.fieldmap_type))
 
     def initkwargs(self):
-        dct = FilesetMatch.initkwargs(self)
+        dct = FilesetSelector.initkwargs(self)
         dct['primary_match'] = self.primary_match
         dct['association'] = self.association
         dct['fieldmap_type'] = self.fieldmap_type

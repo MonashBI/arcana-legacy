@@ -56,7 +56,7 @@ class ArcanaMissingDataException(ArcanaError):
     pass
 
 
-class ArcanaFilesetMatchError(ArcanaUsageError):
+class ArcanaFilesetSelectorError(ArcanaUsageError):
     pass
 
 

@@ -23,7 +23,7 @@ from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
     SubStudySpec)
 from .data import (
-    FilesetSpec, FilesetMatch, FieldSpec, FieldMatch)
+    FilesetSpec, FilesetSelector, FieldSpec, FieldSelector)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
 from .parameter import Parameter, ParameterSpec, SwitchSpec

@@ -1,6 +1,6 @@
 from arcana.testing import BaseTestCase, TestMath
 from arcana.interfaces.utils import Merge
-from arcana.data import FilesetMatch, FilesetSpec
+from arcana.data import FilesetSelector, FilesetSpec
 from arcana.data.file_format.standard import text_format
 from arcana.parameter import ParameterSpec
 from arcana.study.base import Study
@@ -186,9 +186,9 @@ class TestMulti(BaseTestCase):
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full',
-            [FilesetMatch('a', text_format, 'ones'),
-             FilesetMatch('b', text_format, 'ones'),
-             FilesetMatch('c', text_format, 'ones')],
+            [FilesetSelector('a', text_format, 'ones'),
+             FilesetSelector('b', text_format, 'ones'),
+             FilesetSelector('c', text_format, 'ones')],
             parameters=[Parameter('required_op', 'mul')])
 #         study.save_workflow_graph_for('d',
 #                                       '/Users/tclose/Desktop/d.graph',
@@ -225,9 +225,9 @@ class TestMulti(BaseTestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial',
-            [FilesetMatch('a', text_format, 'ones'),
-             FilesetMatch('b', text_format, 'ones'),
-             FilesetMatch('c', text_format, 'ones')],
+            [FilesetSelector('a', text_format, 'ones'),
+             FilesetSelector('b', text_format, 'ones'),
+             FilesetSelector('c', text_format, 'ones')],
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
@@ -256,14 +256,14 @@ class TestMulti(BaseTestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [FilesetMatch('ss1_x', text_format, 'ones'),
-             FilesetMatch('ss1_y', text_format, 'ones'),
-             FilesetMatch('full_a', text_format, 'ones'),
-             FilesetMatch('full_b', text_format, 'ones'),
-             FilesetMatch('full_c', text_format, 'ones'),
-             FilesetMatch('partial_a', text_format, 'ones'),
-             FilesetMatch('partial_b', text_format, 'ones'),
-             FilesetMatch('partial_c', text_format, 'ones')],
+            [FilesetSelector('ss1_x', text_format, 'ones'),
+             FilesetSelector('ss1_y', text_format, 'ones'),
+             FilesetSelector('full_a', text_format, 'ones'),
+             FilesetSelector('full_b', text_format, 'ones'),
+             FilesetSelector('full_c', text_format, 'ones'),
+             FilesetSelector('partial_a', text_format, 'ones'),
+             FilesetSelector('partial_b', text_format, 'ones'),
+             FilesetSelector('partial_c', text_format, 'ones')],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
         self.assertContentsEqual(study.data('g'), 11.0)
@@ -310,14 +310,14 @@ class TestMulti(BaseTestCase):
         # 'product'
         missing_parameter_study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [FilesetMatch('ss1_x', text_format, 'ones'),
-             FilesetMatch('ss1_y', text_format, 'ones'),
-             FilesetMatch('full_a', text_format, 'ones'),
-             FilesetMatch('full_b', text_format, 'ones'),
-             FilesetMatch('full_c', text_format, 'ones'),
-             FilesetMatch('partial_a', text_format, 'ones'),
-             FilesetMatch('partial_b', text_format, 'ones'),
-             FilesetMatch('partial_c', text_format, 'ones')],
+            [FilesetSelector('ss1_x', text_format, 'ones'),
+             FilesetSelector('ss1_y', text_format, 'ones'),
+             FilesetSelector('full_a', text_format, 'ones'),
+             FilesetSelector('full_b', text_format, 'ones'),
+             FilesetSelector('full_c', text_format, 'ones'),
+             FilesetSelector('partial_a', text_format, 'ones'),
+             FilesetSelector('partial_b', text_format, 'ones'),
+             FilesetSelector('partial_c', text_format, 'ones')],
             parameters=[Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
             RuntimeError,

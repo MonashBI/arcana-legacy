@@ -25,7 +25,7 @@ from arcana.repository.directory import DirectoryRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
 from arcana.data import (
-    FilesetMatch, FilesetSpec, FieldSpec)
+    FilesetSelector, FilesetSpec, FieldSpec)
 from arcana.data.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
@@ -411,10 +411,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetMatch('source1', text_format, 'source1'),
-                    FilesetMatch('source2', text_format, 'source2'),
-                    FilesetMatch('source3', text_format, 'source3'),
-                    FilesetMatch('source4', text_format, 'source4')])
+            inputs=[FilesetSelector('source1', text_format, 'source1'),
+                    FilesetSelector('source2', text_format, 'source2'),
+                    FilesetSelector('source3', text_format, 'source3'),
+                    FilesetSelector('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -465,7 +465,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetMatch('source1', text_format, 'source1')])
+            inputs=[FilesetSelector('source1', text_format, 'source1')])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         sink = study.sink(
             outputs=fields,
@@ -508,7 +508,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                     project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearProcessor('ad'),
-            inputs=[FilesetMatch(DATASET_NAME, text_format,
+            inputs=[FilesetSelector(DATASET_NAME, text_format,
                                  DATASET_NAME)])
         source = study.source([study.input(DATASET_NAME)],
                                    name='delayed_source')
@@ -590,7 +590,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
-            inputs=[FilesetMatch(DATASET_NAME, text_format,
+            inputs=[FilesetSelector(DATASET_NAME, text_format,
                                  DATASET_NAME,
                                  repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
@@ -672,9 +672,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[
-                FilesetMatch('source1', text_format, 'source1'),
-                FilesetMatch('source2', text_format, 'source2'),
-                FilesetMatch('source3', text_format, 'source3')])
+                FilesetSelector('source1', text_format, 'source1'),
+                FilesetSelector('source2', text_format, 'source2'),
+                FilesetSelector('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
@@ -873,8 +873,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
             inputs=[
-                FilesetMatch('gre_phase', dicom_format, id=7),
-                FilesetMatch('gre_mag', dicom_format, id=6)])
+                FilesetSelector('gre_phase', dicom_format, id=7),
+                FilesetSelector('gre_mag', dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -967,8 +967,8 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         study = self.create_study(
             TestStudy, 'cache_download',
             inputs=[
-                FilesetMatch('fileset1', text_format, 'fileset1'),
-                FilesetMatch('fileset3', text_format, 'fileset3')],
+                FilesetSelector('fileset1', text_format, 'fileset1'),
+                FilesetSelector('fileset3', text_format, 'fileset3')],
             repository=repository)
         study.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):

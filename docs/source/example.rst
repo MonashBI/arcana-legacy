@@ -5,7 +5,7 @@ A basic toy example
 
 .. code-block:: python
 
-    from arcana.data import FilesetMatch, FilesetSpec
+    from arcana.data import FilesetSelector, FilesetSpec
     from arcana.data.file_format.standard import text_format
     from arcana.study.base import Study, StudyMetaClass
     from nipype.interfaces.base import (  # @IgnorePep8
@@ -106,8 +106,8 @@ which can then be instantiated and used to generate 'derived2' with
         archive=LocalArchive('/path/to/local/archive'),
         processor=LinearProcessor('/my/work/dir'),
         inputs=[
-            FilesetMatch('one', text_format, 'one'),
-            FilesetMatch('ten', text_format, 'ten')],
+            FilesetSelector('one', text_format, 'one'),
+            FilesetSelector('ten', text_format, 'ten')],
         parameters={'pipeline_option': True})
     derived_filesets = study.data('derived2')
     for fileset in derived_filesets:

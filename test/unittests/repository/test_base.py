@@ -6,7 +6,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.processor import LinearProcessor  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    FilesetMatch, FieldSpec)  # @IgnorePep8
+    FilesetSelector, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
@@ -54,10 +54,10 @@ class TestSinkAndSource(BaseTestCase):
     def test_repository_roundtrip(self):
         study = DummyStudy(
             self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetMatch('source1', text_format, 'source1'),
-                    FilesetMatch('source2', text_format, 'source2'),
-                    FilesetMatch('source3', text_format, 'source3'),
-                    FilesetMatch('source4', text_format, 'source4')])
+            inputs=[FilesetSelector('source1', text_format, 'source1'),
+                    FilesetSelector('source2', text_format, 'source2'),
+                    FilesetSelector('source3', text_format, 'source3'),
+                    FilesetSelector('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -125,9 +125,9 @@ class TestSinkAndSource(BaseTestCase):
     def test_summary(self):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
-            inputs=[FilesetMatch('source1', text_format, 'source1'),
-                    FilesetMatch('source2', text_format, 'source2'),
-                    FilesetMatch('source3', text_format, 'source3')])
+            inputs=[FilesetSelector('source1', text_format, 'source1'),
+                    FilesetSelector('source2', text_format, 'source2'),
+                    FilesetSelector('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(

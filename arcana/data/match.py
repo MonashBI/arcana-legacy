@@ -5,7 +5,7 @@ from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exception import (
-    ArcanaUsageError, ArcanaFilesetMatchError)
+    ArcanaUsageError, ArcanaFilesetSelectorError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
@@ -131,19 +131,19 @@ class BaseMatch(object):
             try:
                 match = matches[self.order]
             except IndexError:
-                raise ArcanaFilesetMatchError(
+                raise ArcanaFilesetSelectorError(
                     "Did not find {} filesets names matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
             match = matches[0]
         elif matches:
-            raise ArcanaFilesetMatchError(
+            raise ArcanaFilesetSelectorError(
                 "Found multiple matches for {} pattern in {} ({})"
                 .format(self.pattern, node,
                         ', '.join(str(m) for m in matches)))
         else:
-            raise ArcanaFilesetMatchError(
+            raise ArcanaFilesetSelectorError(
                 "Did not find any matches for {} pattern in {} "
                 "(found {})"
                 .format(self.pattern, node,
@@ -161,7 +161,7 @@ class BaseMatch(object):
         return dct
 
 
-class FilesetMatch(BaseMatch, BaseFileset):
+class FilesetSelector(BaseMatch, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -218,7 +218,7 @@ class FilesetMatch(BaseMatch, BaseFileset):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
-                "FilesetMatch constructor")
+                "FilesetSelector constructor")
         BaseFileset.__init__(self, name, format, frequency)
         BaseMatch.__init__(self, pattern, is_regex, order,
                            from_study, repository, study_, collection_)
@@ -271,7 +271,7 @@ class FilesetMatch(BaseMatch, BaseFileset):
             # to the repository may be required to query them.
             if self.dicom_tags is not None:
                 stack.enter(study.repository)
-            super(FilesetMatch, self).match(study, **kwargs)
+            super(FilesetSelector, self).match(study, **kwargs)
 
     @property
     def dicom_tags(self):
@@ -289,14 +289,14 @@ class FilesetMatch(BaseMatch, BaseFileset):
         else:
             matches = list(node.filesets)
         if not matches:
-            raise ArcanaFilesetMatchError(
+            raise ArcanaFilesetSelectorError(
                 "No fileset names in {}:{} match '{}' pattern, found: {}"
                 .format(node.subject_id, node.visit_id, self.pattern,
                         ', '.join(d.name for d in node.filesets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
-                raise ArcanaFilesetMatchError(
+                raise ArcanaFilesetSelectorError(
                     "Did not find filesets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
@@ -311,7 +311,7 @@ class FilesetMatch(BaseMatch, BaseFileset):
                 if self.dicom_tags == values:
                     filtered.append(fileset)
             if not filtered:
-                raise ArcanaFilesetMatchError(
+                raise ArcanaFilesetSelectorError(
                     "Did not find filesets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
@@ -324,7 +324,7 @@ class FilesetMatch(BaseMatch, BaseFileset):
         return {'format': self.format}
 
 
-class FieldMatch(BaseMatch, BaseField):
+class FieldSelector(BaseMatch, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -371,7 +371,7 @@ class FieldMatch(BaseMatch, BaseField):
         BaseMatch.__init__(self, pattern, is_regex, order,
                            from_study, repository,
                            study_, collection_)
-        super(FieldMatch, self).__init__(name, dtype, frequency)
+        super(FieldSelector, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
@@ -397,7 +397,7 @@ class FieldMatch(BaseMatch, BaseField):
             matches = [f for f in matches
                        if f.from_study == self.from_study]
         if not matches:
-            raise ArcanaFilesetMatchError(
+            raise ArcanaFilesetSelectorError(
                 "No field names in {} match '{}' pattern"
                 .format(node, self.pattern))
         return matches

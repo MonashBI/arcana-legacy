@@ -1,5 +1,5 @@
 from nipype.interfaces.utility import Merge, Split
-from arcana.data import FilesetSpec, FilesetMatch, FieldSpec
+from arcana.data import FilesetSpec, FilesetSelector, FieldSpec
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exception import (ArcanaModulesNotInstalledException,
                               ArcanaError)
@@ -109,7 +109,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetMatch('ones', text_format, 'ones')])
+            [FilesetSelector('ones', text_format, 'ones')])
         self.assertContentsEqual(study.data('twos'), 2.0)
         self.assertEqual(ModulesRequirementManager.preloaded(), {})
 
@@ -118,7 +118,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetMatch('ones', text_format, 'ones')])
+            [FilesetSelector('ones', text_format, 'ones')])
         threes = study.data('threes')
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)

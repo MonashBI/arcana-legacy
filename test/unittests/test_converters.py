@@ -1,7 +1,7 @@
 import os
 import tempfile
 import os.path as op
-from arcana.data import FilesetSpec, FilesetMatch, Fileset
+from arcana.data import FilesetSpec, FilesetSelector, Fileset
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
@@ -113,10 +113,10 @@ class TestFormatConversions(BaseTestCase):
     def test_format_conversions(self):
         study = self.create_study(
             ConversionStudy, 'conversion', [
-                FilesetMatch('text', text_format, 'text'),
-                FilesetMatch('directory', directory_format,
+                FilesetSelector('text', text_format, 'text'),
+                FilesetSelector('directory', directory_format,
                              'directory'),
-                FilesetMatch('zip', zip_format, 'zip')])
+                FilesetSelector('zip', zip_format, 'zip')])
         self.assertCreated(list(study.data('text_from_text'))[0])
         self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
         self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])
