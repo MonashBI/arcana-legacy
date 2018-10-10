@@ -269,7 +269,9 @@ class BaseSpec(object):
         except AttributeError as e:
             # Need to capture this as exception to avoid it getting
             # confused with specs that don't have pipelines
-            raise ArcanaError("AttributeError was thrown: {}".format(e))
+            raise ArcanaError("AttributeError was thrown attempting to "
+                              "construct '{}': {}".format(self.pipeline_name,
+                                                          e))
         finally:
             # Reset referenced parameters after generating pipeline
             self.study._pipeline_to_generate = None

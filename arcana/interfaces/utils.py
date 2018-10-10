@@ -391,7 +391,7 @@ class CopyToDir(BaseInterface):
     output_spec = CopyToDirOutputSpec
 
     def _run_interface(self, runtime):
-        dirname = self._gen_outdirname()
+        dirname = self.out_dir
         os.makedirs(dirname)
         ext = self.inputs.extension
         if isdefined(self.inputs.file_names):

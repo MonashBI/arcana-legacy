@@ -268,13 +268,16 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections
         if inputs is not None:
+            assert isinstance(inputs, dict)
             for node_input, (input, input_format) in inputs.items():  # @ReservedAssignment @IgnorePep8
                 self.connect_input(input, node, node_input, input_format)
         if outputs is not None:
+            assert isinstance(outputs, dict)
             for node_input, (output, output_format) in outputs.items():
                 self.connect_output(output, node, node_input, output_format)
         # Connect internal noes of the pipeline
         if connect is not None:
+            assert isinstance(connect, dict)
             for node_input, (conn_node, conn_field) in connect.items():
                 self.connect(conn_node, conn_field, node, node_input)
         return node
