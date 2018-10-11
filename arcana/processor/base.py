@@ -423,9 +423,9 @@ class BaseProcessor(object):
             # required
             num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=0)].shape
             if num_subjs > num_visits:
-                dependent = pipeline.SUBJECT_ID
+                dependent = self.study.SUBJECT_ID
             else:
-                dependent = pipeline.VISIT_ID
+                dependent = self.study.VISIT_ID
             if 'per_visit' in input_freqs:
                 if 'per_subject' in input_freqs:
                     logger.warning(
@@ -435,64 +435,64 @@ class BaseProcessor(object):
                         " per_{} inputs may be cached twice".format(
                             dependent[:-1]))
                 else:
-                    dependent = pipeline.SUBJECT_ID
+                    dependent = self.study.SUBJECT_ID
             elif 'per_subject' in input_freqs:
-                dependent = pipeline.VISIT_ID
+                dependent = self.study.VISIT_ID
         # Invert the index dictionaries to get index-to-ID maps
         subj_ids = {v: k for k, v in subject_inds.items()}
         visit_ids = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iterators = {}
-        if pipeline.SUBJECT_ID in pipeline.iterfields():
-            fields = [pipeline.SUBJECT_ID]
-            if dependent == pipeline.SUBJECT_ID:
-                fields.append(pipeline.VISIT_ID)
+        if self.study.SUBJECT_ID in pipeline.iterfields():
+            fields = [self.study.SUBJECT_ID]
+            if dependent == self.study.SUBJECT_ID:
+                fields.append(self.study.VISIT_ID)
             # Add iterator node named after subject iterfield
-            subj_it = pipeline.add(pipeline.SUBJECT_ID,
+            subj_it = pipeline.add(self.study.SUBJECT_ID,
                                    IdentityInterface(fields))
-            if dependent == pipeline.SUBJECT_ID:
+            if dependent == self.study.SUBJECT_ID:
                 # Subjects iterator is dependent on visit iterator (because of
                 # non-factorizable IDs)
                 subj_it.itersource = ('{}_{}'.format(pipeline.name,
-                                                     pipeline.VISIT_ID),
-                                      pipeline.VISIT_ID)
+                                                     self.study.VISIT_ID),
+                                      self.study.VISIT_ID)
                 subj_it.iterables = [(
-                    pipeline.SUBJECT_ID,
+                    self.study.SUBJECT_ID,
                     {visit_ids[n]: [subj_ids[m] for m in col.nonzero()[0]]
                      for n, col in enumerate(to_process.T)})]
             else:
                 subj_it.iterables = (
-                    pipeline.SUBJECT_ID,
+                    self.study.SUBJECT_ID,
                     [subj_ids[n] for n in to_process.any(axis=1).nonzero()[0]])
-            iterators[pipeline.SUBJECT_ID] = subj_it
+            iterators[self.study.SUBJECT_ID] = subj_it
         # Create iterator for visits
-        if pipeline.VISIT_ID in pipeline.iterfields():
-            fields = [pipeline.VISIT_ID]
-            if dependent == pipeline.VISIT_ID:
-                fields.append(pipeline.SUBJECT_ID)
+        if self.study.VISIT_ID in pipeline.iterfields():
+            fields = [self.study.VISIT_ID]
+            if dependent == self.study.VISIT_ID:
+                fields.append(self.study.SUBJECT_ID)
             # Add iterator node named after visit iterfield
-            visit_it = pipeline.add(pipeline.VISIT_ID,
+            visit_it = pipeline.add(self.study.VISIT_ID,
                                     IdentityInterface(fields))
-            if dependent == pipeline.VISIT_ID:
+            if dependent == self.study.VISIT_ID:
                 visit_it.itersource = ('{}_{}'.format(pipeline.name,
-                                                      pipeline.SUBJECT_ID),
-                                       pipeline.SUBJECT_ID)
+                                                      self.study.SUBJECT_ID),
+                                       self.study.SUBJECT_ID)
                 visit_it.iterables = [(
-                    pipeline.VISIT_ID,
+                    self.study.VISIT_ID,
                     {subj_ids[m]: [visit_ids[n] for n in row.nonzero()[0]]
                      for m, row in enumerate(to_process)})]
             else:
                 visit_it.iterables = (
-                    pipeline.VISIT_ID,
+                    self.study.VISIT_ID,
                     [visit_ids[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
-            iterators[pipeline.VISIT_ID] = visit_it
-        if dependent == pipeline.SUBJECT_ID:
-            pipeline.connect(visit_it, pipeline.VISIT_ID,
-                             subj_it, pipeline.VISIT_ID)
-        if dependent == pipeline.VISIT_ID:
-            pipeline.connect(subj_it, pipeline.SUBJECT_ID,
-                             visit_it, pipeline.SUBJECT_ID)
+            iterators[self.study.VISIT_ID] = visit_it
+        if dependent == self.study.SUBJECT_ID:
+            pipeline.connect(visit_it, self.study.VISIT_ID,
+                             subj_it, self.study.VISIT_ID)
+        if dependent == self.study.VISIT_ID:
+            pipeline.connect(subj_it, self.study.SUBJECT_ID,
+                             visit_it, self.study.SUBJECT_ID)
         return iterators
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,

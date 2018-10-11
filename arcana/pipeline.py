@@ -80,9 +80,6 @@ class Pipeline(object):
         List of scientific papers that describe the workflow and should be
         cited in publications that use it
     """
-    SUBJECT_ID = 'subject_id'
-    VISIT_ID = 'visit_id'
-    ITERFIELDS = (SUBJECT_ID, VISIT_ID)
 
     def __init__(self, study, name, modifications, desc=None, references=None):
         name, study, maps = self._unwrap_mods(modifications, name, study=study)
@@ -220,7 +217,7 @@ class Pipeline(object):
             If present, a MapNode will be created instead of a regular node
         joinsource : str
             Name of iterator field to join. Typically one of the implicit
-            iterators (i.e. Pipeline.SUBJECT_ID or Pipeline.VISIT_ID)
+            iterators (i.e. Study.SUBJECT_ID or Study.VISIT_ID)
             to join over the subjects and/or visits
         joinfield : str
             Name of field to pass the joined list when creating a JoinNode
@@ -255,7 +252,7 @@ class Pipeline(object):
                     "create a JoinNode (see {})".format(name,
                                                         self._error_msg_loc))
             joinsource = kwargs['joinsource']
-            if joinsource in self.ITERFIELDS:
+            if joinsource in self.study.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
             node_cls = JoinNode
             # Prepend name of pipeline of joinsource to match name of nodes
@@ -301,7 +298,7 @@ class Pipeline(object):
             conversion is performed. If None the file format in the data spec
             is assumed
         """
-        if spec_name in self.ITERFIELDS:
+        if spec_name in self.study.ITERFIELDS:
             if format is not None:
                 raise ArcanaDesignError(
                     "Format doesn't make sense to connect iterator input '{}' "
@@ -405,19 +402,19 @@ class Pipeline(object):
     @property
     def joins_subjects(self):
         "Iterators that are joined within the pipeline"
-        return self.SUBJECT_ID in self._iterator_joins
+        return self.study.SUBJECT_ID in self._iterator_joins
 
     @property
     def joins_visits(self):
         "Iterators that are joined within the pipeline"
-        return self.VISIT_ID in self._iterator_joins
+        return self.study.VISIT_ID in self._iterator_joins
 
     @property
     def input_frequencies(self):
         freqs = set(i.frequency for i in self.inputs)
-        if self.SUBJECT_ID in self._iterator_conns:
+        if self.study.SUBJECT_ID in self._iterator_conns:
             freqs.add('per_subject')
-        if self.VISIT_ID in self._iterator_conns:
+        if self.study.VISIT_ID in self._iterator_conns:
             freqs.add('per_visit')
         return freqs
 
@@ -470,10 +467,10 @@ class Pipeline(object):
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
         if frequency == 'per_subject':
-            input_names.append(self.SUBJECT_ID)
+            input_names.append(self.study.SUBJECT_ID)
         elif frequency == 'per_visit':
-            input_names.append(self.VISIT_ID)
-        for iterfield in self.ITERFIELDS:
+            input_names.append(self.study.VISIT_ID)
+        for iterfield in self.study.ITERFIELDS:
             if self.iterates_over(iterfield, frequency):
                 input_names.append(iterfield)
         if not input_names:
@@ -506,14 +503,14 @@ class Pipeline(object):
                 else:
                     self.connect(inputnode, input.name, node, node_in)
         # Connect iterator inputs
-        if frequency == 'per_subject' and (self.SUBJECT_ID in
+        if frequency == 'per_subject' and (self.study.SUBJECT_ID in
                                            self._iterator_conns):
-            for node, node_in in self._iterator_conns[self.SUBJECT_ID]:
-                self.connect(inputnode, self.SUBJECT_ID, node, node_in)
-        elif frequency == 'per_visit' and (self.VISIT_ID in
+            for node, node_in in self._iterator_conns[self.study.SUBJECT_ID]:
+                self.connect(inputnode, self.study.SUBJECT_ID, node, node_in)
+        elif frequency == 'per_visit' and (self.study.VISIT_ID in
                                            self._iterator_conns):
-            for node, node_in in self._iterator_conns[self.VISIT_ID]:
-                self.connect(inputnode, self.VISIT_ID, node, node_in)
+            for node, node_in in self._iterator_conns[self.study.VISIT_ID]:
+                self.connect(inputnode, self.study.VISIT_ID, node, node_in)
         return inputnode
 
     def outputnode(self, frequency):
@@ -628,16 +625,11 @@ class Pipeline(object):
             input_freqs = list(self.input_frequencies)
         else:
             input_freqs = [frequency]
-        if 'per_session' in input_freqs:
-            iterfields.update(self.ITERFIELDS)
-        if 'per_visit' in input_freqs:
-            iterfields.add(self.VISIT_ID)
-        if 'per_subject' in input_freqs:
-            iterfields.add(self.SUBJECT_ID)
+        for freq in input_freqs:
+            iterfields.update(self.study.frequencies[freq])
         return iterfields
 
-    @classmethod
-    def iterates_over(cls, iterfield, freq):
+    def iterates_over(self, iterfield, freq):
         """
         Checks to see if the given frequency requires iteration over the
         given iterfield
@@ -649,10 +641,7 @@ class Pipeline(object):
         freq : str
             The frequency to check
         """
-        assert iterfield in cls.ITERFIELDS
-        return (freq == 'per_session' or
-                freq == 'per_visit' and iterfield == cls.VISIT_ID or
-                freq == 'per_subject' and iterfield == cls.SUBJECT_ID)
+        return iterfield in self.study.frequencies[freq]
 
     def metadata_mismatch(self, item):
         """

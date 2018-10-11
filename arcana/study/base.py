@@ -12,7 +12,7 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseField, BaseFileset)
+    BaseData, BaseField, BaseFileset, BaseSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, SwitchSpec
 from arcana.node import Node
@@ -90,6 +90,15 @@ class Study(object):
     _parameter_specs = {}
 
     implicit_cls_attrs = ['_data_specs', '_parameter_specs']
+
+    SUBJECT_ID = 'subject_id'
+    VISIT_ID = 'visit_id'
+    ITERFIELDS = (SUBJECT_ID, VISIT_ID)
+    frequencies = {
+        'per_study': (),
+        'per_subject': (SUBJECT_ID,),
+        'per_visit': (VISIT_ID,),
+        'per_session': (SUBJECT_ID, VISIT_ID)}
 
     def __init__(self, name, repository, processor, inputs,
                  environment=None, parameters=None, subject_ids=None,
@@ -749,6 +758,26 @@ class Study(object):
         for spec in cls.parameter_specs():
             print(spec)
 
+    def input_provided(self, spec_name):
+        """
+        Checks to see whether the corresponding data spec was provided an
+        explicit input, as opposed to derivatives or missing optional inputs
+
+        Parameters
+        ----------
+        spec_name : str
+            Name of a data spec
+        """
+        try:
+            input = self.input(spec_name)  # @ReservedAssignment
+        except ArcanaNameError:
+            # Check to see whether the name is correct
+            self.data_spec(spec_name)
+            provided = False
+        else:
+            provided = not isinstance(input, BaseSpec)
+        return provided
+
 
 class StudyMetaClass(type):
     """
@@ -819,7 +848,7 @@ class StudyMetaClass(type):
                 "'{}' name both data and parameter specs in '{}' class"
                 .format("', '".join(spec_name_clashes), name))
         reserved_clashes = [n for n in combined_data_specs
-                            if n in Pipeline.ITERFIELDS]
+                            if n in Study.ITERFIELDS]
         if reserved_clashes:
             raise ArcanaDesignError(
                 "'{}' data spec names clash with reserved names"
