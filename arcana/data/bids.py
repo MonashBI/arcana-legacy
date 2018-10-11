@@ -1,5 +1,5 @@
 from arcana.exception import ArcanaFilesetSelectorError, ArcanaUsageError
-from .match import FilesetSelector
+from .selector import FilesetSelector
 
 
 class BidsAttrs(object):

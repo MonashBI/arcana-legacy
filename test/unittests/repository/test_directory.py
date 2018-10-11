@@ -5,7 +5,7 @@ import os.path as op  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, FilesetSpec, Field)  # @IgnorePep8
+    Fileset, AcquiredFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
 from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -15,11 +15,11 @@ from arcana.testing import BaseTestCase  # @IgnorePep8
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('source1', text_format),
-        FilesetSpec('source2', text_format),
-        FilesetSpec('source3', text_format),
-        FilesetSpec('source4', text_format,
-                    optional=True),
+        AcquiredFilesetSpec('source1', text_format),
+        AcquiredFilesetSpec('source2', text_format),
+        AcquiredFilesetSpec('source3', text_format),
+        AcquiredFilesetSpec('source4', text_format,
+                            optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),

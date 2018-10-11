@@ -1,9 +1,9 @@
 from unittest import TestCase
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
-from arcana.requirement import (
+from arcana.environment.requirement import (
     Requirement, split_version, date_split)
-from arcana.requirement import matlab_version_split
+from arcana.environment.requirement import matlab_version_split
 
 
 a_req = Requirement('a', min_version=(2, 0, 1))

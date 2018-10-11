@@ -88,7 +88,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
 
         Returns
         -------
-        project : arcana.repository.Tree
+        tree : arcana.repository.Tree
             A hierarchical tree of subject, session and fileset
             information for the repository
         """

@@ -1,12 +1,13 @@
 from nipype.interfaces.utility import Merge, Split
-from arcana.data import FilesetSpec, FilesetSelector, FieldSpec
+from arcana.data import (
+    AcquiredFilesetSpec, FilesetSpec, FilesetSelector, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exception import (ArcanaModulesNotInstalledException,
                               ArcanaError)
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
-from arcana.requirement import Requirement, ModulesRequirementManager
+from arcana.environment import Requirement, ModulesEnvironment
 from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
 
@@ -17,7 +18,7 @@ first_req = Requirement('mrtrix', min_version=(0, 15, 9))
 second_req = Requirement('dcm2niix', min_version=(1, 0, 2))
 
 try:
-    ModulesRequirementManager._run_module_cmd('avail')
+    ModulesEnvironment._run_module_cmd('avail')
 except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
@@ -27,7 +28,7 @@ else:
 class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
-        loaded_modules = ModulesRequirementManager.preloaded()
+        loaded_modules = ModulesEnvironment.preloaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "Mrtrix module was not loaded in Node")
@@ -40,7 +41,7 @@ class TestMathWithReq(TestMath):
 class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('ones', text_format),
+        AcquiredFilesetSpec('ones', text_format),
         FilesetSpec('twos', text_format, 'pipeline1'),
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
@@ -101,8 +102,7 @@ class TestModuleLoad(BaseTestCase):
     @property
     def processor(self):
         return LinearProcessor(
-            self.work_dir,
-            requirement_manager=ModulesRequirementManager())
+            self.work_dir)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")
@@ -111,7 +111,7 @@ class TestModuleLoad(BaseTestCase):
             RequirementsStudy, 'requirements',
             [FilesetSelector('ones', text_format, 'ones')])
         self.assertContentsEqual(study.data('twos'), 2.0)
-        self.assertEqual(ModulesRequirementManager.preloaded(), {})
+        self.assertEqual(ModulesEnvironment.preloaded(), {})
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")
@@ -123,4 +123,4 @@ class TestModuleLoad(BaseTestCase):
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
-        self.assertEqual(ModulesRequirementManager.preloaded(), {})
+        self.assertEqual(ModulesEnvironment.preloaded(), {})

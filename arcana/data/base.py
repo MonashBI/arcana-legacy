@@ -13,12 +13,14 @@ logger = getLogger('arcana')
 
 class BaseData(with_metaclass(ABCMeta, object)):
 
-    MULTIPLICITY_OPTIONS = ('per_session', 'per_subject', 'per_visit',
-                            'per_study')
+    VALID_FREQUENCIES = ('per_session', 'per_subject', 'per_visit',
+                         'per_study')
 
     def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         assert name is None or isinstance(name, basestring)
-        assert frequency in self.MULTIPLICITY_OPTIONS
+        if frequency not in self.VALID_FREQUENCIES:
+            raise ArcanaError(
+                "Unrecognised frequency '{}'".format(frequency))
         self._name = name
         self._frequency = frequency
 

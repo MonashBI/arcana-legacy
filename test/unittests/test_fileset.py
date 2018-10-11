@@ -9,7 +9,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.parameter import SwitchSpec  # @IgnorePep8
-from arcana.data import FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
+from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
 from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
 from arcana.exception import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
@@ -54,8 +54,8 @@ class TestFilesetSpecPickle(TestCase):
 class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('gre_phase', dicom_format),
-        FilesetSpec('gre_mag', dicom_format)]
+        AcquiredFilesetSpec('gre_phase', dicom_format),
+        AcquiredFilesetSpec('gre_mag', dicom_format)]
 
     def dummy_pipeline1(self):
         pass
@@ -79,11 +79,11 @@ class TestDicomTagMatch(BaseTestCase):
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
         FilesetSelector('gre_phase', dicom_format, GRE_PATTERN,
-                     dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
-                     is_regex=True),
+                        dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
+                        is_regex=True),
         FilesetSelector('gre_mag', dicom_format, GRE_PATTERN,
-                     dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
-                     is_regex=True)]
+                        dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
+                        is_regex=True)]
 
     INPUTS_FROM_REF_DIR = True
 
@@ -101,11 +101,11 @@ class TestDicomTagMatch(BaseTestCase):
             TestMatchStudy, 'test_dicom',
             inputs=[
                 FilesetSelector('gre_phase', dicom_format,
-                             pattern=self.GRE_PATTERN, order=1,
-                             is_regex=True),
+                                pattern=self.GRE_PATTERN, order=1,
+                                is_regex=True),
                 FilesetSelector('gre_mag', dicom_format,
-                             pattern=self.GRE_PATTERN, order=0,
-                             is_regex=True)])
+                                pattern=self.GRE_PATTERN, order=0,
+                                is_regex=True)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -115,8 +115,8 @@ class TestDicomTagMatch(BaseTestCase):
 class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('required', text_format),
-        FilesetSpec('optional', text_format, optional=True),
+        AcquiredFilesetSpec('required', text_format),
+        AcquiredFilesetSpec('optional', text_format, optional=True),
         FilesetSpec('derivable', text_format, 'pipeline1'),
         FilesetSpec('missing_input', text_format, 'pipeline2'),
         FilesetSpec('another_derivable', text_format, 'pipeline3'),
@@ -134,7 +134,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             'pipeline1',
             desc="",
             references=[],
-            mods=mods)
+            modifications=mods)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_output('derivable', identity, 'a')
@@ -145,7 +145,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             'pipeline2',
             desc="",
             references=[],
-            mods=mods)
+            modifications=mods)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('optional', identity, 'b')
@@ -153,14 +153,11 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **mods):
-        outputs = [FilesetSpec('another_derivable', text_format)]
-        if self.branch('switch'):
-            outputs.append(FilesetSpec('requires_switch', text_format))
         pipeline = self.pipeline(
             'pipeline3',
             desc="",
             references=[],
-            mods=mods)
+            modifications=mods)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
@@ -174,25 +171,18 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             'pipeline4',
             desc="",
             references=[],
-            mods=mods)
+            modifications=mods)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('requires_switch', identity, 'a')
         pipeline.connect_output('requires_switch2', identity, 'a')
         return pipeline
 
     def pipeline5(self, **mods):
-        outputs = []
-        if self.branch('branch', 'foo'):
-            outputs.append(FilesetSpec('requires_foo', text_format))
-        elif self.branch('branch', 'bar'):
-            outputs.append(FilesetSpec('requires_bar', text_format))
-        else:
-            self.unhandled_branch('branch')
         pipeline = self.pipeline(
             'pipeline5',
             desc="",
             references=[],
-            mods=mods)
+            modifications=mods)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         if self.branch('branch', 'foo'):

@@ -94,8 +94,7 @@ class Fileset(BaseItem, BaseFileset):
     name : str
         The name of the fileset
     format : FileFormat
-        The file format used to store the fileset. Can be one of the
-        recognised formats
+        The file format used to store the fileset.
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,

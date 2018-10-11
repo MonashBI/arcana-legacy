@@ -10,7 +10,7 @@ from arcana.data import (  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
-from arcana.data import FilesetSpec  # @IgnorePep8
+from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
@@ -18,10 +18,10 @@ from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('source1', text_format, optional=True),
-        FilesetSpec('source2', text_format, optional=True),
-        FilesetSpec('source3', text_format, optional=True),
-        FilesetSpec('source4', text_format, optional=True),
+        AcquiredFilesetSpec('source1', text_format, optional=True),
+        AcquiredFilesetSpec('source2', text_format, optional=True),
+        AcquiredFilesetSpec('source3', text_format, optional=True),
+        AcquiredFilesetSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),

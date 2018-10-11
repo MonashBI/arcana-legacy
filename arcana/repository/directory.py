@@ -140,6 +140,8 @@ class DirectoryRepository(BaseRepository):
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
         elif op.isdir(fileset.path):
+            if op.exists(target_path):
+                shutil.rmtree(target_path)
             shutil.copytree(fileset.path, target_path)
         else:
             assert False

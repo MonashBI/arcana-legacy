@@ -1,7 +1,7 @@
 import os
 import tempfile
 import os.path as op
-from arcana.data import FilesetSpec, FilesetSelector, Fileset
+from arcana.data import AcquiredFilesetSpec, FilesetSpec, FilesetSelector, Fileset
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
@@ -14,9 +14,9 @@ from future.utils import with_metaclass
 class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('text', text_format),
-        FilesetSpec('directory', directory_format),
-        FilesetSpec('zip', zip_format),
+        AcquiredFilesetSpec('text', text_format),
+        AcquiredFilesetSpec('directory', directory_format),
+        AcquiredFilesetSpec('zip', zip_format),
         FilesetSpec('text_from_text', text_format, 'conv_pipeline'),
         FilesetSpec('directory_from_zip_on_input', directory_format,
                     'conv_pipeline'),
@@ -30,7 +30,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
     def conv_pipeline(self, **mods):
         pipeline = self.pipeline(
             name='conv_pipeline',
-            mods=mods,
+            modifications=mods,
             desc=("A pipeline that tests out various data format "
                          "conversions"))
         # No conversion from text to text format
@@ -114,8 +114,7 @@ class TestFormatConversions(BaseTestCase):
         study = self.create_study(
             ConversionStudy, 'conversion', [
                 FilesetSelector('text', text_format, 'text'),
-                FilesetSelector('directory', directory_format,
-                             'directory'),
+                FilesetSelector('directory', directory_format, 'directory'),
                 FilesetSelector('zip', zip_format, 'zip')])
         self.assertCreated(list(study.data('text_from_text'))[0])
         self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])

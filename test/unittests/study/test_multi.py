@@ -1,6 +1,6 @@
 from arcana.testing import BaseTestCase, TestMath
 from arcana.interfaces.utils import Merge
-from arcana.data import FilesetSelector, FilesetSpec
+from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
 from arcana.data.file_format.standard import text_format
 from arcana.parameter import ParameterSpec
 from arcana.study.base import Study
@@ -13,8 +13,8 @@ from future.utils import with_metaclass
 class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('x', text_format),
-        FilesetSpec('y', text_format),
+        AcquiredFilesetSpec('x', text_format),
+        AcquiredFilesetSpec('y', text_format),
         FilesetSpec('z', text_format, 'pipeline_alpha')]
 
     add_parameter_specs = [
@@ -27,7 +27,7 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
             name='pipeline_alpha',
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            mods=mods)
+            modifications=mods)
         math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -42,8 +42,8 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
 class StudyB(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('w', text_format),
-        FilesetSpec('x', text_format),
+        AcquiredFilesetSpec('w', text_format),
+        AcquiredFilesetSpec('x', text_format),
         FilesetSpec('y', text_format, 'pipeline_beta'),
         FilesetSpec('z', text_format, 'pipeline_beta')]
 
@@ -58,7 +58,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
             name='pipeline_beta',
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            mods=mods)
+            modifications=mods)
         add1 = pipeline.add("add1", TestMath())
         add2 = pipeline.add("add2", TestMath())
         prod = pipeline.add("product", TestMath())
@@ -103,9 +103,9 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                       'required_op': 'product_op'})]
 
     add_data_specs = [
-        FilesetSpec('a', text_format),
-        FilesetSpec('b', text_format),
-        FilesetSpec('c', text_format),
+        AcquiredFilesetSpec('a', text_format),
+        AcquiredFilesetSpec('b', text_format),
+        AcquiredFilesetSpec('c', text_format),
         FilesetSpec('d', text_format, 'pipeline_alpha_trans'),
         FilesetSpec('e', text_format, 'pipeline_beta_trans'),
         FilesetSpec('f', text_format, 'pipeline_beta_trans')]
@@ -133,9 +133,9 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                      {'b': 'w', 'c': 'x', 'p1': 'o1'})]
 
     add_data_specs = [
-        FilesetSpec('a', text_format),
-        FilesetSpec('b', text_format),
-        FilesetSpec('c', text_format)]
+        AcquiredFilesetSpec('a', text_format),
+        AcquiredFilesetSpec('b', text_format),
+        AcquiredFilesetSpec('c', text_format)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -163,7 +163,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             references=[],
-            mods=mods)
+            modifications=mods)
         merge = pipeline.add("merge", Merge(3))
         math = pipeline.add("math", TestMath())
         math.inputs.op = self.parameter('combined_op')

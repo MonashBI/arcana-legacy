@@ -25,7 +25,7 @@ from arcana.repository.directory import DirectoryRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
 from arcana.data import (
-    FilesetSelector, FilesetSpec, FieldSpec)
+    FilesetSelector, AcquiredFilesetSpec, FilesetSpec, FieldSpec)
 from arcana.data.file_format import FileFormat
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.exception import ArcanaError
@@ -69,10 +69,10 @@ SKIP_ARGS = (SERVER is None,
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('source1', text_format),
-        FilesetSpec('source2', text_format, optional=True),
-        FilesetSpec('source3', text_format, optional=True),
-        FilesetSpec('source4', text_format, optional=True),
+        AcquiredFilesetSpec('source1', text_format),
+        AcquiredFilesetSpec('source2', text_format, optional=True),
+        AcquiredFilesetSpec('source3', text_format, optional=True),
+        AcquiredFilesetSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),
@@ -96,10 +96,10 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 class TestStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetSpec('fileset1', text_format),
-        FilesetSpec('fileset2', text_format, optional=True),
-        FilesetSpec('fileset3', text_format),
-        FilesetSpec('fileset5', text_format, optional=True)]
+        AcquiredFilesetSpec('fileset1', text_format),
+        AcquiredFilesetSpec('fileset2', text_format, optional=True),
+        AcquiredFilesetSpec('fileset3', text_format),
+        AcquiredFilesetSpec('fileset5', text_format, optional=True)]
 
 
 def ls_with_md5_filter(path):
@@ -509,7 +509,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[FilesetSelector(DATASET_NAME, text_format,
-                                 DATASET_NAME)])
+                                    DATASET_NAME)])
         source = study.source([study.input(DATASET_NAME)],
                                    name='delayed_source')
         source.inputs.subject_id = self.SUBJECT
