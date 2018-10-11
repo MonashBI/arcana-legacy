@@ -278,9 +278,9 @@ class BaseSpec(object):
             self.study._referenced_parameters = None
         if self.name not in pipeline.output_names:
             raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} class given the provided "
-                " switches ({}) and the missing inputs ('{}')".format(
-                    self.name, self.study.__class__.__name__,
+                "'{}' is not produced by {} pipeline in {} class given the "
+                "provided  switches ({}) and the missing inputs ('{}')".format(
+                    self.name, pipeline.name, self.study.__class__.__name__,
                     ', '.join('{}={}'.format(s.name, s.value)
                               for s in self.study.switches),
                     "', '".join(self.study.missing_inputs)))

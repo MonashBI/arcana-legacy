@@ -3,6 +3,7 @@ from arcana.interfaces.utils import Merge
 from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
 from arcana.data.file_format.standard import text_format
 from arcana.parameter import ParameterSpec
+from arcana.exception import ArcanaOutputNotProducedException
 from arcana.study.base import Study
 from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
@@ -320,6 +321,6 @@ class TestMulti(BaseTestCase):
              FilesetSelector('partial_c', text_format, 'ones')],
             parameters=[Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
-            RuntimeError,
+            ArcanaOutputNotProducedException,
             missing_parameter_study.data,
             'g')

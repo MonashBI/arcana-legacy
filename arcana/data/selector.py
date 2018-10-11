@@ -76,8 +76,6 @@ class BaseMatch(object):
         if self._study == study:
             bound = self
         else:
-            bound = copy(self)
-            bound._study = study
             # Use the default study repository if not explicitly
             # provided to match
             if self._repository is None:
@@ -87,7 +85,9 @@ class BaseMatch(object):
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
             # Match against tree
-            bound._match_tree(tree, **kwargs)
+            bound = copy(self)
+            bound._study = study
+            bound._collection = self.match(tree, **kwargs)
         return bound
 
     @property
@@ -101,7 +101,7 @@ class BaseMatch(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def _match_tree(self, tree, **kwargs):
+    def match(self, tree, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -114,7 +114,7 @@ class BaseMatch(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
-        self._collection = self.CollectionClass(
+        return self.CollectionClass(
             self.name, (self._match_node(n, **kwargs)
                         for n in nodes),
             frequency=self.frequency,
@@ -265,13 +265,13 @@ class FilesetSelector(BaseMatch, BaseFileset):
     def id(self):
         return self._id
 
-    def match(self, study, **kwargs):
+    def bind(self, study, **kwargs):
         with ExitStack() as stack:
             # If dicom tags are used to match against then a connection
             # to the repository may be required to query them.
-            if self.dicom_tags is not None:
-                stack.enter(study.repository)
-            super(FilesetSelector, self).match(study, **kwargs)
+            if self.dicom_tags is not None and self._study != study:
+                stack.enter_context(study.repository)
+            return super(FilesetSelector, self).bind(study, **kwargs)
 
     @property
     def dicom_tags(self):
