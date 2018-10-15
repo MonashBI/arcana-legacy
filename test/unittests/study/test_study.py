@@ -334,11 +334,11 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
         FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
-    def pipeline_factory(self, incr, input, output, modifications):  # @ReservedAssignment
+    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment
         pipeline = self.pipeline(
             name=output,
             desc="A dummy pipeline used to test 'partial-complete' method",
-            references=[], modifications=modifications)
+            references=[], name_maps=name_maps)
         # Nodes
         math = pipeline.add("math", TestMath())
         math.inputs.y = incr

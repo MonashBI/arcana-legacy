@@ -31,7 +31,7 @@ class Pipeline(object):
         The study from which the pipeline was created
     name : str
         The name of the pipeline
-    modifications : dict
+    name_maps : dict
         A dictionary containing several modifying keyword arguments that
         manipulate way the pipeline is constructed (e.g. map inputs and outputs
         to new entries in the data specification table). Typically names of
@@ -68,7 +68,7 @@ class Pipeline(object):
         output_map : str | dict[str,str]
             Same as the input map but applied to outputs instead of inputs to
             the pipeline.
-        modifications : dict
+        name_maps : dict
             Modifications from nested pipeline constructors
         study : Study
             A different study to bind the pipeline to from the one containing
@@ -81,8 +81,8 @@ class Pipeline(object):
         cited in publications that use it
     """
 
-    def __init__(self, study, name, modifications, desc=None, references=None):
-        name, study, maps = self._unwrap_mods(modifications, name, study=study)
+    def __init__(self, study, name, name_maps, desc=None, references=None):
+        name, study, maps = self._unwrap_mods(name_maps, name, study=study)
         self._name = name
         self._input_map = maps.get('input_map', None)
         self._output_map = maps.get('output_map', None)
@@ -670,7 +670,7 @@ class Pipeline(object):
         Parameters
         ----------
         mods : dict
-            A dictionary containing the modifications to apply to the values
+            A dictionary containing the name_maps to apply to the values
         name : str
             Name passed from inner pipeline constructor
         study : Study
@@ -688,7 +688,7 @@ class Pipeline(object):
         maps : dict[str, dict[str,str]]
             Potentially modifed input and output maps
         """
-        # Unwrap nested modifications if present
+        # Unwrap nested name_maps if present
         if 'name' in mods:
             name = mods['name']
         if 'prefix' in mods:
