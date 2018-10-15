@@ -23,12 +23,12 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o2', '2'),
         ParameterSpec('o3', 3.0)]
 
-    def pipeline_alpha(self, **mods):  # @UnusedVariable
+    def pipeline_alpha(self, **name_maps):  # @UnusedVariable
         pipeline = self.pipeline(
             name='pipeline_alpha',
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -54,12 +54,12 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o3', 30.0),
         ParameterSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
 
-    def pipeline_beta(self, **mods):  # @UnusedVariable
+    def pipeline_beta(self, **name_maps):  # @UnusedVariable
         pipeline = self.pipeline(
             name='pipeline_beta',
             desc="A dummy pipeline used to test MultiStudy class",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         add1 = pipeline.add("add1", TestMath())
         add2 = pipeline.add("add2", TestMath())
         prod = pipeline.add("product", TestMath())
@@ -158,13 +158,13 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
     add_param_specs = [
         ParameterSpec('combined_op', 'add')]
 
-    def combined_pipeline(self, **mods):
+    def combined_pipeline(self, **name_maps):
         pipeline = self.pipeline(
             name='combined',
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         merge = pipeline.add("merge", Merge(3))
         math = pipeline.add("math", TestMath())
         math.inputs.op = self.parameter('combined_op')

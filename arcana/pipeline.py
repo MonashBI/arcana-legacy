@@ -42,7 +42,7 @@ class Pipeline(object):
         It should be passed directly from wildcard keyword args passed to the
         pipeline constructor, e.g.
 
-        def my_pipeline(**mods):
+        def my_pipeline(**name_maps):
             pipeline = self.pipeline('my_pipeline', mods)
             pipeline.add('a_node', MyInterface())
 

@@ -27,10 +27,10 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('zip_from_directory_on_output', zip_format,
                     'conv_pipeline')]
 
-    def conv_pipeline(self, **mods):
+    def conv_pipeline(self, **name_maps):
         pipeline = self.pipeline(
             name='conv_pipeline',
-            modifications=mods,
+            name_maps=name_maps,
             desc=("A pipeline that tests out various data format "
                          "conversions"))
         # No conversion from text to text format

@@ -129,35 +129,35 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         SwitchSpec('switch', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
-    def pipeline1(self, **mods):
+    def pipeline1(self, **name_maps):
         pipeline = self.pipeline(
             'pipeline1',
             desc="",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_output('derivable', identity, 'a')
         return pipeline
 
-    def pipeline2(self, **mods):
+    def pipeline2(self, **name_maps):
         pipeline = self.pipeline(
             'pipeline2',
             desc="",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('optional', identity, 'b')
         pipeline.connect_output('missing_input', identity, 'a')
         return pipeline
 
-    def pipeline3(self, **mods):
+    def pipeline3(self, **name_maps):
         pipeline = self.pipeline(
             'pipeline3',
             desc="",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
         pipeline.connect_input('required', identity, 'b')
@@ -166,23 +166,23 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
             pipeline.connect_output('requires_switch', identity, 'b')
         return pipeline
 
-    def pipeline4(self, **mods):
+    def pipeline4(self, **name_maps):
         pipeline = self.pipeline(
             'pipeline4',
             desc="",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('requires_switch', identity, 'a')
         pipeline.connect_output('requires_switch2', identity, 'a')
         return pipeline
 
-    def pipeline5(self, **mods):
+    def pipeline5(self, **name_maps):
         pipeline = self.pipeline(
             'pipeline5',
             desc="",
             references=[],
-            modifications=mods)
+            name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
         if self.branch('branch', 'foo'):

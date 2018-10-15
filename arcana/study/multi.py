@@ -184,16 +184,16 @@ class MultiStudy(Study):
         assert isinstance(sub_study_name, basestring)
         assert isinstance(pipeline_name, basestring)
 
-        def translated_getter(self, **mods):
+        def translated_getter(self, **name_maps):
             sub_study_spec = self.sub_study_spec(sub_study_name)
             # Invert name map in sub-study spec
-            name_map = {v: k for k, v in sub_study_spec.name_map.items()}
+            inv_ss_name_map = {v: k for k, v in sub_study_spec.name_map.items()}
             # Combine mapping of names of sub-study specs with
             return getattr(self.sub_study(sub_study_name), pipeline_name)(
                 prefix=sub_study_name + '_',
-                input_map=name_map,
-                output_map=name_map,
-                study=self, modifications=mods)
+                input_map=inv_ss_name_map,
+                output_map=inv_ss_name_map,
+                study=self, name_maps=name_maps)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter
