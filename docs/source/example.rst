@@ -27,7 +27,7 @@ A basic toy example
                         'subject_summary_pipeline',
                         frequency='per_subject')]
     
-        add_parameter_specs = [
+        add_param_specs = [
             ParameterSpec('pipeline_option', False)]
     
         def pipeline1(self, **kwargs):

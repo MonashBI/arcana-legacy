@@ -18,7 +18,7 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         AcquiredFilesetSpec('y', text_format),
         FilesetSpec('z', text_format, 'pipeline_alpha')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('o1', 1),
         ParameterSpec('o2', '2'),
         ParameterSpec('o3', 3.0)]
@@ -48,7 +48,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('y', text_format, 'pipeline_beta'),
         FilesetSpec('z', text_format, 'pipeline_beta')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('o1', 10),
         ParameterSpec('o2', '20'),
         ParameterSpec('o3', 30.0),
@@ -111,7 +111,7 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         FilesetSpec('e', text_format, 'pipeline_beta_trans'),
         FilesetSpec('f', text_format, 'pipeline_beta_trans')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('p1', 100),
         ParameterSpec('p2', '200'),
         ParameterSpec('p3', 300.0),
@@ -141,7 +141,7 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('p1', 1000)]
 
 
@@ -155,7 +155,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
     add_data_specs = [
         FilesetSpec('g', text_format, 'combined_pipeline')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('combined_op', 'add')]
 
     def combined_pipeline(self, **mods):

@@ -55,7 +55,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **mods):
