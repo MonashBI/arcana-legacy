@@ -94,7 +94,7 @@ class Study(object):
     SUBJECT_ID = 'subject_id'
     VISIT_ID = 'visit_id'
     ITERFIELDS = (SUBJECT_ID, VISIT_ID)
-    frequencies = {
+    FREQUENCIES = {
         'per_study': (),
         'per_subject': (SUBJECT_ID,),
         'per_visit': (VISIT_ID,),

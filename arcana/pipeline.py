@@ -299,11 +299,7 @@ class Pipeline(object):
             is assumed
         """
         if spec_name in self.study.ITERFIELDS:
-            if format is not None:
-                raise ArcanaDesignError(
-                    "Format doesn't make sense to connect iterator input '{}' "
-                    "in {}".format(spec_name, self._error_msg_loc))
-            self._iterator_conns[spec_name].append((node, node_input))
+            self._iterator_conns[spec_name].append((node, node_input, format))
         else:
             name = self._map_name(spec_name, self._input_map)
             if name not in self.study.data_spec_names():
@@ -466,13 +462,14 @@ class Pipeline(object):
         # Get list of input names for the requested frequency, addding fields
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
-        if frequency == 'per_subject':
-            input_names.append(self.study.SUBJECT_ID)
-        elif frequency == 'per_visit':
-            input_names.append(self.study.VISIT_ID)
-        for iterfield in self.study.ITERFIELDS:
-            if self.iterates_over(iterfield, frequency):
-                input_names.append(iterfield)
+        input_names.extend(self.study.FREQUENCIES[frequency])
+#         if frequency == 'per_subject':
+#             input_names.append(self.study.SUBJECT_ID)
+#         elif frequency == 'per_visit':
+#             input_names.append(self.study.VISIT_ID)
+#         for iterfield in self.study.ITERFIELDS:
+#             if self.iterates_over(iterfield, frequency):
+#                 input_names.append(iterfield)
         if not input_names:
             raise ArcanaError(
                 "No inputs to '{}' pipeline for requested freqency '{}'"
@@ -503,14 +500,12 @@ class Pipeline(object):
                 else:
                     self.connect(inputnode, input.name, node, node_in)
         # Connect iterator inputs
-        if frequency == 'per_subject' and (self.study.SUBJECT_ID in
-                                           self._iterator_conns):
-            for node, node_in in self._iterator_conns[self.study.SUBJECT_ID]:
-                self.connect(inputnode, self.study.SUBJECT_ID, node, node_in)
-        elif frequency == 'per_visit' and (self.study.VISIT_ID in
-                                           self._iterator_conns):
-            for node, node_in in self._iterator_conns[self.study.VISIT_ID]:
-                self.connect(inputnode, self.study.VISIT_ID, node, node_in)
+        for iterfield, conns in self._iterator_conns.items():
+            # Check to see if this is the right frequency for the iterator
+            # input, i.e. if it is the only iterfield for this frequency
+            if self.study.FREQUENCIES[frequency] == (iterfield,):
+                for (node, node_in, format) in conns:  # @ReservedAssignment
+                    self.connect(inputnode, iterfield, node, node_in)
         return inputnode
 
     def outputnode(self, frequency):
@@ -626,7 +621,7 @@ class Pipeline(object):
         else:
             input_freqs = [frequency]
         for freq in input_freqs:
-            iterfields.update(self.study.frequencies[freq])
+            iterfields.update(self.study.FREQUENCIES[freq])
         return iterfields
 
     def iterates_over(self, iterfield, freq):
@@ -641,7 +636,7 @@ class Pipeline(object):
         freq : str
             The frequency to check
         """
-        return iterfield in self.study.frequencies[freq]
+        return iterfield in self.study.FREQUENCIES[freq]
 
     def metadata_mismatch(self, item):
         """
