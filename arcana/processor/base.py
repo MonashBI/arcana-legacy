@@ -127,10 +127,11 @@ class BaseProcessor(object):
         session_ids = kwargs.pop('session_ids', [])
         clean_work_dir = kwargs.pop('clean_work_dir',
                                     self._clean_work_dir_between_runs)
-        if clean_work_dir:
-            self._clean_work_dir()
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
+        # Clean work dir if required
+        if clean_work_dir:
+            shutil.rmtree(op.join(self.work_dir, name))
         # Trim the end of very large names to avoid problems with
         # workflow names exceeding system limits.
         name = name[:WORKFLOW_MAX_NAME_LEN]
@@ -611,11 +612,3 @@ class BaseProcessor(object):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._init_plugin()
-
-    def _clean_work_dir(self):
-        for basename in os.listdir(self.work_dir):
-            path = op.join(self.work_dir, basename)
-            if op.isdir(path):
-                shutil.rmtree(path)
-            else:
-                os.remove(path)

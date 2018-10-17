@@ -54,8 +54,8 @@ class MultiStudy(Study):
         sub-study e.g.
 
             add_sub_study_specs = [
-                SubStudySpec('t1_study', MRIStudy, {'t1': 'mr_scan'}),
-                SubStudySpec('t2_study', MRIStudy, {'t2': 'mr_scan'})]
+                SubStudySpec('t1_study', MriStudy, {'t1': 'mr_scan'}),
+                SubStudySpec('t2_study', MriStudy, {'t2': 'mr_scan'})]
 
             add_data_specs = [
                 FilesetSpec('t1', text_format'),

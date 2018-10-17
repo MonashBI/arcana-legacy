@@ -77,12 +77,16 @@ class ParameterSpec(Parameter):
         default value
     """
 
-    def __init__(self, name, default, desc=None, dtype=None):
+    def __init__(self, name, default, desc=None, dtype=None,
+                 array=False):
         super(ParameterSpec, self).__init__(name, default)
         self._desc = desc
+        self._array = array
         if dtype is not None:
-            if self.default is not None and not isinstance(self.default,
-                                                           dtype):
+            if self.default is not None and (
+                not array and not isinstance(self.default, dtype) or
+                array and any(not isinstance(d, dtype)
+                              for d in self.default)):
                 raise ArcanaUsageError(
                     "Provided default value ({}) does not match explicit "
                     "dtype ({})".format(self.default, dtype))
@@ -91,6 +95,10 @@ class ParameterSpec(Parameter):
     @property
     def name(self):
         return self._name
+
+    @property
+    def array(self):
+        return self._array
 
     @property
     def default(self):
@@ -106,13 +114,17 @@ class ParameterSpec(Parameter):
 
     def check_valid(self, parameter, context=None):
         if parameter.value is not None:
-            context = 'in ' + context if context is not None else ''
-            if not isinstance(parameter.value, self.dtype):
-                raise ArcanaUsageError(
-                    "Incorrect datatype for '{}' parameter provided "
-                    "({}){}, Should be {}"
-                    .format(parameter.name, type(parameter.value),
-                            context, self.dtype))
+            error_msg = (
+                "Incorrect datatype for '{}' parameter provided "
+                "({}){}, Should be {}"
+                .format(parameter.name, type(parameter.value),
+                        'in ' + context if context is not None else '',
+                        self.dtype))
+            if self.array:
+                if any(not isinstance(v, self.dtype) for v in parameter.value):
+                    raise ArcanaUsageError(error_msg + ' array')
+            elif not isinstance(parameter.value, self.dtype):
+                raise ArcanaUsageError(error_msg)
 
 
 class SwitchSpec(ParameterSpec):
