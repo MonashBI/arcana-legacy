@@ -570,7 +570,7 @@ class Pipeline(object):
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))
 
-    def save_graph(self, fname, style='flat'):
+    def save_graph(self, fname, style='flat', format='png', **kwargs):
         """
         Saves a graph of the pipeline to file
 
@@ -591,14 +591,15 @@ class Pipeline(object):
         tmpdir = tempfile.mkdtemp()
         os.chdir(tmpdir)
         workflow = self._workflow
-        workflow.write_graph(graph2use=style)
+        workflow.write_graph(graph2use=style, format=format, **kwargs)
         os.chdir(orig_dir)
         try:
-            shutil.move(os.path.join(tmpdir, 'graph_detailed.png'),
-                        fname)
+            shutil.move(os.path.join(tmpdir, 'graph_detailed.{}'
+                                     .format(format)), fname)
         except IOError as e:
             if e.errno == errno.ENOENT:
-                shutil.move(os.path.join(tmpdir, 'graph.png'), fname)
+                shutil.move(os.path.join(tmpdir, 'graph.{}'.format(format)),
+                            fname)
             else:
                 raise
         shutil.rmtree(tmpdir)
