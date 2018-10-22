@@ -1,6 +1,8 @@
+from past.builtins import basestring
+from future.utils import PY3, PY2
 import os.path
 import errno
-from future.utils import PY3, PY2
+from arcana.exception import ArcanaUsageError
 if PY2:
     from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
 else:
@@ -83,3 +85,49 @@ if PY3:
     JSON_ENCODING = {'encoding': 'utf-8'}
 else:
     JSON_ENCODING = {}
+
+
+def parse_single_value(value):
+    """
+    Tries to convert to int, float and then gives up and assumes the value
+    is of type string. Useful when excepting values that may be string
+    representations of numerical values
+    """
+    if isinstance(value, (int, float)):
+        return value
+    try:
+        value = int(value)
+    except ValueError:
+        try:
+            value = float(value)
+        except ValueError:
+            if not isinstance(value, basestring):
+                raise ArcanaUsageError(
+                    "Unrecognised value type {}".format(value))
+    return value
+
+
+def parse_value(value):
+    # Split strings with commas into lists
+    if ',' in value:
+        value = value.split(',')
+    # Cast all iterables (except strings) into lists
+    if not isinstance(value, basestring):
+        try:
+            value = list(value)
+        except TypeError:
+            pass
+    if isinstance(value, list):
+        value = [parse_single_value(v) for v in value]
+        # Check to see if datatypes are consistent
+        dtypes = set(type(v) for v in value)
+        if dtypes == set((float, int)):
+            # If both ints and floats are presents, cast to floats
+            value = [float(v) for v in value]
+        elif len(dtypes) > 1:
+            raise ArcanaUsageError(
+                "Inconsistent datatypes in values array ({})"
+                .format(value))
+    else:
+        value = parse_single_value(value)
+    return value

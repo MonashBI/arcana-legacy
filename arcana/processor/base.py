@@ -131,7 +131,9 @@ class BaseProcessor(object):
         name = '_'.join(p.name for p in pipelines)
         # Clean work dir if required
         if clean_work_dir:
-            shutil.rmtree(op.join(self.work_dir, name))
+            workflow_work_dir = op.join(self.work_dir, name)
+            if op.exists(workflow_work_dir):
+                shutil.rmtree(workflow_work_dir)
         # Trim the end of very large names to avoid problems with
         # workflow names exceeding system limits.
         name = name[:WORKFLOW_MAX_NAME_LEN]

@@ -1,10 +1,9 @@
 from builtins import str
-from past.builtins import basestring
 import os.path
 import pydicom
 from arcana.data.file_format import FileFormat
 from arcana.data.file_format.standard import directory_format
-from arcana.utils import split_extension
+from arcana.utils import split_extension, parse_single_value
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
     ArcanaFileFormatNotRegisteredError, ArcanaNameError)
@@ -414,7 +413,7 @@ class Field(BaseItem, BaseField):
                 array = False
             if dtype is None:
                 if array:
-                    dtypes = set(self._get_dtype(v) for v in value)
+                    dtypes = set(type(parse_single_value(v)) for v in value)
                     if dtypes == set((int, float)):
                         dtype = float  # Cast stray ints to float
                     elif len(dtypes) > 1:
@@ -424,7 +423,7 @@ class Field(BaseItem, BaseField):
                     else:
                         dtype = next(iter(dtypes))
                 else:
-                    dtype = self._get_dtype(value)
+                    dtype = type(parse_single_value(value))
             # Ensure everything is cast to the correct type
             if array:
                 value = [dtype(v) for v in value]
@@ -434,38 +433,6 @@ class Field(BaseItem, BaseField):
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists)
         self._value = value
-
-    def _get_dtype(self, value):
-        if isinstance(value, int):
-            dtype = int
-        elif isinstance(value, float):
-            dtype = float
-        elif isinstance(value, basestring):
-            # Attempt to implicitly convert from string
-            try:
-                value = int(value)
-            except ValueError:
-                try:
-                    value = float(value)
-                except ValueError:
-                    dtype = str
-                else:
-                    dtype = float
-            else:
-                dtype = int
-        return dtype
-
-    def _get_dtypes(self, values):
-        try:
-            values = list(values)
-        except TypeError:
-            raise ArcanaUsageError(
-                "Expected array value for field '{}' but got {}"
-                .format(self.name, values))
-        else:
-            dtypes = [self._get_dtype(v) for v in values]
-            if any(dtypes != dtypes[0]):
-                raise 
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
