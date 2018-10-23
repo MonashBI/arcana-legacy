@@ -49,8 +49,6 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
     def pipeline1(self):
         pipeline = self.pipeline(
             name='pipeline1',
-            inputs=[FilesetSpec('ones', text_format)],
-            outputs=[FilesetSpec('twos', text_format)],
             desc=("A pipeline that tests loading of requirements"),
             references=[],)
         # Convert from DICOM to NIfTI.gz format on input
@@ -61,17 +59,13 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         maths.inputs.op = 'add'
         maths.inputs.as_file = True
         maths.inputs.y = 1
-        pipeline.connect_input('ones', maths, 'x')
-        pipeline.connect_output('twos', maths, 'z')
+        pipeline.connect_input('ones', maths, 'x', text_format)
+        pipeline.connect_output('twos', maths, 'z', text_format)
         return pipeline
 
     def pipeline2(self):
         pipeline = self.pipeline(
             name='pipeline2',
-            inputs=[FilesetSpec('ones', text_format),
-                    FilesetSpec('twos', text_format)],
-            outputs=[FieldSpec('threes', float),
-                     FieldSpec('fours', float)],
             desc=("A pipeline that tests loading of requirements in "
                   "map nodes"),
             references=[],)
@@ -86,12 +80,12 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         split.inputs.squeeze = True
         maths.inputs.op = 'add'
         maths.inputs.y = 2
-        pipeline.connect_input('ones', merge, 'in1')
-        pipeline.connect_input('twos', merge, 'in2')
+        pipeline.connect_input('ones', merge, 'in1', text_format)
+        pipeline.connect_input('twos', merge, 'in2', text_format)
         pipeline.connect(merge, 'out', maths, 'x')
         pipeline.connect(maths, 'z', split, 'inlist')
-        pipeline.connect_output('threes', split, 'out1')
-        pipeline.connect_output('fours', split, 'out2')
+        pipeline.connect_output('threes', split, 'out1', text_format)
+        pipeline.connect_output('fours', split, 'out2', text_format)
         return pipeline
 
 
