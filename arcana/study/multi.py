@@ -54,8 +54,8 @@ class MultiStudy(Study):
         sub-study e.g.
 
             add_sub_study_specs = [
-                SubStudySpec('t1_study', MriStudy, {'t1': 'mr_scan'}),
-                SubStudySpec('t2_study', MriStudy, {'t2': 'mr_scan'})]
+                SubStudySpec('t1_study', T1Study, {'magnitude': 't1'}),
+                SubStudySpec('t2_study', T2Study, {'magnitude': 't2'})]
 
             add_data_specs = [
                 FilesetSpec('t1', text_format'),
@@ -94,7 +94,7 @@ class MultiStudy(Study):
             # Map inputs, data_specs to the sub_study
             mapped_inputs = {}
             for data_name in sub_study_cls.data_spec_names():
-                mapped_name = sub_study_spec.inverse_map(data_name)
+                mapped_name = sub_study_spec.map(data_name)
                 if mapped_name in self.input_names:
                     mapped_inputs[data_name] = self.input(mapped_name)
                 else:
@@ -108,7 +108,7 @@ class MultiStudy(Study):
             # Map parameters to the sub_study
             mapped_parameters = {}
             for param_name in sub_study_cls.parameter_spec_names():
-                mapped_name = sub_study_spec.inverse_map(param_name)
+                mapped_name = sub_study_spec.map(param_name)
                 parameter = self._get_parameter(mapped_name)
                 mapped_parameters[param_name] = parameter
             # Create sub-study
@@ -186,13 +186,11 @@ class MultiStudy(Study):
 
         def translated_getter(self, **name_maps):
             sub_study_spec = self.sub_study_spec(sub_study_name)
-            # Invert name map in sub-study spec
-            inv_ss_name_map = {v: k for k, v in sub_study_spec.name_map.items()}
             # Combine mapping of names of sub-study specs with
             return getattr(self.sub_study(sub_study_name), pipeline_name)(
                 prefix=sub_study_name + '_',
-                input_map=inv_ss_name_map,
-                output_map=inv_ss_name_map,
+                input_map=sub_study_spec.name_map,
+                output_map=sub_study_spec.name_map,
                 study=self, name_maps=name_maps)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
@@ -210,11 +208,10 @@ class SubStudySpec(object):
     study_class : type (sub-classed from Study)
         The class of the sub-study
     name_map : dict[str, str]
-        A mapping of fileset/field/parameter names from the MultiStudy
-        scope to the scopy of the sub-study (i.e. the _data_specs dict
-        in the class of the sub-study). All data-specs that are not
-        explicitly provided in this mapping are auto-translated using
-        the sub-study prefix.
+        A mapping of fileset/field/parameter names from the sub-study
+        namespace to the namespace of the MultiStudy. All data-specs
+        that are not explicitly mapped are auto-translated using
+        the sub-study prefix (name + '_').
     """
 
     def __init__(self, name, study_class, name_map=None):
@@ -223,7 +220,6 @@ class SubStudySpec(object):
         # Fill fileset map with default values before overriding with
         # argument provided to constructor
         self._name_map = name_map if name_map is not None else {}
-        self._inv_map = dict((v, k) for k, v in list(self._name_map.items()))
 
     @property
     def name(self):
@@ -240,7 +236,7 @@ class SubStudySpec(object):
 
     @property
     def name_map(self):
-        nmap = dict((self.apply_prefix(s.name), s.name)
+        nmap = dict((s.name, self.apply_prefix(s.name))
                     for s in self.auto_data_specs)
         nmap.update(self._name_map)
         return nmap
@@ -249,43 +245,18 @@ class SubStudySpec(object):
         try:
             return self._name_map[name]
         except KeyError:
-            mapped = self.strip_prefix(name)
-            if mapped not in self.study_class.spec_names():
-                raise ArcanaNameError(
-                    name,
-                    "'{}' has a matching prefix '{}_' but '{}' doesn't"
-                    " match any filesets, fields, parameters "
-                    "in the study class {} ('{}')"
-                    .format(name, self.name, mapped,
-                            self.study_class.__name__,
-                            "', '".join(self.study_class.spec_names())))
-            return mapped
-
-    def inverse_map(self, name):
-        try:
-            return self._inv_map[name]
-        except KeyError:
             if name not in self.study_class.spec_names():
                 raise ArcanaNameError(
                     name,
-                    "'{}' doesn't match any filesets, fields, "
-                    "or parameters in the study class {} ('{}')"
-                    .format(name, self.study_class.__name__,
-                            "', '".join(
-                                self.study_class.spec_names())))
+                    "'{}' doesn't match any filesets, fields, parameters "
+                    "in the study class {} ('{}')"
+                    .format(name, self.name,
+                            self.study_class.__name__,
+                            "', '".join(self.study_class.spec_names())))
             return self.apply_prefix(name)
 
     def apply_prefix(self, name):
         return self.name + '_' + name
-
-    def strip_prefix(self, name):
-        if not name.startswith(self.name + '_'):
-            raise ArcanaNameError(
-                name,
-                "'{}' is not explicitly provided in SubStudySpec "
-                "name map and doesn't start with the SubStudySpec "
-                "prefix '{}_'".format(name, self.name))
-        return name[len(self.name) + 1:]
 
     @property
     def auto_data_specs(self):
@@ -294,7 +265,7 @@ class SubStudySpec(object):
         in the name map
         """
         for spec in self.study_class.data_specs():
-            if spec.name not in self._inv_map:
+            if spec.name not in self._name_map:
                 yield spec
 
     @property
@@ -304,7 +275,7 @@ class SubStudySpec(object):
         in the name map
         """
         for spec in self.study_class.parameter_specs():
-            if spec.name not in self._inv_map:
+            if spec.name not in self._name_map:
                 yield spec
 
 
@@ -381,8 +352,8 @@ class MultiStudyMetaClass(StudyMetaClass):
         for sub_study_spec in list(sub_study_specs.values()):
             local_spec_names = list(
                 sub_study_spec.study_class.spec_names())
-            for (global_name,
-                 local_name) in sub_study_spec._name_map.items():
+            for (local_name,
+                 global_name) in sub_study_spec._name_map.items():
                 if local_name not in local_spec_names:
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"

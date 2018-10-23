@@ -88,21 +88,21 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
-                     {'a': 'x',
-                      'b': 'y',
-                      'd': 'z',
-                      'p1': 'o1',
-                      'p2': 'o2',
-                      'p3': 'o3'}),
+                     {'x': 'a',
+                      'y': 'b',
+                      'z': 'd',
+                      'o1': 'p1',
+                      'o2': 'p2',
+                      'o3': 'p3'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w',
-                      'c': 'x',
-                      'e': 'y',
-                      'f': 'z',
-                      'q1': 'o1',
-                      'q2': 'o2',
-                      'p3': 'o3',
-                      'required_op': 'product_op'})]
+                     {'w': 'b',
+                      'x': 'c',
+                      'y': 'e',
+                      'z': 'f',
+                      'o1': 'q1',
+                      'o2': 'q2',
+                      'o3': 'p3',
+                      'product_op': 'required_op'})]
 
     add_data_specs = [
         AcquiredFilesetSpec('a', text_format),
@@ -130,9 +130,9 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
         SubStudySpec('ss1', StudyA,
-                     {'a': 'x', 'b': 'y', 'p1': 'o1'}),
+                     {'x': 'a', 'y': 'b', 'o1': 'p1'}),
         SubStudySpec('ss2', StudyB,
-                     {'b': 'w', 'c': 'x', 'p1': 'o1'})]
+                     {'w': 'b', 'x': 'c', 'o1': 'p1'})]
 
     add_data_specs = [
         AcquiredFilesetSpec('a', text_format),
@@ -149,7 +149,7 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
     add_sub_study_specs = [
-        SubStudySpec('ss1', StudyA, {}),
+        SubStudySpec('ss1', StudyA),
         SubStudySpec('full', FullMultiStudy),
         SubStudySpec('partial', PartialMultiStudy)]
 
@@ -192,15 +192,6 @@ class TestMulti(BaseTestCase):
              FilesetSelector('b', text_format, 'ones'),
              FilesetSelector('c', text_format, 'ones')],
             parameters=[Parameter('required_op', 'mul')])
-#         study.save_workflow_graph_for('d',
-#                                       '/Users/tclose/Desktop/d.graph',
-#                                       full=True)
-#         study.save_workflow_graph_for('e',
-#                                       '/Users/tclose/Desktop/e.graph',
-#                                       full=True)
-#         study.save_workflow_graph_for('f',
-#                                       '/Users/tclose/Desktop/f.graph',
-#                                       full=True)
         d, e, f = study.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
