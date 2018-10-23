@@ -70,7 +70,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
                   "map nodes"),
             name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
-        merge = pipeline.create_node(Merge(2), "merge")
+        merge = pipeline.add("merge", Merge(2))
         maths = pipeline.add(
             "maths", TestMathWithReq(), iterfield='x', requirements=[
                 (notinstalled1_req, notinstalled2_req,
