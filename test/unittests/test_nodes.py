@@ -46,11 +46,11 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
 
-    def pipeline1(self):
+    def pipeline1(self, **name_maps):
         pipeline = self.pipeline(
             name='pipeline1',
             desc=("A pipeline that tests loading of requirements"),
-            references=[],)
+            name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.create_node(
             TestMathWithReq(), "maths", requirements=[
@@ -63,12 +63,12 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('twos', maths, 'z', text_format)
         return pipeline
 
-    def pipeline2(self):
+    def pipeline2(self, **name_maps):
         pipeline = self.pipeline(
             name='pipeline2',
             desc=("A pipeline that tests loading of requirements in "
                   "map nodes"),
-            references=[],)
+            name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
         merge = pipeline.create_node(Merge(2), "merge")
         maths = pipeline.create_map_node(
