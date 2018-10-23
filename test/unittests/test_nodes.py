@@ -52,8 +52,8 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             desc=("A pipeline that tests loading of requirements"),
             name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
-        maths = pipeline.create_node(
-            TestMathWithReq(), "maths", requirements=[
+        maths = pipeline.add(
+            "maths", TestMathWithReq(), requirements=[
                 (notinstalled1_req, notinstalled2_req,
                  first_req), second_req])
         maths.inputs.op = 'add'
@@ -71,8 +71,8 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
         merge = pipeline.create_node(Merge(2), "merge")
-        maths = pipeline.create_map_node(
-            TestMathWithReq(), "maths", iterfield='x', requirements=[
+        maths = pipeline.add(
+            "maths", TestMathWithReq(), iterfield='x', requirements=[
                 (notinstalled1_req, notinstalled2_req,
                  first_req), second_req])
         split = pipeline.create_node(Split(), 'split')
