@@ -55,7 +55,8 @@ class ModulesEnvironment(StaticEnvironment):
             self._run_module_cmd('load', module_id)
             self._loaded[req] = module_id
 
-    def unload(self, *requirements, not_loaded_ok=False):
+    def unload(self, *requirements, **kwargs):
+        not_loaded_ok = kwargs.pop('not_loaded_ok', False)
         for req in requirements:
             try:
                 module_id = self._loaded[req]
