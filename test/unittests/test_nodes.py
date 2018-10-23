@@ -75,7 +75,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             "maths", TestMathWithReq(), iterfield='x', requirements=[
                 (notinstalled1_req, notinstalled2_req,
                  first_req), second_req])
-        split = pipeline.create_node(Split(), 'split')
+        split = pipeline.add('split', Split())
         split.inputs.splits = [1, 1]
         split.inputs.squeeze = True
         maths.inputs.op = 'add'
