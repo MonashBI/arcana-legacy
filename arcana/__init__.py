@@ -22,11 +22,14 @@ import os
 from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
     SubStudySpec)
-from .dataset import (
-    DatasetSpec, DatasetMatch, FieldSpec, FieldMatch)
-from .dataset.file_format import FileFormat
-from .parameter import Parameter, ParameterSpec, Switch, SwitchSpec
-from .runner import LinearRunner, MultiProcRunner, SlurmRunner
-from .repository import LocalRepository, XnatRepository
+from .data import (
+    FilesetSpec, FilesetSelector, FieldSpec, FieldSelector,
+    AcquiredFilesetSpec, AcquiredFieldSpec)
+from .data.file_format import FileFormat
+from .data import Fileset, Field, FilesetCollection, FieldCollection
+from .parameter import Parameter, ParameterSpec, SwitchSpec
+from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
+from .environment import StaticEnvironment, ModulesEnvironment
+from .repository import DirectoryRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'

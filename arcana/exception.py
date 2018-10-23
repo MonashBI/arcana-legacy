@@ -10,6 +10,14 @@ class ArcanaError(ArcanaException):
     pass
 
 
+class ArcanaRequirementNotSatisfiedError(ArcanaError):
+    pass
+
+
+class ArcanaEnvModuleNotLoadedError(ArcanaError):
+    pass
+
+
 class ArcanaMissingInputError(ArcanaException):
     pass
 
@@ -18,7 +26,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedLocalRepositoryError(ArcanaError):
+class ArcanaBadlyFormattedDirectoryRepositoryError(ArcanaError):
     pass
 
 
@@ -48,7 +56,7 @@ class ArcanaMissingDataException(ArcanaError):
     pass
 
 
-class ArcanaDatasetMatchError(ArcanaUsageError):
+class ArcanaFilesetSelectorError(ArcanaUsageError):
     pass
 
 
@@ -63,7 +71,7 @@ class ArcanaFileFormatError(ArcanaError):
     pass
 
 
-class ArcanaDatasetNotCachedException(ArcanaException):
+class ArcanaFilesetNotCachedException(ArcanaException):
     pass
 
 

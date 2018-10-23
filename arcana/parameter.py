@@ -77,13 +77,16 @@ class ParameterSpec(Parameter):
         default value
     """
 
-    def __init__(self, name, default, choices=None, desc=None, dtype=None):
+    def __init__(self, name, default, desc=None, dtype=None,
+                 array=False):
         super(ParameterSpec, self).__init__(name, default)
-        self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
+        self._array = array
         if dtype is not None:
-            if self.default is not None and not isinstance(self.default,
-                                                           dtype):
+            if self.default is not None and (
+                not array and not isinstance(self.default, dtype) or
+                array and any(not isinstance(d, dtype)
+                              for d in self.default)):
                 raise ArcanaUsageError(
                     "Provided default value ({}) does not match explicit "
                     "dtype ({})".format(self.default, dtype))
@@ -94,66 +97,37 @@ class ParameterSpec(Parameter):
         return self._name
 
     @property
-    def default(self):
-        return self._value
+    def array(self):
+        return self._array
 
     @property
-    def choices(self):
-        return self._choices
+    def default(self):
+        return self._value
 
     @property
     def desc(self):
         return self._desc
 
     def __repr__(self):
-        return ("ParameterSpec(name='{}', default={}, choices={}, "
-                "desc='{}')".format(self.name, self.default,
-                                    self.choices, self.desc))
+        return "ParameterSpec(name='{}', default={}, desc='{}')".format(
+            self.name, self.default, self.desc)
+
+    def check_valid(self, parameter, context=None):
+        if parameter.value is not None:
+            error_msg = (
+                "Incorrect datatype for '{}' parameter provided "
+                "({}){}, Should be {}"
+                .format(parameter.name, type(parameter.value),
+                        'in ' + context if context is not None else '',
+                        self.dtype))
+            if self.array:
+                if any(not isinstance(v, self.dtype) for v in parameter.value):
+                    raise ArcanaUsageError(error_msg + ' array')
+            elif not isinstance(parameter.value, self.dtype):
+                raise ArcanaUsageError(error_msg)
 
 
-class Switch(object):
-    """
-    A special type parameter that signifies a branch of
-    analysis to follow.
-
-    Parameters
-    ----------
-    name : str
-        Name of the parameter
-    value : list[str]
-        The value of the switch
-    """
-
-    def __init__(self, name, value):
-        self._name = name
-        if not isinstance(value, (basestring, bool)):
-            raise ArcanaUsageError(
-                "Value of '{}' switch needs to be of type str or bool"
-                "(provided {})".format(name, value))
-        self._value = value
-
-    @property
-    def name(self):
-        return self._name
-
-    @property
-    def value(self):
-        return self._value
-
-    def __repr__(self):
-        return "Switch(name='{}', value={})".format(self.name,
-                                                    self.value)
-
-    def renamed(self, name):
-        """
-        Duplicate the Parameter and rename it
-        """
-        duplicate = copy(self)
-        duplicate._name = name
-        return duplicate
-
-
-class SwitchSpec(Switch):
+class SwitchSpec(ParameterSpec):
     """
     Specifies a special parameter that switches between different
     methods and/or pipeline input/outputs. Typically used to select
@@ -173,8 +147,10 @@ class SwitchSpec(Switch):
         A description of the parameter
     """
 
-    def __init__(self, name, default, choices=None, desc=None):
-        super(SwitchSpec, self).__init__(name, default)
+    def __init__(self, name, default, choices=None, desc=None,
+                 dtype=None):
+        super(SwitchSpec, self).__init__(name, default, desc=desc,
+                                         dtype=dtype)
         if self.is_boolean:
             if choices is not None:
                 raise ArcanaUsageError(
@@ -205,6 +181,7 @@ class SwitchSpec(Switch):
         return self._choices
 
     def check_valid(self, switch, context=''):
+        super(SwitchSpec, self).check_valid(switch, context=context)
         if self.is_boolean:
             if not isinstance(switch.value, bool):
                 raise ArcanaUsageError(

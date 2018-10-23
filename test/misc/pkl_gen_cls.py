@@ -4,9 +4,9 @@ standard_library.install_aliases()
 import os
 import shutil
 from arcana import (
-    StudyMetaClass, Study, LocalRepository, LinearRunner, DatasetSpec,
-    DatasetMatch)
-from arcana.dataset.file_format.standard import text_format
+    StudyMetaClass, Study, DirectoryRepository, LinearProcessor, FilesetSpec,
+    FilesetSelector)
+from arcana.data.file_format.standard import text_format
 import pickle as pkl
 import os.path as op
 from nipype.interfaces.utility import IdentityInterface
@@ -23,35 +23,35 @@ os.makedirs(WORK_DIR)
 
 SESS_DIR = op.join(ARCHIVE_DIR, 'SUBJECT', 'SESSION')
 os.makedirs(SESS_DIR)
-with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
+with open(op.join(SESS_DIR, 'fileset.txt'), 'w') as f:
     f.write('blah blah')
 
 #     name : str
 #         The name of the pipeline
 #     study : Study
 #         The study from which the pipeline was created
-#     inputs : List[DatasetSpec|FieldSpec]
-#         The list of input datasets required for the pipeline
-#         un/processed datasets, and the parameters used to generate them for
-#         unprocessed datasets
-#     outputs : List[DatasetSpec|FieldSpec]
-#         The list of outputs (hard-coded names for un/processed datasets)
+#     inputs : List[FilesetSpec|FieldSpec]
+#         The list of input filesets required for the pipeline
+#         un/processed filesets, and the parameters used to generate them for
+#         unprocessed filesets
+#     outputs : List[FilesetSpec|FieldSpec]
+#         The list of outputs (hard-coded names for un/processed filesets)
 #     citations : List[Citation]
 #         List of citations that describe the workflow and should be cited in
 #         publications
 #     version : int
 #         A version number for the pipeline to be incremented whenever the output
 #         of the pipeline
-#     name_prefix : str
+#     prefix : str
 #         Prefix prepended to the name of the pipeline. Typically passed
 #         in from a kwarg of the pipeline constructor method to allow
 #         multi-classes to alter the name of the pipeline to avoid name
 #         clashes
-#     add_inputs : List[DatasetSpec|FieldSpec]
+#     add_inputs : List[FilesetSpec|FieldSpec]
 #         Additional inputs to append to the inputs argument. Typically
 #         passed in from a kwarg of the pipeline constructor method to
 #         allow sub-classes to add additional inputs
-#     add_outputs : List[DatasetSpec|FieldSpec]
+#     add_outputs : List[FilesetSpec|FieldSpec]
 #         Additional outputs to append to the outputs argument. Typically
 #         passed in from a kwarg of the pipeline constructor method to
 #         allow sub-classes to add additional outputs
@@ -59,22 +59,21 @@ with open(op.join(SESS_DIR, 'dataset.txt'), 'w') as f:
 
 class NormalClass(with_metaclass(StudyMetaClass, Study)):
 
-    add_data_specs = [DatasetSpec('dataset', text_format),
-                      DatasetSpec('out_dataset', text_format,
-                                  'pipeline')]
+    add_data_specs = [FilesetSpec('fileset', text_format),
+                      FilesetSpec('out_fileset', text_format,
+                                  'a_pipeline')]
 
-    def pipeline(self):
-        pipeline = self.create_pipeline(
-            'pipeline',
-            inputs=[DatasetSpec('dataset', text_format)],
-            outputs=[DatasetSpec('out_dataset', text_format)],
+    def a_pipeline(self):
+        pipeline = self.pipeline(
+            'a_pipeline',
+            inputs=[FilesetSpec('fileset', text_format)],
+            outputs=[FilesetSpec('out_fileset', text_format)],
             desc='a dummy pipeline',
-            citations=[],
+            references=[],
             version=1)
-        ident = pipeline.create_node(IdentityInterface(['dataset']),
-                                     name='ident')
-        pipeline.connect_input('dataset', ident, 'dataset')
-        pipeline.connect_output('out_dataset', ident, 'dataset')
+        ident = pipeline.add('ident', IdentityInterface(['fileset']))
+        pipeline.connect_input('fileset', ident, 'fileset')
+        pipeline.connect_output('out_fileset', ident, 'fileset')
         return pipeline
 
 
@@ -82,16 +81,16 @@ GeneratedClass = StudyMetaClass(
     'GeneratedClass', (NormalClass,), {})
 
 
-norm = NormalClass('norm', LocalRepository(ARCHIVE_DIR),
-                   LinearRunner(WORK_DIR),
-                   inputs=[DatasetMatch('dataset', text_format,
-                                           'dataset')])
+norm = NormalClass('norm', DirectoryRepository(ARCHIVE_DIR),
+                   LinearProcessor(WORK_DIR),
+                   inputs=[FilesetSelector('fileset', text_format,
+                                           'fileset')])
 
 
-gen = GeneratedClass('gen', LocalRepository(ARCHIVE_DIR),
-                     LinearRunner(WORK_DIR),
-                     inputs=[DatasetMatch('dataset', text_format,
-                                          'dataset')])
+gen = GeneratedClass('gen', DirectoryRepository(ARCHIVE_DIR),
+                     LinearProcessor(WORK_DIR),
+                     inputs=[FilesetSelector('fileset', text_format,
+                                          'fileset')])
 
 print(norm)
 print(gen)
@@ -111,6 +110,6 @@ with open(NORM_PKL_PATH) as f:
 with open(GEN_PKL_PATH) as f:
     regen = pkl.load(f)
 
-regen.data('out_dataset')
+regen.data('out_fileset')
 
 print(regen)

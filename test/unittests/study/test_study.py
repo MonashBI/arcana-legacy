@@ -4,23 +4,23 @@ from builtins import str  # @IgnorePep8
 import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.dataset import DatasetMatch, DatasetSpec  # @IgnorePep8
-from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
 from arcana.exception import (  # @IgnorePep8
-    ArcanaNameError, ArcanaCantPickleStudyError)  # @IgnorePep8
+    ArcanaCantPickleStudyError, ArcanaUsageError)  # @IgnorePep8
 from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.parameter import ParameterSpec  # @IgnorePep8
-from arcana.dataset.file_format import FileFormat, IdentityConverter  # @IgnorePep8
+from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
-from arcana.dataset import Dataset  # @IgnorePep8
+from arcana.data import (  # @IgnorePep8
+    Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -32,48 +32,42 @@ else:
 class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('one', text_format),
-        DatasetSpec('ten', text_format),
-        DatasetSpec('derived1_1', text_format, 'pipeline1'),
-        DatasetSpec('derived1_2', text_format, 'pipeline1'),
-        DatasetSpec('derived2', text_format, 'pipeline2'),
-        DatasetSpec('derived3', text_format, 'pipeline3'),
-        DatasetSpec('derived4', text_format, 'pipeline4'),
-        DatasetSpec('subject_summary', text_format,
+        AcquiredFilesetSpec('one', text_format),
+        AcquiredFilesetSpec('ten', text_format),
+        FilesetSpec('derived1_1', text_format, 'pipeline1'),
+        FilesetSpec('derived1_2', text_format, 'pipeline1'),
+        FilesetSpec('derived2', text_format, 'pipeline2'),
+        FilesetSpec('derived3', text_format, 'pipeline3'),
+        FilesetSpec('derived4', text_format, 'pipeline4'),
+        FilesetSpec('subject_summary', text_format,
                     'subject_summary_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_summary', text_format,
+        FilesetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_summary', text_format,
+        FilesetSpec('project_summary', text_format,
                     'project_summary_pipeline',
-                    frequency='per_project'),
-        DatasetSpec('subject_ids', text_format,
+                    frequency='per_study'),
+        FilesetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('visit_ids', text_format,
+        FilesetSpec('visit_ids', text_format,
                     'visit_ids_access_pipeline',
                     frequency='per_subject')]
 
-    add_parameter_specs = [
+    add_param_specs = [
         ParameterSpec('pipeline_parameter', False)]
 
-    def pipeline1(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def pipeline1(self, **name_maps):
+        pipeline = self.pipeline(
             name='pipeline1',
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('derived1_1', text_format),
-                     DatasetSpec('derived1_2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
-            **kwargs)
+            references=[],
+            name_maps=name_maps)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not accessible")
-        indent = pipeline.create_node(IdentityInterface(['file']),
-                                      name="ident1")
-        indent2 = pipeline.create_node(IdentityInterface(['file']),
-                                       name="ident2")
+        indent = pipeline.add("ident1", IdentityInterface(['file']))
+        indent2 = pipeline.add("ident2", IdentityInterface(['file']))
         # Connect inputs
         pipeline.connect_input('one', indent, 'file')
         pipeline.connect_input('one', indent2, 'file')
@@ -82,20 +76,16 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived1_2', indent2, 'file')
         return pipeline
 
-    def pipeline2(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def pipeline2(self, **name_maps):
+        pipeline = self.pipeline(
             name='pipeline2',
-            inputs=[DatasetSpec('one', text_format),
-                    DatasetSpec('derived1_1', text_format)],
-            outputs=[DatasetSpec('derived2', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
-            **kwargs)
+            references=[],
+            name_maps=name_maps)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
                             "pipeline2")
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
@@ -105,34 +95,26 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived2', math, 'z')
         return pipeline
 
-    def pipeline3(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def pipeline3(self, **name_maps):
+        pipeline = self.pipeline(
             name='pipeline3',
-            inputs=[DatasetSpec('derived2', text_format)],
-            outputs=[DatasetSpec('derived3', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
-            **kwargs)
-        indent = pipeline.create_node(IdentityInterface(['file']),
-                                      name="ident")
+            references=[],
+            name_maps=name_maps)
+        indent = pipeline.add('ident', IdentityInterface(['file']))
         # Connect inputs
         pipeline.connect_input('derived2', indent, 'file')
         # Connect outputs
         pipeline.connect_output('derived3', indent, 'file')
         return pipeline
 
-    def pipeline4(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def pipeline4(self, **name_maps):
+        pipeline = self.pipeline(
             name='pipeline4',
-            inputs=[DatasetSpec('derived1_2', text_format),
-                    DatasetSpec('derived3', text_format)],
-            outputs=[DatasetSpec('derived4', text_format)],
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            version=1,
-            citations=[],
-            **kwargs)
-        math = pipeline.create_node(TestMath(), name="mrcat")
+            references=[],
+            name_maps=name_maps)
+        math = pipeline.add("mrcat", TestMath())
         math.inputs.op = 'mul'
         math.inputs.as_file = True
         # Connect inputs
@@ -142,93 +124,78 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('derived4', math, 'z')
         return pipeline
 
-    def visit_ids_access_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def visit_ids_access_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name='visit_ids_access',
-            inputs=[],
-            outputs=[DatasetSpec('visit_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
-            version=1,
-            citations=[],
-            **kwargs)
-        sessions_to_file = pipeline.create_join_visits_node(
-            IteratorToFile(), name='sess_to_file', joinfield='ids')
-        pipeline.connect_visit_id(sessions_to_file, 'ids')
-        pipeline.connect_output('visit_ids', sessions_to_file,
-                                'out_file')
+            references=[],
+            name_maps=name_maps)
+        visits_to_file = pipeline.add(
+            'visits_to_file', IteratorToFile(), joinsource=self.VISIT_ID,
+            joinfield='ids')
+        pipeline.connect_input(self.VISIT_ID, visits_to_file, 'ids')
+        pipeline.connect_input(self.SUBJECT_ID, visits_to_file, 'fixed_id')
+        pipeline.connect_output('visit_ids', visits_to_file, 'out_file')
         return pipeline
 
-    def subject_ids_access_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def subject_ids_access_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name='subject_ids_access',
-            inputs=[],
-            outputs=[DatasetSpec('subject_ids', text_format)],
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
-            version=1,
-            citations=[],
-            **kwargs)
-        subjects_to_file = pipeline.create_join_subjects_node(
-            IteratorToFile(), name='subjects_to_file', joinfield='ids')
-        pipeline.connect_subject_id(subjects_to_file, 'ids')
-        pipeline.connect_output('subject_ids', subjects_to_file,
-                                'out_file')
+            references=[],
+            name_maps=name_maps)
+        subjects_to_file = pipeline.add(
+            'subjects_to_file', IteratorToFile(), joinfield='ids',
+            joinsource=self.SUBJECT_ID)
+        pipeline.connect_input(self.SUBJECT_ID, subjects_to_file, 'ids')
+        pipeline.connect_input(self.VISIT_ID, subjects_to_file, 'fixed_id')
+        pipeline.connect_output('subject_ids', subjects_to_file, 'out_file')
         return pipeline
 
-    def subject_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def subject_summary_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name="subject_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('subject_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
-            **kwargs)
-        math = pipeline.create_join_visits_node(
-            TestMath(), joinfield='x', name='math')
+            references=[],
+            name_maps=name_maps)
+        math = pipeline.add(
+            'math', TestMath(), joinfield='x', joinsource=self.VISIT_ID)
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('one', math, 'x')
         # Connect outputs
         pipeline.connect_output('subject_summary', math, 'z')
-        pipeline.assert_connected()
         return pipeline
 
-    def visit_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def visit_summary_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name="visit_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('visit_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
-            **kwargs)
-        math = pipeline.create_join_subjects_node(
-            TestMath(), joinfield='x', name='math')
+            references=[],
+            name_maps=name_maps)
+        math = pipeline.add('math', TestMath(), joinfield='x',
+                            joinsource=self.SUBJECT_ID)
         math.inputs.op = 'add'
         math.inputs.as_file = True
         # Connect inputs
         pipeline.connect_input('one', math, 'x')
         # Connect outputs
         pipeline.connect_output('visit_summary', math, 'z')
-        pipeline.assert_connected()
         return pipeline
 
-    def project_summary_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def project_summary_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name="project_summary",
-            inputs=[DatasetSpec('one', text_format)],
-            outputs=[DatasetSpec('project_summary', text_format)],
             desc=("Test of project summary variables"),
-            version=1,
-            citations=[],
-            **kwargs)
-        math1 = pipeline.create_join_visits_node(
-            TestMath(), joinfield='x', name='math1')
-        math2 = pipeline.create_join_subjects_node(
-            TestMath(), joinfield='x', name='math2')
+            references=[],
+            name_maps=name_maps)
+        math1 = pipeline.add(
+            'math1', TestMath(), joinfield='x', joinsource=self.VISIT_ID)
+        math2 = pipeline.add(
+            'math2', TestMath(), joinfield='x', joinsource=self.SUBJECT_ID)
         math1.inputs.op = 'add'
         math2.inputs.op = 'add'
         math1.inputs.as_file = True
@@ -238,12 +205,12 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect(math1, 'z', math2, 'x')
         # Connect outputs
         pipeline.connect_output('project_summary', math2, 'z')
-        pipeline.assert_connected()
         return pipeline
 
 
 class IteratorToFileInputSpec(TraitedSpec):
     ids = traits.List(traits.Str(), desc="ID of the iterable")
+    fixed_id = traits.Str(desc="The other ID that will remain fixed")
     out_file = File(genfile=True, desc="The name of the generated file")
 
 
@@ -289,10 +256,10 @@ class TestStudy(BaseMultiSubjectTestCase):
         for subj_id in self.SUBJECT_IDS:
             for visit_id in self.VISIT_IDS:
                 sessions.append(
-                    Session(subj_id, visit_id, datasets=[
-                        Dataset('one_input', text_format,
+                    Session(subj_id, visit_id, filesets=[
+                        Fileset('one_input', text_format,
                                 subject_id=subj_id, visit_id=visit_id),
-                        Dataset('ten_input', text_format,
+                        Fileset('ten_input', text_format,
                                 subject_id=subj_id,
                                 visit_id=visit_id)]))
         subjects = [Subject(i, sessions=[s for s in sessions
@@ -306,8 +273,8 @@ class TestStudy(BaseMultiSubjectTestCase):
     def make_study(self):
         return self.create_study(
             ExampleStudy, 'dummy', inputs=[
-                DatasetMatch('one', text_format, 'one_input'),
-                DatasetMatch('ten', text_format, 'ten_input')],
+                FilesetSelector('one', text_format, 'one_input'),
+                FilesetSelector('ten', text_format, 'ten_input')],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
@@ -319,17 +286,17 @@ class TestStudy(BaseMultiSubjectTestCase):
         study = self.make_study()
         summaries = study.data('subject_summary')
         ref = float(len(self.VISIT_IDS))
-        for dataset in summaries:
-            self.assertContentsEqual(dataset, ref,
-                                     str(dataset.visit_id))
+        for fileset in summaries:
+            self.assertContentsEqual(fileset, ref,
+                                     str(fileset.visit_id))
 
     def test_visit_summary(self):
         study = self.make_study()
         summaries = study.data('visit_summary')
         ref = float(len(self.SUBJECT_IDS))
-        for dataset in summaries:
-            self.assertContentsEqual(dataset, ref,
-                                     str(dataset.visit_id))
+        for fileset in summaries:
+            self.assertContentsEqual(fileset, ref,
+                                     str(fileset.visit_id))
 
     def test_project_summary(self):
         study = self.make_study()
@@ -362,22 +329,18 @@ class TestStudy(BaseMultiSubjectTestCase):
 class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('one', text_format),
-        DatasetSpec('ten', text_format, 'tens_pipeline'),
-        DatasetSpec('hundred', text_format, 'hundreds_pipeline'),
-        DatasetSpec('thousand', text_format, 'thousands_pipeline')]
+        AcquiredFilesetSpec('one', text_format),
+        FilesetSpec('ten', text_format, 'tens_pipeline'),
+        FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
+        FilesetSpec('thousand', text_format, 'thousands_pipeline')]
 
-    def pipeline_factory(self, incr, input, output):  # @ReservedAssignment
-        pipeline = self.create_pipeline(
+    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment
+        pipeline = self.pipeline(
             name=output,
-            inputs=[DatasetSpec(input, text_format)],
-            outputs=[DatasetSpec(output, text_format)],
-            desc=(
-                "A dummy pipeline used to test 'partial-complete' method"),
-            version=1,
-            citations=[])
+            desc="A dummy pipeline used to test 'partial-complete' method",
+            references=[], name_maps=name_maps)
         # Nodes
-        math = pipeline.create_node(TestMath(), name="math")
+        math = pipeline.add("math", TestMath())
         math.inputs.y = incr
         math.inputs.op = 'add'
         math.inputs.as_file = True
@@ -387,14 +350,14 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output(output, math, 'z')
         return pipeline
 
-    def tens_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(10, 'one', 'ten')
+    def tens_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(10, 'one', 'ten', name_maps=name_maps)
 
-    def hundreds_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(100, 'ten', 'hundred')
+    def hundreds_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(100, 'ten', 'hundred', name_maps=name_maps)
 
-    def thousands_pipeline(self, **kwargs):  # @UnusedVariable
-        return self.pipeline_factory(1000, 'hundred', 'thousand')
+    def thousands_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(1000, 'hundred', 'thousand', name_maps=name_maps)
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):
@@ -423,13 +386,13 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         sessions = []
         visit_ids = set()
         for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
-            for visit_id, datasets in list(visits.items()):
-                sessions.append(Session(subj_id, visit_id, datasets=[
-                    Dataset(d, text_format, subject_id=subj_id,
+            for visit_id, filesets in list(visits.items()):
+                sessions.append(Session(subj_id, visit_id, filesets=[
+                    Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id, from_study=(
                                 (self.STUDY_NAME
                                  if d != 'one' else None)))
-                    for d in datasets]))
+                    for d in filesets]))
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
@@ -442,7 +405,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME, inputs=[
-                DatasetMatch('one', text_format, 'one')])
+                FilesetSelector('one', text_format, 'one')])
         study.data('thousand')
         targets = {
             'subject1': {
@@ -457,14 +420,14 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
-                dataset = session.dataset('thousand',
+                fileset = session.fileset('thousand',
                                           study=self.STUDY_NAME)
                 self.assertContentsEqual(
-                    dataset, targets[subj_id][visit_id],
+                    fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
                 if subj_id == 'subject1' and visit_id == 'visit3':
                     self.assertNotIn(
-                        'ten', [d.name for d in session.datasets],
+                        'ten', [d.name for d in session.filesets],
                         "'ten' should not be generated for "
                         "subject1:visit3 as hundred and thousand are "
                         "already present")
@@ -483,24 +446,18 @@ FileFormat.register(test3_format)
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('a', test2_format),
-        DatasetSpec('b', test3_format),
-        DatasetSpec('c', test2_format, 'identity_pipeline'),
-        DatasetSpec('d', test3_format, 'identity_pipeline')]
+        AcquiredFilesetSpec('a', (test1_format, test2_format)),
+        AcquiredFilesetSpec('b', test3_format),
+        FilesetSpec('c', test2_format, 'identity_pipeline'),
+        FilesetSpec('d', test3_format, 'identity_pipeline')]
 
-    def identity_pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
+    def identity_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
             name='pipeline',
-            inputs=[DatasetSpec('a', test2_format),
-                    DatasetSpec('b', test3_format)],
-            outputs=[DatasetSpec('c', test2_format),
-                     DatasetSpec('d', test3_format)],
             desc="A dummy pipeline used to test study input validation",
-            version=1,
-            citations=[],
-            **kwargs)
-        identity = pipeline.create_node(IdentityInterface(['a', 'b']),
-                                        name='identity')
+            references=[],
+            name_maps=name_maps)
+        identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('a', identity, 'a')
         pipeline.connect_input('b', identity, 'b')
         pipeline.connect_output('c', identity, 'a')
@@ -526,10 +483,10 @@ class TestInputValidation(BaseTestCase):
             TestInputValidationStudy,
             'test_input_validation',
             inputs=[
-                DatasetMatch('a', test1_format, 'a'),
-                DatasetMatch('b', test3_format, 'b'),
-                DatasetMatch('c', test1_format, 'a'),
-                DatasetMatch('d', test3_format, 'd')])
+                FilesetSelector('a', test1_format, 'a'),
+                FilesetSelector('b', test3_format, 'b'),
+                FilesetSelector('c', test1_format, 'a'),
+                FilesetSelector('d', test3_format, 'd')])
 
 
 class TestInputValidationFail(BaseTestCase):
@@ -544,42 +501,63 @@ class TestInputValidationFail(BaseTestCase):
 
     def test_input_validation_fail(self):
         self.assertRaises(
+            ArcanaUsageError,
+            self.create_study,
+            TestInputValidationStudy,
+            'test_validation_fail',
+            inputs=[
+                FilesetSelector('a', test3_format, 'a'),
+                FilesetSelector('b', test3_format, 'b')])
+
+
+class TestInputNoConverter(BaseTestCase):
+
+    def setUp(self):
+        self.reset_dirs()
+        os.makedirs(self.session_dir)
+        for spec in TestInputValidationStudy.data_specs():
+            if spec.name == 'a':
+                ext = test1_format.ext
+            else:
+                ext = test3_format.ext
+            with open(os.path.join(self.session_dir, spec.name) + ext,
+                      'w') as f:
+                f.write(spec.name)
+
+    def test_input_validation_fail(self):
+        self.assertRaises(
             ArcanaNoConverterError,
             self.create_study,
             TestInputValidationStudy,
             'test_validation_fail',
             inputs=[
-                DatasetMatch('a', test3_format, 'a'),
-                DatasetMatch('b', test3_format, 'b'),
-                DatasetMatch('c', test3_format, 'a'),
-                DatasetMatch('d', test3_format, 'd')])
+                FilesetSelector('a', test1_format, 'a'),
+                FilesetSelector('b', test3_format, 'b'),
+                FilesetSelector('c', test3_format, 'a'),
+                FilesetSelector('d', test3_format, 'd')])
 
 
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
-    add_data_specs = [DatasetSpec('dataset', text_format),
-                      DatasetSpec('out_dataset', text_format,
-                                  'pipeline')]
+    add_data_specs = [
+        AcquiredFilesetSpec('fileset', text_format),
+        FilesetSpec('out_fileset', text_format, 'a_pipeline')]
 
-    def pipeline(self, **kwargs):
-        pipeline = self.create_pipeline(
-            'pipeline',
-            inputs=[DatasetSpec('dataset', text_format)],
-            outputs=[DatasetSpec('out_dataset', text_format)],
+    def a_pipeline(self, **name_maps):
+        pipeline = self.pipeline(
+            'a_pipeline',
             desc='a dummy pipeline',
-            citations=[],
-            version=1,
-            **kwargs)
-        ident = pipeline.create_node(IdentityInterface(['dataset']),
-                                     name='ident')
-        pipeline.connect_input('dataset', ident, 'dataset')
-        pipeline.connect_output('out_dataset', ident, 'dataset')
+            references=[],
+            name_maps=name_maps)
+        ident = pipeline.add('ident', IdentityInterface(['fileset']))
+        pipeline.connect_input('fileset', ident, 'fileset')
+        pipeline.connect_output('out_fileset', ident, 'fileset')
         return pipeline
 
 
 class TestGeneratedPickle(BaseTestCase):
 
-    INPUT_DATASETS = {'dataset': 'foo'}
+    INPUT_DATASETS = {'fileset': 'foo'}
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(
@@ -587,14 +565,14 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
-            inputs=[DatasetMatch('dataset', text_format, 'dataset')])
+            inputs=[FilesetSelector('fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('out_dataset'), 'foo')
+        self.assertContentsEqual(regen.data('out_fileset'), 'foo')
 
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
@@ -606,30 +584,30 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
-                    DatasetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetSelector('ss1_fileset', text_format, 'fileset'),
+                    FilesetSelector('ss2_fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('ss2_out_dataset'), 'foo')
+        self.assertContentsEqual(regen.data('ss2_out_fileset'), 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
             'add_sub_study_specs': [
                 SubStudySpec('ss1', BasicTestClass),
                 SubStudySpec('ss2', BasicTestClass)],
-            'default_dataset_pipeline': MultiStudy.translate(
+            'default_fileset_pipeline': MultiStudy.translate(
                 'ss1', 'pipeline')}
         MultiGeneratedClass = MultiStudyMetaClass(
             'MultiGeneratedClass', (MultiStudy,), cls_dct)
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[DatasetMatch('ss1_dataset', text_format, 'dataset'),
-                    DatasetMatch('ss2_dataset', text_format, 'dataset')])
+            inputs=[FilesetSelector('ss1_fileset', text_format, 'fileset'),
+                    FilesetSelector('ss2_fileset', text_format, 'fileset')])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'w') as f:
             self.assertRaises(
@@ -642,7 +620,7 @@ class TestGeneratedPickle(BaseTestCase):
 #     def test_explicit_prereqs(self):
 #         study = self.create_study(
 #             ExistingPrereqStudy, self.from_study, inputs=[
-#                 DatasetMatch('ones', text_format, 'ones')])
+#                 FilesetSelector('ones', text_format, 'ones')])
 #         study.data('thousands')
 #         targets = {
 #             'subject1': {

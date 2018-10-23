@@ -3,37 +3,37 @@ standard_library.install_aliases()
 import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.dataset.file_format.standard import text_format  # @IgnorePep8
-from arcana.runner import LinearRunner  # @IgnorePep8
-from arcana.dataset import (  # @IgnorePep8
-    DatasetMatch, FieldSpec)  # @IgnorePep8
+from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.processor import LinearProcessor  # @IgnorePep8
+from arcana.data import (  # @IgnorePep8
+    FilesetSelector, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
-from arcana.dataset import DatasetSpec  # @IgnorePep8
+from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.repository.local import LocalRepository  # @IgnorePep8
+from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        DatasetSpec('source1', text_format, optional=True),
-        DatasetSpec('source2', text_format, optional=True),
-        DatasetSpec('source3', text_format, optional=True),
-        DatasetSpec('source4', text_format, optional=True),
-        DatasetSpec('sink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink3', text_format, 'dummy_pipeline'),
-        DatasetSpec('sink4', text_format, 'dummy_pipeline'),
-        DatasetSpec('subject_sink', text_format, 'dummy_pipeline',
+        AcquiredFilesetSpec('source1', text_format, optional=True),
+        AcquiredFilesetSpec('source2', text_format, optional=True),
+        AcquiredFilesetSpec('source3', text_format, optional=True),
+        AcquiredFilesetSpec('source4', text_format, optional=True),
+        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
+        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
                     frequency='per_subject'),
-        DatasetSpec('visit_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        DatasetSpec('project_sink', text_format, 'dummy_pipeline',
-                    frequency='per_project'),
-        DatasetSpec('resink1', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink2', text_format, 'dummy_pipeline'),
-        DatasetSpec('resink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
+                    frequency='per_study'),
+        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink3', text_format, 'dummy_pipeline'),
         FieldSpec('field1', int, 'dummy_pipeline'),
         FieldSpec('field2', float, 'dummy_pipeline'),
         FieldSpec('field3', str, 'dummy_pipeline')]
@@ -53,11 +53,11 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_repository_roundtrip(self):
         study = DummyStudy(
-            self.STUDY_NAME, self.repository, runner=LinearRunner('a_dir'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    DatasetMatch('source2', text_format, 'source2'),
-                    DatasetMatch('source3', text_format, 'source3'),
-                    DatasetMatch('source4', text_format, 'source4')])
+            self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
+            inputs=[FilesetSelector('source1', text_format, 'source1'),
+                    FilesetSelector('source2', text_format, 'source2'),
+                    FilesetSelector('source3', text_format, 'source3'),
+                    FilesetSelector('source4', text_format, 'source4')])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -88,7 +88,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.STUDY_NAME)))
-            if not (f == LocalRepository.FIELDS_FNAME)]
+            if not (f == DirectoryRepository.FIELDS_FNAME)]
         self.assertEqual(outputs,
                          ['.derived', 'sink1.txt', 'sink3.txt',
                           'sink4.txt'])
@@ -97,7 +97,7 @@ class TestSinkAndSource(BaseTestCase):
         STUDY_NAME = 'fields_roundtrip'
         study = DummyStudy(
             STUDY_NAME, self.repository,
-            runner=LinearRunner('a_dir'),
+            processor=LinearProcessor('a_dir'),
             inputs=[])
         sink = study.sink(
             outputs=['field1', 'field2', 'field3'],
@@ -124,10 +124,10 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_summary(self):
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, self.repository, LinearRunner('ad'),
-            inputs=[DatasetMatch('source1', text_format, 'source1'),
-                    DatasetMatch('source2', text_format, 'source2'),
-                    DatasetMatch('source3', text_format, 'source3')])
+            self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
+            inputs=[FilesetSelector('source1', text_format, 'source1'),
+                    FilesetSelector('source2', text_format, 'source2'),
+                    FilesetSelector('source3', text_format, 'source3')])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(
@@ -137,26 +137,23 @@ class TestSinkAndSource(BaseTestCase):
         source = study.source(source_files)
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        subject_sink = study.sink(
-            subject_sink_files, frequency='per_subject')
+        subject_sink = study.sink(subject_sink_files, name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
-            "Tests the sinking of subject-wide datasets")
+            "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
-        visit_sink = study.sink(visit_sink_files,
-                                          frequency='per_visit')
+        visit_sink = study.sink(visit_sink_files, name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
-            "Tests the sinking of visit-wide datasets")
+            "Tests the sinking of visit-wide filesets")
         # Test project sink
         project_sink_files = ['project_sink']
-        project_sink = study.sink(project_sink_files,
-                                            frequency='per_project')
+        project_sink = study.sink(project_sink_files, name='project_sink')
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
-            "Tests the sinking of project-wide datasets")
+            "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
@@ -187,7 +184,7 @@ class TestSinkAndSource(BaseTestCase):
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          ['.derived', 'visit_sink.txt'])
         project_dir = self.get_session_dir(
-            frequency='per_project',
+            frequency='per_study',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
                          ['.derived', 'project_sink.txt'])
@@ -205,7 +202,7 @@ class TestSinkAndSource(BaseTestCase):
             ['resink1', 'resink2', 'resink3'])
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
-            "Tests the reloading of subject and project summary datasets")
+            "Tests the reloading of subject and project summary filesets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)
         reloadworkflow.connect(reloadinputnode, 'subject_id',
@@ -232,7 +229,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
-            if f != LocalRepository.FIELDS_FNAME]
+            if f != DirectoryRepository.FIELDS_FNAME]
         self.assertEqual(outputs,
                          ['.derived',
                           'resink1.txt',

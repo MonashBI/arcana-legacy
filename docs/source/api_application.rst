@@ -7,27 +7,27 @@ when applying the designed workflows.
 Archives
 --------
 
-.. autoclass:: arcana.archive.xnat.XnatArchive
+.. autoclass:: arcana.archive.xnat.XnatRepository
 
-.. autoclass:: arcana.archive.local.LocalArchive
+.. autoclass:: arcana.archive.directory.DirectoryRepository
 
 
-Runners
+Processors
 -------
 
-.. autoclass:: arcana.runner.LinearRunner
+.. autoclass:: arcana.processor.LinearProcessor
 
-.. autoclass:: arcana.runner.MultiProcRunner
+.. autoclass:: arcana.processor.MultiProcProcessor
 
-.. autoclass:: arcana.runner.SlurmRunner
+.. autoclass:: arcana.processor.SlurmProcessor
 
 
 Inputs
 ------
 
-.. autoclass:: arcana.dataset.DatasetMatch
+.. autoclass:: arcana.data.FilesetSelector
 
-.. autoclass:: arcana.dataset.FieldMatch
+.. autoclass:: arcana.data.FieldSelector
 
 .. autoclass:: arcana.option.Option
 
@@ -44,9 +44,9 @@ Project tree
 .. autoclass:: arcana.archive.Session
 
 
-Datasets and Fields
+Filesets and Fields
 -------------------
 
-.. autoclass:: arcana.dataset.Dataset
+.. autoclass:: arcana.data.Fileset
 
-.. autoclass:: arcana.dataset.Field
+.. autoclass:: arcana.data.Field

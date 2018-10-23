@@ -9,7 +9,7 @@ Study
 -----
 
 .. autoclass:: arcana.study.Study
-    :members: data, pre_option, create_pipeline
+    :members: data, pre_option, new_pipeline
 
 .. autoclass:: arcana.study.MultiStudy
 
@@ -24,9 +24,9 @@ Meta-classes
 Specs
 -----
 
-.. autoclass:: arcana.dataset.DatasetSpec
+.. autoclass:: arcana.data.FilesetSpec
 
-.. autoclass:: arcana.dataset.FieldSpec
+.. autoclass:: arcana.data.FieldSpec
 
 .. autoclass:: arcana.study.multi.SubStudySpec
 
