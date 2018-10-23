@@ -21,6 +21,7 @@ from arcana.data import Fileset
 from arcana.utils import classproperty
 from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
+from arcana.environment import StaticEnvironment
 from arcana.exception import ArcanaError
 from arcana.node import ArcanaNodeMixin
 from arcana.exception import (
@@ -209,6 +210,10 @@ class BaseTestCase(TestCase):
         return LinearProcessor(self.work_dir)
 
     @property
+    def environment(self):
+        return StaticEnvironment()
+
+    @property
     def project_dir(self):
         return op.join(self.repository_path, self.name)
 
@@ -252,7 +257,7 @@ class BaseTestCase(TestCase):
         return module_name + sep + test_class_name
 
     def create_study(self, study_cls, name, inputs, repository=None,
-                     processor=None, **kwargs):
+                     processor=None, environment=None, **kwargs):
         """
         Creates a study using default repository and processors.
 
@@ -275,6 +280,8 @@ class BaseTestCase(TestCase):
             repository = self.repository
         if processor is None:
             processor = self.processor
+        if environment is None:
+            environment = self.environment
         return study_cls(
             name=name,
             repository=repository,
