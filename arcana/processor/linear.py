@@ -1,4 +1,3 @@
-from builtins import str
 from .base import BaseProcessor
 from nipype.pipeline.plugins import LinearPlugin
 

@@ -1,4 +1,3 @@
-from builtins import str
 from .docker import DockerEnvironment
 
 

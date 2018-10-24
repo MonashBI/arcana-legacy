@@ -1,4 +1,3 @@
-from builtins import str
 from builtins import zip
 import math
 import os

@@ -1,5 +1,4 @@
 from __future__ import print_function
-from builtins import str
 from past.builtins import basestring
 import os.path as op
 import os

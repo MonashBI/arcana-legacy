@@ -1,4 +1,3 @@
-from builtins import str
 from past.builtins import basestring
 from future.utils import PY3, PY2
 import os.path

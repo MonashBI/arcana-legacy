@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from builtins import str
 oldstr = str
 import os  # IgnorePep8
 from future.utils import PY2  # @IgnorePep8
