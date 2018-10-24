@@ -127,10 +127,7 @@ class Study(object):
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
-        self._tree = self.repository.cached_tree(
-            subject_ids=subject_ids,
-            visit_ids=visit_ids,
-            fill=fill_tree)
+        self._fill_tree = fill_tree
         if not self.subject_ids:
             raise ArcanaUsageError(
                 "No subject IDs provided and destination repository "
@@ -231,8 +228,6 @@ class Study(object):
                                 'Non-optional' + msg + " Pipelines "
                                 "depending on this fileset will not "
                                 "run")
-                else:
-                    self._bound_specs[spec.name] = spec.bind(self)
 
     def __repr__(self):
         """String representation of the study"""
@@ -276,7 +271,19 @@ class Study(object):
 
     @property
     def tree(self):
-        return self._tree
+        return self.repository.cached_tree(
+            subject_ids=self._subject_ids,
+            visit_ids=self._visit_ids,
+            fill=self._fill_tree)
+
+    def clear_binds(self):
+        """
+        Called after a pipeline is run against the study to force an update of
+        the derivatives that are now present in the repository if a subsequent
+        pipeline is run.
+        """
+        self.repository.clear_cache()
+        self._bound_specs = {}
 
     @property
     def processor(self):
@@ -570,33 +577,48 @@ class Study(object):
         Parameters
         ----------
         name : Str | BaseData | Parameter
-            An parameter, fileset or field or name of one
+            A parameter, fileset or field or name of one
         """
+        # If the provided "name" is actually a data item or parameter then
+        # replace it with its name.
         if isinstance(name, (BaseData, Parameter)):
             name = name.name
+        # If name is a parameter than return the parameter spec
+        if name in self._param_specs:
+            return self._param_specs[name]
+        else:
+            return self.bound_spec(name)
+
+    def bound_spec(self, name):
+        """
+        Returns an input selector or derived spec bound to the study, i.e.
+        where the repository tree is checked for existing outputs
+
+        Parameters
+        ----------
+        name : Str
+            A name of a fileset or field
+        """
+        # If the provided "name" is actually a data item or parameter then
+        # replace it with its name.
+        if isinstance(name, BaseData):
+            name = name.name
+        # Get the spec from the class
+        spec = self.data_spec(name)
         try:
-            spec = self._inputs[name]
+            bound = self._inputs[name]
         except KeyError:
-            try:
-                spec = self._bound_specs[name]
-            except KeyError:
-                if name in self._data_specs:
-                    raise ArcanaMissingDataException(
-                        "Acquired (i.e. non-generated) fileset '{}' "
-                        "was not supplied when the study '{}' was "
-                        "initiated".format(name, self.name))
-                else:
-                    try:
-                        spec = self._param_specs[name]
-                    except KeyError:
-                        raise ArcanaNameError(
-                            name,
-                            "'{}' is not a recognised spec name "
-                            "for {} studies:\n{}."
-                            .format(name, self.__class__.__name__,
-                                    '\n'.join(sorted(
-                                        self.spec_names()))))
-        return spec
+            if not spec.derived and spec.default is None:
+                raise ArcanaMissingDataException(
+                    "Acquired (i.e. non-generated) fileset '{}' "
+                    "was not supplied when the study '{}' was "
+                    "initiated".format(name, self.name))
+            else:
+                try:
+                    bound = self._bound_specs[name]
+                except KeyError:
+                    bound = self._bound_specs[name] = spec.bind(self)
+        return bound
 
     @classmethod
     def data_spec(cls, name):
@@ -609,6 +631,8 @@ class Study(object):
         name : Str
             Name of the fileset_spec to return
         """
+        # If the provided "name" is actually a data item or parameter then
+        # replace it with its name.
         if isinstance(name, BaseData):
             name = name.name
         try:

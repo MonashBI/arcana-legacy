@@ -127,7 +127,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
                     fill_subjects = subject_ids
                 if visit_ids is not None:
                     fill_visits = visit_ids
-            tree = self.tree(
+            tree = self._cache[(subject_ids, visit_ids, fill)] = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
                 fill_visits=fill_visits, fill_subjects=fill_subjects)
         return tree

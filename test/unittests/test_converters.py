@@ -126,9 +126,8 @@ class TestFormatConversions(BaseTestCase):
                 FilesetSelector('text', text_format, 'text'),
                 FilesetSelector('directory', directory_format, 'directory'),
                 FilesetSelector('zip', zip_format, 'zip')])
-        for coll in study.data(('text_from_text',
-                                'directory_from_zip_on_input',
-                                'zip_from_directory_on_input',
-                                'directory_from_zip_on_output',
-                                'zip_from_directory_on_output')):
-            self.assertCreated(list(coll)[0])
+        self.assertCreated(list(study.data('text_from_text'))[0])
+        self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
+        self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])
+        self.assertCreated(list(study.data('directory_from_zip_on_output'))[0])
+        self.assertCreated(list(study.data('zip_from_directory_on_output'))[0])
