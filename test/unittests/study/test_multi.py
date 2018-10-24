@@ -246,7 +246,6 @@ class TestMulti(BaseTestCase):
         self.assertEqual(ss2._get_parameter('o3').value, 30.0)
         self.assertEqual(ss2._get_parameter('product_op').value, 'mul')
 
-    @unittest.skip
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'multi_multi',

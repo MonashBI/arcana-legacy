@@ -37,7 +37,7 @@ import logging
 from future.utils import with_metaclass
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..'))
-import test_fileset  # @UnresolvedImport @IgnorePep8
+import test_data  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import TestExistingPrereqs study to test it on XNAT
@@ -824,9 +824,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
 
 
 class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
-                                   test_fileset.TestDicomTagMatch):
+                                   test_data.TestDicomTagMatch):
 
-    BASE_CLASS = test_fileset.TestDicomTagMatch
+    BASE_CLASS = test_data.TestDicomTagMatch
 
     @property
     def ref_dir(self):
@@ -834,7 +834,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             self.ref_path, self._get_name(self.BASE_CLASS))
 
     def setUp(self):
-        test_fileset.TestDicomTagMatch.setUp(self)
+        test_data.TestDicomTagMatch.setUp(self)
         TestOnXnatMixin.setUp(self)
         # Set up DICOM headers
         with xnat.connect(SERVER) as login:
@@ -845,17 +845,17 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     def tearDown(self):
         TestOnXnatMixin.tearDown(self)
-        test_fileset.TestDicomTagMatch.tearDown(self)
+        test_data.TestDicomTagMatch.tearDown(self)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_dicom_match(self):
-        study = test_fileset.TestMatchStudy(
+        study = test_data.TestMatchStudy(
             name='test_dicom',
             repository=XnatRepository(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
-            inputs=test_fileset.TestDicomTagMatch.DICOM_MATCH)
+            inputs=test_data.TestDicomTagMatch.DICOM_MATCH)
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -863,7 +863,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_id_match(self):
-        study = test_fileset.TestMatchStudy(
+        study = test_data.TestMatchStudy(
             name='test_dicom',
             repository=XnatRepository(
                 project_id=self.project,
@@ -879,7 +879,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_order_match(self):
-        test_fileset.TestDicomTagMatch.test_order_match(self)
+        test_data.TestDicomTagMatch.test_order_match(self)
 
 
 class TestFilesetCacheOnPathAccess(TestOnXnatMixin,

@@ -617,7 +617,10 @@ class TestMath(BaseInterface):
             x = self._load_file(x)
         if isinstance(y, basestring):
             y = self._load_file(y)
-        oper = getattr(operator, self.inputs.op)
+        try:
+            oper = getattr(operator, self.inputs.op)
+        except:
+            raise
         if isdefined(y):
             z = oper(x, y)
         elif isinstance(x, list):

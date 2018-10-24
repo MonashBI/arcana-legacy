@@ -658,14 +658,14 @@ class Pipeline(object):
         # TODO: Add provenance checking for items that exist
         return not item.exists
 
-    def _unwrap_mods(self, mods, name, study=None, **inner_maps):
+    def _unwrap_mods(self, name_maps, name, study=None, **inner_maps):
         """
         Unwraps potentially nested modification dictionaries to get values
         for name, input_map, output_map and study. Unsed in __init__.
 
         Parameters
         ----------
-        mods : dict
+        name_maps : dict
             A dictionary containing the name_maps to apply to the values
         name : str
             Name passed from inner pipeline constructor
@@ -684,13 +684,10 @@ class Pipeline(object):
         maps : dict[str, dict[str,str]]
             Potentially modifed input and output maps
         """
-        # Unwrap nested name_maps if present
-        if 'name' in mods:
-            name = mods['name']
-        if 'prefix' in mods:
-            name = mods['prefix'] + name
-        if 'study' in mods:
-            study = mods['study']
+        # Set values of name and study
+        name = name_maps.get('name', name)
+        name = name_maps.get('prefix', '') + name
+        study = name_maps.get('study', study)
         # Flatten input and output maps, combining maps from inner nests with
         # those in the "mods" dictionary
         maps = {}
@@ -699,12 +696,12 @@ class Pipeline(object):
                 inner_map = inner_maps[mtype]
             except KeyError:
                 try:
-                    maps[mtype] = mods[mtype]  # Only outer map
+                    maps[mtype] = name_maps[mtype]  # Only outer map
                 except KeyError:
                     pass  # No maps
             else:
                 try:
-                    outer_map = mods[mtype]
+                    outer_map = name_maps[mtype]
                 except KeyError:
                     maps[mtype] = inner_map  # Only inner map
                 else:
@@ -749,9 +746,13 @@ class Pipeline(object):
                             "Unrecognised type for name map in '{}' "
                             "pipeline can be str or dict[str,str]: {}"
                             .format(name, outer_map))
-        if 'mods' in mods:
+        try:
+            outer_maps = name_maps['name_maps']
+        except KeyError:
+            pass
+        else:
             name, study, maps = self._unwrap_mods(
-                mods['mods'], name=name, study=study, **maps)
+                outer_maps, name=name, study=study, **maps)
         return name, study, maps
 
     @property
