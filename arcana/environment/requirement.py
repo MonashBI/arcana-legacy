@@ -166,10 +166,7 @@ class Requirement(object):
         return True
 
     @classmethod
-    def best_requirement(cls, possible_requirements, available_modules,
-                         preloaded_modules=None):
-        if preloaded_modules is None:
-            preloaded_modules = {}
+    def best_requirement(cls, possible_requirements, available_modules):
         # If possible reqs is a singleton, wrap it in a list for
         # iterating
         if isinstance(possible_requirements, Requirement):
@@ -182,30 +179,13 @@ class Requirement(object):
         ver_exceptions = []  # Will hold all version error messages
         for req in possible_requirements:
             try:
-                version = preloaded_modules[req.name]
-                logger.debug("Found preloaded version {} of module '{}'"
-                             .format(version, req.name))
-                if req.valid_version(req.split_version(version)):
-                    return req.name, version
-                else:
-                    raise ArcanaError(
-                        "Incompatible module version already loaded {}/{},"
-                        " (valid {}->{}) please unload before running "
-                        "pipeline"
-                        .format(
-                            req.name, version, req.min_version,
-                            (req.max_version if req.max_version is not None
-                             else '')))
-            except KeyError:
-                try:
-                    best_version = req.best_version(
-                        available_modules[req.name])
-                    logger.debug("Found best version '{}' of module '{}' for"
-                                 " requirement {}".format(best_version,
-                                                          req.name, req))
-                    return req.name, best_version
-                except ArcanaRequirementVersionException as e:
-                    ver_exceptions.append(e)
+                best_version = req.best_version(available_modules[req.name])
+                logger.debug("Found best version '{}' of module '{}' for"
+                             " requirement {}".format(best_version,
+                                                      req.name, req))
+                return req.name, best_version
+            except ArcanaRequirementVersionException as e:
+                ver_exceptions.append(e)
         # If no parameters can be satisfied, otherwise raise exception with
         # combined messages from all parameters.
         raise ArcanaRequirementVersionException(

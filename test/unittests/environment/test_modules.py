@@ -28,7 +28,7 @@ else:
 class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
-        loaded_modules = ModulesEnvironment.preloaded()
+        loaded_modules = ModulesEnvironment.loaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "Mrtrix module was not loaded in Node")
@@ -106,7 +106,7 @@ class TestModuleLoad(BaseTestCase):
             [FilesetSelector('ones', text_format, 'ones')],
             environment=ModulesEnvironment())
         self.assertContentsEqual(study.data('twos'), 2.0)
-        self.assertEqual(ModulesEnvironment.preloaded(), {})
+        self.assertEqual(ModulesEnvironment.loaded(), {})
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
                      "Dcm2niix and Mrtrix modules are not installed")
@@ -119,4 +119,4 @@ class TestModuleLoad(BaseTestCase):
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
-        self.assertEqual(ModulesEnvironment.preloaded(), {})
+        self.assertEqual(ModulesEnvironment.loaded(), {})

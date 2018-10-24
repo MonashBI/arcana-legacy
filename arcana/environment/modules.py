@@ -42,7 +42,6 @@ class ModulesEnvironment(StaticEnvironment):
         if versions_map is None:
             versions_map = {}
         self._avail_cache = None
-        self._preload_cache = None
         self._packages_map = packages_map
         self._versions_map = versions_map
 
@@ -50,7 +49,7 @@ class ModulesEnvironment(StaticEnvironment):
         for req in requirements:
             # Get best requirement from list of possible options
             name, version = Requirement.best_requirement(
-                req, self._available_cache, self._preloaded_cache)
+                req, self._available_cache)
             module_id = name + ('/' + version if version is not None else '')
             self._run_module_cmd('load', module_id)
             self._loaded[req] = module_id
@@ -69,19 +68,19 @@ class ModulesEnvironment(StaticEnvironment):
                 self._run_module_cmd('unload', module_id)
 
     @classmethod
-    def preloaded(cls):
-        preloaded = {}
-        loaded = os.environ.get('LOADEDMODULES', '')
-        if loaded:
-            for modstr in loaded.split(':'):
+    def loaded(cls):
+        loaded = {}
+        loaded_str = os.environ.get('LOADEDMODULES', '')
+        if loaded_str:
+            for modstr in loaded_str.split(':'):
                 parts = modstr.split('/')
                 if len(parts) == 2:
                     name, versionstr = parts
                 else:
                     name = parts[0]
                     versionstr = None
-                preloaded[name] = versionstr
-        return preloaded
+                loaded[name] = versionstr
+        return loaded
 
     @classmethod
     def available(cls):
@@ -95,12 +94,6 @@ class ModulesEnvironment(StaticEnvironment):
                                       ' '.join(sanitized)):
             available[module.lower()].append(ver)
         return available
-
-    @property
-    def _preloaded_cache(self):
-        if self._preload_cache is None:
-            self._preload_cache = self.preloaded()
-        return self._preload_cache
 
     @property
     def _available_cache(self):
