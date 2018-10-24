@@ -25,7 +25,6 @@ if [ ! -d $HOME/packages/modules ]; then
   popd
 fi
 
-MODULESHOME
 
 # Create modulefile
 if [ ! -d $HOME/modules/firsttestmodule ]; then

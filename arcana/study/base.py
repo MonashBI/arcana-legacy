@@ -785,7 +785,7 @@ class Study(object):
         for spec in cls.parameter_specs():
             print(spec)
 
-    def provided(self, spec_name):
+    def provided(self, spec_name, default_okay=True):
         """
         Checks to see whether the corresponding data spec was provided an
         explicit input, as opposed to derivatives or missing optional inputs
@@ -796,8 +796,10 @@ class Study(object):
             Name of a data spec
         """
         spec = self.bound_spec(spec_name)
-        return not (isinstance(spec, BaseAcquiredSpec) and
-                    spec.default is None)
+        if isinstance(spec, BaseAcquiredSpec):
+            return spec.default is None and default_okay
+        else:
+            return True
 
 
 class StudyMetaClass(type):
