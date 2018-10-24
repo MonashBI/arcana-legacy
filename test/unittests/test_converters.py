@@ -43,44 +43,45 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             desc=("A pipeline that tests out various data format "
                          "conversions"))
         # No conversion from text to text format
-        text_from_text = pipeline.add('text_from_text',
-                                      IdentityInterface(fields=['file']))
-        pipeline.connect_input('text', text_from_text, 'file',
-                               format=text_format)
-        pipeline.connect_output('text_from_text', text_from_text,
-                                'file')
+        pipeline.add(
+            'text_from_text',
+            IdentityInterface(fields=['file']),
+            inputs={
+                'file': ('text', text_format)},
+            outputs={
+                'file': ('text_from_text', text_format)})
         # Convert from zip file to directory format on input
-        directory_from_zip_on_input = pipeline.add(
-            'directory_from_zip_on_input', IdentityInterface(fields=['file']))
-        pipeline.connect_input('zip', directory_from_zip_on_input, 'file',
-                               format=directory_format)
-        pipeline.connect_output('directory_from_zip_on_input',
-                                directory_from_zip_on_input,
-                                'file', format=directory_format)
+        pipeline.add(
+            'directory_from_zip_on_input',
+            IdentityInterface(fields=['file']),
+            inputs={
+                'file': ('zip', directory_format)},
+            outputs={
+                'file': ('directory_from_zip_on_input', directory_format)})
         # Convert from zip file to directory format on input
-        directory_from_zip_on_output = pipeline.add(
-            'directory_from_zip_on_output', IdentityInterface(fields=['file']))
-        pipeline.connect_input('zip', directory_from_zip_on_output, 'file',
-                               format=zip_format)
-        pipeline.connect_output('directory_from_zip_on_output',
-                                directory_from_zip_on_output,
-                                'file', format=zip_format)
+        pipeline.add(
+            'directory_from_zip_on_output',
+            IdentityInterface(fields=['file']),
+            inputs={
+                'file': ('zip', zip_format)},
+            outputs={
+                'file': ('directory_from_zip_on_output', zip_format)})
         # Convert from directory to zip format on input
-        zip_from_directory_on_input = pipeline.add(
-            'zip_from_directory_on_input', IdentityInterface(fields=['file']))
-        pipeline.connect_input('directory', zip_from_directory_on_input,
-                               'file', format=zip_format)
-        pipeline.connect_output('zip_from_directory_on_input',
-                                zip_from_directory_on_input, 'file',
-                                format=zip_format)
+        pipeline.add(
+            'zip_from_directory_on_input',
+            IdentityInterface(fields=['file']),
+            inputs={
+                'file': ('directory', zip_format)},
+            outputs={
+                'file': ('zip_from_directory_on_input', zip_format)})
         # Convert from directory to zip format on input
-        zip_from_directory_on_output = pipeline.add(
-            'zip_from_directory_on_output', IdentityInterface(fields=['file']))
-        pipeline.connect_input('directory', zip_from_directory_on_output,
-                               'file', format=directory_format)
-        pipeline.connect_output('zip_from_directory_on_output',
-                                zip_from_directory_on_output, 'file',
-                                format=directory_format)
+        pipeline.add(
+            'zip_from_directory_on_output',
+            IdentityInterface(fields=['file']),
+            inputs={
+                'file': ('directory', directory_format)},
+            outputs={
+                'file': ('zip_from_directory_on_output', directory_format)})
         return pipeline
 
 
@@ -125,8 +126,9 @@ class TestFormatConversions(BaseTestCase):
                 FilesetSelector('text', text_format, 'text'),
                 FilesetSelector('directory', directory_format, 'directory'),
                 FilesetSelector('zip', zip_format, 'zip')])
-        self.assertCreated(list(study.data('text_from_text'))[0])
-        self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
-        self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])
-        self.assertCreated(list(study.data('directory_from_zip_on_output'))[0])
-        self.assertCreated(list(study.data('zip_from_directory_on_output'))[0])
+        for coll in study.data(('text_from_text',
+                                'directory_from_zip_on_input',
+                                'zip_from_directory_on_input',
+                                'directory_from_zip_on_output',
+                                'zip_from_directory_on_output')):
+            self.assertCreated(list(coll)[0])
