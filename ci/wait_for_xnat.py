@@ -16,7 +16,7 @@ handler.setFormatter(formatter)
 logger.addHandler(handler)
 
 NUM_RETRIES = 10
-WAIT_TIME = 10  # 600
+WAIT_TIME = 600
 
 server = os.environ['ARCANA_TEST_XNAT']
 
