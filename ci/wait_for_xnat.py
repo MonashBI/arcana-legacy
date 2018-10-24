@@ -27,7 +27,8 @@ wait_incr = WAIT_TIME // NUM_RETRIES
 for i in range(NUM_RETRIES + 1):
     try:
         # Test to see whether we can connect to the XNAT server
-        xnat.connect(server, verify=True, logger=logger, debug=True)
+        xnat.connect(server, user='admin', password='admin', verify=True,
+                     logger=logger, debug=True)
     except Exception:
         print("Could not access XNAT server '{}' after after {} "
               "seconds. Will wait up until {} seconds before "
