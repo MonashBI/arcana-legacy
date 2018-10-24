@@ -5,40 +5,56 @@ import os.path
 import xnat
 import subprocess as sp
 import time
+import logging
+import traceback
+
+logger = logging.getLogger('xnat-test')
 
 NUM_RETRIES = 10
-WAIT_TIME = 600
+WAIT_TIME = 10  # 600
 
 server = os.environ['ARCANA_TEST_XNAT']
-dc_path = os.path.expanduser('~/xnat-docker-compose')
 
 wait_incr = WAIT_TIME // NUM_RETRIES
 
+
+# Keep attempting to connect to XNAT until number of retries has expired
+for i in range(NUM_RETRIES + 1):
+    try:
+        # Test to see whether we can connect to the XNAT server
+        xnat.connect(server, verify=True, loglevel=logging.DEBUG,
+                     logger=logger, debug=True)
+    except Exception:
+        print("Could not access XNAT server '{}' after after {} "
+              "seconds. Will wait up until {} seconds before "
+              "giving up. ".format(server, i * wait_incr,
+                                   WAIT_TIME))
+        time.sleep(wait_incr)
+        exc_type, exc_value, exc_tb = sys.exc_info()
+        exception_str = ''.join(
+            traceback.format_exception(exc_type, exc_value, exc_tb))
+    else:
+        print("Connected successfully to '{}'" .format(server))
+        sys.exit(0)  # Exit with success
+# Get original dir
 orig_dir = os.getcwd()
-
-
 try:
-    os.chdir(dc_path)
-    for i in range(NUM_RETRIES + 1):
-        try:
-            # Test to see whether we can connect to the XNAT server
-            xnat.connect(server, verify=True)
-            print("Connected successfully to '{}'" .format(server))
-            sys.exit(0)  # Exit with success
-        except Exception:
-            print("Could not access XNAT server '{}' after after {} "
-                  "seconds. Will wait up until {} seconds before "
-                  "giving up. ".format(server, i * wait_incr,
-                                       WAIT_TIME))
-            time.sleep(wait_incr)
-    logs = str(sp.check_output(
+    # Change to docker compose directory to get xnat-web logs
+    os.chdir(os.path.expanduser('~/xnat-docker-compose'))
+    logs = sp.check_output(
         '/usr/local/bin/docker-compose logs xnat-web',
-        shell=True).decode('utf-8'))
+        shell=True)
+    # Decode if using Python 3
+    if (sys.version_info > (3, 0)):
+        logs = str(logs.decode('utf-8'))
     with open(os.path.expanduser('~/.netrc')) as f:
-        netrc = str(f.read().decode('utf-8'))
+        netrc = f.read()
     raise Exception(
         "Gave up attempting to access XNAT server '{}' after after {} "
-        "seconds. The netrc file was:\n{}\n\nand the logs for xnat-web "
-        "were:\n{}".format(server, WAIT_TIME, netrc, logs))
+        "seconds.\n\n"
+        "The netrc file was:\n{}\n\n"
+        "the XnatPy exception message was {}\n\n"
+        "and the logs for xnat-web were:\n{}"
+        .format(server, WAIT_TIME, netrc, exception_str, logs))
 finally:
     os.chdir(orig_dir)
