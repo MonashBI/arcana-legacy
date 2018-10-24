@@ -9,6 +9,15 @@ from arcana.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.interfaces.utils import ZipDir
 from future.utils import with_metaclass
+from unittest import TestCase
+
+
+class TestConverterAvailability(TestCase):
+
+    def test_find_converter(self):
+        converter = zip_format.converter_from(directory_format)
+        node, _, _ = converter.get_node('dummy')
+        self.assertIsInstance(node.interface, ZipDir)
 
 
 class ConversionStudy(with_metaclass(StudyMetaClass, Study)):

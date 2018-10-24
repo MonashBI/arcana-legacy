@@ -64,7 +64,7 @@ class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
         pass
 
 
-class TestFilesetSelectoring(BaseMultiSubjectTestCase):
+class TestFilesetSelecting(BaseMultiSubjectTestCase):
 
     @unittest.skip("Test not implemented")
     def test_match_pattern(self):
