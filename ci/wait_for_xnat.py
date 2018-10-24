@@ -9,6 +9,11 @@ import logging
 import traceback
 
 logger = logging.getLogger('xnat-test')
+logger.setLevel(logging.DEBUG)
+handler = logging.StreamHandler()
+formatter = logging.Formatter("%(levelname)s - %(message)s")
+handler.setFormatter(formatter)
+logger.addHandler(handler)
 
 NUM_RETRIES = 10
 WAIT_TIME = 10  # 600
@@ -22,8 +27,7 @@ wait_incr = WAIT_TIME // NUM_RETRIES
 for i in range(NUM_RETRIES + 1):
     try:
         # Test to see whether we can connect to the XNAT server
-        xnat.connect(server, verify=True, loglevel=logging.DEBUG,
-                     logger=logger, debug=True)
+        xnat.connect(server, verify=True, logger=logger, debug=True)
     except Exception:
         print("Could not access XNAT server '{}' after after {} "
               "seconds. Will wait up until {} seconds before "
