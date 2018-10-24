@@ -12,7 +12,7 @@ from arcana.exception import (
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseField, BaseFileset, BaseSpec)
+    BaseData, BaseField, BaseFileset, BaseAcquiredSpec)
 from nipype.pipeline import engine as pe
 from arcana.parameter import Parameter, SwitchSpec
 from arcana.node import Node
@@ -785,7 +785,7 @@ class Study(object):
         for spec in cls.parameter_specs():
             print(spec)
 
-    def input_provided(self, spec_name):
+    def provided(self, spec_name):
         """
         Checks to see whether the corresponding data spec was provided an
         explicit input, as opposed to derivatives or missing optional inputs
@@ -795,15 +795,9 @@ class Study(object):
         spec_name : str
             Name of a data spec
         """
-        try:
-            input = self.input(spec_name)  # @ReservedAssignment
-        except ArcanaNameError:
-            # Check to see whether the name is correct
-            self.data_spec(spec_name)
-            provided = False
-        else:
-            provided = not isinstance(input, BaseSpec)
-        return provided
+        spec = self.bound_spec(spec_name)
+        return not (isinstance(spec, BaseAcquiredSpec) and
+                    spec.default is None)
 
 
 class StudyMetaClass(type):

@@ -1,7 +1,8 @@
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 from .spec import (
-    FilesetSpec, FieldSpec, AcquiredFilesetSpec, AcquiredFieldSpec, BaseSpec)
+    FilesetSpec, FieldSpec, AcquiredFilesetSpec, AcquiredFieldSpec, BaseSpec,
+    BaseAcquiredSpec)
 from .base import BaseField, BaseFileset, BaseData
 from .selector import FilesetSelector, FieldSelector, BaseMatch
 from .file_format import FileFormat, Converter, IdentityConverter
