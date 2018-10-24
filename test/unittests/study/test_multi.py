@@ -12,6 +12,10 @@ from future.utils import with_metaclass
 import unittest
 
 
+class NotSpecifiedRequiredParameter(Exception):
+    pass
+
+
 class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
@@ -53,7 +57,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('o1', 10),
         ParameterSpec('o2', '20'),
         ParameterSpec('o3', 30.0),
-        ParameterSpec('product_op', 'not-specified')]  # Needs to be set to 'product' @IgnorePep8
+        ParameterSpec('product_op', None, dtype=str)]  # Needs to be set to 'product' @IgnorePep8
 
     def pipeline_beta(self, **name_maps):  # @UnusedVariable
         pipeline = self.pipeline(
@@ -66,6 +70,8 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         prod = pipeline.add("product", TestMath())
         add1.inputs.op = 'add'
         add2.inputs.op = 'add'
+        if self.parameter('product_op') is None:
+            raise NotSpecifiedRequiredParameter
         prod.inputs.op = self.parameter('product_op')
         add1.inputs.as_file = True
         add2.inputs.as_file = True
@@ -118,7 +124,7 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         ParameterSpec('p3', 300.0),
         ParameterSpec('q1', 150),
         ParameterSpec('q2', '250'),
-        ParameterSpec('required_op', 'still-not-specified')]
+        ParameterSpec('required_op', None, dtype=str)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -301,18 +307,36 @@ class TestMulti(BaseTestCase):
         # Misses the required 'full_required_op' parameter, which sets
         # the operation of the second node in StudyB's pipeline to
         # 'product'
+        inputs = [FilesetSelector('ss1_x', text_format, 'ones'),
+                  FilesetSelector('ss1_y', text_format, 'ones'),
+                  FilesetSelector('full_a', text_format, 'ones'),
+                  FilesetSelector('full_b', text_format, 'ones'),
+                  FilesetSelector('full_c', text_format, 'ones'),
+                  FilesetSelector('partial_a', text_format, 'ones'),
+                  FilesetSelector('partial_b', text_format, 'ones'),
+                  FilesetSelector('partial_c', text_format, 'ones')]
         missing_parameter_study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [FilesetSelector('ss1_x', text_format, 'ones'),
-             FilesetSelector('ss1_y', text_format, 'ones'),
-             FilesetSelector('full_a', text_format, 'ones'),
-             FilesetSelector('full_b', text_format, 'ones'),
-             FilesetSelector('full_c', text_format, 'ones'),
-             FilesetSelector('partial_a', text_format, 'ones'),
-             FilesetSelector('partial_b', text_format, 'ones'),
-             FilesetSelector('partial_c', text_format, 'ones')],
-            parameters=[Parameter('partial_ss2_product_op', 'mul')])
+            inputs,
+            parameters=[
+                Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
-            ArcanaOutputNotProducedException,
+            NotSpecifiedRequiredParameter,
             missing_parameter_study.data,
             'g')
+        missing_parameter_study2 = self.create_study(
+            MultiMultiStudy, 'multi_multi',
+            inputs,
+            parameters=[Parameter('full_required_op', 'mul')])
+        self.assertRaises(
+            NotSpecifiedRequiredParameter,
+            missing_parameter_study2.data,
+            'g')
+        provided_parameters_study = self.create_study(
+            MultiMultiStudy, 'multi_multi',
+            inputs,
+            parameters=[
+                Parameter('partial_ss2_product_op', 'mul'),
+                Parameter('full_required_op', 'mul')])
+        g = list(provided_parameters_study.data('g'))[0]
+        self.assertContentsEqual(g, 11.0)
