@@ -3,15 +3,18 @@ mkdir -p $INSTALL_DIR
 mkdir -p $HOME/xnat
 
 # Clone the docker compose script
-git clone https://github.com/monashbiomedicalimaging/xnat-docker-compose $INSTALL_DIR
+git clone https://github.com/MonashBI/xnat-docker-compose $INSTALL_DIR
 
 pushd $INSTALL_DIR
 # Checkout special branch with prefs initialised to dummy defaults
 git checkout arcana-ci
 
-# Download the XNAT WAR
+# Download the XNAT WAR file and copy to webapps directory
+if [ ! $HOME/downloads/xnat.war ]; then
+  wget --no-cookies https://bintray.com/nrgxnat/applications/download_file?file_path=xnat-web-${XNAT_VER}.war -O $HOME/downloads/xnat.war
+fi
 mkdir webapps
-wget --no-cookies https://bintray.com/nrgxnat/applications/download_file?file_path=xnat-web-${XNAT_VER}.war -O webapps/ROOT.war
+cp $HOME/downloads/xnat.war webapps/ROOT.war
 
 # Bring up the server
 docker-compose up -d

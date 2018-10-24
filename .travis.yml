@@ -9,7 +9,7 @@ matrix:
     - python: 3.4
       env: ARCANA_TEST_DATA=$HOME/data/py3.4
     - python: 3.6
-      env: ARCANA_TEST_DATA=$HOME/data/py3.6
+      env: ARCANA_TEST_DATA=$HOME/data/py3.7
 env:
   global:
     - ARCANA_TEST_XNAT='http://localhost'

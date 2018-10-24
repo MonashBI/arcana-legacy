@@ -14,8 +14,8 @@ from future.utils import with_metaclass
 
 notinstalled1_req = Requirement(name='notinstalled1', min_version=(1, 0))
 notinstalled2_req = Requirement(name='notinstalled2', min_version=(1, 0))
-first_req = Requirement('mrtrix', min_version=(0, 15, 9))
-second_req = Requirement('dcm2niix', min_version=(1, 0, 2))
+first_req = Requirement('firsttestsmodule', min_version=(0, 15, 9))
+second_req = Requirement('secondtestmodule', min_version=(1, 0, 2))
 
 try:
     ModulesEnvironment._run_module_cmd('avail')
@@ -31,10 +31,10 @@ class TestMathWithReq(TestMath):
         loaded_modules = ModulesEnvironment.loaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
-                "Mrtrix module was not loaded in Node")
+                "First Test module was not loaded in Node")
         if second_req.name not in loaded_modules:
             raise ArcanaError(
-                "Dcm2niix module was not loaded in Node")
+                "Second Test module was not loaded in Node")
         return runtime
 
 

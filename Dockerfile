@@ -76,4 +76,4 @@ RUN echo 'prepend-path LD_LIBRARY_PATH /packages/mrtrix/lib' >> /modules/mrtrix/
 
 # Install NiAnalysis and prerequisite pipelines
 ENV BUILT_AT 2018-03-12-13:28
-RUN pip install git+https://github.com/monashbiomedicalimaging/arcana.git
+RUN pip install git+https://github.com/MonashBI/arcana.git
