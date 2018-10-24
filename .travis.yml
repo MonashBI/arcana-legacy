@@ -8,7 +8,7 @@ matrix:
       env: ARCANA_TEST_DATA=$HOME/data/py2.7
     - python: 3.4
       env: ARCANA_TEST_DATA=$HOME/data/py3.4
-    - python: 3.6
+    - python: 3.7
       env: ARCANA_TEST_DATA=$HOME/data/py3.7
 env:
   global:
