@@ -101,7 +101,9 @@ def parse_single_value(value):
         try:
             value = float(value)
         except ValueError:
-            if not isinstance(value, basestring):
+            if isinstance(value, basestring):
+                value = str(value)
+            else:
                 raise ArcanaUsageError(
                     "Unrecognised value type {}".format(value))
     return value
@@ -109,10 +111,11 @@ def parse_single_value(value):
 
 def parse_value(value):
     # Split strings with commas into lists
-    if ',' in value:
-        value = value.split(',')
+    if isinstance(value, basestring):
+        if ',' in value:
+            value = value.split(',')
     # Cast all iterables (except strings) into lists
-    if not isinstance(value, basestring):
+    else:
         try:
             value = list(value)
         except TypeError:

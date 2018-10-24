@@ -3,7 +3,7 @@ import os.path
 import pydicom
 from arcana.data.file_format import FileFormat
 from arcana.data.file_format.standard import directory_format
-from arcana.utils import split_extension, parse_single_value
+from arcana.utils import split_extension, parse_value
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
     ArcanaFileFormatNotRegisteredError, ArcanaNameError)
@@ -387,16 +387,7 @@ class Field(BaseItem, BaseField):
                     "Either 'value' or 'array' must be provided to "
                     "Field init")
         else:
-            if isinstance(value, str):
-                # Split array strings delimted by commas
-                if ',' in value:
-                    value = value.split(',')
-            else:
-                # Attempt to convert to an list to catch all iterables
-                try:
-                    value = list(value)
-                except TypeError:
-                    pass
+            value = parse_value(value)
             if isinstance(value, list):
                 if array is False:
                     raise ArcanaUsageError(
@@ -413,22 +404,15 @@ class Field(BaseItem, BaseField):
                 array = False
             if dtype is None:
                 if array:
-                    dtypes = set(type(parse_single_value(v)) for v in value)
-                    if dtypes == set((int, float)):
-                        dtype = float  # Cast stray ints to float
-                    elif len(dtypes) > 1:
-                        raise ArcanaUsageError(
-                            "Inconsistent datatypes in array passed to '{}' "
-                            "field:\n{}".format(name, value))
-                    else:
-                        dtype = next(iter(dtypes))
+                    dtype = type(value[0])
                 else:
-                    dtype = type(parse_single_value(value))
-            # Ensure everything is cast to the correct type
-            if array:
-                value = [dtype(v) for v in value]
+                    dtype = type(value)
             else:
-                value = dtype(value)
+                # Ensure everything is cast to the correct type
+                if array:
+                    value = [dtype(v) for v in value]
+                else:
+                    value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists)
