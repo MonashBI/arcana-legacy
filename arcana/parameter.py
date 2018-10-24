@@ -1,3 +1,4 @@
+from builtins import str
 from past.builtins import basestring
 from builtins import object
 from copy import copy
@@ -21,14 +22,14 @@ class Parameter(object):
         if value is None:
             self._dtype = None
         else:
-            if not isinstance(value, (int, float, str,
+            if not isinstance(value, (int, float, basestring,
                                       tuple, list)):
                 raise ArcanaUsageError(
                     "Invalid type for '{}' parameter default ({}), {}, "
                     "can be one of int, float or str"
                     .format(name, value, type(value)))
             self._dtype = (str
-                           if isinstance(value, str) else type(value))
+                           if isinstance(value, basestring) else type(value))
         self._value = value
 
     @property

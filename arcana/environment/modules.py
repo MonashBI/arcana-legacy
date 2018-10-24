@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 from __future__ import division
 from future.utils import PY3
+from builtins import str  # @UnusedImport
 import os
 import re
 import logging

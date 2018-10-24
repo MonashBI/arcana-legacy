@@ -29,7 +29,8 @@ setup(
                       'fasteners>=0.7.0',
                       'future>=0.16.0',
                       'pybids>=0.5.1',
-                      'contextlib2>=0.5.5'],
+                      'contextlib2>=0.5.5',
+                      'pybids'],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",

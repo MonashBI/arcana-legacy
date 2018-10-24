@@ -1,14 +1,15 @@
 from __future__ import absolute_import
+from builtins import str  # @UnusedImport
 import os.path as op
 from collections import defaultdict
 from itertools import chain
 from arcana.utils import makedirs
-from .simple import DirectoryRepository
+from .directory import DirectoryRepository
 import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
-from arcana.exception import ArcanaNameError, ArcanaMissingDataException
+from arcana.exception import ArcanaNameError
 
 logger = logging.getLogger('arcana')
 

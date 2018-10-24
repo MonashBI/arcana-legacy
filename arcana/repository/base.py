@@ -1,3 +1,4 @@
+from builtins import str
 from builtins import object
 from abc import ABCMeta, abstractmethod
 from future.utils import with_metaclass

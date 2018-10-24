@@ -1,3 +1,4 @@
+from builtins import str
 from arcana.exception import (
     ArcanaError, ArcanaUsageError, ArcanaIndexError)
 from .base import BaseFileset, BaseField

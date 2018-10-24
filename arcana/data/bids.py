@@ -1,3 +1,4 @@
+from builtins import str
 from arcana.exception import ArcanaFilesetSelectorError, ArcanaUsageError
 from .selector import FilesetSelector
 

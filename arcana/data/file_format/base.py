@@ -1,3 +1,4 @@
+from builtins import str
 from builtins import object
 from abc import ABCMeta, abstractmethod
 from arcana.node import Node

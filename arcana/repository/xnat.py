@@ -1,9 +1,9 @@
 from __future__ import absolute_import
+from builtins import str
 oldstr = str
-from builtins import str  # @IgnorePep8 @UnusedImport
+import os  # IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from arcana.utils import makedirs  # @IgnorePep8
-import os
 import os.path as op # @IgnorePep8
 import shutil  # @IgnorePep8
 import hashlib  # @IgnorePep8

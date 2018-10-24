@@ -1,3 +1,4 @@
+from builtins import str
 from past.builtins import basestring
 import os.path
 import pydicom

@@ -1,3 +1,4 @@
+from builtins import str
 from past.builtins import basestring
 from builtins import object
 import os
@@ -708,8 +709,8 @@ class Pipeline(object):
                     # Work through different combinations of  inner and outer
                     # map types (i.e. str & str, str & dict, dict & str, and
                     # dict & dict) and combine into a single map
-                    if isinstance(outer_map, str):
-                        if isinstance(inner_map, str):
+                    if isinstance(outer_map, basestring):
+                        if isinstance(inner_map, basestring):
                             # Concatenate prefixes
                             maps[mtype] = outer_map + inner_map
                         elif isinstance(inner_map, dict):
@@ -723,7 +724,7 @@ class Pipeline(object):
                                 "pipeline can be str or dict[str,str]: {}"
                                 .format(name, inner_map))
                     elif isinstance(outer_map, dict):
-                        if isinstance(inner_map, str):
+                        if isinstance(inner_map, basestring):
                             # Strip inner map prefix from outer dictionary
                             # (which should have prefix included). This should
                             # be an unlikely case I imagine

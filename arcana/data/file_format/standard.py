@@ -1,3 +1,4 @@
+from builtins import str
 from copy import copy
 from arcana.node import Node
 from arcana.interfaces.utils import (

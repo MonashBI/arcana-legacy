@@ -1,3 +1,4 @@
+from builtins import str
 class ArcanaException(Exception):
     pass
 

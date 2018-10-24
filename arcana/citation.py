@@ -1,3 +1,4 @@
+from builtins import str  # @UnusedImport
 from builtins import object
 
 
