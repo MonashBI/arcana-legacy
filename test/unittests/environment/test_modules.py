@@ -14,7 +14,7 @@ from future.utils import with_metaclass
 
 notinstalled1_req = Requirement(name='notinstalled1', min_version=(1, 0))
 notinstalled2_req = Requirement(name='notinstalled2', min_version=(1, 0))
-first_req = Requirement('firsttestsmodule', min_version=(0, 15, 9))
+first_req = Requirement('firsttestmodule', min_version=(0, 15, 9))
 second_req = Requirement('secondtestmodule', min_version=(1, 0, 2))
 
 try:
