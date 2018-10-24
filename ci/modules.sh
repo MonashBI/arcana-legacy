@@ -1,5 +1,7 @@
 # Install environment modules to handle package versions
 
+set -e
+
 mkdir -p $HOME/modules
 mkdir -p $HOME/downloads
 
