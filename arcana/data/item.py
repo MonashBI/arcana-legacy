@@ -1,4 +1,4 @@
-from builtins import str
+from past.builtins import basestring
 import os.path
 import pydicom
 from arcana.data.file_format import FileFormat
@@ -151,9 +151,9 @@ class Fileset(BaseItem, BaseFileset):
                 hash(self._bids_attr))
 
     def __lt__(self, other):
-        if isinstance(self.id, int) and isinstance(other.id, str):
+        if isinstance(self.id, int) and isinstance(other.id, basestring):
             return True
-        elif isinstance(self.id, str) and isinstance(other.id, int):
+        elif isinstance(self.id, basestring) and isinstance(other.id, int):
             return False
         else:
             if self.id == other.id:
