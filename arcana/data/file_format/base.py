@@ -328,5 +328,5 @@ class IdentityConverter(Converter):
 
     requirements = []
 
-    def get_node(self, name):
-        return Node(IdentityInterface(['i']), name=name), 'i', 'i'
+    def get_node(self, name, **kwargs):
+        return Node(IdentityInterface(['i']), name=name, **kwargs), 'i', 'i'

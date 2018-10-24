@@ -692,9 +692,10 @@ class Study(object):
         """
         workflow = pe.Workflow(name='cache_download',
                                base_dir=self.processor.work_dir)
-        subjects = pe.Node(IdentityInterface(['subject_id']), name='subjects')
+        subjects = pe.Node(IdentityInterface(['subject_id']), name='subjects',
+                           environment=self.environment)
         sessions = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
-                           name='sessions')
+                           name='sessions', environment=self.environment)
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
         source = self.source(self.inputs)
@@ -724,7 +725,8 @@ class Study(object):
             study. Used for derived filesets only
         """
         return Node(RepositorySource(
-            self.spec(i).collection for i in inputs), name=name)
+            self.spec(i).collection for i in inputs), name=name,
+            environment=self.environment)
 
     def sink(self, outputs, name='sink'):
         """
@@ -747,7 +749,8 @@ class Study(object):
 
         """
         return Node(RepositorySink(
-            (self.spec(o).collection for o in outputs)), name=name)
+            (self.spec(o).collection for o in outputs)), name=name,
+            environment=self.environment)
 
     @classmethod
     def print_specs(cls):

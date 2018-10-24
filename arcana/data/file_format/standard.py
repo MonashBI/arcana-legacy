@@ -9,8 +9,8 @@ class UnzipConverter(Converter):
 
     requirements = []
 
-    def get_node(self, name):
-        convert_node = Node(UnzipDir(), name=name, memory=12000)
+    def get_node(self, name, **kwargs):
+        convert_node = Node(UnzipDir(), name=name, memory=12000, **kwargs)
         return convert_node, 'zipped', 'unzipped'
 
 
@@ -18,8 +18,8 @@ class ZipConverter(Converter):
 
     requirements = []
 
-    def get_node(self, name):
-        convert_node = Node(ZipDir(), name=name, memory=12000)
+    def get_node(self, name, **kwargs):
+        convert_node = Node(ZipDir(), name=name, memory=12000, **kwargs)
         return convert_node, 'dirname', 'zipped'
 
 
@@ -27,8 +27,8 @@ class TarGzConverter(Converter):
 
     requirements = []
 
-    def get_node(self, name):
-        convert_node = Node(TarGzDir(), name=name, memory=12000)
+    def get_node(self, name, **kwargs):
+        convert_node = Node(TarGzDir(), name=name, memory=12000, **kwargs)
         return convert_node, 'dirname', 'zipped'
 
 
@@ -36,8 +36,8 @@ class UnTarGzConverter(Converter):
 
     requirements = []
 
-    def get_node(self, name):
-        convert_node = Node(UnTarGzDir(), name=name, memory=12000)
+    def get_node(self, name, **kwargs):
+        convert_node = Node(UnTarGzDir(), name=name, memory=12000, **kwargs)
         return convert_node, 'gzipped', 'gunzipped'
 
 

@@ -5,6 +5,7 @@ from arcana.processor import SlurmProcessor
 from nipype.interfaces.utility import IdentityInterface
 from unittest import TestCase
 from arcana.node import Node
+from arcana.environment import StaticEnvironment
 
 
 logger = logging.getLogger('arcana')
@@ -26,7 +27,8 @@ class TestSlurmTemplate(TestCase):
 
     def test_template(self):
         n = Node(IdentityInterface('x'), name='x', wall_time=150,
-                 nthreads=10, memory=2000, gpu=True)
+                 nthreads=10, memory=2000, gpu=True,
+                 environment=StaticEnvironment())
         generated = self.processor.slurm_template(n).strip()
         self.assertEqual(
             generated, ref_template.strip(),

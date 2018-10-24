@@ -286,6 +286,7 @@ class BaseTestCase(TestCase):
             name=name,
             repository=repository,
             processor=processor,
+            environment=environment,
             inputs=inputs,
             **kwargs)
 
