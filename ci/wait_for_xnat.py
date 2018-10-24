@@ -31,11 +31,11 @@ try:
                   "giving up. ".format(server, i * wait_incr,
                                        WAIT_TIME))
             time.sleep(wait_incr)
-    logs = sp.check_output(
+    logs = str(sp.check_output(
         '/usr/local/bin/docker-compose logs xnat-web',
-        shell=True)
+        shell=True).decode('utf-8'))
     with open(os.path.expanduser('~/.netrc')) as f:
-        netrc = f.read()
+        netrc = str(f.read().decode('utf-8'))
     raise Exception(
         "Gave up attempting to access XNAT server '{}' after after {} "
         "seconds. The netrc file was:\n{}\n\nand the logs for xnat-web "
