@@ -2,43 +2,11 @@ from __future__ import division
 from builtins import object
 import logging
 from itertools import zip_longest
-from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
-import subprocess as sp
-import re
 
 
 logger = logging.getLogger('arcana')
-
-
-def split_version(version_str):
-    logger.debug("splitting version string '{}'"
-                 .format(version_str))
-    try:
-        sanitized_ver_str = re.match(r'[^\d]*(\d+(?:\.\d+)*)[^\d]*',
-                                     version_str).group(1)
-        return tuple(
-            int(p) for p in sanitized_ver_str.split('.'))
-    except (ValueError, AttributeError) as e:
-        raise ArcanaRequirementVersionException(
-            "Could not parse version string '{}': {}".format(
-                version_str, e))
-
-
-def date_split(version_str):
-    try:
-        return tuple(int(p) for p in version_str.split('-'))
-    except ValueError as e:
-        raise ArcanaRequirementVersionException(str(e))
-
-
-def matlab_version_split(version_str):
-    match = re.match(r'(?:r|R)?(\d+)(\w)', version_str)
-    if match is None:
-        raise ArcanaRequirementVersionException(
-            "Do not understand Matlab version '{}'".format(version_str))
-    return int(match.group(1)), match.group(2).lower()
 
 
 class Requirement(object):
@@ -191,85 +159,4 @@ class Requirement(object):
             ' and '.join(str(e) for e in ver_exceptions))
 
 
-class CLIRequirement(Requirement):
-    """
-    Defines a software package that is available on the command line
 
-    Parameters
-    ----------
-    name : str
-        Name of the package
-    min_version : tuple(int|str)
-        The minimum version required by the node
-    max_version : tuple(int|str) | None
-        The maximum version that is compatible with the Node
-    test_cmd : str
-        The name of a command that should be available when the
-        requirement is satisfied.
-    version_split : function
-        A function that splits the version string into major/minor/micro
-        parts or equivalent
-    references : list[Citation]
-        A list of references that should be cited when using this software
-        requirement
-    """
-
-    def __init__(self, name, min_version, test_cmd=None, **kwargs):
-        super(CLIRequirement, self).__init__(name, min_version, **kwargs)
-        self._test_cmd = test_cmd
-
-    @property
-    def satisfied(self):
-        if self.test_cmd is None:
-            return True  # No test available
-        return sp.call(self.test_cmd, shell=True) == 127
-
-    @property
-    def test_cmd(self):
-        return self._test_cmd
-
-
-class MatlabRequirement(Requirement):
-    """
-    Defines a software package within Matlab
-
-    Parameters
-    ----------
-    name : str
-        Name of the package
-    min_version : tuple(int|str)
-        The minimum version required by the node
-    max_version : tuple(int|str) | None
-        The maximum version that is compatible with the Node
-    test_func : str
-        The name of a function that should be available when the
-        requirement is satisfied.
-    version_split : function
-        A function that splits the version string into major/minor/micro
-        parts or equivalent
-    references : list[Citation]
-        A list of references that should be cited when using this software
-        requirement
-    """
-
-    def __init__(self, name, min_version, test_func=None, **kwargs):
-        super(MatlabRequirement, self).__init__(name, min_version, **kwargs)
-        self._test_func = test_func
-
-    @property
-    def satisfied(self):
-        if self.test_func is None:
-            return True  # No test available
-        script = (
-            "try\n"
-            "    {}\n"
-            "catch E\n"
-            "    fprintf(E.identifier);\n"
-            "end\n".format(self.test_func))
-        result = MatlabCommand(script=script, mfile=True).run()
-        output = result.runtime.stdout
-        return output != 'MATLAB:UndefinedFunction'
-
-    @property
-    def test_func(self):
-        return self._test_func
