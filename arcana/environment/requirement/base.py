@@ -4,6 +4,7 @@ import logging
 from itertools import zip_longest
 from arcana.exception import (
     ArcanaError, ArcanaRequirementVersionException)
+from .utils import split_version
 
 
 logger = logging.getLogger('arcana')
@@ -159,4 +160,11 @@ class Requirement(object):
             ' and '.join(str(e) for e in ver_exceptions))
 
 
+class RequirementVersion(object):
 
+    pass
+
+
+class RequirementVersionRange(object):
+
+    pass
