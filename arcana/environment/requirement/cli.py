@@ -69,8 +69,8 @@ class CliRequirement(Requirement):
         except sp.CalledProcessError as e:
             if e.returncode == 1:
                 raise ArcanaRequirementNotFoundError(
-                    "Could not find version of {} in environment (using {})"
-                    .format(self, self._test_cmd))
+                    "Could not find command {} on system path, which is part "
+                    "of {}".format(cmd, self))
             else:
                 raise
         if PY3:
