@@ -70,9 +70,9 @@ class MatlabPackageRequirementVersion(RequirementVersion):
         super(MatlabPackageRequirementVersion, self).__init__(requirement,
                                                               version)
         if isinstance(matlab_version, basestring):
-            matlab_version = matlab_req(matlab_version)
+            matlab_version = matlab_req.v(matlab_version)
         elif isinstance(matlab_version, (tuple, list)):
-            matlab_version = matlab_req(*matlab_version)
+            matlab_version = matlab_req.v(*matlab_version)
         self._matlab_version = matlab_version
 
     def __eq__(self, other):
@@ -93,9 +93,9 @@ class MatlabPackageRequirementVersionRange(RequirementVersionRange):
         super(MatlabPackageRequirementVersionRange, self).__init__(
             requirement, min_version, max_version)
         if isinstance(matlab_version, basestring):
-            matlab_version = matlab_req(matlab_version)
+            matlab_version = matlab_req.v(matlab_version)
         elif isinstance(matlab_version, (tuple, list)):
-            matlab_version = matlab_req(*matlab_version)
+            matlab_version = matlab_req.v(*matlab_version)
         self._matlab_version = matlab_version
 
     def __eq__(self, other):

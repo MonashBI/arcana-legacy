@@ -6,11 +6,11 @@ from arcana.environment.requirement.matlab import matlab_req
 
 
 a_req = PythonPackageRequirement('a')
-a_req_rnge = a_req((2, 0, 1), (10, 2, 1))
+a_req_rnge = a_req.v((2, 0, 1), (10, 2, 1))
 b_req = PythonPackageRequirement('b')
-b_req_rnge = b_req((0, 0, 9), (1, 0, 1))
+b_req_rnge = b_req.v((0, 0, 9), (1, 0, 1))
 c_req = PythonPackageRequirement('c')
-c_req_rnge = c_req((1, 8, 13), (2, 22, 0))
+c_req_rnge = c_req.v((1, 8, 13), (2, 22, 0))
 
 
 class TestRequirements(TestCase):
@@ -29,17 +29,17 @@ class TestRequirements(TestCase):
     def test_best_version(self):
         self.assertEqual(
             a_req_rnge.latest_available(['2.0.0', '2.0.1']),
-            a_req('2.0.1'))
+            a_req.v('2.0.1'))
         self.assertEqual(
             a_req_rnge.latest_available(['2.0.0', '3.0.9', 'waa'],
                                         ignore_unrecognised=True),
-            a_req('3.0.9'))
+            a_req.v('3.0.9'))
         self.assertEqual(
             b_req_rnge.latest_available(['0.0.8', '0.0.9']),
-            b_req('0.0.9'))
+            b_req.v('0.0.9'))
         self.assertEqual(
             c_req_rnge.latest_available(['1.9.v4', '1.2.9', '3.0.1']),
-            c_req('1.9.v4'))
+            c_req.v('1.9.v4'))
 
     def test_exceptions(self):
         req = PythonPackageRequirement('anything')
