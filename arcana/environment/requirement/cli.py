@@ -34,6 +34,11 @@ class CliRequirement(Requirement):
         self._test_cmd = test_cmd
         self._version_switch = version_switch
 
+    def __eq__(self, other):
+        return (super(CliRequirement, self).__eq__(other) and
+                self._test_cmd == other._test_cmd and
+                self._version_switch == other._version_switch)
+
     @property
     def test_cmd(self):
         return self._test_cmd
