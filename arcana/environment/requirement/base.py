@@ -3,7 +3,8 @@ from builtins import object
 from past.builtins import basestring
 import logging
 from arcana.exception import (
-    ArcanaUsageError, ArcanaRequirementVersionNotDectableError)
+    ArcanaUsageError, ArcanaRequirementVersionNotDectableError,
+    ArcanaRequirementVersionException)
 import re
 
 
@@ -20,6 +21,9 @@ class RequirementVersion(object):
 
     def __repr__(self):
         return "{}[{}]".format(self._req, self.version)
+
+    def __eq__(self, other):
+        return self._req == other._req and self._ver == other._ver
 
     @property
     def version(self):
@@ -56,9 +60,13 @@ class RequirementVersionRange(object):
         if max_version < min_version:
             raise ArcanaUsageError(
                 "Maxium version in {} version range {} is less than minimum {}"
-                .format(self._req.name, self.max_version, self.min_version))
+                .format(self._req.name, max_version, min_version))
         self._min_ver = min_version
         self._max_ver = max_version
+
+    def __eq__(self, other):
+        return (self._req == other._req and self._min_ver == other._min_ver and
+                self._max_ver == other._max_ver)
 
     @property
     def min_version(self):
@@ -75,7 +83,7 @@ class RequirementVersionRange(object):
     def __contains__(self, version):
         return version >= self._min_ver and version <= self._max_ver
 
-    def latest_available(self, available):
+    def latest_available(self, available, ignore_unrecognised=False):
         """
         Picks the latest acceptible version from the versions available
 
@@ -83,6 +91,9 @@ class RequirementVersionRange(object):
         ----------
         available : list(tuple(int) | str)
             List of possible versions to select from
+        ignore_unrecognised : bool
+            If True, then unrecognisable versions are ignored instead of
+            throwing an error
 
         Returns
         -------
@@ -92,19 +103,31 @@ class RequirementVersionRange(object):
         latest_ver = ()
         for ver in available:
             if isinstance(ver, basestring):
-                ver = self.parse_version(ver)
+                try:
+                    ver = self._req.parse_version(ver)
+                except ArcanaRequirementVersionNotDectableError:
+                    if ignore_unrecognised:
+                        continue
+                    else:
+                        raise
             if ver < self._min_ver:
                 logger.debug("Not selecting {} version of {} as it is not in "
                              "acceptable range {} <= v <= {} ".format(
-                                 self._req.name, self.min_version,
+                                 ver, self._req, self.min_version,
                                  self.max_version))
             elif ver > self._max_ver:
                 logger.info("Not selecting {} version of {} as it is not in "
                             "acceptable range {} <= v <= {} ".format(
-                                self._req.name, self.min_version,
+                                ver, self._req, self.min_version,
                                 self.max_version))
             elif ver > latest_ver:
                 latest_ver = ver
+        if not latest_ver:
+            raise ArcanaRequirementVersionException(
+                "Could not find version of {} within range {} <= v <= {} "
+                "(available {})".format(self._req, self.min_version,
+                                        self.max_version,
+                                        ', '.join(str(v) for v in available)))
         return self.VersionClass(self._req, latest_ver, **self._version_kwargs)
 
 
@@ -148,6 +171,13 @@ class Requirement(object):
                 r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'
                 .format(m=m, sv=sub_ver))
         self._version_regex = re.compile(version_regex)
+
+    def __eq__(self, other):
+        return (self.name == other.name and
+                self._references == other._references and
+                self.website == other.website and
+                self._delim == other._delim and
+                self._version_regex == other._version_regex)
 
     @property
     def name(self):
@@ -228,4 +258,4 @@ class Requirement(object):
         raise NotImplementedError
 
     def format_version(self, version_tuple):
-        return self._req.version_delimeter.join(version_tuple)
+        return self.delimeter.join(str(i) for i in version_tuple)

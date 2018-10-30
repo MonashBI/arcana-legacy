@@ -13,6 +13,11 @@ class PythonPackageRequirement(Requirement):
         self._package_name = package_name if package_name is not None else name
         self._version_attr = version_attr
 
+    def __eq__(self, other):
+        return (super(PythonPackageRequirement, self).__eq__(other) and
+                self._package_name == other._package_name and
+                self._version_attr == other._version_attr)
+
     @property
     def package_name(self):
         return self._package_name

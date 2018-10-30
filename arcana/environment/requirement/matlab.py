@@ -49,12 +49,16 @@ class MatlabRequirement(CliRequirement):
             A tuple containing the major, minor and micro (if provided)
             version numbers.
         """
-        match = re.search(r'(?:r|R)?(\d+)(a|b)', version_str)
+        match = re.search(r'(?:R)?(\d+)(a|b)', version_str,
+                          re.IGNORECASE)  # @UndefinedVariable
         if match is None:
             raise ArcanaRequirementVersionNotDectableError(
                 "Could not parse Matlab version string '{}'"
                 .format(version_str))
-        return match.groups()
+        return int(match.group(1)), match.group(2).lower()
+
+    def format_version(self, version_tuple):
+        return 'R{}{}'.format(*version_tuple)
 
 
 matlab_req = MatlabRequirement()
@@ -70,6 +74,11 @@ class MatlabPackageRequirementVersion(RequirementVersion):
         elif isinstance(matlab_version, (tuple, list)):
             matlab_version = matlab_req(*matlab_version)
         self._matlab_version = matlab_version
+
+    def __eq__(self, other):
+        return (
+            super(MatlabPackageRequirementVersion, self).__eq__(other) and
+            self._matlab_version == other._matlab_version)
 
     @property
     def matlab_version(self):
@@ -88,6 +97,11 @@ class MatlabPackageRequirementVersionRange(RequirementVersionRange):
         elif isinstance(matlab_version, (tuple, list)):
             matlab_version = matlab_req(*matlab_version)
         self._matlab_version = matlab_version
+
+    def __eq__(self, other):
+        return (
+            super(MatlabPackageRequirementVersionRange, self).__eq__(other) and
+            self._matlab_version == other._matlab_version)
 
     @property
     def matlab_version(self):
@@ -123,6 +137,10 @@ class MatlabPackageRequirement(Requirement):
     def __init__(self, name, test_func, **kwargs):
         super(MatlabPackageRequirement, self).__init__(name, **kwargs)
         self._test_func = test_func
+
+    def __eq__(self, other):
+        return (super(MatlabPackageRequirement, self).__eq__(other) and
+                self._test_func == other._test_func)
 
     @property
     def test_func(self):
