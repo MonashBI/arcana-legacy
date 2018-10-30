@@ -10,6 +10,104 @@ import re
 logger = logging.getLogger('arcana')
 
 
+class RequirementVersion(object):
+
+    def __init__(self, requirement, version):
+        self._req = requirement
+        if isinstance(version, basestring):
+            version = requirement.parse_version(version)
+        self._ver = version
+
+    def __repr__(self):
+        return "{}[{}]".format(self._req, self.version)
+
+    @property
+    def version(self):
+        return self._req.format_version(self._ver)
+
+    @property
+    def requirement(self):
+        return self._req
+
+
+class RequirementVersionRange(object):
+    """
+    A range of versions associated with a software requirement
+
+    Parameters
+    ----------
+    requirement : Requirement
+        The requirement to define the version range for
+    min_version : tuple(int|str)
+        The minimum version required by the node
+    max_version : tuple(int|str) | None
+        The maximum version that is compatible with the Node
+    """
+
+    VersionClass = RequirementVersion
+    _version_kwargs = {}
+
+    def __init__(self, requirement, min_version, max_version):
+        self._req = requirement
+        if isinstance(min_version, basestring):
+            min_version = self.parse_version(min_version)
+        if isinstance(max_version, basestring):
+            max_version = self.parse_version(max_version)
+        if max_version < min_version:
+            raise ArcanaUsageError(
+                "Maxium version in {} version range {} is less than minimum {}"
+                .format(self._req.name, self.max_version, self.min_version))
+        self._min_ver = min_version
+        self._max_ver = max_version
+
+    @property
+    def min_version(self):
+        return self._req.format_version(self._min_ver)
+
+    @property
+    def max_version(self):
+        return self._req.format_version(self._max_ver)
+
+    def __repr__(self):
+        return "{}[{} <= v <= {}]".format(
+            self._req, self.min_version, self.max_version)
+
+    def __contains__(self, version):
+        return version >= self._min_ver and version <= self._max_ver
+
+    def latest_available(self, available):
+        """
+        Picks the latest acceptible version from the versions available
+
+        Parameters
+        ----------
+        available : list(tuple(int) | str)
+            List of possible versions to select from
+
+        Returns
+        -------
+        latest : RequirementVersion
+            The latest version
+        """
+        latest_ver = ()
+        for ver in available:
+            if isinstance(ver, basestring):
+                ver = self.parse_version(ver)
+            if ver < self._min_ver:
+                logger.debug("Not selecting {} version of {} as it is not in "
+                             "acceptable range {} <= v <= {} ".format(
+                                 self._req.name, self.min_version,
+                                 self.max_version))
+            elif ver > self._max_ver:
+                logger.info("Not selecting {} version of {} as it is not in "
+                            "acceptable range {} <= v <= {} ".format(
+                                self._req.name, self.min_version,
+                                self.max_version))
+            elif ver > latest_ver:
+                latest_ver = ver
+        return self.VersionClass(self._req, latest_ver, **self._version_kwargs)
+
+
 class Requirement(object):
     """
     Base class for a details of a software package that is required by
@@ -27,6 +125,8 @@ class Requirement(object):
     delimeter : str
         Delimeter used to split a version string
     """
+
+    VersionRangeClass = RequirementVersionRange
 
     def __init__(self, name, references=None, website=None, delimeter='.',
                  version_regex=None):
@@ -56,15 +156,17 @@ class Requirement(object):
     def __repr__(self):
         return "{}(name={})".format(type(self).__name__, self.name)
 
-    def __call__(self, version, max_version=None):
+    def __call__(self, version, max_version=None, **kwargs):
         """
         Returns either a single requirement version or a requirement version
         range depending on whether two arguments are supplied or one
         """
         if max_version is None:
-            req_ver = RequirementVersion(self, version)
+            req_ver = self.VersionRangeClass.VersionClass(self, version,
+                                                          **kwargs)
         else:
-            req_ver = RequirementVersionRange(self, version, max_version)
+            req_ver = self.VersionRangeClass(self, version, max_version,
+                                             **kwargs)
         return req_ver
 
     @property
@@ -127,98 +229,3 @@ class Requirement(object):
 
     def format_version(self, version_tuple):
         return self._req.version_delimeter.join(version_tuple)
-
-
-class RequirementVersionRange(object):
-    """
-    A range of versions associated with a software requirement
-
-    Parameters
-    ----------
-    requirement : Requirement
-        The requirement to define the version range for
-    min_version : tuple(int|str)
-        The minimum version required by the node
-    max_version : tuple(int|str) | None
-        The maximum version that is compatible with the Node
-    """
-
-    def __init__(self, requirement, min_version, max_version):
-        self._req = requirement
-        if isinstance(min_version, basestring):
-            min_version = self.parse_version(min_version)
-        if isinstance(max_version, basestring):
-            max_version = self.parse_version(max_version)
-        if max_version < min_version:
-            raise ArcanaUsageError(
-                "Maxium version in {} version range {} is less than minimum {}"
-                .format(self._req.name, self.max_version, self.min_version))
-        self._min_ver = min_version
-        self._max_ver = max_version
-
-    @property
-    def min_version(self):
-        return self._req.format_version(self._min_ver)
-
-    @property
-    def max_version(self):
-        return self._req.format_version(self._max_ver)
-
-    def __repr__(self):
-        return "{}[{} <= v <= {}]".format(
-            self._req, self.min_version, self.max_version)
-
-    def __contains__(self, version):
-        return version >= self._min_ver and version <= self._max_ver
-
-    def latest_available(self, available):
-        """
-        Picks the latest acceptible version from the versions available
-
-        Parameters
-        ----------
-        available : list(tuple(int) | str)
-            List of possible versions to select from
-
-        Returns
-        -------
-        latest : RequirementVersion
-            The latest version
-        """
-        latest_ver = ()
-        for ver in available:
-            if isinstance(ver, basestring):
-                ver = self.parse_version(ver)
-            if ver < self._min_ver:
-                logger.debug("Not selecting {} version of {} as it is not in "
-                             "acceptable range {} <= v <= {} ".format(
-                                 self._req.name, self.min_version,
-                                 self.max_version))
-            elif ver > self._max_ver:
-                logger.info("Not selecting {} version of {} as it is not in "
-                            "acceptable range {} <= v <= {} ".format(
-                                self._req.name, self.min_version,
-                                self.max_version))
-            elif ver > latest_ver:
-                latest_ver = ver
-        return RequirementVersion(self._req, latest_ver)
-
-
-class RequirementVersion(object):
-
-    def __init__(self, requirement, version):
-        self._req = requirement
-        if isinstance(version, basestring):
-            version = requirement.parse_version(version)
-        self._ver = version
-
-    def __repr__(self):
-        return "{}[{}]".format(self._req, self.version)
-
-    @property
-    def version(self):
-        return self._req.format_version(self._ver)
-
-    @property
-    def requirement(self):
-        return self._req

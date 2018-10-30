@@ -1,18 +1,30 @@
 from past.builtins import basestring
-from .base import Requirement
+import shutil
+import tempfile
+from .base import Requirement, RequirementVersion, RequirementVersionRange
 from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
-    ArcanaRequirementVersionException)
+    ArcanaRequirementVersionNotDectableError, ArcanaRequirementNotFoundError)
 from .cli import CliRequirement
 import re
 
 
+def run_matlab_cmd(cmd):
+    delim = '????????'  # A string that won't occur in the Matlab splash
+    matlab_cmd = MatlabCommand(
+        script=("fprintf('{}'); fprintf({}); exit;".format(delim, cmd)))
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        result = matlab_cmd.run(cwd=tmp_dir)
+        return result.runtime.stdout.split(delim)[1]
+    finally:
+        shutil.rmtree(tmp_dir)
+
+
 class MatlabRequirement(CliRequirement):
 
-    _PRINT_DELIM = '?????'
-
     def __init__(self):
-        super().__init__('matlab', None)
+        super().__init__('matlab', 'matlab', version_switch=None)
 
     def detect_version(self):
         """
@@ -20,11 +32,7 @@ class MatlabRequirement(CliRequirement):
         the current environment. Should be overridden in sub-classes
         """
         # The matlab version should be included in the opening splash
-        cmd = MatlabCommand(
-            script=("fprintf('{}R'); fprintf(version('-release'); exit;"
-                    .format(self._PRINT_DELIM)))
-        result = cmd.run()
-        self.parse_version(result.runtime.stdout.split(self._PRINT_DELIM)[1])
+        return self.parse_version(run_matlab_cmd("version('-release')"))
 
     def parse_version(self, version_str):
         """
@@ -41,15 +49,53 @@ class MatlabRequirement(CliRequirement):
             A tuple containing the major, minor and micro (if provided)
             version numbers.
         """
-        match = re.search(r'(?:r|R)(\d+)(a|b)', version_str)
+        match = re.search(r'(?:r|R)?(\d+)(a|b)', version_str)
         if match is None:
-            raise ArcanaRequirementVersionException(
+            raise ArcanaRequirementVersionNotDectableError(
                 "Could not parse Matlab version string '{}'"
                 .format(version_str))
         return match.groups()
 
 
 matlab_req = MatlabRequirement()
+
+
+class MatlabPackageRequirementVersion(RequirementVersion):
+
+    def __init__(self, requirement, version, matlab_version):
+        super(MatlabPackageRequirementVersion, self).__init__(requirement,
+                                                              version)
+        if isinstance(matlab_version, basestring):
+            matlab_version = matlab_req(matlab_version)
+        elif isinstance(matlab_version, (tuple, list)):
+            matlab_version = matlab_req(*matlab_version)
+        self._matlab_version = matlab_version
+
+    @property
+    def matlab_version(self):
+        return self._matlab_version
+
+
+class MatlabPackageRequirementVersionRange(RequirementVersionRange):
+
+    VersionClass = MatlabPackageRequirementVersion
+
+    def __init__(self, requirement, min_version, max_version, matlab_version):
+        super(MatlabPackageRequirementVersionRange, self).__init__(
+            requirement, min_version, max_version)
+        if isinstance(matlab_version, basestring):
+            matlab_version = matlab_req(matlab_version)
+        elif isinstance(matlab_version, (tuple, list)):
+            matlab_version = matlab_req(*matlab_version)
+        self._matlab_version = matlab_version
+
+    @property
+    def matlab_version(self):
+        return self._matlab_version
+
+    @property
+    def _version_kwargs(self):
+        return {'matlab_version': self.matlab_version}
 
 
 class MatlabPackageRequirement(Requirement):
@@ -70,25 +116,25 @@ class MatlabPackageRequirement(Requirement):
     version_split : function
         A function that splits the version string into major/minor/micro
         parts or equivalent
-    references : list[Citation]
-        A list of references that should be cited when using this software
-        requirement
     """
 
-    def __init__(self, name, test_func=None, matlab_version=None, **kwargs):
+    VersionRangeClass = MatlabPackageRequirementVersionRange
+
+    def __init__(self, name, test_func, **kwargs):
         super(MatlabPackageRequirement, self).__init__(name, **kwargs)
         self._test_func = test_func
-        if isinstance(matlab_version, basestring):
-            matlab_version = matlab_req(matlab_version)
-        self._matlab_version = matlab_version
 
     @property
     def test_func(self):
         return self._test_func
 
-    @property
-    def matlab_version(self):
-        return self._matlab_version
-
     def detect_version(self):
-        raise NotImplementedError
+        help_text = run_matlab_cmd("help('{}')".format(self.test_func))
+        if not help_text:
+            raise ArcanaRequirementNotFoundError(
+                "Did not find test function '{}' for {}"
+                .format(self.test_func, self))
+        return self.parse_help_text(help_text)
+
+    def parse_help_text(self, help_text):
+        return self.parse_version(help_text)
