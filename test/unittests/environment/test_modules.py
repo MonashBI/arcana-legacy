@@ -12,8 +12,6 @@ from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
 
 
-notinstalled1_req = Requirement(name='notinstalled1', min_version=(1, 0))
-notinstalled2_req = Requirement(name='notinstalled2', min_version=(1, 0))
 first_req = Requirement('firsttestmodule', min_version=(0, 15, 9))
 second_req = Requirement('secondtestmodule', min_version=(1, 0, 2))
 
@@ -53,9 +51,8 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.add(
-            "maths", TestMathWithReq(), requirements=[
-                (notinstalled1_req, notinstalled2_req,
-                 first_req), second_req])
+            "maths", TestMathWithReq(),
+            requirements=[first_req.v('0.15.9'), second_req.v('1.0.2')])
         maths.inputs.op = 'add'
         maths.inputs.as_file = True
         maths.inputs.y = 1
@@ -73,8 +70,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         merge = pipeline.add("merge", Merge(2))
         maths = pipeline.add(
             "maths", TestMathWithReq(), iterfield='x', requirements=[
-                (notinstalled1_req, notinstalled2_req,
-                 first_req), second_req])
+                first_req.v('0.15.9'), second_req.v('1.0.2')])
         split = pipeline.add('split', Split())
         split.inputs.splits = [1, 1]
         split.inputs.squeeze = True

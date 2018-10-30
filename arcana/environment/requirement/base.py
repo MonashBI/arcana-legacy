@@ -186,10 +186,16 @@ class Requirement(object):
     def __repr__(self):
         return "{}(name={})".format(type(self).__name__, self.name)
 
-    def __call__(self, version, max_version=None, **kwargs):
+    def v(self, version, max_version=None, **kwargs):
         """
         Returns either a single requirement version or a requirement version
         range depending on whether two arguments are supplied or one
+
+        Parameters
+        ----------
+        version : str | RequirementVersion
+            Either a version of the requirement, or the first version in a
+            range of acceptable versions
         """
         if max_version is None:
             req_ver = self.VersionRangeClass.VersionClass(self, version,
