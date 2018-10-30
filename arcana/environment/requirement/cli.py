@@ -2,7 +2,8 @@ from future.utils import PY3
 from .base import Requirement
 import subprocess as sp
 from arcana.exception import (
-    ArcanaUsageError, ArcanaRequirementNotFoundError)
+    ArcanaUsageError, ArcanaRequirementNotFoundError,
+    ArcanaRequirementVersionNotDectableError)
 
 
 class CliRequirement(Requirement):
@@ -33,15 +34,28 @@ class CliRequirement(Requirement):
         self._test_cmd = test_cmd
         self._version_switch = version_switch
 
+    @property
+    def test_cmd(self):
+        return self._test_cmd
+
+    @property
+    def version_switch(self):
+        return self._version_switch
+
     def detect_version(self):
         test_cmd_loc = self.locate_command(self._test_cmd)
+        if self.version_switch is None:
+            raise ArcanaRequirementVersionNotDectableError(
+                "Could not detect version of {} as version information is not "
+                "provided by underlying command".format(self))
         try:
             version_str = sp.check_output(
                 '{} {}'.format(test_cmd_loc, self._version_switch), shell=True)
         except sp.CalledProcessError as e:
             raise ArcanaUsageError(
-                "Unrecognised version switch '{}' for {}:\n{}".format(
-                    self._version_switch, self, e))
+                "Problem calling test command ({}) with version switch '{}' "
+                "for {}:\n{}".format(
+                    test_cmd_loc, self._version_switch, self, e))
         if PY3:
             version_str = version_str.decode('utf-8')
         return self.parse_version(version_str)
