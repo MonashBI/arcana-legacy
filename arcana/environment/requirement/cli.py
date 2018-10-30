@@ -1,8 +1,11 @@
+from future.utils import PY3
 from .base import Requirement
 import subprocess as sp
+from arcana.exception import (
+    ArcanaUsageError, ArcanaRequirementNotFoundError)
 
 
-class CLIRequirement(Requirement):
+class CliRequirement(Requirement):
     """
     Defines a software package that is available on the command line
 
@@ -25,16 +28,35 @@ class CLIRequirement(Requirement):
         requirement
     """
 
-    def __init__(self, name, min_version, test_cmd=None, **kwargs):
-        super(CLIRequirement, self).__init__(name, min_version, **kwargs)
+    def __init__(self, name, test_cmd, version_switch='--version', **kwargs):
+        super(CliRequirement, self).__init__(name, **kwargs)
         self._test_cmd = test_cmd
+        self._version_switch = version_switch
 
-    @property
-    def satisfied(self):
-        if self.test_cmd is None:
-            return True  # No test available
-        return sp.call(self.test_cmd, shell=True) == 127
+    def detect_version(self):
+        test_cmd_loc = self.locate_command(self._test_cmd)
+        try:
+            version_str = sp.check_output(
+                '{} {}'.format(test_cmd_loc, self._version_switch), shell=True)
+        except sp.CalledProcessError as e:
+            raise ArcanaUsageError(
+                "Unrecognised version switch '{}' for {}:\n{}".format(
+                    self._version_switch, self, e))
+        if PY3:
+            version_str = version_str.decode('utf-8')
+        return self.parse_version(version_str)
 
-    @property
-    def test_cmd(self):
-        return self._test_cmd
+    def locate_command(self, cmd):
+        try:
+            location = sp.check_output('which {}'.format(cmd), shell=True)
+        except sp.CalledProcessError as e:
+            if e.returncode == 1:
+                raise ArcanaRequirementNotFoundError(
+                    "Could not find version of {} in environment (using {})"
+                    .format(self, self._test_cmd))
+            else:
+                raise
+        if PY3:
+            location = location.decode('utf-8')
+        location = location.strip()
+        return location

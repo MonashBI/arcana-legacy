@@ -1,5 +1,4 @@
 from .base import Requirement
-from .matlab import MatlabRequirement, matlab_version_split
-from .cli import CLIRequirement
+from .cli import CliRequirement
 from .python import PythonRequirement
-from .utils import split_version, date_split
+from .matlab import MatlabPackageRequirement, matlab_req
