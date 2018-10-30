@@ -5,6 +5,8 @@ from arcana.exception import (
     ArcanaUsageError, ArcanaRequirementNotFoundError,
     ArcanaRequirementVersionNotDectableError)
 
+sp_kwargs = {'text': True} if PY3 else {}
+
 
 class CliRequirement(Requirement):
     """
@@ -49,20 +51,22 @@ class CliRequirement(Requirement):
                 "Could not detect version of {} as version information is not "
                 "provided by underlying command".format(self))
         try:
-            version_str = sp.check_output(
-                '{} {}'.format(test_cmd_loc, self._version_switch), shell=True)
+            process = sp.Popen((test_cmd_loc, self._version_switch),
+                               stdout=sp.PIPE, stderr=sp.PIPE, **sp_kwargs)
+            version_str, stderr = process.communicate()
+            if not version_str:
+                version_str = stderr
         except sp.CalledProcessError as e:
             raise ArcanaUsageError(
                 "Problem calling test command ({}) with version switch '{}' "
                 "for {}:\n{}".format(
                     test_cmd_loc, self._version_switch, self, e))
-        if PY3:
-            version_str = version_str.decode('utf-8')
         return self.parse_version(version_str)
 
     def locate_command(self, cmd):
         try:
-            location = sp.check_output('which {}'.format(cmd), shell=True)
+            location = sp.check_output('which {}'.format(cmd), shell=True,
+                                       **sp_kwargs)
         except sp.CalledProcessError as e:
             if e.returncode == 1:
                 raise ArcanaRequirementNotFoundError(
@@ -70,7 +74,5 @@ class CliRequirement(Requirement):
                     .format(self, self._test_cmd))
             else:
                 raise
-        if PY3:
-            location = location.decode('utf-8')
         location = location.strip()
         return location
