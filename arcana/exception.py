@@ -2,7 +2,7 @@ class ArcanaException(Exception):
     pass
 
 
-class ArcanaRequirementVersionException(ArcanaException):
+class ArcanaVersionException(ArcanaException):
     pass
 
 
@@ -10,12 +10,12 @@ class ArcanaError(ArcanaException):
     pass
 
 
-class ArcanaRequirementNotFoundError(ArcanaRequirementVersionException):
+class ArcanaRequirementNotFoundError(ArcanaVersionException):
     pass
 
 
-class ArcanaRequirementVersionNotDectableError(
-        ArcanaRequirementVersionException):
+class ArcanaVersionNotDectableError(
+        ArcanaVersionException):
     pass
 
 

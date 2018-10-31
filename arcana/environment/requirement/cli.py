@@ -3,7 +3,7 @@ from .base import Requirement
 import subprocess as sp
 from arcana.exception import (
     ArcanaUsageError, ArcanaRequirementNotFoundError,
-    ArcanaRequirementVersionNotDectableError)
+    ArcanaVersionNotDectableError)
 
 
 class CliRequirement(Requirement):
@@ -50,7 +50,7 @@ class CliRequirement(Requirement):
     def detect_version(self):
         test_cmd_loc = self.locate_command(self._test_cmd)
         if self.version_switch is None:
-            raise ArcanaRequirementVersionNotDectableError(
+            raise ArcanaVersionNotDectableError(
                 "Could not detect version of {} as version information is not "
                 "provided by underlying command".format(self))
         try:

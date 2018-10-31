@@ -1,10 +1,10 @@
 from past.builtins import basestring
 import shutil
 import tempfile
-from .base import Requirement, RequirementVersion, RequirementVersionRange
+from .base import Requirement, Version, VersionRange
 from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
-    ArcanaRequirementVersionNotDectableError, ArcanaRequirementNotFoundError)
+    ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
 from .cli import CliRequirement
 import re
 
@@ -52,7 +52,7 @@ class MatlabRequirement(CliRequirement):
         match = re.search(r'(?:R)?(\d+)(a|b)', version_str,
                           re.IGNORECASE)  # @UndefinedVariable
         if match is None:
-            raise ArcanaRequirementVersionNotDectableError(
+            raise ArcanaVersionNotDectableError(
                 "Could not parse Matlab version string '{}'"
                 .format(version_str))
         return int(match.group(1)), match.group(2).lower()
@@ -64,10 +64,10 @@ class MatlabRequirement(CliRequirement):
 matlab_req = MatlabRequirement()
 
 
-class MatlabPackageRequirementVersion(RequirementVersion):
+class MatlabPackageVersion(Version):
 
     def __init__(self, requirement, version, matlab_version):
-        super(MatlabPackageRequirementVersion, self).__init__(requirement,
+        super(MatlabPackageVersion, self).__init__(requirement,
                                                               version)
         if isinstance(matlab_version, basestring):
             matlab_version = matlab_req.v(matlab_version)
@@ -77,7 +77,7 @@ class MatlabPackageRequirementVersion(RequirementVersion):
 
     def __eq__(self, other):
         return (
-            super(MatlabPackageRequirementVersion, self).__eq__(other) and
+            super(MatlabPackageVersion, self).__eq__(other) and
             self._matlab_version == other._matlab_version)
 
     @property
@@ -85,12 +85,12 @@ class MatlabPackageRequirementVersion(RequirementVersion):
         return self._matlab_version
 
 
-class MatlabPackageRequirementVersionRange(RequirementVersionRange):
+class MatlabPackageVersionRange(VersionRange):
 
-    VersionClass = MatlabPackageRequirementVersion
+    VersionClass = MatlabPackageVersion
 
     def __init__(self, requirement, min_version, max_version, matlab_version):
-        super(MatlabPackageRequirementVersionRange, self).__init__(
+        super(MatlabPackageVersionRange, self).__init__(
             requirement, min_version, max_version)
         if isinstance(matlab_version, basestring):
             matlab_version = matlab_req.v(matlab_version)
@@ -100,7 +100,7 @@ class MatlabPackageRequirementVersionRange(RequirementVersionRange):
 
     def __eq__(self, other):
         return (
-            super(MatlabPackageRequirementVersionRange, self).__eq__(other) and
+            super(MatlabPackageVersionRange, self).__eq__(other) and
             self._matlab_version == other._matlab_version)
 
     @property
@@ -132,7 +132,7 @@ class MatlabPackageRequirement(Requirement):
         parts or equivalent
     """
 
-    VersionRangeClass = MatlabPackageRequirementVersionRange
+    VersionRangeClass = MatlabPackageVersionRange
 
     def __init__(self, name, test_func, **kwargs):
         super(MatlabPackageRequirement, self).__init__(name, **kwargs)
