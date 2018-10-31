@@ -12,8 +12,8 @@ from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
 
 
-first_req = Requirement('firsttestmodule', min_version=(0, 15, 9))
-second_req = Requirement('secondtestmodule', min_version=(1, 0, 2))
+first_req = Requirement('firsttestmodule')
+second_req = Requirement('secondtestmodule')
 
 try:
     ModulesEnvironment._run_module_cmd('avail')
@@ -95,7 +95,7 @@ class TestModuleLoad(BaseTestCase):
             self.work_dir)
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Dcm2niix and Mrtrix modules are not installed")
+                     "Environment modules are not installed")
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
@@ -105,7 +105,7 @@ class TestModuleLoad(BaseTestCase):
         self.assertEqual(ModulesEnvironment.loaded(), {})
 
     @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Dcm2niix and Mrtrix modules are not installed")
+                     "Environment modules are not installed")
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
