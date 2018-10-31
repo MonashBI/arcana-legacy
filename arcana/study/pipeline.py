@@ -8,7 +8,7 @@ from itertools import chain
 from collections import defaultdict
 from nipype.pipeline import engine as pe
 import errno
-from .node import Node, JoinNode, MapNode
+from arcana.environment.node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
