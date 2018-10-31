@@ -1,23 +1,8 @@
-from past.builtins import basestring
-import shutil
 import re
-import tempfile
-from .base import Requirement, Version, VersionRange
-from nipype.interfaces.matlab import MatlabCommand
+from .base import Requirement, Version
+from arcana.utils import run_matlab_cmd
 from arcana.exception import (
     ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
-
-
-def run_matlab_cmd(cmd):
-    delim = '????????'  # A string that won't occur in the Matlab splash
-    matlab_cmd = MatlabCommand(
-        script=("fprintf('{}'); fprintf({}); exit;".format(delim, cmd)))
-    tmp_dir = tempfile.mkdtemp()
-    try:
-        result = matlab_cmd.run(cwd=tmp_dir)
-        return result.runtime.stdout.split(delim)[1]
-    finally:
-        shutil.rmtree(tmp_dir)
 
 
 class MatlabVersion(Version):
@@ -97,4 +82,7 @@ class MatlabPackageRequirement(Requirement):
             raise ArcanaRequirementNotFoundError(
                 "Did not find test function '{}' for {}"
                 .format(self.test_func, self))
+        return self.parse_help_text(help_text)
+
+    def parse_help_text(self, help_text):
         return help_text

@@ -48,7 +48,7 @@ class CliRequirement(Requirement):
         return self._version_switch
 
     def detect_version_str(self):
-        test_cmd_loc = self.locate_command(self._test_cmd)
+        test_cmd_loc = self.locate_command()
         if self.version_switch is None:
             raise ArcanaVersionNotDectableError(
                 "Could not detect version of {} as version information is not "
@@ -68,7 +68,9 @@ class CliRequirement(Requirement):
             version_str = version_str.decode('utf-8')
         return version_str
 
-    def locate_command(self, cmd):
+    def locate_command(self, cmd=None):
+        if cmd is None:
+            cmd = self.test_cmd
         try:
             location = sp.check_output('which {}'.format(cmd), shell=True)
         except sp.CalledProcessError as e:

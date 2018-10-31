@@ -2,6 +2,9 @@ from past.builtins import basestring
 from future.utils import PY3, PY2
 import os.path
 import errno
+from nipype.interfaces.matlab import MatlabCommand
+import shutil
+import tempfile
 from arcana.exception import ArcanaUsageError
 if PY2:
     from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
@@ -56,11 +59,6 @@ def split_extension(path):
         ext = '.' + parts[-1]
         base = '.'.join(parts[:-1])
     return os.path.join(dirname, base), ext
-
-
-class classproperty(property):
-    def __get__(self, cls, owner):
-        return self.fget.__get__(None, owner)()
 
 
 def lower(s):
@@ -134,3 +132,15 @@ def parse_value(value):
     else:
         value = parse_single_value(value)
     return value
+
+
+def run_matlab_cmd(cmd):
+    delim = '????????'  # A string that won't occur in the Matlab splash
+    matlab_cmd = MatlabCommand(
+        script=("fprintf('{}'); fprintf({}); exit;".format(delim, cmd)))
+    tmp_dir = tempfile.mkdtemp()
+    try:
+        result = matlab_cmd.run(cwd=tmp_dir)
+        return result.runtime.stdout.split(delim)[1]
+    finally:
+        shutil.rmtree(tmp_dir)
