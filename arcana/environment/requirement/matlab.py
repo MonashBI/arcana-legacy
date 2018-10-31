@@ -1,5 +1,5 @@
 import re
-from .base import Requirement, Version
+from .base import BaseRequirement, Version
 from arcana.utils import run_matlab_cmd
 from arcana.exception import (
     ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
@@ -25,7 +25,7 @@ class MatlabVersion(Version):
         return 'R{}{}'.format(*self.sequence)
 
 
-class MatlabRequirement(Requirement):
+class MatlabRequirement(BaseRequirement):
 
     def detect_version_str(self):
         """
@@ -40,7 +40,7 @@ matlab_req = MatlabRequirement(
     'matlab', version_cls=MatlabVersion)
 
 
-class MatlabPackageRequirement(Requirement):
+class MatlabPackageRequirement(BaseRequirement):
     """
     Defines a software package within Matlab
 

@@ -1,11 +1,11 @@
 import importlib
-from .base import Requirement
+from .base import BaseRequirement
 from arcana.exception import (
     ArcanaRequirementNotFoundError,
     ArcanaVersionNotDectableError)
 
 
-class PythonPackageRequirement(Requirement):
+class PythonPackageRequirement(BaseRequirement):
 
     def __init__(self, name, package_name=None, version_attr='__version__',
                  **kwargs):

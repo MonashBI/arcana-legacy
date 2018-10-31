@@ -1,6 +1,5 @@
 from __future__ import division
 from builtins import object
-from past.builtins import basestring
 import math
 import logging
 from arcana.exception import (
@@ -25,19 +24,22 @@ class Version(object):
         The requirement the version is of
     version : str
         The string representation of the version
-    raw_name : str
+    local_name : str
         The name of the requirement as referred to in the local environment
-    raw_version : str
+    local_version : str
         The version str as referred to in the local environment
     """
 
     delimeter = '.'
 
-    def __init__(self, requirement, version, raw_name=None, raw_version=None):
+    def __init__(self, requirement, version, local_name=None,
+                 local_version=None):
         self._req = requirement
         self._seq, self._prerelease, self._dev = self.parse(version)
-        self._raw_version = raw_version if raw_version is not None else version
-        self._raw_name = raw_name if raw_name is not None else requirement.name
+        self._local_version = (local_version if local_version is not None
+                               else version)
+        self._local_name = (local_name if local_name is not None
+                            else requirement.name)
 
     @property
     def requirement(self):
@@ -60,16 +62,16 @@ class Version(object):
         return self._dev
 
     @property
-    def raw_version(self):
+    def local_version(self):
         """
         The un-parsed version string. Used to cross-reference with list of
         available versions coming from an Environment
         """
-        return self._raw_version
+        return self._local_version
 
     @property
-    def raw_name(self):
-        return self._raw_name
+    def local_name(self):
+        return self._local_name
 
     def __str__(self):
         s = self.delimeter.join(str(i) for i in self._seq)
@@ -251,7 +253,66 @@ class Version(object):
         return self._req.latest_within_range(self, *args, **kwargs)
 
 
-class Requirement(object):
+class VersionRange(object):
+    """
+    A range of versions associated with a software requirement
+
+    Parameters
+    ----------
+    min_version : Version
+        The minimum version required by the node
+    max_version : Version
+        The maximum version that is compatible with the Node
+    """
+
+    def __init__(self, min_version, max_version):
+        if min_version.requirement != max_version.requirement:
+            raise ArcanaUsageError(
+                "Inconsistent requirements between min and max versions "
+                "({} and {})".format(min_version.requirement,
+                                     max_version.requirement))
+        self._min_ver = min_version
+        self._max_ver = max_version
+        if max_version < min_version:
+            raise ArcanaUsageError(
+                "Maxium version in is less than minimum in {}"
+                .format(self))
+
+    @property
+    def name(self):
+        return self.minimum.name
+
+    @property
+    def requirement(self):
+        return self.minimum.requirement
+
+    @property
+    def minimum(self):
+        return self._min_ver
+
+    @property
+    def maximum(self):
+        return self._max_ver
+
+    def __eq__(self, other):
+        return (self._min_ver == other._min_ver and
+                self._max_ver == other._max_ver)
+
+    def __repr__(self):
+        return "{}[{} <= v <= {}]".format(
+            self._min_ver.requirement, self.minimum, self.maximum)
+
+    def within(self, version):
+        if not isinstance(version, Version):
+            version = type(self._min_ver)(self._req, version)
+        return version >= self._min_ver and version <= self._max_ver
+
+    def latest_within(self, *args, **kwargs):
+        return self._min_ver.requirement.latest_within_range(self, *args,
+                                                             **kwargs)
+
+
+class BaseRequirement(object):
     """
     Base class for a details of a software package that is required by
     a node of a pipeline.
@@ -293,7 +354,7 @@ class Requirement(object):
     def __repr__(self):
         return "{}(name={})".format(type(self).__name__, self.name)
 
-    def v(self, version, max_version=None):
+    def v(self, version, max_version=None, **kwargs):
         """
         Returns either a single requirement version or a requirement version
         range depending on whether two arguments are supplied or one
@@ -305,11 +366,11 @@ class Requirement(object):
             range of acceptable versions
         """
         if not isinstance(version, Version):
-            version = self.version_cls(self, version)
+            version = self.version_cls(self, version, **kwargs)
         # Return a version range instead of version
         if max_version is not None:
             if not isinstance(max_version, Version):
-                max_version = self.version_cls(self, max_version)
+                max_version = self.version_cls(self, max_version, **kwargs)
             version = VersionRange(version, max_version)
         return version
 
@@ -321,8 +382,8 @@ class Requirement(object):
     def website(self):
         return self._website
 
-    def detect_version(self):
-        return self.version_cls(self, self.detect_version_str())
+    def detect_version(self, **kwargs):
+        return self.version_cls(self, self.detect_version_str(), **kwargs)
 
     def detect_version_str(self):
         """
@@ -371,58 +432,3 @@ class Requirement(object):
                 .format(msg_part, version_range,
                         ', '.join(str(v) for v in available)))
         return latest_ver
-
-
-class VersionRange(object):
-    """
-    A range of versions associated with a software requirement
-
-    Parameters
-    ----------
-    min_version : Version
-        The minimum version required by the node
-    max_version : Version
-        The maximum version that is compatible with the Node
-    """
-
-    def __init__(self, min_version, max_version):
-        if min_version.requirement != max_version.requirement:
-            raise ArcanaUsageError(
-                "Inconsistent requirements between min and max versions "
-                "({} and {})".format(min_version.requirement,
-                                     max_version.requirement))
-        self._min_ver = min_version
-        self._max_ver = max_version
-        if max_version < min_version:
-            raise ArcanaUsageError(
-                "Maxium version in is less than minimum in {}"
-                .format(self))
-
-    @property
-    def name(self):
-        return self.minimum.name
-
-    @property
-    def minimum(self):
-        return self._min_ver
-
-    @property
-    def maximum(self):
-        return self._max_ver
-
-    def __eq__(self, other):
-        return (self._min_ver == other._min_ver and
-                self._max_ver == other._max_ver)
-
-    def __repr__(self):
-        return "{}[{} <= v <= {}]".format(
-            self._min_ver.requirement, self.minimum, self.maximum)
-
-    def within(self, version):
-        if not isinstance(version, Version):
-            version = type(self._min_ver)(self._req, version)
-        return version >= self._min_ver and version <= self._max_ver
-
-    def latest_within(self, *args, **kwargs):
-        return self._min_ver.requirement.latest_within_range(self, *args,
-                                                             **kwargs)

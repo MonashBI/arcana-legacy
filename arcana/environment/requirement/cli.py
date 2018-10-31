@@ -1,12 +1,12 @@
 from future.utils import PY3
-from .base import Requirement
+from .base import BaseRequirement
 import subprocess as sp
 from arcana.exception import (
     ArcanaUsageError, ArcanaRequirementNotFoundError,
     ArcanaVersionNotDectableError)
 
 
-class CliRequirement(Requirement):
+class CliRequirement(BaseRequirement):
     """
     Defines a software package that is available on the command line
 
