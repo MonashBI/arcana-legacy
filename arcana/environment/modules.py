@@ -9,9 +9,9 @@ import subprocess as sp
 from collections import defaultdict
 from arcana.exception import (
     ArcanaError, ArcanaModulesNotInstalledException,
-    ArcanaEnvModuleNotLoadedError)
+    ArcanaEnvModuleNotLoadedError, ArcanaRequirementNotFoundError,
+    ArcanaVersionNotDectableError)
 from .static import StaticEnvironment
-from .requirement import Requirement
 
 
 logger = logging.getLogger('arcana')
@@ -28,15 +28,20 @@ class ModulesEnvironment(StaticEnvironment):
 
     Parameters
     ----------
-    packages_map : dct[str, Requirement] | callable
-        A Mapping from the name a module installed on the system to a
-        requirement
-    versions_map : dct[str, str] | callable
-        A Mapping from the name of the version to the standarding versioning
-        conventions assumed by the corresponding requirement
+    packages_map : dct[str, str] | callable
+        A Mapping from the name of a requirement to a module installed in the
+        environment
+    versions_map : dct[str, dct[str, str]] | callable
+        A Mapping from the name of a requirement to a dictionary, which in
+        turn maps the version of a module installed in the environment to
+        a version recognised by the requirement.
+    ignore_unrecognised : bool
+        If True, then unrecognisable versions are ignored instead of
+        throwing an error
     """
 
-    def __init__(self, packages_map=None, versions_map=None):
+    def __init__(self, packages_map=None, versions_map=None,
+                 ignore_unrecognised=True):
         self._loaded = {}
         if packages_map is None:
             packages_map = {}
@@ -45,28 +50,52 @@ class ModulesEnvironment(StaticEnvironment):
         self._avail_cache = None
         self._packages_map = packages_map
         self._versions_map = versions_map
+        self._available = self.available()
+        self._ignore_unrecog = ignore_unrecognised
 
-    def load(self, *requirements):
-        for req in requirements:
-            # Get best requirement from list of possible options
-            name, version = Requirement.best_requirement(
-                req, self._available_cache)
-            module_id = name + ('/' + version if version is not None else '')
-            self._run_module_cmd('load', module_id)
-            self._loaded[req] = module_id
-
-    def unload(self, *requirements, **kwargs):
-        not_loaded_ok = kwargs.pop('not_loaded_ok', False)
-        for req in requirements:
+    def satisfy(self, *requirements):
+        versions = []
+        for req_range in requirements:
+            local_name = self._packages_map.get(req_range.name,
+                                                 req_range.name)
             try:
-                module_id = self._loaded[req]
+                version_names = self.available[local_name]
             except KeyError:
-                if not not_loaded_ok:
-                    raise ArcanaEnvModuleNotLoadedError(
-                        "Could not unload module ({}) as it wasn't loaded"
-                        .format(req))
-            else:
-                self._run_module_cmd('unload', module_id)
+                raise ArcanaRequirementNotFoundError(
+                    "Could not find module for {} ({})".format(req_range.name,
+                                                               local_name))
+            versions_map = self._versions_map.get(req_range.name, {})
+            avail_versions = []
+            for local_ver_name in version_names:
+                ver_name = versions_map.get(local_ver_name, local_ver_name)
+                try:
+                    avail_versions.append(
+                        req_range.requirement.v(ver_name,
+                                                raw_name=local_name,
+                                                raw_version=local_ver_name))
+                except ArcanaVersionNotDectableError:
+                    if self._ignore_unrecog:
+                        logger.warning(
+                            "Ignoring unrecognised available version '{}' of "
+                            "{}".format(ver_name, req_range.name))
+                        continue
+                    else:
+                        raise
+            # Get latest requirement from list of possible options
+            versions.append(req_range.latest_within(avail_versions))
+        return versions
+
+    def load(self, *versions):
+        for version in versions:
+            self._run_module_cmd('load', self._module_id(version))
+
+    def unload(self, *versions):
+        for version in versions:
+            self._run_module_cmd('unload', self._module_id(version))
+
+    @classmethod
+    def _module_id(cls, version):
+        return '{}/{}'.format(version.raw_name, version.raw_version)
 
     @classmethod
     def loaded(cls):
@@ -95,12 +124,6 @@ class ModulesEnvironment(StaticEnvironment):
                                       ' '.join(sanitized)):
             available[module.lower()].append(ver)
         return available
-
-    @property
-    def _available_cache(self):
-        if self._avail_cache is None:
-            self._avail_cache = self.available()
-        return self._avail_cache
 
     @classmethod
     def _run_module_cmd(cls, *args):
