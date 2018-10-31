@@ -25,17 +25,27 @@ class Version(object):
         The requirement the version is of
     version : str
         The string representation of the version
+    raw_name : str
+        The name of the requirement as referred to in the local environment
+    raw_version : str
+        The version str as referred to in the local environment
     """
 
     delimeter = '.'
 
-    def __init__(self, requirement, version):
+    def __init__(self, requirement, version, raw_name=None, raw_version=None):
         self._req = requirement
         self._seq, self._prerelease, self._dev = self.parse(version)
+        self._raw_version = raw_version if raw_version is not None else version
+        self._raw_name = raw_name if raw_name is not None else requirement.name
 
     @property
     def requirement(self):
         return self._req
+
+    @property
+    def name(self):
+        return self.requirement.name
 
     @property
     def sequence(self):
@@ -48,6 +58,18 @@ class Version(object):
     @property
     def dev(self):
         return self._dev
+
+    @property
+    def raw_version(self):
+        """
+        The un-parsed version string. Used to cross-reference with list of
+        available versions coming from an Environment
+        """
+        return self._raw_version
+
+    @property
+    def raw_name(self):
+        return self._raw_name
 
     def __str__(self):
         s = self.delimeter.join(str(i) for i in self._seq)
@@ -316,8 +338,7 @@ class Requirement(object):
         """
         raise NotImplementedError
 
-    def latest_within_range(self, version_range, available,
-                            ignore_unrecognised=False):
+    def latest_within_range(self, version_range, available):
         """
         Picks the latest acceptible version from the versions available
 
@@ -327,11 +348,8 @@ class Requirement(object):
             A range of versions or a single version. A single version
             will be interpreted that there are no upper bounds on the version
             range
-        available : list(tuple(int) | str)
+        available : list(Version)
             List of possible versions to select from
-        ignore_unrecognised : bool
-            If True, then unrecognisable versions are ignored instead of
-            throwing an error
 
         Returns
         -------
@@ -340,18 +358,6 @@ class Requirement(object):
         """
         latest_ver = None
         for ver in available:
-            if isinstance(ver, basestring):
-                # Convert to a Version object of matching type
-                try:
-                    ver = self.version_cls(self, ver)
-                except ArcanaVersionNotDectableError:
-                    if ignore_unrecognised:
-                        logger.warning(
-                            "Ignoring unrecognised available version '{}' of "
-                            "{}".format(ver, self))
-                        continue
-                    else:
-                        raise
             if version_range.within(ver) and (latest_ver is None or
                                               ver > latest_ver):
                 latest_ver = ver
@@ -391,6 +397,10 @@ class VersionRange(object):
             raise ArcanaUsageError(
                 "Maxium version in is less than minimum in {}"
                 .format(self))
+
+    @property
+    def name(self):
+        return self.minimum.name
 
     @property
     def minimum(self):
