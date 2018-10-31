@@ -17,27 +17,33 @@ c_req_rnge = c_req.v('1.8.13', '2.22.0')
 class TestRequirements(TestCase):
 
     def test_version_split(self):
-        self.assertEqual(Version.parse('12.2.9'), ((12, 2, 9), None, None))
-        self.assertEqual(Version.parse('0.1a2'),
-                         ((0, 1), ('a', 2), None))
-        self.assertEqual(Version.parse('0.1.3a2'),
-                         ((0, 1, 3), ('a', 2), None))
-        self.assertEqual(Version.parse('0.1.3beta4'),
-                         ((0, 1, 3), ('b', 4), None))
-        self.assertEqual(Version.parse('0.1.3beta4.dev12'),
-                         ((0, 1, 3), ('b', 4), 12))
-        self.assertEqual(Version.parse('4.0.5_RC10'),
-                         ((4, 0, 5), ('rc', 10), None))
-        self.assertEqual(Version.parse('4.0.5rc2'),
-                         ((4, 0, 5), ('rc', 2), None))
-        self.assertEqual(MatlabVersion.parse('2015b'),
-                         ((2015, 'b'), None, None))
-        self.assertEqual(MatlabVersion.parse('r2014a'),
-                         ((2014, 'a'), None, None))
-        self.assertEqual(MatlabVersion.parse('R2017b'),
-                         ((2017, 'b'), None, None))
-        self.assertEqual(MatlabVersion.parse('R2017B'),
-                         ((2017, 'b'), None, None))
+        self.assertEqual(a_req.v('12.2.9').sequence, (12, 2, 9))
+        a_ver = a_req.v('0.1a2')
+        self.assertEqual(a_ver.sequence, (0, 1))
+        self.assertEqual(a_ver.prerelease, ('a', 2))
+        a_ver = a_req.v('0.1.3a2')
+        self.assertEqual(a_ver.sequence, (0, 1, 3))
+        self.assertEqual(a_ver.prerelease, ('a', 2))
+        a_ver = a_req.v('0.1.3beta4')
+        self.assertEqual(a_ver.sequence, (0, 1, 3))
+        self.assertEqual(a_ver.prerelease, ('b', 4))
+        a_ver = a_req.v('0.1.3beta4.dev12')
+        self.assertEqual(a_ver.sequence, (0, 1, 3))
+        self.assertEqual(a_ver.prerelease, ('b', 4))
+        self.assertEqual(a_ver.dev, 12)
+        a_ver = a_req.v('4.0.5_RC10')
+        self.assertEqual(a_ver.sequence, (4, 0, 5))
+        self.assertEqual(a_ver.prerelease, ('rc', 10))
+        a_ver = a_req.v('4.0.5rc2')
+        self.assertEqual(a_ver.sequence, (4, 0, 5))
+        self.assertEqual(a_ver.prerelease, ('rc', 2))
+        self.assertEqual(matlab_req.v('2015b').sequence,
+                         (2015, 'b'))
+        self.assertEqual(matlab_req.v('r2014a').sequence,
+                         (2014, 'a'))
+        self.assertEqual(matlab_req.v('R2017b').sequence,
+                         (2017, 'b'))
+        self.assertEqual(matlab_req.v('R2017B').sequence, (2017, 'b'))
 
     def test_best_version(self):
         self.assertEqual(

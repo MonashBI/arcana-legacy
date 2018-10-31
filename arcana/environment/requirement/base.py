@@ -1,6 +1,7 @@
 from __future__ import division
 from builtins import object
 from past.builtins import basestring
+import math
 import logging
 from arcana.exception import (
     ArcanaUsageError, ArcanaVersionNotDectableError,
@@ -39,6 +40,14 @@ class Version(object):
     @property
     def sequence(self):
         return self._seq
+
+    @property
+    def prerelease(self):
+        return self._prerelease
+
+    @property
+    def dev(self):
+        return self._dev
 
     def __str__(self):
         s = self.delimeter.join(str(i) for i in self._seq)
@@ -110,8 +119,17 @@ class Version(object):
     def __ge__(self, other):
         return self.compare(other) >= 0
 
-    @classmethod
-    def parse(cls, version_str):
+    @property
+    def regex(self):
+        # Escape delimeter if required
+        m = ('\\' + self.delimeter if self.delimeter in r'{}\$.|?*+()[]'
+             else self.delimeter)
+        # Pattern to match sub-version
+        sub_ver = r'{}\d+[a-zA-Z\-_0-9]*'.format(m)
+        return re.compile(r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'
+                          .format(m=m, sv=sub_ver))
+
+    def parse(self, version):
         """
         Splits a typical version string (e.g. <MAJOR>.<MINOR>.<MICRO>)
         into a tuple that can be sorted properly. Ignores all leading
@@ -120,8 +138,10 @@ class Version(object):
 
         Parameters
         ----------
-        version_str : str
-            The string containing the version numbers
+        version : str | int | float | tuple(int)
+            The string containing the version numbers, or alternatively an
+            integer, float (number after decimal is interpreted as minor ver),
+            or tuple|list containing the version sequence.
 
         Returns
         -------
@@ -135,23 +155,26 @@ class Version(object):
         dev : int | None
             The number of the development version
         """
-        # Escape delimeter if required
-        m = ('\\' + cls.delimeter if cls.delimeter in r'{}\$.|?*+()[]'
-             else cls.delimeter)
-        # Pattern to match sub-version
-        sub_ver = r'{}\d+[a-zA-Z\-_0-9]*'.format(m)
-        regex = r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'.format(m=m,
-                                                                  sv=sub_ver)
-        match = re.search(regex, version_str)
+        # Check to see if version is not a string but rather another type
+        # that can be interpreted as a version
+        if isinstance(version, int):
+            return (version,), None, None
+        elif isinstance(version, (tuple, list)):
+            return tuple(int(i) for i in version), None, None
+        elif isinstance(version, float):
+            major = math.floor(version)
+            minor = version - major
+            return (major, minor), None, None
+        match = self.regex.search(version)
         if match is None:
             raise ArcanaVersionNotDectableError(
                 "Could not parse version string {} as {}. Regex ({}) did not "
-                "match any sub-string".format(version_str, cls.__name__,
-                                              regex))
+                "match any sub-string".format(version, type(self).__name__,
+                                              self.regex.pattern))
         sequence = []
         prerelease = None
         dev = None
-        for part in match.group(1).split(cls.delimeter):
+        for part in match.group(1).split(self.delimeter):
             if part.startswith('dev'):
                 try:
                     dev = int(part[3:])
@@ -168,14 +191,17 @@ class Version(object):
                         seq_part = sub_parts[0]
                     sequence.append(seq_part)
                 if len(sub_parts) > 1:
+                    stage = sub_parts[1]
+                    pr_ver = ''.join(sub_parts[2:])
                     try:
-                        stage, pr_ver = sub_parts[1:]
-                    except IndexError:
-                        raise ArcanaVersionNotDectableError(
-                            "Could not parse version string {} as {}. "
-                            "Unrecognised pre-release format of {}"
-                            .format(version_str, cls.__name__, part))
+                        pr_ver = int(pr_ver)
+                    except ValueError:
+                        pass
                     stage = stage.strip('-_').lower()
+                    if not stage:  # No prerelease info, assume a dev version
+                        assert dev is None
+                        dev = pr_ver
+                        continue
                     if 'alpha'.startswith(stage):
                         stage = 'a'
                     elif 'beta'.startswith(stage):
@@ -186,8 +212,8 @@ class Version(object):
                         raise ArcanaVersionNotDectableError(
                             "Could not parse version string {} as {}. "
                             "Did not recognise pre-release stage {}"
-                            .format(version_str, cls.__name__, stage))
-                    prerelease = (stage, int(pr_ver))
+                            .format(version, type(self).__name__, stage))
+                    prerelease = (stage, pr_ver)
         return tuple(sequence), prerelease, dev
 
     def within(self, version):
@@ -195,7 +221,7 @@ class Version(object):
         A single version can also be interpreted as an open range (i.e. no
         maximum version)
         """
-        if isinstance(version, basestring):
+        if not isinstance(version, Version):
             version = type(self._min_ver)(self._req, version)
         return version >= self
 
@@ -256,11 +282,11 @@ class Requirement(object):
             Either a version of the requirement, or the first version in a
             range of acceptable versions
         """
-        if isinstance(version, basestring):
+        if not isinstance(version, Version):
             version = self.version_cls(self, version)
         # Return a version range instead of version
         if max_version is not None:
-            if isinstance(max_version, basestring):
+            if not isinstance(max_version, Version):
                 max_version = self.version_cls(self, max_version)
             version = VersionRange(version, max_version)
         return version
@@ -383,7 +409,7 @@ class VersionRange(object):
             self._min_ver.requirement, self.minimum, self.maximum)
 
     def within(self, version):
-        if isinstance(version, basestring):
+        if not isinstance(version, Version):
             version = type(self._min_ver)(self._req, version)
         return version >= self._min_ver and version <= self._max_ver
 
