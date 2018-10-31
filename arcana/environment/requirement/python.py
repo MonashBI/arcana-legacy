@@ -26,7 +26,7 @@ class PythonPackageRequirement(Requirement):
     def version_attr(self):
         return self._version_attr
 
-    def detect_version(self):
+    def detect_version_str(self):
         try:
             module = importlib.import_module(self.package_name)
         except ModuleNotFoundError:
@@ -43,4 +43,4 @@ class PythonPackageRequirement(Requirement):
             raise ArcanaVersionNotDectableError(
                 "Version attribute '{}' is not present in loaded version of {}"
                 " ({})".format(self.version_attr, self, self.package_name))
-        return self.parse_version(version_str)
+        return version_str

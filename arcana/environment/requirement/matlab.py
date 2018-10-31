@@ -1,12 +1,11 @@
 from past.builtins import basestring
 import shutil
+import re
 import tempfile
 from .base import Requirement, Version, VersionRange
 from nipype.interfaces.matlab import MatlabCommand
 from arcana.exception import (
     ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
-from .cli import CliRequirement
-import re
 
 
 def run_matlab_cmd(cmd):
@@ -21,95 +20,39 @@ def run_matlab_cmd(cmd):
         shutil.rmtree(tmp_dir)
 
 
-class MatlabRequirement(CliRequirement):
+class MatlabVersion(Version):
+    """
+    A representation of the Matlab release, e.g. R2017b
+    """
 
-    def __init__(self):
-        super().__init__('matlab', 'matlab', version_switch=None)
-
-    def detect_version(self):
-        """
-        Finds the version of the software requirement that is accessible in
-        the current environment. Should be overridden in sub-classes
-        """
-        # The matlab version should be included in the opening splash
-        return self.parse_version(run_matlab_cmd("version('-release')"))
-
-    def parse_version(self, version_str):
-        """
-        Splits a Matlab version string.
-
-        Parameters
-        ----------
-        version_str : str
-            The string containing the version numbers
-
-        Returns
-        -------
-        version : tuple(int)
-            A tuple containing the major, minor and micro (if provided)
-            version numbers.
-        """
-        match = re.search(r'(?:R)?(\d+)(a|b)', version_str,
-                          re.IGNORECASE)  # @UndefinedVariable
+    @classmethod
+    def parse(cls, version_str):
+        regex = r'R?(\d+)(a|b)'
+        match = re.search(regex, version_str, re.IGNORECASE)
         if match is None:
             raise ArcanaVersionNotDectableError(
-                "Could not parse Matlab version string '{}'"
-                .format(version_str))
-        return int(match.group(1)), match.group(2).lower()
+                "Could not parse Matlab version string {} as {}. Regex ({})"
+                " did not match any sub-string".format(
+                    version_str, cls.__name__, regex))
+        return (int(match.group(1)), match.group(2).lower()), None, None
 
-    def format_version(self, version_tuple):
-        return 'R{}{}'.format(*version_tuple)
-
-
-matlab_req = MatlabRequirement()
+    def __str__(self):
+        return 'R{}{}'.format(*self.sequence)
 
 
-class MatlabPackageVersion(Version):
+class MatlabRequirement(Requirement):
 
-    def __init__(self, requirement, version, matlab_version):
-        super(MatlabPackageVersion, self).__init__(requirement,
-                                                              version)
-        if isinstance(matlab_version, basestring):
-            matlab_version = matlab_req.v(matlab_version)
-        elif isinstance(matlab_version, (tuple, list)):
-            matlab_version = matlab_req.v(*matlab_version)
-        self._matlab_version = matlab_version
-
-    def __eq__(self, other):
-        return (
-            super(MatlabPackageVersion, self).__eq__(other) and
-            self._matlab_version == other._matlab_version)
-
-    @property
-    def matlab_version(self):
-        return self._matlab_version
+    def detect_version_str(self):
+        """
+        Finds the version of Matlab requirement that is accessible in
+        the current environment.
+        """
+        # The matlab version should be included in the opening splash
+        return run_matlab_cmd("version('-release')")
 
 
-class MatlabPackageVersionRange(VersionRange):
-
-    VersionClass = MatlabPackageVersion
-
-    def __init__(self, requirement, min_version, max_version, matlab_version):
-        super(MatlabPackageVersionRange, self).__init__(
-            requirement, min_version, max_version)
-        if isinstance(matlab_version, basestring):
-            matlab_version = matlab_req.v(matlab_version)
-        elif isinstance(matlab_version, (tuple, list)):
-            matlab_version = matlab_req.v(*matlab_version)
-        self._matlab_version = matlab_version
-
-    def __eq__(self, other):
-        return (
-            super(MatlabPackageVersionRange, self).__eq__(other) and
-            self._matlab_version == other._matlab_version)
-
-    @property
-    def matlab_version(self):
-        return self._matlab_version
-
-    @property
-    def _version_kwargs(self):
-        return {'matlab_version': self.matlab_version}
+matlab_req = MatlabRequirement(
+    'matlab', version_cls=MatlabVersion)
 
 
 class MatlabPackageRequirement(Requirement):
@@ -132,8 +75,6 @@ class MatlabPackageRequirement(Requirement):
         parts or equivalent
     """
 
-    VersionRangeClass = MatlabPackageVersionRange
-
     def __init__(self, name, test_func, **kwargs):
         super(MatlabPackageRequirement, self).__init__(name, **kwargs)
         self._test_func = test_func
@@ -146,13 +87,14 @@ class MatlabPackageRequirement(Requirement):
     def test_func(self):
         return self._test_func
 
-    def detect_version(self):
+    def detect_version_str(self):
+        """
+        Try to detect version of package from command help text. Bit of a long
+        shot as they are typically included
+        """
         help_text = run_matlab_cmd("help('{}')".format(self.test_func))
         if not help_text:
             raise ArcanaRequirementNotFoundError(
                 "Did not find test function '{}' for {}"
                 .format(self.test_func, self))
-        return self.parse_help_text(help_text)
-
-    def parse_help_text(self, help_text):
-        return self.parse_version(help_text)
+        return help_text

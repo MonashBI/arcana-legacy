@@ -47,7 +47,7 @@ class CliRequirement(Requirement):
     def version_switch(self):
         return self._version_switch
 
-    def detect_version(self):
+    def detect_version_str(self):
         test_cmd_loc = self.locate_command(self._test_cmd)
         if self.version_switch is None:
             raise ArcanaVersionNotDectableError(
@@ -66,7 +66,7 @@ class CliRequirement(Requirement):
                     test_cmd_loc, self._version_switch, self, e))
         if PY3:
             version_str = version_str.decode('utf-8')
-        return self.parse_version(version_str)
+        return version_str
 
     def locate_command(self, cmd):
         try:

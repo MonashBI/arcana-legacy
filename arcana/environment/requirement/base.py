@@ -26,7 +26,7 @@ class Version(object):
         The string representation of the version
     """
 
-    delimiter = '.'
+    delimeter = '.'
 
     def __init__(self, requirement, version):
         self._req = requirement
@@ -40,8 +40,16 @@ class Version(object):
     def sequence(self):
         return self._seq
 
+    def __str__(self):
+        s = self.delimeter.join(str(i) for i in self._seq)
+        if self._prerelease is not None:
+            s += '{}{}'.format(*self._prerelease)
+        if self._dev is not None:
+            s += '.dev{}'.format(self._dev)
+        return s
+
     def __repr__(self):
-        return "{}[{}]".format(self._req, self.version)
+        return "{}[{}]".format(self._req, str(self))
 
     def __eq__(self, other):
         return (self._req == other._req and
@@ -49,7 +57,7 @@ class Version(object):
                 self._prerelease == other._prerelease and
                 self._dev == other._dev)
 
-    def __cmp__(self, other):
+    def compare(self, other):
         """
         Compares the version with another
 
@@ -74,27 +82,33 @@ class Version(object):
         o = other._prerelease if other._prerelease is not None else ('z',)
         if s < o:
             return -1
-        if s > 0:
+        if s > o:
             return 1
         # If both main sequence and prereleases are equal, compare development
         # versions
-        if self._dev is None and other._dev is not None:
-            return -1
-        elif self._dev is not None and other._dev is None:
-            return 1
-        elif self._dev < other._dev:
-            return -1
-        elif self._dev > other._dev:
-            return 1
+        if self._dev is not None or other._dev is not None:
+            if self._dev is None:
+                return -1
+            elif other._dev is None:
+                return 1
+            elif self._dev < other._dev:
+                return -1
+            elif self._dev > other._dev:
+                return 1
         assert self == other
         return 0
 
-    def __str__(self):
-        s = self.delimeter.join(str(i) for i in self._seq)
-        if self._prerelease is not None:
-            s += '{}{}'.format(*self._prerelease)
-        if self._dev is not None:
-            s += '.dev{}'.format(self._dev)
+    def __lt__(self, other):
+        return self.compare(other) < 0
+
+    def __gt__(self, other):
+        return self.compare(other) > 0
+
+    def __le__(self, other):
+        return self.compare(other) <= 0
+
+    def __ge__(self, other):
+        return self.compare(other) >= 0
 
     @classmethod
     def parse(cls, version_str):
@@ -140,9 +154,9 @@ class Version(object):
         for part in match.group(1).split(cls.delimeter):
             if part.startswith('dev'):
                 try:
-                    dev = int(part[4:])
+                    dev = int(part[3:])
                 except ValueError:
-                    dev = part[4:]
+                    dev = part[3:]
             else:
                 # Split on non-numeric parts of the version string so that we
                 # can detect prerelease
@@ -161,13 +175,12 @@ class Version(object):
                             "Could not parse version string {} as {}. "
                             "Unrecognised pre-release format of {}"
                             .format(version_str, cls.__name__, part))
-                    stage = stage.strip('-_')
-                    if 'alpha'.starswith(stage.lower):
+                    stage = stage.strip('-_').lower()
+                    if 'alpha'.startswith(stage):
                         stage = 'a'
-                    elif 'beta'.startswith(stage.lower):
+                    elif 'beta'.startswith(stage):
                         stage = 'b'
-                    elif (stage.lower() == 'rc' or
-                          stage.lower() == 'release-canditate'):
+                    elif stage == 'rc' or stage == 'release-canditate':
                         stage = 'rc'
                     else:
                         raise ArcanaVersionNotDectableError(
@@ -219,12 +232,15 @@ class Requirement(object):
         return (self.name == other.name and
                 self._references == other._references and
                 self.website == other.website and
-                self._delim == other._delim and
-                self._version_regex == other._version_regex)
+                self._version_cls == other._version_cls)
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def version_cls(self):
+        return self._version_cls
 
     def __repr__(self):
         return "{}(name={})".format(type(self).__name__, self.name)
@@ -244,8 +260,8 @@ class Requirement(object):
             version = self.version_cls(self, version)
         # Return a version range instead of version
         if max_version is not None:
-            if isinstance(version, basestring):
-                max_version, self.version_cls(self, max_version)
+            if isinstance(max_version, basestring):
+                max_version = self.version_cls(self, max_version)
             version = VersionRange(version, max_version)
         return version
 
@@ -258,9 +274,19 @@ class Requirement(object):
         return self._website
 
     def detect_version(self):
+        return self.version_cls(self, self.detect_version_str())
+
+    def detect_version_str(self):
         """
-        Finds the version of the software requirement that is accessible in
-        the current environment. Should be overridden in sub-classes
+        Detects and returns the version string of the software requirement
+        that is accessible in the current environment. NB: to be overridden in
+        sub-classes.
+
+        * If the requirement is not available in the current environment:
+            raise ArcanaRequirementNotFoundError
+        * If the requirement is available but its version cannot be detected
+          for whatever reason:
+            raise ArcanaVersionNotDectableError
         """
         raise NotImplementedError
 
@@ -296,7 +322,7 @@ class Requirement(object):
                     if ignore_unrecognised:
                         logger.warning(
                             "Ignoring unrecognised available version '{}' of "
-                            "{}".format(ver, self._req))
+                            "{}".format(ver, self))
                         continue
                     else:
                         raise
@@ -333,12 +359,12 @@ class VersionRange(object):
                 "Inconsistent requirements between min and max versions "
                 "({} and {})".format(min_version.requirement,
                                      max_version.requirement))
-        if max_version < min_version:
-            raise ArcanaUsageError(
-                "Maxium version in {} version range {} is less than minimum {}"
-                .format(self._req.name, max_version, min_version))
         self._min_ver = min_version
         self._max_ver = max_version
+        if max_version < min_version:
+            raise ArcanaUsageError(
+                "Maxium version in is less than minimum in {}"
+                .format(self))
 
     @property
     def minimum(self):
@@ -354,7 +380,7 @@ class VersionRange(object):
 
     def __repr__(self):
         return "{}[{} <= v <= {}]".format(
-            self._min_ver.requirement, self.min_version, self.max_version)
+            self._min_ver.requirement, self.minimum, self.maximum)
 
     def within(self, version):
         if isinstance(version, basestring):
