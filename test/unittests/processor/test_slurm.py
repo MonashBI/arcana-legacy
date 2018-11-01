@@ -27,7 +27,7 @@ class TestSlurmTemplate(TestCase):
 
     def test_template(self):
         n = Node(IdentityInterface('x'), name='x', wall_time=150,
-                 nthreads=10, memory=2000, gpu=True,
+                 n_procs=10, mem_gb=2, gpu=True,
                  environment=StaticEnvironment())
         generated = self.processor.slurm_template(n).strip()
         self.assertEqual(
