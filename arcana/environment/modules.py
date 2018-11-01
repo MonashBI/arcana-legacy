@@ -10,10 +10,43 @@ from collections import defaultdict
 from arcana.exception import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError)
-from .base import BaseEnvironment
+from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
 
 
 logger = logging.getLogger('arcana')
+
+
+class ModulesNodeMixin(NodeMixin):
+
+    def _run_command(self, *args, **kwargs):
+        try:
+            self.environment.load(*self.versions)
+            result = self.base_cls._run_command(self, *args, **kwargs)
+        finally:
+            self.environment.unload(*self.versions)
+        return result
+
+    def _load_results(self, *args, **kwargs):
+        self.environment.load(*self.versions)
+        result = self.base_cls._load_results(self, *args, **kwargs)
+        self.environment.unload(*self.versions)
+        return result
+
+
+class ModulesNode(ModulesNodeMixin, Node):
+
+    base_cls = Node  # Not req. in Py3 where super() in mixin works
+
+
+class ModulesJoinNode(ModulesNodeMixin, JoinNode):
+
+    base_cls = JoinNode  # Not req. in Py3 where super() in mixin works
+
+
+class ModulesMapNode(ModulesNodeMixin, MapNode):
+
+    node_cls = ModulesNode
+    base_cls = MapNode  # Not req. in Py3 where super() in mixin works
 
 
 class ModulesEnvironment(BaseEnvironment):
@@ -38,6 +71,9 @@ class ModulesEnvironment(BaseEnvironment):
         If True, then unrecognisable versions are ignored instead of
         throwing an error
     """
+
+    node_types = {'base': ModulesNode, 'map': ModulesMapNode,
+                  'join': ModulesJoinNode}
 
     def __init__(self, packages_map=None, versions_map=None,
                  ignore_unrecognised=True, detect_exact_version=True):

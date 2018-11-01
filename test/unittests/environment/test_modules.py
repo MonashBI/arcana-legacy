@@ -7,13 +7,13 @@ from arcana.exception import (ArcanaModulesNotInstalledException,
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
-from arcana.environment import Requirement, ModulesEnvironment
+from arcana.environment import BaseRequirement, ModulesEnvironment
 from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
 
 
-first_req = Requirement('firsttestmodule')
-second_req = Requirement('secondtestmodule')
+first_req = BaseRequirement('firsttestmodule')
+second_req = BaseRequirement('secondtestmodule')
 
 try:
     ModulesEnvironment._run_module_cmd('avail')

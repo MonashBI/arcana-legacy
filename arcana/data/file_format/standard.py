@@ -1,5 +1,5 @@
 from copy import copy
-from arcana.node import Node
+from arcana.environment.node import Node
 from arcana.interfaces.utils import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from .base import FileFormat, Converter

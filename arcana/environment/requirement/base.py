@@ -3,8 +3,7 @@ from builtins import object
 import math
 import logging
 from arcana.exception import (
-    ArcanaUsageError, ArcanaVersionNotDectableError,
-    ArcanaVersionException)
+    ArcanaUsageError, ArcanaVersionNotDectableError, ArcanaVersionError)
 import re
 
 
@@ -304,7 +303,7 @@ class VersionRange(object):
 
     def within(self, version):
         if not isinstance(version, Version):
-            version = type(self._min_ver)(self._req, version)
+            version = type(self._min_ver)(self.requirement, version)
         return version >= self._min_ver and version <= self._max_ver
 
     def latest_within(self, *args, **kwargs):
@@ -427,7 +426,7 @@ class BaseRequirement(object):
                 msg_part = 'within range'
             else:
                 msg_part = 'greater than'
-            raise ArcanaVersionException(
+            raise ArcanaVersionError(
                 "Could not find version {} {} from available: {}"
                 .format(msg_part, version_range,
                         ', '.join(str(v) for v in available)))

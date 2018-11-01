@@ -14,7 +14,7 @@ from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.parameter import ParameterSpec  # @IgnorePep8
+from arcana.study.parameter import ParameterSpec  # @IgnorePep8
 from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exception import ArcanaNoConverterError  # @IgnorePep8

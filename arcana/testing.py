@@ -22,14 +22,14 @@ from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
 from arcana.exception import ArcanaError
-from arcana.node import ArcanaNodeMixin
+from arcana.environment.node import ArcanaNodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException, ArcanaUsageError)
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
 
 logger = logging.getLogger('arcana')
-logger.setLevel(logging.INFO)
+logger.setLevel(logging.WARNING)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)

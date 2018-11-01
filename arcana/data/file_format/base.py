@@ -1,6 +1,6 @@
 from builtins import object
 from abc import ABCMeta, abstractmethod
-from arcana.node import Node
+from arcana.environment.node import Node
 from arcana.exception import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError)

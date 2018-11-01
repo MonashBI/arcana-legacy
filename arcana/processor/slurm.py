@@ -107,8 +107,8 @@ class SlurmProcessor(BaseProcessor):
 
     def slurm_template(self, node):
         sbatch = self.sbatch_template.format(
-            wall_time=self.wall_time_str(node.wall_time), ntasks=node.nthreads,
-            memory=node.memory,
+            wall_time=self.wall_time_str(node.wall_time), ntasks=node.n_procs,
+            memory=int(node.mem_gb * 1000),
             email=self.email,
             account=self.account)
         if self.account is not None:

@@ -2,24 +2,19 @@ class ArcanaException(Exception):
     pass
 
 
-class ArcanaVersionException(ArcanaException):
-    pass
-
-
 class ArcanaError(ArcanaException):
     pass
 
 
-class ArcanaRequirementNotFoundError(ArcanaVersionException):
+class ArcanaVersionError(ArcanaError):
     pass
 
 
-class ArcanaVersionNotDectableError(
-        ArcanaVersionException):
+class ArcanaRequirementNotFoundError(ArcanaVersionError):
     pass
 
 
-class ArcanaRequirementNotSatisfiedError(ArcanaError):
+class ArcanaVersionNotDectableError(ArcanaVersionError):
     pass
 
 
