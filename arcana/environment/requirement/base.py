@@ -297,9 +297,12 @@ class VersionRange(object):
         return (self._min_ver == other._min_ver and
                 self._max_ver == other._max_ver)
 
+    def __str__(self):
+        return '{} <= v <= {}'.format(self.minimum, self.maximum)
+
     def __repr__(self):
-        return "{}[{} <= v <= {}]".format(
-            self._min_ver.requirement, self.minimum, self.maximum)
+        return "{}[{}]".format(
+            self._min_ver.requirement, self)
 
     def within(self, version):
         if not isinstance(version, Version):
