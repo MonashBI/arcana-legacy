@@ -249,7 +249,7 @@ class Pipeline(object):
                     "Cannot provide both joinsource and iterfield to when "
                     "attempting to add '{}' node to {}"
                     .foramt(name, self._error_msg_loc))
-            node_type = 'map'
+            node_cls = self.study.environment.node_types['map']
         elif 'joinsource' in kwargs or 'joinfield' in kwargs:
             if not ('joinfield' in kwargs and 'joinsource' in kwargs):
                 raise ArcanaDesignError(
@@ -259,15 +259,19 @@ class Pipeline(object):
             joinsource = kwargs['joinsource']
             if joinsource in self.study.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
-            node_type = 'join'
+            node_cls = self.study.environment.node_types['join']
             # Prepend name of pipeline of joinsource to match name of nodes
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
         else:
-            node_type = 'base'
-        # Create an environment-specific node
-        node = self.study.environment.make_node(
-            node_type, requirements, wall_time, annotations, interface,
-            name="{}_{}".format(self._name, name), **kwargs)
+            node_cls = self.study.environment.node_types['base']
+        # Create node
+        node = node_cls(self.study.environment,
+                        interface,
+                        name="{}_{}".format(self._name, name),
+                        requirements=requirements,
+                        wall_time=wall_time,
+                        annotations=annotations,
+                        **kwargs)
         # Ensure node is added to workflow
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections
@@ -487,18 +491,23 @@ class Pipeline(object):
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
                 if self.requires_conversion(input, format):
-                    if format.name not in conv_cache:
-                        conv_cache[format.name] = format.converter_from(
+                    try:
+                        conv = conv_cache[format.name]
+                    except KeyError:
+                        conv = conv_cache[format.name] = format.converter_from(
                             input.format, **conv_kwargs)
-                    (conv_node,
-                     conv_in, conv_out) = conv_cache[format.name].get_node(
-                        '{}_{}_{}_to_{}_conversion'.format(
-                            self.name, input.name, input.format.name,
-                            format.name))
-                    self.connect(inputnode, input.name, conv_node, conv_in)
-                    self.connect(conv_node, conv_out, node, node_in)
+                    in_node = self.add(
+                        'conv_{}_to_{}_format'.format(input.name, format.name),
+                        conv.interface,
+                        connect={conv.input: (inputnode, input.name)},
+                        requirements=conv.requirements,
+                        mem_gb=conv.mem_gb,
+                        wall_time=conv.wall_time)
+                    in_node_out = conv.output
                 else:
-                    self.connect(inputnode, input.name, node, node_in)
+                    in_node = inputnode
+                    in_node_out = input.name
+                self.connect(in_node, in_node_out, node, node_in)
         # Connect iterator inputs
         for iterfield, conns in self._iterator_conns.items():
             # Check to see if this is the right frequency for the iterator
@@ -541,18 +550,21 @@ class Pipeline(object):
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
             if self.requires_conversion(output, format):
-                if format.name not in conv_cache:
-                    conv_cache[format.name] = output.format.converter_from(
-                        format, **conv_kwargs)
-                (conv_node,
-                 conv_in, conv_out) = conv_cache[format.name].get_node(
-                    '{}_{}_{}_to_{}_conversion'.format(
-                        self.name, output.name, output.format.name,
-                        format.name))
-                self.connect(node, node_out, conv_node, conv_in)
-                self.connect(conv_node, conv_out, outputnode, output.name)
-            else:
-                self.connect(node, node_out, outputnode, output.name)
+                try:
+                    conv = conv_cache[format.name]
+                except KeyError:
+                    conv = conv_cache[
+                        format.name] = output.format.converter_from(
+                            format, **conv_kwargs)
+                node = self.add(
+                    'conv_{}_from_{}_format'.format(output.name, format.name),
+                    conv.interface,
+                    connect={conv.input: (node, node_out)},
+                    requirements=conv.requirements,
+                    mem_gb=conv.mem_gb,
+                    wall_time=conv.wall_time)
+                node_out = conv.output
+            self.connect(node, node_out, outputnode, output.name)
         return outputnode
 
     @classmethod

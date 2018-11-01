@@ -15,7 +15,6 @@ from arcana.data import (
     BaseData, BaseField, BaseFileset, BaseAcquiredSpec)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
-from arcana.environment.node import Node
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment

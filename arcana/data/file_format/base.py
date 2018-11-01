@@ -1,6 +1,5 @@
 from builtins import object
 from abc import ABCMeta, abstractmethod
-from arcana.environment.node import Node
 from arcana.exception import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError)
@@ -272,7 +271,7 @@ class FileFormat(object):
         return self._header_loader(path)
 
 
-class Converter(with_metaclass(ABCMeta, object)):
+class Converter(object):
     """
     Base class for all Arcana data format converters
 
@@ -284,12 +283,14 @@ class Converter(with_metaclass(ABCMeta, object)):
         The output format to convert to
     """
 
-    def __init__(self, input_format, output_format, processor=None):
+    requirements = []
+
+    def __init__(self, input_format, output_format, wall_time=None,
+                 mem_gb=None):
         self._input_format = input_format
         self._output_format = output_format
-        self._processor = processor
-        if processor is not None:
-            processor.requirements_satisfiable(*self.requirements)
+        self._wall_time = wall_time
+        self._mem_gb = mem_gb
 
     def __eq__(self, other):
         return (self.input_format == self.input_format and
@@ -304,20 +305,27 @@ class Converter(with_metaclass(ABCMeta, object)):
         return self._output_format
 
     @property
-    def processor(self):
-        return self._processor
+    def interface(self):
+        # To be overridden by subclasses
+        return NotImplementedError
 
-    @abstractmethod
-    def get_node(self, name):
-        """
-        Returns a NiPype node that converts a fileset from the input
-        format to the output format
+    @property
+    def input(self):
+        # To be overridden by subclasses
+        return NotImplementedError
 
-        Parameters
-        ----------
-        name : str
-            Name for the node
-        """
+    @property
+    def output(self):
+        # To be overridden by subclasses
+        return NotImplementedError
+
+    @property
+    def mem_gb(self):
+        return self._mem_gb
+
+    @property
+    def wall_time(self):
+        return self._wall_time
 
     def __repr__(self):
         return "{}(input_format={}, output_format={})".format(
@@ -327,6 +335,6 @@ class Converter(with_metaclass(ABCMeta, object)):
 class IdentityConverter(Converter):
 
     requirements = []
-
-    def get_node(self, name, **kwargs):
-        return Node(IdentityInterface(['i']), name=name, **kwargs), 'i', 'i'
+    interface = IdentityInterface(['i'])
+    input = 'i'
+    output = 'i'
