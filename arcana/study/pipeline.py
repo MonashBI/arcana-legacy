@@ -239,6 +239,8 @@ class Pipeline(object):
         """
         if annotations is None:
             annotations = {}
+        if requirements is None:
+            requirements = []
         if wall_time is None:
             wall_time = self.study.processor.default_wall_time
         if 'mem_gb' not in kwargs:

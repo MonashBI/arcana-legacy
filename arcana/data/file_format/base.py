@@ -149,7 +149,7 @@ class FileFormat(object):
         "Lists acceptable XNAT resource names in order of preference"
         return (self.name.upper(),) + self.alternate_names
 
-    def converter_from(self, file_format, processor=None):
+    def converter_from(self, file_format, **kwargs):
         if file_format == self:
             return IdentityConverter(file_format, self)
         try:
@@ -161,7 +161,7 @@ class FileFormat(object):
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
-        return converter_cls(file_format, self, processor=processor)
+        return converter_cls(file_format, self, **kwargs)
 
     @classmethod
     def register(cls, file_format):

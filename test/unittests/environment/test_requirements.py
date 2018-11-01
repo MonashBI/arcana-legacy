@@ -1,6 +1,6 @@
 from unittest import TestCase
 from arcana.exception import (
-    ArcanaError, ArcanaVersionException)
+    ArcanaError, ArcanaVersionError)
 from arcana.environment.requirement import (
     PythonPackageRequirement, Version)
 from arcana.environment.requirement.matlab import matlab_req, MatlabVersion
@@ -68,10 +68,10 @@ class TestRequirements(TestCase):
             '2.1.10',
             '2.0.11')
         self.assertRaises(
-            ArcanaVersionException,
+            ArcanaVersionError,
             a_req_rnge.latest_within,
             ['2.0.0', '1.9.1'])
         self.assertRaises(
-            ArcanaVersionException,
+            ArcanaVersionError,
             b_req_rnge.latest_within,
             ['2.2.0', '3.4.1'])
