@@ -1,7 +1,7 @@
-from .static import StaticEnvironment
+from .base import BaseEnvironment
 
 
-class DockerEnvironment(StaticEnvironment):
+class DockerEnvironment(BaseEnvironment):
     """
     Placeholder class for Docker environment management
     """

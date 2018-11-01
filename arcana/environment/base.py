@@ -13,20 +13,23 @@ logger = logging.getLogger('arcana')
 
 class NodeMixin(object):
     """
-    A Mixin class that loads required environment modules
-    (http://modules.sourceforge.net) before running the interface.
+    A Mixin class used to insert additional meta data into the node (than
+    the Nipype node it is used to subclass), and report accuracy of wall_time
+    estimates
 
     Parameters
     ----------
-    versions : list(Versions)
-        List of required software versions
-    wall_time : int
-        Expected wall time of the node in minutes.
-    annotations : dict[str, *]
-        Annotations that can be used to optimise the processor
     environment : Environment | None
         The environment within which to execute the node (automatically added
         by Arcana)
+    requirements : list(Version | VersionRange)
+        List of minimum software versions or range of software versions
+        required
+    wall_time : int
+        Expected wall time of the node in minutes.
+    annotations : dict[str, *]
+        Flexible annotations that can be used to optimise how the node is
+        executed by the processor (e.g. whether GPU cards are required)
     """
 
     def __init__(self, environment, *args, **kwargs):
