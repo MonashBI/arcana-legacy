@@ -38,6 +38,7 @@ if [ ! -d $HOME/modules/firsttestmodule ]; then
   echo 'conflict firsttestmodule' >> $HOME/modules/firsttestmodule/0.16.2
   echo "prepend-path PATH $HOME/packages/firsttestmodule/bin" >> $HOME/modules/firsttestmodule/0.16.2
   echo "prepend-path LD_LIBRARY_PATH $HOME/packages/firsttestmodule/lib" >> $HOME/modules/firsttestmodule/0.16.2
+  echo "setenv FIRSTTESTMODULE_VERSION 0.16.2.dev18" >> $HOME/modules/firsttestmodule/0.16.2
 fi
 
 
@@ -51,4 +52,6 @@ if [ ! -d $HOME/modules/secondtestmodule ]; then
   echo 'module-whatis "Second Test Module"' >> $HOME/modules/secondtestmodule/1.0.2
   echo 'conflict secondtestmodule' >> $HOME/modules/secondtestmodule/1.0.2
   echo "prepend-path PATH $HOME/packages/secondtestmodule/build/bin" >> $HOME/modules/secondtestmodule/1.0.2
+  echo "setenv SECONDTESTMODULE_VERSION 1.0.3a2" >> $HOME/modules/secondtestmodule/1.0.2
+  
 fi

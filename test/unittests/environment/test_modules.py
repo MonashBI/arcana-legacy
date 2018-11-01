@@ -1,3 +1,4 @@
+import os
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
     AcquiredFilesetSpec, FilesetSpec, FilesetSelector, FieldSpec)
@@ -12,8 +13,14 @@ from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
 
 
-first_req = BaseRequirement('firsttestmodule')
-second_req = BaseRequirement('secondtestmodule')
+class DummyRequirement(BaseRequirement):
+
+    def detect_version_str(self):
+        return os.environ[self.name.upper() + '_VERSION']
+
+
+first_req = DummyRequirement('firsttestmodule')
+second_req = DummyRequirement('secondtestmodule')
 
 try:
     ModulesEnvironment._run_module_cmd('avail')

@@ -82,7 +82,7 @@ class BaseProcessor(object):
 
     @property
     def default_mem_gb(self):
-        return self._mem_gb
+        return self._deffault_mem_gb
 
     @property
     def default_wall_time(self):
@@ -298,20 +298,16 @@ class BaseProcessor(object):
         # Loop through each frequency present in the pipeline inputs and
         # create a corresponding source node
         for freq in pipeline.input_frequencies:
+            inputs = list(pipeline.frequency_inputs(freq))
+            inputnode = pipeline.inputnode(freq)
             try:
-                # Create source and sinks from the repository
-                source = self.study.source(
-                    pipeline.inputs,
-                    name='{}_{}_source'.format(pipeline.name, freq))
+                source = pipeline.add(
+                    '{}_source'.format(freq),
+                    self.study.source(inputs))
             except ArcanaMissingDataException as e:
                 raise ArcanaMissingDataException(
                     str(e) + ", which is required for pipeline '{}'".format(
                         pipeline.name))
-            inputs = list(pipeline.frequency_inputs(freq))
-            inputnode = pipeline.inputnode(freq)
-            source = self.study.source(
-                [o.name for o in inputs],
-                name='{}_{}_source'.format(pipeline.name, freq))
             # Connect source node to initial node of pipeline to ensure
             # they are run after any prerequisites
             if prereqs is not None:
@@ -351,9 +347,9 @@ class BaseProcessor(object):
                     .format("', '".join(o.name for o in outputs), freq,
                             "', '".join(pipeline.iterfields())))
             outputnode = pipeline.outputnode(freq)
-            sink = self.study.sink(
-                [o.name for o in outputs],
-                name='{}_{}_sink'.format(pipeline.name, freq))
+            sink = pipeline.add(
+                '{}_sink'.format(freq),
+                self.study.sink(outputs))
             for iterfield in pipeline.iterfields():
                 workflow.connect(iterators[iterfield], iterfield, sink,
                                  iterfield)

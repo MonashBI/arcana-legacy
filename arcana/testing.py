@@ -22,7 +22,7 @@ from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
 from arcana.exception import ArcanaError
-from arcana.environment.node import ArcanaNodeMixin
+from arcana.environment.base import NodeMixin
 from arcana.exception import (
     ArcanaModulesNotInstalledException, ArcanaUsageError)
 from nipype.interfaces.base import (
@@ -381,7 +381,7 @@ class BaseTestCase(TestCase):
                         subject=None, visit=None,
                         frequency='per_session'):
             try:
-                ArcanaNodeMixin.load_module('mrtrix')
+                NodeMixin.load_module('mrtrix')
             except ArcanaModulesNotInstalledException:
                 pass
             val = float(sp.check_output(

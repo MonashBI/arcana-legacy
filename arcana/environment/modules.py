@@ -76,7 +76,8 @@ class ModulesEnvironment(BaseEnvironment):
                   'join': ModulesJoinNode}
 
     def __init__(self, packages_map=None, versions_map=None,
-                 ignore_unrecognised=True, detect_exact_version=True):
+                 fail_on_missing=True, ignore_unrecognised=True,
+                 detect_exact_version=True):
         if packages_map is None:
             packages_map = {}
         if versions_map is None:
@@ -84,6 +85,7 @@ class ModulesEnvironment(BaseEnvironment):
         self._packages_map = packages_map
         self._versions_map = versions_map
         self._ignore_unrecog = ignore_unrecognised
+        self._fail_on_missing = fail_on_missing
         self._detect_exact_version = detect_exact_version
         self._detected_cache = None
         self._available = self.available()
@@ -91,6 +93,7 @@ class ModulesEnvironment(BaseEnvironment):
     def __eq__(self, other):
         return (self._packages_map == other._packages_map and
                 self._versions_map == other._versions_map and
+                self._fail_on_missing == other._fail_on_missing and
                 self._ignore_unrecog == other._ignore_unrecog and
                 self._detect_exact_version == other._detect_exact_version)
 
@@ -100,11 +103,15 @@ class ModulesEnvironment(BaseEnvironment):
             req = req_range.requirement
             local_name = self.map_name(req.name)
             try:
-                version_names = self.available[local_name]
+                version_names = self._available[local_name]
             except KeyError:
-                raise ArcanaRequirementNotFoundError(
-                    "Could not find module for {} ({})".format(req.name,
-                                                               local_name))
+                if self._fail_on_missing:
+                    raise ArcanaRequirementNotFoundError(
+                        "Could not find module for {} ({})".format(req.name,
+                                                                   local_name))
+                else:
+                    logger.warning("Did not find module for {} ({})"
+                                   .format(req.name, local_name))
             avail_versions = []
             for local_ver_name in version_names:
                 ver_name = self.map_version(req_range.name, local_ver_name)
@@ -167,7 +174,7 @@ class ModulesEnvironment(BaseEnvironment):
         local_version : str
             version string
         """
-        if isinstance((self._versions_map, dict)):
+        if isinstance(self._versions_map, dict):
             version = self._versions_map.get(name, {}).get(local_version,
                                                            local_version)
         else:
