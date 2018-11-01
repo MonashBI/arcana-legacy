@@ -9,7 +9,8 @@ import subprocess as sp
 from collections import defaultdict
 from arcana.exception import (
     ArcanaError, ArcanaModulesNotInstalledException,
-    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError)
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaVersionError)
 from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
 
 
@@ -77,7 +78,7 @@ class ModulesEnvironment(BaseEnvironment):
 
     def __init__(self, packages_map=None, versions_map=None,
                  fail_on_missing=True, ignore_unrecognised=True,
-                 detect_exact_version=True):
+                 detect_exact_versions=True):
         if packages_map is None:
             packages_map = {}
         if versions_map is None:
@@ -86,7 +87,7 @@ class ModulesEnvironment(BaseEnvironment):
         self._versions_map = versions_map
         self._ignore_unrecog = ignore_unrecognised
         self._fail_on_missing = fail_on_missing
-        self._detect_exact_version = detect_exact_version
+        self._detect_exact_versions = detect_exact_versions
         self._detected_cache = None
         self._available = self.available()
 
@@ -131,11 +132,23 @@ class ModulesEnvironment(BaseEnvironment):
             # To get the exact version (i.e. not just what the
             # modules administrator has called it) we load the module
             # detect the version and unload it again
-            if self._detect_exact_version:
+            if self._detect_exact_versions:
                 self.load(version)
-                version = req.detect_version(local_name=local_name,
-                                             local_version=local_ver_name)
+                exact_version = req.detect_version(
+                    local_name=local_name, local_version=local_ver_name)
                 self.unload(version)
+                if not req_range.within(exact_version):
+                    raise ArcanaVersionError(
+                        "Version of {} specified by module {} does not match "
+                        "expected {} and is outside the acceptable range [{}]"
+                        .format(req.name, local_ver_name, str(version),
+                                str(req_range)))
+                if exact_version < version:
+                    raise ArcanaVersionError(
+                        "Version of {} specified by module {} is less than "
+                        "the expected {}"
+                        .format(req.name, local_ver_name, str(version)))
+                version = exact_version
             # Get latest requirement from list of possible options
             versions.append(version)
         return versions
