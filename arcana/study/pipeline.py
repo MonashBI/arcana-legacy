@@ -4,11 +4,10 @@ import os
 from copy import deepcopy
 import tempfile
 import shutil
+import errno
 from itertools import chain
 from collections import defaultdict
 from nipype.pipeline import engine as pe
-import errno
-from arcana.environment.node import Node, JoinNode, MapNode
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
@@ -82,7 +81,7 @@ class Pipeline(object):
     """
 
     def __init__(self, study, name, name_maps, desc=None, references=None):
-        name, study, maps = self._unwrap_mods(name_maps, name, study=study)
+        name, study, maps = self._unwrap_maps(name_maps, name, study=study)
         self._name = name
         self._input_map = maps.get('input_map', None)
         self._output_map = maps.get('output_map', None)
@@ -182,7 +181,7 @@ class Pipeline(object):
                      *(p.study_inputs for p in self.prerequisites))
 
     def add(self, name, interface, inputs=None, outputs=None, connect=None,
-            **kwargs):
+            requirements=None, wall_time=None, annotations=None, **kwargs):
         """
         Adds a processing Node to the pipeline
 
@@ -212,6 +211,17 @@ class Pipeline(object):
             are 2-tuples with the first item the sending Node and the second
             the name of an output of the sending Node. Note that inputs can
             also be specified outside this method using the 'connect' method.
+        requirements : list(Requirement)
+            List of required packages need for the node to run (default: [])
+        wall_time : float
+            Time required to execute the node in minutes (default: 1)
+        mem_gb : int
+            Required memory for the node in GB
+        n_procs : int
+            Preferred number of threads to run the node on (default: 1)
+        annotations : dict[str, *]
+            Additional annotations to add to the node, which may be used by
+            the Processor node to optimise execution (e.g. 'gpu': True)
         iterfield : str
             Name of field to be passed an iterable to iterator over.
             If present, a MapNode will be created instead of a regular node
@@ -221,30 +231,25 @@ class Pipeline(object):
             to join over the subjects and/or visits
         joinfield : str
             Name of field to pass the joined list when creating a JoinNode
-        requirements : list(Requirement)
-            List of required packages need for the node to run (default: [])
-        wall_time : float
-            Time required to execute the node in minutes (default: 1)
-        memory : int
-            Required memory for the node in MB (default: 1000)
-        nthreads : int
-            Preferred number of threads to run the node on (default: 1)
-        gpu : bool
-            Flags whether a GPU compute node is preferred or not
-            (default: False)
 
         Returns
         -------
         node : Node
             The Node object that has been added to the pipeline
         """
+        if annotations is None:
+            annotations = {}
+        if wall_time is None:
+            wall_time = self.study.processor.default_wall_time
+        if 'mem_gb' not in kwargs:
+            kwargs['mem_gb'] = self.study.processor.default_mem_gb
         if 'iterfield' in kwargs:
             if 'joinfield' in kwargs or 'joinsource' in kwargs:
                 raise ArcanaDesignError(
                     "Cannot provide both joinsource and iterfield to when "
                     "attempting to add '{}' node to {}"
                     .foramt(name, self._error_msg_loc))
-            node_cls = MapNode
+            node_type = 'map'
         elif 'joinsource' in kwargs or 'joinfield' in kwargs:
             if not ('joinfield' in kwargs and 'joinsource' in kwargs):
                 raise ArcanaDesignError(
@@ -254,13 +259,15 @@ class Pipeline(object):
             joinsource = kwargs['joinsource']
             if joinsource in self.study.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
-            node_cls = JoinNode
+            node_type = 'join'
             # Prepend name of pipeline of joinsource to match name of nodes
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
         else:
-            node_cls = Node
-        node = node_cls(interface, name="{}_{}".format(self._name, name),
-                        environment=self.study.environment, **kwargs)
+            node_type = 'base'
+        # Create an environment-specific node
+        node = self.study.environment.make_node(
+            node_type, requirements, wall_time, annotations, interface,
+            name="{}_{}".format(self._name, name), **kwargs)
         # Ensure node is added to workflow
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections
@@ -463,13 +470,6 @@ class Pipeline(object):
         # to hold iterator IDs
         input_names = [i.name for i in inputs]
         input_names.extend(self.study.FREQUENCIES[frequency])
-#         if frequency == 'per_subject':
-#             input_names.append(self.study.SUBJECT_ID)
-#         elif frequency == 'per_visit':
-#             input_names.append(self.study.VISIT_ID)
-#         for iterfield in self.study.ITERFIELDS:
-#             if self.iterates_over(iterfield, frequency):
-#                 input_names.append(iterfield)
         if not input_names:
             raise ArcanaError(
                 "No inputs to '{}' pipeline for requested freqency '{}'"
@@ -570,7 +570,7 @@ class Pipeline(object):
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))
 
-    def save_graph(self, fname, style='flat', format='png', **kwargs):
+    def save_graph(self, fname, style='flat', format='png', **kwargs):  # @ReservedAssignment @IgnorePep8
         """
         Saves a graph of the pipeline to file
 
@@ -658,7 +658,7 @@ class Pipeline(object):
         # TODO: Add provenance checking for items that exist
         return not item.exists
 
-    def _unwrap_mods(self, name_maps, name, study=None, **inner_maps):
+    def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
         """
         Unwraps potentially nested modification dictionaries to get values
         for name, input_map, output_map and study. Unsed in __init__.
@@ -751,7 +751,7 @@ class Pipeline(object):
         except KeyError:
             pass
         else:
-            name, study, maps = self._unwrap_mods(
+            name, study, maps = self._unwrap_maps(
                 outer_maps, name=name, study=study, **maps)
         return name, study, maps
 

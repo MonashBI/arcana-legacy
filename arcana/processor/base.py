@@ -1,5 +1,4 @@
 from builtins import object
-import os
 import os.path as op
 import shutil
 from copy import copy, deepcopy
@@ -40,14 +39,21 @@ class BaseProcessor(object):
         if debugging the analysis but may take longer to reach the same point)
     """
 
+    DEFAULT_WALL_TIME = 20
+    DEFAULT_MEM_GB = 4096
+
     default_plugin_args = {}
 
     def __init__(self, work_dir, max_process_time=None, reprocess=False,
-                 clean_work_dir_between_runs=True, **kwargs):
+                 clean_work_dir_between_runs=True,
+                 default_wall_time=DEFAULT_WALL_TIME,
+                 default_mem_gb=DEFAULT_MEM_GB, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
         self._plugin_args = copy(self.default_plugin_args)
+        self._default_wall_time = default_wall_time
+        self._deffault_mem_gb = default_mem_gb
         self._plugin_args.update(kwargs)
         self._init_plugin()
         self._study = None
@@ -73,6 +79,14 @@ class BaseProcessor(object):
     @property
     def study(self):
         return self._study
+
+    @property
+    def default_mem_gb(self):
+        return self._mem_gb
+
+    @property
+    def default_wall_time(self):
+        return self._default_wall_time
 
     def bind(self, study):
         cpy = deepcopy(self)

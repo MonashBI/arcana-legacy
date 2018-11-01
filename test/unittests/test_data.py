@@ -8,7 +8,7 @@ from unittest import TestCase  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.parameter import SwitchSpec  # @IgnorePep8
+from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
 from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
 from arcana.exception import ArcanaDesignError # @IgnorePep8

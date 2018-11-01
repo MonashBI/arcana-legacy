@@ -61,6 +61,11 @@ def split_extension(path):
     return os.path.join(dirname, base), ext
 
 
+class classproperty(property):
+    def __get__(self, cls, owner):
+        return self.fget.__get__(None, owner)()
+
+
 def lower(s):
     if s is None:
         return None

@@ -45,19 +45,19 @@ class TestRequirements(TestCase):
                          (2017, 'b'))
         self.assertEqual(matlab_req.v('R2017B').sequence, (2017, 'b'))
 
-    def test_best_version(self):
+    def test_latest_version(self):
         self.assertEqual(
-            a_req_rnge.latest_within(['2.0.0', '2.0.1']),
+            a_req_rnge.latest_within([a_req.v('2.0.0'), a_req.v('2.0.1')]),
             a_req.v('2.0.1'))
         self.assertEqual(
-            a_req_rnge.latest_within(['2.0.0', '3.0.9', 'waa'],
-                                     ignore_unrecognised=True),
+            a_req_rnge.latest_within([a_req.v('2.0.0'), a_req.v('3.0.9')]),
             a_req.v('3.0.9'))
         self.assertEqual(
-            b_req_rnge.latest_within(['0.0.8', '0.0.9']),
+            b_req_rnge.latest_within([b_req.v('0.0.8'), b_req.v('0.0.9')]),
             b_req.v('0.0.9'))
         self.assertEqual(
-            c_req_rnge.latest_within(['1.9.4', '1.2.9', '3.0.1']),
+            c_req_rnge.latest_within([c_req.v('1.9.4'), c_req.v('1.2.9'),
+                                      c_req.v('3.0.1')]),
             c_req.v('1.9.4'))
 
     def test_exceptions(self):
