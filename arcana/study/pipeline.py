@@ -397,15 +397,11 @@ class Pipeline(object):
 
     @property
     def inputs(self):
-        for inpt in self._input_conns:
-            try:
-                yield self.study.input(inpt)
-            except ArcanaNameError:
-                yield self.study.data_spec(inpt)
+        return (self.study.bound_spec(i) for i in self._input_conns)
 
     @property
     def outputs(self):
-        return (self.study.data_spec(o) for o in self._output_conns)
+        return (self.study.bound_spec(o) for o in self._output_conns)
 
     @property
     def input_names(self):
@@ -672,6 +668,7 @@ class Pipeline(object):
         mismatch : bool
             Whether the item needs to be (re)processed
         """
+        return False
         if not item.exists:
             return True
         elif self.study.reprocess == 'ignore':
