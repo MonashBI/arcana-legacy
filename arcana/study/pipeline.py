@@ -668,6 +668,7 @@ class Pipeline(object):
         mismatch : bool
             Whether the item needs to be (re)processed
         """
+        return False
         if not item.exists:
             return True
         elif self.study.reprocess == 'ignore':

@@ -568,21 +568,19 @@ class BaseProcessor(object):
         # Initialise an array of sessions to process
         to_process = np.zeros((len(subject_inds), len(visit_inds)), dtype=bool)
         for output in pipeline.frequency_outputs('per_study'):
-            collection = self.study.spec(output).collection
             # Include all sessions if a per-study output needs to be
             # reprocessed. Note that this will almost always be the case if
             # any other output needs to be reprocessed.
             #
             # NB: Filter array should always have at least one true value at
             # this point
-            item = collection.item()
+            item = output.collection.item()
             if force or not item.exists or pipeline.prov_mismatch(item):
                 to_process[:] = True
                 # No point continuing since to_process array is already full
                 return to_process
         for output in pipeline.frequency_outputs('per_subject'):
-            collection = self.study.spec(output).collection
-            for item in collection:
+            for item in output.collection:
                 i = subject_inds[item.subject_id]
                 # NB: The output will be reprocessed using data from every
                 # visit of each subject. However, the visits to include in the
@@ -592,8 +590,7 @@ class BaseProcessor(object):
                         filter_array[i, :].any()):
                     to_process[i, :] = True
         for output in pipeline.frequency_outputs('per_visit'):
-            collection = self.study.spec(output).collection
-            for item in collection:
+            for item in output.collection:
                 j = visit_inds[item.visit_id]
                 # NB: The output will be reprocessed using data from every
                 # subject of each vist. However, the subject to include in the
@@ -603,8 +600,7 @@ class BaseProcessor(object):
                         filter_array[:, j].any()):
                     to_process[:, j] = True
         for output in pipeline.frequency_outputs('per_session'):
-            collection = self.study.spec(output).collection
-            for item in collection:
+            for item in output.collection:
                 i = subject_inds[item.subject_id]
                 j = visit_inds[item.visit_id]
                 if ((force or not item.exists or

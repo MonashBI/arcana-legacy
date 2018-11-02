@@ -12,6 +12,7 @@ from future.utils import with_metaclass  # @IgnorePep8
 from arcana.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
+from arcana.interfaces.repository import RepositorySource, RepositorySink  # @IgnorePep8
 from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
 
@@ -65,8 +66,11 @@ class TestSinkAndSource(BaseTestCase):
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = pe.Node(study.source(source_files), name='source')
-        sink = pe.Node(study.sink(sink_files), name='sink')
+        source = pe.Node(RepositorySource(
+            study.bound_spec(f).collection
+            for f in source_files), name='source')
+        sink = pe.Node(RepositorySink(
+            study.bound_spec(f).collection for f in sink_files), name='sink')
         sink.inputs.name = 'repository_sink'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -99,8 +103,10 @@ class TestSinkAndSource(BaseTestCase):
             STUDY_NAME, self.repository,
             processor=LinearProcessor('a_dir'),
             inputs=[])
-        sink = pe.Node(study.sink(outputs=['field1', 'field2', 'field3']),
-                       name='fields_sink')
+        sink = pe.Node(
+            RepositorySink(study.bound_spec(f).collection
+                           for f in ['field1', 'field2', 'field3']),
+            name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
         sink.inputs.field3_field = field3 = '3'
@@ -110,7 +116,8 @@ class TestSinkAndSource(BaseTestCase):
         sink.inputs.name = 'test_sink'
         sink.run()
         source = pe.Node(
-            study.source(['field1', 'field2', 'field3']),
+            RepositorySource(study.bound_spec(f).collection
+                             for f in ['field1', 'field2', 'field3']),
             name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
@@ -133,24 +140,32 @@ class TestSinkAndSource(BaseTestCase):
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = pe.Node(study.source(source_files), name='source')
+        source = pe.Node(
+            RepositorySource(study.bound_spec(f).collection
+                             for f in source_files), name='source')
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        subject_sink = pe.Node(study.sink(subject_sink_files),
-                               name='subject_sink')
+        subject_sink = pe.Node(
+            RepositorySink(study.bound_spec(f).collection
+                           for f in subject_sink_files),
+            name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
-        visit_sink = pe.Node(study.sink(visit_sink_files), name='visit_sink')
+        visit_sink = pe.Node(
+            RepositorySink(study.bound_spec(f).collection
+                           for f in visit_sink_files), name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
         project_sink_files = ['project_sink']
-        project_sink = pe.Node(study.sink(project_sink_files),
-                               name='project_sink')
+        project_sink = pe.Node(
+            RepositorySink(study.bound_spec(f).collection
+                           for f in project_sink_files),
+            name='project_sink')
 
         project_sink.inputs.name = 'project_summary'
         project_sink.inputs.desc = (
@@ -196,11 +211,14 @@ class TestSinkAndSource(BaseTestCase):
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource = pe.Node(
-            study.source((source_files + subject_sink_files +
-                          visit_sink_files + project_sink_files)),
+            RepositorySource(
+                study.bound_spec(f).collection for f in (
+                    source_files + subject_sink_files +
+                    visit_sink_files + project_sink_files)),
             name='reload_source')
         reloadsink = pe.Node(
-            study.sink(['resink1', 'resink2', 'resink3']),
+            RepositorySink(study.bound_spec(f).collection
+                           for f in ['resink1', 'resink2', 'resink3']),
             name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
