@@ -1,5 +1,6 @@
 from builtins import zip
 from builtins import object
+from copy import copy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
@@ -167,6 +168,12 @@ class Tree(TreeNode):
             ((v.id, v) for v in visits), key=itemgetter(0)))
         if fill_subjects is not None or fill_visits is not None:
             self._fill_empty_sessions(fill_subjects, fill_visits)
+        for subject in self.subjects:
+            subject.tree = self
+        for visit in self.visits:
+            visit.tree = self
+        for session in self.sessions:
+            session.tree = self
 
     def __eq__(self, other):
         return (super(Tree, self).__eq__(other) and
@@ -377,6 +384,7 @@ class Subject(TreeNode):
             ((s.visit_id, s) for s in sessions), key=itemgetter(0)))
         for session in self.sessions:
             session.subject = self
+        self._tree = None
 
     @property
     def id(self):
@@ -389,6 +397,14 @@ class Subject(TreeNode):
     @property
     def visit_id(self):
         return None
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
 
     def __lt__(self, other):
         return self._id < other._id
@@ -479,6 +495,7 @@ class Visit(TreeNode):
             ((s.subject_id, s) for s in sessions), key=itemgetter(0)))
         for session in sessions:
             session.visit = self
+        self._tree = None
 
     @property
     def id(self):
@@ -491,6 +508,14 @@ class Visit(TreeNode):
     @property
     def visit_id(self):
         return self.id
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
 
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
@@ -573,6 +598,7 @@ class Session(TreeNode):
         self._visit_id = visit_id
         self._subject = None
         self._visit = None
+        self._tree = None
 
     @property
     def visit_id(self):
@@ -613,6 +639,14 @@ class Session(TreeNode):
     @visit.setter
     def visit(self, visit):
         self._visit = visit
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
