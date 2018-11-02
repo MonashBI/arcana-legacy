@@ -72,6 +72,10 @@ class BaseItem(object):
         return self._visit_id
 
     @property
+    def session_id(self):
+        return (self.subject_id, self.visit_id)
+
+    @property
     def from_study(self):
         return self._from_study
 

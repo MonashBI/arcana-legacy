@@ -151,17 +151,63 @@ class PipelineRecord(object):
 
 
 class Record(object):
+    """
+    Records the provenance information relevant to a specific session, i.e.
+    the general configuration of the pipeline and file checksums|field values
+    of the pipeline inputs used to derive the outputs in a given session
+    (or visit, subject, study summary) as well as the checksums|values of the
+    outputs (in order to detect if they have been altered outside of Arcana's
+    management, e.g. manual QC|correction)
 
-    def __init__(self, pipeline_record, inputs, outputs):
+    Parameters
+    ----------
+    pipeline_record : PipelineRecord
+        The pipeline-wide configuration provenance information
+    inputs : dict[str, dict[(str, str), str | int | float | list[float] | list[int] | list[str]]]
+        Checksums or field values of all inputs that have gone into to derive
+        the outputs of the pipeline
+    outputs : dict[str, str | int | float | list[float] | list[int] | list[str]]
+        Checksums or field values of all the outputs of the pipeline
+    subject_id : str | None
+        The subject ID of the session (None if per-visit, per-study)
+    visit_id : str | None
+        The visit ID of the session (None if per-subject, per-study)
+    """
+
+    def __init__(self, pipeline_record, inputs, outputs, subject_id, visit_id):
         self._pipeline_record = pipeline_record
         self._inputs = inputs
         self._outputs = outputs
+        self._subject_id = subject_id
+        self._visit_id = visit_id
+
+    @property
+    def pipeline_record(self):
+        return self._pipeline_record
+
+    @property
+    def inputs(self):
+        return self._inputs
+
+    @property
+    def outputs(self):
+        return self._outputs
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
 
     def matches(self, other):
         return (
             self._pipeline_record.matches(other) and
             self._inputs == other._inputs and
-            self._outputs == other._outputs)
+            self._outputs == other._outputs and
+            self._subject_id == other._subject_id and
+            self._visit_id == other._visit_id)
 
     def versions_match(self, other):
         return self._pipeline_record.versions_match(other)
@@ -198,8 +244,8 @@ class Record(object):
             'workflow_graph': self._workflow_graph,
             'subject_ids': self._subject_ids,
             'visit_ids': self._visit_ids,
-            'inputs': self._inputs,
-            'outputs': self._outputs}
+            'inputs': self.inputs,
+            'outputs': self.outputs}
         with open(path, 'w') as f:
             json.dump(dct, f)
 
@@ -220,7 +266,7 @@ class Record(object):
         """
         with open(path) as f:
             dct = json.load(f)
-        return PipelineRecord(
+        pipeline_record = PipelineRecord(
             pipeline_name=dct['pipeline_name'],
             study_parameters=dct['study_parameters'],
             interface_parameters=dct['interface_parameters'],
@@ -229,24 +275,35 @@ class Record(object):
             nipype_version=dct['nipype_version'],
             workflow_graph=dct['workflow_graph'],
             subject_ids=dct['subject_ids'],
-            visit_ids=dct['visit_ids'],
-            inputs=dct['inputs'],
-            outputs=dct['outputs'])
+            visit_ids=dct['visit_ids'])
+        return Record(pipeline_record, inputs=dct['inputs'],
+                      outputs=dct['outputs'])
 
     @classmethod
-    def extract(cls, pipeline_prov, item, inputs, outputs):
+    def extract(cls, pipeline_prov, inputs, outputs, subject_id, visit_id):
         """
-        Extracts relevant checksum information from inputs and outputs to store
+        Extracts relevant checksum information from inputs and outputs for
+        the given session (or subject, visit, study summary) to store
         in the provenance record
 
         Parameters
         ----------
         pipeline_prov : PipelineRecord
             The pipeline to extract the provenance information
+        inputs : *Spec | *Selector | *Collection
+            Inputs to the pipeline
+        outputs : *Spec
+            Outputs of the pipeline
+        subject_id : str | None
+            The subject ID corresponding to the record
+        visit_id : str | None
+            The visit ID corresponding to the record
 
         Returns
         -------
         prov : Provenance
             The extracted provenance information in a Provenance object
         """
-        return Record(pipeline_prov, )
+        raise NotImplementedError
+        return Record(pipeline_prov, input_checksums, output_checksums,
+                      subject_id, visit_id)
