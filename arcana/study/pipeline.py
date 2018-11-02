@@ -12,7 +12,9 @@ from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
     ArcanaDesignError, ArcanaNameError, ArcanaError,
-    ArcanaOutputNotProducedException, ArcanaMissingDataException)
+    ArcanaOutputNotProducedException, ArcanaMissingDataException,
+    ArcanaProvenanceRecordMismatchError)
+from .provenance import Record, PipelineRecord
 
 
 logger = getLogger('arcana')
@@ -100,6 +102,7 @@ class Pipeline(object):
         # provenance
         self._referenced_parameters = None
         self._required_outputs = set()
+        self._prov = None
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -486,25 +489,27 @@ class Pipeline(object):
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created input node
         for input in inputs:  # @ReservedAssignment
-            conv_cache = {}
+            # Keep track of previous conversion nodes to avoid replicating the
+            # conversion for inputs that are used in multiple places
+            prev_conv_nodes = {}
             for (node, node_in,
                  format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
                 if self.requires_conversion(input, format):
+                    conv = format.converter_from(input.format, **conv_kwargs)
                     try:
-                        conv = conv_cache[format.name]
+                        in_node = prev_conv_nodes[format.name]
                     except KeyError:
-                        conv = conv_cache[format.name] = format.converter_from(
-                            input.format, **conv_kwargs)
-                    in_node = self.add(
-                        'conv_{}_to_{}_format'.format(input.name, format.name),
-                        conv.interface,
-                        connect={conv.input: (inputnode, input.name)},
-                        requirements=conv.requirements,
-                        mem_gb=conv.mem_gb,
-                        wall_time=conv.wall_time)
+                        in_node = prev_conv_nodes[format.name] = self.add(
+                            'conv_{}_to_{}_format'.format(input.name,
+                                                          format.name),
+                            conv.interface,
+                            connect={conv.input: (inputnode, input.name)},
+                            requirements=conv.requirements,
+                            mem_gb=conv.mem_gb,
+                            wall_time=conv.wall_time)
                     in_node_out = conv.output
                 else:
                     in_node = inputnode
@@ -545,19 +550,13 @@ class Pipeline(object):
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
         for output in outputs:  # @ReservedAssignment
-            conv_cache = {}
             (node, node_out,
              format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
             if self.requires_conversion(output, format):
-                try:
-                    conv = conv_cache[format.name]
-                except KeyError:
-                    conv = conv_cache[
-                        format.name] = output.format.converter_from(
-                            format, **conv_kwargs)
+                conv = output.format.converter_from(format, **conv_kwargs)
                 node = self.add(
                     'conv_{}_from_{}_format'.format(output.name, format.name),
                     conv.interface,
@@ -653,11 +652,11 @@ class Pipeline(object):
         """
         return iterfield in self.study.FREQUENCIES[freq]
 
-    def metadata_mismatch(self, item):
+    def prov_mismatch(self, item):
         """
         Determines whether the given derivative dataset needs to be
-        (re)processed or not, checking the item's provenance against the
-        parameters used by the pipeline.
+        (re)processed or not, checking the item's provenance against that
+        of the pipeline.
 
         Parameters
         ----------
@@ -666,15 +665,49 @@ class Pipeline(object):
 
         Returns
         -------
-        to_process : bool
-            Whether to (re)process the given item
+        mismatch : bool
+            Whether the item needs to be (re)processed
         """
-        # TODO: Add provenance checking for items that exist
-        return not item.exists
+        if not item.exists:
+            return True
+        elif self.study.reprocess == 'ignore':
+            return False
+        expected_record = self.expected_record(item)
+        if self.study.reprocess.startswith('ignore_versions'):
+            reprocess = self.study.reprocess.endswith('true')
+        else:
+            reprocess = self.study.reprocess
+            if not item.prov_record.versions_match(expected_record):
+                if not reprocess:
+                    raise ArcanaProvenanceRecordMismatchError(
+                        "Recorded provenance version information for {} does "
+                        "not match that of requested pipeline: {}".format(
+                            item, item.prov_record.find_version_mismatch(
+                                expected_record)))
+                logger.info(
+                    "Reprocessing {} due to mismatching software versions"
+                    .format(item))
+                return True
+        if item.prov_record.matches(expected_record):
+            return False
+        elif reprocess:
+            logger.info("Reprocessing {} due to mismatching provenance"
+                        .format(item))
+            return True
+        else:
+            raise ArcanaProvenanceRecordMismatchError(
+                "Recorded provenance for {} does not match that of requested "
+                "pipeline: {}".format(
+                    item, item.prov_record.find_mismatch(expected_record)))
+
+    def expected_record(self, item):
+        if self._prov is None:
+            self._prov = PipelineRecord.extract(self)
+        return Record.extract(self._prov, self.inputs, self.outputs)
 
     def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
         """
-        Unwraps potentially nested modification dictionaries to get values
+        Unwraps potentially nested name-mapping dictionaries to get values
         for name, input_map, output_map and study. Unsed in __init__.
 
         Parameters

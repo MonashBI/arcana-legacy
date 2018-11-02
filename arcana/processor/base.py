@@ -11,6 +11,8 @@ from arcana.exception import (
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError)
 from arcana.data import BaseFileset
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
+from arcana.interfaces.repository import (RepositorySource,
+                                          RepositorySink)
 
 
 logger = getLogger('arcana')
@@ -303,7 +305,8 @@ class BaseProcessor(object):
             try:
                 source = pipeline.add(
                     '{}_source'.format(freq),
-                    self.study.source(inputs))
+                    RepositorySource(
+                        self.study.spec(i).collection for i in inputs))
             except ArcanaMissingDataException as e:
                 raise ArcanaMissingDataException(
                     str(e) + ", which is required for pipeline '{}'".format(
@@ -349,7 +352,7 @@ class BaseProcessor(object):
             outputnode = pipeline.outputnode(freq)
             sink = pipeline.add(
                 '{}_sink'.format(freq),
-                self.study.sink(outputs))
+                RepositorySink(self.study.spec(o).collection for o in outputs))
             for iterfield in pipeline.iterfields():
                 workflow.connect(iterators[iterfield], iterfield, sink,
                                  iterfield)
@@ -572,7 +575,8 @@ class BaseProcessor(object):
             #
             # NB: Filter array should always have at least one true value at
             # this point
-            if pipeline.metadata_mismatch(collection.item()) or force:
+            item = collection.item()
+            if force or not item.exists or pipeline.prov_mismatch():
                 to_process[:] = True
                 # No point continuing since to_process array is already full
                 return to_process
@@ -583,7 +587,8 @@ class BaseProcessor(object):
                 # NB: The output will be reprocessed using data from every
                 # visit of each subject. However, the visits to include in the
                 # analysis can be specified the initialisation of the Study.
-                if ((pipeline.metadata_mismatch(item) or force) and
+                if ((force or not item.exists or
+                     pipeline.prov_mismatch(item)) and
                         filter_array[i, :].any()):
                     to_process[i, :] = True
         for output in pipeline.frequency_outputs('per_visit'):
@@ -593,7 +598,8 @@ class BaseProcessor(object):
                 # NB: The output will be reprocessed using data from every
                 # subject of each vist. However, the subject to include in the
                 # analysis can be specified the initialisation of the Study.
-                if ((pipeline.metadata_mismatch(item) or force) and
+                if ((force or not item.exists or
+                     pipeline.prov_mismatch(item)) and
                         filter_array[:, j].any()):
                     to_process[:, j] = True
         for output in pipeline.frequency_outputs('per_session'):
@@ -601,8 +607,8 @@ class BaseProcessor(object):
             for item in collection:
                 i = subject_inds[item.subject_id]
                 j = visit_inds[item.visit_id]
-                if ((pipeline.metadata_mismatch(item) or force) and
-                        filter_array[i, j]):
+                if ((force or not item.exists or
+                     pipeline.prov_mismatch(item)) and filter_array[i, j]):
                     to_process[i, j] = True
         if not to_process.any():
             raise ArcanaNoRunRequiredException(

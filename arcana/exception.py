@@ -123,3 +123,7 @@ class ArcanaConverterNotAvailableError(ArcanaError):
 
 class ArcanaFileFormatNotRegisteredError(ArcanaError):
     pass
+
+
+class ArcanaProvenanceRecordMismatchError(ArcanaError):
+    pass
