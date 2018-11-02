@@ -576,7 +576,7 @@ class BaseProcessor(object):
             # NB: Filter array should always have at least one true value at
             # this point
             item = collection.item()
-            if force or not item.exists or pipeline.prov_mismatch():
+            if force or not item.exists or pipeline.prov_mismatch(item):
                 to_process[:] = True
                 # No point continuing since to_process array is already full
                 return to_process

@@ -249,4 +249,4 @@ class Record(object):
         prov : Provenance
             The extracted provenance information in a Provenance object
         """
-        raise NotImplementedError
+        return Record(pipeline_prov, )
