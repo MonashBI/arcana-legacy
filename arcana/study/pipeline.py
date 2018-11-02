@@ -102,7 +102,11 @@ class Pipeline(object):
         # provenance
         self._referenced_parameters = None
         self._required_outputs = set()
+        # Create placeholders for expected provenance records that are used
+        # to compare with records saved in the repository when checking for
+        # mismatches
         self._prov = None
+        self._prov_records = {}
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -701,8 +705,14 @@ class Pipeline(object):
                     item, item.prov_record.find_mismatch(expected_record)))
 
     def expected_record(self, item):
-        if self._prov is None:
-            self._prov = PipelineRecord.extract(self)
+        try:
+            record = self._prov_records[(item.subject_id, item.visit_id)]
+        except KeyError:
+            # Get provenance info that is common between sessions
+            if self._prov is None:
+                self._prov = PipelineRecord.extract(self)
+            # Extract session (subject|visit|study) specific information, i.e.
+            # input and output checksums
         return Record.extract(self._prov, self.inputs, self.outputs)
 
     def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
