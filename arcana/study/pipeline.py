@@ -397,15 +397,11 @@ class Pipeline(object):
 
     @property
     def inputs(self):
-        for inpt in self._input_conns:
-            try:
-                yield self.study.input(inpt)
-            except ArcanaNameError:
-                yield self.study.data_spec(inpt)
+        return (self.study.bound_spec(i) for i in self._input_conns)
 
     @property
     def outputs(self):
-        return (self.study.data_spec(o) for o in self._output_conns)
+        return (self.study.bound_spec(o) for o in self._output_conns)
 
     @property
     def input_names(self):
