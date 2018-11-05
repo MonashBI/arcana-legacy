@@ -84,24 +84,6 @@ class PipelineRecord(object):
             self._subject_ids == other._subject_ids and
             self._visit_ids == other._visit_ids)
 
-    @classmethod
-    def extract(cls, pipeline):
-        """
-        Extracts all static provenance information (i.e. not inputs and
-        outputs) and returns a Provenance object.
-
-        Parameters
-        ----------
-        pipeline : Pipeline
-            The pipeline to extract the provenance information
-
-        Returns
-        -------
-        prov : Provenance
-            The extracted provenance information in a Provenance object
-        """
-        raise NotImplementedError
-
     @property
     def study_parameters(self):
         return self._study_parameters
@@ -143,7 +125,7 @@ class PipelineRecord(object):
         return self._outputs
 
     def record(self, inputs, outputs):
-        
+        return Record(self, inputs, outputs)
 
 
 class Record(object):
@@ -271,32 +253,3 @@ class Record(object):
             visit_ids=dct['visit_ids'])
         return Record(pipeline_record, inputs=dct['inputs'],
                       outputs=dct['outputs'])
-
-    @classmethod
-    def extract(cls, pipeline_prov, inputs, outputs, subject_id, visit_id):
-        """
-        Extracts relevant checksum information from inputs and outputs for
-        the given session (or subject, visit, study summary) to store
-        in the provenance record
-
-        Parameters
-        ----------
-        pipeline_prov : PipelineRecord
-            The pipeline to extract the provenance information
-        inputs : *Spec | *Selector | *Collection
-            Inputs to the pipeline
-        outputs : *Spec
-            Outputs of the pipeline
-        subject_id : str | None
-            The subject ID corresponding to the record
-        visit_id : str | None
-            The visit ID corresponding to the record
-
-        Returns
-        -------
-        prov : Provenance
-            The extracted provenance information in a Provenance object
-        """
-        raise NotImplementedError
-        return Record(pipeline_prov, input_checksums, output_checksums,
-                      subject_id, visit_id)

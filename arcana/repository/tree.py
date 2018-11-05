@@ -129,8 +129,15 @@ class TreeNode(object):
         return mismatch
 
     def provenance_matches(self, pipeline, ignore_versions=False):
-        pipeline.provenance
-        raise NotImplementedError
+        # TODO: Need to extract checksums/values for inputs of the pipelines
+        inputs = []
+        outputs = []
+        return self.provenance.matches(
+            pipeline.provenance.record(inputs, outputs),
+            ignore_versions=ignore_versions)
+
+    def find_provenance_mismatch(self, pipeline):
+        return ''  # FIXME: Need to implement for error message
 
 
 class Tree(TreeNode):
