@@ -184,12 +184,20 @@ class Record(object):
         the outputs of the pipeline
     outputs : dict[str, str | int | float | list[float] | list[int] | list[str]]
         Checksums or field values of all the outputs of the pipeline
+    subject_id : str | None
+        The subject ID the record corresponds to. If None can be a per-visit or
+        per-study summary
+    visit_id : str | None
+        The visit ID the record corresponds to. If None can be a per-subject or
+        per-study summary
     """
 
-    def __init__(self, pipeline_record, inputs, outputs):
+    def __init__(self, pipeline_record, inputs, outputs, subject_id, visit_id):
         self._pipeline_record = pipeline_record
         self._inputs = inputs
         self._outputs = outputs
+        self._subject_id = subject_id
+        self._visit_id = visit_id
 
     @property
     def pipeline_record(self):
@@ -202,6 +210,14 @@ class Record(object):
     @property
     def outputs(self):
         return self._outputs
+
+    @property
+    def subject_id(self):
+        return self._subject_id
+
+    @property
+    def visit_id(self):
+        return self._visit_id
 
     def matches(self, other, ignore_versions=False):
         return (
@@ -279,12 +295,15 @@ class Record(object):
 
     def find_mismatch(self, other, indent=''):
         mismatch = ''
+        sub_indent = indent + '  '
         if self.pipeline_record != other.pipeline_record:
             mismatch += self.pipeline_record.find_mismatch(
                 other.pipeline_record, indent=indent)
         if self.inputs != other.inputs:
-            mismatch += ('\n{indent}inputs: self={} v other={}'
-                         .format(self.inputs, other.inputs,
+            mismatch += ('\n{indent}inputs{}'
+                         .format(find_mismatch(self.inputs,
+                                               other.inputs,
+                                               indent=sub_indent),
                                  indent=indent))
         if self.outputs != other.outputs:
             mismatch += ('\n{indent}outputs: self={} v other={}'

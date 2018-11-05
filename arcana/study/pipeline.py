@@ -784,7 +784,7 @@ class Pipeline(object):
             # Generate JSON representation of Nipype workflow graph
             wf_graph = nx_json.node_link_data(self._workflow._graph)
             # Replace Nipype Nodes in 'nodes' with the name and interface of
-            # the node
+            # the Nodes
             wf_graph['nodes'] = [
                 {'name': n['id'].name,
                  'interface': '{}.{}'.format(
