@@ -149,3 +149,36 @@ def run_matlab_cmd(cmd):
         return result.runtime.stdout.split(delim)[1]
     finally:
         shutil.rmtree(tmp_dir)
+
+
+def find_mismatch(first, second, indent=''):
+    """
+    Finds where two objects differ. They can be nested containers
+    any combination of primary dtypes, str, int, float, dict and lists
+    """
+    sub_indent = indent + '  '
+    mismatch = ''
+    if (not isinstance(first, type(second)) or
+            not isinstance(second, type(first))):
+        mismatch += ('\n{indent}mismatching types '
+                     '(self={} vs other={})').format(type(first), type(second))
+    if isinstance(first, dict):
+        if sorted(first.keys()) != sorted(second.keys()):
+            mismatch += ('\n{indent}mismatching dictionary keys '
+                         '(self={} vs other={}): '
+                         .format(sorted(first.keys()),
+                                 sorted(second.keys())))
+        else:
+            for k in first:
+                if first[k] != second[k]:
+                    mismatch += ("\n{indent}mismatching values for '{}' keys:"
+                                 "\n{}".format(
+                                     k, find_mismatch(first[k], second[k]),
+                                     indent=sub_indent))
+    elif 
+            if self.pipeline_name != other.pipeline_name:
+            mismatch += ('\n{}pipeline_name: self={} v other={}'
+                         .format(sub_indent, self.pipeline_name,
+                                 other.pipeline_name))
+
+                                 

@@ -41,7 +41,11 @@ class PipelineRecord(object):
         self._visit_ids = visit_ids
 
     def __eq__(self, other):
-        return self.match(other) and self.match_versions(other)
+        return self.matches(other)
+
+    def __repr__(self):
+        return "{}(pipeline='{}')".format(type(self).__name__,
+                                          self.pipeline_name)
 
     def matches(self, other, ignore_versions=False):
         """
@@ -114,8 +118,47 @@ class PipelineRecord(object):
     def record(self, inputs, outputs):
         return Record(self, inputs, outputs)
 
-    def find_mismatch(self, other):
-        pass
+    def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
+        mismatch = ''
+        if self.pipeline_name != other.pipeline_name:
+            mismatch += ('\n{}pipeline_name: self={} v other={}'
+                         .format(sub_indent, self.pipeline_name,
+                                 other.pipeline_name))
+        if self.study_parameters != other.study_parameters:
+            mismatch += ('\n{}study_parameters: self={} v other={}'
+                         .format(sub_indent, self.study_parameters,
+                                 other.study_parameters))
+        if self.interface_parameters != other.interface_parameters:
+            mismatch += ('\n{}interface_parameters: self={} v other={}'
+                         .format(sub_indent, self.interface_parameters,
+                                 other.interface_parameters))
+        if self.requirement_versions != other.requirement_versions:
+            mismatch += ('\n{}requirement_versions: self={} v other={}'
+                         .format(sub_indent, self.requirement_versions,
+                                 other.requirement_versions))
+        if self.arcana_version != other.arcana_version:
+            mismatch += ('\n{}arcana_version: self={} v other={}'
+                         .format(sub_indent, self.arcana_version,
+                                 other.arcana_version))
+        if self.nipype_version != other.nipype_version:
+            mismatch += ('\n{}nipype_version: self={} v other={}'
+                         .format(sub_indent, self.nipype_version,
+                                 other.nipype_version))
+        if self.workflow_graph != other.workflow_graph:
+            
+            mismatch += ('\n{}workflow_graph: self={} v other={}'
+                         .format(sub_indent, self.workflow_graph,
+                                 other.workflow_graph))
+        if self.subject_ids != other.subject_ids:
+            mismatch += ('\n{}subject_ids: self={} v other={}'
+                         .format(sub_indent, self.subject_ids,
+                                 other.subject_ids))
+        if self.visit_ids != other.visit_ids:
+            mismatch += ('\n{}visit_ids: self={} v other={}'
+                         .format(sub_indent, self.visit_ids,
+                                 other.visit_ids))
+        return mismatch
 
 
 class Record(object):
@@ -229,5 +272,18 @@ class Record(object):
         return Record(pipeline_record, inputs=dct['inputs'],
                       outputs=dct['outputs'])
 
-    def find_mismatch(self, other):
-        pass
+    def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
+        mismatch = ''
+        if self.pipeline_record != other.pipeline_record:
+            mismatch += self.pipeline_record.find_mismatch(
+                other.pipeline_record, indent=sub_indent)
+        if self.inputs != other.inputs:
+            mismatch += ('\n{}inputs: self={} v other={}'
+                         .format(sub_indent, self.inputs,
+                                 other.inputs))
+        if self.outputs != other.outputs:
+            mismatch += ('\n{}outputs: self={} v other={}'
+                         .format(sub_indent, self.outputs,
+                                 other.outputs))
+        return mismatch
