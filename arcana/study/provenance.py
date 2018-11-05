@@ -116,10 +116,10 @@ class PipelineRecord(object):
     def outputs(self):
         return self._outputs
 
-    def record(self, inputs, outputs):
-        return Record(self, inputs, outputs)
+    def record(self, inputs, outputs, subject_id, visit_id):
+        return Record(self, inputs, outputs, subject_id, visit_id)
 
-    def find_mismatch(self, other, indent=''):
+    def find_mismatch(self, other, indent='', ignore_versions=False):
         mismatch = ''
         if self.pipeline_name != other.pipeline_name:
             mismatch += ('\n{indent}pipeline_name: self={} v other={}'
@@ -137,18 +137,6 @@ class PipelineRecord(object):
                                                other.interface_parameters,
                                                indent=indent),
                                  indent=indent))
-        if self.requirement_versions != other.requirement_versions:
-            mismatch += ('\n{indent}requirement_versions{}'
-                         .format(find_mismatch(self.requirement_versions,
-                                               other.requirement_versions,
-                                               indent=indent),
-                                 indent=indent))
-        if self.arcana_version != other.arcana_version:
-            mismatch += ('\n{indent}arcana_version: self={} v other={}'
-                         .format(self.arcana_version, other.arcana_version))
-        if self.nipype_version != other.nipype_version:
-            mismatch += ('\n{indent}nipype_version: self={} v other={}'
-                         .format(self.nipype_version, other.nipype_version))
         if self.workflow_graph != other.workflow_graph:
             mismatch += ('\n{indent}workflow_graph{}'
                          .format(find_mismatch(self.workflow_graph,
@@ -163,6 +151,21 @@ class PipelineRecord(object):
             mismatch += ('\n{indent}visit_ids: self={} v other={}'
                          .format(self.visit_ids, other.visit_ids,
                                  indent=indent))
+        if not ignore_versions:
+            if self.requirement_versions != other.requirement_versions:
+                mismatch += ('\n{indent}requirement_versions{}'
+                             .format(find_mismatch(self.requirement_versions,
+                                                   other.requirement_versions,
+                                                   indent=indent),
+                                     indent=indent))
+            if self.arcana_version != other.arcana_version:
+                mismatch += ('\n{indent}arcana_version: self={} v other={}'
+                             .format(self.arcana_version,
+                                     other.arcana_version))
+            if self.nipype_version != other.nipype_version:
+                mismatch += ('\n{indent}nipype_version: self={} v other={}'
+                             .format(self.nipype_version,
+                                     other.nipype_version))
         return mismatch
 
 
@@ -293,12 +296,12 @@ class Record(object):
         return Record(pipeline_record, inputs=dct['inputs'],
                       outputs=dct['outputs'])
 
-    def find_mismatch(self, other, indent=''):
+    def find_mismatch(self, other, indent='', **kwargs):
         mismatch = ''
         sub_indent = indent + '  '
         if self.pipeline_record != other.pipeline_record:
             mismatch += self.pipeline_record.find_mismatch(
-                other.pipeline_record, indent=indent)
+                other.pipeline_record, indent=indent, **kwargs)
         if self.inputs != other.inputs:
             mismatch += ('\n{indent}inputs{}'
                          .format(find_mismatch(self.inputs,
