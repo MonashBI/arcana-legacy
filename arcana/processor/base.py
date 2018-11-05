@@ -542,9 +542,9 @@ class BaseProcessor(object):
         force : bool
             Whether to force reprocessing of all (filtered) sessions or not.
             Note that if 'force' is true we can't just return the filter array
-            as it might be dilated by low frequency (i.e. 'per_visit',
-            'per_subject' or 'per_study') outputs. So we still loop through
-            all outputs and treat them like they don't exist
+            as it might be dilated by summary outputs (i.e. of frequency
+            'per_visit', 'per_subject' or 'per_study'). So we still loop
+            through all outputs and treat them like they don't exist
 
         Returns
         -------
@@ -561,11 +561,11 @@ class BaseProcessor(object):
         # passed to the Study class) needs to be complete, i.e. a session
         # exists (with the full complement of requird inputs) for each
         # subject/visit ID pair.
-        low_freq_outputs = [
+        summary_outputs = [
             o.name for o in pipeline.outputs if o.frequency != 'per_session']
         # Set of frequencies present in pipeline outputs
         output_freqs = pipeline.output_frequencies
-        if low_freq_outputs:
+        if summary_outputs:
             if list(tree.incomplete_subjects):
                 raise ArcanaUsageError(
                     "Can't process '{}' pipeline as it has low frequency "
@@ -575,7 +575,7 @@ class BaseProcessor(object):
                     "IDs in the study __init__ to continue the analysis"
                     .format(
                         self.name,
-                        ', '.join(low_freq_outputs),
+                        ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
 
@@ -613,7 +613,7 @@ class BaseProcessor(object):
                                    '{}|{}'.format(i) for i in [
                                        (inv_subject_inds[s], inv_visit_inds[v])
                                        for s, v in zip(*np.nonzero(added))]),
-                               ', '.join(str(o) for o in low_freq_outputs))
+                               ', '.join(str(o) for o in summary_outputs))
 
         # Initialise the array to return that represents the sessions to
         # process
@@ -627,12 +627,14 @@ class BaseProcessor(object):
                     # "dialated" afterwards (see local method "dialate array")
                     to_process[subject_inds.get(item.subject_id, 0),
                                visit_inds.get(item.visit_id, 0)] = True
-        if low_freq_outputs:
+        if summary_outputs:
             to_process = dialate_array(to_process)
+        # Filter sessions to process by those requested (either explicitly by
+        # the user or downstream pipelines)
         to_process *= filter_array
-        # Get list of sessions for which all outputs exist that we should
-        # check to see if the saved provenance matches what we need it to
-        # be.
+        # Get list of sessions for which all outputs exist, which we should
+        # check to see if the saved provenance matches what the given pipeline
+        # expects
         outputs_exist = np.invert(to_process) * filter_array
         if outputs_exist.any() and self.study.reprocess != 'ignore':
             # Get list of sessions, subjects, visits, tree objects to check
@@ -679,7 +681,7 @@ class BaseProcessor(object):
                             .format(pipeline.name,
                                     node, node.find_provenance_mismatch(
                                         pipeline)))
-        if low_freq_outputs:
+        if summary_outputs:
             to_process = dialate_array(to_process)
         if not to_process.any():
             raise ArcanaNoRunRequiredException(
