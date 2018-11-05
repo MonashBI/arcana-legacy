@@ -1,4 +1,5 @@
 import json
+from arcana.utils import find_mismatch
 
 
 class PipelineRecord(object):
@@ -119,45 +120,49 @@ class PipelineRecord(object):
         return Record(self, inputs, outputs)
 
     def find_mismatch(self, other, indent=''):
-        sub_indent = indent + '  '
         mismatch = ''
         if self.pipeline_name != other.pipeline_name:
-            mismatch += ('\n{}pipeline_name: self={} v other={}'
-                         .format(sub_indent, self.pipeline_name,
-                                 other.pipeline_name))
+            mismatch += ('\n{indent}pipeline_name: self={} v other={}'
+                         .format(self.pipeline_name, other.pipeline_name,
+                                 indent=indent))
         if self.study_parameters != other.study_parameters:
-            mismatch += ('\n{}study_parameters: self={} v other={}'
-                         .format(sub_indent, self.study_parameters,
-                                 other.study_parameters))
+            mismatch += ('\n{indent}mismatching study_parameters{}'
+                         .format(find_mismatch(self.study_parameters,
+                                               other.study_parameters,
+                                               indent=indent),
+                                 indent=indent))
         if self.interface_parameters != other.interface_parameters:
-            mismatch += ('\n{}interface_parameters: self={} v other={}'
-                         .format(sub_indent, self.interface_parameters,
-                                 other.interface_parameters))
+            mismatch += ('\n{indent}interface_parameters{}'
+                         .format(find_mismatch(self.interface_parameters,
+                                               other.interface_parameters,
+                                               indent=indent),
+                                 indent=indent))
         if self.requirement_versions != other.requirement_versions:
-            mismatch += ('\n{}requirement_versions: self={} v other={}'
-                         .format(sub_indent, self.requirement_versions,
-                                 other.requirement_versions))
+            mismatch += ('\n{indent}requirement_versions{}'
+                         .format(find_mismatch(self.requirement_versions,
+                                               other.requirement_versions,
+                                               indent=indent),
+                                 indent=indent))
         if self.arcana_version != other.arcana_version:
-            mismatch += ('\n{}arcana_version: self={} v other={}'
-                         .format(sub_indent, self.arcana_version,
-                                 other.arcana_version))
+            mismatch += ('\n{indent}arcana_version: self={} v other={}'
+                         .format(self.arcana_version, other.arcana_version))
         if self.nipype_version != other.nipype_version:
-            mismatch += ('\n{}nipype_version: self={} v other={}'
-                         .format(sub_indent, self.nipype_version,
-                                 other.nipype_version))
+            mismatch += ('\n{indent}nipype_version: self={} v other={}'
+                         .format(self.nipype_version, other.nipype_version))
         if self.workflow_graph != other.workflow_graph:
-            
-            mismatch += ('\n{}workflow_graph: self={} v other={}'
-                         .format(sub_indent, self.workflow_graph,
-                                 other.workflow_graph))
+            mismatch += ('\n{indent}workflow_graph{}'
+                         .format(find_mismatch(self.workflow_graph,
+                                               other.workflow_graph,
+                                               indent=indent),
+                                 indent=indent))
         if self.subject_ids != other.subject_ids:
-            mismatch += ('\n{}subject_ids: self={} v other={}'
-                         .format(sub_indent, self.subject_ids,
-                                 other.subject_ids))
+            mismatch += ('\n{indent}subject_ids: self={} v other={}'
+                         .format(self.subject_ids, other.subject_ids,
+                                 indent=indent))
         if self.visit_ids != other.visit_ids:
-            mismatch += ('\n{}visit_ids: self={} v other={}'
-                         .format(sub_indent, self.visit_ids,
-                                 other.visit_ids))
+            mismatch += ('\n{indent}visit_ids: self={} v other={}'
+                         .format(self.visit_ids, other.visit_ids,
+                                 indent=indent))
         return mismatch
 
 
@@ -273,17 +278,16 @@ class Record(object):
                       outputs=dct['outputs'])
 
     def find_mismatch(self, other, indent=''):
-        sub_indent = indent + '  '
         mismatch = ''
         if self.pipeline_record != other.pipeline_record:
             mismatch += self.pipeline_record.find_mismatch(
-                other.pipeline_record, indent=sub_indent)
+                other.pipeline_record, indent=indent)
         if self.inputs != other.inputs:
-            mismatch += ('\n{}inputs: self={} v other={}'
-                         .format(sub_indent, self.inputs,
-                                 other.inputs))
+            mismatch += ('\n{indent}inputs: self={} v other={}'
+                         .format(self.inputs, other.inputs,
+                                 indent=indent))
         if self.outputs != other.outputs:
-            mismatch += ('\n{}outputs: self={} v other={}'
-                         .format(sub_indent, self.outputs,
-                                 other.outputs))
+            mismatch += ('\n{indent}outputs: self={} v other={}'
+                         .format(self.outputs, other.outputs,
+                                 indent=indent))
         return mismatch

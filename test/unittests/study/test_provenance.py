@@ -126,5 +126,5 @@ class TestProvenance(BaseTestCase):
         record.save(path)
         reloaded = Record.load(path)
         self.assertTrue(record.matches(reloaded),
-                        "Reloaded record did not match saved record:\n{}"
-                        .format(reloaded.find_mismatch(record)))
+                        "Reloaded record did not match saved record:{}"
+                        .format(reloaded.find_mismatch(record, indent='  ')))

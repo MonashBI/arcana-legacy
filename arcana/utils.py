@@ -1,5 +1,7 @@
 from past.builtins import basestring
 from future.utils import PY3, PY2
+from collections.abc import Iterable
+from itertools import zip_longest
 import os.path
 import errno
 from nipype.interfaces.matlab import MatlabCommand
@@ -151,34 +153,49 @@ def run_matlab_cmd(cmd):
         shutil.rmtree(tmp_dir)
 
 
+def iscontainer(*items):
+    return all(isinstance(i, Iterable) and not isinstance(i, basestring)
+               for i in items)
+
+
 def find_mismatch(first, second, indent=''):
     """
-    Finds where two objects differ. They can be nested containers
+    Finds where two objects differ, iterating down into nested containers
+    (i.e. dicts, lists and tuples) They can be nested containers
     any combination of primary dtypes, str, int, float, dict and lists
     """
-    sub_indent = indent + '  '
-    mismatch = ''
-    if (not isinstance(first, type(second)) or
-            not isinstance(second, type(first))):
-        mismatch += ('\n{indent}mismatching types '
-                     '(self={} vs other={})').format(type(first), type(second))
-    if isinstance(first, dict):
-        if sorted(first.keys()) != sorted(second.keys()):
-            mismatch += ('\n{indent}mismatching dictionary keys '
-                         '(self={} vs other={}): '
-                         .format(sorted(first.keys()),
-                                 sorted(second.keys())))
-        else:
-            for k in first:
-                if first[k] != second[k]:
-                    mismatch += ("\n{indent}mismatching values for '{}' keys:"
-                                 "\n{}".format(
-                                     k, find_mismatch(first[k], second[k]),
-                                     indent=sub_indent))
-    elif 
-            if self.pipeline_name != other.pipeline_name:
-            mismatch += ('\n{}pipeline_name: self={} v other={}'
-                         .format(sub_indent, self.pipeline_name,
-                                 other.pipeline_name))
 
-                                 
+    # Basic case where we are dealing with non-containers
+    if not (isinstance(first, type(second)) or
+            isinstance(second, type(first))):
+        mismatch = (' types: self={} v other={}'
+                    .format(type(first).__name__, type(second).__name__))
+    elif not iscontainer(first, second):
+        mismatch = ': self={} v other={}'.format(first, second)
+    else:
+        sub_indent = indent + '  '
+        mismatch = ''
+        if isinstance(first, dict):
+            if sorted(first.keys()) != sorted(second.keys()):
+                mismatch += (' keys: self={} v other={}'
+                             .format(sorted(first.keys()),
+                                     sorted(second.keys())))
+            else:
+                mismatch += ":"
+                for k in first:
+                    if first[k] != second[k]:
+                        mismatch += ("\n{indent}'{}' values{}"
+                                     .format(k,
+                                             find_mismatch(first[k], second[k],
+                                                           indent=sub_indent),
+                                             indent=sub_indent))
+        else:
+            mismatch += ":"
+            for i, (f, s) in enumerate(zip_longest(first, second)):
+                if f != s:
+                    mismatch += ("\n{indent}{} index{}"
+                                 .format(i,
+                                         find_mismatch(f, s,
+                                                       indent=sub_indent),
+                                         indent=sub_indent))
+    return mismatch
