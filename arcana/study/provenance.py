@@ -148,12 +148,10 @@ class Record(object):
         Checksums or field values of all the outputs of the pipeline
     """
 
-    def __init__(self, pipeline_record, inputs, outputs, subject_id, visit_id):
+    def __init__(self, pipeline_record, inputs, outputs):
         self._pipeline_record = pipeline_record
         self._inputs = inputs
         self._outputs = outputs
-        self._subject_id = subject_id
-        self._visit_id = visit_id
 
     @property
     def pipeline_record(self):
@@ -167,25 +165,12 @@ class Record(object):
     def outputs(self):
         return self._outputs
 
-    @property
-    def subject_id(self):
-        return self._subject_id
-
-    @property
-    def visit_id(self):
-        return self._visit_id
-
     def matches(self, other, ignore_versions=False):
         return (
-            self._pipeline_record.matches(other,
-                                          ignore_versions=ignore_versions) and
+            self._pipeline_record.matches(
+                other, ignore_versions=ignore_versions) and
             self._inputs == other._inputs and
-            self._outputs == other._outputs and
-            self._subject_id == other._subject_id and
-            self._visit_id == other._visit_id)
-
-    def versions_match(self, other):
-        return self._pipeline_record.versions_match(other)
+            self._outputs == other._outputs)
 
     def save(self, path):
         """

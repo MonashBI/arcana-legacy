@@ -1,4 +1,5 @@
 from builtins import object
+from past.builtins import basestring
 import os.path as op
 import shutil
 from copy import copy, deepcopy
@@ -562,6 +563,8 @@ class BaseProcessor(object):
         # subject/visit ID pair.
         low_freq_outputs = [
             o.name for o in pipeline.outputs if o.frequency != 'per_session']
+        # Set of frequencies present in pipeline outputs
+        output_freqs = pipeline.output_frequencies
         if low_freq_outputs:
             if list(tree.incomplete_subjects):
                 raise ArcanaUsageError(
@@ -575,8 +578,6 @@ class BaseProcessor(object):
                         ', '.join(low_freq_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
-            # List of low frequency inputs present in pipeline outputs
-            output_freqs = pipeline.output_frequencies
 
             def dialate_array(array):
                 """
@@ -592,14 +593,14 @@ class BaseProcessor(object):
                 if 'per_study' in output_freqs:
                     dialated[:, :] = True
                 elif 'per_subject' in output_freqs:
-                    dialated[dialated.any(axis=0), :] = True
+                    dialated[dialated.any(axis=1), :] = True
                 elif 'per_visit' in output_freqs:
-                    dialated[:, dialated.any(axis=1)] = True
+                    dialated[:, dialated.any(axis=0)] = True
                 return dialated
 
             dialated_filter = dialate_array(filter_array)
             added = dialated_filter ^ filter_array
-            if added:
+            if added.any():
                 filter_array = dialated_filter
                 # Invert the index dictionaries to get index-to-ID maps
                 inv_subject_inds = {v: k for k, v in subject_inds.items()}
@@ -628,6 +629,7 @@ class BaseProcessor(object):
                                visit_inds.get(item.visit_id, 0)] = True
         if low_freq_outputs:
             to_process = dialate_array(to_process)
+        to_process *= filter_array
         # Get list of sessions for which all outputs exist that we should
         # check to see if the saved provenance matches what we need it to
         # be.
@@ -652,15 +654,15 @@ class BaseProcessor(object):
                 to_check.append(tree)
             # Parse study reprocess flag to determine whether to ignore
             # software versions when reprocessing
-            if self.study.reprocess.startswith('ignore_versions'):
+            if (isinstance(self.study.reprocess, basestring) and
+                    self.study.reprocess.startswith('ignore_versions')):
                 ignore_versions = True
                 reprocess = self.study.reprocess.endswith('true')
             else:
                 ignore_versions = False
                 reprocess = self.study.reprocess
             for node in to_check:
-                if node.provenance_matches(
-                        pipeline, ignore_versions=ignore_versions):
+                if not node.provenance_matches(pipeline, ignore_versions):
                     if reprocess:
                         to_process[subject_inds.get(node.subject_id, 0),
                                    visit_inds.get(node.visit_id, 0)] = True
@@ -679,6 +681,10 @@ class BaseProcessor(object):
                                         pipeline)))
         if low_freq_outputs:
             to_process = dialate_array(to_process)
+        if not to_process.any():
+            raise ArcanaNoRunRequiredException(
+                "No sessions to process for '{}' pipeline"
+                .format(pipeline.name))
         return to_process
 
     @property
