@@ -5,6 +5,7 @@ from copy import deepcopy
 import tempfile
 import shutil
 import errno
+import json
 from itertools import chain
 from collections import defaultdict
 import networkx.readwrite.json_graph as nx_json
@@ -780,14 +781,18 @@ class Pipeline(object):
                     val = getattr(node.inputs, trait_name)
                     if isdefined(val):
                         interface_parameters[node.name][trait_name] = val
+            # Generate JSON representation of Nipype workflow graph
             wf_graph = nx_json.node_link_data(self._workflow._graph)
-            # Replace Nipype Nodes in 'nodes' with the class name (including
-            # module) of the interface
-            interface_clss = [n['id'].interface.__class__
-                              for n in wf_graph['nodes']]
-            wf_graph['nodes'] = [{'id': '{}.{}'.format(c.__module__,
-                                                       c.__name__)}
-                                 for c in interface_clss]
+            # Replace Nipype Nodes in 'nodes' with the name and interface of
+            # the Nodes
+            wf_graph['nodes'] = [
+                {'name': n['id'].name,
+                 'interface': '{}.{}'.format(
+                     n['id'].interface.__class__.__module__,
+                     n['id'].interface.__class__.__name__)}
+                for n in wf_graph['nodes']]
+            # Roundtrip workflow graph to JSON to convert any tuples into lists
+            wf_graph = json.loads(json.dumps(wf_graph))
             self._prov = PipelineRecord(
                 pipeline_name=self.name,
                 study_parameters=self._referenced_parameters,
