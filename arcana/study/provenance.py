@@ -58,7 +58,7 @@ class PipelineRecord(object):
     def __eq__(self, other):
         return self.match(other) and self.match_versions(other)
 
-    def matches(self, other):
+    def matches(self, other, ignore_versions=False):
         """
         Compares information stored within provenance objects with the
         exception of version information to see if they match.
@@ -68,28 +68,21 @@ class PipelineRecord(object):
         other : Provenance
             The provenance object to compare against
         """
+        if ignore_versions:
+            versions_match = True
+        else:
+            versions_match = (
+                self._requirement_versions == other._requirement_versions and
+                self._arcana_version == other._arcana_version and
+                self._nipype_version == other._nipype_version)
         return (
+            versions_match and
             self._pipeline_name == other._pipeline_name and
             self._study_parameters == other._study_parameters and
             self._interface_parameters == other._interface_parameters and
             self._workflow_graph == other._workflow_graph and
             self._subject_ids == other._subject_ids and
             self._visit_ids == other._visit_ids)
-
-    def versions_match(self, other):
-        """
-        Compares version information stored within provenance objects to see
-        if they match.
-
-        Parameters
-        ----------
-        other : Provenance
-            The provenance object to compare against
-        """
-        return (
-            self._requirement_versions == other._requirement_versions and
-            self._arcana_version == other._arcana_version and
-            self._nipype_version == other._nipype_version)
 
     @classmethod
     def extract(cls, pipeline):
@@ -149,6 +142,9 @@ class PipelineRecord(object):
     def outputs(self):
         return self._outputs
 
+    def record(self, inputs, outputs):
+        
+
 
 class Record(object):
     """
@@ -168,10 +164,6 @@ class Record(object):
         the outputs of the pipeline
     outputs : dict[str, str | int | float | list[float] | list[int] | list[str]]
         Checksums or field values of all the outputs of the pipeline
-    subject_id : str | None
-        The subject ID of the session (None if per-visit, per-study)
-    visit_id : str | None
-        The visit ID of the session (None if per-subject, per-study)
     """
 
     def __init__(self, pipeline_record, inputs, outputs, subject_id, visit_id):
@@ -201,9 +193,10 @@ class Record(object):
     def visit_id(self):
         return self._visit_id
 
-    def matches(self, other):
+    def matches(self, other, ignore_versions=False):
         return (
-            self._pipeline_record.matches(other) and
+            self._pipeline_record.matches(other,
+                                          ignore_versions=ignore_versions) and
             self._inputs == other._inputs and
             self._outputs == other._outputs and
             self._subject_id == other._subject_id and

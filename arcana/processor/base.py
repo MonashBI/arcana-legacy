@@ -8,7 +8,8 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
-    ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError)
+    ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
+    ArcanaProvenanceRecordMismatchError)
 from arcana.data import BaseFileset
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from arcana.interfaces.repository import (RepositorySource,
@@ -454,8 +455,8 @@ class BaseProcessor(object):
             elif 'per_subject' in input_freqs:
                 dependent = self.study.VISIT_ID
         # Invert the index dictionaries to get index-to-ID maps
-        subj_ids = {v: k for k, v in subject_inds.items()}
-        visit_ids = {v: k for k, v in visit_inds.items()}
+        inv_subj_inds = {v: k for k, v in subject_inds.items()}
+        inv_visit_inds = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iterators = {}
         if self.study.SUBJECT_ID in pipeline.iterfields():
@@ -473,12 +474,14 @@ class BaseProcessor(object):
                                       self.study.VISIT_ID)
                 subj_it.iterables = [(
                     self.study.SUBJECT_ID,
-                    {visit_ids[n]: [subj_ids[m] for m in col.nonzero()[0]]
+                    {inv_visit_inds[n]: [inv_subj_inds[m]
+                                         for m in col.nonzero()[0]]
                      for n, col in enumerate(to_process.T)})]
             else:
                 subj_it.iterables = (
                     self.study.SUBJECT_ID,
-                    [subj_ids[n] for n in to_process.any(axis=1).nonzero()[0]])
+                    [inv_subj_inds[n]
+                     for n in to_process.any(axis=1).nonzero()[0]])
             iterators[self.study.SUBJECT_ID] = subj_it
         # Create iterator for visits
         if self.study.VISIT_ID in pipeline.iterfields():
@@ -494,12 +497,13 @@ class BaseProcessor(object):
                                        self.study.SUBJECT_ID)
                 visit_it.iterables = [(
                     self.study.VISIT_ID,
-                    {subj_ids[m]: [visit_ids[n] for n in row.nonzero()[0]]
+                    {inv_subj_inds[m]:[inv_visit_inds[n]
+                                       for n in row.nonzero()[0]]
                      for m, row in enumerate(to_process)})]
             else:
                 visit_it.iterables = (
                     self.study.VISIT_ID,
-                    [visit_ids[n]
+                    [inv_visit_inds[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
             iterators[self.study.VISIT_ID] = visit_it
         if dependent == self.study.SUBJECT_ID:
@@ -514,9 +518,9 @@ class BaseProcessor(object):
                     force):
         """
         Check whether the outputs of the pipeline are present in all sessions
-        in the project repository and were generated with matching parameters
-        and pipelines. Return an 2D boolean array (subjects: rows,
-        visits: cols) with the sessions to process marked True.
+        in the project repository and were generated with matching provenance.
+        Return an 2D boolean array (subjects: rows, visits: cols) with the
+        sessions to process marked True.
 
         Parameters
         ----------
@@ -535,7 +539,11 @@ class BaseProcessor(object):
         visit_inds : dict[str,int]
             Mapping from visit ID to index in filter|to_process arrays
         force : bool
-            Whether to force reprocessing of all (filtered) sessions or not
+            Whether to force reprocessing of all (filtered) sessions or not.
+            Note that if 'force' is true we can't just return the filter array
+            as it might be dilated by low frequency (i.e. 'per_visit',
+            'per_subject' or 'per_study') outputs. So we still loop through
+            all outputs and treat them like they don't exist
 
         Returns
         -------
@@ -544,72 +552,131 @@ class BaseProcessor(object):
             subjects and columns correspond to visits in the repository. True
             values represent subject/visit ID pairs to run the pipeline for
         """
+        # Reference the study tree in local variable for convenience
+        tree = self.study.tree
         # Check to see if the pipeline has any low frequency outputs, because
         # if not then each session can be processed indepdently. Otherwise,
         # the "session matrix" (as defined by subject_ids and visit_ids
         # passed to the Study class) needs to be complete, i.e. a session
         # exists (with the full complement of requird inputs) for each
         # subject/visit ID pair.
-        tree = self.study.tree
         low_freq_outputs = [
             o.name for o in pipeline.outputs if o.frequency != 'per_session']
-        if low_freq_outputs and list(tree.incomplete_subjects):
-            raise ArcanaUsageError(
-                "Can't process '{}' pipeline as it has low frequency outputs "
-                "(i.e. outputs that aren't of 'per_session' frequency) "
-                "({}) and subjects ({}) that are missing one "
-                "or more visits ({}). Please restrict the subject/visit "
-                "IDs in the study __init__ to continue the analysis"
-                .format(
-                    self.name,
-                    ', '.join(low_freq_outputs),
-                    ', '.join(s.id for s in tree.incomplete_subjects),
-                    ', '.join(v.id for v in tree.incomplete_visits)))
+        if low_freq_outputs:
+            if list(tree.incomplete_subjects):
+                raise ArcanaUsageError(
+                    "Can't process '{}' pipeline as it has low frequency "
+                    " outputs (i.e. outputs that aren't of 'per_session' "
+                    "frequency) ({}) and subjects ({}) that are missing one "
+                    "or more visits ({}). Please restrict the subject/visit "
+                    "IDs in the study __init__ to continue the analysis"
+                    .format(
+                        self.name,
+                        ', '.join(low_freq_outputs),
+                        ', '.join(s.id for s in tree.incomplete_subjects),
+                        ', '.join(v.id for v in tree.incomplete_visits)))
+            # List of low frequency inputs present in pipeline outputs
+            output_freqs = pipeline.output_frequencies
+
+            def dialate_array(array):
+                """
+                'Dialates' an array so all subject/visit ID cells required by
+                low frequency outputs (i.e. all subjects per-visit for for
+                'per_visit', all visits per-subject for 'per_subject' all
+                'per_study') are included in the array if any need for that
+                subject/visit need to be processed.
+                """
+                dialated = deepcopy(array)
+                if ('per_study' in output_freqs or output_freqs.issuperset(
+                        'per_subject', 'per_visit')):
+                    if array.any():
+                        dialated[:, :] = True
+                elif 'per_subject' in output_freqs:
+                    for i, row in enumerate(dialated):
+                        if row.any():
+                            dialated[i, :] = True
+                elif 'per_visit' in output_freqs:
+                    for j, col in enumerate(dialated.T):
+                        if col.any():
+                            dialated[:, j] = True
+                return dialated
+
+            dialated_filter = dialate_array(filter_array)
+            added = dialated_filter ^ filter_array
+            if added:
+                filter_array = dialated_filter
+                # Invert the index dictionaries to get index-to-ID maps
+                inv_subject_inds = {v: k for k, v in subject_inds.items()}
+                inv_visit_inds = {v: k for k, v in visit_inds.items()}
+                logger.warning("Dialated filter array used to process '{}' "
+                               "pipeline to to include {} subject|visit IDs "
+                               "due to its low frequency outputs ({})"
+                               .format(pipeline.name),
+                               ', '.join(
+                                   '{}|{}'.format(i) for i in [
+                                       (inv_subject_inds[s], inv_visit_inds[v])
+                                       for s, v in zip(*np.nonzero(added))]),
+                               ', '.join(str(o) for o in low_freq_outputs))
+
         # Initialise an array of sessions to process
         to_process = np.zeros((len(subject_inds), len(visit_inds)), dtype=bool)
-        for output in pipeline.frequency_outputs('per_study'):
-            # Include all sessions if a per-study output needs to be
-            # reprocessed. Note that this will almost always be the case if
-            # any other output needs to be reprocessed.
-            #
-            # NB: Filter array should always have at least one true value at
-            # this point
-            item = output.collection.item()
-            if force or not item.exists or pipeline.prov_mismatch(item):
-                to_process[:] = True
-                # No point continuing since to_process array is already full
-                return to_process
-        for output in pipeline.frequency_outputs('per_subject'):
+        # Check for sessions for missing outputs
+        for output in pipeline.outputs:
             for item in output.collection:
-                i = subject_inds[item.subject_id]
-                # NB: The output will be reprocessed using data from every
-                # visit of each subject. However, the visits to include in the
-                # analysis can be specified the initialisation of the Study.
-                if ((force or not item.exists or
-                     pipeline.prov_mismatch(item)) and
-                        filter_array[i, :].any()):
-                    to_process[i, :] = True
-        for output in pipeline.frequency_outputs('per_visit'):
-            for item in output.collection:
-                j = visit_inds[item.visit_id]
-                # NB: The output will be reprocessed using data from every
-                # subject of each vist. However, the subject to include in the
-                # analysis can be specified the initialisation of the Study.
-                if ((force or not item.exists or
-                     pipeline.prov_mismatch(item)) and
-                        filter_array[:, j].any()):
-                    to_process[:, j] = True
-        for output in pipeline.frequency_outputs('per_session'):
-            for item in output.collection:
-                i = subject_inds[item.subject_id]
-                j = visit_inds[item.visit_id]
-                if ((force or not item.exists or
-                     pipeline.prov_mismatch(item)) and filter_array[i, j]):
-                    to_process[i, j] = True
-        if not to_process.any():
-            raise ArcanaNoRunRequiredException(
-                "No sessions to process for '{}' pipeline"
-                .format(pipeline.name))
+                if not item.exists or force:
+                    # Get row and column indices, if low-frequency then just
+                    # mark the first cell in row|column and dialate afterwards
+                    to_process[subject_inds.get(item.subject_id, 0),
+                               visit_inds.get(item.visit_id, 0)] = True
+        if low_freq_outputs:
+            to_process = dialate_array(to_process)
+        # Get list of sessions for which all outputs exist that we should
+        # check to see if the saved provenance matches what we need it to
+        # be.
+        outputs_exist = np.invert(to_process) * filter_array
+        if outputs_exist.any() and self.study.reprocess != 'ignore':
+            # Get list of sessions, subjects, visits, tree objects to check
+            # their provenance against that of the pipeline
+            to_check = [s for s in tree.sessions
+                        if outputs_exist[subject_inds[s.subject_id],
+                                         visit_inds[s.visit_id]]]
+            if 'per_subject' in output_freqs:
+                to_check.extend(s for s in tree.subjects
+                                if outputs_exist[0, subject_inds[s.id]])
+            if 'per_visit' in output_freqs:
+                to_check.extend(v for v in tree.visits
+                                if outputs_exist[0, visit_inds[v.id]])
+            if 'per_study' in output_freqs:
+                to_check.append(tree)
+            # Parse study reprocess flag to determine whether to ignore
+            # software versions when reprocessing
+            if self.study.reprocess.startswith('ignore_versions'):
+                ignore_versions = True
+                reprocess = self.study.reprocess.endswith('true')
+            else:
+                ignore_versions = False
+                reprocess = self.study.reprocess
+            for node in to_check:
+                if node.provenance_matches(
+                        pipeline, ignore_versions=ignore_versions):
+                    if reprocess:
+                        to_process[subject_inds.get(node.subject_id, 0),
+                                   visit_inds.get(node.visit_id, 0)] = True
+                        logger.info(
+                            "Reprocessing {} with '{}' "
+                            "pipeline due to mismatching provenance"
+                            .format(node, pipeline.name))
+                    else:
+                        raise ArcanaProvenanceRecordMismatchError(
+                            "Provenance recorded for '{}' pipeline "
+                            "in {} does not match that of requested "
+                            "pipeline, set reprocess flag == True to "
+                            "overwrite:\n{} "
+                            .format(pipeline.name,
+                                    node, node.find_provenance_mismatch(
+                                        pipeline)))
+        if low_freq_outputs:
+            to_process = dialate_array(to_process)
         return to_process
 
     @property
