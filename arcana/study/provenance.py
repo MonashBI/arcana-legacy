@@ -13,7 +13,7 @@ class PipelineRecord(object):
     interface_parameters : dict[str, dict[str, *]]
         Fixed input parameters for each node of the pipeline (i.e. not pipeline
         inputs)
-    requirement_versions : dict[str, list[Version]]
+    requirement_versions : dict[str, list[(name, ver_str, local_name, local_ver)]
         A list of software versions used by each interface in the pipeline
     arcana_version : str
         The version of Arcana
@@ -25,21 +25,6 @@ class PipelineRecord(object):
         The subject IDs included in the analysis
     visit_ids : list[str]
         The visit IDs included in the analysis
-    inputs : dict[str, str | list[str] | list[list[str]]] | None
-        Checksums of all pipeline inputs used by the pipeline. For inputs
-        of matching frequency to the output derivative associated with the
-        provenance object, the values of the dictionary will be single
-        checksums. If the output is of lower frequency they will be lists of
-        checksums or in the case of 'per_session' inputs to 'per_study'
-        outputs, lists of lists of checksum. They can be omitted from the
-        initialisation and inserted on write of each sink node during the
-        workflow run to allow the same pipeline object to be reused between
-        different sink node instances.
-    outputs : dict[str, str] | None
-        Checksums of all pipeline outputs. They can be omitted from the
-        initialisation and inserted on write of each sink node during the
-        workflow run to allow the same pipeline object to be reused between
-        different sink node instances.
     """
 
     def __init__(self, pipeline_name, study_parameters, interface_parameters,
@@ -68,21 +53,23 @@ class PipelineRecord(object):
         other : Provenance
             The provenance object to compare against
         """
-        if ignore_versions:
-            versions_match = True
-        else:
-            versions_match = (
+        match = (
+            self._pipeline_name == other._pipeline_name and
+            self._subject_ids == other._subject_ids and
+            self._visit_ids == other._visit_ids and
+            self._study_parameters == other._study_parameters and
+            self._interface_parameters == other._interface_parameters and
+            self._workflow_graph == other._workflow_graph)
+        if not ignore_versions:
+            match &= (
                 self._requirement_versions == other._requirement_versions and
                 self._arcana_version == other._arcana_version and
                 self._nipype_version == other._nipype_version)
-        return (
-            versions_match and
-            self._pipeline_name == other._pipeline_name and
-            self._study_parameters == other._study_parameters and
-            self._interface_parameters == other._interface_parameters and
-            self._workflow_graph == other._workflow_graph and
-            self._subject_ids == other._subject_ids and
-            self._visit_ids == other._visit_ids)
+        return match
+
+    @property
+    def pipeline_name(self):
+        return self._pipeline_name
 
     @property
     def study_parameters(self):
@@ -127,6 +114,9 @@ class PipelineRecord(object):
     def record(self, inputs, outputs):
         return Record(self, inputs, outputs)
 
+    def find_mismatch(self, other):
+        pass
+
 
 class Record(object):
     """
@@ -167,8 +157,8 @@ class Record(object):
 
     def matches(self, other, ignore_versions=False):
         return (
-            self._pipeline_record.matches(
-                other, ignore_versions=ignore_versions) and
+            self.pipeline_record.matches(
+                other.pipeline_record, ignore_versions=ignore_versions) and
             self._inputs == other._inputs and
             self._outputs == other._outputs)
 
@@ -195,15 +185,15 @@ class Record(object):
             if the provenance object was initialised without checksums
         """
         dct = {
-            'pipeline_name': self._pipeline_name,
-            'study_parameters': self._study_parameters,
-            'interface_parameters': self._interface_parameters,
-            'requirement_versions': self._requirement_versions,
-            'arcana_version': self._arcana_version,
-            'nipype_version': self._nipype_version,
-            'workflow_graph': self._workflow_graph,
-            'subject_ids': self._subject_ids,
-            'visit_ids': self._visit_ids,
+            'pipeline_name': self.pipeline_record.pipeline_name,
+            'study_parameters': self.pipeline_record.study_parameters,
+            'interface_parameters': self.pipeline_record.interface_parameters,
+            'requirement_versions': self.pipeline_record.requirement_versions,
+            'arcana_version': self.pipeline_record.arcana_version,
+            'nipype_version': self.pipeline_record.nipype_version,
+            'workflow_graph': self.pipeline_record.workflow_graph,
+            'subject_ids': self.pipeline_record.subject_ids,
+            'visit_ids': self.pipeline_record.visit_ids,
             'inputs': self.inputs,
             'outputs': self.outputs}
         with open(path, 'w') as f:
@@ -238,3 +228,6 @@ class Record(object):
             visit_ids=dct['visit_ids'])
         return Record(pipeline_record, inputs=dct['inputs'],
                       outputs=dct['outputs'])
+
+    def find_mismatch(self, other):
+        pass

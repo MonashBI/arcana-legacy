@@ -370,7 +370,6 @@ class FieldSelector(BaseMatch, BaseField):
         BaseMatch.__init__(self, pattern, is_regex, order,
                            from_study, repository,
                            study_, collection_)
-        super(FieldSelector, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and

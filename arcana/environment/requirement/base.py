@@ -72,6 +72,13 @@ class Version(object):
     def local_name(self):
         return self._local_name
 
+    def serialise(self):
+        pass
+
+    @classmethod
+    def unserialise(cls, dct):
+        pass
+
     def __str__(self):
         s = self.delimeter.join(str(i) for i in self._seq)
         if self._prerelease is not None:

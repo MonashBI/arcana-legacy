@@ -2,7 +2,8 @@ from __future__ import division
 import logging
 from .base import BaseEnvironment
 from arcana.exception import (
-    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError)
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaVersionError)
 
 logger = logging.getLogger('arcana')
 
@@ -36,9 +37,9 @@ class StaticEnvironment(BaseEnvironment):
             List of requirements to check whether they are satisfiable
         """
         versions = []
-        for req in requirements:
+        for req_range in requirements:
             try:
-                versions.append(req.detect_version())
+                version = req_range.requirement.detect_version()
             except ArcanaRequirementNotFoundError as e:
                 if self._fail_on_missing:
                     raise
@@ -49,4 +50,9 @@ class StaticEnvironment(BaseEnvironment):
                     raise
                 else:
                     logger.warning(e)
+            if not req_range.within(version):
+                raise ArcanaVersionError(
+                    "Detected {} version {} is not within requested range {}"
+                    .format(req_range.requirement, version, req_range))
+            versions.append(version)
         return versions

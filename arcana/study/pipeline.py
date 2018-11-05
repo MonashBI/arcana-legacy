@@ -7,14 +7,17 @@ import shutil
 import errno
 from itertools import chain
 from collections import defaultdict
+import networkx.readwrite.json_graph as nx_json
+import nipype
+from nipype.interfaces.base import isdefined
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
+import arcana
 from arcana.exception import (
     ArcanaDesignError, ArcanaError,
-    ArcanaOutputNotProducedException, ArcanaMissingDataException,
-    ArcanaProvenanceRecordMismatchError)
-from .provenance import Record, PipelineRecord
+    ArcanaOutputNotProducedException, ArcanaMissingDataException)
+from .provenance import PipelineRecord
 
 
 logger = getLogger('arcana')
@@ -131,12 +134,6 @@ class Pipeline(object):
 
     def __ne__(self, other):
         return not (self == other)
-
-    @property
-    def provenance(self):
-        if self._prov is None:
-            raise NotImplementedError
-        return self._prov
 
     @property
     def has_prerequisites(self):
@@ -588,6 +585,16 @@ class Pipeline(object):
     def node(self, name):
         return self.workflow.get_node('{}_{}'.format(self.name, name))
 
+    @property
+    def nodes(self):
+        return (self.workflow.get_node(n)
+                for n in self.workflow.list_node_names())
+
+    @property
+    def node_names(self):
+        return (n[len(self.name) + 1:]
+                for n in self.workflow.list_node_names())
+
     def save_graph(self, fname, style='flat', format='png', **kwargs):  # @ReservedAssignment @IgnorePep8
         """
         Saves a graph of the pipeline to file
@@ -758,3 +765,37 @@ class Pipeline(object):
     def _error_msg_loc(self):
         return "'{}' pipeline in {} class".format(self.name,
                                                   type(self.study).__name__)
+
+    @property
+    def provenance(self):
+        if self._prov is None:
+            interface_parameters = {}
+            versions = {}
+            for node in self.nodes:
+                versions[node.name] = [
+                    (v.name, str(v), v.local_name, v.local_version)
+                    for v in node.versions]
+                interface_parameters[node.name] = {}
+                for trait_name in node.inputs.visible_traits():
+                    val = getattr(node.inputs, trait_name)
+                    if isdefined(val):
+                        interface_parameters[node.name][trait_name] = val
+            wf_graph = nx_json.node_link_data(self._workflow._graph)
+            # Replace Nipype Nodes in 'nodes' with the class name (including
+            # module) of the interface
+            interface_clss = [n['id'].interface.__class__
+                              for n in wf_graph['nodes']]
+            wf_graph['nodes'] = [{'id': '{}.{}'.format(c.__module__,
+                                                       c.__name__)}
+                                 for c in interface_clss]
+            self._prov = PipelineRecord(
+                pipeline_name=self.name,
+                study_parameters=self._referenced_parameters,
+                interface_parameters=interface_parameters,
+                requirement_versions=versions,
+                arcana_version=arcana.__version__,
+                nipype_version=nipype.__version__,
+                workflow_graph=wf_graph,
+                subject_ids=self.study.subject_ids,
+                visit_ids=self.study.visit_ids)
+        return self._prov
