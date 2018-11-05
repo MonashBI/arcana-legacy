@@ -773,7 +773,7 @@ class Pipeline(object):
             versions = {}
             for node in self.nodes:
                 versions[node.name] = [
-                    (v.name, str(v), v.local_name, v.local_version)
+                    [v.name, str(v), v.local_name, v.local_version]
                     for v in node.versions]
                 interface_parameters[node.name] = {}
                 for trait_name in node.inputs.visible_traits():

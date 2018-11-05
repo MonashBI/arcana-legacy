@@ -1,5 +1,7 @@
 import os
 import os.path as op
+import tempfile
+import shutil
 from nipype.interfaces.utility import Merge  # @IgnorePep8
 from arcana.testing import BaseTestCase, TestMath  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
@@ -98,6 +100,14 @@ class TestProvenance(BaseTestCase):
 
     INPUT_FIELDS = {'acqfield1': 3}
 
+    def setUp(self):
+        super(TestProvenance, self).setUp()
+        self.tempdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        super(TestProvenance, self).tearDown()
+        shutil.rmtree(self.tempdir)
+
     def test_derivable(self):
         # Test vanilla study
         study = self.create_study(
@@ -112,10 +122,9 @@ class TestProvenance(BaseTestCase):
         pipeline1 = study.pipeline1()
         prov = pipeline1.provenance
         record = prov.record([], [])
-        path = op.join(study.processor.work_dir, 'prov1.json')
-        try:
-            record.save(path)
-            reloaded = Record.load(path)
-        finally:
-            os.remove(path)
-        self.assertTrue(record.matches(reloaded))
+        path = op.join(self.tempdir, 'prov1.json')
+        record.save(path)
+        reloaded = Record.load(path)
+        self.assertTrue(record.matches(reloaded),
+                        "Reloaded record did not match saved record:\n{}"
+                        .format(reloaded.find_mismatch(record)))
