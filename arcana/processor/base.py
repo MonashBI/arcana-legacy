@@ -581,24 +581,20 @@ class BaseProcessor(object):
             def dialate_array(array):
                 """
                 'Dialates' an array so all subject/visit ID cells required by
-                low frequency outputs (i.e. all subjects per-visit for for
-                'per_visit', all visits per-subject for 'per_subject' all
-                'per_study') are included in the array if any need for that
+                low frequency outputs (i.e. all subjects per-visit for
+                'per_visit', all visits per-subject for 'per_subject', all
+                for 'per_study') are included in the array if any need for that
                 subject/visit need to be processed.
                 """
-                dialated = deepcopy(array)
-                if ('per_study' in output_freqs or output_freqs.issuperset(
-                        'per_subject', 'per_visit')):
-                    if array.any():
-                        dialated[:, :] = True
+                if array.all() or not array.any():
+                    return array
+                dialated = np.copy(array)
+                if 'per_study' in output_freqs:
+                    dialated[:, :] = True
                 elif 'per_subject' in output_freqs:
-                    for i, row in enumerate(dialated):
-                        if row.any():
-                            dialated[i, :] = True
+                    dialated[dialated.any(axis=0), :] = True
                 elif 'per_visit' in output_freqs:
-                    for j, col in enumerate(dialated.T):
-                        if col.any():
-                            dialated[:, j] = True
+                    dialated[:, dialated.any(axis=1)] = True
                 return dialated
 
             dialated_filter = dialate_array(filter_array)
@@ -618,14 +614,16 @@ class BaseProcessor(object):
                                        for s, v in zip(*np.nonzero(added))]),
                                ', '.join(str(o) for o in low_freq_outputs))
 
-        # Initialise an array of sessions to process
+        # Initialise the array to return that represents the sessions to
+        # process
         to_process = np.zeros((len(subject_inds), len(visit_inds)), dtype=bool)
         # Check for sessions for missing outputs
         for output in pipeline.outputs:
             for item in output.collection:
                 if not item.exists or force:
                     # Get row and column indices, if low-frequency then just
-                    # mark the first cell in row|column and dialate afterwards
+                    # mark the first cell in row|column as it will be
+                    # "dialated" afterwards (see local method "dialate array")
                     to_process[subject_inds.get(item.subject_id, 0),
                                visit_inds.get(item.visit_id, 0)] = True
         if low_freq_outputs:
@@ -641,9 +639,13 @@ class BaseProcessor(object):
                         if outputs_exist[subject_inds[s.subject_id],
                                          visit_inds[s.visit_id]]]
             if 'per_subject' in output_freqs:
+                # We can just test the first col of outputs_exist as rows
+                # should be either all True or all False
                 to_check.extend(s for s in tree.subjects
-                                if outputs_exist[0, subject_inds[s.id]])
+                                if outputs_exist[subject_inds[s.id], 0])
             if 'per_visit' in output_freqs:
+                # We can just test the first row of outputs_exist as cols
+                # should be either all True or all False
                 to_check.extend(v for v in tree.visits
                                 if outputs_exist[0, visit_inds[v.id]])
             if 'per_study' in output_freqs:
@@ -671,7 +673,7 @@ class BaseProcessor(object):
                             "Provenance recorded for '{}' pipeline "
                             "in {} does not match that of requested "
                             "pipeline, set reprocess flag == True to "
-                            "overwrite:\n{} "
+                            "overwrite:\n{}"
                             .format(pipeline.name,
                                     node, node.find_provenance_mismatch(
                                         pipeline)))
