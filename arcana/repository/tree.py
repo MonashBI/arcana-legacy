@@ -46,6 +46,16 @@ class TreeNode(object):
     def fields(self):
         return iter(self._fields.values())
 
+    @property
+    def subject_id(self):
+        "To be overridden by subclasses where appropriate"
+        return None
+
+    @property
+    def visit_id(self):
+        "To be overridden by subclasses where appropriate"
+        return None
+
     def fileset(self, name, study=None):
         try:
             return self._filesets[(name, study)]
@@ -133,14 +143,17 @@ class TreeNode(object):
         # TODO: Need to extract checksums/values for inputs of the pipelines
         inputs = []
         outputs = []
-        expected_record = pipeline.provenance.record(inputs, outputs)
+        expected_record = pipeline.provenance.record(
+            inputs, outputs, self.subject_id, self.visit_id)
         if False and not self.provenance.matches(expected_record, ignore_versions):
             raise ArcanaProvenanceRecordMismatchError(
                 "Provenance recorded for '{}' pipeline in {} does not match "
                 "that of requested pipeline, set reprocess flag == True to "
                 "overwrite:\n{}".format(
                     pipeline.name, self,
-                    self.provenance.find_mismatch(expected_record)))
+                    self.provenance.find_mismatch(
+                        expected_record, indent='  ',
+                        ignore_versions=ignore_versions)))
 
 
 class Tree(TreeNode):
@@ -197,14 +210,6 @@ class Tree(TreeNode):
         return (TreeNode.__hash_(self) ^
                 hash(tuple(self.subjects)) ^
                 hash(tuple(self._visits)))
-
-    @property
-    def subject_id(self):
-        return None
-
-    @property
-    def visit_id(self):
-        return None
 
     @property
     def subjects(self):
@@ -408,10 +413,6 @@ class Subject(TreeNode):
         return self.id
 
     @property
-    def visit_id(self):
-        return None
-
-    @property
     def tree(self):
         return self._tree
 
@@ -513,10 +514,6 @@ class Visit(TreeNode):
     @property
     def id(self):
         return self._id
-
-    @property
-    def subject_id(self):
-        return None
 
     @property
     def visit_id(self):
