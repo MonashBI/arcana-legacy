@@ -3,7 +3,8 @@ from builtins import object
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
-from arcana.exception import ArcanaNameError
+from arcana.exception import (
+    ArcanaNameError, ArcanaProvenanceRecordMismatchError)
 from arcana.data import BaseFileset
 
 id_getter = attrgetter('id')
@@ -128,17 +129,18 @@ class TreeNode(object):
                 mismatch += s.find_mismatch(o, indent=sub_indent)
         return mismatch
 
-    def provenance_matches(self, pipeline, ignore_versions=False):
+    def check_provenance(self, pipeline, ignore_versions=False):
         # TODO: Need to extract checksums/values for inputs of the pipelines
         inputs = []
         outputs = []
-        return True
-        return self.provenance.matches(
-            pipeline.provenance.record(inputs, outputs),
-            ignore_versions=ignore_versions)
-
-    def find_provenance_mismatch(self, pipeline):
-        return ''  # FIXME: Need to implement for error message
+        expected_record = pipeline.provenance.record(inputs, outputs)
+        if False and not self.provenance.matches(expected_record, ignore_versions):
+            raise ArcanaProvenanceRecordMismatchError(
+                "Provenance recorded for '{}' pipeline in {} does not match "
+                "that of requested pipeline, set reprocess flag == True to "
+                "overwrite:\n{}".format(
+                    pipeline.name, self,
+                    self.provenance.find_mismatch(expected_record)))
 
 
 class Tree(TreeNode):

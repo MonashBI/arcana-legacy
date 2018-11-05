@@ -22,9 +22,7 @@ from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
 from arcana.exception import ArcanaError
-from arcana.environment.base import NodeMixin
-from arcana.exception import (
-    ArcanaModulesNotInstalledException, ArcanaUsageError)
+from arcana.exception import ArcanaUsageError
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
 
@@ -380,10 +378,6 @@ class BaseTestCase(TestCase):
     def assertStatEqual(self, stat, fileset_name, target, from_study,
                         subject=None, visit=None,
                         frequency='per_session'):
-            try:
-                NodeMixin.load_module('mrtrix')
-            except ArcanaModulesNotInstalledException:
-                pass
             val = float(sp.check_output(
                 'mrstats {} -output {}'.format(
                     self.output_file_path(

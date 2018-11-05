@@ -8,9 +8,10 @@ from arcana.exception import (ArcanaModulesNotInstalledException,
 import unittest
 from arcana.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
-from arcana.environment import BaseRequirement, ModulesEnvironment
+from arcana.environment import ModulesEnvironment
 from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
+from arcana.environment import BaseRequirement
 
 
 class DummyRequirement(BaseRequirement):
