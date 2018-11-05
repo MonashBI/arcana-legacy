@@ -1,6 +1,5 @@
 from builtins import zip
 from builtins import object
-from copy import copy
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
@@ -128,6 +127,10 @@ class TreeNode(object):
             for s, o in zip(self.fields, other.fields):
                 mismatch += s.find_mismatch(o, indent=sub_indent)
         return mismatch
+
+    def provenance_matches(self, pipeline, ignore_versions=False):
+        pipeline.provenance
+        raise NotImplementedError
 
 
 class Tree(TreeNode):

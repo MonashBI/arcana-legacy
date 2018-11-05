@@ -11,7 +11,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.exception import (
-    ArcanaDesignError, ArcanaNameError, ArcanaError,
+    ArcanaDesignError, ArcanaError,
     ArcanaOutputNotProducedException, ArcanaMissingDataException,
     ArcanaProvenanceRecordMismatchError)
 from .provenance import Record, PipelineRecord
@@ -106,7 +106,6 @@ class Pipeline(object):
         # to compare with records saved in the repository when checking for
         # mismatches
         self._prov = None
-        self._prov_records = {}
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -132,6 +131,12 @@ class Pipeline(object):
 
     def __ne__(self, other):
         return not (self == other)
+
+    @property
+    def provenance(self):
+        if self._prov is None:
+            raise NotImplementedError
+        return self._prov
 
     @property
     def has_prerequisites(self):
@@ -651,67 +656,6 @@ class Pipeline(object):
             The frequency to check
         """
         return iterfield in self.study.FREQUENCIES[freq]
-
-    def prov_mismatch(self, item):
-        """
-        Determines whether the given derivative dataset needs to be
-        (re)processed or not, checking the item's provenance against that
-        of the pipeline.
-
-        Parameters
-        ----------
-        item : Fileset | Field
-            The item to check for reprocessing
-
-        Returns
-        -------
-        mismatch : bool
-            Whether the item needs to be (re)processed
-        """
-        return False  # Disable to get unittests to work
-        if self.study.reprocess == 'ignore':
-            return False
-        expected_record = self.expected_record(item)
-        if self.study.reprocess.startswith('ignore_versions'):
-            reprocess = self.study.reprocess.endswith('true')
-        else:
-            reprocess = self.study.reprocess
-            if not item.prov_record.versions_match(expected_record):
-                if not reprocess:
-                    raise ArcanaProvenanceRecordMismatchError(
-                        "Recorded provenance version information for {} does "
-                        "not match that of requested pipeline: {}".format(
-                            item, item.prov_record.find_version_mismatch(
-                                expected_record)))
-                logger.info(
-                    "Reprocessing {} due to mismatching software versions"
-                    .format(item))
-                return True
-        if item.prov_record.matches(expected_record):
-            return False
-        elif reprocess:
-            logger.info("Reprocessing {} due to mismatching provenance"
-                        .format(item))
-            return True
-        else:
-            raise ArcanaProvenanceRecordMismatchError(
-                "Recorded provenance for {} does not match that of requested "
-                "pipeline: {}".format(
-                    item, item.prov_record.find_mismatch(expected_record)))
-
-    def expected_record(self, item):
-        try:
-            record = self._prov_records[item.session_id]
-        except KeyError:
-            # Get provenance info that is common between sessions
-            if self._prov is None:
-                self._prov = PipelineRecord.extract(self)
-            # Extract session (subject|visit|study) specific information, i.e.
-            # input and output checksums
-            record = self._prov_records[item.session_id] = Record.extract(
-                self._prov, self.inputs, self.outputs,
-                item.subject_id, item.visit_id)
-        return record
 
     def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
         """
