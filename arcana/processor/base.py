@@ -259,6 +259,15 @@ class BaseProcessor(object):
         # they don't contain the outputs of this pipeline)
         to_process = self._to_process(pipeline, filter_array, subject_inds,
                                       visit_inds, force)
+        # Cache the input|output nodes before generating the provenance so
+        # any conversion nodes are included
+        inputnodes = {f: pipeline.inputnode(f)
+                      for f in pipeline.input_frequencies}
+        outputnodes = {f: pipeline.outputnode(f)
+                       for f in pipeline.output_frequencies}
+        # Extract pipeline-common provenance information to be sinked with
+        # output derivatives
+        provenance = pipeline.provenance()
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
         workflow.add_nodes([pipeline._workflow])
@@ -299,13 +308,14 @@ class BaseProcessor(object):
         # processed
         iterators = self._iterate(pipeline, to_process, subject_inds,
                                   visit_inds)
+        sources = {}
         # Loop through each frequency present in the pipeline inputs and
         # create a corresponding source node
         for freq in pipeline.input_frequencies:
             inputs = list(pipeline.frequency_inputs(freq))
-            inputnode = pipeline.inputnode(freq)
+            inputnode = inputnodes[freq]
             try:
-                source = pipeline.add(
+                sources[freq] = source = pipeline.add(
                     '{}_source'.format(freq),
                     RepositorySource(
                         self.study.spec(i).collection for i in inputs))
@@ -316,19 +326,19 @@ class BaseProcessor(object):
             # Connect source node to initial node of pipeline to ensure
             # they are run after any prerequisites
             if prereqs is not None:
-                workflow.connect(prereqs, 'out', source, 'prereqs')
+                pipeline.connect(prereqs, 'out', source, 'prereqs')
             # Connect iterators to source and input nodes
             for iterfield in pipeline.iterfields(freq):
-                workflow.connect(iterators[iterfield], iterfield, source,
+                pipeline.connect(iterators[iterfield], iterfield, source,
                                  iterfield)
                 if freq in ('per_subject', 'per_visit'):
-                    workflow.connect(iterators[iterfield], iterfield,
+                    pipeline.connect(iterators[iterfield], iterfield,
                                      inputnode, iterfield)
             for input in inputs:  # @ReservedAssignment
                 in_name = input.name + (
                     PATH_SUFFIX if isinstance(input, BaseFileset) else
                     FIELD_SUFFIX)
-                workflow.connect(source, in_name, inputnode, input.name)
+                pipeline.connect(source, in_name, inputnode, input.name)
         deiterators = {}
 
         def deiterator_sort_key(ifield):
@@ -351,19 +361,44 @@ class BaseProcessor(object):
                     "frequency, when the pipeline only iterates over '{}'"
                     .format("', '".join(o.name for o in outputs), freq,
                             "', '".join(pipeline.iterfields())))
-            outputnode = pipeline.outputnode(freq)
+            outputnode = outputnodes[freq]
             sink = pipeline.add(
                 '{}_sink'.format(freq),
-                RepositorySink(self.study.spec(o).collection for o in outputs))
-            for iterfield in pipeline.iterfields():
-                workflow.connect(iterators[iterfield], iterfield, sink,
-                                 iterfield)
+                RepositorySink(
+                    (self.study.spec(o).collection for o in outputs),
+                    provenance),
+                connect={
+                    i: (iterators[i], i) for i in pipeline.iterfields()})
+#             # Connect iterators to sink
+#             for iterfield in pipeline.iterfields():
+#                 pipeline.connect(iterators[iterfield], iterfield, sink,
+#                                  iterfield)
+            # Connect checksums from sources in order to save in provenance,
+            # joining where necessary
+            for input_freq in pipeline.input_frequencies:
+                source = sources[freq]
+                # Loop over iterfields that need to be joined, i.e. that are
+                # present in the input frequency but not the output frequency
+                for iterfield in (pipeline.iterfields(input_freq) -
+                                  pipeline.iterfields(freq)):
+                    join = pipeline.add(
+                        '{}_to_{}_{}_checksum_join'.format(input_freq, freq,
+                                                           iterfield),
+                        IdentityInterface(
+                            ['checksums']),
+                        connect={
+                            'checksums': (source, 'checksums')},
+                        joinsource=iterfield,
+                        joinfield='checksums')
+                    source = join
+                pipeline.connect(join, 'checksums', sink,
+                                 '{}_checksums'.format(input_freq))
             for output in outputs:
                 if output.is_spec:  # Skip outputs that are study inputs
                     out_name = output.name + (
                         PATH_SUFFIX if isinstance(output, BaseFileset) else
                         FIELD_SUFFIX)
-                    workflow.connect(outputnode, output.name, sink, out_name)
+                    pipeline.connect(outputnode, output.name, sink, out_name)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline
 
@@ -373,22 +408,22 @@ class BaseProcessor(object):
             deiterators[freq] = sink
             for iterfield in sorted(pipeline.iterfields(freq),
                                     key=deiterator_sort_key):
-                deiterator = pipeline.add(
-                    '{}_{}_deiterator'.format(freq, iterfield),
-                    IdentityInterface(['combined']),
-                    joinsource=iterfield, joinfield='combined')
                 # Connect to previous deiterator or sink
-                upstream = deiterators[freq]
-                pipeline.connect(upstream, 'combined', deiterator,
-                                 'combined')
-                deiterators[freq] = deiterator
+                deiterators[freq] = pipeline.add(
+                    '{}_{}_deiterator'.format(freq, iterfield),
+                    IdentityInterface(
+                        ['combined']),
+                    connect={
+                        'combined': (deiterators[freq], 'combined')},
+                    joinsource=iterfield,
+                    joinfield='combined')
         # Create a final node, which is used to connect with dependent
         # pipelines into large workflows
         final = pipeline.add('final', Merge(len(deiterators)))
         for i, deiterator in enumerate(deiterators.values(), start=1):
             # Connect the output summary of the prerequisite to the
             # pipeline to ensure that the prerequisite is run first.
-            workflow.connect(deiterator, 'combined', final, 'in{}'.format(i))
+            pipeline.connect(deiterator, 'combined', final, 'in{}'.format(i))
         # Register pipeline as being connected to prevent duplicates
         already_connected[pipeline.name] = (pipeline, final)
         return final
@@ -450,7 +485,7 @@ class BaseProcessor(object):
                         " subject and visit iterators and both 'per_visit' and"
                         " 'per_subject' inputs are used by pipeline therefore"
                         " per_{} inputs may be cached twice".format(
-                            dependent[:-1]))
+                            dependent[:-3]))
                 else:
                     dependent = self.study.SUBJECT_ID
             elif 'per_subject' in input_freqs:

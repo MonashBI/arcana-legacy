@@ -1,5 +1,7 @@
 from past.builtins import basestring
-import os.path
+import os
+import os.path as op
+import hashlib
 import pydicom
 from arcana.data.file_format import FileFormat
 from arcana.data.file_format.standard import directory_format
@@ -121,12 +123,19 @@ class Fileset(BaseItem, BaseFileset):
         The repository which the fileset is stored
     from_study : str
         Name of the Arcana study that that generated the field
+    exists : bool
+        Whether the fileset exists or is just a placeholder for a derivative
+    bids_attr : ??
+        BIDS attributes
+    checksums : dict[str, str]
+        A checksums of all files within the fileset in a dictionary sorted by
+        relative file paths
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, bids_attr=None):
+                 exists=True, bids_attr=None, checksums=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
@@ -139,20 +148,23 @@ class Fileset(BaseItem, BaseFileset):
                            [DICOM_SERIES_NUMBER_TAG])
         else:
             self._id = id
+        self._checksums = checksums
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
                 BaseItem.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id and
-                self._bids_attr == other._bids_attr)
+                self._bids_attr == other._bids_attr and
+                self._checksum == other._checksum)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self._path) ^
                 hash(self.id) ^
-                hash(self._bids_attr))
+                hash(self._bids_attr) ^
+                hash(self._checksum))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -203,6 +215,10 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}bids_attr: self={} v other={}'
                          .format(sub_indent, self._bids_attr,
                                  other._bids_attr))
+        if self._checksum != other._checksum:
+            mismatch += ('\n{}checksum: self={} v other={}'
+                         .format(sub_indent, self._checksum,
+                                 other._checksum))
         return mismatch
 
     @property
@@ -220,6 +236,14 @@ class Fileset(BaseItem, BaseFileset):
     def path(self, path):
         self._path = path
 
+    @property
+    def paths(self):
+        """Iterates through all files in the set"""
+        if self.format.directory:
+            return (op.join(r, f) for r, _, f in os.walk(self.path))
+        else:
+            return iter([self.path])  # FIXME: Need to add support for headers/side-cars
+
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
 
@@ -234,14 +258,25 @@ class Fileset(BaseItem, BaseFileset):
     def uri(self):
         return self._uri
 
+    @property
+    def checksums(self):
+        if self._checksums is None and self.exists:
+            self._checksums = {}
+            for fpath in self.paths:
+                with open(fpath, 'rb') as f:
+                    self._checksums[
+                        op.relpath(fpath, self.path)] = hashlib.md5(
+                            f.read()).hexdigest()
+        return self._checksums
+
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
                   **kwargs):
-        if not os.path.exists(path):
+        if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
                 "does not exist".format(path))
-        if os.path.isdir(path):
+        if op.isdir(path):
             within_exts = frozenset(
                 split_extension(f)[1] for f in os.listdir(path)
                 if not f.startswith('.'))
@@ -252,9 +287,9 @@ class Fileset(BaseItem, BaseFileset):
                 except ArcanaFileFormatNotRegisteredError:
                     # Fall back to general directory format
                     format = directory_format  # @ReservedAssignment
-            name = os.path.basename(path)
+            name = op.basename(path)
         else:
-            filename = os.path.basename(path)
+            filename = op.basename(path)
             name, ext = split_extension(filename)
             if format is None:
                 try:
@@ -288,7 +323,7 @@ class Fileset(BaseItem, BaseFileset):
                 .format(self))
         fnames = sorted([f for f in os.listdir(self.path)
                          if not f.startswith('.')])
-        with open(os.path.join(self.path, fnames[index]), 'rb') as f:
+        with open(op.join(self.path, fnames[index]), 'rb') as f:
             dcm = pydicom.dcmread(f)
         return dcm
 
@@ -332,6 +367,7 @@ class Fileset(BaseItem, BaseFileset):
         dct['id'] = self.id
         dct['uri'] = self.uri
         dct['bids_attr'] = self.bids_attr
+        dct['checksums'] = self.checksums
         return dct
 
     def get(self):
