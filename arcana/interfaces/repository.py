@@ -3,7 +3,6 @@ from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
 from arcana.data import BaseField, BaseFileset
-from arcana.study import Study
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 import logging
 
@@ -209,7 +208,7 @@ class RepositorySink(BaseRepositoryInterface):
     input_spec = RepositorySinkInputSpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections, provenance):
+    def __init__(self, collections, provenance, frequencies):
         super(RepositorySink, self).__init__(collections)
         # Add input filesets
         for fileset_collection in self.fileset_collections:
@@ -222,6 +221,7 @@ class RepositorySink(BaseRepositoryInterface):
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
         self._prov = provenance
+        self._frequencies = frequencies
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -235,11 +235,11 @@ class RepositorySink(BaseRepositoryInterface):
         out_files = []
         out_fields = []
         missing_inputs = []
-        # Combine frequency-specific input checksums into a single dictionary
+        # Collate frequency-specific input checksums into a single dictionary
         input_checksums = {}
-        for freq in Study.FREQUENCIES:
-            input_checksums.update(getattr(self.inputs,
-                                           '{}_checksums'.format(freq)))
+        for freq in self._frequencies:
+            input_checksums.update(
+                getattr(self.inputs, '{}_checksums'.format(freq)))
         output_checksums = {}
         with ExitStack() as stack:
             # Connect to set of repositories that the collections come from

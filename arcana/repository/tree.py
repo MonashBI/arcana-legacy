@@ -12,17 +12,21 @@ id_getter = attrgetter('id')
 
 class TreeNode(object):
 
-    def __init__(self, filesets, fields):
+    def __init__(self, filesets, fields, records):
         if filesets is None:
             filesets = []
         if fields is None:
             fields = []
+        if records is None:
+            records = []
         # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
         self._filesets = OrderedDict(((d.name, d.from_study), d)
                                      for d in filesets)
         self._fields = OrderedDict(((f.name, f.from_study), f)
                                    for f in fields)
+        self._records = OrderedDict(((r.pipeline_name, r.from_study), r)
+                                    for r in records)
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or
@@ -40,11 +44,15 @@ class TreeNode(object):
 
     @property
     def filesets(self):
-        return iter(self._filesets.values())
+        return self._filesets.values()
 
     @property
     def fields(self):
-        return iter(self._fields.values())
+        return self._fields.values()
+
+    @property
+    def records(self):
+        return self._records.values()
 
     @property
     def subject_id(self):
@@ -100,6 +108,14 @@ class TreeNode(object):
                             if study is not None else ''),
                            "', '".join(available), other_studies), msg))
 
+    def record(self, name, study):
+        try:
+            return self._records[(name, study)]
+        except KeyError:
+            raise ArcanaNameError(
+                name, ("{} doesn't have a provenance record for pipeline '{}' "
+                       "for '{}' study".format(self, name, study)))
+
     @property
     def data(self):
         return chain(self.filesets, self.fields)
@@ -143,17 +159,18 @@ class TreeNode(object):
         # TODO: Need to extract checksums/values for inputs of the pipelines
         inputs = []
         outputs = []
-        expected_record = pipeline.provenance.record(
-            inputs, outputs, self.subject_id, self.visit_id)
-        if False and not self.provenance.matches(expected_record, ignore_versions):
+        expected_record = pipeline.provenance.record(inputs, outputs,
+                                                     self.subject_id,
+                                                     self.visit_id)
+        record = self.record(pipeline.name, pipeline.study.name)
+        if not record.matches(expected_record, ignore_versions):
             raise ArcanaProvenanceRecordMismatchError(
                 "Provenance recorded for '{}' pipeline in {} does not match "
                 "that of requested pipeline, set reprocess flag == True to "
                 "overwrite:\n{}".format(
                     pipeline.name, self,
-                    self.provenance.find_mismatch(
-                        expected_record, indent='  ',
-                        ignore_versions=ignore_versions)))
+                    record.find_mismatch(expected_record, indent='  ',
+                                         ignore_versions=ignore_versions)))
 
 
 class Tree(TreeNode):
@@ -186,8 +203,8 @@ class Tree(TreeNode):
     """
 
     def __init__(self, subjects, visits, filesets=None, fields=None,
-                 fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
-        TreeNode.__init__(self, filesets, fields)
+                 records=None, fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
+        TreeNode.__init__(self, filesets, fields, records)
         self._subjects = OrderedDict(sorted(
             ((s.id, s) for s in subjects), key=itemgetter(0)))
         self._visits = OrderedDict(sorted(
@@ -395,8 +412,8 @@ class Subject(TreeNode):
     """
 
     def __init__(self, subject_id, sessions, filesets=None,
-                 fields=None):
-        TreeNode.__init__(self, filesets, fields)
+                 fields=None, records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._id = subject_id
         self._sessions = OrderedDict(sorted(
             ((s.visit_id, s) for s in sessions), key=itemgetter(0)))
@@ -502,8 +519,9 @@ class Visit(TreeNode):
         frequency
     """
 
-    def __init__(self, visit_id, sessions, filesets=None, fields=None):
-        TreeNode.__init__(self, filesets, fields)
+    def __init__(self, visit_id, sessions, filesets=None, fields=None,
+                 records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._id = visit_id
         self._sessions = OrderedDict(sorted(
             ((s.subject_id, s) for s in sessions), key=itemgetter(0)))
@@ -602,8 +620,9 @@ class Session(TreeNode):
         Sessions storing derived scans are stored for separate analyses
     """
 
-    def __init__(self, subject_id, visit_id, filesets=None, fields=None):
-        TreeNode.__init__(self, filesets, fields)
+    def __init__(self, subject_id, visit_id, filesets=None, fields=None,
+                 records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._subject = None

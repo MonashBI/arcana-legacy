@@ -191,7 +191,7 @@ class DirectoryRepository(BaseRepository):
 
         Returns
         -------
-        project : arcana.repository.Tree
+        tree : arcana.repository.Tree
             A hierarchical tree of subject, session and fileset information for
             the repository
         """
@@ -232,14 +232,16 @@ class DirectoryRepository(BaseRepository):
             else:
                 subj_id = self.DEFAULT_SUBJECT_ID
                 visit_id = self.DEFAULT_VISIT_ID
-            subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
-            visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
-            if (subject_ids is not None and subj_id is not None and
-                    subj_id not in subject_ids):
+            # Check for summaries and filtered IDs
+            if subj_id == self.SUMMARY_NAME:
+                subj_id = None
+            elif subject_ids is not None and subj_id not in subject_ids:
                 continue
-            if (visit_ids is not None and visit_id is not None and
-                    visit_id not in visit_ids):
+            if visit_id == self.SUMMARY_NAME:
+                visit_id = None
+            elif visit_ids is not None and visit_id not in visit_ids:
                 continue
+            # Determine frequency of session|summary
             if (subj_id, visit_id) == (None, None):
                 frequency = 'per_study'
             elif subj_id is None:
