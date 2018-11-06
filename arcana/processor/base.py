@@ -369,6 +369,12 @@ class BaseProcessor(object):
                     provenance),
                 connect={
                     i: (iterators[i], i) for i in pipeline.iterfields()})
+            for output in outputs:
+                if output.is_spec:  # Skip outputs that are study inputs
+                    out_name = output.name + (
+                        PATH_SUFFIX if isinstance(output, BaseFileset) else
+                        FIELD_SUFFIX)
+                    pipeline.connect(outputnode, output.name, sink, out_name)
 #             # Connect iterators to sink
 #             for iterfield in pipeline.iterfields():
 #                 pipeline.connect(iterators[iterfield], iterfield, sink,
@@ -393,12 +399,6 @@ class BaseProcessor(object):
                     source = join
                 pipeline.connect(join, 'checksums', sink,
                                  '{}_checksums'.format(input_freq))
-            for output in outputs:
-                if output.is_spec:  # Skip outputs that are study inputs
-                    out_name = output.name + (
-                        PATH_SUFFIX if isinstance(output, BaseFileset) else
-                        FIELD_SUFFIX)
-                    pipeline.connect(outputnode, output.name, sink, out_name)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline
 

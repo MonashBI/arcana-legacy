@@ -9,6 +9,12 @@ class PipelineRecord(object):
 
     Parameters
     ----------
+    study_name : str
+        The name of the study that generated the pipeline. Used to store and
+        retrieve the provenance from repositories. Note that it is not included
+        in the matching logic so you can test provenance from separate studies
+    pipeline_name : str
+        Name of the pipeline
     study_parameters : list[Parameter]
         List of study parameters that are used to configure the pipeline
     interface_parameters : dict[str, dict[str, *]]
@@ -28,9 +34,10 @@ class PipelineRecord(object):
         The visit IDs included in the analysis
     """
 
-    def __init__(self, pipeline_name, study_parameters, interface_parameters,
-                 requirement_versions, arcana_version, nipype_version,
-                 workflow_graph, subject_ids, visit_ids):
+    def __init__(self, study_name, pipeline_name, study_parameters,
+                 interface_parameters, requirement_versions, arcana_version,
+                 nipype_version, workflow_graph, subject_ids, visit_ids):
+        self._study_name = study_name
         self._pipeline_name = pipeline_name
         self._study_parameters = study_parameters
         self._interface_parameters = interface_parameters
@@ -71,6 +78,10 @@ class PipelineRecord(object):
                 self._arcana_version == other._arcana_version and
                 self._nipype_version == other._nipype_version)
         return match
+
+    @property
+    def study_name(self):
+        return self._study_name
 
     @property
     def pipeline_name(self):
@@ -222,6 +233,10 @@ class Record(object):
     def visit_id(self):
         return self._visit_id
 
+    @property
+    def from_study(self):
+        return self.pipeline_record.study_name
+
     def matches(self, other, ignore_versions=False):
         return (
             self.pipeline_record.matches(
@@ -267,7 +282,7 @@ class Record(object):
             json.dump(dct, f)
 
     @classmethod
-    def load(cls, path):
+    def load(cls, path, study_name):
         """
         Loads a saved provenance object from a JSON file
 
@@ -284,6 +299,7 @@ class Record(object):
         with open(path) as f:
             dct = json.load(f)
         pipeline_record = PipelineRecord(
+            study_name=study_name,
             pipeline_name=dct['pipeline_name'],
             study_parameters=dct['study_parameters'],
             interface_parameters=dct['interface_parameters'],

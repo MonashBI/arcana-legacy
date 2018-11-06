@@ -796,6 +796,7 @@ class Pipeline(object):
         # Roundtrip workflow graph to JSON to convert any tuples into lists
         wf_graph = json.loads(json.dumps(wf_graph))
         return PipelineRecord(
+            study_name=self.study.name,
             pipeline_name=self.name,
             study_parameters=self._referenced_parameters,
             interface_parameters=interface_parameters,
