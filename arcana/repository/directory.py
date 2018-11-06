@@ -46,6 +46,7 @@ class DirectoryRepository(BaseRepository):
     type = 'simple'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
+    PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
     DERIVED_LABEL_FNAME = '.derived'
     DEFAULT_SUBJECT_ID = 'SUBJECT'
@@ -167,6 +168,12 @@ class DirectoryRepository(BaseRepository):
                 dct[field.name] = field.value
             with open(fpath, 'w') as f:
                 json.dump(dct, f)
+
+    def put_provenance(self, record):
+        fpath = self.prov_json_path(record)
+        if not op.exists(op.dirname(fpath)):
+            os.mkdir(op.dirname(fpath))
+        record.save(fpath)
 
     def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
@@ -350,6 +357,10 @@ class DirectoryRepository(BaseRepository):
 
     def fields_json_path(self, field):
         return op.join(self.session_dir(field), self.FIELDS_FNAME)
+
+    def prov_json_path(self, record):
+        return op.join(self.session_dir(record), self.PROV_DIR,
+                       record.pipeline_name + '.json')
 
     def guess_depth(self, root_dir):
         """

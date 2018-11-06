@@ -62,9 +62,9 @@ class XnatRepository(BaseRepository):
     type = 'xnat'
 
     SUMMARY_NAME = 'ALL'
-    PROCESSED_SUFFIX = '_PROC'
     MD5_SUFFIX = '.md5.json'
     DERIVED_FROM_FIELD = '__derived_from__'
+    PROV_NAME = '__prov__'
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30):
@@ -219,8 +219,6 @@ class XnatRepository(BaseRepository):
         return val
 
     def put_fileset(self, fileset):
-        """Execute this module.
-        """
         # Open XNAT session
         with self:
             # Add session for derived scans if not present
@@ -230,20 +228,13 @@ class XnatRepository(BaseRepository):
             if not os.path.exists(op.dirname(cache_path)):
                 os.makedirs(op.dirname(cache_path),
                             stat.S_IRWXU | stat.S_IRWXG)
-            digests = {}
-            if op.isfile(fileset.path):
-                shutil.copyfile(fileset.path, cache_path)
-                self._calculate_digest(cache_path, digests)
-            elif op.isdir(fileset.path):
+            if fileset.format.directory:
                 shutil.copytree(fileset.path, cache_path)
-                for fname in os.listdir(fileset.path):
-                    self._calculate_digest(op.join(fileset.path, fname),
-                                           digests)
             else:
-                assert False
+                shutil.copyfile(fileset.path, cache_path)
             with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
-                json.dump(digests, f)
+                json.dump(fileset.checksums, f)
             # Upload to XNAT
             xfileset = self._login.classes.MrScanData(
                 type=fileset.name, parent=xsession)
@@ -253,9 +244,10 @@ class XnatRepository(BaseRepository):
             try:
                 xresource = xfileset.resources[
                     fileset.format.name.upper()]
-                xresource.delete()
             except KeyError:
                 pass
+            else:
+                xresource.delete()
             xresource = xfileset.create_resource(
                 fileset.format.name.upper())
             xresource.upload(cache_path, fileset.fname)
@@ -269,6 +261,32 @@ class XnatRepository(BaseRepository):
         with self:
             xsession = self.get_xsession(field)
             xsession.fields[field.name] = val
+
+    def put_provenance(self, record):
+        base_cache_path = self._cach_path(record, name=self.PROV_NAME)
+        if not op.exists(base_cache_path):
+            os.mkdir(base_cache_path)
+        else:
+            if not op.isdir(base_cache_path):
+                raise ArcanaError(
+                    "Base provenance cache path ('{}') should be a directory"
+                    .format(base_cache_path))
+        cache_path = op.join(base_cache_path, record.pipeline_name + '.json')
+        record.save(cache_path)
+        # TODO: Should also save digest of prov.json to check to see if it
+        #       has been altered remotely
+        xsession = self.get_xsession(record)
+        xprov = self._login.classes.MrScanData(
+            type=self.PROV_NAME, parent=xsession)
+        # Delete existing provenance if present
+        try:
+            xresource = xprov.resources[record.pipeline_name]
+        except KeyError:
+            pass
+        else:
+            xresource.delete()
+        xresource = xprov.create_resource(record.pipeline_name)
+        xresource.upload(cache_path, op.basename(cache_path))
 
     def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
@@ -688,12 +706,12 @@ class XnatRepository(BaseRepository):
             assert False
         return (subj_label, sess_label)
 
-    def _cache_path(self, fileset):
+    def _cache_path(self, fileset, name=None):
         subj_dir, sess_dir = self._get_item_labels(fileset)
         cache_dir = op.join(self._cache_dir, self.project_id,
                             subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
-        return op.join(cache_dir, fileset.fname)
+        return op.join(cache_dir, fileset.fname if name is None else name)
 
     @classmethod
     def _guess_file_format(cls, xfileset):
