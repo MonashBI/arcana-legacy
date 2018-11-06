@@ -282,7 +282,7 @@ class Record(object):
             json.dump(dct, f)
 
     @classmethod
-    def load(cls, path, study_name):
+    def load(cls, path, study_name, subject_id, visit_id):
         """
         Loads a saved provenance object from a JSON file
 
@@ -290,11 +290,17 @@ class Record(object):
         ----------
         path : str
             Path to the provenance file
+        study_name : str
+            Name of the study the derivatives were created for
+        subject_id : str | None
+            The subject ID of the provenance record
+        visit_id : str | None
+            The visit ID of the provenance record
 
         Returns
         -------
-        prov : Provenance
-            The loaded provenance object
+        record : Record
+            The loaded provenance record
         """
         with open(path) as f:
             dct = json.load(f)
@@ -310,7 +316,7 @@ class Record(object):
             subject_ids=dct['subject_ids'],
             visit_ids=dct['visit_ids'])
         return Record(pipeline_record, inputs=dct['inputs'],
-                      outputs=dct['outputs'])
+                      outputs=dct['outputs'], subject_id, visit_id)
 
     def find_mismatch(self, other, indent='', **kwargs):
         mismatch = ''

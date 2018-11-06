@@ -11,6 +11,7 @@ import json
 from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
+from arcana.study.provenance import Record
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
@@ -177,23 +178,27 @@ class DirectoryRepository(BaseRepository):
 
     def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
         """
-        Return subject and session information for a project in the local
-        repository
+        Find all data within a repository, registering filesets, fields and
+        provenance with the found_fileset, found_field and found_provenance
+        methods, respectively
 
         Parameters
         ----------
         subject_ids : list(str)
-            List of subject IDs with which to filter the tree with. If None all
-            are returned
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
         visit_ids : list(str)
-            List of visit IDs with which to filter the tree with. If None all
-            are returned
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
 
         Returns
         -------
-        tree : arcana.repository.Tree
-            A hierarchical tree of subject, session and fileset information for
-            the repository
+        filesets : list[Fileset]
+            All the filesets found in the repository
+        fields : list[Field]
+            All the fields found in the repository
+        records : list[Record]
+            The provenance records found in the repository
         """
         all_filesets = []
         all_fields = []
@@ -271,6 +276,16 @@ class DirectoryRepository(BaseRepository):
                           repository=self, from_study=from_study,
                           **kwargs)
                     for k, v in list(dct.items()))
+            if self.PROV_DIR in dirs:
+                if from_study is None:
+                    raise ArcanaBadlyFormattedDirectoryRepositoryError(
+                        "Found provenance directory in session directory (i.e."
+                        " not in study-specific sub-directory)")
+                base_prov_dir = op.join(session_path, self.PROV_DIR)
+                for fname in os.listdir(base_prov_dir):
+                    all_records.append(Record.load(
+                        op.join(base_prov_dir, fname),
+                        from_study, subj_id, visit_id))
         return all_filesets, all_fields, all_records
 
     def session_dir(self, item):
