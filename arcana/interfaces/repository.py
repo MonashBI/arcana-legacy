@@ -3,6 +3,7 @@ from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
 from arcana.data import BaseField, BaseFileset
+from arcana.study import Study
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 import logging
 
@@ -74,17 +75,32 @@ class BaseRepositoryInterface(BaseInterface):
         return trait
 
 
-class RepositorySourceSpec(DynamicTraitedSpec):
+class BaseRepositorySpec(DynamicTraitedSpec):
     """
-    Base class for repository sink and source input specifications.
+    Base class for input and output specifications for repository source
+    and sink interfaces
     """
     subject_id = traits.Str(desc="The subject ID")
     visit_id = traits.Str(desc="The visit ID")
+
+
+class RepositorySourceInputSpec(BaseRepositorySpec):
+    """
+    Input specification for repository source interfaces.
+    """
     prereqs = traits.List(
         desc=("A list of lists of iterator IDs used in prerequisite pipelines."
               " Only passed here to ensure that prerequisites are processed "
               "before this source is run (so that their outputs exist in the "
               "repository)"))
+
+
+class RepositorySourceOutputSpec(BaseRepositorySpec):
+    """
+    Output specification for repository source interfaces.
+    """
+    checksums = traits.Dict(
+        desc=("Checksums of input filesets (values of fields)"))
 
 
 class RepositorySource(BaseRepositoryInterface):
@@ -97,8 +113,8 @@ class RepositorySource(BaseRepositoryInterface):
         List of all the fields that are to be extracted from the repository
     """
 
-    input_spec = RepositorySourceSpec
-    output_spec = RepositorySourceSpec
+    input_spec = RepositorySourceInputSpec
+    output_spec = RepositorySourceOutputSpec
     _always_run = True
 
     def _outputs(self):
@@ -126,6 +142,7 @@ class RepositorySource(BaseRepositoryInterface):
         outputs['subject_id'] = self.inputs.subject_id
         outputs['visit_id'] = self.inputs.visit_id
         # Source filesets
+        checksums = outputs['checksums'] = {}
         with ExitStack() as stack:
             # Connect to set of repositories that the collections come from
             for repository in self.repositories:
@@ -134,20 +151,36 @@ class RepositorySource(BaseRepositoryInterface):
                 fileset = fileset_collection.item(subject_id, visit_id)
                 fileset.get()
                 outputs[fileset_collection.name + PATH_SUFFIX] = fileset.path
+                checksums[fileset_collection.name] = fileset.checksums
             for field_collection in self.field_collections:
                 field = field_collection.item(subject_id, visit_id)
                 field.get()
                 outputs[field_collection.name + FIELD_SUFFIX] = field.value
+                checksums[field_collection.name] = field.value
         return outputs
 
 
-class RepositorySinkSpec(DynamicTraitedSpec):
+class RepositorySinkInputSpec(BaseRepositorySpec):
 
-    subject_id = traits.Str(desc="The subject ID"),
-    visit_id = traits.Str(desc="The session or derived group ID")
+    per_session_checksums = traits.Dict(
+        {}, desc=("The checksums or values of per-session input filesets or "
+                  "fields, respectively, that have been used by the pipeline"),
+        usedefault=True)
+    per_subject_checksums = traits.Dict(
+        {}, desc=("The checksums or values of per-subject input filesets or "
+                  "fields, respectively, that have been used by the pipeline"),
+        usedefault=True)
+    per_visit_checksums = traits.Dict(
+        {}, desc=("The checksums or values of per-visit input filesets or "
+                  "fields, respectively, that have been used by the pipeline"),
+        usedefault=True)
+    per_study_checksums = traits.Dict(
+        {}, desc=("The checksums or values of per-study input filesets or "
+                  "fields, respectively, that have been used by the pipeline"),
+        usedefault=True)
 
 
-class RepositorySinkOutputSpec(RepositorySinkSpec):
+class RepositorySinkOutputSpec(BaseRepositorySpec):
 
     files = traits.List(PATH_TRAIT, desc='Output filesets')
 
@@ -159,11 +192,24 @@ class RepositorySinkOutputSpec(RepositorySinkSpec):
 
 
 class RepositorySink(BaseRepositoryInterface):
+    """
+    Interface used to sink derivatives into the output repository
 
-    input_spec = RepositorySinkSpec
+    Parameters
+    ----------
+    collections : *Collection
+        The collections of Field and Fileset objects to insert into the
+        outputs repositor(y|ies)
+    provenance : arcana.provenance.PipelineRecord
+        The pipeline provenance record (as opposed to the session or subject|
+        visit|study-summary specific record that contains field values and
+        file-set checksums for relevant inputs and outputs)
+    """
+
+    input_spec = RepositorySinkInputSpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections):
+    def __init__(self, collections, provenance):
         super(RepositorySink, self).__init__(collections)
         # Add input filesets
         for fileset_collection in self.fileset_collections:
@@ -175,6 +221,7 @@ class RepositorySink(BaseRepositoryInterface):
             self._add_trait(self.inputs,
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
+        self._prov = provenance
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -188,6 +235,12 @@ class RepositorySink(BaseRepositoryInterface):
         out_files = []
         out_fields = []
         missing_inputs = []
+        # Combine frequency-specific input checksums into a single dictionary
+        input_checksums = {}
+        for freq in Study.FREQUENCIES:
+            input_checksums.update(getattr(self.inputs,
+                                           '{}_checksums'.format(freq)))
+        output_checksums = {}
         with ExitStack() as stack:
             # Connect to set of repositories that the collections come from
             for repository in self.repositories:
@@ -203,6 +256,7 @@ class RepositorySink(BaseRepositoryInterface):
                     continue  # skip the upload for this file
                 fileset.path = path
                 fileset.put()
+                output_checksums[fileset.name] = fileset.checksums
             for field_collection in self.field_collections:
                 field = field_collection.item(
                     subject_id,
@@ -215,6 +269,11 @@ class RepositorySink(BaseRepositoryInterface):
                 field.value = value
                 field.put()
                 out_fields.append((field.name, value))
+                output_checksums[field.name] = field.value
+            prov_record = self._prov.record(input_checksums, output_checksums,
+                                            subject_id, visit_id)
+            for repository in self.repositories:
+                repository.put_provenance(prov_record)
         if missing_inputs:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw

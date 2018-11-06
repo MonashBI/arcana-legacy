@@ -415,6 +415,10 @@ class Pipeline(object):
         return self._output_conns.keys()
 
     @property
+    def joins(self):
+        return self._iterator_joins.keys()
+
+    @property
     def joins_subjects(self):
         "Iterators that are joined within the pipeline"
         return self.study.SUBJECT_ID in self._iterator_joins
@@ -767,40 +771,37 @@ class Pipeline(object):
         return "'{}' pipeline in {} class".format(self.name,
                                                   type(self.study).__name__)
 
-    @property
     def provenance(self):
-        if self._prov is None:
-            interface_parameters = {}
-            versions = {}
-            for node in self.nodes:
-                versions[node.name] = [
-                    [v.name, str(v), v.local_name, v.local_version]
-                    for v in node.versions]
-                interface_parameters[node.name] = {}
-                for trait_name in node.inputs.visible_traits():
-                    val = getattr(node.inputs, trait_name)
-                    if isdefined(val):
-                        interface_parameters[node.name][trait_name] = val
-            # Generate JSON representation of Nipype workflow graph
-            wf_graph = nx_json.node_link_data(self._workflow._graph)
-            # Replace Nipype Nodes in 'nodes' with the name and interface of
-            # the Nodes
-            wf_graph['nodes'] = [
-                {'name': n['id'].name,
-                 'interface': '{}.{}'.format(
-                     n['id'].interface.__class__.__module__,
-                     n['id'].interface.__class__.__name__)}
-                for n in wf_graph['nodes']]
-            # Roundtrip workflow graph to JSON to convert any tuples into lists
-            wf_graph = json.loads(json.dumps(wf_graph))
-            self._prov = PipelineRecord(
-                pipeline_name=self.name,
-                study_parameters=self._referenced_parameters,
-                interface_parameters=interface_parameters,
-                requirement_versions=versions,
-                arcana_version=arcana.__version__,
-                nipype_version=nipype.__version__,
-                workflow_graph=wf_graph,
-                subject_ids=self.study.subject_ids,
-                visit_ids=self.study.visit_ids)
-        return self._prov
+        interface_parameters = {}
+        versions = {}
+        for node in self.nodes:
+            versions[node.name] = [
+                [v.name, str(v), v.local_name, v.local_version]
+                for v in node.versions]
+            interface_parameters[node.name] = {}
+            for trait_name in node.inputs.visible_traits():
+                val = getattr(node.inputs, trait_name)
+                if isdefined(val):
+                    interface_parameters[node.name][trait_name] = val
+        # Generate JSON representation of Nipype workflow graph
+        wf_graph = nx_json.node_link_data(self._workflow._graph)
+        # Replace Nipype Nodes in 'nodes' with the name and interface of
+        # the Nodes
+        wf_graph['nodes'] = [
+            {'name': n['id'].name,
+             'interface': '{}.{}'.format(
+                 n['id'].interface.__class__.__module__,
+                 n['id'].interface.__class__.__name__)}
+            for n in wf_graph['nodes']]
+        # Roundtrip workflow graph to JSON to convert any tuples into lists
+        wf_graph = json.loads(json.dumps(wf_graph))
+        return PipelineRecord(
+            pipeline_name=self.name,
+            study_parameters=self._referenced_parameters,
+            interface_parameters=interface_parameters,
+            requirement_versions=versions,
+            arcana_version=arcana.__version__,
+            nipype_version=nipype.__version__,
+            workflow_graph=wf_graph,
+            subject_ids=self.study.subject_ids,
+            visit_ids=self.study.visit_ids)

@@ -72,6 +72,13 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
+    def put_provenance(self, record):
+        """
+        Inserts a provenance record into a session or subject|visit|study
+        summary
+        """
+
+    @abstractmethod
     def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return the tree of subject and sessions information within a

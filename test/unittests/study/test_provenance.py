@@ -121,7 +121,7 @@ class TestProvenance(BaseTestCase):
             next(iter(study.data('derfield1'))).value, [3.0, 6.0, 60.0])
         pipeline1 = study.pipeline1()
         prov = pipeline1.provenance
-        record = prov.record([], [])
+        record = prov.record({}, {}, self.SUBJECT, self.VISIT)
         path = op.join(self.tempdir, 'prov1.json')
         record.save(path)
         reloaded = Record.load(path)
