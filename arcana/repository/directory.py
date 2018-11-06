@@ -175,7 +175,7 @@ class DirectoryRepository(BaseRepository):
             os.mkdir(op.dirname(fpath))
         record.save(fpath)
 
-    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return subject and session information for a project in the local
         repository
@@ -195,8 +195,9 @@ class DirectoryRepository(BaseRepository):
             A hierarchical tree of subject, session and fileset information for
             the repository
         """
-        all_data = defaultdict(dict)
-        all_visit_ids = set()
+        all_filesets = []
+        all_fields = []
+        all_records = []
         for session_path, dirs, files in os.walk(self.root_dir):
             relpath = op.relpath(session_path, self.root_dir)
             if relpath == '.':
@@ -246,77 +247,31 @@ class DirectoryRepository(BaseRepository):
                 frequency = 'per_study'
             elif subj_id is None:
                 frequency = 'per_visit'
-                all_visit_ids.add(visit_id)
             elif visit_id is None:
                 frequency = 'per_subject'
             else:
                 frequency = 'per_session'
-                all_visit_ids.add(visit_id)
-            try:
-                # Retrieve filesets and fields from other study directories
-                # or root acquired directory
-                filesets, fields = all_data[subj_id][visit_id]
-            except KeyError:
-                filesets = []
-                fields = []
             for fname in chain(self._filter_files(files, session_path),
                                self._filter_dirs(dirs, session_path)):
-                filesets.append(
+                all_filesets.append(
                     Fileset.from_path(
                         op.join(session_path, fname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
-                        from_study=from_study))
+                        from_study=from_study,
+                        **kwargs))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:
                     dct = json.load(f)
-                fields = [Field(name=k, value=v, frequency=frequency,
-                                subject_id=subj_id, visit_id=visit_id,
-                                repository=self, from_study=from_study)
-                          for k, v in list(dct.items())]
-            filesets = sorted(filesets)
-            fields = sorted(fields)
-            all_data[subj_id][visit_id] = (filesets, fields)
-        all_sessions = defaultdict(dict)
-        for subj_id, subj_data in all_data.items():
-            if subj_id is None:
-                continue  # Create Subject summaries later
-            for visit_id, (filesets, fields) in subj_data.items():
-                if visit_id is None:
-                    continue  # Create Visit summaries later
-                all_sessions[subj_id][visit_id] = Session(
-                    subject_id=subj_id, visit_id=visit_id,
-                    filesets=filesets, fields=fields)
-        subjects = []
-        for subj_id, subj_sessions in list(all_sessions.items()):
-            try:
-                filesets, fields = all_data[subj_id][None]
-            except KeyError:
-                filesets = []
-                fields = []
-            subjects.append(Subject(
-                subj_id, sorted(subj_sessions.values()), filesets,
-                fields))
-        visits = []
-        for visit_id in all_visit_ids:
-            visit_sessions = list(chain(
-                sess[visit_id] for sess in list(all_sessions.values())))
-            try:
-                filesets, fields = all_data[None][visit_id]
-            except KeyError:
-                filesets = []
-                fields = []
-            visits.append(Visit(visit_id, sorted(visit_sessions),
-                                filesets, fields))
-        try:
-            filesets, fields = all_data[None][None]
-        except KeyError:
-            filesets = []
-            fields = []
-        return Tree(sorted(subjects), sorted(visits), filesets,
-                    fields, **kwargs)
+                all_fields.extend(
+                    Field(name=k, value=v, frequency=frequency,
+                          subject_id=subj_id, visit_id=visit_id,
+                          repository=self, from_study=from_study,
+                          **kwargs)
+                    for k, v in list(dct.items()))
+        return all_filesets, all_fields, all_records
 
     def session_dir(self, item):
         if item.frequency == 'per_study':
@@ -426,7 +381,7 @@ class DirectoryRepository(BaseRepository):
         # and derived study directories from fileset names
         return [
             op.join(base_dir, d) for d in dirs
-            if not (d.startswith('.') or (
+            if not (d.startswith('.') or d == cls.PROV_DIR or (
                 cls.DERIVED_LABEL_FNAME in os.listdir(op.join(base_dir, d))))]
 
     def path_depth(self, dpath):
