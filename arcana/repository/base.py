@@ -138,28 +138,28 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         all_filesets, all_fields, all_records = self.find_data(
             subject_ids=subject_ids, visit_ids=visit_ids)
         # Sort the data by subject and visit ID
-        sorted_filesets = defaultdict(list)
+        filesets = defaultdict(list)
         for fset in all_filesets:
-            sorted_filesets[(fset.subject_id, fset.visit_id)].append(fset)
-        sorted_fields = defaultdict(list)
+            filesets[(fset.subject_id, fset.visit_id)].append(fset)
+        fields = defaultdict(list)
         for field in all_fields:
-            sorted_fields[(field.subject_id, field.visit_id)].append(field)
-        sorted_records = defaultdict(list)
+            fields[(field.subject_id, field.visit_id)].append(field)
+        records = defaultdict(list)
         for record in all_records:
-            sorted_records[(record.subject_id, record.visit_id)].append(record)
+            records[(record.subject_id, record.visit_id)].append(record)
         # Create all sessions
         subj_sessions = defaultdict(list)
         visit_sessions = defaultdict(list)
-        for sess_id in set(chain(sorted_filesets, sorted_fields,
-                                 sorted_records)):
+        for sess_id in set(chain(filesets, fields,
+                                 records)):
             if None in sess_id:
                 continue  # Save summaries for later
             subj_id, visit_id = sess_id
             session = Session(
                 subject_id=subj_id, visit_id=visit_id,
-                filesets=sorted_filesets[sess_id],
-                fields=sorted_fields[sess_id],
-                records=sorted_records[sess_id])
+                filesets=filesets[sess_id],
+                fields=fields[sess_id],
+                records=records[sess_id])
             subj_sessions[subj_id].append(session)
             visit_sessions[visit_id].append(session)
         subjects = []
@@ -167,21 +167,22 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             subjects.append(Subject(
                 subj_id,
                 sorted(subj_sessions),
-                sorted_filesets[(subj_id, None)],
-                sorted_fields[(subj_id, None)],
-                sorted_records[(subj_id, None)]))
+                filesets[(subj_id, None)],
+                fields[(subj_id, None)],
+                records[(subj_id, None)]))
         visits = []
         for visit_id in visit_sessions:
-            visits.append(Subject(
+            visits.append(Visit(
                 visit_id,
                 sorted(visit_sessions),
-                sorted_filesets[(None, visit_id)],
-                sorted_fields[(None, visit_id)],
-                sorted_records[(None, visit_id)]))
-        return Tree(sorted(subjects), sorted(visits),
-                    sorted_filesets[(None, None)],
-                    sorted_fields[(None, None)],
-                    sorted_records[(None, None)],
+                filesets[(None, visit_id)],
+                fields[(None, visit_id)],
+                records[(None, visit_id)]))
+        return Tree(sorted(subjects),
+                    sorted(visits),
+                    filesets[(None, None)],
+                    fields[(None, None)],
+                    records[(None, None)],
                     **kwargs)
 
     def cached_tree(self, subject_ids=None, visit_ids=None,
