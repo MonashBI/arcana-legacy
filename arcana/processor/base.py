@@ -366,7 +366,7 @@ class BaseProcessor(object):
                 '{}_sink'.format(freq),
                 RepositorySink(
                     (self.study.spec(o).collection for o in outputs),
-                    provenance),
+                    provenance, pipeline.study.FREQUENCIES),
                 connect={
                     i: (iterators[i], i) for i in pipeline.iterfields()})
             for output in outputs:
