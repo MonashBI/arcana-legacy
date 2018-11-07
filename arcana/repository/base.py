@@ -166,7 +166,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         for subj_id in subj_sessions:
             subjects.append(Subject(
                 subj_id,
-                sorted(subj_sessions),
+                sorted(subj_sessions[subj_id]),
                 filesets[(subj_id, None)],
                 fields[(subj_id, None)],
                 records[(subj_id, None)]))
@@ -174,7 +174,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         for visit_id in visit_sessions:
             visits.append(Visit(
                 visit_id,
-                sorted(visit_sessions),
+                sorted(visit_sessions[visit_id]),
                 filesets[(None, visit_id)],
                 fields[(None, visit_id)],
                 records[(None, visit_id)]))

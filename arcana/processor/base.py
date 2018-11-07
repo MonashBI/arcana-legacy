@@ -318,7 +318,8 @@ class BaseProcessor(object):
                         pipeline.name))
             sources[freq] = source = pipeline.add(
                 '{}_source'.format(freq),
-                RepositorySource(inputs),
+                RepositorySource(
+                    i.collection for i in inputs),
                 connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
             # Connect iterators to source and input nodes
@@ -388,7 +389,8 @@ class BaseProcessor(object):
             sink = pipeline.add(
                 '{}_sink'.format(freq),
                 RepositorySink(
-                    outputs, provenance, pipeline.inputs),
+                    (o.collection for o in outputs), provenance,
+                    pipeline.inputs, freq),
                 connect=to_connect)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline

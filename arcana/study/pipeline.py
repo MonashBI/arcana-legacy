@@ -772,6 +772,9 @@ class Pipeline(object):
                                                   type(self.study).__name__)
 
     def provenance(self):
+        study_parameters = {
+            p: self.study.parameter(p)
+            for p in self._referenced_parameters}
         interface_parameters = {}
         versions = {}
         for node in self.nodes:
@@ -798,7 +801,7 @@ class Pipeline(object):
         return PipelineRecord(
             study_name=self.study.name,
             pipeline_name=self.name,
-            study_parameters=self._referenced_parameters,
+            study_parameters=study_parameters,
             interface_parameters=interface_parameters,
             requirement_versions=versions,
             arcana_version=arcana.__version__,

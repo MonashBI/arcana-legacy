@@ -79,7 +79,7 @@ class TreeNode(object):
                 msg = ''
             raise ArcanaNameError(
                 name,
-                ("{} doesn't have a fileset named '{}'{}"
+                ("{} doesn't have a fileset named '{}' {}"
                    "(available '{}'){}"
                    .format(self, name,
                            ("for study '{}'"
@@ -210,10 +210,9 @@ class TreeNode(object):
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
         exp_outputs = {o.name: getchecksums(self, o) for o in pipeline.outputs}
-        expected_record = pipeline.provenance.record(exp_inputs,
-                                                     exp_outputs,
-                                                     self.subject_id,
-                                                     self.visit_id)
+        expected_record = pipeline.provenance.record(
+            exp_inputs, exp_outputs, self.frequency, self.subject_id,
+            self.visit_id)
         record = self.record(pipeline.name, pipeline.study.name)
         if not record.matches(expected_record, ignore_versions):
             raise ArcanaProvenanceRecordMismatchError(

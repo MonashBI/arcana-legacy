@@ -182,7 +182,8 @@ class RepositorySink(BaseRepositoryInterface):
     input_spec = BaseRepositorySpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections, provenance, pipeline_inputs):
+    def __init__(self, collections, provenance, pipeline_inputs,
+                 frequency):
         super(RepositorySink, self).__init__(collections)
         # Add traits for filesets to sink
         for fileset_collection in self.fileset_collections:
@@ -195,6 +196,7 @@ class RepositorySink(BaseRepositoryInterface):
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
         # Add traits for checksums/values of pipeline inputs
+        pipeline_inputs = list(pipeline_inputs)  # guard against generators
         for inpt in pipeline_inputs:
             if inpt.is_fileset:
                 trait_t = JOINED_CHECKSUM_TRAIT
@@ -205,6 +207,7 @@ class RepositorySink(BaseRepositoryInterface):
             self._add_trait(self.inputs, inpt.checksum_suffixed_name, trait_t)
         self._pipeline_input_names = [i.name for i in pipeline_inputs]
         self._prov = provenance
+        self._frequency = frequency
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -249,7 +252,8 @@ class RepositorySink(BaseRepositoryInterface):
             # Create Provenance record and sink to all repositories that have
             # received data (typically only one)
             prov_record = self._prov.record(input_checksums, output_checksums,
-                                            subject_id, visit_id)
+                                            self._frequency, subject_id,
+                                            visit_id)
             for repository in self.repositories:
                 repository.put_provenance(prov_record)
         if missing_inputs:

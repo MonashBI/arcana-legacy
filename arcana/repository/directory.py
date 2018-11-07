@@ -283,7 +283,7 @@ class DirectoryRepository(BaseRepository):
                 for fname in os.listdir(base_prov_dir):
                     all_records.append(Record.load(
                         op.join(base_prov_dir, fname),
-                        from_study, subj_id, visit_id))
+                        frequency, subj_id, visit_id, from_study))
         return all_filesets, all_fields, all_records
 
     def session_dir(self, item):
