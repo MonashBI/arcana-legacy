@@ -1,5 +1,6 @@
 from past.builtins import basestring
 import os
+from itertools import chain
 import os.path as op
 import hashlib
 import pydicom
@@ -140,7 +141,7 @@ class Fileset(BaseItem, BaseFileset):
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists)
-        self._path = path
+        self.path = path
         self._uri = uri
         self._bids_attr = bids_attr
         if id is None and path is not None and format.name == 'dicom':
@@ -234,13 +235,15 @@ class Fileset(BaseItem, BaseFileset):
 
     @path.setter
     def path(self, path):
-        self._path = path
+        self._path = op.abspath(op.realpath(path))
+        self._checksums = None  # reset checksums
 
     @property
     def paths(self):
         """Iterates through all files in the set"""
         if self.format.directory:
-            return (op.join(r, f) for r, _, f in os.walk(self.path))
+            return chain(*((op.join(root, f) for f in files)
+                           for root, _, files in os.walk(self.path)))
         else:
             return iter([self.path])  # FIXME: Need to add support for headers/side-cars
 

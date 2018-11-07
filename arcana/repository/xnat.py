@@ -169,9 +169,9 @@ class XnatRepository(BaseRepository):
                                 XnatRepository.MD5_SUFFIX)
                     try:
                         with open(md5_path, 'r') as f:
-                            cached_digests = json.load(f)
-                        digests = self._get_digests(xresource)
-                        if cached_digests == digests:
+                            cached_checksums = json.load(f)
+                        checksums = self._get_checksums(xresource)
+                        if cached_checksums == checksums:
                             need_to_download = False
                     except IOError:
                         pass
@@ -454,7 +454,7 @@ class XnatRepository(BaseRepository):
                     r.label for r in list(fileset.resources.values()))))
 
     @classmethod
-    def _get_digests(cls, resource):
+    def _get_checksums(cls, resource):
         """
         Downloads the MD5 digests associated with the files in a resource.
         These are saved with the downloaded files in the cache and used to
@@ -476,7 +476,7 @@ class XnatRepository(BaseRepository):
         with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
-        digests = cls._get_digests(xresource)
+        digests = cls._get_checksums(xresource)
         # Extract downloaded zip file
         expanded_dir = op.join(tmp_dir, 'expanded')
         try:

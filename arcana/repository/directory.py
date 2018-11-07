@@ -1,7 +1,6 @@
 import os
 import errno
 import os.path as op
-from collections import defaultdict
 from itertools import chain
 from .base import BaseRepository
 import stat
@@ -9,7 +8,6 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
 from arcana.provenance import Record
 from arcana.exception import (
