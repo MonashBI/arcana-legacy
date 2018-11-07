@@ -11,8 +11,6 @@ from arcana.exception import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
     ArcanaProvenanceRecordMismatchError)
-from arcana.data import BaseFileset
-from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX
 from arcana.interfaces.repository import (RepositorySource,
                                           RepositorySink)
 
@@ -259,7 +257,7 @@ class BaseProcessor(object):
         # they don't contain the outputs of this pipeline)
         to_process = self._to_process(pipeline, filter_array, subject_inds,
                                       visit_inds, force)
-        # Cache the input|output nodes before generating the provenance so
+        # Generate input|output nodes before generating the provenance so
         # any conversion nodes are included
         inputnodes = {f: pipeline.inputnode(f)
                       for f in pipeline.input_frequencies}
@@ -335,10 +333,8 @@ class BaseProcessor(object):
                     pipeline.connect(iterators[iterfield], iterfield,
                                      inputnode, iterfield)
             for input in inputs:  # @ReservedAssignment
-                in_name = input.name + (
-                    PATH_SUFFIX if isinstance(input, BaseFileset) else
-                    FIELD_SUFFIX)
-                pipeline.connect(source, in_name, inputnode, input.name)
+                pipeline.connect(source, input.suffixed_name,
+                                 inputnode, input.name)
         deiterators = {}
 
         def deiterator_sort_key(ifield):
@@ -362,68 +358,72 @@ class BaseProcessor(object):
                     .format("', '".join(o.name for o in outputs), freq,
                             "', '".join(pipeline.iterfields())))
             outputnode = outputnodes[freq]
-            sink = pipeline.add(
-                '{}_sink'.format(freq),
-                RepositorySink(
-                    (self.study.spec(o).collection for o in outputs),
-                    provenance, pipeline.study.FREQUENCIES),
-                connect={
-                    i: (iterators[i], i) for i in pipeline.iterfields()})
-            for output in outputs:
-                if output.is_spec:  # Skip outputs that are study inputs
-                    out_name = output.name + (
-                        PATH_SUFFIX if isinstance(output, BaseFileset) else
-                        FIELD_SUFFIX)
-                    pipeline.connect(outputnode, output.name, sink, out_name)
-#             # Connect iterators to sink
-#             for iterfield in pipeline.iterfields():
-#                 pipeline.connect(iterators[iterfield], iterfield, sink,
-#                                  iterfield)
-            # Connect checksums from sources in order to save in provenance,
-            # joining where necessary
+            # Connect filesets/fields to sink to sink node, skipping outputs
+            # that are study inputs
+            to_connect = {o.suffixed_name: (outputnode, o.name)
+                          for o in outputs if o.is_spec}
+            # Connect iterfields to sink node
+            to_connect.update(
+                {i: (iterators[i], i) for i in pipeline.iterfields()})
+            # Connect checksums/values from sources to sink node in order to
+            # save in provenance, joining where necessary
             for input_freq in pipeline.input_frequencies:
-                source = sources[freq]
+                checksums_to_connect = [
+                    i.checksum_suffixed_name
+                    for i in pipeline.frequency_inputs(input_freq)]
                 # Loop over iterfields that need to be joined, i.e. that are
                 # present in the input frequency but not the output frequency
+                # and create join nodes
+                source = sources[freq]
                 for iterfield in (pipeline.iterfields(input_freq) -
                                   pipeline.iterfields(freq)):
                     join = pipeline.add(
-                        '{}_to_{}_{}_checksum_join'.format(input_freq, freq,
-                                                           iterfield),
+                        '{}_to_{}_{}_checksum_join'.format(
+                            input_freq, freq, iterfield),
                         IdentityInterface(
-                            ['checksums']),
+                            [checksums_to_connect]),
                         connect={
-                            'checksums': (source, 'checksums')},
+                            tc: (source, tc) for tc in checksums_to_connect},
                         joinsource=iterfield,
-                        joinfield='checksums')
+                        joinfield=checksums_to_connect)
                     source = join
-                pipeline.connect(join, 'checksums', sink,
-                                 '{}_checksums'.format(input_freq))
+                to_connect.update(
+                    {tc: (source, tc) for tc in checksums_to_connect})
+            # Add sink node
+            sink = pipeline.add(
+                '{}_sink'.format(freq),
+                RepositorySink(
+                    outputs, provenance, pipeline.inputs),
+                connect=to_connect)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline
-
             # Set the sink and subject_id as the default deiterator if there
             # are no deiterates (i.e. per_study) or to use as the upstream
             # node to connect the first deiterator for every frequency
-            deiterators[freq] = sink
+            deiterators[freq] = sink  # for per_study the "deiterator" == sink
             for iterfield in sorted(pipeline.iterfields(freq),
                                     key=deiterator_sort_key):
                 # Connect to previous deiterator or sink
+                # NB: we only need to keep a reference to the last one in the
+                # chain in order to connect with the "final" node, so we can
+                # overwrite the entry in the 'deiterators' dict
                 deiterators[freq] = pipeline.add(
                     '{}_{}_deiterator'.format(freq, iterfield),
                     IdentityInterface(
-                        ['combined']),
+                        ['checksums']),
                     connect={
-                        'combined': (deiterators[freq], 'combined')},
+                        'checksums': (deiterators[freq], 'checksums')},
                     joinsource=iterfield,
-                    joinfield='combined')
+                    joinfield='checksums')
         # Create a final node, which is used to connect with dependent
         # pipelines into large workflows
-        final = pipeline.add('final', Merge(len(deiterators)))
-        for i, deiterator in enumerate(deiterators.values(), start=1):
-            # Connect the output summary of the prerequisite to the
-            # pipeline to ensure that the prerequisite is run first.
-            pipeline.connect(deiterator, 'combined', final, 'in{}'.format(i))
+        final = pipeline.add(
+            'final',
+            Merge(
+                len(deiterators)),
+            connect={
+                'in{}'.format(i): (di, 'checksums')
+                for i, di in enumerate(deiterators.values(), start=1)})
         # Register pipeline as being connected to prevent duplicates
         already_connected[pipeline.name] = (pipeline, final)
         return final

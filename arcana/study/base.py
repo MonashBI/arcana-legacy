@@ -11,8 +11,7 @@ from arcana.exception import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)
 from .pipeline import Pipeline
-from arcana.data import (
-    BaseData, BaseField, BaseFileset, BaseAcquiredSpec)
+from arcana.data import BaseData
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository import DirectoryRepository
@@ -178,8 +177,8 @@ class Study(object):
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
             else:
-                if isinstance(spec, BaseFileset):
-                    if isinstance(inpt, BaseField):
+                if spec.is_fileset:
+                    if inpt.is_field:
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
@@ -201,7 +200,7 @@ class Study(object):
                                     inpt, spec,
                                     "', '".join(
                                         f.name for f in spec.valid_formats)))
-                elif not isinstance(inpt, BaseField):
+                elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
                         .format(inpt, spec))
@@ -745,7 +744,7 @@ class Study(object):
             Name of a data spec
         """
         spec = self.bound_spec(spec_name)
-        if isinstance(spec, BaseAcquiredSpec):
+        if not spec.derived:
             return spec.default is None and default_okay
         else:
             return True

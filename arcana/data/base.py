@@ -7,7 +7,7 @@ from logging import getLogger
 from arcana.exception import ArcanaError
 from future.utils import with_metaclass
 from future.types import newstr
-
+from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
 logger = getLogger('arcana')
 
 
@@ -15,6 +15,9 @@ class BaseData(with_metaclass(ABCMeta, object)):
 
     VALID_FREQUENCIES = ('per_session', 'per_subject', 'per_visit',
                          'per_study')
+
+    is_fileset = False
+    is_field = False
 
     def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         assert name is None or isinstance(name, basestring)
@@ -95,6 +98,8 @@ class BaseFileset(with_metaclass(ABCMeta, BaseData)):
         A collection of BIDS attributes for the fileset or spec
     """
 
+    is_fileset = True
+
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         super(BaseFileset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
@@ -131,6 +136,14 @@ class BaseFileset(with_metaclass(ABCMeta, BaseData)):
         dct['format'] = self.format
         return dct
 
+    @property
+    def suffixed_name(self):
+        return self._name + PATH_SUFFIX
+
+    @property
+    def checksum_suffixed_name(self):
+        return self._name + CHECKSUM_SUFFIX
+
 
 class BaseField(with_metaclass(ABCMeta, BaseData)):
     """
@@ -150,6 +163,8 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
     array : bool
         Whether the field contains scalar or array data
     """
+
+    is_field = True
 
     dtypes = (int, float, str)
 
@@ -206,3 +221,11 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
         return ("{}(name='{}', dtype={}, frequency='{}', array={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
                         self.frequency, self.array))
+
+    @property
+    def suffixed_name(self):
+        return self._name + FIELD_SUFFIX
+
+    @property
+    def checksum_suffixed_name(self):
+        return self.suffixed_name
