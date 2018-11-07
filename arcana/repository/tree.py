@@ -3,6 +3,7 @@ from builtins import object
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
+from arcana.data import BaseFileset, BaseField
 from arcana.exception import (
     ArcanaNameError, ArcanaMissingDataException,
     ArcanaProvenanceRecordMismatchError, ArcanaError)
@@ -65,6 +66,24 @@ class TreeNode(object):
         return None
 
     def fileset(self, name, study=None):
+        """
+        Gets the fileset named 'name' produced by the Study named 'study' if
+        provided. If a spec is passed instead of a str to the name argument,
+        then the study will be set from the spec iff it is derived
+
+        Parameters
+        ----------
+        name : str | FilesetSpec
+            The name of the fileset or a spec matching the given name
+        study : str | None
+            Name of the study that produced the fileset if derived. If None
+            and a spec is passed instaed of string to the name argument then
+            the study name will be taken from the spec instead.
+        """
+        if isinstance(name, BaseFileset):
+            if study is None and name.derived:
+                study = name.study.name
+            name = name.name
         try:
             return self._filesets[(name, study)]
         except KeyError:
@@ -89,6 +108,24 @@ class TreeNode(object):
                            "', '".join(available), msg)))
 
     def field(self, name, study=None):
+        """
+        Gets the field named 'name' produced by the Study named 'study' if
+        provided. If a spec is passed instead of a str to the name argument,
+        then the study will be set from the spec iff it is derived
+
+        Parameters
+        ----------
+        name : str | BaseField
+            The name of the field or a spec matching the given name
+        study : str | None
+            Name of the study that produced the field if derived. If None
+            and a spec is passed instaed of string to the name argument then
+            the study name will be taken from the spec instead.
+        """
+        if isinstance(name, BaseField):
+            if study is None and name.derived:
+                study = name.study.name
+            name = name.name
         try:
             return self._fields[(name, study)]
         except KeyError:
@@ -160,7 +197,6 @@ class TreeNode(object):
         return mismatch
 
     def check_provenance(self, pipeline, ignore_versions=False):
-        from_study = pipeline.study.name
 
         def getchecksums(node, spec):
             """
@@ -168,9 +204,9 @@ class TreeNode(object):
             corresponding to the given spec
             """
             if spec.is_fileset:
-                checksum = node.fileset(spec.name, from_study).checksums
+                checksum = node.fileset(spec).checksums
             else:
-                checksum = node.field(spec.name, from_study).value
+                checksum = node.field(spec).value
             if checksum is None:
                 raise ArcanaMissingDataException(
                     "The item corresponding to {} in {} does not exist, which "
@@ -191,7 +227,7 @@ class TreeNode(object):
             if not join_iterfields:
                 # No iterfields to join so we can just extract the checksums
                 # directly
-                checksums = getchecksums(self, inpt)
+                exp_inputs[inpt.name] = getchecksums(self, inpt)
             elif len(join_iterfields) == 1:
                 # We need to join one iterfield, across all sub-nodes of the
                 # current node or all nodes if the current node doesn't
@@ -200,14 +236,13 @@ class TreeNode(object):
                     base_node = self
                 else:
                     base_node = self.parent
-                checksums = [
+                exp_inputs[inpt.name] = [
                     getchecksums(n, inpt)
                     for n in base_node.nodes(
                         pipeline.study.freq_from_iterfields(join_iterfields))]
             else:
                 assert isinstance(self,
                                   Tree) and inpt.frequency == 'per_session'
-                checksums
                 exp_inputs[inpt.name] = [
                     [getchecksums(s, inpt) for s in subj.sessions]
                     for subj in self.subjects]
