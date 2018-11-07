@@ -152,6 +152,10 @@ def run_matlab_cmd(cmd):
 
 
 def iscontainer(*items):
+    """
+    Checks whether all the provided items are containers (i.e of class list,
+    dict, tuple, etc...)
+    """
     return all(isinstance(i, Iterable) and not isinstance(i, basestring)
                for i in items)
 
@@ -161,6 +165,21 @@ def find_mismatch(first, second, indent=''):
     Finds where two objects differ, iterating down into nested containers
     (i.e. dicts, lists and tuples) They can be nested containers
     any combination of primary dtypes, str, int, float, dict and lists
+
+    Parameters
+    ----------
+    first : dict | list | tuple | str | int | float
+        The first object to compare
+    second : dict | list | tuple | str | int | float
+        The other object to compare with the first
+    indent : str
+        The amount newlines in the output string should be indented. Provide
+        the actual indent, i.e. a string of spaces.
+
+    Returns
+    -------
+    mismatch : str
+        Human readable output highlighting where two container differ.
     """
 
     # Basic case where we are dealing with non-containers
