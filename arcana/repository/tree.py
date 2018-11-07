@@ -5,7 +5,7 @@ from operator import attrgetter, itemgetter
 from collections import OrderedDict
 from arcana.exception import (
     ArcanaNameError, ArcanaMissingDataException,
-    ArcanaProvenanceRecordMismatchError)
+    ArcanaProvenanceRecordMismatchError, ArcanaError)
 
 id_getter = attrgetter('id')
 
@@ -175,6 +175,9 @@ class TreeNode(object):
             return checksum
 
         exp_inputs = {}
+        # Get checksums/values of all inputs that would have been used in
+        # previous runs of an equivalent pipeline to compare with that saved
+        # in provenance to see if any have been updated.
         for inpt in pipeline.inputs:
             # Get iterfields present in the input that aren't in this node
             # and need to be joined
@@ -189,16 +192,14 @@ class TreeNode(object):
                 # We need to join one iterfield, across all sub-nodes of the
                 # current node or all nodes if the current node doesn't
                 # iterate over that iterfield
-                join_iterfield = next(iter(join_iterfields))
-                if len(input_iterfields) > len(output_iterfields):
+                if input_iterfields & output_iterfields:
                     base_node = self
                 else:
-                    base_node = self.tree
-                if join_iterfield == pipeline.study.SUBJECT_ID:
-                    nodes = base_node.subjects
-                else:
-                    nodes = base_node.visits
-                checksums = [getchecksums(n, inpt) for n in nodes]
+                    base_node = self.parent
+                checksums = [
+                    getchecksums(n, inpt)
+                    for n in base_node.nodes(
+                        pipeline.study.freq_from_iterfields(join_iterfields))]
             else:
                 assert isinstance(self,
                                   Tree) and inpt.frequency == 'per_session'
@@ -515,6 +516,12 @@ class Subject(TreeNode):
     def sessions(self):
         return self._sessions.values()
 
+    def nodes(self, frequency=None):
+        if frequency is not None and frequency != 'per_session':
+            raise ArcanaError(
+                "Subjects only have 'per_session' nodes")
+        return self.sessions
+
     @property
     def visit_ids(self):
         return self._sessions.values()
@@ -624,6 +631,12 @@ class Visit(TreeNode):
     @property
     def sessions(self):
         return self._sessions.values()
+
+    def nodes(self, frequency=None):
+        if frequency is not None and frequency != 'per_session':
+            raise ArcanaError(
+                "Subjects only have 'per_session' nodes")
+        return self.sessions
 
     def session(self, subject_id):
         try:
@@ -735,6 +748,10 @@ class Session(TreeNode):
     @tree.setter
     def tree(self, tree):
         self._tree = tree
+
+    def nodes(self, frequency=None):
+        raise ArcanaError(
+            "Sessions don't have nodes")
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)

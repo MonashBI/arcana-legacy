@@ -315,8 +315,8 @@ class Record(object):
             workflow_graph=dct['workflow_graph'],
             subject_ids=dct['subject_ids'],
             visit_ids=dct['visit_ids'])
-        return Record(pipeline_record, inputs=dct['inputs'],
-                      outputs=dct['outputs'], subject_id, visit_id)
+        return Record(pipeline_record, dct['inputs'], dct['outputs'],
+                      subject_id, visit_id)
 
     def find_mismatch(self, other, indent='', **kwargs):
         mismatch = ''
