@@ -18,7 +18,7 @@ import arcana
 from arcana.exception import (
     ArcanaDesignError, ArcanaError,
     ArcanaOutputNotProducedException, ArcanaMissingDataException)
-from .provenance import PipelineRecord
+from arcana.provenance import PipelineRecord
 
 
 logger = getLogger('arcana')

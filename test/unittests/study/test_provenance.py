@@ -11,7 +11,7 @@ from arcana.data import (
     AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.study.provenance import Record
+from arcana.provenance import Record
 from arcana.environment import BaseRequirement
 
 
