@@ -11,7 +11,7 @@ import json
 from fasteners import InterProcessLock
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
-from arcana.study.provenance import Record
+from arcana.provenance import Record
 from arcana.exception import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,

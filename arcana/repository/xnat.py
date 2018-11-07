@@ -1,29 +1,28 @@
 from __future__ import absolute_import
-oldstr = str
-import os  # IgnorePep8
-from future.utils import PY2  # @IgnorePep8
-from arcana.utils import makedirs  # @IgnorePep8
+from past.builtins import basestring
+import os
+import tempfile
+from arcana.utils import makedirs
 import os.path as op # @IgnorePep8
-import shutil  # @IgnorePep8
-import hashlib  # @IgnorePep8
-from arcana.utils import JSON_ENCODING  # @IgnorePep8
-import stat  # @IgnorePep8
-import time  # @IgnorePep8
-import logging  # @IgnorePep8
-import errno  # @IgnorePep8
-import json  # @IgnorePep8
-from zipfile import ZipFile, BadZipfile  # @IgnorePep8
-from collections import defaultdict  # @IgnorePep8
-from arcana.data import Fileset, Field  # @IgnorePep8
-from arcana.repository.base import BaseRepository  # @IgnorePep8
-from arcana.repository.tree import Session, Subject, Tree, Visit  # @IgnorePep8
-from arcana.data.file_format import FileFormat  # @IgnorePep8
-from arcana.utils import split_extension  # @IgnorePep8
-from arcana.exception import (  # @IgnorePep8
+import shutil
+import hashlib
+from arcana.utils import JSON_ENCODING
+import stat
+import time
+import logging
+import errno
+import json
+from zipfile import ZipFile, BadZipfile
+from arcana.data import Fileset, Field
+from arcana.repository.base import BaseRepository
+from arcana.data.file_format import FileFormat
+from arcana.utils import split_extension
+from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaMissingDataException)
-from arcana.utils import dir_modtime, lower  # @IgnorePep8
-import re  # @IgnorePep8
-import xnat  # @IgnorePep8
+from arcana.provenance import Record
+from arcana.utils import dir_modtime, lower
+import re
+import xnat
 
 logger = logging.getLogger('arcana')
 
@@ -64,7 +63,7 @@ class XnatRepository(BaseRepository):
     SUMMARY_NAME = 'ALL'
     MD5_SUFFIX = '.md5.json'
     DERIVED_FROM_FIELD = '__derived_from__'
-    PROV_NAME = '__prov__'
+    PROV_SCAN = '__prov__'
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30):
@@ -159,10 +158,10 @@ class XnatRepository(BaseRepository):
         with self:  # Connect to the XNAT repository if haven't already
             xsession = self.get_xsession(fileset)
             scan_type = fileset.name
-            xfileset = xsession.scans[scan_type]
+            xscan = xsession.scans[scan_type]
             cache_path = self._cache_path(fileset)
             # Get resource to check its MD5 digest
-            xresource = self._get_resource(xfileset, fileset)
+            xresource = self._get_resource(xscan, fileset)
             need_to_download = True
             if op.exists(cache_path):
                 if self._check_md5:
@@ -197,14 +196,14 @@ class XnatRepository(BaseRepository):
                         # has been completed or assume interrupted and
                         # redownload.
                         self._delayed_download(
-                            tmp_dir, xresource, xfileset, fileset,
+                            tmp_dir, xresource, xscan, fileset,
                             xsession.label, cache_path,
                             delay=self._race_cond_delay)
                     else:
                         raise
                 else:
                     self._download_fileset(
-                        tmp_dir, xresource, xfileset, fileset,
+                        tmp_dir, xresource, xscan, fileset,
                         xsession.label, cache_path)
         return cache_path
 
@@ -236,19 +235,19 @@ class XnatRepository(BaseRepository):
                       **JSON_ENCODING) as f:
                 json.dump(fileset.checksums, f)
             # Upload to XNAT
-            xfileset = self._login.classes.MrScanData(
+            xscan = self._login.classes.MrScanData(
                 type=fileset.name, parent=xsession)
             # Delete existing resource
             # TODO: probably should have check to see if we want to
             #       override it
             try:
-                xresource = xfileset.resources[
+                xresource = xscan.resources[
                     fileset.format.name.upper()]
             except KeyError:
                 pass
             else:
                 xresource.delete()
-            xresource = xfileset.create_resource(
+            xresource = xscan.create_resource(
                 fileset.format.name.upper())
             xresource.upload(cache_path, fileset.fname)
 
@@ -256,14 +255,14 @@ class XnatRepository(BaseRepository):
         val = field.value
         if field.array:
             val = ','.join(val)
-        if PY2 and isinstance(val, basestring):  # @UndefinedVariable
-            val = oldstr(val)
+        if isinstance(val, basestring):
+            val = str(val)
         with self:
             xsession = self.get_xsession(field)
             xsession.fields[field.name] = val
 
     def put_provenance(self, record):
-        base_cache_path = self._cach_path(record, name=self.PROV_NAME)
+        base_cache_path = self._cach_path(record, name=self.PROV_SCAN)
         if not op.exists(base_cache_path):
             os.mkdir(base_cache_path)
         else:
@@ -277,7 +276,7 @@ class XnatRepository(BaseRepository):
         #       has been altered remotely
         xsession = self.get_xsession(record)
         xprov = self._login.classes.MrScanData(
-            type=self.PROV_NAME, parent=xsession)
+            type=self.PROV_SCAN, parent=xsession)
         # Delete existing provenance if present
         try:
             xresource = xprov.resources[record.pipeline_name]
@@ -288,10 +287,11 @@ class XnatRepository(BaseRepository):
         xresource = xprov.create_resource(record.pipeline_name)
         xresource.upload(cache_path, op.basename(cache_path))
 
-    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
         """
-        Return the tree of subject and sessions information within a
-        project in the XNAT repository
+        Find all data within a repository, registering filesets, fields and
+        provenance with the found_fileset, found_field and found_provenance
+        methods, respectively
 
         Parameters
         ----------
@@ -304,39 +304,37 @@ class XnatRepository(BaseRepository):
 
         Returns
         -------
-        project : arcana.repository.Tree
-            A hierarchical tree of subject, session and fileset
-            information for the repository
+        filesets : list[Fileset]
+            All the filesets found in the repository
+        fields : list[Field]
+            All the fields found in the repository
+        records : list[Record]
+            The provenance records found in the repository
         """
         subject_ids = self.convert_subject_ids(subject_ids)
         # Add derived visit IDs to list of visit ids to filter
-        if visit_ids is not None:
-            visit_ids = visit_ids
-        subjects = []
-        sessions = defaultdict(list)
+        all_filesets = []
+        all_fields = []
+        all_records = []
         with self:
             xproject = self._login.projects[self.project_id]
-            visit_sessions = defaultdict(list)
             # Create list of subjects
             for xsubject in xproject.subjects.values():
                 subj_id = self.extract_subject_id(xsubject.label)
                 if subj_id == XnatRepository.SUMMARY_NAME:
+                    subj_id = None
+                    frequency = 'per_subject'
+                elif (subject_ids is not None and subj_id not in subject_ids):
                     continue
-                if (subject_ids is not None and
-                        subj_id not in subject_ids):
-                    continue
-                logger.debug("Getting info for subject '{}'"
-                             .format(subj_id))
+                logger.debug("Getting info for subject '{}'".format(subj_id))
                 # Store filesets and field for every session in the
                 # subject, including summary
-                data = defaultdict(lambda: ([], []))
                 # Get per_session filesets
                 for xsession in xsubject.experiments.values():
                     try:
                         session_label = xsession.fields[
                             self.DERIVED_FROM_FIELD]
-                        from_study = xsession.label[
-                            len(session_label) + 1:]
+                        from_study = xsession.label[len(session_label) + 1:]
                     except KeyError:
                         session_label = xsession.label
                         from_study = None
@@ -348,83 +346,50 @@ class XnatRepository(BaseRepository):
                         continue
                     else:
                         frequency = 'per_session'
-                    # Get filesets and fields previously loaded from
-                    # base "acquired" xsession or alternative derivative
-                    # xsessions
-                    filesets, fields = data[visit_id]
-                    filesets.extend(self._get_filesets(
-                        xsession,
-                        frequency=frequency,
-                        subject_id=subj_id,
-                        visit_id=visit_id,
-                        from_study=from_study))
-                    fields.extend(self._get_fields(
-                        xsession,
-                        frequency=frequency,
-                        subject_id=subj_id,
-                        visit_id=visit_id,
-                        from_study=from_study))
-                sessions = {}
-                for visit_id, (filesets, fields) in data.items():
-                    if visit_id is None:
-                        continue  # Hold off on the summary data
-                    sessions[visit_id] = session = Session(
-                        subject_id=subj_id, visit_id=visit_id,
-                        filesets=filesets, fields=fields)
-                    visit_sessions[visit_id].append(session)
-                subj_filesets, subj_fields = data[None]
-                subjects.append(Subject(subj_id,
-                                        sorted(sessions.values()),
-                                        filesets=subj_filesets,
-                                        fields=subj_fields))
-            # Create list of visits
-            visits = []
-            for visit_id, v_sessions in visit_sessions.items():
-                # Get 'per_visit' filesets
-                try:
-                    xvisit_summary = xproject.experiments[
-                        self._get_labels(
-                            'per_visit', self.project_id,
-                            visit_id=visit_id)[1]]
-                except KeyError:
-                    visit_filesets = []
-                    visit_fields = []
-                else:
-                    visit_filesets = self._get_filesets(
-                        xvisit_summary,
-                        frequency='per_visit',
-                        visit_id=visit_id,
-                        from_study=from_study)
-                    visit_fields = self._get_fields(
-                        xvisit_summary,
-                        frequency='per_visit',
-                        visit_id=visit_id,
-                        from_study=from_study)
-                visits.append(Visit(visit_id, sorted(v_sessions),
-                                    filesets=visit_filesets,
-                                    fields=visit_fields))
-            # Get 'per_study' filesets
-            (summary_subj_name,
-             summary_sess_name) = self._get_labels('per_study')
-            try:
-                xproj_summary = xproject.subjects[
-                    summary_subj_name].experiments[
-                        summary_sess_name]
-            except KeyError:
-                proj_filesets = []
-                proj_fields = []
-            else:
-                proj_filesets = self._get_filesets(
-                    xproj_summary,
-                    frequency='per_study',
-                    from_study=from_study)
-                proj_fields = self._get_fields(
-                    xproj_summary,
-                    frequency='per_study',
-                    from_study=from_study)
-        return Tree(sorted(subjects), sorted(visits),
-                    filesets=proj_filesets, fields=proj_fields,
-                    **kwargs)
+                    # Find filesets
+                    for xscan in xsession.scans.values():
+                        if xscan.label == self.PROV_SCAN:
+                            # Download provenance JSON files and parse into
+                            # records
+                            temp_dir = tempfile.mkdtemp()
+                            try:
+                                xscan.download_dir(op.join(temp_dir, 'PROV'))
+                                resources_dir = op.join(
+                                    temp_dir, 'PROV', xsession.label, 'scans',
+                                    xscan.id + '-' + xscan.type, 'resources')
+                                for pipeline_name in os.listdir(resources_dir):
+                                    json_path = op.join(
+                                        resources_dir, pipeline_name, 'files',
+                                        pipeline_name + '.json')
+                                    all_records.append(
+                                        Record.load(json_path, from_study,
+                                                    subj_id, visit_id))
+                            finally:
+                                shutil.rmtree(temp_dir)
+                        else:
+                            try:
+                                file_format = self._guess_file_format(xscan)
+                            except ArcanaFileFormatError as e:
+                                logger.warning(
+                                    "Ignoring '{}' as couldn't guess its file "
+                                    "format:\n{}".format(xscan.type, e))
+                            all_filesets.append(Fileset(
+                                xscan.type, format=file_format, id=xscan.id,
+                                uri=xscan.uri, repository=self,
+                                frequency=frequency, subject_id=subj_id,
+                                visit_id=visit_id, from_study=from_study,
+                                **kwargs))
+                    # Find fields
+                    for name, value in list(xsession.fields.items()):
+                        all_fields.append(Field(
+                            name=name, value=value, repository=self,
+                            frequency=frequency,
+                            subject_id=subj_id,
+                            visit_id=visit_id,
+                            from_study=from_study,
+                            **kwargs))
+                    # Find records
+        return all_filesets, all_fields, all_records
 
     def convert_subject_ids(self, subject_ids):
         """
@@ -451,63 +416,6 @@ class XnatRepository(BaseRepository):
         """
         return '_'.join(xsession_label.split('_')[2:])
 
-    def _get_filesets(self, xsession, **kwargs):
-        """
-        Returns a list of filesets within an XNAT session
-
-        Parameters
-        ----------
-        xsession : xnat.classes.MrSessionData
-            The XNAT session to extract the filesets from
-        freq : str
-            The frequency of the returned filesets (either 'per_session',
-            'per_subject', 'per_visit', or 'per_study')
-        derived : bool
-            Whether the session is derived or not
-
-        Returns
-        -------
-        filesets : list(arcana.data.Fileset)
-            List of filesets within an XNAT session
-        """
-        filesets = []
-        for xfileset in xsession.scans.values():
-            try:
-                file_format = self._guess_file_format(xfileset)
-            except ArcanaFileFormatError as e:
-                logger.warning(
-                    "Ignoring '{}' as couldn't guess its file format:\n{}"
-                    .format(xfileset.type, e))
-            filesets.append(Fileset(
-                xfileset.type, format=file_format,  # @ReservedAssignment @IgnorePep8
-                id=xfileset.id, uri=xfileset.uri, repository=self,
-                **kwargs))
-        return sorted(filesets)
-
-    def _get_fields(self, xsession, **kwargs):
-        """
-        Returns a list of fields within an XNAT session
-
-        Parameters
-        ----------
-        xsession : xnat.classes.MrSessionData
-            The XNAT session to extract the fields from
-        freq : str
-            The frequency of the returned fields (either 'per_session',
-            'per_subject', 'per_visit', or 'per_study')
-
-        Returns
-        -------
-        fields : list(arcana.data.Field)
-            List of fields within an XNAT session
-        """
-        fields = []
-        for name, value in list(xsession.fields.items()):
-            fields.append(Field(
-                name=name, value=value, repository=self,
-                **kwargs))
-        return sorted(fields)
-
     def dicom_header(self, fileset):
         def convert(val, code):  # @IgnorePep8
             if code == 'TM':
@@ -530,10 +438,10 @@ class XnatRepository(BaseRepository):
         return hdr
 
     @classmethod
-    def _get_resource(cls, xfileset, fileset):
+    def _get_resource(cls, xscan, fileset):
         for resource_name in fileset.format.xnat_resource_names:
             try:
-                return xfileset.resources[resource_name]
+                return xscan.resources[resource_name]
             except KeyError:
                 continue
         raise ArcanaError(
@@ -561,7 +469,7 @@ class XnatRepository(BaseRepository):
                     for r in result.json()['ResultSet']['Result'])
 
     @classmethod
-    def _download_fileset(cls, tmp_dir, xresource, xfileset, fileset,
+    def _download_fileset(cls, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path):
         # Download resource to zip file
         zip_path = op.join(tmp_dir, 'download.zip')
@@ -580,7 +488,7 @@ class XnatRepository(BaseRepository):
                 .format(xresource.id, e))
         data_path = op.join(
             expanded_dir, session_label, 'scans',
-            (xfileset.id + '-' + special_char_re.sub('_', xfileset.type)),
+            (xscan.id + '-' + special_char_re.sub('_', xscan.type)),
             'resources', xresource.label, 'files')
         if not fileset.format.directory:
             # If the dataformat is not a directory (e.g. DICOM),
@@ -607,7 +515,7 @@ class XnatRepository(BaseRepository):
         shutil.rmtree(tmp_dir)
 
     @classmethod
-    def _delayed_download(cls, tmp_dir, xresource, xfileset, fileset,
+    def _delayed_download(cls, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path, delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
                     "initiated another process to finish"
@@ -624,7 +532,7 @@ class XnatRepository(BaseRepository):
                 "The download of '{}' hasn't completed yet, but it has"
                 " been updated.  Waiting another {} seconds before "
                 "checking again.".format(cache_path, delay))
-            cls._delayed_download(tmp_dir, xresource, xfileset,
+            cls._delayed_download(tmp_dir, xresource, xscan,
                                    fileset,
                                    session_label, cache_path, delay)
         else:
@@ -635,7 +543,7 @@ class XnatRepository(BaseRepository):
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
             cls._download_fileset(
-                tmp_dir, xresource, xfileset, fileset, session_label,
+                tmp_dir, xresource, xscan, fileset, session_label,
                 cache_path)
 
     def get_xsession(self, item):
@@ -714,30 +622,30 @@ class XnatRepository(BaseRepository):
         return op.join(cache_dir, fileset.fname if name is None else name)
 
     @classmethod
-    def _guess_file_format(cls, xfileset):
+    def _guess_file_format(cls, xscan):
         # Use a set here as in some cases there are multiple resources
         # the same format (e.g. DICOM + secondary)
         fileset_formats = set()
-        for xresource in xfileset.resources.values():
+        for xresource in xscan.resources.values():
             try:
                 fileset_formats.add(FileFormat.by_names[
                     xresource.label.lower()])
             except KeyError:
                 logger.debug("Ignoring resource '{}' in fileset {}"
-                             .format(xresource.label, xfileset.type))
+                             .format(xresource.label, xscan.type))
         if not fileset_formats:
             raise ArcanaFileFormatError(
                 "No recognised data formats for '{}' fileset (available "
                 "resources are '{}')".format(
-                    xfileset.type, "', '".join(
-                        r.label for r in xfileset.resources.values())))
+                    xscan.type, "', '".join(
+                        r.label for r in xscan.resources.values())))
         elif len(fileset_formats) > 1:
             raise ArcanaFileFormatError(
                 "Multiple valid data-formats '{}' for '{}' fileset, please "
                 "pass 'file_format' to 'download_fileset' method to speficy"
                 " resource to download".format(
                     "', '".join(f.label for f in fileset_formats),
-                    xfileset.type))
+                    xscan.type))
         return next(iter(fileset_formats))
 
     @classmethod
