@@ -178,8 +178,8 @@ class Study(object):
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
             else:
-                if isinstance(spec, BaseFileset):
-                    if isinstance(inpt, BaseField):
+                if spec.is_fileset:
+                    if inpt.is_field:
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
@@ -201,7 +201,7 @@ class Study(object):
                                     inpt, spec,
                                     "', '".join(
                                         f.name for f in spec.valid_formats)))
-                elif not isinstance(inpt, BaseField):
+                elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
                         .format(inpt, spec))

@@ -16,6 +16,7 @@ else:
 
 PATH_SUFFIX = '_path'
 FIELD_SUFFIX = '_field'
+CHECKSUM_SUFFIX = '_checksum'
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
 

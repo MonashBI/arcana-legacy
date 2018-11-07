@@ -5,7 +5,6 @@ from operator import attrgetter, itemgetter
 from collections import OrderedDict
 from arcana.exception import (
     ArcanaNameError, ArcanaProvenanceRecordMismatchError)
-from arcana.data import BaseFileset
 
 id_getter = attrgetter('id')
 
@@ -39,7 +38,7 @@ class TreeNode(object):
         return hash(tuple(self.filesets)) ^ hash(tuple(self._fields))
 
     def __contains__(self, item):
-        if isinstance(item, BaseFileset):
+        if item.is_fileset:
             return (item.name, item.from_study) in self._filesets
 
     @property
