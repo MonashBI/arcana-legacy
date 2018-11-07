@@ -70,11 +70,13 @@ class TreeNode(object):
         except KeyError:
             available = [d.name for d in self.filesets
                          if d.from_study == study]
-            other_studies = [d.from_study for d in self.filesets
+            other_studies = [(d.from_study if d.from_study is not None
+                              else '<root>')
+                             for d in self.filesets
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching fileset(s) found for '{}' study(ies)"
-                       .format(name, other_studies))
+                msg = (". NB: matching fileset(s) found for '{}' study(ies) "
+                       "('{}')".format(name, "', '".join(other_studies)))
             else:
                 msg = ''
             raise ArcanaNameError(
@@ -82,9 +84,9 @@ class TreeNode(object):
                 ("{} doesn't have a fileset named '{}' {}"
                    "(available '{}'){}"
                    .format(self, name,
-                           ("for study '{}'"
+                           ("for study '{}'".format(study)
                             if study is not None else ''),
-                           "', '".join(available), other_studies), msg))
+                           "', '".join(available), msg)))
 
     def field(self, name, study=None):
         try:
@@ -92,11 +94,13 @@ class TreeNode(object):
         except KeyError:
             available = [d.name for d in self.fields
                          if d.from_study == study]
-            other_studies = [d.from_study for d in self.fields
+            other_studies = [(d.from_study if d.from_study is not None
+                              else '<root>')
+                             for d in self.fields
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching field(s) found for '{}' study(ies)"
-                       .format(name, other_studies))
+                msg = (". NB: matching field(s) found for '{}' study(ies) "
+                       "('{}')".format(name, "', '".join(other_studies)))
             else:
                 msg = ''
             raise ArcanaNameError(
@@ -104,9 +108,9 @@ class TreeNode(object):
                        "(available '{}')"
                        .format(
                            self, name,
-                           ("for study '{}'"
+                           ("for study '{}'".format(study)
                             if study is not None else ''),
-                           "', '".join(available), other_studies), msg))
+                           "', '".join(available), msg)))
 
     def record(self, name, study):
         try:
@@ -210,7 +214,7 @@ class TreeNode(object):
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
         exp_outputs = {o.name: getchecksums(self, o) for o in pipeline.outputs}
-        expected_record = pipeline.provenance.record(
+        expected_record = pipeline.provenance().record(
             exp_inputs, exp_outputs, self.frequency, self.subject_id,
             self.visit_id)
         record = self.record(pipeline.name, pipeline.study.name)
