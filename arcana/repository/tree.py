@@ -4,7 +4,8 @@ from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
 from arcana.exception import (
-    ArcanaNameError, ArcanaProvenanceRecordMismatchError)
+    ArcanaNameError, ArcanaMissingDataException,
+    ArcanaProvenanceRecordMismatchError)
 
 id_getter = attrgetter('id')
 
@@ -155,10 +156,61 @@ class TreeNode(object):
         return mismatch
 
     def check_provenance(self, pipeline, ignore_versions=False):
-        # TODO: Need to extract checksums/values for inputs of the pipelines
-        inputs = []
-        outputs = []
-        expected_record = pipeline.provenance.record(inputs, outputs,
+        from_study = pipeline.study.name
+
+        def getchecksums(node, spec):
+            """
+            Extract the checksum or value for the item in the given node
+            corresponding to the given spec
+            """
+            if spec.is_fileset:
+                checksum = node.fileset(spec.name, from_study).checksums
+            else:
+                checksum = node.field(spec.name, from_study).value
+            if checksum is None:
+                raise ArcanaMissingDataException(
+                    "The item corresponding to {} in {} does not exist, which "
+                    "was expected to exist as an input or output of {}"
+                    .format(spec, node, pipeline))
+            return checksum
+
+        exp_inputs = {}
+        for inpt in pipeline.inputs:
+            # Get iterfields present in the input that aren't in this node
+            # and need to be joined
+            input_iterfields = pipeline.iterfields(inpt.frequency)
+            output_iterfields = pipeline.iterfields(self.frequency)
+            join_iterfields = input_iterfields - output_iterfields
+            if not join_iterfields:
+                # No iterfields to join so we can just extract the checksums
+                # directly
+                checksums = getchecksums(self, inpt)
+            elif len(join_iterfields) == 1:
+                # We need to join one iterfield, across all sub-nodes of the
+                # current node or all nodes if the current node doesn't
+                # iterate over that iterfield
+                join_iterfield = next(iter(join_iterfields))
+                if len(input_iterfields) > len(output_iterfields):
+                    base_node = self
+                else:
+                    base_node = self.tree
+                if join_iterfield == pipeline.study.SUBJECT_ID:
+                    nodes = base_node.subjects
+                else:
+                    nodes = base_node.visits
+                checksums = [getchecksums(n, inpt) for n in nodes]
+            else:
+                assert isinstance(self,
+                                  Tree) and inpt.frequency == 'per_session'
+                checksums
+                exp_inputs[inpt.name] = [
+                    [getchecksums(s, inpt) for s in subj.sessions]
+                    for subj in self.subjects]
+        # Get checksums/value for all outputs of the pipeline. We are assuming
+        # that they exist here (otherwise they will be None)
+        exp_outputs = {o.name: getchecksums(self, o) for o in pipeline.outputs}
+        expected_record = pipeline.provenance.record(exp_inputs,
+                                                     exp_outputs,
                                                      self.subject_id,
                                                      self.visit_id)
         record = self.record(pipeline.name, pipeline.study.name)
@@ -200,6 +252,8 @@ class Tree(TreeNode):
         the inputs to the study are coming from different repositories
         to the one that the derived products are stored in
     """
+
+    frequency = 'per_study'
 
     def __init__(self, subjects, visits, filesets=None, fields=None,
                  records=None, fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
@@ -410,6 +464,8 @@ class Subject(TreeNode):
         frequency
     """
 
+    frequency = 'per_subject'
+
     def __init__(self, subject_id, sessions, filesets=None,
                  fields=None, records=None):
         TreeNode.__init__(self, filesets, fields, records)
@@ -518,6 +574,8 @@ class Visit(TreeNode):
         frequency
     """
 
+    frequency = 'per_visit'
+
     def __init__(self, visit_id, sessions, filesets=None, fields=None,
                  records=None):
         TreeNode.__init__(self, filesets, fields, records)
@@ -618,6 +676,8 @@ class Session(TreeNode):
     derived : dict[str, Session]
         Sessions storing derived scans are stored for separate analyses
     """
+
+    frequency = 'per_session'
 
     def __init__(self, subject_id, visit_id, filesets=None, fields=None,
                  records=None):
