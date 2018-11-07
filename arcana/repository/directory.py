@@ -47,7 +47,6 @@ class DirectoryRepository(BaseRepository):
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
-    DERIVED_LABEL_FNAME = '.derived'
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
@@ -212,7 +211,7 @@ class DirectoryRepository(BaseRepository):
                 # Load input data
                 from_study = None
             elif (depth == (self._depth + 1) and
-                  self.DERIVED_LABEL_FNAME in files):
+                  self.PROV_DIR in dirs):
                 # Load study output
                 from_study = path_parts.pop()
             elif (depth < self._depth and
@@ -283,7 +282,7 @@ class DirectoryRepository(BaseRepository):
                 for fname in os.listdir(base_prov_dir):
                     all_records.append(Record.load(
                         op.join(base_prov_dir, fname),
-                        from_study, subj_id, visit_id))
+                        frequency, subj_id, visit_id, from_study))
         return all_filesets, all_fields, all_records
 
     def session_dir(self, item):
@@ -319,10 +318,6 @@ class DirectoryRepository(BaseRepository):
         # Make session dir if required
         if not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-            # write breadcrumb file t
-            if item.from_study is not None:
-                open(op.join(sess_dir,
-                             self.DERIVED_LABEL_FNAME), 'w').close()
         return sess_dir
 
     def fields_json_path(self, field):
@@ -354,7 +349,7 @@ class DirectoryRepository(BaseRepository):
                             .format(root_dir, depth,
                                     "', '".join(filtered_files), path))
                 return depth
-            if self.DERIVED_LABEL_FNAME in files:
+            if self.PROV_DIR in dirs:
                 depth_to_return = max(depth - 1, 0)
                 logger.info("Guessing depth of directory repository at '{}' is"
                             "{} due to \"Derived label file\" in '{}'"
@@ -395,7 +390,7 @@ class DirectoryRepository(BaseRepository):
         return [
             op.join(base_dir, d) for d in dirs
             if not (d.startswith('.') or d == cls.PROV_DIR or (
-                cls.DERIVED_LABEL_FNAME in os.listdir(op.join(base_dir, d))))]
+                cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
 
     def path_depth(self, dpath):
         relpath = op.relpath(dpath, self.root_dir)

@@ -772,6 +772,12 @@ class Pipeline(object):
                                                   type(self.study).__name__)
 
     def provenance(self):
+        if self._referenced_parameters is None:
+            study_parameters = {}
+        else:
+            study_parameters = {
+                p: self.study.parameter(p)
+                for p in self._referenced_parameters}
         interface_parameters = {}
         versions = {}
         for node in self.nodes:
@@ -793,12 +799,15 @@ class Pipeline(object):
                  n['id'].interface.__class__.__module__,
                  n['id'].interface.__class__.__name__)}
             for n in wf_graph['nodes']]
+        study_dict = {'name': self.study.name,
+                      'class': type(self.study).__name__,
+                      'module': type(self.study).__module__}
         # Roundtrip workflow graph to JSON to convert any tuples into lists
         wf_graph = json.loads(json.dumps(wf_graph))
         return PipelineRecord(
             study_name=self.study.name,
             pipeline_name=self.name,
-            study_parameters=self._referenced_parameters,
+            study_parameters=study_parameters,
             interface_parameters=interface_parameters,
             requirement_versions=versions,
             arcana_version=arcana.__version__,

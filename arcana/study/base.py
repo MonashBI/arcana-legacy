@@ -14,6 +14,7 @@ from .pipeline import Pipeline
 from arcana.data import BaseData
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
+from arcana.interfaces.repository import RepositorySource
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
@@ -514,6 +515,8 @@ class Study(object):
         for name in names:
             spec = self.spec(name)
             data = spec.collection
+            for item in data:
+                item._exists = True
             if subject_ids is not None and spec.frequency in (
                     'per_session', 'per_subject'):
                 data = [d for d in data if d.subject_id in subject_ids]
@@ -718,7 +721,8 @@ class Study(object):
                            name='sessions', environment=self.environment)
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.source(self.inputs)
+        source = pe.Node(RepositorySource(
+            self.bound_spec(i).collection for i in self.inputs), name='source')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')

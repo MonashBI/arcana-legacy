@@ -109,22 +109,24 @@ class TestProvenance(BaseTestCase):
         shutil.rmtree(self.tempdir)
 
     def test_derivable(self):
+        study_name = 'study'
         # Test vanilla study
         study = self.create_study(
             TestProvStudy,
-            'study',
+            study_name,
             inputs=[FilesetSelector('acqfile1', text_format, 'acqfile1'),
                     FilesetSelector('acqfile2', text_format, 'acqfile2'),
                     FieldSelector('acqfield1', int, 'acqfield1')])
         # Just test to see if the pipeline works
-        self.assertEqual(
-            next(iter(study.data('derfield1'))).value, [3.0, 6.0, 60.0])
+        self.assertEqual(next(iter(study.data('derfield1'))).value,
+                         [3.0, 6.0, 60.0])
         pipeline1 = study.pipeline1()
-        prov = pipeline1.provenance
-        record = prov.record({}, {}, self.SUBJECT, self.VISIT)
+        prov = pipeline1.provenance()
+        record = prov.record({}, {}, 'per_session', self.SUBJECT, self.VISIT)
         path = op.join(self.tempdir, 'prov1.json')
         record.save(path)
-        reloaded = Record.load(path)
+        reloaded = Record.load(path, 'per_session', self.SUBJECT, self.VISIT,
+                               study_name)
         self.assertTrue(record.matches(reloaded),
                         "Reloaded record did not match saved record:{}"
                         .format(reloaded.find_mismatch(record, indent='  ')))

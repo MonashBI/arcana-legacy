@@ -257,14 +257,9 @@ class BaseProcessor(object):
         # they don't contain the outputs of this pipeline)
         to_process = self._to_process(pipeline, filter_array, subject_inds,
                                       visit_inds, force)
-        # Generate input|output nodes before generating the provenance so
-        # any conversion nodes are included
-        inputnodes = {f: pipeline.inputnode(f)
-                      for f in pipeline.input_frequencies}
-        outputnodes = {f: pipeline.outputnode(f)
-                       for f in pipeline.output_frequencies}
         # Extract pipeline-common provenance information to be sinked with
-        # output derivatives
+        # output derivatives. Needs to be done at the top before the
+        # repository connection nodes are added.
         provenance = pipeline.provenance()
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
@@ -316,20 +311,22 @@ class BaseProcessor(object):
                 raise ArcanaMissingDataException(
                     str(e) + ", which is required for pipeline '{}'".format(
                         pipeline.name))
+            inputnode = pipeline.inputnode(freq)
             sources[freq] = source = pipeline.add(
                 '{}_source'.format(freq),
-                RepositorySource(inputs),
+                RepositorySource(
+                    i.collection for i in inputs),
                 connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
             # Connect iterators to source and input nodes
             for iterfield in pipeline.iterfields(freq):
                 pipeline.connect(iterators[iterfield], iterfield, source,
                                  iterfield)
-                pipeline.connect(source, iterfield, inputnodes[freq],
+                pipeline.connect(source, iterfield, inputnode,
                                  iterfield)
             for input in inputs:  # @ReservedAssignment
                 pipeline.connect(source, input.suffixed_name,
-                                 inputnodes[freq], input.name)
+                                 inputnode, input.name)
         deiterators = {}
 
         def deiterator_sort_key(it):
@@ -352,7 +349,7 @@ class BaseProcessor(object):
                     "frequency, when the pipeline only iterates over '{}'"
                     .format("', '".join(o.name for o in outputs), freq,
                             "', '".join(pipeline.iterfields())))
-            outputnode = outputnodes[freq]
+            outputnode = pipeline.outputnode(freq)
             # Connect filesets/fields to sink to sink node, skipping outputs
             # that are study inputs
             to_connect = {o.suffixed_name: (outputnode, o.name)
@@ -366,17 +363,21 @@ class BaseProcessor(object):
                 checksums_to_connect = [
                     i.checksum_suffixed_name
                     for i in pipeline.frequency_inputs(input_freq)]
+                if not checksums_to_connect:
+                    # Rare case of a pipeline with no inputs only iterators
+                    # that will only occur in unittests in all likelihood
+                    continue
                 # Loop over iterfields that need to be joined, i.e. that are
                 # present in the input frequency but not the output frequency
                 # and create join nodes
-                source = sources[freq]
+                source = sources[input_freq]
                 for iterfield in (pipeline.iterfields(input_freq) -
                                   pipeline.iterfields(freq)):
                     join = pipeline.add(
                         '{}_to_{}_{}_checksum_join'.format(
                             input_freq, freq, iterfield),
                         IdentityInterface(
-                            [checksums_to_connect]),
+                            checksums_to_connect),
                         connect={
                             tc: (source, tc) for tc in checksums_to_connect},
                         joinsource=iterfield,
@@ -388,7 +389,8 @@ class BaseProcessor(object):
             sink = pipeline.add(
                 '{}_sink'.format(freq),
                 RepositorySink(
-                    outputs, provenance, pipeline.inputs),
+                    (o.collection for o in outputs), provenance,
+                    pipeline.inputs),
                 connect=to_connect)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline

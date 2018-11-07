@@ -157,7 +157,7 @@ class Fileset(BaseItem, BaseFileset):
                 self._path == other._path and
                 self.id == other.id and
                 self._bids_attr == other._bids_attr and
-                self._checksum == other._checksum)
+                self._checksums == other._checksums)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
@@ -165,7 +165,7 @@ class Fileset(BaseItem, BaseFileset):
                 hash(self._path) ^
                 hash(self.id) ^
                 hash(self._bids_attr) ^
-                hash(self._checksum))
+                hash(self._checksums))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -216,17 +216,17 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}bids_attr: self={} v other={}'
                          .format(sub_indent, self._bids_attr,
                                  other._bids_attr))
-        if self._checksum != other._checksum:
+        if self._checksums != other._checksums:
             mismatch += ('\n{}checksum: self={} v other={}'
-                         .format(sub_indent, self._checksum,
-                                 other._checksum))
+                         .format(sub_indent, self._checksums,
+                                 other._checksums))
         return mismatch
 
     @property
     def path(self):
         if self._path is None:
             if self.repository is not None:
-                self._path = self.repository.get_fileset(self)
+                self.get()
             else:
                 raise ArcanaError(
                     "Neither path nor repository has been set for Fileset("
@@ -235,7 +235,10 @@ class Fileset(BaseItem, BaseFileset):
 
     @path.setter
     def path(self, path):
-        self._path = op.abspath(op.realpath(path))
+        if path is not None:
+            path = op.abspath(op.realpath(path))
+            self._exists = True
+        self._path = path
         self._checksums = None  # reset checksums
 
     @property
@@ -375,7 +378,8 @@ class Fileset(BaseItem, BaseFileset):
 
     def get(self):
         if self.repository is not None:
-            self._value = self.repository.get_fileset(self)
+            self._path = self.repository.get_fileset(self)
+            self._exists = True
 
     def put(self):
         if self.repository is not None:
@@ -530,6 +534,14 @@ class Field(BaseItem, BaseField):
             self._value = [self.dtype(v) for v in value]
         else:
             self._value = self.dtype(value)
+
+    @property
+    def checksums(self):
+        """
+        For duck-typing with filesets in checksum management. Instead of a
+        checksum, just the value of the field is used
+        """
+        return self.value
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

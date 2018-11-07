@@ -2,8 +2,9 @@ from arcana.utils import ExitStack
 from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
-from arcana.data import BaseField, BaseFileset
+from itertools import chain
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
+from arcana.exception import ArcanaError
 import logging
 
 logger = logging.getLogger('arcana')
@@ -35,9 +36,22 @@ class BaseRepositoryInterface(BaseInterface):
 
     def __init__(self, collections):
         super(BaseRepositoryInterface, self).__init__()
-        collections = list(collections)  # Protect against iterators
+        # Protect against iterators
+        collections = list(collections)
+        # Check for consistent frequencies in collections
+        frequencies = set(c.frequency for c in collections)
+        if len(frequencies) > 1:
+            raise ArcanaError(
+                "Attempting to sink multiple frequencies across collections {}"
+                .format(', '.join(str(c) for c in collections)))
+        elif frequencies:
+            # NB: Exclude very rare case where pipeline doesn't have inputs,
+            #     would only really happen in unittests
+            self._frequency = next(iter(frequencies))
+        # Extract set of repositories used to source/sink from/to
         self.repositories = set(c.repository for c in collections
                                  if c.repository is not None)
+        # Segregate into fileset and field collections
         self.fileset_collections = [c for c in collections if c.is_fileset]
         self.field_collections = [c for c in collections if c.is_field]
 
@@ -59,6 +73,14 @@ class BaseRepositoryInterface(BaseInterface):
 
     def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
         return runtime
+
+    @property
+    def collections(self):
+        return chain(self.fileset_collections, self.field_collections)
+
+    @property
+    def frequency(self):
+        return self._frequency
 
     @classmethod
     def _add_trait(cls, spec, name, trait_type):
@@ -195,6 +217,7 @@ class RepositorySink(BaseRepositoryInterface):
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
         # Add traits for checksums/values of pipeline inputs
+        pipeline_inputs = list(pipeline_inputs)  # guard against generators
         for inpt in pipeline_inputs:
             if inpt.is_fileset:
                 trait_t = JOINED_CHECKSUM_TRAIT
@@ -203,7 +226,10 @@ class RepositorySink(BaseRepositoryInterface):
                 trait_t = traits.Either(trait_t, traits.List(trait_t),
                                         traits.List(traits.List(trait_t)))
             self._add_trait(self.inputs, inpt.checksum_suffixed_name, trait_t)
-        self._pipeline_input_names = [i.name for i in pipeline_inputs]
+        self._pipeline_input_filesets = [i.name for i in pipeline_inputs
+                                         if i.is_fileset]
+        self._pipeline_input_fields = [i.name for i in pipeline_inputs
+                                         if i.is_field]
         self._prov = provenance
 
     def _list_outputs(self):
@@ -216,7 +242,9 @@ class RepositorySink(BaseRepositoryInterface):
         missing_inputs = []
         # Collate input checksums into a dictionary
         input_checksums = {n: getattr(self.inputs, n + CHECKSUM_SUFFIX)
-                           for n in self._pipeline_input_names}
+                           for n in self._pipeline_input_filesets}
+        input_checksums.update({n: getattr(self.inputs, n + FIELD_SUFFIX)
+                                for n in self._pipeline_input_fields})
         output_checksums = {}
         with ExitStack() as stack:
             # Connect to set of repositories that the collections come from
@@ -249,7 +277,8 @@ class RepositorySink(BaseRepositoryInterface):
             # Create Provenance record and sink to all repositories that have
             # received data (typically only one)
             prov_record = self._prov.record(input_checksums, output_checksums,
-                                            subject_id, visit_id)
+                                            self.frequency, subject_id,
+                                            visit_id)
             for repository in self.repositories:
                 repository.put_provenance(prov_record)
         if missing_inputs:

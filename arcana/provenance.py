@@ -1,5 +1,7 @@
 import json
+from pprint import pformat
 from arcana.utils import find_mismatch
+from arcana.exception import ArcanaError
 
 
 class PipelineRecord(object):
@@ -9,8 +11,8 @@ class PipelineRecord(object):
 
     Parameters
     ----------
-    study_name : str
-        The name of the study that generated the pipeline. Used to store and
+    study_dict : dict[str, str]
+        A dictionary containing the name of the study that generated the pipeline. Used to store and
         retrieve the provenance from repositories. Note that it is not included
         in the matching logic so you can test provenance from separate studies
     pipeline_name : str
@@ -127,8 +129,8 @@ class PipelineRecord(object):
     def outputs(self):
         return self._outputs
 
-    def record(self, inputs, outputs, subject_id, visit_id):
-        return Record(self, inputs, outputs, subject_id, visit_id)
+    def record(self, inputs, outputs, frequency, subject_id, visit_id):
+        return Record(self, inputs, outputs, frequency, subject_id, visit_id)
 
     def find_mismatch(self, other, indent='', ignore_versions=False):
         mismatch = ''
@@ -206,10 +208,12 @@ class Record(object):
         per-study summary
     """
 
-    def __init__(self, pipeline_record, inputs, outputs, subject_id, visit_id):
+    def __init__(self, pipeline_record, inputs, outputs, frequency,
+                 subject_id, visit_id):
         self._pipeline_record = pipeline_record
         self._inputs = inputs
         self._outputs = outputs
+        self._frequency = frequency
         self._subject_id = subject_id
         self._visit_id = visit_id
 
@@ -235,7 +239,14 @@ class Record(object):
 
     @property
     def from_study(self):
-        return self.pipeline_record.study_name
+        return self.study_name
+
+    @property
+    def frequency(self):
+        return self._frequency
+
+    def __getattr__(self, name):
+        return getattr(self._pipeline_record, name)
 
     def matches(self, other, ignore_versions=False):
         return (
@@ -279,10 +290,15 @@ class Record(object):
             'inputs': self.inputs,
             'outputs': self.outputs}
         with open(path, 'w') as f:
-            json.dump(dct, f)
+            try:
+                json.dump(dct, f)
+            except TypeError:
+                raise ArcanaError(
+                    "Could not serialise provenance record dictionary:\n{}"
+                    .format(pformat(dct)))
 
     @classmethod
-    def load(cls, path, study_name, subject_id, visit_id):
+    def load(cls, path, frequency, subject_id, visit_id, study_name):
         """
         Loads a saved provenance object from a JSON file
 
@@ -292,6 +308,8 @@ class Record(object):
             Path to the provenance file
         study_name : str
             Name of the study the derivatives were created for
+        frequency : str
+            The frequency of the record
         subject_id : str | None
             The subject ID of the provenance record
         visit_id : str | None
@@ -316,7 +334,7 @@ class Record(object):
             subject_ids=dct['subject_ids'],
             visit_ids=dct['visit_ids'])
         return Record(pipeline_record, dct['inputs'], dct['outputs'],
-                      subject_id, visit_id)
+                      frequency, subject_id, visit_id)
 
     def find_mismatch(self, other, indent='', **kwargs):
         mismatch = ''

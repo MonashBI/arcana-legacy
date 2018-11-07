@@ -28,8 +28,11 @@ class BaseData(with_metaclass(ABCMeta, object)):
         self._frequency = frequency
 
     def __eq__(self, other):
-        return (self.name == other.name and
-                self.frequency == other.frequency)
+        try:
+            return (self.name == other.name and
+                    self.frequency == other.frequency)
+        except:
+            raise
 
     def __hash__(self):
         return hash(self.name) ^ hash(self.frequency)

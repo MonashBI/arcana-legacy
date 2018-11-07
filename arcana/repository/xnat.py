@@ -61,7 +61,7 @@ class XnatRepository(BaseRepository):
     type = 'xnat'
 
     SUMMARY_NAME = 'ALL'
-    MD5_SUFFIX = '.md5.json'
+    MD5_SUFFIX = '.__md5__.json'
     DERIVED_FROM_FIELD = '__derived_from__'
     PROV_SCAN = '__prov__'
 
@@ -160,24 +160,21 @@ class XnatRepository(BaseRepository):
             scan_type = fileset.name
             xscan = xsession.scans[scan_type]
             cache_path = self._cache_path(fileset)
-            # Get resource to check its MD5 digest
-            xresource = self._get_resource(xscan, fileset)
             need_to_download = True
             if op.exists(cache_path):
                 if self._check_md5:
-                    md5_path = (cache_path +
-                                XnatRepository.MD5_SUFFIX)
+                    md5_path = cache_path + XnatRepository.MD5_SUFFIX
                     try:
                         with open(md5_path, 'r') as f:
                             cached_checksums = json.load(f)
-                        checksums = self._get_checksums(xresource)
-                        if cached_checksums == checksums:
+                        if cached_checksums == fileset.checksums:
                             need_to_download = False
                     except IOError:
                         pass
                 else:
                     need_to_download = False
             if need_to_download:
+                xresource = self.get_resource(xscan, fileset.format)
                 # The path to the directory which the files will be
                 # downloaded to.
                 tmp_dir = cache_path + '.download'
@@ -202,7 +199,7 @@ class XnatRepository(BaseRepository):
                     else:
                         raise
                 else:
-                    self._download_fileset(
+                    self.download_fileset(
                         tmp_dir, xresource, xscan, fileset,
                         xsession.label, cache_path)
         return cache_path
@@ -262,7 +259,7 @@ class XnatRepository(BaseRepository):
             xsession.fields[field.name] = val
 
     def put_provenance(self, record):
-        base_cache_path = self._cach_path(record, name=self.PROV_SCAN)
+        base_cache_path = self._cache_path(record, name=self.PROV_SCAN)
         if not op.exists(base_cache_path):
             os.mkdir(base_cache_path)
         else:
@@ -348,7 +345,7 @@ class XnatRepository(BaseRepository):
                         frequency = 'per_session'
                     # Find filesets
                     for xscan in xsession.scans.values():
-                        if xscan.label == self.PROV_SCAN:
+                        if xscan.type == self.PROV_SCAN:
                             # Download provenance JSON files and parse into
                             # records
                             temp_dir = tempfile.mkdtemp()
@@ -362,8 +359,9 @@ class XnatRepository(BaseRepository):
                                         resources_dir, pipeline_name, 'files',
                                         pipeline_name + '.json')
                                     all_records.append(
-                                        Record.load(json_path, from_study,
-                                                    subj_id, visit_id))
+                                        Record.load(json_path,
+                                                    frequency, subj_id,
+                                                    visit_id, from_study))
                             finally:
                                 shutil.rmtree(temp_dir)
                         else:
@@ -378,6 +376,8 @@ class XnatRepository(BaseRepository):
                                 uri=xscan.uri, repository=self,
                                 frequency=frequency, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study,
+                                checksums=self.get_checksums(self.get_resource(
+                                    xscan, file_format)),
                                 **kwargs))
                     # Find fields
                     for name, value in list(xsession.fields.items()):
@@ -438,23 +438,24 @@ class XnatRepository(BaseRepository):
         return hdr
 
     @classmethod
-    def _get_resource(cls, xscan, fileset):
-        for resource_name in fileset.format.xnat_resource_names:
+    def get_resource(cls, xscan, file_format):
+        for resource_name in file_format.xnat_resource_names:
             try:
                 return xscan.resources[resource_name]
             except KeyError:
                 continue
         raise ArcanaError(
-            "'{}' fileset is not available in '{}' format(s), "
+            "Could not find matching resource for {} ('{}') in {}, "
             "available resources are '{}'"
             .format(
-                fileset.name,
-                "', '".join(fileset.format.xnat_resource_names),
+                file_format,
+                "', '".join(file_format.xnat_resource_names),
+                xscan.uri,
                 "', '".join(
-                    r.label for r in list(fileset.resources.values()))))
+                    r.label for r in list(xscan.resources.values()))))
 
     @classmethod
-    def _get_checksums(cls, resource):
+    def get_checksums(cls, resource):
         """
         Downloads the MD5 digests associated with the files in a resource.
         These are saved with the downloaded files in the cache and used to
@@ -469,14 +470,14 @@ class XnatRepository(BaseRepository):
                     for r in result.json()['ResultSet']['Result'])
 
     @classmethod
-    def _download_fileset(cls, tmp_dir, xresource, xscan, fileset,
+    def download_fileset(cls, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path):
         # Download resource to zip file
         zip_path = op.join(tmp_dir, 'download.zip')
         with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
-        digests = cls._get_checksums(xresource)
+        checksums = cls.get_checksums(xresource)
         # Extract downloaded zip file
         expanded_dir = op.join(tmp_dir, 'expanded')
         try:
@@ -511,7 +512,8 @@ class XnatRepository(BaseRepository):
         shutil.move(data_path, cache_path)
         with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                   **JSON_ENCODING) as f:
-            json.dump(digests, f)
+            json.dump(checksums, f)
+        assert fileset.checksums == checksums
         shutil.rmtree(tmp_dir)
 
     @classmethod
@@ -542,7 +544,7 @@ class XnatRepository(BaseRepository):
                 "restarting download".format(cache_path, delay))
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
-            cls._download_fileset(
+            cls.download_fileset(
                 tmp_dir, xresource, xscan, fileset, session_label,
                 cache_path)
 
@@ -647,9 +649,3 @@ class XnatRepository(BaseRepository):
                     "', '".join(f.label for f in fileset_formats),
                     xscan.type))
         return next(iter(fileset_formats))
-
-    @classmethod
-    def _calculate_digest(cls, path, digests):
-        with open(path, 'rb') as f:
-            digests[op.basename(path)] = hashlib.md5(
-                f.read()).hexdigest()
