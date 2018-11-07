@@ -749,6 +749,14 @@ class Study(object):
         else:
             return True
 
+    @classmethod
+    def freq_from_iterfields(cls, iterfields):
+        """
+        Returns the frequency corresponding to the given iterfields
+        """
+        return {
+            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterfields)]
+
 
 class StudyMetaClass(type):
     """
