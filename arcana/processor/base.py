@@ -310,41 +310,36 @@ class BaseProcessor(object):
         # Loop through each frequency present in the pipeline inputs and
         # create a corresponding source node
         for freq in pipeline.input_frequencies:
-            inputs = list(pipeline.frequency_inputs(freq))
-            inputnode = inputnodes[freq]
             try:
-                sources[freq] = source = pipeline.add(
-                    '{}_source'.format(freq),
-                    RepositorySource(
-                        self.study.spec(i).collection for i in inputs))
+                inputs = list(pipeline.frequency_inputs(freq))
             except ArcanaMissingDataException as e:
                 raise ArcanaMissingDataException(
                     str(e) + ", which is required for pipeline '{}'".format(
                         pipeline.name))
-            # Connect source node to initial node of pipeline to ensure
-            # they are run after any prerequisites
-            if prereqs is not None:
-                pipeline.connect(prereqs, 'out', source, 'prereqs')
+            sources[freq] = source = pipeline.add(
+                '{}_source'.format(freq),
+                RepositorySource(inputs),
+                connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
+                         else {}))
             # Connect iterators to source and input nodes
             for iterfield in pipeline.iterfields(freq):
                 pipeline.connect(iterators[iterfield], iterfield, source,
                                  iterfield)
-                if freq in ('per_subject', 'per_visit'):
-                    pipeline.connect(iterators[iterfield], iterfield,
-                                     inputnode, iterfield)
+                pipeline.connect(source, iterfield, inputnodes[freq],
+                                 iterfield)
             for input in inputs:  # @ReservedAssignment
                 pipeline.connect(source, input.suffixed_name,
-                                 inputnode, input.name)
+                                 inputnodes[freq], input.name)
         deiterators = {}
 
-        def deiterator_sort_key(ifield):
+        def deiterator_sort_key(it):
             """
             If there are two iterators (i.e. both subject and visit ID) and
             one depends on the other (i.e. if the visit IDs per subject
             vary and vice-versa) we need to ensure that the dependent
             iterator is deiterated (joined) first.
             """
-            return iterators[ifield].itersource is None
+            return iterators[it].itersource is None
 
         # Connect all outputs to the repository sink, creating a new sink for
         # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',

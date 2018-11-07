@@ -512,7 +512,7 @@ class Field(BaseItem, BaseField):
 
     @property
     def value(self):
-        if self._value is None:
+        if self._value is None and self.exists:
             if self.repository is not None:
                 self._value = self.repository.get_field(self)
             else:

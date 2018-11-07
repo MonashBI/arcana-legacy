@@ -156,7 +156,8 @@ class RepositorySource(BaseRepositoryInterface):
 
 class RepositorySinkOutputSpec(DynamicTraitedSpec):
 
-    checksums = traits.Dict(
+    checksums = traits.Either(
+        traits.Dict, FIELD_TRAIT,
         desc=("Provenance information sinked with files and fields. Note that"
               "at this stage it is only used as something to connect to the "
               "\"deiterators\" and eventually the \"final\" node after the "
