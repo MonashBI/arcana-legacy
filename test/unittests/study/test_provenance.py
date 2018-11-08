@@ -118,10 +118,10 @@ class TestProvenance(BaseTestCase):
                     FilesetSelector('acqfile2', text_format, 'acqfile2'),
                     FieldSelector('acqfield1', int, 'acqfield1')])
         # Just test to see if the pipeline works
-        self.assertEqual(
-            next(iter(study.data('derfield1'))).value, [3.0, 6.0, 60.0])
+        self.assertEqual(next(iter(study.data('derfield1'))).value,
+                         [3.0, 6.0, 60.0])
         pipeline1 = study.pipeline1()
-        prov = pipeline1.provenance
+        prov = pipeline1.provenance()
         record = prov.record({}, {}, 'per_session', self.SUBJECT, self.VISIT)
         path = op.join(self.tempdir, 'prov1.json')
         record.save(path)

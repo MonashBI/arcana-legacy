@@ -535,6 +535,14 @@ class Field(BaseItem, BaseField):
         else:
             self._value = self.dtype(value)
 
+    @property
+    def checksums(self):
+        """
+        For duck-typing with filesets in checksum management. Instead of a
+        checksum, just the value of the field is used
+        """
+        return self.value
+
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
         dct.update(BaseItem.initkwargs(self))

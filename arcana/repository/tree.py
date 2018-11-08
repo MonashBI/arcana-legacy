@@ -23,11 +23,13 @@ class TreeNode(object):
         # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
         self._filesets = OrderedDict(((d.name, d.from_study), d)
-                                     for d in filesets)
+                                     for d in sorted(filesets))
         self._fields = OrderedDict(((f.name, f.from_study), f)
-                                   for f in fields)
-        self._records = OrderedDict(((r.pipeline_name, r.from_study), r)
-                                    for r in records)
+                                   for f in sorted(fields))
+        self._records = OrderedDict(
+            ((r.pipeline_name, r.from_study), r)
+            for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
+                                                    r.from_study)))
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or
@@ -198,36 +200,21 @@ class TreeNode(object):
 
     def check_provenance(self, pipeline, ignore_versions=False):
 
-        def getchecksums(node, spec):
-            """
-            Extract the checksum or value for the item in the given node
-            corresponding to the given spec
-            """
-            if spec.is_fileset:
-                checksum = node.fileset(spec).checksums
-            else:
-                checksum = node.field(spec).value
-            if checksum is None:
-                raise ArcanaMissingDataException(
-                    "The item corresponding to {} in {} does not exist, which "
-                    "was expected to exist as an input or output of {}"
-                    .format(spec, node, pipeline))
-            return checksum
-
         exp_inputs = {}
         # Get checksums/values of all inputs that would have been used in
         # previous runs of an equivalent pipeline to compare with that saved
         # in provenance to see if any have been updated.
-        for inpt in pipeline.inputs:
+        for input in pipeline.inputs:  # @ReservedAssignment
             # Get iterfields present in the input that aren't in this node
             # and need to be joined
-            input_iterfields = pipeline.iterfields(inpt.frequency)
+            input_iterfields = pipeline.iterfields(input.frequency)
             output_iterfields = pipeline.iterfields(self.frequency)
             join_iterfields = input_iterfields - output_iterfields
             if not join_iterfields:
                 # No iterfields to join so we can just extract the checksums
                 # directly
-                exp_inputs[inpt.name] = getchecksums(self, inpt)
+                exp_inputs[input.name] = input.collection.item(
+                    self.subject_id, self.visit_id).checksums
             elif len(join_iterfields) == 1:
                 # We need to join one iterfield, across all sub-nodes of the
                 # current node or all nodes if the current node doesn't
@@ -236,19 +223,22 @@ class TreeNode(object):
                     base_node = self
                 else:
                     base_node = self.parent
-                exp_inputs[inpt.name] = [
-                    getchecksums(n, inpt)
+                exp_inputs[input.name] = [
+                    input.collection.item(n.subject_id, n.visit_id).checksums
                     for n in base_node.nodes(
                         pipeline.study.freq_from_iterfields(join_iterfields))]
             else:
                 assert isinstance(self,
-                                  Tree) and inpt.frequency == 'per_session'
-                exp_inputs[inpt.name] = [
-                    [getchecksums(s, inpt) for s in subj.sessions]
+                                  Tree) and input.frequency == 'per_session'
+                exp_inputs[input.name] = [
+                    [input.collection.item(s.subject_id. s.visit_id).checksums
+                     for s in subj.sessions]
                     for subj in self.subjects]
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
-        exp_outputs = {o.name: getchecksums(self, o) for o in pipeline.outputs}
+        exp_outputs = {
+            o.name: o.collection.item(self.subject_id, self.visit_id).checksums
+            for o in pipeline.outputs}
         expected_record = pipeline.provenance().record(
             exp_inputs, exp_outputs, self.frequency, self.subject_id,
             self.visit_id)

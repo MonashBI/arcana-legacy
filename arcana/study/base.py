@@ -514,6 +514,8 @@ class Study(object):
         for name in names:
             spec = self.spec(name)
             data = spec.collection
+            for item in data:
+                item._exists = True
             if subject_ids is not None and spec.frequency in (
                     'per_session', 'per_subject'):
                 data = [d for d in data if d.subject_id in subject_ids]

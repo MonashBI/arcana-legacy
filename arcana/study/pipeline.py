@@ -772,9 +772,12 @@ class Pipeline(object):
                                                   type(self.study).__name__)
 
     def provenance(self):
-        study_parameters = {
-            p: self.study.parameter(p)
-            for p in self._referenced_parameters}
+        if self._referenced_parameters is None:
+            study_parameters = {}
+        else:
+            study_parameters = {
+                p: self.study.parameter(p)
+                for p in self._referenced_parameters}
         interface_parameters = {}
         versions = {}
         for node in self.nodes:

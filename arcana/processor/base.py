@@ -363,6 +363,10 @@ class BaseProcessor(object):
                 checksums_to_connect = [
                     i.checksum_suffixed_name
                     for i in pipeline.frequency_inputs(input_freq)]
+                if not checksums_to_connect:
+                    # Rare case of a pipeline with no inputs only iterators
+                    # that will only occur in unittests in all likelihood
+                    continue
                 # Loop over iterfields that need to be joined, i.e. that are
                 # present in the input frequency but not the output frequency
                 # and create join nodes
@@ -373,7 +377,7 @@ class BaseProcessor(object):
                         '{}_to_{}_{}_checksum_join'.format(
                             input_freq, freq, iterfield),
                         IdentityInterface(
-                            [checksums_to_connect]),
+                            checksums_to_connect),
                         connect={
                             tc: (source, tc) for tc in checksums_to_connect},
                         joinsource=iterfield,
@@ -386,7 +390,7 @@ class BaseProcessor(object):
                 '{}_sink'.format(freq),
                 RepositorySink(
                     (o.collection for o in outputs), provenance,
-                    pipeline.inputs, freq),
+                    pipeline.inputs),
                 connect=to_connect)
             # Join over iterated fields to get back to single child node
             # by the time we connect to the final node of the pipeline

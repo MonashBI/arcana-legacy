@@ -47,7 +47,6 @@ class DirectoryRepository(BaseRepository):
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
-    DERIVED_LABEL_FNAME = '.derived'
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
@@ -212,7 +211,7 @@ class DirectoryRepository(BaseRepository):
                 # Load input data
                 from_study = None
             elif (depth == (self._depth + 1) and
-                  self.DERIVED_LABEL_FNAME in files):
+                  self.PROV_DIR in dirs):
                 # Load study output
                 from_study = path_parts.pop()
             elif (depth < self._depth and
@@ -319,10 +318,6 @@ class DirectoryRepository(BaseRepository):
         # Make session dir if required
         if not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-            # write breadcrumb file t
-            if item.from_study is not None:
-                open(op.join(sess_dir,
-                             self.DERIVED_LABEL_FNAME), 'w').close()
         return sess_dir
 
     def fields_json_path(self, field):
@@ -395,7 +390,7 @@ class DirectoryRepository(BaseRepository):
         return [
             op.join(base_dir, d) for d in dirs
             if not (d.startswith('.') or d == cls.PROV_DIR or (
-                cls.DERIVED_LABEL_FNAME in os.listdir(op.join(base_dir, d))))]
+                cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
 
     def path_depth(self, dpath):
         relpath = op.relpath(dpath, self.root_dir)
