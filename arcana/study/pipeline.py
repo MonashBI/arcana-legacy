@@ -799,6 +799,9 @@ class Pipeline(object):
                  n['id'].interface.__class__.__module__,
                  n['id'].interface.__class__.__name__)}
             for n in wf_graph['nodes']]
+        study_dict = {'name': self.study.name,
+                      'class': type(self.study).__name__,
+                      'module': type(self.study).__module__}
         # Roundtrip workflow graph to JSON to convert any tuples into lists
         wf_graph = json.loads(json.dumps(wf_graph))
         return PipelineRecord(

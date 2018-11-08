@@ -259,7 +259,7 @@ class XnatRepository(BaseRepository):
             xsession.fields[field.name] = val
 
     def put_provenance(self, record):
-        base_cache_path = self._cach_path(record, name=self.PROV_SCAN)
+        base_cache_path = self._cache_path(record, name=self.PROV_SCAN)
         if not op.exists(base_cache_path):
             os.mkdir(base_cache_path)
         else:
@@ -345,7 +345,7 @@ class XnatRepository(BaseRepository):
                         frequency = 'per_session'
                     # Find filesets
                     for xscan in xsession.scans.values():
-                        if xscan.label == self.PROV_SCAN:
+                        if xscan.type == self.PROV_SCAN:
                             # Download provenance JSON files and parse into
                             # records
                             temp_dir = tempfile.mkdtemp()

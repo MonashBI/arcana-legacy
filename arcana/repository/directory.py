@@ -349,7 +349,7 @@ class DirectoryRepository(BaseRepository):
                             .format(root_dir, depth,
                                     "', '".join(filtered_files), path))
                 return depth
-            if self.DERIVED_LABEL_FNAME in files:
+            if self.PROV_DIR in dirs:
                 depth_to_return = max(depth - 1, 0)
                 logger.info("Guessing depth of directory repository at '{}' is"
                             "{} due to \"Derived label file\" in '{}'"

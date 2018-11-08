@@ -11,8 +11,8 @@ class PipelineRecord(object):
 
     Parameters
     ----------
-    study_name : str
-        The name of the study that generated the pipeline. Used to store and
+    study_dict : dict[str, str]
+        A dictionary containing the name of the study that generated the pipeline. Used to store and
         retrieve the provenance from repositories. Note that it is not included
         in the matching logic so you can test provenance from separate studies
     pipeline_name : str

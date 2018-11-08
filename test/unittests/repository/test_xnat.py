@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from builtins import next
 from builtins import range
 from builtins import object
 import string
@@ -23,6 +22,7 @@ from arcana.repository.xnat import XnatRepository
 from arcana.repository.directory import DirectoryRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.processor import LinearProcessor
+from arcana.interfaces.repository import RepositorySource, RepositorySink
 from arcana.data import (
     FilesetSelector, AcquiredFilesetSpec, FilesetSpec, FieldSpec)
 from arcana.data.file_format import FileFormat
@@ -79,7 +79,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
                     frequency='per_subject'),
         FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('study_sink', text_format, 'dummy_pipeline',
                     frequency='per_study'),
         FilesetSpec('resink1', text_format, 'dummy_pipeline'),
         FilesetSpec('resink2', text_format, 'dummy_pipeline'),
@@ -88,8 +88,8 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('field2', float, 'dummy_pipeline'),
         FieldSpec('field3', str, 'dummy_pipeline')]
 
-    def dummy_pipeline(self):
-        pass
+    def dummy_pipeline(self, **name_maps):
+        return self.pipeline('dummy_pipeline', name_maps=name_maps)
 
 
 class TestStudy(with_metaclass(StudyMetaClass, Study)):
@@ -303,11 +303,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
     def _full_subject_id(self, subject):
         return self.project + '_' + subject
 
-    def _proc_sess_id(self, session):
-        return session + XnatRepository.PROCESSED_SUFFIX
-
     def get_session_dir(self, subject=None, visit=None,
-                        frequency='per_session', derived=False):
+                        frequency='per_session'):
         if subject is None and frequency in ('per_session', 'per_subject'):
             subject = self.SUBJECT
         if visit is None and frequency in ('per_session', 'per_visit'):
@@ -332,8 +329,6 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         else:
             assert False
         session_id = '_'.join(parts)
-        if derived:
-            session_id += XnatRepository.PROCESSED_SUFFIX
         session_path = op.join(self.output_cache_dir, session_id)
         if not op.exists(session_path):
             raise ArcanaError(
@@ -422,8 +417,15 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                             'inputnode')
         inputnode.inputs.subject_id = str(self.SUBJECT)
         inputnode.inputs.visit_id = str(self.VISIT)
-        source = study.source(source_files)
-        sink = study.sink(sink_files)
+        source = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in source_files),
+            name='source')
+        sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection for f in sink_files),
+                study.dummy_pipeline().provenance(), []),
+            name='sink')
         sink.inputs.name = 'repository-roundtrip-unittest'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -466,8 +468,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
             inputs=[FilesetSelector('source1', text_format, 'source1')])
         fields = ['field{}'.format(i) for i in range(1, 4)]
-        sink = study.sink(
-            outputs=fields,
+        sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection for f in fields),
+                study.dummy_pipeline().provenance(), []),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
@@ -477,8 +481,9 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
-        source = study.source(
-            inputs=fields,
+        source = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in fields),
             name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
@@ -509,8 +514,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             self.STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[FilesetSelector(DATASET_NAME, text_format,
                                     DATASET_NAME)])
-        source = study.source([study.input(DATASET_NAME)],
-                                   name='delayed_source')
+        source = pe.Node(
+            RepositorySource(
+                [study.bound_spec(DATASET_NAME).collection]),
+            name='delayed_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         result1 = source.run()
@@ -590,12 +597,14 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
             inputs=[FilesetSelector(DATASET_NAME, text_format,
-                                 DATASET_NAME,
-                                 repository=source_repository)],
+                                    DATASET_NAME,
+                                    repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
-        source = study.source([DATASET_NAME],
-                              name='digest_check_source')
+        source = pe.Node(
+            RepositorySource(
+                [study.bound_spec(DATASET_NAME).collection]),
+            name='digest_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
@@ -631,8 +640,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         # Resink the source file and check that the generated MD5 digest is
         # stored in identical format
         DATASET_NAME = 'sink1'
-        sink = study.sink(
-            [DATASET_NAME],
+        sink = pe.Node(
+            RepositorySink(
+                [study.bound_spec(DATASET_NAME).collection],
+                study.dummy_pipeline().provenance(), []),
             name='digest_check_sink')
         sink.inputs.name = 'digest_check_sink'
         sink.inputs.desc = "Tests the generation of MD5 digests"
@@ -680,32 +691,44 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = study.source(source_files)
+        source = pe.Node(
+            RepositorySource(
+                [study.bound_spec(f).collection for f in source_files]),
+            name='source')
         subject_sink_files = ['subject_sink']
-        subject_sink = study.sink(
-            subject_sink_files, name='subject_sink')
+        subject_sink = pe.Node(
+            RepositorySink(
+                [study.bound_spec(f).collection for f in subject_sink_files],
+                study.dummy_pipeline().provenance(), []),
+            name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
-        visit_sink = study.sink(
-            visit_sink_files, name='visit_sink')
+        visit_sink = pe.Node(
+            RepositorySink(
+                [study.bound_spec(f).collection for f in visit_sink_files],
+                study.dummy_pipeline().provenance(), []),
+            name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
-        project_sink_files = ['project_sink']
-        project_sink = study.sink(
-            project_sink_files, name='project_sink')
-        project_sink.inputs.name = 'project_summary'
-        project_sink.inputs.desc = (
+        study_sink_files = ['study_sink']
+        study_sink = pe.Node(
+            RepositorySink(
+                [study.bound_spec(f).collection for f in study_sink_files],
+                study.dummy_pipeline().provenance(), []),
+            name='study_sink')
+        study_sink.inputs.name = 'project_summary'
+        study_sink.inputs.desc = (
             "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest',
                                base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
-                            project_sink))
+                            study_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
@@ -718,7 +741,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             visit_sink, 'visit_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source3' + PATH_SUFFIX,
-            project_sink, 'project_sink' + PATH_SUFFIX)
+            study_sink, 'study_sink' + PATH_SUFFIX)
         workflow.run()
         with self._connect() as login:
             # Check subject summary directories were created properly in cache
@@ -753,7 +776,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_visit_filesets, visit_fileset_names)
             # Check project summary directories were created properly in cache
-            expected_proj_filesets = ['project_sink']
+            expected_proj_filesets = ['study_sink']
             project_dir = self.session_cache(
                 subject=XnatRepository.SUMMARY_NAME,
                 visit=XnatRepository.SUMMARY_NAME,
@@ -775,35 +798,44 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                                   'reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = study.source(
-            (source_files + subject_sink_files + visit_sink_files +
-             project_sink_files),
-            name='reload_source')
-        reloadsink = study.sink(
-            ['resink1', 'resink2', 'resink3'])
+        reloadsource_per_subject = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in subject_sink_files),
+            name='reload_source_per_subject')
+        reloadsource_per_visit = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in visit_sink_files),
+            name='reload_source_per_visit')
+        reloadsource_per_study = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in study_sink_files),
+            name='reload_source_per_study')
+        reloadsink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection
+                 for f in ['resink1', 'resink2', 'resink3']),
+                study.dummy_pipeline().provenance(), []),
+            name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary filesets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsource, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsource, 'visit_id')
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsink, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsink, 'visit_id')
-        reloadworkflow.connect(reloadsource,
+        for node in (reloadsource_per_subject, reloadsource_per_visit,
+                     reloadsource_per_study, reloadsink):
+            for iterfield in ('subject_id', 'visit_id'):
+                reloadworkflow.connect(reloadinputnode, iterfield,
+                                       node, iterfield)
+        reloadworkflow.connect(reloadsource_per_subject,
                                'subject_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink1' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
+        reloadworkflow.connect(reloadsource_per_visit,
                                'visit_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink2' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'project_sink' + PATH_SUFFIX,
+        reloadworkflow.connect(reloadsource_per_study,
+                               'study_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()

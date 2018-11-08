@@ -14,6 +14,7 @@ from .pipeline import Pipeline
 from arcana.data import BaseData
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
+from arcana.interfaces.repository import RepositorySource
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
@@ -720,7 +721,8 @@ class Study(object):
                            name='sessions', environment=self.environment)
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.source(self.inputs)
+        source = pe.Node(RepositorySource(
+            self.bound_spec(i).collection for i in self.inputs), name='source')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
