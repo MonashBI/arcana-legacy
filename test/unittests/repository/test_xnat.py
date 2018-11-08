@@ -101,9 +101,10 @@ class TestStudy(with_metaclass(StudyMetaClass, Study)):
         AcquiredFilesetSpec('fileset5', text_format, optional=True)]
 
 
-def ls_with_md5_filter(path):
-    return [f for f in sorted(os.listdir(path))
-            if not f.endswith(XnatRepository.MD5_SUFFIX)]
+def filter_scans(names):
+    return sorted(f for f in sorted(names)
+                  if (f != XnatRepository.PROV_SCAN and
+                      not f.endswith(XnatRepository.MD5_SUFFIX)))
 
 
 class CreateXnatProjectMixin(object):
@@ -445,19 +446,19 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                     sink, sink_name + PATH_SUFFIX)
         workflow.run()
         # Check cache was created properly
-        self.assertEqual(ls_with_md5_filter(self.session_cache()),
+        self.assertEqual(filter_scans(os.listdir(self.session_cache())),
                          ['source1.txt', 'source2.txt',
                           'source3.txt', 'source4.txt'])
         expected_sink_filesets = ['sink1', 'sink3', 'sink4']
         self.assertEqual(
-            ls_with_md5_filter(self.session_cache(
-                from_study=self.STUDY_NAME)),
+            filter_scans(os.listdir(self.session_cache(
+                from_study=self.STUDY_NAME))),
             [d + text_format.extension
              for d in expected_sink_filesets])
         with self._connect() as login:
-            fileset_names = list(login.experiments[self.session_label(
+            fileset_names = filter_scans(login.experiments[self.session_label(
                 from_study=self.STUDY_NAME)].scans.keys())
-        self.assertEqual(sorted(fileset_names), expected_sink_filesets)
+        self.assertEqual(fileset_names, expected_sink_filesets)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_fields_roundtrip(self):
@@ -749,27 +750,28 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             subject_dir = self.session_cache(
                 visit=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(ls_with_md5_filter(subject_dir),
+            self.assertEqual(filter_scans(os.listdir(subject_dir)),
                              [d + text_format.extension
                               for d in expected_subj_filesets])
             # and on XNAT
-            subject_fileset_names = list(login.projects[
+            subject_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
                         visit=XnatRepository.SUMMARY_NAME,
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
-            self.assertEqual(expected_subj_filesets, subject_fileset_names)
+            self.assertEqual(expected_subj_filesets,
+                             subject_fileset_names)
             # Check visit summary directories were created properly in
             # cache
             expected_visit_filesets = ['visit_sink']
             visit_dir = self.session_cache(
                 subject=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(ls_with_md5_filter(visit_dir),
+            self.assertEqual(filter_scans(os.listdir(visit_dir)),
                              [d + text_format.extension
                               for d in expected_visit_filesets])
             # and on XNAT
-            visit_fileset_names = list(login.projects[
+            visit_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
                         subject=XnatRepository.SUMMARY_NAME,
@@ -781,11 +783,11 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 subject=XnatRepository.SUMMARY_NAME,
                 visit=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
-            self.assertEqual(ls_with_md5_filter(project_dir),
+            self.assertEqual(filter_scans(os.listdir(project_dir)),
                              [d + text_format.extension
                               for d in expected_proj_filesets])
             # and on XNAT
-            project_fileset_names = list(login.projects[
+            project_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
                         subject=XnatRepository.SUMMARY_NAME,
@@ -841,12 +843,12 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         reloadworkflow.run()
         # Check that the filesets
         self.assertEqual(
-            ls_with_md5_filter(self.session_cache(
-                from_study=self.SUMMARY_STUDY_NAME)),
+            filter_scans(os.listdir(self.session_cache(
+                from_study=self.SUMMARY_STUDY_NAME))),
             ['resink1.txt', 'resink2.txt', 'resink3.txt'])
         # and on XNAT
         with self._connect() as login:
-            resinked_fileset_names = list(login.projects[
+            resinked_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
