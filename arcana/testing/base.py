@@ -24,7 +24,7 @@ from arcana.exception import ArcanaError
 from arcana.exception import ArcanaUsageError
 
 logger = logging.getLogger('arcana')
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
