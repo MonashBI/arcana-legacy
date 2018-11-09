@@ -408,37 +408,34 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                   for i in all_visit_ids]
         return Tree(subjects=subjects, visits=visits)
 
-    @property
-    def study(self):
-        try:
-            return self._study
-        except AttributeError:
-            self._study = self.create_study(
-                ExistingPrereqStudy, self.STUDY_NAME,
-                inputs=[FilesetSelector('one', text_format, 'one')])
-            return self._study
-
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)
         # Create a study object, in order to generate appropriate provenance
-        # for the existing "derived" data 
+        # for the existing "derived" data
         derived_filesets = [f for f in self.DATASET_CONTENTS
                             if f != 'one']
+        study = self.create_study(
+            ExistingPrereqStudy, self.STUDY_NAME,
+            repository=self.local_repository,
+            inputs=[FilesetSelector('one', text_format, 'one')])
         # Get all pipelines in the study
-        pipelines = {n: getattr(self.study, '{}_pipeline'.format(n))()
+        pipelines = {n: getattr(study, '{}_pipeline'.format(n))()
                      for n in derived_filesets}
-        for node in self.study.tree:
+        for node in study.tree:
             for fileset in node.filesets:
                 if fileset.name != 'one' and fileset.exists:
                     # Generate expected provenance record for each pipeline
                     # and save in the local repository
                     record = node.expected_record(pipelines[fileset.name])
                     self.local_repository.put_provenance(record)
-        self.study.clear_binds()  # Reset repository trees
+        study.clear_binds()  # Reset repository trees
 
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec
-        self.study.data('thousand')
+        study = self.create_study(
+            ExistingPrereqStudy, self.STUDY_NAME,
+            inputs=[FilesetSelector('one', text_format, 'one')])
+        study.data('thousand')
         targets = {
             'subject1': {
                 'visit1': 1100.0,
