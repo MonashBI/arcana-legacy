@@ -152,10 +152,10 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         self._repository = XnatRepository(project_id=self.project,
                                           server=SERVER,
                                           cache_dir=self.cache_dir)
+        self._create_project()
         self.BASE_CLASS.setUp(self)
         local_repository = DirectoryRepository(self.project_dir)
         tree = local_repository.tree()
-        self._create_project()
         repo = XnatRepository(SERVER, self.project, '/tmp')
         with repo:
             for node in tree:

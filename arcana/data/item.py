@@ -390,8 +390,8 @@ class Fileset(BaseItem, BaseFileset):
 
     def get(self):
         if self.repository is not None:
-            self._path = self.repository.get_fileset(self)
             self._exists = True
+            self._path = self.repository.get_fileset(self)
 
     def put(self):
         if self.repository is not None:
