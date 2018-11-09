@@ -156,16 +156,16 @@ class Fileset(BaseItem, BaseFileset):
                 BaseItem.__eq__(self, other) and
                 self._path == other._path and
                 self.id == other.id and
-                self._bids_attr == other._bids_attr and
-                self._checksums == other._checksums)
+                self.bids_attr == other.bids_attr and
+                self.checksums == other.checksums)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self._path) ^
                 hash(self.id) ^
-                hash(self._bids_attr) ^
-                hash(self._checksums))
+                hash(self.bids_attr) ^
+                hash(self.checksums))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -216,10 +216,10 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}bids_attr: self={} v other={}'
                          .format(sub_indent, self._bids_attr,
                                  other._bids_attr))
-        if self._checksums != other._checksums:
+        if self.checksums != other.checksums:
             mismatch += ('\n{}checksum: self={} v other={}'
-                         .format(sub_indent, self._checksums,
-                                 other._checksums))
+                         .format(sub_indent, self.checksums,
+                                 other.checksums))
         return mismatch
 
     @property

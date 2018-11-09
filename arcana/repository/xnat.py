@@ -5,7 +5,6 @@ import tempfile
 from arcana.utils import makedirs
 import os.path as op # @IgnorePep8
 import shutil
-import hashlib
 from arcana.utils import JSON_ENCODING
 import stat
 import time
@@ -16,11 +15,10 @@ from zipfile import ZipFile, BadZipfile
 from arcana.data import Fileset, Field
 from arcana.repository.base import BaseRepository
 from arcana.data.file_format import FileFormat
-from arcana.utils import split_extension
 from arcana.exception import (
-    ArcanaError, ArcanaFileFormatError, ArcanaMissingDataException)
+    ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
 from arcana.provenance import Record
-from arcana.utils import dir_modtime, lower
+from arcana.utils import dir_modtime
 import re
 import xnat
 
@@ -152,9 +150,7 @@ class XnatRepository(BaseRepository):
             An XNATSession object to use for the connection. A new
             one is created if one isn't provided
         """
-        if fileset.repository is not self:
-            raise ArcanaError(
-                "{} is not from {}".format(fileset, self))
+        self._check_repository(fileset)
         with self:  # Connect to the XNAT repository if haven't already
             xsession = self.get_xsession(fileset)
             scan_type = fileset.name
@@ -202,9 +198,11 @@ class XnatRepository(BaseRepository):
                     self.download_fileset(
                         tmp_dir, xresource, xscan, fileset,
                         xsession.label, cache_path)
+                    shutil.rmtree(tmp_dir)
         return cache_path
 
     def get_field(self, field):
+        self._check_repository(field)
         with self:
             xsession = self.get_xsession(field)
             val_str = xsession.fields[field.name]
@@ -215,6 +213,7 @@ class XnatRepository(BaseRepository):
         return val
 
     def put_fileset(self, fileset):
+        self._check_repository(fileset)
         # Open XNAT session
         with self:
             # Add session for derived scans if not present
@@ -249,6 +248,7 @@ class XnatRepository(BaseRepository):
             xresource.upload(cache_path, fileset.fname)
 
     def put_field(self, field):
+        self._check_repository(field)
         val = field.value
         if field.array:
             val = ','.join(val)
@@ -320,7 +320,6 @@ class XnatRepository(BaseRepository):
                 subj_id = self.extract_subject_id(xsubject.label)
                 if subj_id == XnatRepository.SUMMARY_NAME:
                     subj_id = None
-                    frequency = 'per_subject'
                 elif (subject_ids is not None and subj_id not in subject_ids):
                     continue
                 logger.debug("Getting info for subject '{}'".format(subj_id))
@@ -338,9 +337,15 @@ class XnatRepository(BaseRepository):
                     visit_id = self.extract_visit_id(session_label)
                     if visit_id == XnatRepository.SUMMARY_NAME:
                         visit_id = None
-                        frequency = 'per_subject'
                     elif not (visit_ids is None or visit_id in visit_ids):
                         continue
+                    # Determine frequency
+                    if (subj_id, visit_id) == (None, None):
+                        frequency = 'per_study'
+                    elif visit_id is None:
+                        frequency = 'per_subject'
+                    elif subj_id is None:
+                        frequency = 'per_visit'
                     else:
                         frequency = 'per_session'
                     # Find filesets
@@ -377,7 +382,7 @@ class XnatRepository(BaseRepository):
                                 frequency=frequency, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study,
                                 checksums=self.get_checksums(self.get_resource(
-                                    xscan, file_format)),
+                                    xscan, file_format), file_format),
                                 **kwargs))
                     # Find fields
                     for name, value in list(xsession.fields.items()):
@@ -455,19 +460,35 @@ class XnatRepository(BaseRepository):
                     r.label for r in list(xscan.resources.values()))))
 
     @classmethod
-    def get_checksums(cls, resource):
+    def get_checksums(cls, resource, file_format):
         """
         Downloads the MD5 digests associated with the files in a resource.
         These are saved with the downloaded files in the cache and used to
         check if the files have been updated on the server
+
+        Parameters
+        ----------
+        resource : xnat.ResourceCatalog
+            The xnat resource
+        file_format : FileFormat
+            The format of the fileset to get the checksums for. Used to
+            determine the primary file within the resource and change the
+            corresponding key in the checksums dictionary to '.' to match
+            the way it is generated locally by Arcana.
         """
         result = resource.xnat_session.get(resource.uri + '/files')
         if result.status_code != 200:
             raise ArcanaError(
                 "Could not download metadata for resource {}"
                 .format(resource.id))
-        return dict((r['Name'], r['digest'])
-                    for r in result.json()['ResultSet']['Result'])
+        checksums = dict((r['Name'], r['digest'])
+                         for r in result.json()['ResultSet']['Result'])
+        if not file_format.directory:
+            # Replace the key corresponding to the primary file with '.' to
+            # match the way that checksums are created by Arcana
+            primary = file_format.primary_file(checksums.keys())
+            checksums['.'] = checksums.pop(primary)
+        return checksums
 
     @classmethod
     def download_fileset(cls, tmp_dir, xresource, xscan, fileset,
@@ -477,7 +498,7 @@ class XnatRepository(BaseRepository):
         with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
-        checksums = cls.get_checksums(xresource)
+        checksums = cls.get_checksums(xresource, fileset.format)
         # Extract downloaded zip file
         expanded_dir = op.join(tmp_dir, 'expanded')
         try:
@@ -496,25 +517,13 @@ class XnatRepository(BaseRepository):
             # attempt to locate a single file within the resource
             # directory with the appropriate filename and add that
             # to be the complete data path.
-            fnames = os.listdir(data_path)
-            match_fnames = [
-                f for f in fnames
-                if (lower(split_extension(f)[-1]) ==
-                    lower(fileset.format.extension))]
-            if len(match_fnames) == 1:
-                data_path = op.join(data_path, match_fnames[0])
-            else:
-                raise ArcanaMissingDataException(
-                    "Did not find single file with extension '{}' "
-                    "(found '{}') in resource '{}'"
-                    .format(fileset.format.extension,
-                            "', '".join(fnames), data_path))
+            data_path = op.join(
+                data_path, fileset.format.primary_file(os.listdir(data_path)))
+
         shutil.move(data_path, cache_path)
         with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                   **JSON_ENCODING) as f:
             json.dump(checksums, f)
-        assert fileset.checksums == checksums
-        shutil.rmtree(tmp_dir)
 
     @classmethod
     def _delayed_download(cls, tmp_dir, xresource, xscan, fileset,
@@ -649,3 +658,9 @@ class XnatRepository(BaseRepository):
                     "', '".join(f.label for f in fileset_formats),
                     xscan.type))
         return next(iter(fileset_formats))
+
+    def _check_repository(self, item):
+        if item.repository is not self:
+            raise ArcanaWrongRepositoryError(
+                "{} is from {} instead of {}".format(item, item.repository,
+                                                     self))

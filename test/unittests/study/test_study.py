@@ -385,14 +385,17 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def input_tree(self):
         sessions = []
         visit_ids = set()
-        for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
-            for visit_id, filesets in list(visits.items()):
-                sessions.append(Session(subj_id, visit_id, filesets=[
-                    Fileset(d, text_format, subject_id=subj_id,
-                            visit_id=visit_id, from_study=(
-                                (self.STUDY_NAME
-                                 if d != 'one' else None)))
-                    for d in filesets]))
+        for subj_id, visit_ids in list(self.PROJECT_STRUCTURE.items()):
+            for visit_id, fileset_names in list(visit_ids.items()):
+                filesets = []
+                # Create filesets
+                for name in fileset_names:
+                    from_study = self.STUDY_NAME if name != 'one' else None
+                    filesets.append(
+                        Fileset(name, text_format, subject_id=subj_id,
+                                visit_id=visit_id, from_study=from_study))
+                session = Session(subj_id, visit_id, filesets=filesets)
+                sessions.append(session)
                 visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
