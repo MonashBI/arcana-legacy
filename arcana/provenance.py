@@ -121,14 +121,6 @@ class PipelineRecord(object):
     def visit_ids(self):
         return self._visit_ids
 
-    @property
-    def inputs(self):
-        return self._inputs
-
-    @property
-    def outputs(self):
-        return self._outputs
-
     def record(self, inputs, outputs, frequency, subject_id, visit_id):
         return Record(self, inputs, outputs, frequency, subject_id, visit_id)
 
@@ -253,8 +245,45 @@ class Record(object):
     def frequency(self):
         return self._frequency
 
-    def __getattr__(self, name):
-        return getattr(self._pipeline_record, name)
+    @property
+    def study_name(self):
+        return self._pipeline_record._study_name
+
+    @property
+    def pipeline_name(self):
+        return self._pipeline_record._pipeline_name
+
+    @property
+    def study_parameters(self):
+        return self._pipeline_record._study_parameters
+
+    @property
+    def interface_parameters(self):
+        return self._pipeline_record._interface_parameters
+
+    @property
+    def requirement_versions(self):
+        return self._pipeline_record._requirement_versions
+
+    @property
+    def arcana_version(self):
+        return self._pipeline_record._arcana_version
+
+    @property
+    def nipype_version(self):
+        return self._pipeline_record._nipype_version
+
+    @property
+    def workflow_graph(self):
+        return self._pipeline_record._workflow_graph
+
+    @property
+    def subject_ids(self):
+        return self._pipeline_record._subject_ids
+
+    @property
+    def visit_ids(self):
+        return self._pipeline_record._visit_ids
 
     def matches(self, other, ignore_versions=False):
         return (

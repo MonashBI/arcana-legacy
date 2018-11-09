@@ -153,17 +153,20 @@ class Fileset(BaseItem, BaseFileset):
         self._checksums = checksums
 
     def __eq__(self, other):
-        return (BaseFileset.__eq__(self, other) and
-                BaseItem.__eq__(self, other) and
-                self._path == other._path and
-                self.id == other.id and
-                self.bids_attr == other.bids_attr and
-                self.checksums == other.checksums)
+        eq = (BaseFileset.__eq__(self, other) and
+              BaseItem.__eq__(self, other) and
+              self.id == other.id and
+              self.bids_attr == other.bids_attr and
+              self.checksums == other.checksums)
+        # Avoid having to cache fileset in order to test equality unless they
+        # are already both cached
+        if self._path is not None and other._path is not None:
+            eq &= (self._path == other._path)
+        return eq
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
-                hash(self._path) ^
                 hash(self.id) ^
                 hash(self.bids_attr) ^
                 hash(self.checksums))
