@@ -169,6 +169,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                     field = copy(field)
                     field._repository = repo
                     repo.put_field(field)
+                for record in node.records:
+                    repo.put_provenance(record)
 
     def tearDown(self):
         self._clean_up()

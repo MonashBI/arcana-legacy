@@ -387,10 +387,11 @@ class DirectoryRepository(BaseRepository):
     def _filter_dirs(cls, dirs, base_dir):
         # Filter out hidden directories (i.e. starting with '.')
         # and derived study directories from fileset names
-        return [
+        filtered = [
             op.join(base_dir, d) for d in dirs
             if not (d.startswith('.') or d == cls.PROV_DIR or (
                 cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
+        return filtered
 
     def path_depth(self, dpath):
         relpath = op.relpath(dpath, self.root_dir)

@@ -45,6 +45,21 @@ class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,
         super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
 
 
+class TestProjectInfo(TestMultiSubjectOnXnatMixin,
+                      test_directory.TestDirectoryProjectInfo):
+
+    BASE_CLASS = test_directory.TestDirectoryProjectInfo
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_project_info(self):
+        tree = self.repository.tree()
+        ref_tree = self.get_tree(self.repository, set_ids=True)
+        self.assertEqual(
+            tree, ref_tree,
+            "Generated project doesn't match reference:{}"
+            .format(tree.find_mismatch(ref_tree)))
+
+
 class TestXnatCache(TestMultiSubjectOnXnatMixin,
                     BaseMultiSubjectTestCase):
 
@@ -108,18 +123,3 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
     @property
     def base_name(self):
         return self.name
-
-
-class TestProjectInfo(TestMultiSubjectOnXnatMixin,
-                      test_directory.TestDirectoryProjectInfo):
-
-    BASE_CLASS = test_directory.TestDirectoryProjectInfo
-
-    @unittest.skipIf(*SKIP_ARGS)
-    def test_project_info(self):
-        tree = self.repository.tree()
-        ref_tree = self.get_tree(self.repository, set_ids=True)
-        self.assertEqual(
-            tree, ref_tree,
-            "Generated project doesn't match reference:{}"
-            .format(tree.find_mismatch(ref_tree)))

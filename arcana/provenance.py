@@ -220,6 +220,11 @@ class Record(object):
         self._subject_id = subject_id
         self._visit_id = visit_id
 
+    def __repr__(self):
+        return "{}(name={}, subject_id={}, visit_id={})".format(
+            type(self).__name__, self.pipeline_name, self.subject_id,
+            self.visit_id)
+
     @property
     def pipeline_record(self):
         return self._pipeline_record

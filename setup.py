@@ -7,7 +7,7 @@ PACKAGE_NAME = 'arcana'
 # Get version from module inside package
 sys.path.insert(0, os.path.join(os.path.dirname(__file__),
                                 PACKAGE_NAME))
-from pkg_info import __version__  # @UnresolvedImport @IgnorePep8
+from pkg_info import __version__, install_requires  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
@@ -22,15 +22,7 @@ setup(
     description=(
         'Abstracted repository-centric analysis framework'),
     long_description=open('README.rst').read(),
-    install_requires=['xnat>=0.3.9',
-                      'nipype>=1.0.4',
-                      'pydicom>=1.0.2',
-                      'networkx==1.9',
-                      'fasteners>=0.7.0',
-                      'future>=0.16.0',
-                      'pybids>=0.5.1',
-                      'contextlib2>=0.5.5',
-                      'pybids'],
+    install_requires=install_requires,
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Healthcare Industry",

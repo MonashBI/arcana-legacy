@@ -9,7 +9,8 @@ from arcana.data.file_format.standard import directory_format
 from arcana.utils import split_extension, parse_value
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
-    ArcanaFileFormatNotRegisteredError, ArcanaNameError)
+    ArcanaFileFormatNotRegisteredError, ArcanaNameError,
+    ArcanaDataNotDerivedYetError)
 from .base import BaseFileset, BaseField
 
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
@@ -224,6 +225,10 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def path(self):
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access path of {} as it hasn't been derived yet"
+                .format(self))
         if self._path is None:
             if self.repository is not None:
                 self.get()
@@ -266,7 +271,11 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def checksums(self):
-        if self._checksums is None and self.exists:
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access checksums of {} as it hasn't been derived yet"
+                .format(self))
+        if self._checksums is None:
             self._checksums = {}
             for fpath in self.paths:
                 with open(fpath, 'rb') as f:
@@ -519,7 +528,11 @@ class Field(BaseItem, BaseField):
 
     @property
     def value(self):
-        if self._value is None and self.exists:
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access value of {} as it hasn't been "
+                "derived yet".format(repr(self)))
+        if self._value is None:
             if self.repository is not None:
                 self._value = self.repository.get_field(self)
             else:
@@ -534,6 +547,7 @@ class Field(BaseItem, BaseField):
             self._value = [self.dtype(v) for v in value]
         else:
             self._value = self.dtype(value)
+        self._exists = True
 
     @property
     def checksums(self):
