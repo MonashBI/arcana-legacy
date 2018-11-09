@@ -17,7 +17,13 @@ from arcana.environment import BaseRequirement
 class DummyRequirement(BaseRequirement):
 
     def detect_version_str(self):
-        return os.environ[self.name.upper() + '_VERSION']
+        try:
+            return os.environ[self.name.upper() + '_VERSION']
+        except KeyError:
+            raise ArcanaError(
+                "Did not find {} in environment variables, found '{}'"
+                .format(self.name.upper() + '_VERSION',
+                        "', '".join(os.environ.keys())))
 
 
 first_req = DummyRequirement('firsttestmodule')
