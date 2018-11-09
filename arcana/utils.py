@@ -1,6 +1,5 @@
 from past.builtins import basestring
 from future.utils import PY3, PY2
-from collections.abc import Iterable
 from itertools import zip_longest
 import os.path
 import errno
@@ -10,8 +9,10 @@ import tempfile
 from arcana.exception import ArcanaUsageError
 if PY2:
     from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
+    from collections import Iterable  # @UnusedImport @UnresolvedImport
 else:
     from contextlib import ExitStack  # @UnusedImport @Reimport
+    from collections.abc import Iterable  # @Reimport
 
 
 PATH_SUFFIX = '_path'

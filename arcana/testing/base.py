@@ -2,7 +2,6 @@ from __future__ import print_function
 from past.builtins import basestring
 import os.path as op
 import os
-from itertools import chain
 from arcana.utils import makedirs
 import subprocess as sp
 import shutil
