@@ -30,42 +30,6 @@ except KeyError:
 SKIP_ARGS = (SERVER is None, "Skipping as ARCANA_TEST_XNAT env var not set")
 
 
-class DummyStudy(with_metaclass(StudyMetaClass, Study)):
-
-    add_data_specs = [
-        AcquiredFilesetSpec('source1', text_format),
-        AcquiredFilesetSpec('source2', text_format, optional=True),
-        AcquiredFilesetSpec('source3', text_format, optional=True),
-        AcquiredFilesetSpec('source4', text_format, optional=True),
-        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
-        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
-        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
-        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
-                    frequency='per_subject'),
-        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
-                    frequency='per_visit'),
-        FilesetSpec('study_sink', text_format, 'dummy_pipeline',
-                    frequency='per_study'),
-        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
-        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
-        FilesetSpec('resink3', text_format, 'dummy_pipeline'),
-        FieldSpec('field1', int, 'dummy_pipeline'),
-        FieldSpec('field2', float, 'dummy_pipeline'),
-        FieldSpec('field3', str, 'dummy_pipeline')]
-
-    def dummy_pipeline(self, **name_maps):
-        return self.pipeline('dummy_pipeline', name_maps=name_maps)
-
-
-class TestStudy(with_metaclass(StudyMetaClass, Study)):
-
-    add_data_specs = [
-        AcquiredFilesetSpec('fileset1', text_format),
-        AcquiredFilesetSpec('fileset2', text_format, optional=True),
-        AcquiredFilesetSpec('fileset3', text_format),
-        AcquiredFilesetSpec('fileset5', text_format, optional=True)]
-
-
 class CreateXnatProjectMixin(object):
 
     PROJECT_NAME_LEN = 12
@@ -205,38 +169,6 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                     field = copy(field)
                     field._repository = repo
                     repo.put_field(field)
-
-    def _upload_datset(self, xnat_login, fileset, xsession):
-        if self._is_derived(fileset):
-            type_name = self._derived_name(fileset)
-        else:
-            type_name = fileset.name
-        xfileset = xnat_login.classes.MrScanData(
-            type=type_name, parent=xsession)
-        xresource = xfileset.create_resource(
-            fileset.format.name.upper())
-        if fileset.format.directory:
-            for fname in os.listdir(fileset.path):
-                fpath = op.join(fileset.path, fname)
-                xresource.upload(fpath, fname)
-        else:
-            if not op.exists(fileset.path):
-                raise ArcanaError(
-                    "Cannot upload fileset {} as path ({}) does "
-                    "not exist".format(fileset, fpath))
-            xresource.upload(
-                fileset.path,
-                op.basename(fileset.path))
-
-    @classmethod
-    def _is_derived(cls, fileset):
-        # return fileset.name.endswith(self.DERIVED_SUFFIX
-        return '_' in fileset.name
-
-    @classmethod
-    def _derived_name(cls, fileset):
-        # return name[:-len(self.DERIVED_SUFFIX)]
-        return fileset.name
 
     def tearDown(self):
         self._clean_up()
