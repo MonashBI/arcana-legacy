@@ -20,10 +20,13 @@ class DummyRequirement(BaseRequirement):
         try:
             return os.environ[self.name.upper() + '_VERSION']
         except KeyError:
+            loaded_modules = ModulesEnvironment.loaded()
             raise ArcanaError(
-                "Did not find {} in environment variables, found '{}'"
+                "Did not find {} in environment variables, found '{}'. "
+                "The loaded modules are {}"
                 .format(self.name.upper() + '_VERSION',
-                        "', '".join(os.environ.keys())))
+                        "', '".join(os.environ.keys()),
+                        ', '.join(loaded_modules)))
 
 
 first_req = DummyRequirement('firsttestmodule')
