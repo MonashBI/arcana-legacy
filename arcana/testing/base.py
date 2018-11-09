@@ -2,7 +2,6 @@ from __future__ import print_function
 from past.builtins import basestring
 import os.path as op
 import os
-from itertools import chain
 from arcana.utils import makedirs
 import subprocess as sp
 import shutil
@@ -24,7 +23,7 @@ from arcana.exception import ArcanaError
 from arcana.exception import ArcanaUsageError
 
 logger = logging.getLogger('arcana')
-logger.setLevel(logging.WARNING)
+logger.setLevel(logging.INFO)
 handler = logging.StreamHandler()
 formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
