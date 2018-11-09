@@ -23,6 +23,7 @@ from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
+from arcana.repository import DirectoryRepository  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -336,7 +337,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment @IgnorePep8
         pipeline = self.pipeline(
-            name=output,
+            name=output + '_pipeline',
             desc="A dummy pipeline used to test 'partial-complete' method",
             references=[], name_maps=name_maps)
         # Nodes
@@ -372,7 +373,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         'subject1': {
             'visit1': ['one', 'ten', 'hundred'],
             'visit2': ['one', 'ten'],
-            'visit3': ['one', 'hundred', 'thousand']},
+            'visit3': ['one', 'ten', 'hundred', 'thousand']},
         'subject2': {
             'visit1': ['one'],
             'visit2': ['one', 'ten'],
@@ -407,11 +408,37 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                   for i in all_visit_ids]
         return Tree(subjects=subjects, visits=visits)
 
+    @property
+    def study(self):
+        try:
+            return self._study
+        except AttributeError:
+            self._study = self.create_study(
+                ExistingPrereqStudy, self.STUDY_NAME,
+                inputs=[FilesetSelector('one', text_format, 'one')])
+            return self._study
+
+    def add_sessions(self):
+        BaseMultiSubjectTestCase.add_sessions(self)
+        # Create a study object, in order to generate appropriate provenance
+        # for the existing "derived" data 
+        derived_filesets = [f for f in self.DATASET_CONTENTS
+                            if f != 'one']
+        # Get all pipelines in the study
+        pipelines = {n: getattr(self.study, '{}_pipeline'.format(n))()
+                     for n in derived_filesets}
+        for node in self.study.tree:
+            for fileset in node.filesets:
+                if fileset.name != 'one' and fileset.exists:
+                    # Generate expected provenance record for each pipeline
+                    # and save in the local repository
+                    record = node.expected_record(pipelines[fileset.name])
+                    self.local_repository.put_provenance(record)
+        self.study.clear_binds()  # Reset repository trees
+
     def test_per_session_prereqs(self):
-        study = self.create_study(
-            ExistingPrereqStudy, self.STUDY_NAME, inputs=[
-                FilesetSelector('one', text_format, 'one')])
-        study.data('thousand')
+        # Generate all data for 'thousand' spec
+        self.study.data('thousand')
         targets = {
             'subject1': {
                 'visit1': 1100.0,
@@ -426,16 +453,10 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
-                                          study=self.STUDY_NAME)
+                                          from_study=self.STUDY_NAME)
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
-                if subj_id == 'subject1' and visit_id == 'visit3':
-                    self.assertNotIn(
-                        'ten', [d.name for d in session.filesets],
-                        "'ten' should not be generated for "
-                        "subject1:visit3 as hundred and thousand are "
-                        "already present")
 
 
 test1_format = FileFormat('test1', extension='.t1')
@@ -620,34 +641,3 @@ class TestGeneratedPickle(BaseTestCase):
                 pkl.dump,
                 study,
                 f)
-
-
-#     def test_explicit_prereqs(self):
-#         study = self.create_study(
-#             ExistingPrereqStudy, self.from_study, inputs=[
-#                 FilesetSelector('ones', text_format, 'ones')])
-#         study.data('thousands')
-#         targets = {
-#             'subject1': {
-#                 'visit1': 1100,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject2': {
-#                 'visit1': 1110,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject3': {
-#                 'visit1': 1111,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject4': {
-#                 'visit1': 1111,
-#                 'visit2': 1110,
-#                 'visit3': 1000}}
-#         for subj_id, visits in self.saved_structure.iteritems():
-#             for visit_id in visits:
-#                 self.assertStatEqual('mean', 'thousands.mif',
-#                                      targets[subj_id][visit_id],
-#                                      self.from_study,
-#                                      subject=subj_id, session=visit_id,
-#                                      frequency='per_session')

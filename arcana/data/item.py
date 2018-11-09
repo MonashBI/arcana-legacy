@@ -9,7 +9,8 @@ from arcana.data.file_format.standard import directory_format
 from arcana.utils import split_extension, parse_value
 from arcana.exception import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
-    ArcanaFileFormatNotRegisteredError, ArcanaNameError)
+    ArcanaFileFormatNotRegisteredError, ArcanaNameError,
+    ArcanaDataNotDerivedYetError)
 from .base import BaseFileset, BaseField
 
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
@@ -152,17 +153,20 @@ class Fileset(BaseItem, BaseFileset):
         self._checksums = checksums
 
     def __eq__(self, other):
-        return (BaseFileset.__eq__(self, other) and
-                BaseItem.__eq__(self, other) and
-                self._path == other._path and
-                self.id == other.id and
-                self.bids_attr == other.bids_attr and
-                self.checksums == other.checksums)
+        eq = (BaseFileset.__eq__(self, other) and
+              BaseItem.__eq__(self, other) and
+              self.id == other.id and
+              self.bids_attr == other.bids_attr and
+              self.checksums == other.checksums)
+        # Avoid having to cache fileset in order to test equality unless they
+        # are already both cached
+        if self._path is not None and other._path is not None:
+            eq &= (self._path == other._path)
+        return eq
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
-                hash(self._path) ^
                 hash(self.id) ^
                 hash(self.bids_attr) ^
                 hash(self.checksums))
@@ -224,6 +228,10 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def path(self):
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access path of {} as it hasn't been derived yet"
+                .format(self))
         if self._path is None:
             if self.repository is not None:
                 self.get()
@@ -266,7 +274,11 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def checksums(self):
-        if self._checksums is None and self.exists:
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access checksums of {} as it hasn't been derived yet"
+                .format(self))
+        if self._checksums is None:
             self._checksums = {}
             for fpath in self.paths:
                 with open(fpath, 'rb') as f:
@@ -519,7 +531,11 @@ class Field(BaseItem, BaseField):
 
     @property
     def value(self):
-        if self._value is None and self.exists:
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access value of {} as it hasn't been "
+                "derived yet".format(repr(self)))
+        if self._value is None:
             if self.repository is not None:
                 self._value = self.repository.get_field(self)
             else:
@@ -534,6 +550,7 @@ class Field(BaseItem, BaseField):
             self._value = [self.dtype(v) for v in value]
         else:
             self._value = self.dtype(value)
+        self._exists = True
 
     @property
     def checksums(self):

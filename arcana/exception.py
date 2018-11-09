@@ -60,6 +60,10 @@ class ArcanaMissingDataException(ArcanaError):
     pass
 
 
+class ArcanaDataNotDerivedYetError(ArcanaError):
+    pass
+
+
 class ArcanaFilesetSelectorError(ArcanaUsageError):
     pass
 

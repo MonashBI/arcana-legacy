@@ -2,6 +2,7 @@ from __future__ import print_function
 from past.builtins import basestring
 import os.path as op
 import os
+from itertools import chain
 from arcana.utils import makedirs
 import subprocess as sp
 import shutil
@@ -475,18 +476,29 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 fileset._repository = self.local_repository
                 fileset._path = op.join(
                     fileset.repository.session_dir(fileset), fileset.fname)
-                self._make_dir(op.dirname(fileset.path))
+                session_path = op.dirname(fileset.path)
+                self._make_dir(session_path)
                 with open(fileset.path, 'w') as f:
                     f.write(str(self.DATASET_CONTENTS[fileset.name]))
-            fields = list(node.fields)
-            if fields:
-                dpath = self.local_repository.session_dir(fields[0])
-                self._make_dir(dpath)
-                dct = {f.name: f.value for f in fields}
-                with open(op.join(dpath,
-                                  DirectoryRepository.FIELDS_FNAME), 'w',
-                          **JSON_ENCODING) as f:
+                if fileset.derived:
+                    self._make_dir(op.join(session_path,
+                                           DirectoryRepository.PROV_DIR))
+            for field in node.fields:
+                session_path = self.local_repository.session_dir(field)
+                self._make_dir(session_path)
+                fields_path = op.join(session_path,
+                                      DirectoryRepository.FIELDS_FNAME)
+                if op.exists(fields_path):
+                    with open(fields_path, **JSON_ENCODING) as f:
+                        dct = json.load(f)
+                else:
+                    dct = {}
+                dct[field.name] = field.value
+                with open(fields_path, 'w', **JSON_ENCODING) as f:
                     json.dump(dct, f)
+                if field.derived:
+                    self._make_dir(op.join(session_path,
+                                           DirectoryRepository.PROV_DIR))
 
     @property
     def subject_ids(self):

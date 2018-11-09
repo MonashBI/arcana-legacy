@@ -696,9 +696,13 @@ class BaseProcessor(object):
                 ignore_versions = False
                 reprocess = self.study.reprocess
             for node in to_check:
-                try:
-                    node.check_provenance(pipeline, ignore_versions)
-                except ArcanaProvenanceRecordMismatchError:
+                # Retrieve record stored in tree node
+                record = node.record(pipeline.name, pipeline.study.name)
+                # Generated expected record from current pipeline/repository-
+                # state
+                expected_record = node.expected_record(pipeline)
+                # Compare record with expected and
+                if not record.matches(expected_record, ignore_versions):
                     if reprocess:
                         to_process[subject_inds.get(node.subject_id, 0),
                                    visit_inds.get(node.visit_id, 0)] = True
@@ -707,7 +711,14 @@ class BaseProcessor(object):
                             "pipeline due to mismatching provenance"
                             .format(node, pipeline.name))
                     else:
-                        raise
+                        raise ArcanaProvenanceRecordMismatchError(
+                            "Provenance recorded for '{}' pipeline in {} does "
+                            "not match that of requested pipeline, set "
+                            "reprocess flag == True to overwrite:\n{}".format(
+                                pipeline.name, self,
+                                record.find_mismatch(
+                                    expected_record, indent='  ',
+                                    ignore_versions=ignore_versions)))
 
         if summary_outputs:
             to_process = dialate_array(to_process)
