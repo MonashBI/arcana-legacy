@@ -330,11 +330,11 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         AcquiredFilesetSpec('one', text_format),
-        FilesetSpec('ten', text_format, 'tens_pipeline'),
-        FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
-        FilesetSpec('thousand', text_format, 'thousands_pipeline')]
+        FilesetSpec('ten', text_format, 'ten_pipeline'),
+        FilesetSpec('hundred', text_format, 'hundred_pipeline'),
+        FilesetSpec('thousand', text_format, 'thousand_pipeline')]
 
-    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment
+    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment @IgnorePep8
         pipeline = self.pipeline(
             name=output,
             desc="A dummy pipeline used to test 'partial-complete' method",
@@ -350,14 +350,16 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output(output, math, 'z')
         return pipeline
 
-    def tens_pipeline(self, **name_maps):  # @UnusedVariable
+    def ten_pipeline(self, **name_maps):  # @UnusedVariable
         return self.pipeline_factory(10, 'one', 'ten', name_maps=name_maps)
 
-    def hundreds_pipeline(self, **name_maps):  # @UnusedVariable
-        return self.pipeline_factory(100, 'ten', 'hundred', name_maps=name_maps)
+    def hundred_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(100, 'ten', 'hundred',
+                                     name_maps=name_maps)
 
-    def thousands_pipeline(self, **name_maps):  # @UnusedVariable
-        return self.pipeline_factory(1000, 'hundred', 'thousand', name_maps=name_maps)
+    def thousand_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(1000, 'hundred', 'thousand',
+                                     name_maps=name_maps)
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):
@@ -394,6 +396,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study))
+                record
                 session = Session(subj_id, visit_id, filesets=filesets)
                 sessions.append(session)
                 visit_ids.add(visit_id)
