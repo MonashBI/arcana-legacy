@@ -41,8 +41,8 @@ if [ ! -d $HOME/modules/firsttestmodule ]; then
   echo "setenv FIRSTTESTMODULE_VERSION 0.16.2.dev18" >> $HOME/modules/firsttestmodule/0.16.2
 fi
 
-echo "$HOME/modules/firsttestmodule contents:"
-cat $HOME/modules/firsttestmodule
+echo "$HOME/modules/firsttestmodule/0.16.2 contents:"
+cat $HOME/modules/firsttestmodule/0.16.2
 
 if [ ! -d $HOME/modules/secondtestmodule ]; then
   mkdir -p $HOME/modules/secondtestmodule
@@ -58,5 +58,5 @@ if [ ! -d $HOME/modules/secondtestmodule ]; then
   
 fi
 
-echo "$HOME/modules/secondtestmodule contents:"
-cat $HOME/modules/secondtestmodule
+echo "$HOME/modules/secondtestmodule/1.0.2 contents:"
+cat $HOME/modules/secondtestmodule/1.0.2
