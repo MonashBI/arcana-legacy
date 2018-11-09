@@ -385,16 +385,16 @@ class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
 class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
 
     @property
-    def digest_sink_project(self):
+    def checksum_sink_project(self):
         return self.project + 'SINK'
 
     def setUp(self):
         TestXnatSourceAndSinkBase.setUp(self)
-        self._create_project(self.digest_sink_project)
+        self._create_project(self.checksum_sink_project)
 
     def tearDown(self):
         TestXnatSourceAndSinkBase.tearDown(self)
-        self._delete_project(self.digest_sink_project)
+        self._delete_project(self.checksum_sink_project)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_repository_roundtrip(self):
@@ -575,14 +575,14 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(d, 'simulated')
 
     @unittest.skipIf(*SKIP_ARGS)
-    def test_digest_check(self):
+    def test_checksums(self):
         """
-        Tests check of downloaded digests to see if file needs to be
+        Tests check of downloaded checksums to see if file needs to be
         redownloaded
         """
-        cache_dir = op.join(self.work_dir, 'cache-digest-check')
+        cache_dir = op.join(self.work_dir, 'cache-checksum-check')
         DATASET_NAME = 'source1'
-        STUDY_NAME = 'digest_check_study'
+        STUDY_NAME = 'checksum_check_study'
         fileset_fpath = DATASET_NAME + text_format.extension
         source_target_path = op.join(self.session_cache(cache_dir),
                                           fileset_fpath)
@@ -593,7 +593,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project,
             server=SERVER, cache_dir=cache_dir)
         sink_repository = XnatRepository(
-            project_id=self.digest_sink_project, server=SERVER,
+            project_id=self.checksum_sink_project, server=SERVER,
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
@@ -605,32 +605,32 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         source = pe.Node(
             RepositorySource(
                 [study.bound_spec(DATASET_NAME).collection]),
-            name='digest_check_source')
+            name='checksum_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
         source.run()
         self.assertTrue(op.exists(md5_path))
         self.assertTrue(op.exists(source_target_path))
         with open(md5_path) as f:
-            digests = json.load(f)
+            checksums = json.load(f)
         # Stash the downloaded file in a new location and create a dummy
         # file instead
         stash_path = source_target_path + '.stash'
         shutil.move(source_target_path, stash_path)
         with open(source_target_path, 'w') as f:
             f.write('dummy')
-        # Run the download, which shouldn't download as the digests are the
+        # Run the download, which shouldn't download as the checksums are the
         # same
         source.run()
         with open(source_target_path) as f:
             d = f.read()
         self.assertEqual(d, 'dummy')
-        # Replace the digest with a dummy
+        # Replace the checksum with a dummy
         os.remove(md5_path)
-        digests[fileset_fpath] = 'dummy_digest'
+        checksums['.'] = 'dummy_checksum'
         with open(md5_path, 'w', **JSON_ENCODING) as f:
-            json.dump(digests, f)
-        # Retry the download, which should now download since the digests
+            json.dump(checksums, f)
+        # Retry the download, which should now download since the checksums
         # differ
         source.run()
         with open(source_target_path) as f:
@@ -638,37 +638,35 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         with open(stash_path) as f:
             e = f.read()
         self.assertEqual(d, e)
-        # Resink the source file and check that the generated MD5 digest is
+        # Resink the source file and check that the generated MD5 checksum is
         # stored in identical format
         DATASET_NAME = 'sink1'
         sink = pe.Node(
             RepositorySink(
                 [study.bound_spec(DATASET_NAME).collection],
                 study.dummy_pipeline().provenance(), []),
-            name='digest_check_sink')
-        sink.inputs.name = 'digest_check_sink'
-        sink.inputs.desc = "Tests the generation of MD5 digests"
+            name='checksum_check_sink')
+        sink.inputs.name = 'checksum_check_sink'
+        sink.inputs.desc = "Tests the generation of MD5 checksums"
         sink.inputs.subject_id = self.SUBJECT
         sink.inputs.visit_id = self.VISIT
         sink.inputs.sink1_path = source_target_path
         sink_fpath = DATASET_NAME + text_format.extension
         sink_target_path = op.join(
             self.session_cache(
-                cache_dir, project=self.digest_sink_project,
+                cache_dir, project=self.checksum_sink_project,
                 subject=(self.SUBJECT), from_study=STUDY_NAME),
             sink_fpath)
         sink_md5_path = sink_target_path + XnatRepository.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
-            source_digests = json.load(f)
+            source_checksums = json.load(f)
         with open(sink_md5_path) as f:
-            sink_digests = json.load(f)
+            sink_checksums = json.load(f)
         self.assertEqual(
-            source_digests[fileset_fpath],
-            sink_digests[sink_fpath],
-            ("Source digest ({}) did not equal sink digest ({})"
-             .format(source_digests[fileset_fpath],
-                     sink_digests[sink_fpath])))
+            source_checksums, sink_checksums,
+            ("Source checksum ({}) did not equal sink checksum ({})"
+             .format(source_checksums, sink_checksums)))
 
 
 class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):

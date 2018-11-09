@@ -208,6 +208,9 @@ class Record(object):
         per-study summary
     """
 
+    # For duck-typing with Filesets and Fields
+    derived = True
+
     def __init__(self, pipeline_record, inputs, outputs, frequency,
                  subject_id, visit_id):
         self._pipeline_record = pipeline_record

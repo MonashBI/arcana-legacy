@@ -127,3 +127,7 @@ class ArcanaFileFormatNotRegisteredError(ArcanaError):
 
 class ArcanaProvenanceRecordMismatchError(ArcanaError):
     pass
+
+
+class ArcanaWrongRepositoryError(ArcanaError):
+    pass

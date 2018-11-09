@@ -1,11 +1,10 @@
 from builtins import object
-from abc import ABCMeta, abstractmethod
 from arcana.exception import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
-    ArcanaFileFormatNotRegisteredError)
+    ArcanaFileFormatNotRegisteredError, ArcanaMissingDataException)
 from nipype.interfaces.utility import IdentityInterface
+from arcana.utils import lower, split_extension
 import logging
-from future.utils import with_metaclass
 
 
 logger = logging.getLogger('arcana')
@@ -269,6 +268,35 @@ class FileFormat(object):
                 "doesn't have a registered header loader".format(
                     path, self.name))
         return self._header_loader(path)
+
+    def primary_file(self, file_names):
+        """
+        Selects the primary file from a list of filenames, as opposed to
+        side-cars and headers
+
+        Parameters
+        ----------
+        file_names : list[str]
+            The list of filenames to select from
+
+        Returns
+        -------
+        fname : str
+            The name of the primary file
+        """
+
+        match_fnames = [
+            f for f in file_names
+            if lower(split_extension(f)[-1]) == lower(self.extension)]
+        if len(match_fnames) == 1:
+            fname = match_fnames[0]
+        else:
+            raise ArcanaMissingDataException(
+                "Did not find single file with extension '{}' "
+                "(found '{}') in resource '{}'"
+                .format(self.extension,
+                        "', '".join(file_names), fname))
+        return fname
 
 
 class Converter(object):
