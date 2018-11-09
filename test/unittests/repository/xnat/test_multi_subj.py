@@ -1,16 +1,19 @@
 from __future__ import absolute_import
+from future.utils import with_metaclass
 import os.path as op
 import tempfile
 import unittest
 from arcana.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepository
-from arcana.data import FilesetSelector
+from arcana.data import (
+    FilesetSelector, AcquiredFilesetSpec)
+from arcana.study import Study, StudyMetaClass
 from arcana.data.file_format.standard import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
 import sys
 from arcana.testing.xnat import (
-    TestMultiSubjectOnXnatMixin, SKIP_ARGS, SERVER, TestStudy)
+    TestMultiSubjectOnXnatMixin, SKIP_ARGS, SERVER)
 
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'study'))
@@ -21,6 +24,15 @@ sys.path.pop(0)
 sys.path.insert(0, op.join(op.dirname(__file__), '..'))
 import test_directory  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
+
+
+class TestStudy(with_metaclass(StudyMetaClass, Study)):
+
+    add_data_specs = [
+        AcquiredFilesetSpec('fileset1', text_format),
+        AcquiredFilesetSpec('fileset2', text_format, optional=True),
+        AcquiredFilesetSpec('fileset3', text_format),
+        AcquiredFilesetSpec('fileset5', text_format, optional=True)]
 
 
 class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,

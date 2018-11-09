@@ -17,7 +17,37 @@ from arcana.data import FilesetSelector
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format.standard import text_format
 from arcana.testing.xnat import (
-    TestOnXnatMixin, SERVER, SKIP_ARGS, DummyStudy, filter_scans, logger)
+    TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
+from arcana.study import Study, StudyMetaClass
+from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
+from future.utils import with_metaclass
+
+
+class DummyStudy(with_metaclass(StudyMetaClass, Study)):
+
+    add_data_specs = [
+        AcquiredFilesetSpec('source1', text_format),
+        AcquiredFilesetSpec('source2', text_format, optional=True),
+        AcquiredFilesetSpec('source3', text_format, optional=True),
+        AcquiredFilesetSpec('source4', text_format, optional=True),
+        FilesetSpec('sink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink3', text_format, 'dummy_pipeline'),
+        FilesetSpec('sink4', text_format, 'dummy_pipeline'),
+        FilesetSpec('subject_sink', text_format, 'dummy_pipeline',
+                    frequency='per_subject'),
+        FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
+                    frequency='per_visit'),
+        FilesetSpec('study_sink', text_format, 'dummy_pipeline',
+                    frequency='per_study'),
+        FilesetSpec('resink1', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink2', text_format, 'dummy_pipeline'),
+        FilesetSpec('resink3', text_format, 'dummy_pipeline'),
+        FieldSpec('field1', int, 'dummy_pipeline'),
+        FieldSpec('field2', float, 'dummy_pipeline'),
+        FieldSpec('field3', str, 'dummy_pipeline')]
+
+    def dummy_pipeline(self, **name_maps):
+        return self.pipeline('dummy_pipeline', name_maps=name_maps)
 
 
 class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
