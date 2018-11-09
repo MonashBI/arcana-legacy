@@ -386,7 +386,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     @property
     def input_tree(self):
         sessions = []
-        visit_ids = set()
+        all_visit_ids = set()
         for subj_id, visit_ids in list(self.PROJECT_STRUCTURE.items()):
             for visit_id, fileset_names in list(visit_ids.items()):
                 filesets = []
@@ -396,16 +396,15 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study))
-                record
                 session = Session(subj_id, visit_id, filesets=filesets)
                 sessions.append(session)
-                visit_ids.add(visit_id)
+                all_visit_ids.add(visit_id)
         subjects = [Subject(i, sessions=[s for s in sessions
                                          if s.subject_id == i])
                     for i in self.PROJECT_STRUCTURE]
         visits = [Visit(i, sessions=[s for s in sessions
                                      if s.visit == i])
-                  for i in visit_ids]
+                  for i in all_visit_ids]
         return Tree(subjects=subjects, visits=visits)
 
     def test_per_session_prereqs(self):

@@ -7,6 +7,7 @@ import os
 import os.path as op
 import shutil
 import re
+from copy import copy
 import xnat
 from arcana.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepository
@@ -15,14 +16,8 @@ from arcana.study import Study, StudyMetaClass
 from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
 from arcana.exception import ArcanaError
 from arcana.data.file_format.standard import text_format
-import sys
 import logging
 from future.utils import with_metaclass
-
-# Import unittests as package so we can inherit from unittests in other modules
-sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', '..'))
-import unittest as arcana_unittests  # @IgnorePep8 @NoMove @UnusedImport
-sys.path.pop(0)
 
 
 logger = logging.getLogger('arcana')
@@ -32,8 +27,7 @@ try:
 except KeyError:
     SERVER = None
 
-SKIP_ARGS = (SERVER is None,
-             "Skipping as ARCANA_TEST_XNAT env var not set")
+SKIP_ARGS = (SERVER is None, "Skipping as ARCANA_TEST_XNAT env var not set")
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -202,8 +196,14 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         with repo:
             for node in tree:
                 for fileset in node.filesets:
+                    # Need to forcibly change the repository to be XNAT
+                    fileset = copy(fileset)
+                    fileset._repository = repo
                     repo.put_fileset(fileset)
                 for field in node.fields:
+                    # Need to forcibly change the repository to be XNAT
+                    field = copy(field)
+                    field._repository = repo
                     repo.put_field(field)
 
     def _upload_datset(self, xnat_login, fileset, xsession):
