@@ -273,7 +273,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_binds(self):
+    def clear_caches(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent

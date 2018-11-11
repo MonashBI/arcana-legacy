@@ -840,14 +840,14 @@ class Pipeline(object):
         for input in self.inputs:  # @ReservedAssignment
             # Get iterators present in the input that aren't in this node
             # and need to be joined
-            join_iterators = (self.iterators(input.frequency) -
-                               self.iterators(node.frequency))
-            if not join_iterators:
+            iterators_to_join = (self.iterators(input.frequency) -
+                                 self.iterators(node.frequency))
+            if not iterators_to_join:
                 # No iterators to join so we can just extract the checksums
                 # of the corresponding input
                 exp_inputs[input.name] = input.collection.item(
                     node.subject_id, node.visit_id).checksums
-            elif len(join_iterators) == 1:
+            elif len(iterators_to_join) == 1:
                 # Get list of checksums dicts for each node of the input
                 # frequency that relates to the current node
                 exp_inputs[input.name] = [

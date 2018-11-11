@@ -428,7 +428,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     # and save in the local repository
                     record = pipelines[fileset.name].expected_record(node)
                     self.local_repository.put_record(record)
-        study.clear_binds()  # Reset repository trees
+        study.clear_caches()  # Reset repository trees
 
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec

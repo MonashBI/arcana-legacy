@@ -200,7 +200,7 @@ class BaseProcessor(object):
                             .format(pipeline.name))
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
-        self.study.clear_binds()
+        self.study.clear_caches()
 #         workflow.write_graph(graph2use='flat', format='svg')
 #         print('Graph saved in {} directory'.format(os.getcwd()))
         return workflow.run(plugin=self._plugin)
