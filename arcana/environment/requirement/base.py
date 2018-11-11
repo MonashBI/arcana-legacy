@@ -2,7 +2,7 @@ from __future__ import division
 from builtins import object
 import math
 import logging
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaVersionNotDectableError, ArcanaVersionError)
 import re
 

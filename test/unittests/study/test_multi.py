@@ -3,7 +3,7 @@ from arcana.interfaces.utils import Merge
 from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
 from arcana.data.file_format.standard import text_format
 from arcana.study.parameter import ParameterSpec
-from arcana.exception import ArcanaOutputNotProducedException
+from arcana.exceptions import ArcanaOutputNotProducedException
 from arcana.study.base import Study
 from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)

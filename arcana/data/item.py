@@ -7,7 +7,7 @@ import pydicom
 from arcana.data.file_format import FileFormat
 from arcana.data.file_format.standard import directory_format
 from arcana.utils import split_extension, parse_value
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
     ArcanaFileFormatNotRegisteredError, ArcanaNameError,
     ArcanaDataNotDerivedYetError)

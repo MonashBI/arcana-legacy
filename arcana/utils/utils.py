@@ -9,7 +9,7 @@ from nipype.interfaces.base import (
     TraitedSpec, traits, BaseInterface, File, isdefined,
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
     BaseInterfaceInputSpec)
-from arcana.exception import ArcanaUsageError
+from arcana.exceptions import ArcanaUsageError
 from itertools import chain, groupby
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
 from nipype.interfaces.utility import IdentityInterface
@@ -17,7 +17,7 @@ from nipype.interfaces.io import IOBase, add_traits
 from nipype.utils.filemanip import filename_to_list
 from nipype.interfaces.base import OutputMultiPath, InputMultiPath
 import numpy as np
-from arcana.exception import ArcanaError
+from arcana.exceptions import ArcanaError
 
 
 bash_resources = op.abspath(op.join(op.dirname(__file__), 'resources', 'bash'))

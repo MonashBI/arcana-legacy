@@ -3,7 +3,7 @@ import re
 from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaFilesetSelectorError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection

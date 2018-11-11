@@ -1,7 +1,7 @@
 import json
 from pprint import pformat
 from arcana.utils import find_mismatch
-from arcana.exception import ArcanaError
+from arcana.exceptions import ArcanaError
 
 
 class PipelineRecord(object):

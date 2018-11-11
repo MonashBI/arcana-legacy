@@ -6,7 +6,7 @@ import os.path as op
 import types
 from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)

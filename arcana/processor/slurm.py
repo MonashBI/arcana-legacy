@@ -1,7 +1,7 @@
 from builtins import zip
 import math
 import os
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaJobSubmittedException)
 from .base import BaseProcessor
 from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin

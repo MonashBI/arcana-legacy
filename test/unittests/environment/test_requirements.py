@@ -1,5 +1,5 @@
 from unittest import TestCase
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaVersionError)
 from arcana.environment.requirement import (
     PythonPackageRequirement, Version)

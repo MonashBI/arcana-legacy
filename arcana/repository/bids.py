@@ -9,7 +9,7 @@ import logging
 from bids import grabbids as gb
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
-from arcana.exception import ArcanaNameError
+from arcana.exceptions import ArcanaNameError
 
 logger = logging.getLogger('arcana')
 

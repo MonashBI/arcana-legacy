@@ -15,7 +15,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 import arcana
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaDesignError, ArcanaError,
     ArcanaOutputNotProducedException, ArcanaMissingDataException)
 from arcana.provenance import PipelineRecord
@@ -815,3 +815,65 @@ class Pipeline(object):
             workflow_graph=wf_graph,
             subject_ids=self.study.subject_ids,
             visit_ids=self.study.visit_ids)
+
+    def expected_record(self, node):
+        """
+        Constructs the provenance record that would be produced if
+        the given pipeline is run
+
+        Parameters
+        ----------
+        node : arcana.repository.tree.TreeNode
+            A node of the Tree representation of the study data stored in the
+            repository (i.e. a Session, Visit, Subject or Tree node)
+
+        Returns
+        -------
+        expected_record : arcana.provenance.Record
+            The record that would be produced if the pipeline is run over the
+            study tree.
+        """
+        exp_inputs = {}
+        # Get checksums/values of all inputs that would have been used in
+        # previous runs of an equivalent pipeline to compare with that saved
+        # in provenance to see if any have been updated.
+        for input in self.inputs:  # @ReservedAssignment
+            # Get iterfields present in the input that aren't in this node
+            # and need to be joined
+            input_iterfields = self.iterfields(input.frequency)
+            output_iterfields = self.iterfields(node.frequency)
+            join_iterfields = input_iterfields - output_iterfields
+            if not join_iterfields:
+                # No iterfields to join so we can just extract the checksums
+                # directly
+                exp_inputs[input.name] = input.collection.item(
+                    node.subject_id, node.visit_id).checksums
+            elif len(join_iterfields) == 1:
+                # We need to join one iterfield, across all sub-nodes of the
+                # current node or all nodes if the current node doesn't
+                # iterate over that iterfield
+                if input_iterfields & output_iterfields:
+                    base_node = node
+                else:
+                    base_node = node.parent
+                exp_inputs[input.name] = [
+                    input.collection.item(n.subject_id, n.visit_id).checksums
+                    for n in base_node.nodes(
+                        self.study.freq_from_iterfields(join_iterfields))]
+            else:
+                # In the case where the node is the whole treee and the input
+                # is per_seession, we need to create a list of lists to match
+                # how they are joined in the processor
+                exp_inputs[input.name] = [
+                    [input.collection.item(s.subject_id. s.visit_id).checksums
+                     for s in subj.sessions]
+                    for subj in node.subjects]
+        # Get checksums/value for all outputs of the pipeline. We are assuming
+        # that they exist here (otherwise they will be None)
+        exp_outputs = {
+            o.name: o.collection.item(self.subject_id, self.visit_id).checksums
+            for o in self.outputs}
+        expected_record = self.provenance().record(
+            exp_inputs, exp_outputs, node.frequency, node.subject_id,
+            node.visit_id)
+        return expected_record

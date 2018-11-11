@@ -1,4 +1,4 @@
-from arcana.exception import ArcanaFilesetSelectorError, ArcanaUsageError
+from arcana.exceptions import ArcanaFilesetSelectorError, ArcanaUsageError
 from .selector import FilesetSelector
 
 

@@ -3,7 +3,7 @@ from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
     AcquiredFilesetSpec, FilesetSpec, FilesetSelector, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.exception import (ArcanaModulesNotInstalledException,
+from arcana.exceptions import (ArcanaModulesNotInstalledException,
                               ArcanaError)
 import unittest
 from arcana.testing import BaseTestCase, TestMath
@@ -38,6 +38,8 @@ except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
     MODULES_NOT_INSTALLED = False
+
+SKIP_ARGS = (MODULES_NOT_INSTALLED, "Environment modules are not installed")
 
 
 class TestMathWithReq(TestMath):
@@ -111,8 +113,7 @@ class TestModuleLoad(BaseTestCase):
         return LinearProcessor(
             self.work_dir)
 
-    @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Environment modules are not installed")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
@@ -121,8 +122,7 @@ class TestModuleLoad(BaseTestCase):
         self.assertContentsEqual(study.data('twos'), 2.0)
         self.assertEqual(ModulesEnvironment.loaded(), {})
 
-    @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Environment modules are not installed")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',

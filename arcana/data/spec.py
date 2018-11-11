@@ -2,7 +2,7 @@ from past.builtins import basestring
 from builtins import object
 from operator import attrgetter
 from copy import copy, deepcopy
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaDesignError,
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException, ArcanaNameError)
