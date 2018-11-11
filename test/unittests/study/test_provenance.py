@@ -3,7 +3,7 @@ import os.path as op
 import tempfile
 import shutil
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from arcana.testing import BaseTestCase, TestMath  # @IgnorePep8
+from arcana.utils.testing import BaseTestCase, TestMath  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import (
@@ -11,7 +11,7 @@ from arcana.data import (
     AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.provenance import Record
+from arcana.pipeline.provenance import Record
 from arcana.environment import BaseRequirement
 
 

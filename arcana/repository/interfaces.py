@@ -4,7 +4,7 @@ from nipype.interfaces.base import (
     BaseInterface, isdefined)
 from itertools import chain
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
-from arcana.exception import ArcanaError
+from arcana.exceptions import ArcanaError
 import logging
 
 logger = logging.getLogger('arcana')

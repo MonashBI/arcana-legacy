@@ -1,5 +1,5 @@
 from builtins import object
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError, ArcanaMissingDataException)
 from nipype.interfaces.utility import IdentityInterface

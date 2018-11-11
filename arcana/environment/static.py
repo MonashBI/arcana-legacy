@@ -1,7 +1,7 @@
 from __future__ import division
 import logging
 from .base import BaseEnvironment
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
     ArcanaVersionError)
 

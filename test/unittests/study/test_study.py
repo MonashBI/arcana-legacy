@@ -6,9 +6,9 @@ import os.path  # @IgnorePep8
 # config.enable_debug_mode()
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.testing import (  # @IgnorePep8
+from arcana.utils.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.exception import (  # @IgnorePep8
+from arcana.exceptions import (  # @IgnorePep8
     ArcanaCantPickleStudyError, ArcanaUsageError)  # @IgnorePep8
 from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
@@ -17,7 +17,7 @@ from nipype.interfaces.base import (  # @IgnorePep8
 from arcana.study.parameter import ParameterSpec  # @IgnorePep8
 from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
+from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)

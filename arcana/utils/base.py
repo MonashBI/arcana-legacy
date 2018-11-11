@@ -6,7 +6,7 @@ import errno
 from nipype.interfaces.matlab import MatlabCommand
 import shutil
 import tempfile
-from arcana.exception import ArcanaUsageError
+from arcana.exceptions import ArcanaUsageError
 if PY2:
     from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
     from collections import Iterable  # @UnusedImport @UnresolvedImport

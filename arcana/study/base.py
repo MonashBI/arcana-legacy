@@ -6,7 +6,7 @@ import os.path as op
 import types
 from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)
@@ -14,7 +14,7 @@ from .pipeline import Pipeline
 from arcana.data import BaseData
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
-from arcana.interfaces.repository import RepositorySource
+from arcana.repository.interfaces import RepositorySource
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment

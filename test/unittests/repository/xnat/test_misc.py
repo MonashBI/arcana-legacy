@@ -6,11 +6,11 @@ import sys
 from unittest import TestCase
 import xnat
 from arcana.data.file_format import FileFormat
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetSelector
 from arcana.repository import XnatRepository
 from arcana.processor import LinearProcessor
-from arcana.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
+from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
 
 # Import TestExistingPrereqs study to test it on XNAT

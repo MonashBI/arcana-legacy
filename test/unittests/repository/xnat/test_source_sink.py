@@ -7,16 +7,16 @@ import json
 import time
 import unittest
 from multiprocessing import Process
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepository
 from arcana.processor import LinearProcessor
-from arcana.interfaces.repository import RepositorySource, RepositorySink
+from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.data import FilesetSelector
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format.standard import text_format
-from arcana.testing.xnat import (
+from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
 from arcana.study import Study, StudyMetaClass
 from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec

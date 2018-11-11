@@ -9,12 +9,12 @@ import shutil
 import re
 from copy import copy
 import xnat
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepository
 from arcana.repository.directory import DirectoryRepository
 from arcana.study import Study, StudyMetaClass
 from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
-from arcana.exception import ArcanaError
+from arcana.exceptions import ArcanaError
 from arcana.data.file_format.standard import text_format
 import logging
 from future.utils import with_metaclass

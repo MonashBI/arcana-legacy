@@ -1,7 +1,7 @@
 from future.utils import PY3
 from .base import BaseRequirement
 import subprocess as sp
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaRequirementNotFoundError,
     ArcanaVersionNotDectableError)
 

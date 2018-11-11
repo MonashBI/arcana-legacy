@@ -19,8 +19,8 @@ from arcana.utils import classproperty
 from arcana.repository.directory import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
-from arcana.exception import ArcanaError
-from arcana.exception import ArcanaUsageError
+from arcana.exceptions import ArcanaError
+from arcana.exceptions import ArcanaUsageError
 
 logger = logging.getLogger('arcana')
 logger.setLevel(logging.WARNING)

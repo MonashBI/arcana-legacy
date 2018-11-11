@@ -1,4 +1,4 @@
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaIndexError)
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field

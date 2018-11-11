@@ -7,11 +7,11 @@ from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
     ArcanaProvenanceRecordMismatchError)
-from arcana.interfaces.repository import (RepositorySource,
+from arcana.repository.interfaces import (RepositorySource,
                                           RepositorySink)
 
 

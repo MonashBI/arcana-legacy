@@ -15,9 +15,9 @@ from zipfile import ZipFile, BadZipfile
 from arcana.data import Fileset, Field
 from arcana.repository.base import BaseRepository
 from arcana.data.file_format import FileFormat
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
-from arcana.provenance import Record
+from arcana.pipeline.provenance import Record
 from arcana.utils import dir_modtime
 import re
 import xnat

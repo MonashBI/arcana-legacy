@@ -1,7 +1,7 @@
 import re
 from .base import BaseRequirement, Version
 from arcana.utils import run_matlab_cmd
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
 
 

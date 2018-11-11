@@ -10,7 +10,7 @@ from itertools import chain
 import json
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaBadlyFormattedDirectoryRepositoryError)
 
 

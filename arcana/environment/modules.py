@@ -7,7 +7,7 @@ import re
 import logging
 import subprocess as sp
 from collections import defaultdict
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
     ArcanaVersionError)

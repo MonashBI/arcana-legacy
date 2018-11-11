@@ -1,6 +1,6 @@
 import importlib
 from .base import BaseRequirement
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaRequirementNotFoundError,
     ArcanaVersionNotDectableError)
 

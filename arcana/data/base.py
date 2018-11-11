@@ -4,7 +4,7 @@ from abc import ABCMeta
 from .file_format import FileFormat
 from copy import copy
 from logging import getLogger
-from arcana.exception import ArcanaError
+from arcana.exceptions import ArcanaError
 from future.utils import with_metaclass
 from future.types import newstr
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
