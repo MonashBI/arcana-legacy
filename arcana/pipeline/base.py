@@ -818,8 +818,8 @@ class Pipeline(object):
 
     def expected_record(self, node):
         """
-        Constructs the provenance record that would be produced if
-        the given pipeline is run
+        Constructs the provenance record that would be saved in the given node
+        if the pipeline was run on the current state of the repository
 
         Parameters
         ----------
@@ -840,30 +840,23 @@ class Pipeline(object):
         for input in self.inputs:  # @ReservedAssignment
             # Get iterfields present in the input that aren't in this node
             # and need to be joined
-            input_iterfields = self.iterfields(input.frequency)
-            output_iterfields = self.iterfields(node.frequency)
-            join_iterfields = input_iterfields - output_iterfields
+            join_iterfields = (self.iterfields(input.frequency) -
+                               self.iterfields(node.frequency))
             if not join_iterfields:
                 # No iterfields to join so we can just extract the checksums
-                # directly
+                # of the corresponding input
                 exp_inputs[input.name] = input.collection.item(
                     node.subject_id, node.visit_id).checksums
             elif len(join_iterfields) == 1:
-                # We need to join one iterfield, across all sub-nodes of the
-                # current node or all nodes if the current node doesn't
-                # iterate over that iterfield
-                if input_iterfields & output_iterfields:
-                    base_node = node
-                else:
-                    base_node = node.parent
+                # Get list of checksums dicts for each node of the input
+                # frequency that relates to the current node
                 exp_inputs[input.name] = [
                     input.collection.item(n.subject_id, n.visit_id).checksums
-                    for n in base_node.nodes(
-                        self.study.freq_from_iterfields(join_iterfields))]
+                    for n in node.nodes(input.frequency)]
             else:
                 # In the case where the node is the whole treee and the input
                 # is per_seession, we need to create a list of lists to match
-                # how they are joined in the processor
+                # how the checksums are joined in the processor
                 exp_inputs[input.name] = [
                     [input.collection.item(s.subject_id. s.visit_id).checksums
                      for s in subj.sessions]

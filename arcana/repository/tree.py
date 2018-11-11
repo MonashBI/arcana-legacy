@@ -355,13 +355,18 @@ class Tree(TreeNode):
 
     def nodes(self, frequency=None):
         """
-        Returns an iterator over all nodes in the tree
+        Returns an iterator over all nodes in the tree for the specified
+        frequency. If no frequency is specified then all nodes are returned
 
         Parameters
         ----------
         frequency : str | None
             The frequency of the nodes to iterate over. If None all
             frequencies are returned
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
         """
         if frequency is None:
             nodes = chain(*(self._nodes(f)
@@ -522,10 +527,32 @@ class Subject(TreeNode):
         return self._sessions.values()
 
     def nodes(self, frequency=None):
-        if frequency is not None and frequency != 'per_session':
-            raise ArcanaError(
-                "Subjects only have 'per_session' nodes")
-        return self.sessions
+        """
+        Returns all sessions in the subject. If a frequency is passed then
+        it will return all nodes of that frequency related to the current node.
+        If there is no relationshop between the current node and the frequency
+        then all nodes in the tree for that frequency will be returned
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the subject for the specified frequency, or
+            all nodes in the tree if there is no relation with that frequency
+            (e.g. per_visit)
+        """
+        if frequency in (None, 'per_session'):
+            return self.sessions
+        elif frequency == 'per_visit':
+            return self.parent.nodes(frequency)
+        elif frequency == 'per_subject':
+            return [self]
+        elif frequency == 'per_study':
+            return [self.parent]
 
     @property
     def visit_ids(self):
@@ -638,10 +665,32 @@ class Visit(TreeNode):
         return self._sessions.values()
 
     def nodes(self, frequency=None):
-        if frequency is not None and frequency != 'per_session':
-            raise ArcanaError(
-                "Subjects only have 'per_session' nodes")
-        return self.sessions
+        """
+        Returns all sessions in the visit. If a frequency is passed then
+        it will return all nodes of that frequency related to the current node.
+        If there is no relationshop between the current node and the frequency
+        then all nodes in the tree for that frequency will be returned
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the visit for the specified frequency, or
+            all nodes in the tree if there is no relation with that frequency
+            (e.g. per_subject)
+        """
+        if frequency in (None, 'per_session'):
+            return self.sessions
+        elif frequency == 'per_subject':
+            return self.parent.nodes(frequency)
+        elif frequency == 'per_visit':
+            return [self]
+        elif frequency == 'per_study':
+            return [self.parent]
 
     def session(self, subject_id):
         try:
@@ -755,8 +804,28 @@ class Session(TreeNode):
         self._tree = tree
 
     def nodes(self, frequency=None):
-        raise ArcanaError(
-            "Sessions don't have nodes")
+        """
+        Returns all nodes of the specified frequency that are related to
+        the given Session
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the Session for the specified frequency
+        """
+        if frequency is None:
+            []
+        elif frequency == 'per_session':
+            return [self]
+        elif frequency in ('per_visit', 'per_subject'):
+            return [self.parent]
+        elif frequency == 'per_study':
+            return [self.parent.parent]
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
