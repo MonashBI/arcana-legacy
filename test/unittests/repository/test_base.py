@@ -12,7 +12,7 @@ from future.utils import with_metaclass  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.interfaces.repository import RepositorySource, RepositorySink  # @IgnorePep8
+from arcana.repository.interfaces import RepositorySource, RepositorySink  # @IgnorePep8
 from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
 

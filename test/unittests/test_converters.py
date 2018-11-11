@@ -7,7 +7,7 @@ from arcana.data.file_format.standard import (
 from arcana.study.base import Study, StudyMetaClass
 from arcana.utils.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
-from arcana.interfaces.utils import ZipDir
+from arcana.utils.interfaces import ZipDir
 from future.utils import with_metaclass
 from unittest import TestCase
 

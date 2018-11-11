@@ -11,7 +11,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
     ArcanaProvenanceRecordMismatchError)
-from arcana.interfaces.repository import (RepositorySource,
+from arcana.repository.interfaces import (RepositorySource,
                                           RepositorySink)
 
 

@@ -2,7 +2,7 @@ from builtins import next
 import os.path
 from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
-from arcana.interfaces.utils import ZipDir, UnzipDir
+from arcana.utils.interfaces import ZipDir, UnzipDir
 
 
 class TestUtilsInterface(BaseTestCase):
