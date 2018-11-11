@@ -1,6 +1,6 @@
 from builtins import next
 import os.path
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from arcana.interfaces.utils import ZipDir, UnzipDir
 

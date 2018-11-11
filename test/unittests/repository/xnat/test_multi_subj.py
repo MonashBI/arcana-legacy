@@ -3,7 +3,7 @@ from future.utils import with_metaclass
 import os.path as op
 import tempfile
 import unittest
-from arcana.testing import BaseMultiSubjectTestCase
+from arcana.utils.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepository
 from arcana.data import (
     FilesetSelector, AcquiredFilesetSpec)
@@ -12,7 +12,7 @@ from arcana.data.file_format.standard import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
 import sys
-from arcana.testing.xnat import (
+from arcana.utils.testing.xnat import (
     TestMultiSubjectOnXnatMixin, SKIP_ARGS, SERVER)
 
 # Import TestExistingPrereqs study to test it on XNAT

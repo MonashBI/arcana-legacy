@@ -9,7 +9,7 @@ from arcana.data import (  # @IgnorePep8
     FilesetSelector, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.testing import BaseTestCase  # @IgnorePep8
+from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.interfaces.repository import RepositorySource, RepositorySink  # @IgnorePep8

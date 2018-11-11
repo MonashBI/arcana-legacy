@@ -5,7 +5,7 @@ from arcana.data import AcquiredFilesetSpec, FilesetSpec, FilesetSelector, Files
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.interfaces.utils import ZipDir
 from future.utils import with_metaclass

@@ -3,7 +3,7 @@ import os.path as op
 import tempfile
 import shutil
 from nipype.interfaces.utility import Merge  # @IgnorePep8
-from arcana.testing import BaseTestCase, TestMath  # @IgnorePep8
+from arcana.utils.testing import BaseTestCase, TestMath  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import (

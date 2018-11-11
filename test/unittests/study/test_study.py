@@ -6,7 +6,7 @@ import os.path  # @IgnorePep8
 # config.enable_debug_mode()
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.testing import (  # @IgnorePep8
+from arcana.utils.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
 from arcana.exceptions import (  # @IgnorePep8
     ArcanaCantPickleStudyError, ArcanaUsageError)  # @IgnorePep8

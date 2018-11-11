@@ -6,7 +6,7 @@ from arcana.study.base import Study, StudyMetaClass
 from arcana.exceptions import (ArcanaModulesNotInstalledException,
                               ArcanaError)
 import unittest
-from arcana.testing import BaseTestCase, TestMath
+from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
 from arcana.environment import ModulesEnvironment
 from arcana.processor import LinearProcessor

@@ -6,10 +6,10 @@ from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
-from arcana.testing import BaseMultiSubjectTestCase  # @IgnorePep8
+from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.testing import BaseTestCase  # @IgnorePep8
+from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):

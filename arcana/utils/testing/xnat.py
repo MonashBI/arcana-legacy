@@ -9,7 +9,7 @@ import shutil
 import re
 from copy import copy
 import xnat
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepository
 from arcana.repository.directory import DirectoryRepository
 from arcana.study import Study, StudyMetaClass
