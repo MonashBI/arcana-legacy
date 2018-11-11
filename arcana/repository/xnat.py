@@ -17,7 +17,7 @@ from arcana.repository.base import BaseRepository
 from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
-from arcana.provenance import Record
+from arcana.pipeline.provenance import Record
 from arcana.utils import dir_modtime
 import re
 import xnat

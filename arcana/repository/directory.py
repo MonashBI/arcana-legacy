@@ -9,7 +9,7 @@ import logging
 import json
 from fasteners import InterProcessLock
 from arcana.data import Fileset, Field
-from arcana.provenance import Record
+from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
