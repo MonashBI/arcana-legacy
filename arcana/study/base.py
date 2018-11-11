@@ -273,7 +273,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_binds(self):
+    def clear_caches(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent
@@ -754,12 +754,12 @@ class Study(object):
             return True
 
     @classmethod
-    def freq_from_iterfields(cls, iterfields):
+    def freq_from_iterators(cls, iterators):
         """
-        Returns the frequency corresponding to the given iterfields
+        Returns the frequency corresponding to the given iterators
         """
         return {
-            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterfields)]
+            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterators)]
 
 
 class StudyMetaClass(type):

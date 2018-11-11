@@ -14,7 +14,7 @@ FIELD_TRAIT = traits.Either(traits.Int, traits.Float, traits.Str,
                             traits.List(traits.Int), traits.List(traits.Float),
                             traits.List(traits.Str))
 CHECKSUM_TRAIT = traits.Dict(traits.Str(), traits.Str())
-# Trait for checksums that may be joined over iterfields
+# Trait for checksums that may be joined over iterators
 JOINED_CHECKSUM_TRAIT = traits.Either(
     CHECKSUM_TRAIT, traits.List(CHECKSUM_TRAIT),
     traits.List(traits.List(CHECKSUM_TRAIT)))
