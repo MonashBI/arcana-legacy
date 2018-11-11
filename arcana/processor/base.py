@@ -328,7 +328,7 @@ class BaseProcessor(object):
                                  inputnode, input.name)
         deiter_nodes = {}
 
-        def deiterator_sort_key(it):
+        def deiter_node_sort_key(it):
             """
             If there are two iter_nodes (i.e. both subject and visit ID) and
             one depends on the other (i.e. if the visit IDs per subject
@@ -391,20 +391,20 @@ class BaseProcessor(object):
                     (o.collection for o in outputs), provenance,
                     pipeline.inputs),
                 connect=to_connect)
-            # Join over iterated fields to get back to single child node
-            # by the time we connect to the final node of the pipeline
-            # Set the sink and subject_id as the default deiterator if there
-            # are no deiterates (i.e. per_study) or to use as the upstream
-            # node to connect the first deiterator for every frequency
+            # "De-iterate" (join) over iterators to get back to single child
+            # node by the time we connect to the final node of the pipeline Set
+            # the sink and subject_id as the default deiterator if there are no
+            # deiterates (i.e. per_study) or to use as the upstream node to
+            # connect the first deiterator for every frequency
             deiter_nodes[freq] = sink  # for per_study the "deiterator" == sink
             for iterfield in sorted(pipeline.iterfields(freq),
-                                    key=deiterator_sort_key):
+                                    key=deiter_node_sort_key):
                 # Connect to previous deiterator or sink
                 # NB: we only need to keep a reference to the last one in the
                 # chain in order to connect with the "final" node, so we can
                 # overwrite the entry in the 'deiter_nodes' dict
                 deiter_nodes[freq] = pipeline.add(
-                    '{}_{}_deiterator'.format(freq, iterfield),
+                    '{}_{}_deiter_node'.format(freq, iterfield),
                     IdentityInterface(
                         ['checksums']),
                     connect={
