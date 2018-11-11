@@ -280,7 +280,7 @@ class RepositorySink(BaseRepositoryInterface):
                                             self.frequency, subject_id,
                                             visit_id)
             for repository in self.repositories:
-                repository.put_provenance(prov_record)
+                repository.put_record(prov_record)
         if missing_inputs:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw

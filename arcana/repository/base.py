@@ -2,16 +2,9 @@ from builtins import object
 from abc import ABCMeta, abstractmethod
 from future.utils import with_metaclass
 import logging
-from collections import namedtuple
-import os
-import os.path as op
 from collections import defaultdict
 from itertools import chain
-import json
 from .tree import Tree, Subject, Session, Visit
-from arcana.data import Fileset, Field
-from arcana.exceptions import (
-    ArcanaBadlyFormattedDirectoryRepositoryError)
 
 
 logger = logging.getLogger('arcana')
@@ -108,7 +101,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
-    def put_provenance(self, record):
+    def put_record(self, record):
         """
         Inserts a provenance record into a session or subject|visit|study
         summary
