@@ -754,12 +754,12 @@ class Study(object):
             return True
 
     @classmethod
-    def freq_from_iterfields(cls, iterfields):
+    def freq_from_iterators(cls, iterators):
         """
-        Returns the frequency corresponding to the given iterfields
+        Returns the frequency corresponding to the given iterators
         """
         return {
-            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterfields)]
+            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterators)]
 
 
 class StudyMetaClass(type):

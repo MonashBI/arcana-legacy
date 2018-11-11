@@ -523,12 +523,12 @@ class Pipeline(object):
                     in_node_out = input.name
                 self.connect(in_node, in_node_out, node, node_in)
         # Connect iterator inputs
-        for iterfield, conns in self._iterator_conns.items():
+        for iterator, conns in self._iterator_conns.items():
             # Check to see if this is the right frequency for the iterator
-            # input, i.e. if it is the only iterfield for this frequency
-            if self.study.FREQUENCIES[frequency] == (iterfield,):
+            # input, i.e. if it is the only iterator for this frequency
+            if self.study.FREQUENCIES[frequency] == (iterator,):
                 for (node, node_in, format) in conns:  # @ReservedAssignment
-                    self.connect(inputnode, iterfield, node, node_in)
+                    self.connect(inputnode, iterator, node, node_in)
         return inputnode
 
     def outputnode(self, frequency):
@@ -634,40 +634,40 @@ class Pipeline(object):
                 raise
         shutil.rmtree(tmpdir)
 
-    def iterfields(self, frequency=None):
+    def iterators(self, frequency=None):
         """
-        Returns the iterfields (i.e. subject_id, visit_id) that the pipeline
+        Returns the iterators (i.e. subject_id, visit_id) that the pipeline
         iterates over
 
         Parameters
         ----------
         frequency : str | None
-            A selected data frequency to use to determine which iterfields are
+            A selected data frequency to use to determine which iterators are
             required. If None, all input frequencies of the pipeline are
             assumed
         """
-        iterfields = set()
+        iterators = set()
         if frequency is None:
             input_freqs = list(self.input_frequencies)
         else:
             input_freqs = [frequency]
         for freq in input_freqs:
-            iterfields.update(self.study.FREQUENCIES[freq])
-        return iterfields
+            iterators.update(self.study.FREQUENCIES[freq])
+        return iterators
 
-    def iterates_over(self, iterfield, freq):
+    def iterates_over(self, iterator, freq):
         """
         Checks to see if the given frequency requires iteration over the
-        given iterfield
+        given iterator
 
         Parameters
         ----------
-        iterfield : str
-            The iterfield to check
+        iterator : str
+            The iterator to check
         freq : str
             The frequency to check
         """
-        return iterfield in self.study.FREQUENCIES[freq]
+        return iterator in self.study.FREQUENCIES[freq]
 
     def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
         """
@@ -838,16 +838,16 @@ class Pipeline(object):
         # previous runs of an equivalent pipeline to compare with that saved
         # in provenance to see if any have been updated.
         for input in self.inputs:  # @ReservedAssignment
-            # Get iterfields present in the input that aren't in this node
+            # Get iterators present in the input that aren't in this node
             # and need to be joined
-            join_iterfields = (self.iterfields(input.frequency) -
-                               self.iterfields(node.frequency))
-            if not join_iterfields:
-                # No iterfields to join so we can just extract the checksums
+            join_iterators = (self.iterators(input.frequency) -
+                               self.iterators(node.frequency))
+            if not join_iterators:
+                # No iterators to join so we can just extract the checksums
                 # of the corresponding input
                 exp_inputs[input.name] = input.collection.item(
                     node.subject_id, node.visit_id).checksums
-            elif len(join_iterfields) == 1:
+            elif len(join_iterators) == 1:
                 # Get list of checksums dicts for each node of the input
                 # frequency that relates to the current node
                 exp_inputs[input.name] = [

@@ -512,9 +512,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                                      base_dir=self.work_dir)
         for node in (reloadsource_per_subject, reloadsource_per_visit,
                      reloadsource_per_study, reloadsink):
-            for iterfield in ('subject_id', 'visit_id'):
-                reloadworkflow.connect(reloadinputnode, iterfield,
-                                       node, iterfield)
+            for iterator in ('subject_id', 'visit_id'):
+                reloadworkflow.connect(reloadinputnode, iterator,
+                                       node, iterator)
         reloadworkflow.connect(reloadsource_per_subject,
                                'subject_sink' + PATH_SUFFIX,
                                reloadsink,

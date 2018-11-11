@@ -318,11 +318,11 @@ class BaseProcessor(object):
                 connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
             # Connect iter_nodes to source and input nodes
-            for iterfield in pipeline.iterfields(freq):
-                pipeline.connect(iter_nodes[iterfield], iterfield, source,
-                                 iterfield)
-                pipeline.connect(source, iterfield, inputnode,
-                                 iterfield)
+            for iterator in pipeline.iterators(freq):
+                pipeline.connect(iter_nodes[iterator], iterator, source,
+                                 iterator)
+                pipeline.connect(source, iterator, inputnode,
+                                 iterator)
             for input in inputs:  # @ReservedAssignment
                 pipeline.connect(source, input.suffixed_name,
                                  inputnode, input.name)
@@ -342,20 +342,20 @@ class BaseProcessor(object):
         # or 'per_study')
         for freq in pipeline.output_frequencies:
             outputs = list(pipeline.frequency_outputs(freq))
-            if pipeline.iterfields(freq) - pipeline.iterfields():
+            if pipeline.iterators(freq) - pipeline.iterators():
                 raise ArcanaDesignError(
                     "Doesn't make sense to output '{}', which are of '{}' "
                     "frequency, when the pipeline only iterates over '{}'"
                     .format("', '".join(o.name for o in outputs), freq,
-                            "', '".join(pipeline.iterfields())))
+                            "', '".join(pipeline.iterators())))
             outputnode = pipeline.outputnode(freq)
             # Connect filesets/fields to sink to sink node, skipping outputs
             # that are study inputs
             to_connect = {o.suffixed_name: (outputnode, o.name)
                           for o in outputs if o.is_spec}
-            # Connect iterfields to sink node
+            # Connect iterators to sink node
             to_connect.update(
-                {i: (iter_nodes[i], i) for i in pipeline.iterfields()})
+                {i: (iter_nodes[i], i) for i in pipeline.iterators()})
             # Connect checksums/values from sources to sink node in order to
             # save in provenance, joining where necessary
             for input_freq in pipeline.input_frequencies:
@@ -366,20 +366,20 @@ class BaseProcessor(object):
                     # Rare case of a pipeline with no inputs only iter_nodes
                     # that will only occur in unittests in all likelihood
                     continue
-                # Loop over iterfields that need to be joined, i.e. that are
+                # Loop over iterators that need to be joined, i.e. that are
                 # present in the input frequency but not the output frequency
                 # and create join nodes
                 source = sources[input_freq]
-                for iterfield in (pipeline.iterfields(input_freq) -
-                                  pipeline.iterfields(freq)):
+                for iterator in (pipeline.iterators(input_freq) -
+                                  pipeline.iterators(freq)):
                     join = pipeline.add(
                         '{}_to_{}_{}_checksum_join'.format(
-                            input_freq, freq, iterfield),
+                            input_freq, freq, iterator),
                         IdentityInterface(
                             checksums_to_connect),
                         connect={
                             tc: (source, tc) for tc in checksums_to_connect},
-                        joinsource=iterfield,
+                        joinsource=iterator,
                         joinfield=checksums_to_connect)
                     source = join
                 to_connect.update(
@@ -397,19 +397,19 @@ class BaseProcessor(object):
             # deiterates (i.e. per_study) or to use as the upstream node to
             # connect the first deiterator for every frequency
             deiter_nodes[freq] = sink  # for per_study the "deiterator" == sink
-            for iterfield in sorted(pipeline.iterfields(freq),
+            for iterator in sorted(pipeline.iterators(freq),
                                     key=deiter_node_sort_key):
                 # Connect to previous deiterator or sink
                 # NB: we only need to keep a reference to the last one in the
                 # chain in order to connect with the "final" node, so we can
                 # overwrite the entry in the 'deiter_nodes' dict
                 deiter_nodes[freq] = pipeline.add(
-                    '{}_{}_deiter_node'.format(freq, iterfield),
+                    '{}_{}_deiter_node'.format(freq, iterator),
                     IdentityInterface(
                         ['checksums']),
                     connect={
                         'checksums': (deiter_nodes[freq], 'checksums')},
-                    joinsource=iterfield,
+                    joinsource=iterator,
                     joinfield='checksums')
         # Create a final node, which is used to connect with dependent
         # pipelines into large workflows
@@ -454,7 +454,7 @@ class BaseProcessor(object):
         # i.e. all subjects to process have the same visits to process and
         # vice-versa.
         factorizable = True
-        if len(list(pipeline.iterfields())) == 2:
+        if len(list(pipeline.iterators())) == 2:
             nz_rows = to_process[to_process.any(axis=1), :]
             ref_row = nz_rows[0, :]
             factorizable = all((r == ref_row).all() for r in nz_rows)
@@ -491,11 +491,11 @@ class BaseProcessor(object):
         inv_visit_inds = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iter_nodes = {}
-        if self.study.SUBJECT_ID in pipeline.iterfields():
+        if self.study.SUBJECT_ID in pipeline.iterators():
             fields = [self.study.SUBJECT_ID]
             if dependent == self.study.SUBJECT_ID:
                 fields.append(self.study.VISIT_ID)
-            # Add iterator node named after subject iterfield
+            # Add iterator node named after subject iterator
             subj_it = pipeline.add(self.study.SUBJECT_ID,
                                    IdentityInterface(fields))
             if dependent == self.study.SUBJECT_ID:
@@ -516,11 +516,11 @@ class BaseProcessor(object):
                      for n in to_process.any(axis=1).nonzero()[0]])
             iter_nodes[self.study.SUBJECT_ID] = subj_it
         # Create iterator for visits
-        if self.study.VISIT_ID in pipeline.iterfields():
+        if self.study.VISIT_ID in pipeline.iterators():
             fields = [self.study.VISIT_ID]
             if dependent == self.study.VISIT_ID:
                 fields.append(self.study.SUBJECT_ID)
-            # Add iterator node named after visit iterfield
+            # Add iterator node named after visit iterator
             visit_it = pipeline.add(self.study.VISIT_ID,
                                     IdentityInterface(fields))
             if dependent == self.study.VISIT_ID:
