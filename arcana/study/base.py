@@ -10,7 +10,7 @@ from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)
-from .pipeline import Pipeline
+from arcana.pipeline import Pipeline
 from arcana.data import BaseData
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec

@@ -7,12 +7,11 @@ from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
+from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
     ArcanaProvenanceRecordMismatchError)
-from arcana.repository.interfaces import (RepositorySource,
-                                          RepositorySink)
 
 
 logger = getLogger('arcana')
@@ -700,7 +699,7 @@ class BaseProcessor(object):
                 record = node.record(pipeline.name, pipeline.study.name)
                 # Generated expected record from current pipeline/repository-
                 # state
-                expected_record = node.expected_record(pipeline)
+                expected_record = pipeline.expected_record(node)
                 # Compare record with expected and
                 if not record.matches(expected_record, ignore_versions):
                     if reprocess:
