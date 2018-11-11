@@ -427,7 +427,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     # Generate expected provenance record for each pipeline
                     # and save in the local repository
                     record = node.expected_record(pipelines[fileset.name])
-                    self.local_repository.put_provenance(record)
+                    self.local_repository.put_record(record)
         study.clear_binds()  # Reset repository trees
 
     def test_per_session_prereqs(self):

@@ -258,7 +258,7 @@ class XnatRepository(BaseRepository):
             xsession = self.get_xsession(field)
             xsession.fields[field.name] = val
 
-    def put_provenance(self, record):
+    def put_record(self, record):
         base_cache_path = self._cache_path(record, name=self.PROV_SCAN)
         if not op.exists(base_cache_path):
             os.mkdir(base_cache_path)

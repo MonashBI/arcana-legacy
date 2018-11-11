@@ -167,7 +167,7 @@ class DirectoryRepository(BaseRepository):
             with open(fpath, 'w') as f:
                 json.dump(dct, f)
 
-    def put_provenance(self, record):
+    def put_record(self, record):
         fpath = self.prov_json_path(record)
         if not op.exists(op.dirname(fpath)):
             os.mkdir(op.dirname(fpath))
