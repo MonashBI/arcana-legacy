@@ -298,7 +298,7 @@ class BaseProcessor(object):
             prereqs = None
         # Construct iterator structure over subjects and sessions to be
         # processed
-        iterators = self._iterate(pipeline, to_process, subject_inds,
+        iter_nodes = self._iterate(pipeline, to_process, subject_inds,
                                   visit_inds)
         sources = {}
         # Loop through each frequency present in the pipeline inputs and
@@ -317,25 +317,25 @@ class BaseProcessor(object):
                     i.collection for i in inputs),
                 connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
-            # Connect iterators to source and input nodes
+            # Connect iter_nodes to source and input nodes
             for iterfield in pipeline.iterfields(freq):
-                pipeline.connect(iterators[iterfield], iterfield, source,
+                pipeline.connect(iter_nodes[iterfield], iterfield, source,
                                  iterfield)
                 pipeline.connect(source, iterfield, inputnode,
                                  iterfield)
             for input in inputs:  # @ReservedAssignment
                 pipeline.connect(source, input.suffixed_name,
                                  inputnode, input.name)
-        deiterators = {}
+        deiter_nodes = {}
 
         def deiterator_sort_key(it):
             """
-            If there are two iterators (i.e. both subject and visit ID) and
+            If there are two iter_nodes (i.e. both subject and visit ID) and
             one depends on the other (i.e. if the visit IDs per subject
             vary and vice-versa) we need to ensure that the dependent
             iterator is deiterated (joined) first.
             """
-            return iterators[it].itersource is None
+            return iter_nodes[it].itersource is None
 
         # Connect all outputs to the repository sink, creating a new sink for
         # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',
@@ -355,7 +355,7 @@ class BaseProcessor(object):
                           for o in outputs if o.is_spec}
             # Connect iterfields to sink node
             to_connect.update(
-                {i: (iterators[i], i) for i in pipeline.iterfields()})
+                {i: (iter_nodes[i], i) for i in pipeline.iterfields()})
             # Connect checksums/values from sources to sink node in order to
             # save in provenance, joining where necessary
             for input_freq in pipeline.input_frequencies:
@@ -363,7 +363,7 @@ class BaseProcessor(object):
                     i.checksum_suffixed_name
                     for i in pipeline.frequency_inputs(input_freq)]
                 if not checksums_to_connect:
-                    # Rare case of a pipeline with no inputs only iterators
+                    # Rare case of a pipeline with no inputs only iter_nodes
                     # that will only occur in unittests in all likelihood
                     continue
                 # Loop over iterfields that need to be joined, i.e. that are
@@ -396,19 +396,19 @@ class BaseProcessor(object):
             # Set the sink and subject_id as the default deiterator if there
             # are no deiterates (i.e. per_study) or to use as the upstream
             # node to connect the first deiterator for every frequency
-            deiterators[freq] = sink  # for per_study the "deiterator" == sink
+            deiter_nodes[freq] = sink  # for per_study the "deiterator" == sink
             for iterfield in sorted(pipeline.iterfields(freq),
                                     key=deiterator_sort_key):
                 # Connect to previous deiterator or sink
                 # NB: we only need to keep a reference to the last one in the
                 # chain in order to connect with the "final" node, so we can
-                # overwrite the entry in the 'deiterators' dict
-                deiterators[freq] = pipeline.add(
+                # overwrite the entry in the 'deiter_nodes' dict
+                deiter_nodes[freq] = pipeline.add(
                     '{}_{}_deiterator'.format(freq, iterfield),
                     IdentityInterface(
                         ['checksums']),
                     connect={
-                        'checksums': (deiterators[freq], 'checksums')},
+                        'checksums': (deiter_nodes[freq], 'checksums')},
                     joinsource=iterfield,
                     joinfield='checksums')
         # Create a final node, which is used to connect with dependent
@@ -416,10 +416,10 @@ class BaseProcessor(object):
         final = pipeline.add(
             'final',
             Merge(
-                len(deiterators)),
+                len(deiter_nodes)),
             connect={
                 'in{}'.format(i): (di, 'checksums')
-                for i, di in enumerate(deiterators.values(), start=1)})
+                for i, di in enumerate(deiter_nodes.values(), start=1)})
         # Register pipeline as being connected to prevent duplicates
         already_connected[pipeline.name] = (pipeline, final)
         return final
@@ -432,7 +432,7 @@ class BaseProcessor(object):
         Parameters
         ----------
         pipeline : Pipeline
-            The pipeline to add iterators for
+            The pipeline to add iter_nodes for
         to_process : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows correspond to
             subjects and columns correspond to visits in the repository. True
@@ -445,8 +445,8 @@ class BaseProcessor(object):
 
         Returns
         -------
-        iterators : dict[str, Node]
-            A dictionary containing the iterators required for the pipeline
+        iter_nodes : dict[str, Node]
+            A dictionary containing the iter_nodes required for the pipeline
             process all sessions that need processing.
         """
         # Check to see whether the subject/visit IDs to process (as specified
@@ -459,7 +459,7 @@ class BaseProcessor(object):
             ref_row = nz_rows[0, :]
             factorizable = all((r == ref_row).all() for r in nz_rows)
         # If the subject/visit IDs to process cannot be factorized into
-        # indepdent iterators, determine which to make make dependent on the
+        # indepedent iterators, determine which to make make dependent on the
         # other in order to avoid/minimise duplicatation of download attempts
         dependent = None
         if not factorizable:
@@ -490,7 +490,7 @@ class BaseProcessor(object):
         inv_subj_inds = {v: k for k, v in subject_inds.items()}
         inv_visit_inds = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
-        iterators = {}
+        iter_nodes = {}
         if self.study.SUBJECT_ID in pipeline.iterfields():
             fields = [self.study.SUBJECT_ID]
             if dependent == self.study.SUBJECT_ID:
@@ -514,7 +514,7 @@ class BaseProcessor(object):
                     self.study.SUBJECT_ID,
                     [inv_subj_inds[n]
                      for n in to_process.any(axis=1).nonzero()[0]])
-            iterators[self.study.SUBJECT_ID] = subj_it
+            iter_nodes[self.study.SUBJECT_ID] = subj_it
         # Create iterator for visits
         if self.study.VISIT_ID in pipeline.iterfields():
             fields = [self.study.VISIT_ID]
@@ -537,14 +537,14 @@ class BaseProcessor(object):
                     self.study.VISIT_ID,
                     [inv_visit_inds[n]
                      for n in to_process.any(axis=0).nonzero()[0]])
-            iterators[self.study.VISIT_ID] = visit_it
+            iter_nodes[self.study.VISIT_ID] = visit_it
         if dependent == self.study.SUBJECT_ID:
             pipeline.connect(visit_it, self.study.VISIT_ID,
                              subj_it, self.study.VISIT_ID)
         if dependent == self.study.VISIT_ID:
             pipeline.connect(subj_it, self.study.SUBJECT_ID,
                              visit_it, self.study.SUBJECT_ID)
-        return iterators
+        return iter_nodes
 
     def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,
                     force):
