@@ -426,7 +426,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 if fileset.name != 'one' and fileset.exists:
                     # Generate expected provenance record for each pipeline
                     # and save in the local repository
-                    record = node.expected_record(pipelines[fileset.name])
+                    record = pipelines[fileset.name].expected_record(node)
                     self.local_repository.put_record(record)
         study.clear_binds()  # Reset repository trees
 

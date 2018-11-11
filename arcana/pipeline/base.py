@@ -871,7 +871,7 @@ class Pipeline(object):
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
         exp_outputs = {
-            o.name: o.collection.item(self.subject_id, self.visit_id).checksums
+            o.name: o.collection.item(node.subject_id, node.visit_id).checksums
             for o in self.outputs}
         expected_record = self.provenance().record(
             exp_inputs, exp_outputs, node.frequency, node.subject_id,
