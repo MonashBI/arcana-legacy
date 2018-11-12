@@ -26,6 +26,10 @@ class ArcanaMissingInputError(ArcanaException):
     pass
 
 
+class ArcanaProtectedOutputConflictError(ArcanaError):
+    pass
+
+
 class ArcanaCantPickleStudyError(ArcanaError):
     pass
 

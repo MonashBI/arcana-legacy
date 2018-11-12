@@ -3,10 +3,14 @@ from builtins import object
 from itertools import chain
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
+import logging
 from arcana.data import BaseFileset, BaseField
-from arcana.exceptions import ArcanaNameError, ArcanaError
+from arcana.exceptions import (
+    ArcanaNameError)
 
 id_getter = attrgetter('id')
+
+logger = logging.getLogger('arcana')
 
 
 class TreeNode(object):
@@ -28,6 +32,25 @@ class TreeNode(object):
             ((r.pipeline_name, r.from_study), r)
             for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
                                                     r.from_study)))
+        # Match up provenance records with items in the node
+        for item in chain(self.filesets, self.fields):
+            if not item.derived:
+                continue  # Skip acquired items
+            records = [r for r in self.records if item.name in r.outputs]
+            if not records:
+                logger.warning(
+                    "No provenance records found for {} derivative. "
+                    "Will assume it is a \"protected\ (manually created) "
+                    "derivative".format(item))
+            elif len(records) > 1:
+                item.record = sorted(records, key=attrgetter('datetime'))[-1]
+                logger.warning(
+                    "Duplicate provenance records found for {} ({}). "
+                    "Selecting latest record {}"
+                    .format(item, ', '.join(str(r) for r in records),
+                            item.record))
+            else:
+                item.record = records[0]
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or

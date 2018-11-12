@@ -1,6 +1,7 @@
 from builtins import object
 from past.builtins import basestring
 import os.path as op
+from collections import defaultdict
 import shutil
 from copy import copy, deepcopy
 from logging import getLogger
@@ -11,7 +12,7 @@ from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
-    ArcanaProvenanceRecordMismatchError)
+    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError)
 
 
 logger = getLogger('arcana')
@@ -198,12 +199,13 @@ class BaseProcessor(object):
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
+#         workflow.write_graph(graph2use='flat', format='svg')
+#         print('Graph saved in {} directory'.format(os.getcwd()))
+        result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.clear_caches()
-#         workflow.write_graph(graph2use='flat', format='svg')
-#         print('Graph saved in {} directory'.format(os.getcwd()))
-        return workflow.run(plugin=self._plugin)
+        return result
 
     def _connect_pipeline(self, pipeline, workflow, subject_inds, visit_inds,
                           filter_array, already_connected=None, force=False):
@@ -254,8 +256,8 @@ class BaseProcessor(object):
                     "prerequisite pipelines".format(prev_connected, pipeline))
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
-        to_process = self._to_process(pipeline, filter_array, subject_inds,
-                                      visit_inds, force)
+        to_process_array = self._to_process(pipeline, filter_array,
+                                            subject_inds, visit_inds, force)
         # Extract pipeline-common provenance information to be sinked with
         # output derivatives. Needs to be done at the top before the
         # repository connection nodes are added.
@@ -272,7 +274,7 @@ class BaseProcessor(object):
             try:
                 final_nodes.append(self._connect_pipeline(
                     prereq, workflow, subject_inds, visit_inds,
-                    filter_array=to_process,
+                    filter_array=to_process_array,
                     already_connected=already_connected,
                     force=(force if force == 'all' else False)))
             except ArcanaNoRunRequiredException:
@@ -298,8 +300,8 @@ class BaseProcessor(object):
             prereqs = None
         # Construct iterator structure over subjects and sessions to be
         # processed
-        iter_nodes = self._iterate(pipeline, to_process, subject_inds,
-                                  visit_inds)
+        iter_nodes = self._iterate(pipeline, to_process_array, subject_inds,
+                                   visit_inds)
         sources = {}
         # Loop through each frequency present in the pipeline inputs and
         # create a corresponding source node
@@ -424,7 +426,7 @@ class BaseProcessor(object):
         already_connected[pipeline.name] = (pipeline, final)
         return final
 
-    def _iterate(self, pipeline, to_process, subject_inds, visit_inds):
+    def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
         """
         Generate nodes that iterate over subjects and visits in the study that
         need to be processed by the pipeline
@@ -433,7 +435,7 @@ class BaseProcessor(object):
         ----------
         pipeline : Pipeline
             The pipeline to add iter_nodes for
-        to_process : 2-D numpy.array[bool]
+        to_process_array : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows correspond to
             subjects and columns correspond to visits in the repository. True
             values represent a combination of subject & visit ID to process
@@ -446,8 +448,8 @@ class BaseProcessor(object):
         Returns
         -------
         iter_nodes : dict[str, Node]
-            A dictionary containing the iter_nodes required for the pipeline
-            process all sessions that need processing.
+            A dictionary containing the nodes to iterate over all subject/visit
+            IDs to process for each input frequency
         """
         # Check to see whether the subject/visit IDs to process (as specified
         # by the 'to_process' array) can be factorized into indepdent nodes,
@@ -455,7 +457,7 @@ class BaseProcessor(object):
         # vice-versa.
         factorizable = True
         if len(list(pipeline.iterators())) == 2:
-            nz_rows = to_process[to_process.any(axis=1), :]
+            nz_rows = to_process_array[to_process_array.any(axis=1), :]
             ref_row = nz_rows[0, :]
             factorizable = all((r == ref_row).all() for r in nz_rows)
         # If the subject/visit IDs to process cannot be factorized into
@@ -508,12 +510,12 @@ class BaseProcessor(object):
                     self.study.SUBJECT_ID,
                     {inv_visit_inds[n]: [inv_subj_inds[m]
                                          for m in col.nonzero()[0]]
-                     for n, col in enumerate(to_process.T)})]
+                     for n, col in enumerate(to_process_array.T)})]
             else:
                 subj_it.iterables = (
                     self.study.SUBJECT_ID,
                     [inv_subj_inds[n]
-                     for n in to_process.any(axis=1).nonzero()[0]])
+                     for n in to_process_array.any(axis=1).nonzero()[0]])
             iter_nodes[self.study.SUBJECT_ID] = subj_it
         # Create iterator for visits
         if self.study.VISIT_ID in pipeline.iterators():
@@ -531,12 +533,12 @@ class BaseProcessor(object):
                     self.study.VISIT_ID,
                     {inv_subj_inds[m]:[inv_visit_inds[n]
                                        for n in row.nonzero()[0]]
-                     for m, row in enumerate(to_process)})]
+                     for m, row in enumerate(to_process_array)})]
             else:
                 visit_it.iterables = (
                     self.study.VISIT_ID,
                     [inv_visit_inds[n]
-                     for n in to_process.any(axis=0).nonzero()[0]])
+                     for n in to_process_array.any(axis=0).nonzero()[0]])
             iter_nodes[self.study.VISIT_ID] = visit_it
         if dependent == self.study.SUBJECT_ID:
             pipeline.connect(visit_it, self.study.VISIT_ID,
@@ -579,7 +581,7 @@ class BaseProcessor(object):
 
         Returns
         -------
-        to_process : 2-D numpy.array[bool]
+        to_process_array : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows correspond to
             subjects and columns correspond to visits in the repository. True
             values represent subject/visit ID pairs to run the pipeline for
@@ -648,41 +650,92 @@ class BaseProcessor(object):
 
         # Initialise the array to return that represents the sessions to
         # process
-        to_process = np.zeros((len(subject_inds), len(visit_inds)), dtype=bool)
-        # Check for sessions for missing outputs
+        to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
+                                    dtype=bool)
+        # An array to mark outputs that have been altered outside of Arcana
+        # and therefore protect from over-writing
+        to_protect_array = np.zeros((len(subject_inds), len(visit_inds)),
+                                    dtype=bool)
+        to_protect = defaultdict(list)
+        # Check for sessions for missing required outputs
         for output in pipeline.outputs:
+            # Check to see if output is required by downstream processing
+            required = output in pipeline.required_outputs
             for item in output.collection:
-                if not item.exists or force:
-                    # Get row and column indices, if low-frequency then just
-                    # mark the first cell in row|column as it will be
-                    # "dialated" afterwards (see local method "dialate array")
-                    to_process[subject_inds.get(item.subject_id, 0),
-                               visit_inds.get(item.visit_id, 0)] = True
-        if summary_outputs:
-            to_process = dialate_array(to_process)
+                # Get row and column indices, if low-frequency (e.g.
+                # per_subject/visit/study) then just mark the first cell in
+                # row|column as it will be "dialated" afterwards
+                inds = (subject_inds.get(item.subject_id, 0),
+                        visit_inds.get(item.visit_id, 0))
+                if item.exists:
+                    # Check to see if checksums recorded when derivative
+                    # was generated by previous run match those of current file
+                    # set. If not we assume they have been manually altered and
+                    # therefore should not be overridden
+                    if item.checksums != item.recorded_checksums:
+                        logger.warning(
+                            "Checksums for {} do not match those recorded in "
+                            "provenance. Assuming it has been manually "
+                            "corrected outside of Arcana and will therefore "
+                            "not overwrite. Please delete manually if this "
+                            "is not intended".format(repr(item)))
+                        to_protect_array[inds] = True
+                        to_protect[inds].append(item)
+                    elif required and force:
+                        to_process_array[inds] = True
+                elif required:
+                    to_process_array[inds] = True
         # Filter sessions to process by those requested (either explicitly by
         # the user or downstream pipelines)
-        to_process *= filter_array
-        # Get list of sessions for which all outputs exist, which we should
-        # check to see if the saved provenance matches what the given pipeline
-        # expects
-        outputs_exist = np.invert(to_process) * filter_array
-        if outputs_exist.any() and self.study.reprocess != 'ignore':
+        to_process_array *= filter_array
+        if summary_outputs:
+            to_process_array = dialate_array(to_process_array)
+        # Check for conflicts between nodes to process and nodes to protect
+        conflicting = to_process_array * to_protect_array
+        if conflicting.any():
+            error_msg = ''
+            for sess_inds in zip(*np.nonzero(conflicting)):
+                subject_id = next(k for k, v in subject_inds.items()
+                                  if v == sess_inds[0])
+                visit_id = next(k for k, v in visit_inds.items()
+                                if v == sess_inds[1])
+                items = [
+                    o.collection.item(subject_id=subject_id, visit_id=visit_id)
+                    for o in pipeline.required_outputs]
+                missing = [i for i in items if i not in to_protect[sess_inds]]
+                error_msg += (
+                    "\n({}, {}): protected=[{}], missing=[{}]"
+                    .format(
+                        subject_id, visit_id,
+                        ', '.join(repr(i) for i in to_protect[sess_inds]),
+                        ', '.join(repr(i) for i in missing)))
+            raise ArcanaProtectedOutputConflictError(
+                "Cannot process {} as there are nodes with both protected "
+                "outputs (ones modified externally to Arcana) and missing "
+                "required outputs. Either delete protected outputs or provide "
+                "missing required outputs to continue:{}".format(pipeline,
+                                                                 error_msg))
+        # Get list of sessions for which all outputs exist and are not
+        # protected, which we should check to see if the configuration saved
+        # in the provenance record matches that of the current pipeline
+        to_check_array = np.invert(to_process_array |
+                                   to_protect_array) * filter_array
+        if to_check_array.any() and self.study.reprocess != 'ignore':
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
             to_check = [s for s in tree.sessions
-                        if outputs_exist[subject_inds[s.subject_id],
-                                         visit_inds[s.visit_id]]]
+                        if to_check_array[subject_inds[s.subject_id],
+                                          visit_inds[s.visit_id]]]
             if 'per_subject' in output_freqs:
                 # We can just test the first col of outputs_exist as rows
                 # should be either all True or all False
                 to_check.extend(s for s in tree.subjects
-                                if outputs_exist[subject_inds[s.id], 0])
+                                if to_check_array[subject_inds[s.id], 0])
             if 'per_visit' in output_freqs:
                 # We can just test the first row of outputs_exist as cols
                 # should be either all True or all False
                 to_check.extend(v for v in tree.visits
-                                if outputs_exist[0, visit_inds[v.id]])
+                                if to_check_array[0, visit_inds[v.id]])
             if 'per_study' in output_freqs:
                 to_check.append(tree)
             # Parse study reprocess flag to determine whether to ignore
@@ -703,8 +756,9 @@ class BaseProcessor(object):
                 # Compare record with expected and
                 if not record.matches(expected_record, ignore_versions):
                     if reprocess:
-                        to_process[subject_inds.get(node.subject_id, 0),
-                                   visit_inds.get(node.visit_id, 0)] = True
+                        to_process_array[
+                            subject_inds.get(node.subject_id, 0),
+                            visit_inds.get(node.visit_id, 0)] = True
                         logger.info(
                             "Reprocessing {} with '{}' "
                             "pipeline due to mismatching provenance"
@@ -720,12 +774,12 @@ class BaseProcessor(object):
                                     ignore_versions=ignore_versions)))
 
         if summary_outputs:
-            to_process = dialate_array(to_process)
-        if not to_process.any():
+            to_process_array = dialate_array(to_process_array)
+        if not to_process_array.any():
             raise ArcanaNoRunRequiredException(
                 "No sessions to process for '{}' pipeline"
                 .format(pipeline.name))
-        return to_process
+        return to_process_array
 
     @property
     def work_dir(self):

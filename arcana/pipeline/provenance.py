@@ -328,7 +328,7 @@ class Record(object):
             'outputs': self.outputs}
         with open(path, 'w') as f:
             try:
-                json.dump(dct, f)
+                json.dump(dct, f, indent=2)
             except TypeError:
                 raise ArcanaError(
                     "Could not serialise provenance record dictionary:\n{}"

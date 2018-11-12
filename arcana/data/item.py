@@ -21,22 +21,27 @@ class BaseItem(object):
     is_spec = False
 
     def __init__(self, subject_id, visit_id, repository, from_study,
-                 exists):
+                 exists, record):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
         self._from_study = from_study
         self._exists = exists
+        self._record = record
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
-                self.from_study == other.from_study)
+                self.from_study == other.from_study and
+                self.exists == other.exists and
+                self._record == other._record)
 
     def __hash__(self):
         return (hash(self.subject_id) ^
                 hash(self.visit_id) ^
-                hash(self.from_study))
+                hash(self.from_study) ^
+                hash(self.exists) ^
+                hash(self._record))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
@@ -53,6 +58,14 @@ class BaseItem(object):
             mismatch += ('\n{}from_study: self={} v other={}'
                          .format(sub_indent, self.from_study,
                                  other.from_study))
+        if self.exists != other.exists:
+            mismatch += ('\n{}exists: self={} v other={}'
+                         .format(sub_indent, self.exists,
+                                 other.exists))
+        if self._record != other._record:
+            mismatch += ('\n{}_record: self={} v other={}'
+                         .format(sub_indent, self._record,
+                                 other._record))
         return mismatch
 
     @property
@@ -82,6 +95,26 @@ class BaseItem(object):
     @property
     def from_study(self):
         return self._from_study
+
+    @property
+    def record(self):
+        return self._record
+
+    @record.setter
+    def record(self, record):
+        if self.name not in record.outputs:
+            raise ArcanaNameError(
+                self.name,
+                "{} was not found in outputs {} of provenance record".format(
+                    self.name, record.outputs.keys(), record))
+        self._record = record
+
+    @property
+    def recorded_checksums(self):
+        if self.record is None:
+            return None
+        else:
+            return self._record.outputs[self.name]
 
     def initkwargs(self):
         dct = super(Fileset, self).initkwargs()
@@ -132,16 +165,20 @@ class Fileset(BaseItem, BaseFileset):
     checksums : dict[str, str]
         A checksums of all files within the fileset in a dictionary sorted by
         relative file paths
+    record : arcana.pipeline.provenance.Record | None
+        The provenance record for the pipeline that generated the file set,
+        if applicable
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, bids_attr=None, checksums=None):
+                 exists=True, bids_attr=None, checksums=None,
+                 record=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists)
+                          from_study, exists, record)
         self.path = path
         self._uri = uri
         self._bids_attr = bids_attr
@@ -191,7 +228,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency='{}', "
-                "subject_id={}, visit_id={}, from_study={})".format(
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))
@@ -428,12 +465,17 @@ class Field(BaseItem, BaseField):
         The repository which the field is stored
     from_study : str
         Name of the Arcana study that that generated the field
+    exists : bool
+        Whether the field exists or is just a placeholder for a derivative
+    record : arcana.pipeline.provenance.Record | None
+        The provenance record for the pipeline that generated the field,
+        if applicable
     """
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', array=None, subject_id=None,
                  visit_id=None, repository=None, from_study=None,
-                 exists=True):
+                 exists=True, record=None):
         # Try to determine dtype and array from value if they haven't
         # been provided.
         if value is None:
@@ -474,7 +516,7 @@ class Field(BaseItem, BaseField):
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists)
+                          from_study, exists, record)
         self._value = value
 
     def __eq__(self, other):
@@ -521,7 +563,7 @@ class Field(BaseItem, BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', value={}, frequency='{}',  "
-                "subject_id={}, visit_id={}, from_study={})".format(
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self._value,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))
