@@ -463,7 +463,7 @@ class Pipeline(object):
 
     @property
     def required_outputs(self):
-        return self._required_outputs
+        return (self.study.bound_spec(o) for o in self._required_outputs)
 
     @property
     def desc(self):

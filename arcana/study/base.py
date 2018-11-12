@@ -11,7 +11,7 @@ from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError)
 from arcana.pipeline import Pipeline
-from arcana.data import BaseData
+from arcana.data import BaseData, BaseSpec
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -500,12 +500,11 @@ class Study(object):
         # Work out which pipelines need to be run
         pipelines = []
         for name in names:
-            try:
-                pipeline = self.spec(name).pipeline
-                pipeline.required_outputs.add(name)
+            spec = self.spec(name)
+            if isinstance(spec, BaseSpec):
+                pipeline = spec.pipeline
+                pipeline._required_outputs.add(name)
                 pipelines.append(pipeline)
-            except AttributeError:
-                pass  # Match objects don't have pipelines
         # Run all pipelines together
         if pipelines:
             self.processor.run(
@@ -515,8 +514,6 @@ class Study(object):
         for name in names:
             spec = self.spec(name)
             data = spec.collection
-            for item in data:
-                item._exists = True
             if subject_ids is not None and spec.frequency in (
                     'per_session', 'per_subject'):
                 data = [d for d in data if d.subject_id in subject_ids]
