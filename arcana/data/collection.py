@@ -329,3 +329,6 @@ class FieldCollection(BaseCollection, BaseField):
         BaseField.__init__(self, name, dtype=dtype, frequency=frequency,
                            array=array)
         BaseCollection.__init__(self, collection, frequency)
+
+    def value(self, subject_id=None, visit_id=None):
+        return self.item(subject_id=subject_id, visit_id=visit_id).value

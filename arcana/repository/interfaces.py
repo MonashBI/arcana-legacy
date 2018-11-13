@@ -275,7 +275,10 @@ class RepositorySink(BaseRepositoryInterface):
                 if not isdefined(value):
                     missing_inputs.append(field.name)
                     continue  # skip the upload for this file
-                field.value = value
+                try:
+                    field.value = value
+                except:
+                    raise
                 field.put()
                 output_checksums[field.name] = field.value
             # Add input and output checksums to provenance record and sink to

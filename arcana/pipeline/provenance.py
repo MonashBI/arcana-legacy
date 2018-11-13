@@ -1,6 +1,5 @@
 import json
 import re
-from itertools import chain
 from pprint import pformat
 from deepdiff import DeepDiff
 from arcana.exceptions import ArcanaError

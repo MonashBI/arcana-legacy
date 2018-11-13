@@ -16,6 +16,8 @@ env:
     - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
+    - NUMBER_OF_PROCESSORS=8
+    - XNAT_DIR=$HOME/packages/xnat
 addons:
   apt:
     update: true
@@ -38,18 +40,21 @@ before_install:
   - curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m`  > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
-install:
-  - export NUMBER_OF_PROCESSORS=8
+install: 
   - ci/xnat.sh
+  - pushd $XNAT_DIR; docker-compose up -d; popd  # Do this early as it takes a little while for XNAT to come up
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .
   - mkdir -p $HOME/data
   - pip install nose
   - pip install codecov
+before_script:
   - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
+after_script:
+  - pushd $XNAT_DIR; docker-compose down; popd
 cache:
   directories:
     - $HOME/packages
