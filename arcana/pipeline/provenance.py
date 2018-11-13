@@ -1,5 +1,6 @@
 import json
 import re
+from itertools import chain
 from pprint import pformat
 from deepdiff import DeepDiff
 from arcana.exceptions import ArcanaError
@@ -180,4 +181,19 @@ class Record(object):
         if exclude is None:
             exclude = []  # Don't exclude anything
         diff = DeepDiff(self._prov, other._prov)
-        return diff
+        # Create regular expresssions for the include and exclude paths in
+        # the format that deepdiff uses for nested dictionary/lists
+        include_res = [
+            re.compile(r"root\['{}'\].*".format(r"'\]\['".join(p.split('/'))))
+            for p in include]
+        exclude_res = [
+            re.compile(r"root\['{}'\].*".format(r"'\]\['".join(p.split('/'))))
+            for p in exclude]
+        filtered_diff = {}
+        for change_type, changes in diff.items():
+            filtered = [c for c in changes if (
+                any(rx.match(c) for rx in include_res) and
+                not any(rx.match(c) for rx in exclude_res))]
+            if filtered:
+                filtered_diff[change_type] = filtered
+        return filtered_diff

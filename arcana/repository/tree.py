@@ -40,7 +40,7 @@ class TreeNode(object):
             if not records:
                 logger.warning(
                     "No provenance records found for {} derivative. "
-                    "Will assume it is a \"protected\ (manually created) "
+                    "Will assume it is a \"protected\" (manually created) "
                     "derivative".format(item))
             elif len(records) > 1:
                 item.record = sorted(records, key=attrgetter('datetime'))[-1]
