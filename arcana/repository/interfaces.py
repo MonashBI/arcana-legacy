@@ -3,7 +3,9 @@ from nipype.interfaces.base import (
     traits, DynamicTraitedSpec, Undefined, File, Directory,
     BaseInterface, isdefined)
 from itertools import chain
+from copy import copy
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
+from arcana.pipeline.provenance import Record
 from arcana.exceptions import ArcanaError
 import logging
 
@@ -195,7 +197,7 @@ class RepositorySink(BaseRepositoryInterface):
     collections : *Collection
         The collections of Field and Fileset objects to insert into the
         outputs repositor(y|ies)
-    provenance : arcana.provenance.PipelineRecord
+    provenance : arcana.provenance.PipelineProvenance
         The pipeline provenance record (as opposed to the session or subject|
         visit|study-summary specific record that contains field values and
         file-set checksums for relevant inputs and outputs)
@@ -217,7 +219,7 @@ class RepositorySink(BaseRepositoryInterface):
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
         # Add traits for checksums/values of pipeline inputs
-        pipeline_inputs = list(pipeline_inputs)  # guard against generators
+        pipeline_inputs = list(pipeline_inputs)
         for inpt in pipeline_inputs:
             if inpt.is_fileset:
                 trait_t = JOINED_CHECKSUM_TRAIT
@@ -229,8 +231,9 @@ class RepositorySink(BaseRepositoryInterface):
         self._pipeline_input_filesets = [i.name for i in pipeline_inputs
                                          if i.is_fileset]
         self._pipeline_input_fields = [i.name for i in pipeline_inputs
-                                         if i.is_field]
+                                       if i.is_field]
         self._prov = provenance
+        self._from_study = provenance['study']['name']
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -274,13 +277,15 @@ class RepositorySink(BaseRepositoryInterface):
                 field.value = value
                 field.put()
                 output_checksums[field.name] = field.value
-            # Create Provenance record and sink to all repositories that have
-            # received data (typically only one)
-            prov_record = self._prov.record(input_checksums, output_checksums,
-                                            self.frequency, subject_id,
-                                            visit_id)
+            # Add input and output checksums to provenance record and sink to
+            # all repositories that have received data (typically only one)
+            prov = copy(self._prov)
+            prov['inputs'] = input_checksums
+            prov['outputs'] = output_checksums
+            record = Record(prov, self.frequency, subject_id, visit_id,
+                            self._from_study)
             for repository in self.repositories:
-                repository.put_record(prov_record)
+                repository.put_record(record)
         if missing_inputs:
             # FIXME: Not sure if this should be an exception or not,
             #        indicates a problem but stopping now would throw

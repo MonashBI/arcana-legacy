@@ -1,2 +1,2 @@
 from .base import Pipeline
-from .provenance import PipelineRecord, Record
+from .provenance import Record

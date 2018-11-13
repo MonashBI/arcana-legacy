@@ -18,6 +18,7 @@ from arcana.repository.interfaces import RepositorySource
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
+from arcana.utils import get_class_info
 
 logger = getLogger('arcana')
 
@@ -57,11 +58,6 @@ class Study(object):
     enforce_inputs : bool (default: True)
         Whether to check the inputs to see if any acquired filesets
         are missing
-    reprocess : bool
-        Whether to reprocess fileset|fields that have been created with
-        different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the repository already contains
-        matching filesets|fields created with different parameters.
     fill_tree : bool
         Whether to fill the tree of the destination repository with the
         provided subject and/or visit IDs. Intended to be used when the
@@ -99,8 +95,7 @@ class Study(object):
 
     def __init__(self, name, repository, processor, inputs,
                  environment=None, parameters=None, subject_ids=None,
-                 visit_ids=None, enforce_inputs=True, reprocess=False,
-                 fill_tree=False):
+                 visit_ids=None, enforce_inputs=True, fill_tree=False):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -133,7 +128,6 @@ class Study(object):
             raise ArcanaUsageError(
                 "No visit IDs provided and destination repository "
                 "is empty")
-        self._reprocess = reprocess
         # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
@@ -333,10 +327,6 @@ class Study(object):
     def name(self):
         """Accessor for the unique study name"""
         return self._name
-
-    @property
-    def reprocess(self):
-        return self._reprocess
 
     @property
     def repository(self):
@@ -757,6 +747,39 @@ class Study(object):
         """
         return {
             set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterators)]
+
+    def prov(self):
+        """
+        Extracts provenance information from the study for storage alongside
+        generated derivatives. Typically for reference purposes only as only
+        the pipeline workflow, inputs and outputs are checked by default when
+        determining which sessions require reprocessing.
+
+        Returns
+        -------
+        prov : dict[str, *]
+            A dictionary containing the provenance information to record
+            for the study
+        """
+        input_repos = list(set(
+            (i.repository if i.repository is not None else self.repository)
+            for i in self.inputs))
+        return {
+            'name': self.name,
+            'type': get_class_info(type(self)),
+            'parameters': {p.name: p.value for p in self.parameters},
+            'inputs': {input.name: {'{},{}'.format(i.subject_id, i.visit_id):
+                                    [i.name, 'repo{}'.format(
+                                        input_repos.index(i.repository))]
+                                    for i in input.collection}
+                       for input in self.inputs},  # @ReservedAssignment
+            'environment': self.environment.prov(),
+            'repositories': {
+                'repo{}'.format(i): r.prov()
+                for i, r in enumerate(input_repos)},
+            'processor': self.processor.prov(),
+            'subject_ids': self.subject_ids,
+            'visit_ids': self.visit_ids}
 
 
 class StudyMetaClass(type):

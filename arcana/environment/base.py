@@ -6,6 +6,7 @@ import logging
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
     MapNode as NipypeMapNode)
+from arcana.utils import get_class_info, HOSTNAME
 
 
 logger = logging.getLogger('arcana')
@@ -125,3 +126,8 @@ class BaseEnvironment(object):
             Exact software versions to be executed in the environment
         """
         raise NotImplementedError
+
+    def prov(self):
+        return {
+            'type': get_class_info(type(self)),
+            'host': HOSTNAME}

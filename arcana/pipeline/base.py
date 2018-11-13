@@ -8,17 +8,19 @@ import errno
 import json
 from itertools import chain
 from collections import defaultdict
+import networkx as nx
 import networkx.readwrite.json_graph as nx_json
-import nipype
 from nipype.interfaces.base import isdefined
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
-import arcana
+from arcana.utils import get_class_info, extract_package_version
+from arcana.release import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError,
     ArcanaOutputNotProducedException, ArcanaMissingDataException)
-from arcana.pipeline.provenance import PipelineRecord
+from .provenance import (
+    Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
 
 logger = getLogger('arcana')
@@ -104,7 +106,7 @@ class Pipeline(object):
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
         # provenance
-        self._referenced_parameters = None
+        self._referenced_parameters = set()
         self._required_outputs = set()
         # Create placeholders for expected provenance records that are used
         # to compare with records saved in the repository when checking for
@@ -771,50 +773,50 @@ class Pipeline(object):
         return "'{}' pipeline in {} class".format(self.name,
                                                   type(self.study).__name__)
 
-    def provenance(self):
-        if self._referenced_parameters is None:
-            study_parameters = {}
-        else:
-            study_parameters = {
-                p: self.study.parameter(p)
-                for p in self._referenced_parameters}
-        interface_parameters = {}
-        versions = {}
-        for node in self.nodes:
-            versions[node.name] = [
-                [v.name, str(v), v.local_name, v.local_version]
-                for v in node.versions]
-            interface_parameters[node.name] = {}
+    def prov(self):
+        """
+        Extracts provenance information from the pipeline into a PipelineProv
+        object
+
+        Returns
+        -------
+        prov : dict[str, *]
+            A dictionary containing the provenance information to record
+            for the pipeline
+        """
+        # Reconstruct network graph, expanding out the nodes into dictionaries
+        # that can be serialized to JSONs
+        wf_graph = nx.Graph()
+        for node in self.workflow._graph.nodes_iter():
+            parameters = {}
             for trait_name in node.inputs.visible_traits():
                 val = getattr(node.inputs, trait_name)
                 if isdefined(val):
-                    interface_parameters[node.name][trait_name] = val
-        # Generate JSON representation of Nipype workflow graph
-        wf_graph = nx_json.node_link_data(self._workflow._graph)
-        # Replace Nipype Nodes in 'nodes' with the name and interface of
-        # the Nodes
-        wf_graph['nodes'] = [
-            {'name': n['id'].name,
-             'interface': '{}.{}'.format(
-                 n['id'].interface.__class__.__module__,
-                 n['id'].interface.__class__.__name__)}
-            for n in wf_graph['nodes']]
-        study_dict = {'name': self.study.name,
-                      'class': type(self.study).__name__,
-                      'module': type(self.study).__module__}
+                    parameters[trait_name] = val
+            wf_graph.add_node(
+                node.name,
+                interface=get_class_info(type(node.interface)),
+                parameters=parameters,
+                requirements={v.name: (str(v), v.local_name, v.local_version)
+                              for v in node.versions})
+        for from_, to in self.workflow._graph.edges_iter():
+            wf_graph.add_edge(from_.name, to.name,
+                              **self.workflow._graph.get_edge_data(from_, to))
         # Roundtrip workflow graph to JSON to convert any tuples into lists
-        wf_graph = json.loads(json.dumps(wf_graph))
-        return PipelineRecord(
-            study_name=self.study.name,
-            pipeline_name=self.name,
-            study_parameters=study_parameters,
-            interface_parameters=interface_parameters,
-            requirement_versions=versions,
-            arcana_version=arcana.__version__,
-            nipype_version=nipype.__version__,
-            workflow_graph=wf_graph,
-            subject_ids=self.study.subject_ids,
-            visit_ids=self.study.visit_ids)
+        # so dictionaries can be compared directly
+        wf_dict = json.loads(json.dumps(nx_json.node_link_data(wf_graph)))
+        dependency_versions = {d: extract_package_version(d)
+                               for d in ARCANA_DEPENDENCIES}
+
+        pkg_versions = {'arcana': __version__}
+        pkg_versions.update((k, v) for k, v in dependency_versions.items()
+                            if v is not None)
+        return {
+            '__prov_version__': PROVENANCE_VERSION,
+            'name': self.name,
+            'workflow': wf_dict,
+            'study': self.study.prov(),
+            'pkg_versions': pkg_versions}
 
     def expected_record(self, node):
         """
@@ -866,7 +868,9 @@ class Pipeline(object):
         exp_outputs = {
             o.name: o.collection.item(node.subject_id, node.visit_id).checksums
             for o in self.outputs}
-        expected_record = self.provenance().record(
-            exp_inputs, exp_outputs, node.frequency, node.subject_id,
-            node.visit_id)
-        return expected_record
+        prov = self.prov()
+        prov['inputs'] = exp_inputs
+        prov['outputs'] = exp_outputs
+        return Record(
+            self.name, prov, node.frequency, node.subject_id, node.visit_id,
+            self.study.name)

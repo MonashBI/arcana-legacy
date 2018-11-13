@@ -1,5 +1,7 @@
 from past.builtins import basestring
 from future.utils import PY3, PY2
+import subprocess as sp
+import importlib
 from itertools import zip_longest
 import os.path
 import errno
@@ -20,6 +22,13 @@ FIELD_SUFFIX = '_field'
 CHECKSUM_SUFFIX = '_checksum'
 
 package_dir = os.path.join(os.path.dirname(__file__), '..')
+
+try:
+    HOSTNAME = sp.check_output('hostname').strip()
+    if PY3:
+        HOSTNAME = HOSTNAME.decode('utf-8')
+except sp.CalledProcessError:
+    HOSTNAME = None
 
 
 def dir_modtime(dpath):
@@ -217,3 +226,29 @@ def find_mismatch(first, second, indent=''):
                                                        indent=sub_indent),
                                          indent=sub_indent))
     return mismatch
+
+
+def extract_package_version(package_name):
+    version = None
+    try:
+        module = importlib.import_module(package_name)
+    except ModuleNotFoundError:
+        if package_name.startswith('py'):
+            try:
+                module = importlib.import_module(package_name[2:])
+            except ModuleNotFoundError:
+                pass
+    else:
+        try:
+            version = module.__version__
+        except AttributeError:
+            pass
+    return version
+
+
+def get_class_info(cls):
+    info = {'class': '{}.{}'.format(cls.__module__, cls.__name__)}
+    version = extract_package_version(cls.__module__.split('.')[0])
+    if version is not None:
+        info['pkg_version'] = version
+    return info
