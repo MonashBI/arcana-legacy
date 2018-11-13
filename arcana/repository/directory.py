@@ -14,7 +14,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
     ArcanaMissingDataException)
-from arcana.utils import get_class_info, HOSTNAME
+from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
 logger = logging.getLogger('arcana')
@@ -288,8 +288,9 @@ class DirectoryRepository(BaseRepository):
                 base_prov_dir = op.join(session_path, self.PROV_DIR)
                 for fname in os.listdir(base_prov_dir):
                     all_records.append(Record.load(
-                        op.join(base_prov_dir, fname),
-                        frequency, subj_id, visit_id, from_study))
+                        split_extension(fname)[0],
+                        frequency, subj_id, visit_id, from_study,
+                        op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
 
     def session_dir(self, item):

@@ -33,19 +33,22 @@ class BaseProcessor(object):
         A directory in which to run the nipype workflows
     max_process_time : float
         The maximum time allowed for the process
-    reprocess: True|False|'all'
+    reprocess: bool
         A flag which determines whether to rerun the processing for this
-        step. If set to 'all' then pre-requisite pipelines will also be
-        reprocessed.
-    prov_include : iterable[str | iterable[str]]
+        step if a provenance mismatch is detected between save derivative and
+        parameters passed to the Study. If False, an exception will be raised
+        in this case
+    prov_include : iterable[str]
         Paths in the provenance dictionary to include in checks with previously
         generated derivatives to determine whether they need to be rerun.
-        Paths can either be iterables of strings or strings delimited by '/'
-    prov_exclude : iterable[str | iterable[str]]
+        Paths are strings delimited by '/', with each part referring to a
+        dictionary key in the nested provenance dictionary.
+    prov_exclude : iterable[str]
         Paths in the provenance dictionary to exclude (if they are already
         included given the 'prov_include' kwarg) in checks with previously
         generated derivatives to determine whether they need to be rerun
-        Paths can either be iterables of strings or strings delimited by '/'
+        Paths are strings delimited by '/', with each part referring to a
+        dictionary key in the nested provenance dictionary.
     clean_work_dir_between_runs : bool
         Whether to clean the working directory between runs (can avoid problems
         if debugging the analysis but may take longer to reach the same point)
@@ -269,49 +272,52 @@ class BaseProcessor(object):
         already_connected : dict[str, Pipeline]
             A dictionary containing all pipelines that have already been
             connected to avoid the same pipeline being connected twice.
-        force : bool
+        force : bool | 'all'
             A flag to force the processing of all sessions in the filter
             array, regardless of whether the parameters|pipeline used
             to generate existing data matches the given pipeline
         """
         if already_connected is None:
-            already_connected = {}
+            already_connected = {}  # Initialise cache of connected pipelines
         try:
-            prev_connected, final = already_connected[pipeline.name]
+            # Check to see if current pipeline has already been connected
+            # as prerequisite of another prerequisite
+            if already_connected[pipeline.name] is None:
+                raise ArcanaNoRunRequiredException(
+                    "No sessions to process for previously checked '{}' "
+                    "pipeline".format(pipeline.name))
+            prev_connected, final, to_process_array = already_connected[
+                pipeline.name]
         except KeyError:
             # Pipeline hasn't been connected already, continue to connect
             # the pipeline to repository
             pass
         else:
             if prev_connected == pipeline:
-                return final
+                return final, to_process_array
             else:
                 raise ArcanaError(
                     "Name clash between {} and {} non-matching "
                     "prerequisite pipelines".format(prev_connected, pipeline))
-        # Get list of sessions that need to be processed (i.e. if
-        # they don't contain the outputs of this pipeline)
-        to_process_array = self._to_process(pipeline, filter_array,
-                                            subject_inds, visit_inds, force)
-        # Extract pipeline-common provenance information to be sinked with
-        # output derivatives. Needs to be done at the top before the
-        # repository connection nodes are added.
-        provenance = pipeline.prov()
-        # Set up workflow to run the pipeline, loading and saving from the
-        # repository
-        workflow.add_nodes([pipeline._workflow])
-        # Prepend prerequisite pipelines to complete workflow if required
+        # Prepend prerequisite pipelines to complete workflow if they need
+        # to be (re)processed
         final_nodes = []
+        # The array that represents the subject/visit pairs for which
+        # any prerequisite pipeline will be (re)processed, and therefore need
+        # to be included in the processing of the current pipeline. Row indices
+        # correspond to subject IDs and column indices visit IDs
+        prereqs_to_process_array = np.zeros(
+            (len(subject_inds), len(visit_inds)), dtype=bool)
         for prereq in pipeline.prerequisites:
             # NB: Even if reprocess==True, the prerequisite pipelines
             # are not re-processed, they are only reprocessed if
             # reprocess == 'all'
             try:
-                final_nodes.append(self._connect_pipeline(
+                final_node, prereq_to_process_array = self._connect_pipeline(
                     prereq, workflow, subject_inds, visit_inds,
-                    filter_array=to_process_array,
+                    filter_array=filter_array,
                     already_connected=already_connected,
-                    force=(force if force == 'all' else False)))
+                    force=(force if force == 'all' else False))
             except ArcanaNoRunRequiredException:
                 logger.info(
                     "Not running '{}' pipeline as a "
@@ -324,6 +330,27 @@ class BaseProcessor(object):
                     "pipeline to produce '{}'"
                     .format(e, pipeline.name,
                             "', '".join(pipeline.required_outputs)))
+            else:
+                prereqs_to_process_array |= prereq_to_process_array
+                final_nodes.append(final_node)
+        # Get list of sessions that need to be processed (i.e. if
+        # they don't contain the outputs of this pipeline)
+        to_process_array = self._to_process(
+            pipeline, prereqs_to_process_array, filter_array,
+            subject_inds, visit_inds, force)
+        # Check to see if there are any sessions to process
+        if not to_process_array.any():
+            already_connected[pipeline.name] = None
+            raise ArcanaNoRunRequiredException(
+                "No sessions to process for '{}' pipeline"
+                .format(pipeline.name))
+        # Extract pipeline-common provenance information to be sinked with
+        # output derivatives. Needs to be done at the top before the
+        # repository connection nodes are added.
+        provenance = pipeline.prov()
+        # Set up workflow to run the pipeline, loading and saving from the
+        # repository
+        workflow.add_nodes([pipeline._workflow])
         # If prerequisite pipelines need to be processed, connect their
         # "final" nodes to the initial node of this pipeline to ensure that
         # they are all processed before this pipeline is run.
@@ -458,8 +485,8 @@ class BaseProcessor(object):
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
         # Register pipeline as being connected to prevent duplicates
-        already_connected[pipeline.name] = (pipeline, final)
-        return final
+        already_connected[pipeline.name] = (pipeline, final, to_process_array)
+        return final, to_process_array
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
         """
@@ -583,8 +610,8 @@ class BaseProcessor(object):
                              visit_it, self.study.SUBJECT_ID)
         return iter_nodes
 
-    def _to_process(self, pipeline, filter_array, subject_inds, visit_inds,
-                    force):
+    def _to_process(self, pipeline, prereqs_to_process_array, filter_array,
+                    subject_inds, visit_inds, force):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project repository and were generated with matching provenance.
@@ -595,6 +622,12 @@ class BaseProcessor(object):
         ----------
         pipeline : Pipeline
             The pipeline to determine the sessions to process
+        prereqs_to_process_array : 2-D numpy.array[bool]
+            A two-dimensional boolean array, where rows and columns correspond
+            correspond to subjects and visits in the repository tree. True
+            values represent a subject/visit ID pairs that will be
+            (re)processed in prerequisite pipelines and therefore need to be
+            included in the returned array.
         filter_array : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows and columns correspond
             correspond to subjects and visits in the repository tree. True
@@ -685,8 +718,10 @@ class BaseProcessor(object):
 
         # Initialise the array to return that represents the sessions to
         # process
-        to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
-                                    dtype=bool)
+        if summary_outputs:
+            to_process_array = dialate_array(prereqs_to_process_array)
+        else:
+            to_process_array = prereqs_to_process_array
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
         to_protect_array = np.zeros((len(subject_inds), len(visit_inds)),
@@ -801,10 +836,6 @@ class BaseProcessor(object):
 
         if summary_outputs:
             to_process_array = dialate_array(to_process_array)
-        if not to_process_array.any():
-            raise ArcanaNoRunRequiredException(
-                "No sessions to process for '{}' pipeline"
-                .format(pipeline.name))
         return to_process_array
 
     @property

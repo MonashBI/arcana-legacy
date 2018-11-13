@@ -74,7 +74,7 @@ class TestSinkAndSource(BaseTestCase):
         sink = pe.Node(
             RepositorySink(
                 (study.bound_spec(f).collection for f in sink_files),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='sink')
         sink.inputs.name = 'repository_sink'
         sink.inputs.desc = (
@@ -111,7 +111,7 @@ class TestSinkAndSource(BaseTestCase):
             RepositorySink(
                 (study.bound_spec(f).collection
                  for f in ['field1', 'field2', 'field3']),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
@@ -155,7 +155,7 @@ class TestSinkAndSource(BaseTestCase):
         subject_sink = pe.Node(
             RepositorySink(
                 (study.bound_spec(f).collection for f in subject_sink_files),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
@@ -166,7 +166,7 @@ class TestSinkAndSource(BaseTestCase):
             RepositorySink(
                 (study.bound_spec(f).collection
                  for f in visit_sink_files),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
@@ -176,7 +176,7 @@ class TestSinkAndSource(BaseTestCase):
         study_sink = pe.Node(
             RepositorySink(
                 (study.bound_spec(f).collection for f in study_sink_files),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='study_sink')
 
         study_sink.inputs.name = 'project_summary'
@@ -238,7 +238,7 @@ class TestSinkAndSource(BaseTestCase):
             RepositorySink(
                 (study.bound_spec(f).collection
                  for f in ['resink1', 'resink2', 'resink3']),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (

@@ -122,13 +122,13 @@ class TestProvenance(BaseTestCase):
                          [3.0, 6.0, 60.0])
         pipeline1 = study.pipeline1()
         prov = pipeline1.prov()
-        record = Record(prov, 'per_session', self.SUBJECT, self.VISIT,
-                        study_name)
+        record = Record('pipeline1', 'per_session', self.SUBJECT, self.VISIT,
+                        study_name, prov)
         print(pformat(record._prov))
         path = op.join(self.tempdir, 'prov1.json')
         record.save(path)
-        reloaded = Record.load(path, 'per_session', self.SUBJECT, self.VISIT,
-                               study_name)
+        reloaded = Record.load('pipeline1', 'per_session', self.SUBJECT,
+                               self.VISIT, study_name, path)
         mismatches = record.mismatches(reloaded)
         self.assertFalse(mismatches,
                          "Reloaded record did not match saved record:{}"
