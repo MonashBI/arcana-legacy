@@ -371,9 +371,9 @@ class XnatRepository(BaseRepository):
                                         resources_dir, pipeline_name, 'files',
                                         pipeline_name + '.json')
                                     all_records.append(
-                                        Record.load(json_path,
-                                                    frequency, subj_id,
-                                                    visit_id, from_study))
+                                        Record.load(pipeline_name, frequency,
+                                                    subj_id, visit_id,
+                                                    from_study, json_path))
                             finally:
                                 shutil.rmtree(temp_dir)
                         else:

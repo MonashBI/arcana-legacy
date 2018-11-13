@@ -113,7 +113,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink = pe.Node(
             RepositorySink(
                 (study.bound_spec(f).collection for f in sink_files),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='sink')
         sink.inputs.name = 'repository-roundtrip-unittest'
         sink.inputs.desc = (
@@ -160,7 +160,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink = pe.Node(
             RepositorySink(
                 (study.bound_spec(f).collection for f in fields),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
@@ -332,7 +332,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink = pe.Node(
             RepositorySink(
                 [study.bound_spec(DATASET_NAME).collection],
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='checksum_check_sink')
         sink.inputs.name = 'checksum_check_sink'
         sink.inputs.desc = "Tests the generation of MD5 checksums"
@@ -386,7 +386,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         subject_sink = pe.Node(
             RepositorySink(
                 [study.bound_spec(f).collection for f in subject_sink_files],
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
@@ -396,7 +396,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         visit_sink = pe.Node(
             RepositorySink(
                 [study.bound_spec(f).collection for f in visit_sink_files],
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
@@ -406,7 +406,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study_sink = pe.Node(
             RepositorySink(
                 [study.bound_spec(f).collection for f in study_sink_files],
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='study_sink')
         study_sink.inputs.name = 'project_summary'
         study_sink.inputs.desc = (
@@ -503,7 +503,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             RepositorySink(
                 (study.bound_spec(f).collection
                  for f in ['resink1', 'resink2', 'resink3']),
-                study.dummy_pipeline().provenance(), []),
+                study.dummy_pipeline().prov(), []),
             name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (

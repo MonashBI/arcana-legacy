@@ -283,7 +283,9 @@ class BaseProcessor(object):
             # Check to see if current pipeline has already been connected
             # as prerequisite of another prerequisite
             if already_connected[pipeline.name] is None:
-                raise ArcanaNoRunRequiredException
+                raise ArcanaNoRunRequiredException(
+                    "No sessions to process for previously checked '{}' "
+                    "pipeline".format(pipeline.name))
             prev_connected, final, to_process_array = already_connected[
                 pipeline.name]
         except KeyError:
@@ -336,6 +338,7 @@ class BaseProcessor(object):
         to_process_array = self._to_process(
             pipeline, prereqs_to_process_array, filter_array,
             subject_inds, visit_inds, force)
+        # Check to see if there are any sessions to process
         if not to_process_array.any():
             already_connected[pipeline.name] = None
             raise ArcanaNoRunRequiredException(
@@ -715,12 +718,10 @@ class BaseProcessor(object):
 
         # Initialise the array to return that represents the sessions to
         # process
-        if summary_ouptuts:
+        if summary_outputs:
             to_process_array = dialate_array(prereqs_to_process_array)
         else:
             to_process_array = prereqs_to_process_array
-        to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
-                                    dtype=bool)
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
         to_protect_array = np.zeros((len(subject_inds), len(visit_inds)),

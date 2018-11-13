@@ -57,7 +57,7 @@ class Pipeline(object):
 
             return pipeline
 
-        The keywords in 'name_mods' used in pipeline construction are:
+        The keywords in 'name_maps' used in pipeline construction are:
 
         name : str
             A new name for the pipeline
@@ -872,5 +872,5 @@ class Pipeline(object):
         prov['inputs'] = exp_inputs
         prov['outputs'] = exp_outputs
         return Record(
-            self.name, prov, node.frequency, node.subject_id, node.visit_id,
-            self.study.name)
+            self.name, node.frequency, node.subject_id, node.visit_id,
+            self.study.name, prov)

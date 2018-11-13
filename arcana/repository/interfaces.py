@@ -233,6 +233,7 @@ class RepositorySink(BaseRepositoryInterface):
         self._pipeline_input_fields = [i.name for i in pipeline_inputs
                                        if i.is_field]
         self._prov = provenance
+        self._pipeline_name = provenance['name']
         self._from_study = provenance['study']['name']
 
     def _list_outputs(self):
@@ -282,8 +283,8 @@ class RepositorySink(BaseRepositoryInterface):
             prov = copy(self._prov)
             prov['inputs'] = input_checksums
             prov['outputs'] = output_checksums
-            record = Record(prov, self.frequency, subject_id, visit_id,
-                            self._from_study)
+            record = Record(self._pipeline_name, self.frequency, subject_id,
+                            visit_id, self._from_study, prov)
             for repository in self.repositories:
                 repository.put_record(record)
         if missing_inputs:
