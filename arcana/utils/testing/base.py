@@ -36,6 +36,7 @@ class BaseTestCase(TestCase):
 
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
+    SESSION = (SUBJECT, VISIT)
 
     # Whether to copy reference filesets from reference directory
     INPUTS_FROM_REF_DIR = False

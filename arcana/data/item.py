@@ -562,7 +562,7 @@ class Field(BaseItem, BaseField):
             return self.name < other.name
 
     def __repr__(self):
-        return ("{}(name='{}', value={}, frequency='{}',  "
+        return ("{}(name='{}', value={}, frequency='{}', "
                 "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self._value,
                     self.frequency, self.subject_id,
@@ -610,6 +610,7 @@ class Field(BaseItem, BaseField):
 
     def get(self):
         if self.repository is not None:
+            self._exists = True
             self._value = self.repository.get_field(self)
 
     def put(self):
