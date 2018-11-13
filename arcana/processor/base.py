@@ -63,7 +63,7 @@ class BaseProcessor(object):
     DEFAULT_MEM_GB = 4096
     DEFAULT_PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids',
                             'inputs', 'outputs']
-    DEFAULT_PROV_EXCLUDE = ['workflow/nodes/interface/pkg_version']
+    DEFAULT_PROV_EXCLUDE = ['workflow/nodes/interface/.*/pkg_version']
 
     default_plugin_args = {}
 
