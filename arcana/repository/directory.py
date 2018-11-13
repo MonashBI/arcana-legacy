@@ -14,6 +14,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
     ArcanaMissingDataException)
+from arcana.utils import get_class_info, HOSTNAME
 
 
 logger = logging.getLogger('arcana')
@@ -71,6 +72,12 @@ class DirectoryRepository(BaseRepository):
             return self.root_dir == other.root_dir
         except AttributeError:
             return False
+
+    def prov(self):
+        return {
+            'type': get_class_info(type(self)),
+            'root': self.root_dir,
+            'host': HOSTNAME}
 
     def __hash__(self):
         return hash(self.root_dir)

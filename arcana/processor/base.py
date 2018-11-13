@@ -9,6 +9,7 @@ import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.repository.interfaces import RepositorySource, RepositorySink
+from arcana.utils import get_class_info
 from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
@@ -36,23 +37,45 @@ class BaseProcessor(object):
         A flag which determines whether to rerun the processing for this
         step. If set to 'all' then pre-requisite pipelines will also be
         reprocessed.
+    prov_include : iterable[str | iterable[str]]
+        Paths in the provenance dictionary to include in checks with previously
+        generated derivatives to determine whether they need to be rerun.
+        Paths can either be iterables of strings or strings delimited by '/'
+    prov_exclude : iterable[str | iterable[str]]
+        Paths in the provenance dictionary to exclude (if they are already
+        included given the 'prov_include' kwarg) in checks with previously
+        generated derivatives to determine whether they need to be rerun
+        Paths can either be iterables of strings or strings delimited by '/'
     clean_work_dir_between_runs : bool
         Whether to clean the working directory between runs (can avoid problems
         if debugging the analysis but may take longer to reach the same point)
+    default_wall_time : int
+        The default wall time assumed for nodes where it isn't specified
+    default_mem_gb : float
+        The default memory assumed to be required for nodes where it isn't
+        specified
     """
 
     DEFAULT_WALL_TIME = 20
     DEFAULT_MEM_GB = 4096
+    DEFAULT_PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids',
+                            'inputs', 'outputs']
+    DEFAULT_PROV_EXCLUDE = ['workflow/nodes/interface/pkg_version']
 
     default_plugin_args = {}
 
-    def __init__(self, work_dir, max_process_time=None, reprocess=False,
+    def __init__(self, work_dir, reprocess=False,
+                 prov_include=DEFAULT_PROV_INCLUDE,
+                 prov_exclude=DEFAULT_PROV_EXCLUDE,
+                 max_process_time=None,
                  clean_work_dir_between_runs=True,
                  default_wall_time=DEFAULT_WALL_TIME,
                  default_mem_gb=DEFAULT_MEM_GB, **kwargs):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
+        self._prov_include = prov_include
+        self._prov_exclude = prov_exclude
         self._plugin_args = copy(self.default_plugin_args)
         self._default_wall_time = default_wall_time
         self._deffault_mem_gb = default_mem_gb
@@ -81,6 +104,18 @@ class BaseProcessor(object):
     @property
     def study(self):
         return self._study
+
+    @property
+    def reprocess(self):
+        return self._reprocess
+
+    @property
+    def prov_include(self):
+        return self._prov_include
+
+    @property
+    def prov_exclude(self):
+        return self._prov_exclude
 
     @property
     def default_mem_gb(self):
@@ -261,7 +296,7 @@ class BaseProcessor(object):
         # Extract pipeline-common provenance information to be sinked with
         # output derivatives. Needs to be done at the top before the
         # repository connection nodes are added.
-        provenance = pipeline.provenance()
+        provenance = pipeline.prov()
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
         workflow.add_nodes([pipeline._workflow])
@@ -720,7 +755,7 @@ class BaseProcessor(object):
         # in the provenance record matches that of the current pipeline
         to_check_array = np.invert(to_process_array |
                                    to_protect_array) * filter_array
-        if to_check_array.any() and self.study.reprocess != 'ignore':
+        if to_check_array.any() and self.prov_include:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
             to_check = [s for s in tree.sessions
@@ -738,40 +773,31 @@ class BaseProcessor(object):
                                 if to_check_array[0, visit_inds[v.id]])
             if 'per_study' in output_freqs:
                 to_check.append(tree)
-            # Parse study reprocess flag to determine whether to ignore
-            # software versions when reprocessing
-            if (isinstance(self.study.reprocess, basestring) and
-                    self.study.reprocess.startswith('ignore_versions')):
-                ignore_versions = True
-                reprocess = self.study.reprocess.endswith('true')
-            else:
-                ignore_versions = False
-                reprocess = self.study.reprocess
             for node in to_check:
                 # Retrieve record stored in tree node
                 record = node.record(pipeline.name, pipeline.study.name)
                 # Generated expected record from current pipeline/repository-
                 # state
                 expected_record = pipeline.expected_record(node)
-                # Compare record with expected and
-                if not record.matches(expected_record, ignore_versions):
-                    if reprocess:
+                # Compare record with expected
+                mismatches = record.mismatches(expected_record,
+                                               self.prov_include,
+                                               self.prov_exclude)
+                if mismatches:
+                    if self.reprocess:
                         to_process_array[
                             subject_inds.get(node.subject_id, 0),
                             visit_inds.get(node.visit_id, 0)] = True
                         logger.info(
                             "Reprocessing {} with '{}' "
-                            "pipeline due to mismatching provenance"
-                            .format(node, pipeline.name))
+                            "pipeline due to mismatching provenance:\n{}"
+                            .format(node, pipeline.name, mismatches))
                     else:
                         raise ArcanaProvenanceRecordMismatchError(
                             "Provenance recorded for '{}' pipeline in {} does "
                             "not match that of requested pipeline, set "
                             "reprocess flag == True to overwrite:\n{}".format(
-                                pipeline.name, self,
-                                record.find_mismatch(
-                                    expected_record, indent='  ',
-                                    ignore_versions=ignore_versions)))
+                                pipeline.name, self, mismatches))
 
         if summary_outputs:
             to_process_array = dialate_array(to_process_array)
@@ -794,3 +820,6 @@ class BaseProcessor(object):
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._init_plugin()
+
+    def prov(self):
+        return {'type': get_class_info(type(self))}

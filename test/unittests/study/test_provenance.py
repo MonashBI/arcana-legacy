@@ -1,4 +1,4 @@
-import os
+from pprint import pformat
 import os.path as op
 import tempfile
 import shutil
@@ -108,7 +108,7 @@ class TestProvenance(BaseTestCase):
         super(TestProvenance, self).tearDown()
         shutil.rmtree(self.tempdir)
 
-    def test_derivable(self):
+    def test_json_roundtrip(self):
         study_name = 'study'
         # Test vanilla study
         study = self.create_study(
@@ -121,12 +121,15 @@ class TestProvenance(BaseTestCase):
         self.assertEqual(next(iter(study.data('derfield1'))).value,
                          [3.0, 6.0, 60.0])
         pipeline1 = study.pipeline1()
-        prov = pipeline1.provenance()
-        record = prov.record({}, {}, 'per_session', self.SUBJECT, self.VISIT)
+        prov = pipeline1.prov()
+        record = Record(prov, 'per_session', self.SUBJECT, self.VISIT,
+                        study_name)
+        print(pformat(record._prov))
         path = op.join(self.tempdir, 'prov1.json')
         record.save(path)
         reloaded = Record.load(path, 'per_session', self.SUBJECT, self.VISIT,
                                study_name)
-        self.assertTrue(record.matches(reloaded),
-                        "Reloaded record did not match saved record:{}"
-                        .format(reloaded.find_mismatch(record, indent='  ')))
+        mismatches = record.mismatches(reloaded)
+        self.assertFalse(mismatches,
+                         "Reloaded record did not match saved record:{}"
+                         .format(mismatches))

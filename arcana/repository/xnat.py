@@ -18,7 +18,7 @@ from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
 from arcana.pipeline.provenance import Record
-from arcana.utils import dir_modtime
+from arcana.utils import dir_modtime, get_class_info
 import re
 import xnat
 
@@ -99,6 +99,12 @@ class XnatRepository(BaseRepository):
                     self._check_md5 == other._check_md5)
         except AttributeError:
             return False  # For comparison with other types
+
+    def prov(self):
+        return {
+            'type': get_class_info(type(self)),
+            'server': self.server,
+            'project': self.project_id}
 
     @property
     def login(self):
@@ -281,6 +287,7 @@ class XnatRepository(BaseRepository):
             pass
         else:
             xresource.delete()
+        # FIXME: should reuse the same resource for all provenance jsons
         xresource = xprov.create_resource(record.pipeline_name)
         xresource.upload(cache_path, op.basename(cache_path))
 
