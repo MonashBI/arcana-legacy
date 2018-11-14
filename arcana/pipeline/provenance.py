@@ -176,7 +176,7 @@ class Record(object):
             Paths in the provenance to exclude from the match
         """
         if include is None:
-            include = [[]]  # Include everything
+            include = ['']  # Include everything
         if exclude is None:
             exclude = []  # Don't exclude anything
         diff = DeepDiff(self._prov, other._prov)
