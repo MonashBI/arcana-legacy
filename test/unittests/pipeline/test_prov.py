@@ -202,14 +202,14 @@ class TestProv(BaseTestCase):
             inputs=STUDY_INPUTS)
         # Just test to see if the pipeline works
         self.assertEqual(next(iter(study.data('derfield1'))).value,
-                         [3.0, 6.0, 60.0])
+                         [3.0, 14.0, 140.0])
         pipeline1 = study.pipeline1()
         prov = pipeline1.prov()
         record = Record('pipeline1', 'per_session', self.SUBJECT, self.VISIT,
                         study_name, prov)
         tempdir = tempfile.mkdtemp()
         try:
-            path = op.join(self.tempdir, 'prov1.json')
+            path = op.join(tempdir, 'prov1.json')
             record.save(path)
             reloaded = Record.load('pipeline1', 'per_session', self.SUBJECT,
                                    self.VISIT, study_name, path)
