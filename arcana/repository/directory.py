@@ -73,6 +73,7 @@ class DirectoryRepository(BaseRepository):
         except AttributeError:
             return False
 
+    @property
     def prov(self):
         return {
             'type': get_class_info(type(self)),

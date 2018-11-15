@@ -1,6 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 from itertools import chain
+from collections import defaultdict
 import sys
 import os.path as op
 import types
@@ -748,6 +749,7 @@ class Study(object):
         return {
             set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterators)]
 
+    @property
     def prov(self):
         """
         Extracts provenance information from the study for storage alongside
@@ -761,23 +763,32 @@ class Study(object):
             A dictionary containing the provenance information to record
             for the study
         """
-        input_repos = list(set(
-            (i.repository if i.repository is not None else self.repository)
-            for i in self.inputs))
+        # Get list of repositories where inputs to the study are stored
+        input_repos = list(set((i.repository for i in self.inputs)))
+        inputs = {}
+        for input in self.inputs:  # @ReservedAssignment
+            inputs[input.name] = {
+                'repository_index': input_repos.index(input.repository)}
+            if input.frequency == 'per_study':
+                inputs['names'] = next(input.collection).name
+            elif input.frequency == 'per_subject':
+                inputs['names'] = {i.subject_id: i.name
+                                   for i in input.collection}
+            elif input.frequency == 'per_visit':
+                inputs['names'] = {i.visit_id: i.name
+                                   for i in input.collection}
+            elif input.frequency == 'per_session':
+                inputs['names'] = defaultdict(dict)
+                for item in input.collection:
+                    inputs['names'][item.subject_id][item.visit_id] = item.name
         return {
             'name': self.name,
             'type': get_class_info(type(self)),
             'parameters': {p.name: p.value for p in self.parameters},
-            'inputs': {input.name: {'{},{}'.format(i.subject_id, i.visit_id):
-                                    [i.name, 'repo{}'.format(
-                                        input_repos.index(i.repository))]
-                                    for i in input.collection}
-                       for input in self.inputs},  # @ReservedAssignment
-            'environment': self.environment.prov(),
-            'repositories': {
-                'repo{}'.format(i): r.prov()
-                for i, r in enumerate(input_repos)},
-            'processor': self.processor.prov(),
+            'inputs': inputs,
+            'environment': self.environment.prov,
+            'repositories': {i: r.prov for i, r in enumerate(input_repos)},
+            'processor': self.processor.prov,
             'subject_ids': self.subject_ids,
             'visit_ids': self.visit_ids}
 

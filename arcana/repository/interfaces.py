@@ -197,16 +197,14 @@ class RepositorySink(BaseRepositoryInterface):
     collections : *Collection
         The collections of Field and Fileset objects to insert into the
         outputs repositor(y|ies)
-    provenance : arcana.provenance.PipelineProvenance
-        The pipeline provenance record (as opposed to the session or subject|
-        visit|study-summary specific record that contains field values and
-        file-set checksums for relevant inputs and outputs)
+    pipeline : arcana.pipeline.Pipeline
+        The pipeline that has produced the outputs to sink
     """
 
     input_spec = BaseRepositorySpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections, provenance, pipeline_inputs):
+    def __init__(self, collections, pipeline):
         super(RepositorySink, self).__init__(collections)
         # Add traits for filesets to sink
         for fileset_collection in self.fileset_collections:
@@ -219,8 +217,9 @@ class RepositorySink(BaseRepositoryInterface):
                             field_collection.name + FIELD_SUFFIX,
                             self.field_trait(field_collection))
         # Add traits for checksums/values of pipeline inputs
-        pipeline_inputs = list(pipeline_inputs)
-        for inpt in pipeline_inputs:
+        self._pipeline_input_filesets = []
+        self._pipeline_input_fields = []
+        for inpt in pipeline.inputs:
             if inpt.is_fileset:
                 trait_t = JOINED_CHECKSUM_TRAIT
             else:
@@ -228,13 +227,15 @@ class RepositorySink(BaseRepositoryInterface):
                 trait_t = traits.Either(trait_t, traits.List(trait_t),
                                         traits.List(traits.List(trait_t)))
             self._add_trait(self.inputs, inpt.checksum_suffixed_name, trait_t)
-        self._pipeline_input_filesets = [i.name for i in pipeline_inputs
-                                         if i.is_fileset]
-        self._pipeline_input_fields = [i.name for i in pipeline_inputs
-                                       if i.is_field]
-        self._prov = provenance
-        self._pipeline_name = provenance['name']
-        self._from_study = provenance['study']['name']
+            if inpt.is_fileset:
+                self._pipeline_input_filesets.append(inpt.name)
+            elif inpt.is_field:
+                self._pipeline_input_fields.append(inpt.name)
+            else:
+                assert False
+        self._prov = pipeline.prov
+        self._pipeline_name = pipeline.name
+        self._from_study = pipeline.study.name
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -275,10 +276,7 @@ class RepositorySink(BaseRepositoryInterface):
                 if not isdefined(value):
                     missing_inputs.append(field.name)
                     continue  # skip the upload for this file
-                try:
-                    field.value = value
-                except:
-                    raise
+                field.value = value
                 field.put()
                 output_checksums[field.name] = field.value
             # Add input and output checksums to provenance record and sink to

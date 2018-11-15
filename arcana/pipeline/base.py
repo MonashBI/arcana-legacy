@@ -112,6 +112,8 @@ class Pipeline(object):
         # to compare with records saved in the repository when checking for
         # mismatches
         self._prov = None
+        self._inputnodes = None
+        self._outputnodes = None
 
     def __repr__(self):
         return "{}(name='{}')".format(self.__class__.__name__,
@@ -471,112 +473,6 @@ class Pipeline(object):
     def desc(self):
         return self._desc
 
-    def inputnode(self, frequency):
-        """
-        Generates an input node for the given frequency. It also adds implicit
-        file format conversion nodes to the pipeline.
-
-        Parameters
-        ----------
-        frequency : str
-            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the input node to retrieve
-        """
-        # Check to see whether there are any outputs for the given frequency
-        inputs = list(self.frequency_inputs(frequency))
-        # Get list of input names for the requested frequency, addding fields
-        # to hold iterator IDs
-        input_names = [i.name for i in inputs]
-        input_names.extend(self.study.FREQUENCIES[frequency])
-        if not input_names:
-            raise ArcanaError(
-                "No inputs to '{}' pipeline for requested freqency '{}'"
-                .format(self.name, frequency))
-        # Generate input node and connect it to appropriate nodes
-        inputnode = self.add('{}_inputnode'.format(frequency),
-                             IdentityInterface(fields=input_names))
-        # Loop through list of nodes connected to study data specs and
-        # connect them to the newly created input node
-        for input in inputs:  # @ReservedAssignment
-            # Keep track of previous conversion nodes to avoid replicating the
-            # conversion for inputs that are used in multiple places
-            prev_conv_nodes = {}
-            for (node, node_in,
-                 format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
-                # If fileset formats differ between study and pipeline
-                # inputs create converter node (if one hasn't been already)
-                # and connect input to that before connecting to inputnode
-                if self.requires_conversion(input, format):
-                    conv = format.converter_from(input.format, **conv_kwargs)
-                    try:
-                        in_node = prev_conv_nodes[format.name]
-                    except KeyError:
-                        in_node = prev_conv_nodes[format.name] = self.add(
-                            'conv_{}_to_{}_format'.format(input.name,
-                                                          format.name),
-                            conv.interface,
-                            connect={conv.input: (inputnode, input.name)},
-                            requirements=conv.requirements,
-                            mem_gb=conv.mem_gb,
-                            wall_time=conv.wall_time)
-                    in_node_out = conv.output
-                else:
-                    in_node = inputnode
-                    in_node_out = input.name
-                self.connect(in_node, in_node_out, node, node_in)
-        # Connect iterator inputs
-        for iterator, conns in self._iterator_conns.items():
-            # Check to see if this is the right frequency for the iterator
-            # input, i.e. if it is the only iterator for this frequency
-            if self.study.FREQUENCIES[frequency] == (iterator,):
-                for (node, node_in, format) in conns:  # @ReservedAssignment
-                    self.connect(inputnode, iterator, node, node_in)
-        return inputnode
-
-    def outputnode(self, frequency):
-        """
-        Generates an output node for the given frequency. It also adds implicit
-        file format conversion nodes to the pipeline.
-
-        Parameters
-        ----------
-        frequency : str
-            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the output node to retrieve
-        """
-        # Check to see whether there are any outputs for the given frequency
-        outputs = list(self.frequency_outputs(frequency))
-        if not outputs:
-            raise ArcanaError(
-                "No outputs to '{}' pipeline for requested freqency '{}'"
-                .format(self.name, frequency))
-        # Get list of output names for the requested frequency, addding fields
-        # to hold iterator IDs
-        output_names = [o.name for o in outputs]
-        # Generate output node and connect it to appropriate nodes
-        outputnode = self.add('{}_outputnode'.format(frequency),
-                              IdentityInterface(fields=output_names))
-        # Loop through list of nodes connected to study data specs and
-        # connect them to the newly created output node
-        for output in outputs:  # @ReservedAssignment
-            (node, node_out,
-             format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
-            # If fileset formats differ between study and pipeline
-            # outputs create converter node (if one hasn't been already)
-            # and connect output to that before connecting to outputnode
-            if self.requires_conversion(output, format):
-                conv = output.format.converter_from(format, **conv_kwargs)
-                node = self.add(
-                    'conv_{}_from_{}_format'.format(output.name, format.name),
-                    conv.interface,
-                    connect={conv.input: (node, node_out)},
-                    requirements=conv.requirements,
-                    mem_gb=conv.mem_gb,
-                    wall_time=conv.wall_time)
-                node_out = conv.output
-            self.connect(node, node_out, outputnode, output.name)
-        return outputnode
-
     @classmethod
     def requires_conversion(cls, fileset, file_format):
         """Checks whether the fileset matches the requested file format"""
@@ -773,7 +669,181 @@ class Pipeline(object):
         return "'{}' pipeline in {} class".format(self.name,
                                                   type(self.study).__name__)
 
+    def inputnode(self, frequency):
+        """
+        Returns the input node for the given frequency.
+
+        Parameters
+        ----------
+        frequency : str
+            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
+            'per_study') of the input node to retrieve
+
+        Returns
+        -------
+        inputnode : arcana.environment.base.Node
+            The input node corresponding to the given frequency
+        """
+        if self._inputnodes is None:
+            raise ArcanaError(
+                "The pipeline must be capped (see cap() method) before an "
+                "input node is accessed")
+        return self._inputnodes[frequency]
+
+    def outputnode(self, frequency):
+        """
+        Returns the output node for the given frequency.
+
+        Parameters
+        ----------
+        frequency : str
+            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
+            'per_study') of the output node to retrieve
+
+        Returns
+        -------
+        outputnode : arcana.environment.base.Node
+            The output node corresponding to the given frequency
+        """
+        if self._outputnodes is None:
+            raise ArcanaError(
+                "The pipeline must be capped (see cap() method) before an "
+                "output node is accessed")
+        return self._outputnodes[frequency]
+
+    @property
     def prov(self):
+        if self._prov is None:
+            raise ArcanaError(
+                "The pipeline must be capped (see cap() method) before the "
+                "provenance is accessed")
+        return self._prov
+
+    def cap(self):
+        """
+        "Caps" the construction of the pipeline, signifying that no more inputs
+        and outputs are expected to be added and therefore the input and output
+        nodes can be created along with the provenance.
+        """
+        to_cap = (self._inputnodes, self._outputnodes, self._prov)
+        if to_cap == (None, None, None):
+            self._inputnodes = {
+                f: self._make_inputnode(f) for f in self.input_frequencies}
+            self._outputnodes = {
+                f: self._make_outputnode(f) for f in self.output_frequencies}
+            self._prov = self._gen_prov()
+        elif None in to_cap:
+            raise ArcanaError(
+                "If one of _inputnodes, _outputnodes or _prov is not None then"
+                " they all should be in {}".format(self))
+
+    def _make_inputnode(self, frequency):
+        """
+        Generates an input node for the given frequency. It also adds implicit
+        file format conversion nodes to the pipeline.
+
+        Parameters
+        ----------
+        frequency : str
+            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
+            'per_study') of the input node to retrieve
+        """
+        # Check to see whether there are any outputs for the given frequency
+        inputs = list(self.frequency_inputs(frequency))
+        # Get list of input names for the requested frequency, addding fields
+        # to hold iterator IDs
+        input_names = [i.name for i in inputs]
+        input_names.extend(self.study.FREQUENCIES[frequency])
+        if not input_names:
+            raise ArcanaError(
+                "No inputs to '{}' pipeline for requested freqency '{}'"
+                .format(self.name, frequency))
+        # Generate input node and connect it to appropriate nodes
+        inputnode = self.add('{}_inputnode'.format(frequency),
+                             IdentityInterface(fields=input_names))
+        # Loop through list of nodes connected to study data specs and
+        # connect them to the newly created input node
+        for input in inputs:  # @ReservedAssignment
+            # Keep track of previous conversion nodes to avoid replicating the
+            # conversion for inputs that are used in multiple places
+            prev_conv_nodes = {}
+            for (node, node_in,
+                 format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
+                # If fileset formats differ between study and pipeline
+                # inputs create converter node (if one hasn't been already)
+                # and connect input to that before connecting to inputnode
+                if self.requires_conversion(input, format):
+                    conv = format.converter_from(input.format, **conv_kwargs)
+                    try:
+                        in_node = prev_conv_nodes[format.name]
+                    except KeyError:
+                        in_node = prev_conv_nodes[format.name] = self.add(
+                            'conv_{}_to_{}_format'.format(input.name,
+                                                          format.name),
+                            conv.interface,
+                            connect={conv.input: (inputnode, input.name)},
+                            requirements=conv.requirements,
+                            mem_gb=conv.mem_gb,
+                            wall_time=conv.wall_time)
+                    in_node_out = conv.output
+                else:
+                    in_node = inputnode
+                    in_node_out = input.name
+                self.connect(in_node, in_node_out, node, node_in)
+        # Connect iterator inputs
+        for iterator, conns in self._iterator_conns.items():
+            # Check to see if this is the right frequency for the iterator
+            # input, i.e. if it is the only iterator for this frequency
+            if self.study.FREQUENCIES[frequency] == (iterator,):
+                for (node, node_in, format) in conns:  # @ReservedAssignment
+                    self.connect(inputnode, iterator, node, node_in)
+        return inputnode
+
+    def _make_outputnode(self, frequency):
+        """
+        Generates an output node for the given frequency. It also adds implicit
+        file format conversion nodes to the pipeline.
+
+        Parameters
+        ----------
+        frequency : str
+            The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
+            'per_study') of the output node to retrieve
+        """
+        # Check to see whether there are any outputs for the given frequency
+        outputs = list(self.frequency_outputs(frequency))
+        if not outputs:
+            raise ArcanaError(
+                "No outputs to '{}' pipeline for requested freqency '{}'"
+                .format(self.name, frequency))
+        # Get list of output names for the requested frequency, addding fields
+        # to hold iterator IDs
+        output_names = [o.name for o in outputs]
+        # Generate output node and connect it to appropriate nodes
+        outputnode = self.add('{}_outputnode'.format(frequency),
+                              IdentityInterface(fields=output_names))
+        # Loop through list of nodes connected to study data specs and
+        # connect them to the newly created output node
+        for output in outputs:  # @ReservedAssignment
+            (node, node_out,
+             format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
+            # If fileset formats differ between study and pipeline
+            # outputs create converter node (if one hasn't been already)
+            # and connect output to that before connecting to outputnode
+            if self.requires_conversion(output, format):
+                conv = output.format.converter_from(format, **conv_kwargs)
+                node = self.add(
+                    'conv_{}_from_{}_format'.format(output.name, format.name),
+                    conv.interface,
+                    connect={conv.input: (node, node_out)},
+                    requirements=conv.requirements,
+                    mem_gb=conv.mem_gb,
+                    wall_time=conv.wall_time)
+                node_out = conv.output
+            self.connect(node, node_out, outputnode, output.name)
+        return outputnode
+
+    def _gen_prov(self):
         """
         Extracts provenance information from the pipeline into a PipelineProv
         object
@@ -815,7 +885,7 @@ class Pipeline(object):
             '__prov_version__': PROVENANCE_VERSION,
             'name': self.name,
             'workflow': wf_dict,
-            'study': self.study.prov(),
+            'study': self.study.prov,
             'pkg_versions': pkg_versions}
 
     def expected_record(self, node):
@@ -868,9 +938,9 @@ class Pipeline(object):
         exp_outputs = {
             o.name: o.collection.item(node.subject_id, node.visit_id).checksums
             for o in self.outputs}
-        prov = self.prov()
-        prov['inputs'] = exp_inputs
-        prov['outputs'] = exp_outputs
+        exp_prov = self.prov
+        exp_prov['inputs'] = exp_inputs
+        exp_prov['outputs'] = exp_outputs
         return Record(
             self.name, node.frequency, node.subject_id, node.visit_id,
-            self.study.name, prov)
+            self.study.name, exp_prov)

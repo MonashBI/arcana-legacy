@@ -5,19 +5,17 @@ services:
 matrix:
   include:
     - python: 2.7
-      env: ARCANA_TEST_DATA=$HOME/data/py2.7
     - python: 3.4
-      env: ARCANA_TEST_DATA=$HOME/data/py3.4
     - python: 3.6
-      env: ARCANA_TEST_DATA=$HOME/data/py3.6
 env:
   global:
-    - ARCANA_TEST_XNAT='http://localhost'
+    - ARCANA_TEST_XNAT='http://localhost/xnat-py$TRAVIS_PYTHON_VERSION'
+    - ARCANA_TEST_DATA=$HOME/data/py$TRAVIS_PYTHON_VERSION
     - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
     - NUMBER_OF_PROCESSORS=8
-    - XNAT_DIR=$HOME/packages/xnat
+    - XNAT_DIR=$HOME/packages/xnat-$TRAVIS_PYTHON_VERSION
 addons:
   apt:
     update: true
@@ -42,7 +40,6 @@ before_install:
   - sudo mv docker-compose /usr/local/bin
 install: 
   - ci/xnat.sh
-  - pushd $XNAT_DIR; docker-compose up -d; popd  # Do this early as it takes a little while for XNAT to come up
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .
@@ -50,6 +47,7 @@ install:
   - pip install nose
   - pip install codecov
 before_script:
+  - pushd $XNAT_DIR; docker-compose up -d; popd
   - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana

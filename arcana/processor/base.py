@@ -1,11 +1,12 @@
 from builtins import object
-from past.builtins import basestring
 import os.path as op
 from collections import defaultdict
 import shutil
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
+from pprint import pformat
+from deepdiff import DeepDiff
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.repository.interfaces import RepositorySource, RepositorySink
@@ -279,6 +280,9 @@ class BaseProcessor(object):
         """
         if already_connected is None:
             already_connected = {}  # Initialise cache of connected pipelines
+        # Close-off construction of the pipeline and created, input and output
+        # nodes and provenance dictionary
+        pipeline.cap()
         try:
             # Check to see if current pipeline has already been connected
             # as prerequisite of another prerequisite
@@ -286,19 +290,19 @@ class BaseProcessor(object):
                 raise ArcanaNoRunRequiredException(
                     "No sessions to process for previously checked '{}' "
                     "pipeline".format(pipeline.name))
-            prev_connected, final, to_process_array = already_connected[
-                pipeline.name]
+            prov, final, to_process_array = already_connected[pipeline.name]
         except KeyError:
             # Pipeline hasn't been connected already, continue to connect
             # the pipeline to repository
             pass
         else:
-            if prev_connected == pipeline:
+            if prov == pipeline.prov:
                 return final, to_process_array
             else:
                 raise ArcanaError(
-                    "Name clash between {} and {} non-matching "
-                    "prerequisite pipelines".format(prev_connected, pipeline))
+                    "Clash between {} and {} non-matching prerequisite "
+                    "pipelines:\n{}".format(pformat(DeepDiff(prov,
+                                                             pipeline.prov))))
         # Prepend prerequisite pipelines to complete workflow if they need
         # to be (re)processed
         final_nodes = []
@@ -344,10 +348,6 @@ class BaseProcessor(object):
             raise ArcanaNoRunRequiredException(
                 "No sessions to process for '{}' pipeline"
                 .format(pipeline.name))
-        # Extract pipeline-common provenance information to be sinked with
-        # output derivatives. Needs to be done at the top before the
-        # repository connection nodes are added.
-        provenance = pipeline.prov()
         # Set up workflow to run the pipeline, loading and saving from the
         # repository
         workflow.add_nodes([pipeline._workflow])
@@ -452,8 +452,7 @@ class BaseProcessor(object):
             sink = pipeline.add(
                 '{}_sink'.format(freq),
                 RepositorySink(
-                    (o.collection for o in outputs), provenance,
-                    pipeline.inputs),
+                    (o.collection for o in outputs), pipeline),
                 connect=to_connect)
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
@@ -485,7 +484,8 @@ class BaseProcessor(object):
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
         # Register pipeline as being connected to prevent duplicates
-        already_connected[pipeline.name] = (pipeline, final, to_process_array)
+        already_connected[pipeline.name] = (pipeline.prov, final,
+                                            to_process_array)
         return final, to_process_array
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
@@ -852,5 +852,6 @@ class BaseProcessor(object):
         self.__dict__.update(state)
         self._init_plugin()
 
+    @property
     def prov(self):
         return {'type': get_class_info(type(self))}
