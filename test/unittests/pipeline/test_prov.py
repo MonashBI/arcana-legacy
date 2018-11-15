@@ -14,6 +14,7 @@ from arcana.data import (
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.pipeline.provenance import Record
+from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import ArcanaProvenanceRecordMismatchError
 
@@ -41,10 +42,20 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         AcquiredFilesetSpec('acqfile2', text_format),
         AcquiredFilesetSpec('acqfile3', text_format),
         AcquiredFieldSpec('acqfield1', float),
-        FieldSpec('derfield1', float, 'pipeline1', array=True),
         FilesetSpec('derfile1', text_format, 'pipeline2'),
+        FieldSpec('derfield1', float, 'pipeline1', array=True),
         FieldSpec('derfield2', float, 'pipeline3'),
-        FieldSpec('derfield3', float, 'pipeline3')]
+        FieldSpec('derfield3', float, 'pipeline3'),
+        FieldSpec('derfield4', text_format, 'pipeline4',
+                  frequency='per_visit'),
+        FieldSpec('derfield5', text_format, 'pipeline5',
+                  frequency='per_subject'),
+        FieldSpec('derfield6', text_format, 'pipeline6',
+                  frequency='per_study'),
+        FieldSpec('derfield7', text_format, 'pipeline7',
+                  frequency='per_study'),
+        FieldSpec('derfield8', text_format, 'pipeline7',
+                  frequency='per_study')]
 
     add_param_specs = [
         SwitchSpec('extra_req', False),
@@ -174,6 +185,86 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 c_req.v(0.1)])
         return pipeline
 
+    def pipeline4(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline4',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math1',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('acqfile2', text_format),
+                'y': ('derfile1', text_format)},
+            outputs={
+                'z': ('derfield2', float)},
+            requirements=[
+                a_req.v('1.0')])
+        return pipeline
+
+    def pipeline5(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline5',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math1',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('acqfile2', text_format),
+                'y': ('derfile1', text_format)},
+            outputs={
+                'z': ('derfield2', float)},
+            requirements=[
+                a_req.v('1.0')])
+        return pipeline
+
+    def pipeline6(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline6',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math1',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('acqfile2', text_format),
+                'y': ('derfile1', text_format)},
+            outputs={
+                'z': ('derfield2', float)},
+            requirements=[
+                a_req.v('1.0')])
+        return pipeline
+
+    def pipeline7(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline7',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math1',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('acqfile2', text_format),
+                'y': ('derfile1', text_format)},
+            outputs={
+                'z': ('derfield2', float)},
+            requirements=[
+                a_req.v('1.0')])
+        return pipeline
+
 
 STUDY_INPUTS = [FilesetSelector('acqfile1', text_format, 'acqfile1'),
                 FilesetSelector('acqfile2', text_format, 'acqfile2'),
@@ -190,9 +281,22 @@ INPUT_FIELDS = {'acqfield1': 11}
 
 class TestProvDialation(BaseMultiSubjectTestCase):
 
+    PROJECT_STRUCTURE = {
+        'subject1': {
+            'visit1': ['one', 'ten', 'hundred'],
+            'visit2': ['one', 'ten'],
+            'visit3': ['one', 'ten', 'hundred', 'thousand']},
+        'subject2': {
+            'visit1': ['one'],
+            'visit2': ['one', 'ten'],
+            'visit3': ['one', 'ten', 'hundred', 'thousand']}}
 
-    input_tree = {
-        }
+    DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
+                        'thousands': 1000}
+
+    @property
+    def input_tree(self):
+        return Tree.construct()
 
 
 class TestProvJSON(BaseTestCase):
