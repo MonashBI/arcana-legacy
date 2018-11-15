@@ -5,20 +5,25 @@ services:
 matrix:
   include:
     - python: 2.7
-      env: PY_VER=py27
+      env:
+      - ARCANA_TEST_XNAT=http://localhost/xnat_27
+      - ARCANA_TEST_DATA=$HOME/data/py27
+      - XNAT_DIR=$HOME/packages/xnat_py27
     - python: 3.4
-      env: PY_VER=py34
+      env:
+      - ARCANA_TEST_XNAT=http://localhost/xnat_34
+      - ARCANA_TEST_DATA=$HOME/data/py34
+      - XNAT_DIR=$HOME/packages/xnat_py34
     - python: 3.6
-      env: PY_VER=py36
+      - ARCANA_TEST_XNAT=http://localhost/xnat_36
+      - ARCANA_TEST_DATA=$HOME/data/py36
+      - XNAT_DIR=$HOME/packages/xnat_py36
 env:
   global:
-    - ARCANA_TEST_XNAT=http://localhost/xnat_$PY_VER
-    - ARCANA_TEST_DATA=$HOME/data/$PY_VER
     - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
     - NUMBER_OF_PROCESSORS=8
-    - XNAT_DIR=$HOME/packages/xnat_$PY_VER
 addons:
   apt:
     update: true
