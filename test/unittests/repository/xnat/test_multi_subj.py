@@ -78,21 +78,13 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
 
     @property
     def input_tree(self):
-        sessions = []
-        visit_ids = set()
+        filesets = []
         for subj_id, visits in list(self.STRUCTURE.items()):
-            for visit_id, filesets in list(visits.items()):
-                sessions.append(Session(subj_id, visit_id, filesets=[
+            for visit_id, fileset_names in list(visits.items()):
+                filesets.append(
                     Fileset(d, text_format, subject_id=subj_id,
-                            visit_id=visit_id) for d in filesets]))
-                visit_ids.add(visit_id)
-        subjects = [Subject(i, sessions=[s for s in sessions
-                                         if s.subject_id == i])
-                    for i in self.STRUCTURE]
-        visits = [Visit(i, sessions=[s for s in sessions
-                                     if s.visit == i])
-                  for i in visit_ids]
-        return Tree(subjects=subjects, visits=visits)
+                            visit_id=visit_id) for d in fileset_names)
+        return Tree.construct(filesets=filesets)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):
