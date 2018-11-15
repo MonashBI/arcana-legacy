@@ -127,6 +127,7 @@ class BaseEnvironment(object):
         """
         raise NotImplementedError
 
+    @property
     def prov(self):
         return {
             'type': get_class_info(type(self)),

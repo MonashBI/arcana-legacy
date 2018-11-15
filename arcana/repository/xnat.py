@@ -100,6 +100,7 @@ class XnatRepository(BaseRepository):
         except AttributeError:
             return False  # For comparison with other types
 
+    @property
     def prov(self):
         return {
             'type': get_class_info(type(self)),

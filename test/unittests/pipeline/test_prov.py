@@ -204,9 +204,9 @@ class TestProv(BaseTestCase):
         self.assertEqual(next(iter(study.data('derfield1'))).value,
                          [3.0, 14.0, 140.0])
         pipeline1 = study.pipeline1()
-        prov = pipeline1.prov()
+        pipeline1.cap()
         record = Record('pipeline1', 'per_session', self.SUBJECT, self.VISIT,
-                        study_name, prov)
+                        study_name, pipeline1.prov)
         tempdir = tempfile.mkdtemp()
         try:
             path = op.join(tempdir, 'prov1.json')
