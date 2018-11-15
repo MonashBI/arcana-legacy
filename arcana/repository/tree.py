@@ -1,6 +1,7 @@
 from builtins import zip
 from builtins import object
 from itertools import chain
+from collections import defaultdict
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
 import logging
@@ -478,6 +479,75 @@ class Tree(TreeNode):
                         visit = self._visits[visit_id] = Visit(
                             visit_id, [], [], [])
                     visit._sessions[subject_id] = session
+
+    @classmethod
+    def construct(cls, filesets=(), fields=(), records=(), **kwargs):
+        """
+        Return the hierarchical tree of the filesets and fields stored in a
+        repository
+
+        Parameters
+        ----------
+        filesets : list[Fileset]
+            List of all filesets in the tree
+        fields : list[Field]
+            List of all fields in the tree
+        records : list[Record]
+            List of all records in the tree
+
+        Returns
+        -------
+        tree : arcana.repository.Tree
+            A hierarchical tree of subject, session and fileset
+            information for the repository
+        """
+        # Sort the data by subject and visit ID
+        filesets_dict = defaultdict(list)
+        for fset in filesets:
+            filesets_dict[(fset.subject_id, fset.visit_id)].append(fset)
+        fields_dict = defaultdict(list)
+        for field in fields:
+            fields_dict[(field.subject_id, field.visit_id)].append(field)
+        records_dict = defaultdict(list)
+        for record in records:
+            records_dict[(record.subject_id, record.visit_id)].append(record)
+        # Create all sessions
+        subj_sessions = defaultdict(list)
+        visit_sessions = defaultdict(list)
+        for sess_id in set(chain(filesets_dict, fields_dict,
+                                 records_dict)):
+            if None in sess_id:
+                continue  # Save summaries for later
+            subj_id, visit_id = sess_id
+            session = Session(
+                subject_id=subj_id, visit_id=visit_id,
+                filesets=filesets_dict[sess_id],
+                fields=fields_dict[sess_id],
+                records=records_dict[sess_id])
+            subj_sessions[subj_id].append(session)
+            visit_sessions[visit_id].append(session)
+        subjects = []
+        for subj_id in subj_sessions:
+            subjects.append(Subject(
+                subj_id,
+                sorted(subj_sessions[subj_id]),
+                filesets_dict[(subj_id, None)],
+                fields_dict[(subj_id, None)],
+                records_dict[(subj_id, None)]))
+        visits = []
+        for visit_id in visit_sessions:
+            visits.append(Visit(
+                visit_id,
+                sorted(visit_sessions[visit_id]),
+                filesets_dict[(None, visit_id)],
+                fields_dict[(None, visit_id)],
+                records_dict[(None, visit_id)]))
+        return Tree(sorted(subjects),
+                    sorted(visits),
+                    filesets_dict[(None, None)],
+                    fields_dict[(None, None)],
+                    records_dict[(None, None)],
+                    **kwargs)
 
 
 class Subject(TreeNode):

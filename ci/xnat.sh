@@ -16,7 +16,7 @@ if [ ! -d $XNAT_DIR ]; then
 	  wget --no-cookies https://bintray.com/nrgxnat/applications/download_file?file_path=xnat-web-${XNAT_VER}.war -O $HOME/downloads/xnat-${XNAT_VER}.war
 	fi
 	mkdir webapps
-	cp $HOME/downloads/xnat-${XNAT_VER}.war webapps/xnat-py$TRAVIS_PYTHON_VERSION.war
+	cp $HOME/downloads/xnat-${XNAT_VER}.war webapps/xnat_$PY_VER.war
 
 	popd
 fi

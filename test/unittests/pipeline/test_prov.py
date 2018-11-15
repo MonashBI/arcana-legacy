@@ -3,7 +3,8 @@ import os.path as op
 import tempfile
 import shutil
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
-from arcana.utils.testing import BaseTestCase, TestMath  # @IgnorePep8
+from arcana.utils.testing import (
+    BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
 from arcana.processor import LinearProcessor
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParameterSpec, SwitchSpec  # @IgnorePep8
@@ -187,7 +188,14 @@ INPUT_DATASETS = {'acqfile1': '1.0',
 INPUT_FIELDS = {'acqfield1': 11}
 
 
-class TestProv(BaseTestCase):
+class TestProvDialation(BaseMultiSubjectTestCase):
+
+
+    input_tree = {
+        }
+
+
+class TestProvJSON(BaseTestCase):
 
     INPUT_DATASETS = INPUT_DATASETS
 
@@ -219,12 +227,6 @@ class TestProv(BaseTestCase):
         self.assertFalse(mismatches,
                          "Reloaded record did not match saved record:{}"
                          .format(mismatches))
-
-    def test_reprocess(self):
-        pass
-
-    def test_protected(self):
-        pass
 
 
 class TestProvInputChange(BaseTestCase):

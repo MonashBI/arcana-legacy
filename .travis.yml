@@ -5,17 +5,20 @@ services:
 matrix:
   include:
     - python: 2.7
+      env: PY_VER=py27
     - python: 3.4
+      env: PY_VER=py34
     - python: 3.6
+      env: PY_VER=py36
 env:
   global:
-    - ARCANA_TEST_XNAT=http://localhost/xnat-py$TRAVIS_PYTHON_VERSION
-    - ARCANA_TEST_DATA=$HOME/data/py$TRAVIS_PYTHON_VERSION
+    - ARCANA_TEST_XNAT=http://localhost/xnat_$PY_VER
+    - ARCANA_TEST_DATA=$HOME/data/$PY_VER
     - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
     - NUMBER_OF_PROCESSORS=8
-    - XNAT_DIR=$HOME/packages/xnat-$TRAVIS_PYTHON_VERSION
+    - XNAT_DIR=$HOME/packages/xnat_$PY_VER
 addons:
   apt:
     update: true

@@ -253,23 +253,17 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        sessions = []
+        filesets = []
         for subj_id in self.SUBJECT_IDS:
             for visit_id in self.VISIT_IDS:
-                sessions.append(
-                    Session(subj_id, visit_id, filesets=[
-                        Fileset('one_input', text_format,
-                                subject_id=subj_id, visit_id=visit_id),
-                        Fileset('ten_input', text_format,
-                                subject_id=subj_id,
-                                visit_id=visit_id)]))
-        subjects = [Subject(i, sessions=[s for s in sessions
-                                          if s.subject_id == i])
-                     for i in self.SUBJECT_IDS]
-        visits = [Visit(i, sessions=[s for s in sessions
-                                     if s.visit == i])
-                     for i in self.VISIT_IDS]
-        return Tree(subjects=subjects, visits=visits)
+                filesets.append(
+                    Fileset('one_input', text_format,
+                            subject_id=subj_id, visit_id=visit_id))
+                filesets.append(
+                    Fileset('ten_input', text_format,
+                            subject_id=subj_id,
+                            visit_id=visit_id))
+        return Tree.construct(filesets=filesets)
 
     def make_study(self):
         return self.create_study(
@@ -386,27 +380,16 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        sessions = []
-        all_visit_ids = set()
+        filesets = []
         for subj_id, visit_ids in list(self.PROJECT_STRUCTURE.items()):
             for visit_id, fileset_names in list(visit_ids.items()):
-                filesets = []
                 # Create filesets
                 for name in fileset_names:
                     from_study = self.STUDY_NAME if name != 'one' else None
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study))
-                session = Session(subj_id, visit_id, filesets=filesets)
-                sessions.append(session)
-                all_visit_ids.add(visit_id)
-        subjects = [Subject(i, sessions=[s for s in sessions
-                                         if s.subject_id == i])
-                    for i in self.PROJECT_STRUCTURE]
-        visits = [Visit(i, sessions=[s for s in sessions
-                                     if s.visit == i])
-                  for i in all_visit_ids]
-        return Tree(subjects=subjects, visits=visits)
+        return Tree.construct(filesets=filesets)
 
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)
