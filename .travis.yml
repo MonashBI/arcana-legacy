@@ -9,7 +9,7 @@ matrix:
     - python: 3.6
 env:
   global:
-    - ARCANA_TEST_XNAT='http://localhost/xnat-py$TRAVIS_PYTHON_VERSION'
+    - ARCANA_TEST_XNAT=http://localhost/xnat-py$TRAVIS_PYTHON_VERSION
     - ARCANA_TEST_DATA=$HOME/data/py$TRAVIS_PYTHON_VERSION
     - XNAT_VER=1.7.4
     - MODULESHOME=$HOME/packages/modules
