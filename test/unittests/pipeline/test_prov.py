@@ -14,6 +14,7 @@ from arcana.data import (
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.pipeline.provenance import Record
+from arcana.data import Fileset, Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import ArcanaProvenanceRecordMismatchError
@@ -46,15 +47,15 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('derfield1', float, 'pipeline1', array=True),
         FieldSpec('derfield2', float, 'pipeline3'),
         FieldSpec('derfield3', float, 'pipeline3'),
-        FieldSpec('derfield4', text_format, 'pipeline4',
+        FieldSpec('derfield4', float, 'pipeline4',
                   frequency='per_visit'),
-        FieldSpec('derfield5', text_format, 'pipeline5',
+        FieldSpec('derfield5', float, 'pipeline5',
                   frequency='per_subject'),
-        FieldSpec('derfield6', text_format, 'pipeline6',
+        FieldSpec('derfield6', float, 'pipeline6',
                   frequency='per_study'),
-        FieldSpec('derfield7', text_format, 'pipeline7',
+        FieldSpec('derfield7', float, 'pipeline7',
                   frequency='per_study'),
-        FieldSpec('derfield8', text_format, 'pipeline7',
+        FieldSpec('derfield8', float, 'pipeline7',
                   frequency='per_study')]
 
     add_param_specs = [
@@ -266,6 +267,43 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
 
+class TestProvStudyAltered(with_metaclass(StudyMetaClass, TestProvStudy)):
+
+    def pipeline6(self, **name_maps):
+        pipeline = super(TestProvStudyAltered, self).pipeline6(**name_maps)
+        return pipeline
+
+
+class TestProvDialation(BaseMultiSubjectTestCase):
+
+    NUM_SUBJECTS = 2
+    NUM_VISITS = 2
+
+    DATASET_CONTENTS = {'acqfile1': '2',
+                        'acqfile2': '3',
+                        'acqfile3': '4',
+                        'acqfield1': '5'}
+
+    @property
+    def input_tree(self):
+        filesets = []
+        fields = []
+        for subj_i in range(self.NUM_SUBJECTS):
+            subject_id = 'SUBJECT{}'.format(subj_i)
+            for visit_i in range(self.NUM_VISITS):
+                visit_id = 'VISIT{}'.format(visit_i)
+                for acq in self.DATASET_CONTENTS:
+                    if acq.startswith('acqfile'):
+                        filesets.append(
+                            Fileset(acq, text_format, 'per_session',
+                                    subject_id=subject_id, visit_id=visit_id))
+                    else:
+                        fields.append(
+                            Field(acq, int, 'per_session',
+                                  subject_id=subject_id, visit_id=visit_id))
+        return Tree.construct(filesets=filesets, fields=fields)
+
+
 STUDY_INPUTS = [FilesetSelector('acqfile1', text_format, 'acqfile1'),
                 FilesetSelector('acqfile2', text_format, 'acqfile2'),
                 FilesetSelector('acqfile3', text_format, 'acqfile3'),
@@ -279,30 +317,9 @@ INPUT_DATASETS = {'acqfile1': '1.0',
 INPUT_FIELDS = {'acqfield1': 11}
 
 
-class TestProvDialation(BaseMultiSubjectTestCase):
-
-    PROJECT_STRUCTURE = {
-        'subject1': {
-            'visit1': ['one', 'ten', 'hundred'],
-            'visit2': ['one', 'ten'],
-            'visit3': ['one', 'ten', 'hundred', 'thousand']},
-        'subject2': {
-            'visit1': ['one'],
-            'visit2': ['one', 'ten'],
-            'visit3': ['one', 'ten', 'hundred', 'thousand']}}
-
-    DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
-                        'thousands': 1000}
-
-    @property
-    def input_tree(self):
-        return Tree.construct()
-
-
 class TestProvJSON(BaseTestCase):
 
     INPUT_DATASETS = INPUT_DATASETS
-
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_json_roundtrip(self):
@@ -336,7 +353,6 @@ class TestProvJSON(BaseTestCase):
 class TestProvInputChange(BaseTestCase):
 
     INPUT_DATASETS = INPUT_DATASETS
-
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_input_change(self):
