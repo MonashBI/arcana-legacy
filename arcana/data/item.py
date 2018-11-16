@@ -179,7 +179,9 @@ class Fileset(BaseItem, BaseFileset):
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
-        self.path = path
+        if path is not None:
+            path = op.abspath(op.realpath(path))
+        self._path = path
         self._uri = uri
         self._bids_attr = bids_attr
         if id is None and path is not None and format.name == 'dicom':
@@ -271,7 +273,7 @@ class Fileset(BaseItem, BaseFileset):
                 .format(self))
         if self._path is None:
             if self.repository is not None:
-                self.get()
+                self.get()  # Retrieve from repository
             else:
                 raise ArcanaError(
                     "Neither path nor repository has been set for Fileset("
@@ -285,6 +287,7 @@ class Fileset(BaseItem, BaseFileset):
             self._exists = True
         self._path = path
         self._checksums = None  # reset checksums
+        self.put()  # Push to repository
 
     @property
     def paths(self):
@@ -293,7 +296,8 @@ class Fileset(BaseItem, BaseFileset):
             return chain(*((op.join(root, f) for f in files)
                            for root, _, files in os.walk(self.path)))
         else:
-            return iter([self.path])  # FIXME: Need to add support for headers/side-cars
+            # FIXME: Need to add support for headers/side-car files
+            return iter([self.path])
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
@@ -431,7 +435,7 @@ class Fileset(BaseItem, BaseFileset):
             self._path = self.repository.get_fileset(self)
 
     def put(self):
-        if self.repository is not None:
+        if self.repository is not None and self._path is not None:
             self.repository.put_fileset(self)
 
     def get_array(self):
@@ -593,6 +597,7 @@ class Field(BaseItem, BaseField):
         else:
             self._value = self.dtype(value)
         self._exists = True
+        self.put()
 
     @property
     def checksums(self):
@@ -614,5 +619,5 @@ class Field(BaseItem, BaseField):
             self._value = self.repository.get_field(self)
 
     def put(self):
-        if self.repository is not None:
+        if self.repository is not None and self._value is not None:
             self.repository.put_field(self)

@@ -362,9 +362,11 @@ class Pipeline(object):
                 .format(name, self._error_msg_loc,
                         "', '".join(self.study.data_spec_names())))
         if name in self._output_conns:
-            raise ArcanaDesignError(
-                "'{}' output of {} has already been connected"
-                .format(name, self._error_msg_loc))
+            prev_node, prev_node_output, _, _ = self._output_conns[name]
+            logger.info(
+                "Reassigning '{}' output from {}:{} to {}:{} in {}"
+                .format(name, prev_node.name, prev_node_output,
+                        node.name, node_output, self._error_msg_loc))
         self._output_conns[name] = (node, node_output, format, kwargs)
 
     def _map_name(self, name, mapper):

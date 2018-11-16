@@ -264,8 +264,7 @@ class RepositorySink(BaseRepositoryInterface):
                 if not isdefined(path):
                     missing_inputs.append(fileset.name)
                     continue  # skip the upload for this file
-                fileset.path = path
-                fileset.put()
+                fileset.path = path  # Push to repository
                 output_checksums[fileset.name] = fileset.checksums
             for field_collection in self.field_collections:
                 field = field_collection.item(
@@ -276,8 +275,7 @@ class RepositorySink(BaseRepositoryInterface):
                 if not isdefined(value):
                     missing_inputs.append(field.name)
                     continue  # skip the upload for this file
-                field.value = value
-                field.put()
+                field.value = value  # Push to repository
                 output_checksums[field.name] = field.value
             # Add input and output checksums to provenance record and sink to
             # all repositories that have received data (typically only one)

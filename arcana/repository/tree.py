@@ -37,7 +37,9 @@ class TreeNode(object):
         for item in chain(self.filesets, self.fields):
             if not item.derived:
                 continue  # Skip acquired items
-            records = [r for r in self.records if item.name in r.outputs]
+            records = [r for r in self.records
+                       if (item.from_study == r.from_study and
+                           item.name in r.outputs)]
             if not records:
                 logger.warning(
                     "No provenance records found for {} derivative. "

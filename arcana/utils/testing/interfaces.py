@@ -5,6 +5,7 @@ import operator
 from functools import reduce
 from nipype.interfaces.base import (
     traits, TraitedSpec, BaseInterface, isdefined)
+from arcana.exceptions import ArcanaUsageError
 
 
 class TestMathInputSpec(TraitedSpec):
@@ -42,34 +43,34 @@ class TestMath(BaseInterface):
         return runtime
 
     def _list_outputs(self):
-        try:
-            x = self.inputs.x
-            y = self.inputs.y
-            if isinstance(x, basestring):
-                x = self._load_file(x)
-            if isinstance(y, basestring):
-                y = self._load_file(y)
-            oper = getattr(operator, self.inputs.op)
-            if isdefined(y):
-                z = oper(x, y)
-            elif isinstance(x, list):
+        x = self.inputs.x
+        y = self.inputs.y
+        if isinstance(x, basestring):
+            x = self._load_file(x)
+        if isinstance(y, basestring):
+            y = self._load_file(y)
+        oper = getattr(operator, self.inputs.op)
+        if isdefined(y):
+            z = oper(x, y)
+        elif isinstance(x, list):
+            if x:
                 if isinstance(x[0], basestring):
                     x = [self._load_file(u) for u in x]
-                z = reduce(oper, x)
             else:
-                raise Exception(
-                    "If 'y' is not provided then x needs to be list")
-            outputs = self.output_spec().get()
-            if self.inputs.as_file:
-                z_path = op.abspath(self._gen_z_fname())
-                with open(z_path, 'w') as f:
-                    f.write(str(z))
-                outputs['z'] = z_path
-            else:
-                outputs['z'] = z
-            return outputs
-        except:
-            raise
+                raise ArcanaUsageError("Cannot provide empty list to 'x'")
+            z = reduce(oper, x)
+        else:
+            raise Exception(
+                "If 'y' is not provided then x needs to be list")
+        outputs = self.output_spec().get()
+        if self.inputs.as_file:
+            z_path = op.abspath(self._gen_z_fname())
+            with open(z_path, 'w') as f:
+                f.write(str(z))
+            outputs['z'] = z_path
+        else:
+            outputs['z'] = z
+        return outputs
 
     def _gen_filename(self, name):
         if name == 'z':

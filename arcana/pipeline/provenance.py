@@ -1,6 +1,7 @@
 import json
 import re
 from pprint import pformat
+from datetime import datetime
 from deepdiff import DeepDiff
 from arcana.exceptions import ArcanaError
 from arcana.pkg_info import install_requires
@@ -50,6 +51,8 @@ class Record(object):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._from_study = from_study
+        if 'datetime' not in self._prov:
+            self._prov['datetime'] = datetime.now().isoformat()
 
     def __repr__(self):
         return ("{}(pipeline={}, frequency={}, subject_id={}, visit_id={}, "
@@ -95,6 +98,10 @@ class Record(object):
     @property
     def frequency(self):
         return self._frequency
+
+    @property
+    def datetime(self):
+        return self._prov['datetime']
 
     @property
     def provenance_version(self):

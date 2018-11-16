@@ -1,4 +1,5 @@
 from builtins import object
+import os  # @UnusedImport
 import os.path as op
 from collections import defaultdict
 import shutil
@@ -238,8 +239,8 @@ class BaseProcessor(object):
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
-#         workflow.write_graph(graph2use='flat', format='svg')
-#         print('Graph saved in {} directory'.format(os.getcwd()))
+        workflow.write_graph(graph2use='flat', format='svg')
+        print('Graph saved in {} directory'.format(os.getcwd()))
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
@@ -489,7 +490,7 @@ class BaseProcessor(object):
                 # chain in order to connect with the "final" node, so we can
                 # overwrite the entry in the 'deiter_nodes' dict
                 deiter_nodes[freq] = pipeline.add(
-                    '{}_{}_deiter_node'.format(freq, iterator),
+                    '{}_{}_deiter'.format(freq, iterator),
                     IdentityInterface(
                         ['checksums']),
                     connect={

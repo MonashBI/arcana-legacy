@@ -46,8 +46,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('project_summary', text_format,
-                    'project_summary_pipeline',
+        FilesetSpec('study_summary', text_format,
+                    'study_summary_pipeline',
                     frequency='per_study'),
         FilesetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
@@ -187,9 +187,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('visit_summary', math, 'z')
         return pipeline
 
-    def project_summary_pipeline(self, **name_maps):
+    def study_summary_pipeline(self, **name_maps):
         pipeline = self.pipeline(
-            name="project_summary",
+            name="study_summary",
             desc=("Test of project summary variables"),
             references=[],
             name_maps=name_maps)
@@ -205,7 +205,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('one', math1, 'x')
         pipeline.connect(math1, 'z', math2, 'x')
         # Connect outputs
-        pipeline.connect_output('project_summary', math2, 'z')
+        pipeline.connect_output('study_summary', math2, 'z')
         return pipeline
 
 
@@ -293,10 +293,10 @@ class TestStudy(BaseMultiSubjectTestCase):
             self.assertContentsEqual(fileset, ref,
                                      str(fileset.visit_id))
 
-    def test_project_summary(self):
+    def test_study_summary(self):
         study = self.make_study()
         ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        self.assertContentsEqual(study.data('project_summary'), ref)
+        self.assertContentsEqual(study.data('study_summary'), ref)
 
     def test_subject_ids_access(self):
         study = self.make_study()
