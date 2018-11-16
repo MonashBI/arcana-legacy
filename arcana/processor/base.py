@@ -303,6 +303,28 @@ class BaseProcessor(object):
                     "Clash between {} and {} non-matching prerequisite "
                     "pipelines:\n{}".format(pformat(DeepDiff(prov,
                                                              pipeline.prov))))
+        # If the pipeline to process contains summary outputs
+        # (i.e. 'per-subject|visit|study' frequency), then we need to "dialate"
+        # the filter array to include IDs across the scope of the study, e.g.
+        # all subjects for per-vist, or all visits for per-subject.
+        output_freqs = list(pipeline.output_frequencies)
+        if output_freqs:
+            dialated_filter = self._dialate_array(filter_array, output_freqs)
+            added = dialated_filter ^ filter_array
+            if added.any():
+                filter_array = dialated_filter
+                # Invert the index dictionaries to get index-to-ID maps
+                inv_subject_inds = {v: k for k, v in subject_inds.items()}
+                inv_visit_inds = {v: k for k, v in visit_inds.items()}
+                logger.warning("Dialated filter array used to process '{}' "
+                               "pipeline to include {} subject/visit IDs "
+                               "due to its low frequency outputs ({})"
+                               .format(pipeline.name),
+                               ', '.join(
+                                   '({},{})'.format(i) for i in [
+                                       (inv_subject_inds[s], inv_visit_inds[v])
+                                       for s, v in zip(*np.nonzero(added))]),
+                               ', '.join(output_freqs))
         # Prepend prerequisite pipelines to complete workflow if they need
         # to be (re)processed
         final_nodes = []
@@ -679,47 +701,8 @@ class BaseProcessor(object):
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
-
-            def dialate_array(array):
-                """
-                'Dialates' an array so all subject/visit ID cells required by
-                low frequency outputs (i.e. all subjects per-visit for
-                'per_visit', all visits per-subject for 'per_subject', all
-                for 'per_study') are included in the array if any need for that
-                subject/visit need to be processed.
-                """
-                if array.all() or not array.any():
-                    return array
-                dialated = np.copy(array)
-                if 'per_study' in output_freqs:
-                    dialated[:, :] = True
-                elif 'per_subject' in output_freqs:
-                    dialated[dialated.any(axis=1), :] = True
-                elif 'per_visit' in output_freqs:
-                    dialated[:, dialated.any(axis=0)] = True
-                return dialated
-
-            dialated_filter = dialate_array(filter_array)
-            added = dialated_filter ^ filter_array
-            if added.any():
-                filter_array = dialated_filter
-                # Invert the index dictionaries to get index-to-ID maps
-                inv_subject_inds = {v: k for k, v in subject_inds.items()}
-                inv_visit_inds = {v: k for k, v in visit_inds.items()}
-                logger.warning("Dialated filter array used to process '{}' "
-                               "pipeline to to include {} subject|visit IDs "
-                               "due to its low frequency outputs ({})"
-                               .format(pipeline.name),
-                               ', '.join(
-                                   '{}|{}'.format(i) for i in [
-                                       (inv_subject_inds[s], inv_visit_inds[v])
-                                       for s, v in zip(*np.nonzero(added))]),
-                               ', '.join(str(o) for o in summary_outputs))
-
-        # Initialise the array to return that represents the sessions to
-        # process
-        if summary_outputs:
-            to_process_array = dialate_array(prereqs_to_process_array)
+            to_process_array = self._dialate_array(prereqs_to_process_array,
+                                                   output_freqs)
         else:
             to_process_array = prereqs_to_process_array
         # An array to mark outputs that have been altered outside of Arcana
@@ -759,7 +742,8 @@ class BaseProcessor(object):
         # the user or downstream pipelines)
         to_process_array *= filter_array
         if summary_outputs:
-            to_process_array = dialate_array(to_process_array)
+            to_process_array = self._dialate_array(to_process_array,
+                                                   output_freqs)
         # Check for conflicts between nodes to process and nodes to protect
         conflicting = to_process_array * to_protect_array
         if conflicting.any():
@@ -835,8 +819,28 @@ class BaseProcessor(object):
                                 pipeline.name, self, mismatches))
 
         if summary_outputs:
-            to_process_array = dialate_array(to_process_array)
+            to_process_array = self._dialate_array(to_process_array,
+                                                   output_freqs)
         return to_process_array
+
+    def _dialate_array(self, array, output_freqs):
+        """
+        'Dialates' an array so all subject/visit ID cells required by
+        low frequency outputs (i.e. all subjects per-visit for
+        'per_visit', all visits per-subject for 'per_subject', all
+        for 'per_study') are included in the array if any need for that
+        subject/visit need to be processed.
+        """
+        if array.all() or not array.any():
+            return array
+        dialated = np.copy(array)
+        if 'per_study' in output_freqs:
+            dialated[:, :] = True
+        elif 'per_subject' in output_freqs:
+            dialated[dialated.any(axis=1), :] = True
+        elif 'per_visit' in output_freqs:
+            dialated[:, dialated.any(axis=0)] = True
+        return dialated
 
     @property
     def work_dir(self):

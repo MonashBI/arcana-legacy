@@ -3,7 +3,7 @@ import re
 from pprint import pformat
 from deepdiff import DeepDiff
 from arcana.exceptions import ArcanaError
-from arcana.release import install_requires
+from arcana.pkg_info import install_requires
 
 
 PROVENANCE_VERSION = '1.0'
