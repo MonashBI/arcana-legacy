@@ -15,7 +15,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.utils import get_class_info, extract_package_version
-from arcana.release import __version__
+from arcana.pkg_info import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError,
     ArcanaOutputNotProducedException, ArcanaMissingDataException)

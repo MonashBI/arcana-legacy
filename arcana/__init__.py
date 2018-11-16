@@ -17,7 +17,7 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .release import __version__
+from .pkg_info import __version__
 import os
 from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
