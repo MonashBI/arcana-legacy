@@ -115,6 +115,7 @@ class Study(object):
             environment = StaticEnvironment()
         self._name = name
         self._repository = repository
+        self._repository.clear_cache()
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
@@ -268,7 +269,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_caches(self):
+    def clear_cache(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent
@@ -770,17 +771,18 @@ class Study(object):
             inputs[input.name] = {
                 'repository_index': input_repos.index(input.repository)}
             if input.frequency == 'per_study':
-                inputs['names'] = next(input.collection).name
+                inputs[input.name]['names'] = next(input.collection).name
             elif input.frequency == 'per_subject':
-                inputs['names'] = {i.subject_id: i.name
-                                   for i in input.collection}
+                inputs[input.name]['names'] = {i.subject_id: i.name
+                                               for i in input.collection}
             elif input.frequency == 'per_visit':
-                inputs['names'] = {i.visit_id: i.name
-                                   for i in input.collection}
+                inputs[input.name]['names'] = {i.visit_id: i.name
+                                               for i in input.collection}
             elif input.frequency == 'per_session':
-                inputs['names'] = defaultdict(dict)
+                inputs[input.name]['names'] = defaultdict(dict)
                 for item in input.collection:
-                    inputs['names'][item.subject_id][item.visit_id] = item.name
+                    inputs[input.name]['names'][
+                        item.subject_id][item.visit_id] = item.name
         return {
             'name': self.name,
             'type': get_class_info(type(self)),

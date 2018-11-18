@@ -199,8 +199,11 @@ class Fileset(BaseItem, BaseFileset):
               self.checksums == other.checksums)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
-        if self._path is not None and other._path is not None:
-            eq &= (self._path == other._path)
+        try:
+            if self._path is not None and other._path is not None:
+                eq &= (self._path == other._path)
+        except AttributeError:
+            return False
         return eq
 
     def __hash__(self):

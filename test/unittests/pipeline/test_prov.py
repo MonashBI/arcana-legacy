@@ -17,7 +17,8 @@ from arcana.pipeline.provenance import Record
 from arcana.data import Fileset, Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
-from arcana.exceptions import ArcanaProvenanceRecordMismatchError
+from arcana.exceptions import (
+    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError)
 
 
 class DummyRequirement(BaseRequirement):
@@ -46,7 +47,8 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('derived_fileset1', text_format, 'pipeline2'),
         FieldSpec('derived_field1', float, 'pipeline1', array=True),
         FieldSpec('derived_field2', float, 'pipeline3'),
-        FieldSpec('derived_field3', float, 'pipeline3')]
+        FieldSpec('derived_field3', float, 'pipeline3'),
+        FieldSpec('derived_field4', float, 'pipeline2')]
 
     add_param_specs = [
         SwitchSpec('extra_req', False),
@@ -129,7 +131,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 'x': (split, 'out3')},
             requirements=[
                 a_req.v('1.0')])
-        pipeline.add(
+        math2 = pipeline.add(
             'math2',
             TestMath(
                 op='add',
@@ -142,6 +144,16 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 'z': ('derived_fileset1', text_format)},
             requirements=[
                 c_req.v(0.1)])
+        pipeline.add(
+            'math3',
+            TestMath(
+                op='sub',
+                as_file=False,
+                y=-1),
+            connect={
+                'x': (math2, 'z')},
+            outputs={
+                'z': ('derived_field4', float)})
         return pipeline
 
     def pipeline3(self, **name_maps):
@@ -228,6 +240,9 @@ class TestProvBasic(BaseTestCase):
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_json_roundtrip(self):
+        """
+        Simple test whether provenance records can be written/read from a file
+        """
         study_name = 'roundtrip_study'
         # Test vanilla study
         study = self.create_study(
@@ -255,6 +270,9 @@ class TestProvBasic(BaseTestCase):
                          .format(mismatches))
 
     def test_altered_workflow(self):
+        """
+        Tests whether data is regenerated if the pipeline workflows are altered
+        """
         study_name = 'add_node'
         # Test vanilla study
         study = self.create_study(
@@ -287,6 +305,93 @@ class TestProvBasic(BaseTestCase):
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          170.0)
+
+    def test_unchanged_workflow(self):
+        """
+        Tests that when a parameter is changed that doesn't effect the
+        workflows that generated a value, then the data isn't regenerated
+        """
+        study_name = 'changed_parameter'
+        new_value = -99.0
+        # Test vanilla study
+        study = self.create_study(
+            TestProvStudy,
+            study_name,
+            inputs=STUDY_INPUTS)
+        derived_field4 = study.data('derived_field4').item(*self.SESSION)
+        self.assertEqual(derived_field4.value, 155.0)
+        # Change value in repository to test that the pipeline isn't rerun
+        derived_field4.value = new_value
+        # Update provenance record so it isn't determined to be protected
+        record = derived_field4.record
+        record.prov['outputs']['derived_field4'] = new_value
+        study.repository.put_record(record)
+        study = self.create_study(
+            TestProvStudy,
+            study_name,
+            inputs=STUDY_INPUTS,
+            parameters={'subtract': 100})
+        new_derived_field4 = study.data('derived_field4').item(*self.SESSION)
+        self.assertEqual(new_derived_field4.value, new_value)
+        self.assertEqual(
+            new_derived_field4.record.prov['outputs']['derived_field4'],
+            new_value)
+
+    def test_protect_manually(self):
+        """Protect manually altered files and fields from overwrite"""
+        study_name = 'manual_protect'
+        protected_derived_field4_value = -99.0
+        protected_derived_fileset1_value = -999.0
+        # Test vanilla study
+        study = self.create_study(
+            TestProvStudy,
+            study_name,
+            inputs=STUDY_INPUTS)
+        derived_fileset1_collection, derived_field4_collection = study.data(
+            ('derived_fileset1', 'derived_field4'))
+        self.assertContentsEqual(derived_fileset1_collection, 154.0)
+        self.assertEqual(derived_field4_collection.value(*self.SESSION), 155.0)
+        # Rerun with new parameters
+        study = self.create_study(
+            TestProvStudy,
+            study_name,
+            inputs=STUDY_INPUTS,
+            processor=LinearProcessor(self.work_dir, reprocess=True),
+            parameters={'multiplier': 100.0})
+        derived_fileset1_collection, derived_field4_collection = study.data(
+            ('derived_fileset1', 'derived_field4'))
+        self.assertContentsEqual(derived_fileset1_collection, 1414.0)
+        derived_field4 = derived_field4_collection.item(*self.SESSION)
+        self.assertEqual(derived_field4.value, 1415.0)
+        # Manually changing the value (or file contents) of a derivative value
+        # (without also altering the saved provenance record) will mean
+        # that new value/file will be "protected" from reprocessing, and will
+        # need to be deleted in order to be regenerated
+        derived_field4.value = protected_derived_field4_value
+        # Since derived_fileset1 needs to be reprocessed but
+        study = self.create_study(
+            TestProvStudy,
+            study_name,
+            processor=LinearProcessor(self.work_dir, reprocess=True),
+            inputs=STUDY_INPUTS,
+            parameters={'multiplier': 1000.0})
+        # Check to see protected conflict error is raise if only one of
+        # derived field4/fileset1 is protected
+        self.assertRaises(
+            ArcanaProtectedOutputConflictError,
+            study.data,
+            ('derived_fileset1', 'derived_field4'))
+        with open(derived_fileset1_collection.path(*self.SESSION), 'w') as f:
+            f.write(str(protected_derived_fileset1_value))
+        study.clear_cache()
+        # Protect the output of derived_fileset1 as well and it should return
+        # the protected values
+        derived_fileset1_collection, derived_field4_collection = study.data(
+            ('derived_fileset1', 'derived_field4'))
+        self.assertContentsEqual(derived_fileset1_collection,
+                                 protected_derived_fileset1_value)
+        self.assertEqual(derived_field4_collection.value(*self.SESSION),
+                         protected_derived_field4_value)
 
 
 class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):

@@ -244,7 +244,7 @@ class BaseProcessor(object):
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
-        self.study.clear_caches()
+        self.study.clear_cache()
         return result
 
     def _connect_pipeline(self, pipeline, workflow, subject_inds, visit_inds,
@@ -309,7 +309,7 @@ class BaseProcessor(object):
         # the filter array to include IDs across the scope of the study, e.g.
         # all subjects for per-vist, or all visits for per-subject.
         output_freqs = list(pipeline.output_frequencies)
-        if output_freqs:
+        if output_freqs != ['per_session']:
             dialated_filter = self._dialate_array(filter_array, output_freqs)
             added = dialated_filter ^ filter_array
             if added.any():
@@ -702,10 +702,11 @@ class BaseProcessor(object):
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
-            to_process_array = self._dialate_array(prereqs_to_process_array,
-                                                   output_freqs)
-        else:
-            to_process_array = prereqs_to_process_array
+            prereqs_to_process_array = self._dialate_array(
+                prereqs_to_process_array, output_freqs)
+        # Initalise array to represent which sessions need to be reprocessed
+        to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
+                                    dtype=bool)
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
         to_protect_array = np.zeros((len(subject_inds), len(visit_inds)),
@@ -735,7 +736,7 @@ class BaseProcessor(object):
                             "is not intended".format(repr(item)))
                         to_protect_array[inds] = True
                         to_protect[inds].append(item)
-                    elif required and force:
+                    elif required or force:
                         to_process_array[inds] = True
                 elif required:
                     to_process_array[inds] = True
@@ -770,6 +771,9 @@ class BaseProcessor(object):
                 "required outputs. Either delete protected outputs or provide "
                 "missing required outputs to continue:{}".format(pipeline,
                                                                  error_msg))
+        # Add in any prerequisites to process that aren't explicitly protected
+        to_process_array |= (prereqs_to_process_array *
+                             np.invert(to_protect_array))
         # Get list of sessions for which all outputs exist and are not
         # protected, which we should check to see if the configuration saved
         # in the provenance record matches that of the current pipeline
