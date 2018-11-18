@@ -301,9 +301,9 @@ class BaseProcessor(object):
                 return final, to_process_array
             else:
                 raise ArcanaError(
-                    "Clash between {} and {} non-matching prerequisite "
-                    "pipelines:\n{}".format(pformat(DeepDiff(prov,
-                                                             pipeline.prov))))
+                    "Name clash between non-matching prerequisite pipelines "
+                    "called '{}':\n{}".format(
+                        pipeline.name, pformat(DeepDiff(prov, pipeline.prov))))
         # If the pipeline to process contains summary outputs
         # (i.e. 'per-subject|visit|study' frequency), then we need to "dialate"
         # the filter array to include IDs across the scope of the study, e.g.
@@ -709,9 +709,14 @@ class BaseProcessor(object):
                                     dtype=bool)
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
-        to_protect_array = np.zeros((len(subject_inds), len(visit_inds)),
-                                    dtype=bool)
+        to_protect_array = np.copy(to_process_array)
+        # As well as the the sessions that need to be protected, keep track
+        # of the items in those sessions that need to be protected for more
+        # informative warnings/errors
         to_protect = defaultdict(list)
+        # Mark the sessions that we should check to see if the configuration
+        # saved in the provenance record matches that of the current pipeline
+        to_check_array = np.copy(to_process_array)
         # Check for sessions for missing required outputs
         for output in pipeline.outputs:
             # Check to see if output is required by downstream processing
@@ -736,49 +741,12 @@ class BaseProcessor(object):
                             "is not intended".format(repr(item)))
                         to_protect_array[inds] = True
                         to_protect[inds].append(item)
-                    elif required or force:
+                    elif force and required:
                         to_process_array[inds] = True
+                    else:
+                        to_check_array[inds] = True
                 elif required:
                     to_process_array[inds] = True
-        # Filter sessions to process by those requested (either explicitly by
-        # the user or downstream pipelines)
-        to_process_array *= filter_array
-        if summary_outputs:
-            to_process_array = self._dialate_array(to_process_array,
-                                                   output_freqs)
-        # Check for conflicts between nodes to process and nodes to protect
-        conflicting = to_process_array * to_protect_array
-        if conflicting.any():
-            error_msg = ''
-            for sess_inds in zip(*np.nonzero(conflicting)):
-                subject_id = next(k for k, v in subject_inds.items()
-                                  if v == sess_inds[0])
-                visit_id = next(k for k, v in visit_inds.items()
-                                if v == sess_inds[1])
-                items = [
-                    o.collection.item(subject_id=subject_id, visit_id=visit_id)
-                    for o in pipeline.required_outputs]
-                missing = [i for i in items if i not in to_protect[sess_inds]]
-                error_msg += (
-                    "\n({}, {}): protected=[{}], missing=[{}]"
-                    .format(
-                        subject_id, visit_id,
-                        ', '.join(repr(i) for i in to_protect[sess_inds]),
-                        ', '.join(repr(i) for i in missing)))
-            raise ArcanaProtectedOutputConflictError(
-                "Cannot process {} as there are nodes with both protected "
-                "outputs (ones modified externally to Arcana) and missing "
-                "required outputs. Either delete protected outputs or provide "
-                "missing required outputs to continue:{}".format(pipeline,
-                                                                 error_msg))
-        # Add in any prerequisites to process that aren't explicitly protected
-        to_process_array |= (prereqs_to_process_array *
-                             np.invert(to_protect_array))
-        # Get list of sessions for which all outputs exist and are not
-        # protected, which we should check to see if the configuration saved
-        # in the provenance record matches that of the current pipeline
-        to_check_array = np.invert(to_process_array |
-                                   to_protect_array) * filter_array
         if to_check_array.any() and self.prov_include:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
@@ -822,7 +790,40 @@ class BaseProcessor(object):
                             "not match that of requested pipeline, set "
                             "reprocess flag == True to overwrite:\n{}".format(
                                 pipeline.name, self, mismatches))
-
+        # Filter sessions to process by those requested
+        to_process_array *= filter_array
+        # Dialate to process array
+        if summary_outputs:
+            to_process_array = self._dialate_array(to_process_array,
+                                                   output_freqs)
+        # Check for conflicts between nodes to process and nodes to protect
+        conflicting = to_process_array * to_protect_array
+        if conflicting.any():
+            error_msg = ''
+            for sess_inds in zip(*np.nonzero(conflicting)):
+                subject_id = next(k for k, v in subject_inds.items()
+                                  if v == sess_inds[0])
+                visit_id = next(k for k, v in visit_inds.items()
+                                if v == sess_inds[1])
+                items = [
+                    o.collection.item(subject_id=subject_id, visit_id=visit_id)
+                    for o in pipeline.required_outputs]
+                missing = [i for i in items if i not in to_protect[sess_inds]]
+                error_msg += (
+                    "\n({}, {}): protected=[{}], missing=[{}]"
+                    .format(
+                        subject_id, visit_id,
+                        ', '.join(repr(i) for i in to_protect[sess_inds]),
+                        ', '.join(repr(i) for i in missing)))
+            raise ArcanaProtectedOutputConflictError(
+                "Cannot process {} as there are nodes with both protected "
+                "outputs (ones modified externally to Arcana) and missing "
+                "required outputs. Either delete protected outputs or provide "
+                "missing required outputs to continue:{}".format(pipeline,
+                                                                 error_msg))
+        # Add in any prerequisites to process that aren't explicitly protected
+        to_process_array |= (prereqs_to_process_array *
+                             np.invert(to_protect_array))
         if summary_outputs:
             to_process_array = self._dialate_array(to_process_array,
                                                    output_freqs)

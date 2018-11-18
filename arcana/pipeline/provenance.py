@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 from pprint import pformat
 from datetime import datetime
 from deepdiff import DeepDiff
@@ -45,7 +46,7 @@ class Record(object):
 
     def __init__(self, pipeline_name, frequency, subject_id, visit_id,
                  from_study, prov):
-        self._prov = prov
+        self._prov = deepcopy(prov)
         self._pipeline_name = pipeline_name
         self._frequency = frequency
         self._subject_id = subject_id

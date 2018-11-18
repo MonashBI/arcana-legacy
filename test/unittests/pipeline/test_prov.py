@@ -198,7 +198,7 @@ class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
     def pipeline2(self, **name_maps):
         pipeline = super(TestProvStudyAddNode, self).pipeline2(**name_maps)
         pipeline.add(
-            'math3',
+            'math4',
             TestMath(
                 op='mul',
                 as_file=True,

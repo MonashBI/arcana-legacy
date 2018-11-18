@@ -1,7 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 import os
-from copy import deepcopy
+from copy import deepcopy, copy
 import tempfile
 import shutil
 import errno
@@ -940,7 +940,7 @@ class Pipeline(object):
         exp_outputs = {
             o.name: o.collection.item(node.subject_id, node.visit_id).checksums
             for o in self.outputs}
-        exp_prov = self.prov
+        exp_prov = copy(self.prov)
         exp_prov['inputs'] = exp_inputs
         exp_prov['outputs'] = exp_outputs
         return Record(
