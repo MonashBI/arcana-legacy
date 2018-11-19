@@ -10,12 +10,14 @@ from pprint import pformat
 from deepdiff import DeepDiff
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
+from arcana.pipeline import Pipeline
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.utils import get_class_info
 from arcana.exceptions import (
     ArcanaError, ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
-    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError)
+    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError,
+    ArcanaOutputNotProducedException)
 
 
 logger = getLogger('arcana')
@@ -173,9 +175,8 @@ class BaseProcessor(object):
             pipelines
         """
         if not pipelines:
-            raise ArcanaUsageError(
-                "No pipelines provided to {}.run"
-                .format(self))
+            raise ArcanaUsageError("No pipelines provided to {}.run"
+                                   .format(self))
         # Get filter kwargs  (NB: in Python 3 they could be in the arg list)
         subject_ids = kwargs.pop('subject_ids', None)
         visit_ids = kwargs.pop('visit_ids', None)
@@ -193,7 +194,7 @@ class BaseProcessor(object):
         # workflow names exceeding system limits.
         name = name[:WORKFLOW_MAX_NAME_LEN]
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
-        already_connected = {}
+
         # Generate filter array to optionally restrict the run to certain
         # subject and visit IDs.
         tree = self.study.tree
@@ -233,19 +234,31 @@ class BaseProcessor(object):
                     "  subject_ids: {}\n".format(', '.join(subject_inds)) +
                     "  visit_ids: {}\n".format(', '.join(visit_inds)))
 
+        # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
-        for pipeline in pipelines:
-            pipeline_req_outputs = pipeline._required_outputs
-            pipeline_filter_array = filter_array
-            if pipeline.name in stack:
-                (prereq_req_outputs,
-                 prereq_filter_array) = stack.pop(pipeline.name)
-                pipeline_req_outputs = req
-                
-            
-        # Call pipeline-getter instance method on study with provided
-        # parameters to generate pipeline to run
-        for pipeline in pipelines.values():
+
+        def add_to_stack(pipeline, study=None, req_outputs=None):
+            if isinstance(pipeline, Pipeline):
+                # If a primary pipeline (i.e. one passed to this run method
+                # explicitly
+                pipeline_name = pipeline.name
+                primary_pipeline = pipeline
+                study = pipeline.study
+                req_outputs = pipeline._required_outputs
+            else:
+                # If a prerequisite referenced by name
+                pipeline_name = pipeline
+                primary_pipeline = None
+            key = (study.name, pipeline_name)
+            if key in stack:
+                # Pop pipeline from stack in order to add it to the end of the
+                # stack and ensure it is run before all downstream pipelines
+                pipeline, prev_req_outputs = stack.pop(key)
+                assert primary_pipeline is None or primary_pipeline == pipeline
+                # Combined required outputs
+                req_outputs.update(prev_req_outputs)
+            else:
+                pipeline = study.get_pipeline(pipeline_name)
             # Check that the required outputs are created with the given
             # parameters
             missing_outputs = pipeline._required_outputs - set(
@@ -255,22 +268,38 @@ class BaseProcessor(object):
                     "Output(s) '{}', required for {}, will "
                     "not be created by prerequisite pipeline '{}' "
                     "with parameters: {}".format(
-                        "', '".join(missing_outputs), self._error_msg_loc,
+                        "', '".join(missing_outputs), pipeline._error_msg_loc,
                         pipeline.name,
                         '\n'.join('{}={}'.format(o.name, o.value)
-                                  for o in self.study.parameters)))
-            yield pipeline
+                                  for o in study.parameters)))
+            stack[pipeline.name] = pipeline, req_outputs
+            for prereq_name, prereq_req_outputs in pipeline.prerequisites:
+                add_to_stack(prereq_name, study, prereq_req_outputs)
 
+        # Add all primary pipelines to the stack along with their prereqs
         for pipeline in pipelines:
+            add_to_stack(pipeline)
+
+        # Iterate through stack of required pipelines from upstream to
+        # downstream
+        connected_pipelines = {}
+        for pipeline, required_outputs in reversed(stack.items()):
             try:
-                self._connect_pipeline(pipeline, workflow,
-                                       subject_inds, visit_inds, filter_array,
-                                       already_connected=already_connected,
-                                       **kwargs)
+                connected_pipelines[(pipeline.study.name,
+                                     pipeline.name)] = self._connect_pipeline(
+                    pipeline, required_outputs, connected_pipelines, workflow,
+                    subject_inds, visit_inds, filter_array, **kwargs)
             except ArcanaNoRunRequiredException:
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
+            except ArcanaMissingDataException as e:
+                raise  # Work out what the data is ultimately required for
+#                 raise ArcanaMissingDataException(
+#                     "{},\n which in turn is required as an input of the '{}' "
+#                     "pipeline to produce '{}'"
+#                     .format(e, pipeline.name,
+#                             "', '".join(pipeline.required_outputs)))
         workflow.write_graph(graph2use='flat', format='svg')
         print('Graph saved in {} directory'.format(os.getcwd()))
         result = workflow.run(plugin=self._plugin)
@@ -279,8 +308,9 @@ class BaseProcessor(object):
         self.study.clear_cache()
         return result
 
-    def _connect_pipeline(self, pipeline, workflow, subject_inds, visit_inds,
-                          filter_array, already_connected=None, force=False):
+    def _connect_pipeline(self, pipeline, required_outputs,
+                          connected_pipelines, workflow, subject_inds,
+                          visit_inds, filter_array, force=False):
         """
         Connects a pipeline to a overarching workflow that sets up iterators
         over subjects|visits present in the repository (if required) and
@@ -290,6 +320,11 @@ class BaseProcessor(object):
         ----------
         pipeline : Pipeline
             The pipeline to connect
+        required_outputs : set[str]
+            The outputs required to be produced by this pipeline
+        connected_pipelines : dict[str, Pipeline]
+            A dictionary containing all pipelines that have already been
+            connected to avoid the same pipeline being connected twice.
         workflow : nipype.pipeline.engine.Workflow
             The overarching workflow to connect the pipeline to
         subject_inds : dct[str, int]
@@ -303,39 +338,14 @@ class BaseProcessor(object):
             in the current round of processing. Note that if the 'force'
             flag is not set, sessions won't be reprocessed unless the
             save provenance doesn't match that of the given pipeline.
-        already_connected : dict[str, Pipeline]
-            A dictionary containing all pipelines that have already been
-            connected to avoid the same pipeline being connected twice.
         force : bool | 'all'
             A flag to force the processing of all sessions in the filter
             array, regardless of whether the parameters|pipeline used
             to generate existing data matches the given pipeline
         """
-        if already_connected is None:
-            already_connected = {}  # Initialise cache of connected pipelines
         # Close-off construction of the pipeline and created, input and output
         # nodes and provenance dictionary
         pipeline.cap()
-        try:
-            # Check to see if current pipeline has already been connected
-            # as prerequisite of another prerequisite
-            if already_connected[pipeline.name] is None:
-                raise ArcanaNoRunRequiredException(
-                    "No sessions to process for previously checked '{}' "
-                    "pipeline".format(pipeline.name))
-            prov, final, to_process_array = already_connected[pipeline.name]
-        except KeyError:
-            # Pipeline hasn't been connected already, continue to connect
-            # the pipeline to repository
-            pass
-        else:
-            if prov == pipeline.prov:
-                return final, to_process_array
-            else:
-                raise ArcanaError(
-                    "Name clash between non-matching prerequisite pipelines "
-                    "called '{}':\n{}".format(
-                        pipeline.name, pformat(DeepDiff(prov, pipeline.prov))))
         # If the pipeline to process contains summary outputs
         # (i.e. 'per-subject|visit|study' frequency), then we need to "dialate"
         # the filter array to include IDs across the scope of the study, e.g.
@@ -368,28 +378,12 @@ class BaseProcessor(object):
         # correspond to subject IDs and column indices visit IDs
         prereqs_to_process_array = np.zeros(
             (len(subject_inds), len(visit_inds)), dtype=bool)
-        for prereq in pipeline.prerequisites:
-            # NB: Even if reprocess==True, the prerequisite pipelines
-            # are not re-processed, they are only reprocessed if
-            # reprocess == 'all'
+        for prereq_name in pipeline.prerequisites:
             try:
-                final_node, prereq_to_process_array = self._connect_pipeline(
-                    prereq, workflow, subject_inds, visit_inds,
-                    filter_array=filter_array,
-                    already_connected=already_connected,
-                    force=(force if force == 'all' else False))
-            except ArcanaNoRunRequiredException:
-                logger.info(
-                    "Not running '{}' pipeline as a "
-                    "prerequisite of '{}' as the required "
-                    "outputs are already present in the repository"
-                    .format(prereq.name, pipeline.name))
-            except ArcanaMissingDataException as e:
-                raise ArcanaMissingDataException(
-                    "{},\n which in turn is required as an input of the '{}' "
-                    "pipeline to produce '{}'"
-                    .format(e, pipeline.name,
-                            "', '".join(pipeline.required_outputs)))
+                final_node, prereq_to_process_array = connected_pipelines[
+                    prereq_name]
+            except KeyError:
+                pass
             else:
                 prereqs_to_process_array |= prereq_to_process_array
                 final_nodes.append(final_node)
@@ -400,7 +394,6 @@ class BaseProcessor(object):
             subject_inds, visit_inds, force)
         # Check to see if there are any sessions to process
         if not to_process_array.any():
-            already_connected[pipeline.name] = None
             raise ArcanaNoRunRequiredException(
                 "No sessions to process for '{}' pipeline"
                 .format(pipeline.name))
@@ -539,9 +532,6 @@ class BaseProcessor(object):
             connect={
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
-        # Register pipeline as being connected to prevent duplicates
-        already_connected[pipeline.name] = (pipeline.prov, final,
-                                            to_process_array)
         return final, to_process_array
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
