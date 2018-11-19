@@ -78,6 +78,14 @@ class TreeNode(object):
         return self._fields.values()
 
     @property
+    def fileset_keys(self):
+        return self._filesets.keys()
+
+    @property
+    def field_keys(self):
+        return self._fields.keys()
+
+    @property
     def records(self):
         return self._records.values()
 

@@ -177,9 +177,9 @@ class BaseProcessor(object):
                 "No pipelines provided to {}.run"
                 .format(self))
         # Get filter kwargs  (NB: in Python 3 they could be in the arg list)
-        subject_ids = kwargs.pop('subject_ids', [])
-        visit_ids = kwargs.pop('visit_ids', [])
-        session_ids = kwargs.pop('session_ids', [])
+        subject_ids = kwargs.pop('subject_ids', None)
+        visit_ids = kwargs.pop('visit_ids', None)
+        session_ids = kwargs.pop('session_ids', None)
         clean_work_dir = kwargs.pop('clean_work_dir',
                                     self._clean_work_dir_between_runs)
         # Create name by combining pipelines
@@ -210,13 +210,16 @@ class BaseProcessor(object):
             # from filter lists
             filter_array = np.zeros((len(subject_inds), len(visit_inds)),
                                     dtype=bool)
-            for subj_id in subject_ids:
-                filter_array[subject_inds[subj_id], :] = True
-            for visit_id in visit_ids:
-                filter_array[:, visit_inds[visit_id]] = True
-            for subj_id, visit_id in session_ids:
-                filter_array[subject_inds[subj_id],
-                             visit_inds[visit_id]] = True
+            if subject_ids is not None:
+                for subj_id in subject_ids:
+                    filter_array[subject_inds[subj_id], :] = True
+            if visit_ids is not None:
+                for visit_id in visit_ids:
+                    filter_array[:, visit_inds[visit_id]] = True
+            if session_ids is not None:
+                for subj_id, visit_id in session_ids:
+                    filter_array[subject_inds[subj_id],
+                                 visit_inds[visit_id]] = True
             if not filter_array.any():
                 raise ArcanaUsageError(
                     "Provided filters:\n" +
@@ -320,12 +323,13 @@ class BaseProcessor(object):
                 logger.warning("Dialated filter array used to process '{}' "
                                "pipeline to include {} subject/visit IDs "
                                "due to its low frequency outputs ({})"
-                               .format(pipeline.name),
-                               ', '.join(
-                                   '({},{})'.format(i) for i in [
-                                       (inv_subject_inds[s], inv_visit_inds[v])
-                                       for s, v in zip(*np.nonzero(added))]),
-                               ', '.join(output_freqs))
+                               .format(
+                                   pipeline.name,
+                                   ', '.join(
+                                       '({},{})'.format(inv_subject_inds[s],
+                                                        inv_visit_inds[v])
+                                       for s, v in zip(*np.nonzero(added))),
+                                   ', '.join(output_freqs)))
         # Prepend prerequisite pipelines to complete workflow if they need
         # to be (re)processed
         final_nodes = []
@@ -747,6 +751,9 @@ class BaseProcessor(object):
                         to_check_array[inds] = True
                 elif required:
                     to_process_array[inds] = True
+        # Filter sessions to process by those requested
+        to_process_array *= filter_array
+        to_check_array *= filter_array
         if to_check_array.any() and self.prov_include:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
@@ -790,8 +797,6 @@ class BaseProcessor(object):
                             "not match that of requested pipeline, set "
                             "reprocess flag == True to overwrite:\n{}".format(
                                 pipeline.name, self, mismatches))
-        # Filter sessions to process by those requested
-        to_process_array *= filter_array
         # Dialate to process array
         if summary_outputs:
             to_process_array = self._dialate_array(to_process_array,

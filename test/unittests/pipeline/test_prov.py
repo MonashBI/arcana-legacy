@@ -218,6 +218,22 @@ class TestProvStudyAddConnect(with_metaclass(StudyMetaClass, TestProvStudy)):
         return pipeline
 
 
+def change_value_w_prov(field, new_value):
+    """
+    Changes the value of a field and updates the corresponding provenance
+    record so that it appears if the value was given by the pipeline. Used
+    to detect whether a value has been reprocessed unnecessarily, as in that
+    case the value will be overwritten to the value actually outputted by
+    the pipeline
+    """
+    # Change value in repository to test that the pipeline isn't rerun
+    field.value = new_value
+    # Update provenance record so it isn't determined to be protected
+    record = field.record
+    record.prov['outputs']['derived_field4'] = new_value
+    field.repository.put_record(record)
+
+
 STUDY_INPUTS = [FilesetSelector('acquired_fileset1', text_format,
                                 'acquired_fileset1'),
                 FilesetSelector('acquired_fileset2', text_format,
@@ -320,12 +336,10 @@ class TestProvBasic(BaseTestCase):
             inputs=STUDY_INPUTS)
         derived_field4 = study.data('derived_field4').item(*self.SESSION)
         self.assertEqual(derived_field4.value, 155.0)
-        # Change value in repository to test that the pipeline isn't rerun
-        derived_field4.value = new_value
-        # Update provenance record so it isn't determined to be protected
-        record = derived_field4.record
-        record.prov['outputs']['derived_field4'] = new_value
-        study.repository.put_record(record)
+        # Change value to a new value to see if it gets overwritten even
+        # it shouldn't as the parameter that is changed doesn't impact on
+        # derived field 4.
+        change_value_w_prov(derived_field4, new_value)
         study = self.create_study(
             TestProvStudy,
             study_name,
@@ -394,132 +408,6 @@ class TestProvBasic(BaseTestCase):
                          protected_derived_field4_value)
 
 
-class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
-
-    add_data_specs = [
-        AcquiredFieldSpec('acquired_field1', float),
-        FieldSpec('derived_field1', float, 'pipeline1',
-                  frequency='per_visit'),
-        FieldSpec('derived_field2', float, 'pipeline2',
-                  frequency='per_subject'),
-        FieldSpec('derived_field3', float, 'pipeline3',
-                  frequency='per_study'),
-        FieldSpec('derived_field4', float, 'pipeline4',
-                  frequency='per_study'),
-        FieldSpec('derived_field5', float, 'pipeline4',
-                  frequency='per_study')]
-
-    def pipeline1(self, **name_maps):
-        pipeline = self.pipeline(
-            'pipeline1',
-            desc="",
-            references=[],
-            name_maps=name_maps)
-        pipeline.add(
-            'math1',
-            TestMath(
-                op='add',
-                as_file=False),
-            inputs={
-                'x': ('acquired_fileset2', text_format),
-                'y': ('derived_fileset1', text_format)},
-            outputs={
-                'z': ('derived_field2', float)},
-            requirements=[
-                a_req.v('1.0')])
-        return pipeline
-
-    def pipeline2(self, **name_maps):
-        pipeline = self.pipeline(
-            'pipeline2',
-            desc="",
-            references=[],
-            name_maps=name_maps)
-        pipeline.add(
-            'math1',
-            TestMath(
-                op='add',
-                as_file=False),
-            inputs={
-                'x': ('acquired_fileset2', text_format),
-                'y': ('derived_fileset1', text_format)},
-            outputs={
-                'z': ('derived_field2', float)},
-            requirements=[
-                a_req.v('1.0')])
-        return pipeline
-
-    def pipeline3(self, **name_maps):
-        pipeline = self.pipeline(
-            'pipeline3',
-            desc="",
-            references=[],
-            name_maps=name_maps)
-        pipeline.add(
-            'math1',
-            TestMath(
-                op='add',
-                as_file=False),
-            inputs={
-                'x': ('acquired_fileset2', text_format),
-                'y': ('derived_fileset1', text_format)},
-            outputs={
-                'z': ('derived_field2', float)},
-            requirements=[
-                a_req.v('1.0')])
-        return pipeline
-
-    def pipeline4(self, **name_maps):
-        pipeline = self.pipeline(
-            'pipeline4',
-            desc="",
-            references=[],
-            name_maps=name_maps)
-        pipeline.add(
-            'math1',
-            TestMath(
-                op='add',
-                as_file=False),
-            inputs={
-                'x': ('acquired_fileset2', text_format),
-                'y': ('derived_fileset1', text_format)},
-            outputs={
-                'z': ('derived_field2', float)},
-            requirements=[
-                a_req.v('1.0')])
-        return pipeline
-
-
-class TestProvDialation(BaseMultiSubjectTestCase):
-
-    NUM_SUBJECTS = 2
-    NUM_VISITS = 2
-
-    DATASET_CONTENTS = {'acquired_fileset1': '2',
-                        'acquired_fileset2': '3',
-                        'acquired_fileset3': '4',
-                        'acquired_field1': '5'}
-
-    @property
-    def input_tree(self):
-        filesets = []
-        fields = []
-        for subj_i in range(self.NUM_SUBJECTS):
-            subject_id = 'SUBJECT{}'.format(subj_i)
-            for visit_i in range(self.NUM_VISITS):
-                visit_id = 'VISIT{}'.format(visit_i)
-                for acq in self.DATASET_CONTENTS:
-                    if acq.startswith('acquired_fileset'):
-                        filesets.append(
-                            Fileset(acq, text_format, 'per_session',
-                                    subject_id=subject_id, visit_id=visit_id))
-                    else:
-                        fields.append(
-                            Field(acq, int, 'per_session',
-                                  subject_id=subject_id, visit_id=visit_id))
-        return Tree.construct(filesets=filesets, fields=fields)
-
-
 class TestProvInputChange(BaseTestCase):
 
     INPUT_DATASETS = INPUT_DATASETS
@@ -550,3 +438,219 @@ class TestProvInputChange(BaseTestCase):
             inputs=STUDY_INPUTS)
         self.assertEqual(
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
+
+
+class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
+
+    add_data_specs = [
+        AcquiredFieldSpec('acquired_field1', int),
+        FieldSpec('derived_field1', int, 'pipeline1'),
+        FieldSpec('derived_field2', int, 'pipeline2',
+                  frequency='per_subject'),
+        FieldSpec('derived_field3', int, 'pipeline3',
+                  frequency='per_visit'),
+        FieldSpec('derived_field4', int, 'pipeline4',
+                  frequency='per_study'),
+        FieldSpec('derived_field5', int, 'pipeline5')]
+
+    add_param_specs = [
+        ParameterSpec('increment', 1)]
+
+    def pipeline1(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline1',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math',
+            TestMath(
+                op='add',
+                y=self.parameter('increment'),
+                as_file=False),
+            inputs={
+                'x': ('acquired_field1', int)},
+            outputs={
+                'z': ('derived_field1', int)})
+        return pipeline
+
+    def pipeline2(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline2',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('derived_field1', int)},
+            outputs={
+                'z': ('derived_field2', int)},
+            joinsource=self.VISIT_ID,
+            joinfield='x')
+        return pipeline
+
+    def pipeline3(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline3',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        pipeline.add(
+            'math',
+            TestMath(
+                op='add',
+                as_file=False),
+            inputs={
+                'x': ('derived_field1', int)},
+            outputs={
+                'z': ('derived_field3', int)},
+            joinsource=self.SUBJECT_ID,
+            joinfield='x')
+        return pipeline
+
+    def pipeline4(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline4',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        merge1 = pipeline.add(
+            'merge1',
+            Merge(
+                numinputs=1,
+                ravel_inputs=True),
+            inputs={
+                'in1': ('derived_field1', int)},
+            joinsource=self.SUBJECT_ID,
+            joinfield='in1')
+        merge2 = pipeline.add(
+            'merge2',
+            Merge(
+                numinputs=1,
+                ravel_inputs=True),
+            connect={
+                'in1': (merge1, 'out')},
+            joinsource=self.VISIT_ID,
+            joinfield='in1')
+        pipeline.add(
+            'math',
+            TestMath(
+                op='add',
+                as_file=False),
+            connect={
+                'x': (merge2, 'out')},
+            outputs={
+                'z': ('derived_field4', int)})
+        return pipeline
+
+    def pipeline5(self, **name_maps):
+        pipeline = self.pipeline(
+            'pipeline5',
+            desc="",
+            references=[],
+            name_maps=name_maps)
+        merge = pipeline.add(
+            'merge',
+            Merge(
+                numinputs=3),
+            inputs={
+                'in1': ('derived_field2', int),
+                'in2': ('derived_field3', int),
+                'in3': ('derived_field4', int)})
+        pipeline.add(
+            'math',
+            TestMath(
+                op='add',
+                as_file=False),
+            connect={
+                'x': (merge, 'out')},
+            outputs={
+                'z': ('derived_field5', float)})
+        return pipeline
+
+
+class TestProvDialation(BaseMultiSubjectTestCase):
+    """
+    Tests the "dialation" of the to process array in the case that there are
+    summary outputs (i.e. frequency != 'per_session') of a pipeline.
+    """
+
+    NUM_SUBJECTS = 2
+    NUM_VISITS = 2
+    STUDY_INPUTS = [FieldSelector('acquired_field1', int, 'acquired_field1')]
+
+    @property
+    def input_tree(self):
+        fields = []
+        for subj_i in range(self.NUM_SUBJECTS):
+            for visit_i in range(self.NUM_VISITS):
+                subject_id, visit_id = self.session_id(subj_i, visit_i)
+                fields.append(
+                    Field(name='acquired_field1', value=visit_i + subj_i * 10,
+                          dtype=int, frequency='per_session',
+                          subject_id=subject_id, visit_id=visit_id))
+        return Tree.construct(fields=fields)
+
+    def test_process_dialation(self):
+        study_name = 'process_dialation'
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS)
+        field2 = study.data(
+            'derived_field2',
+            session_ids=[self.session_id(0, 0),
+                         self.session_id(1, 1)])
+        self.assertEqual(field2.value(*self.session_id(subject=0)), 3)
+        self.assertEqual(field2.value(*self.session_id(subject=1)), 23)
+        field3 = study.data(
+            'derived_field3',
+            session_ids=[self.session_id(0, 0),
+                         self.session_id(1, 1)])
+        self.assertEqual(field3.value(*self.session_id(visit=0)), 12)
+        self.assertEqual(field3.value(*self.session_id(visit=1)), 14)
+        field4 = study.data(
+            'derived_field4',
+            session_ids=[self.session_id(1, 1)])
+        self.assertEqual(field4.value(), 26)
+
+    def test_prereq_dialation(self):
+        study_name = 'process_prereq_dialation'
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS)
+        field5 = study.data(
+            'derived_field5',
+            session_ids=[self.session_id(1, 1)])
+        self.assertEqual(field5.value(*self.session_id(1, 0)), 63)
+        self.assertFalse(any(field5.item(*self.session_id(*i)).exists
+                             for i in ((0, 0), (0, 1), (1, 1))))
+
+        # Check that no more fields were generated than necessary
+        def field_keys(inds):
+            return sorted(
+                [('acquired_field1', None)] + [
+                    ('derived_field{}'.format(i), study_name) for i in inds])
+
+        sess00 = study.tree.session(*self.session_id(0, 0))
+        sess01 = study.tree.session(*self.session_id(0, 1))
+        sess10 = study.tree.session(*self.session_id(1, 0))
+        sess11 = study.tree.session(*self.session_id(1, 1))
+        self.assertEqual(sorted(sess00.field_keys), field_keys([1, 4]))
+        self.assertEqual(sorted(sess01.field_keys), field_keys([1, 3, 4]))
+        self.assertEqual(sorted(sess10.field_keys), field_keys([1, 2, 4]))
+        self.assertEqual(sorted(sess11.field_keys),
+                         field_keys([1, 2, 3, 4, 5]))
+
+    def test_dialation_protect_conflict(self):
+        pass
+
+    def session_id(self, subject=None, visit=None):
+        return (
+            ('SUBJECT{}'.format(subject) if subject is not None else None),
+            ('VISIT{}'.format(visit) if visit is not None else None))
