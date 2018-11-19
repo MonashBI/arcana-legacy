@@ -130,12 +130,6 @@ class Study(object):
             raise ArcanaUsageError(
                 "No visit IDs provided and destination repository "
                 "is empty")
-        # For recording which parameters are accessed
-        # during pipeline generation so they can be attributed to the
-        # pipeline after it is generated (and then saved in the
-        # provenance
-        self._pipeline_to_generate = None
-        self._referenced_parameters = None
         # Set parameters
         if parameters is None:
             parameters = {}
@@ -221,6 +215,83 @@ class Study(object):
                                 'Non-optional' + msg + " Pipelines "
                                 "depending on this fileset will not "
                                 "run")
+
+    def data(self, name, subject_id=None, visit_id=None, **kwargs):
+        """
+        Returns the Fileset or Field associated with the name,
+        generating derived filesets as required. Multiple names in a
+        list can be provided, in which case their workflows are
+        joined into a single workflow.
+
+        Parameters
+        ----------
+        name : str | List[str]
+            The name of the FilesetSpec|FieldSpec to retried the
+            filesets for
+        subject_id : int | str | List[int|str] | None
+            The subject ID or subject IDs to return. If None all are
+            returned
+        visit_id : int | str | List[int|str] | None
+            The visit ID or visit IDs to return. If None all are
+            returned
+
+        Returns
+        -------
+        data : Fileset | Field | List[Fileset | Field] | List[List[Fileset | Field]]
+            If a single name is provided then data is either a single
+            Fileset or field if a single subject_id and visit_id are
+            provided, otherwise a list of filesets or fields
+            corresponding to the given name. If muliple names are
+            provided then a list is returned containing the data for
+            each provided name.
+        """
+        if isinstance(name, basestring):
+            single_name = True
+            names = [name]
+        else:
+            names = name
+            single_name = False
+        def is_single_id(id_):  # @IgnorePep8
+            return isinstance(id_, (basestring, int))
+        subject_ids = ([subject_id]
+                       if is_single_id(subject_id) else subject_id)
+        visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
+        # Work out which pipelines need to be run
+        pipelines = []
+        for name in names:
+            spec = self.spec(name)
+            if isinstance(spec, BaseSpec):
+                pipeline = spec.pipeline
+                pipeline._required_outputs.add(name)
+                pipelines.append(pipeline)
+        # Run all pipelines together
+        if pipelines:
+            self.processor.run(
+                *pipelines, subject_ids=subject_ids,
+                visit_ids=visit_ids, **kwargs)
+        all_data = []
+        for name in names:
+            spec = self.spec(name)
+            data = spec.collection
+            if subject_ids is not None and spec.frequency in (
+                    'per_session', 'per_subject'):
+                data = [d for d in data if d.subject_id in subject_ids]
+            if visit_ids is not None and spec.frequency in (
+                    'per_session', 'per_visit'):
+                data = [d for d in data if d.visit_id in visit_ids]
+            if not data:
+                raise ArcanaUsageError(
+                    "No matching data found (subject_id={}, visit_id={})"
+                    .format(subject_id, visit_id))
+            if is_single_id(subject_id) and is_single_id(visit_id):
+                assert len(data) == 1
+                data = data[0]
+            else:
+                data = spec.CollectionClass(spec.name, data)
+            if single_name:
+                return data
+            all_data.append(data)
+        return all_data
 
     def __repr__(self):
         """String representation of the study"""
@@ -367,8 +438,6 @@ class Study(object):
         name : str
             The name of the parameter to retrieve
         """
-        if self._referenced_parameters is not None:
-            self._referenced_parameters.add(name)
         return self._get_parameter(name).value
 
     def branch(self, name, values=None):  # @UnusedVariable @IgnorePep8
@@ -412,8 +481,6 @@ class Study(object):
                         self._param_error_location,
                         "', '".join(spec.choices)))
             in_branch = switch.value in values
-        if self._referenced_parameters is not None:
-            self._referenced_parameters.add(name)
         return in_branch
 
     def unhandled_branch(self, name):
@@ -448,83 +515,6 @@ class Study(object):
         for name in self._param_specs:
             if isinstance(self.spec(name), SwitchSpec):
                 yield self._get_parameter(name)
-
-    def data(self, name, subject_id=None, visit_id=None, **kwargs):
-        """
-        Returns the Fileset or Field associated with the name,
-        generating derived filesets as required. Multiple names in a
-        list can be provided, in which case their workflows are
-        joined into a single workflow.
-
-        Parameters
-        ----------
-        name : str | List[str]
-            The name of the FilesetSpec|FieldSpec to retried the
-            filesets for
-        subject_id : int | str | List[int|str] | None
-            The subject ID or subject IDs to return. If None all are
-            returned
-        visit_id : int | str | List[int|str] | None
-            The visit ID or visit IDs to return. If None all are
-            returned
-
-        Returns
-        -------
-        data : Fileset | Field | List[Fileset | Field] | List[List[Fileset | Field]]
-            If a single name is provided then data is either a single
-            Fileset or field if a single subject_id and visit_id are
-            provided, otherwise a list of filesets or fields
-            corresponding to the given name. If muliple names are
-            provided then a list is returned containing the data for
-            each provided name.
-        """
-        if isinstance(name, basestring):
-            single_name = True
-            names = [name]
-        else:
-            names = name
-            single_name = False
-        def is_single_id(id_):  # @IgnorePep8
-            return isinstance(id_, (basestring, int))
-        subject_ids = ([subject_id]
-                       if is_single_id(subject_id) else subject_id)
-        visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
-        # Work out which pipelines need to be run
-        pipelines = []
-        for name in names:
-            spec = self.spec(name)
-            if isinstance(spec, BaseSpec):
-                pipeline = spec.pipeline
-                pipeline._required_outputs.add(name)
-                pipelines.append(pipeline)
-        # Run all pipelines together
-        if pipelines:
-            self.processor.run(
-                *pipelines, subject_ids=subject_ids,
-                visit_ids=visit_ids, **kwargs)
-        all_data = []
-        for name in names:
-            spec = self.spec(name)
-            data = spec.collection
-            if subject_ids is not None and spec.frequency in (
-                    'per_session', 'per_subject'):
-                data = [d for d in data if d.subject_id in subject_ids]
-            if visit_ids is not None and spec.frequency in (
-                    'per_session', 'per_visit'):
-                data = [d for d in data if d.visit_id in visit_ids]
-            if not data:
-                raise ArcanaUsageError(
-                    "No matching data found (subject_id={}, visit_id={})"
-                    .format(subject_id, visit_id))
-            if is_single_id(subject_id) and is_single_id(visit_id):
-                assert len(data) == 1
-                data = data[0]
-            else:
-                data = spec.CollectionClass(spec.name, data)
-            if single_name:
-                return data
-            all_data.append(data)
-        return all_data
 
     def save_workflow_graph_for(self, spec_name, fname, full=False,
                                 style='flat', **kwargs):

@@ -119,6 +119,8 @@ def parse_single_value(value):
             else:
                 raise ArcanaUsageError(
                     "Unrecognised value type {}".format(value))
+    except:
+        raise
     return value
 
 

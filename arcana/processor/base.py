@@ -1,7 +1,7 @@
 from builtins import object
 import os  # @UnusedImport
 import os.path as op
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 import shutil
 from copy import copy, deepcopy
 from logging import getLogger
@@ -232,6 +232,35 @@ class BaseProcessor(object):
                     "Did not match any sessions in the project:\n" +
                     "  subject_ids: {}\n".format(', '.join(subject_inds)) +
                     "  visit_ids: {}\n".format(', '.join(visit_inds)))
+
+        stack = OrderedDict()
+        for pipeline in pipelines:
+            pipeline_req_outputs = pipeline._required_outputs
+            pipeline_filter_array = filter_array
+            if pipeline.name in stack:
+                (prereq_req_outputs,
+                 prereq_filter_array) = stack.pop(pipeline.name)
+                pipeline_req_outputs = req
+                
+            
+        # Call pipeline-getter instance method on study with provided
+        # parameters to generate pipeline to run
+        for pipeline in pipelines.values():
+            # Check that the required outputs are created with the given
+            # parameters
+            missing_outputs = pipeline._required_outputs - set(
+                d.name for d in pipeline.outputs)
+            if missing_outputs:
+                raise ArcanaOutputNotProducedException(
+                    "Output(s) '{}', required for {}, will "
+                    "not be created by prerequisite pipeline '{}' "
+                    "with parameters: {}".format(
+                        "', '".join(missing_outputs), self._error_msg_loc,
+                        pipeline.name,
+                        '\n'.join('{}={}'.format(o.name, o.value)
+                                  for o in self.study.parameters)))
+            yield pipeline
+
         for pipeline in pipelines:
             try:
                 self._connect_pipeline(pipeline, workflow,

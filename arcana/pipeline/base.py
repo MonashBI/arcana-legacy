@@ -106,7 +106,6 @@ class Pipeline(object):
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the
         # provenance
-        self._referenced_parameters = set()
         self._required_outputs = set()
         # Create placeholders for expected provenance records that are used
         # to compare with records saved in the repository when checking for
@@ -147,11 +146,12 @@ class Pipeline(object):
     @property
     def prerequisites(self):
         """
-        Iterate through all prerequisite pipelines
+        Iterates through the inputs of the pipelinen and determines the
+        all prerequisite pipelines
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
-        pipelines = {}
+        prereqs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
             try:
                 spec = self._study.spec(input)
@@ -162,28 +162,8 @@ class Pipeline(object):
                     .format(e, self.name, "', '".join(self.required_outputs)))
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
-                try:
-                    pipeline = pipelines[spec.pipeline_name]
-                except KeyError:
-                    pipeline = pipelines[spec.pipeline_name] = spec.pipeline
-                pipeline._required_outputs.add(input.name)
-        # Call pipeline-getter instance method on study with provided
-        # parameters to generate pipeline to run
-        for pipeline in pipelines.values():
-            # Check that the required outputs are created with the given
-            # parameters
-            missing_outputs = pipeline._required_outputs - set(
-                d.name for d in pipeline.outputs)
-            if missing_outputs:
-                raise ArcanaOutputNotProducedException(
-                    "Output(s) '{}', required for {}, will "
-                    "not be created by prerequisite pipeline '{}' "
-                    "with parameters: {}".format(
-                        "', '".join(missing_outputs), self._error_msg_loc,
-                        pipeline.name,
-                        '\n'.join('{}={}'.format(o.name, o.value)
-                                  for o in self.study.parameters)))
-            yield pipeline
+                prereqs[spec.pipeline_name].add(input.name)
+        return prereqs
 
     @property
     def study_inputs(self):
@@ -452,10 +432,6 @@ class Pipeline(object):
 
     def frequency_outputs(self, frequency):
         return (o for o in self.outputs if o.frequency == frequency)
-
-    @property
-    def referenced_parameters(self):
-        return iter(self._referenced_parameters)
 
     @property
     def all_parameters(self):
