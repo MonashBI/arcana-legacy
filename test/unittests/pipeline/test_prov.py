@@ -730,3 +730,49 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         study.data('derived_field5', subject_id='0', visit_id='0')
         values_equal('derived_field1',
                      {k: v + 1 for k, v in orig_field1_values.items()})
+
+    def test_dialation_protection(self):
+        study_name = 'dialation_protection'
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS)
+        field5 = study.data('derived_field5')
+        for item in field5:
+            self.assertEqual(item.value,
+                             self.DEFAULT_FIELD5_VALUES[(item.subject_id,
+                                                         item.visit_id)])
+        field1 = study.data('derived_field1')
+        field2 = study.data('derived_field2')
+        field1.item(subject_id='0', visit_id='1').value = 1000000
+        field1.item(subject_id='1', visit_id='1').value = 2000000
+        # Manually change value of field 2
+        field2.item(subject_id='0').value = -1000
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            processor=LinearProcessor(self.work_dir, reprocess=True),
+            inputs=self.STUDY_INPUTS,
+            parameters={
+                'increment': 2})
+        # Recalculate value of field5 with new field2 value
+        field1, field2, field3, field4, field5 = study.data(
+            ['derived_field1', 'derived_field2', 'derived_field3',
+             'derived_field4', 'derived_field5'])
+        self.assertEqual(field1.value(subject_id='0', visit_id='0'), 2)
+        self.assertEqual(field1.value(subject_id='0', visit_id='1'), 1000000)
+        self.assertEqual(field1.value(subject_id='1', visit_id='0'), 12)
+        self.assertEqual(field1.value(subject_id='1', visit_id='1'), 2000000)
+        self.assertEqual(field2.value(subject_id='0'), -1000)
+        self.assertEqual(field2.value(subject_id='1'), 2000012)
+        self.assertEqual(field3.value(visit_id='0'), 14)
+        self.assertEqual(field3.value(visit_id='1'), 3000000)
+        self.assertEqual(field4.value(), 3000014)
+        self.assertEqual(field5.value(subject_id='0', visit_id='0'),
+                         -1000 + 14 + 3000014)
+        self.assertEqual(field5.value(subject_id='0', visit_id='1'),
+                         -1000 + 3000000 + 3000014)
+        self.assertEqual(field5.value(subject_id='1', visit_id='0'),
+                         2000012 + 14 + 3000014)
+        self.assertEqual(field5.value(subject_id='1', visit_id='1'),
+                         2000012 + 3000000 + 3000014)
