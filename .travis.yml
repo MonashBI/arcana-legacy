@@ -5,22 +5,16 @@ services:
 matrix:
   include:
     - python: 2.7
-      env:
-      - ARCANA_TEST_XNAT=http://localhost/xnat_27
-      - ARCANA_TEST_DATA=$HOME/data/py27
-      - XNAT_DIR=$HOME/packages/xnat_py27
+      env: ARCANA_TEST_DATA=$HOME/data/py27
     - python: 3.4
-      env:
-      - ARCANA_TEST_XNAT=http://localhost/xnat_34
-      - ARCANA_TEST_DATA=$HOME/data/py34
-      - XNAT_DIR=$HOME/packages/xnat_py34
+      env: ARCANA_TEST_DATA=$HOME/data/py34
     - python: 3.6
-      - ARCANA_TEST_XNAT=http://localhost/xnat_36
-      - ARCANA_TEST_DATA=$HOME/data/py36
-      - XNAT_DIR=$HOME/packages/xnat_py36
+      env: ARCANA_TEST_DATA=$HOME/data/py36
 env:
   global:
     - XNAT_VER=1.7.4
+    - ARCANA_TEST_XNAT=http://localhost
+    - XNAT_DIR=$HOME/xnat
     - DOCKER_VER=1.21.2
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
@@ -49,14 +43,13 @@ before_install:
   - sudo mv docker-compose /usr/local/bin
 install: 
   - ci/xnat.sh
+  - pushd $XNAT_DIR; docker-compose up -d; popd
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .
   - mkdir -p $HOME/data
   - pip install nose
   - pip install codecov
-before_script:
-  - pushd $XNAT_DIR; docker-compose up -d; popd
   - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
