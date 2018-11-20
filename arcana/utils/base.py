@@ -234,11 +234,11 @@ def extract_package_version(package_name):
     version = None
     try:
         module = importlib.import_module(package_name)
-    except ModuleNotFoundError:
+    except ImportError:
         if package_name.startswith('py'):
             try:
                 module = importlib.import_module(package_name[2:])
-            except ModuleNotFoundError:
+            except ImportError:
                 pass
     else:
         try:

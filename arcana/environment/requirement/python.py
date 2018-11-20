@@ -29,7 +29,7 @@ class PythonPackageRequirement(BaseRequirement):
     def detect_version_str(self):
         try:
             module = importlib.import_module(self.package_name)
-        except ModuleNotFoundError:
+        except ImportError:
             raise ArcanaRequirementNotFoundError(
                 "Did not find '{}' module/package for {}"
                 .format(self.package_name, self))
