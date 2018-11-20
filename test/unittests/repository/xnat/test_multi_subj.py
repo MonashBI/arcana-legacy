@@ -81,7 +81,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         filesets = []
         for subj_id, visits in list(self.STRUCTURE.items()):
             for visit_id, fileset_names in list(visits.items()):
-                filesets.append(
+                filesets.extend(
                     Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in fileset_names)
         return Tree.construct(filesets=filesets)

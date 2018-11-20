@@ -367,19 +367,19 @@ class Tree(TreeNode):
 
     def subject(self, id):  # @ReservedAssignment
         try:
-            return self._subjects[id]
+            return self._subjects[str(id)]
         except KeyError:
             raise ArcanaNameError(
-                id, ("{} doesn't have a subject named '{}'"
-                       .format(self, id)))
+                id, ("{} doesn't have a subject named '{}' ('{}')"
+                       .format(self, id, "', '".join(self._subjects))))
 
     def visit(self, id):  # @ReservedAssignment
         try:
-            return self._visits[id]
+            return self._visits[str(id)]
         except KeyError:
             raise ArcanaNameError(
-                id, ("{} doesn't have a visit named '{}'"
-                       .format(self, id)))
+                id, ("{} doesn't have a visit named '{}' ('{}')"
+                       .format(self, id, "', '".join(self._visits))))
 
     def session(self, subject_id, visit_id):
         return self.subject(subject_id).session(visit_id)
@@ -663,11 +663,12 @@ class Subject(TreeNode):
 
     def session(self, visit_id):
         try:
-            return self._sessions[visit_id]
+            return self._sessions[str(visit_id)]
         except KeyError:
             raise ArcanaNameError(
-                visit_id, ("{} doesn't have a session named '{}'"
-                           .format(self, visit_id)))
+                visit_id, ("{} doesn't have a session named '{}' ('{}')"
+                           .format(self, visit_id,
+                                   "', '".join(self._sessions))))
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
@@ -797,11 +798,12 @@ class Visit(TreeNode):
 
     def session(self, subject_id):
         try:
-            return self._sessions[subject_id]
+            return self._sessions[str(subject_id)]
         except KeyError:
             raise ArcanaNameError(
-                subject_id, ("{} doesn't have a session named '{}'"
-                             .format(self, subject_id)))
+                subject_id, ("{} doesn't have a session named '{}' ('{}')"
+                             .format(self, subject_id,
+                                     "', '".join(self._sessions))))
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)

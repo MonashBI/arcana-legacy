@@ -290,13 +290,13 @@ class BaseProcessor(object):
                 inv_visit_inds = {v: k for k, v in visit_inds.items()}
                 logger.warning(
                     "Dialated filter array used to process '{}' pipeline to "
-                    "include {} subject/visit IDs due to its summary outputs "
-                    "({})".format(
+                    "include {} subject/visit IDs due to its '{}' summary "
+                    "outputs ".format(
                         pipeline.name,
                         ', '.join('({},{})'.format(inv_subject_inds[s],
                                                    inv_visit_inds[v])
                                   for s, v in zip(*np.nonzero(added))),
-                        ', '.join(output_freqs)))
+                        "' and '".join(output_freqs)))
             # Append pipeline to stack
             if pipeline.name in [s[0].name for s in stack.values()]:
                 raise ArcanaDesignError(
@@ -786,9 +786,12 @@ class BaseProcessor(object):
         if to_check_array.any() and self.prov_include:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
-            to_check = [s for s in tree.sessions
-                        if to_check_array[subject_inds[s.subject_id],
-                                          visit_inds[s.visit_id]]]
+            to_check = []
+            if 'per_session' in output_freqs:
+                to_check.extend(
+                    s for s in tree.sessions
+                    if to_check_array[subject_inds[s.subject_id],
+                                      visit_inds[s.visit_id]])
             if 'per_subject' in output_freqs:
                 # We can just test the first col of outputs_exist as rows
                 # should be either all True or all False

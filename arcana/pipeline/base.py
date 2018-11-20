@@ -883,30 +883,32 @@ class Pipeline(object):
         # Get checksums/values of all inputs that would have been used in
         # previous runs of an equivalent pipeline to compare with that saved
         # in provenance to see if any have been updated.
-        for input in self.inputs:  # @ReservedAssignment
+        for inpt in self.inputs:  # @ReservedAssignment
             # Get iterators present in the input that aren't in this node
             # and need to be joined
-            iterators_to_join = (self.iterators(input.frequency) -
+            iterators_to_join = (self.iterators(inpt.frequency) -
                                  self.iterators(node.frequency))
             if not iterators_to_join:
                 # No iterators to join so we can just extract the checksums
                 # of the corresponding input
-                exp_inputs[input.name] = input.collection.item(
+                exp_inputs[inpt.name] = inpt.collection.item(
                     node.subject_id, node.visit_id).checksums
             elif len(iterators_to_join) == 1:
                 # Get list of checksums dicts for each node of the input
                 # frequency that relates to the current node
-                exp_inputs[input.name] = [
-                    input.collection.item(n.subject_id, n.visit_id).checksums
-                    for n in node.nodes(input.frequency)]
+                exp_inputs[inpt.name] = [
+                    inpt.collection.item(n.subject_id, n.visit_id).checksums
+                    for n in node.nodes(inpt.frequency)]
             else:
                 # In the case where the node is the whole treee and the input
                 # is per_seession, we need to create a list of lists to match
                 # how the checksums are joined in the processor
-                exp_inputs[input.name] = [
-                    [input.collection.item(s.subject_id. s.visit_id).checksums
-                     for s in subj.sessions]
-                    for subj in node.subjects]
+                exp_inputs[inpt.name] = []
+                for subj in node.subjects:
+                    exp_inputs[inpt.name].append([
+                        inpt.collection.item(s.subject_id,
+                                             s.visit_id).checksums
+                        for s in subj.sessions])
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
         exp_outputs = {

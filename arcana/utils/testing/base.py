@@ -29,6 +29,11 @@ formatter = logging.Formatter("%(levelname)s - %(message)s")
 handler.setFormatter(formatter)
 logger.addHandler(handler)
 
+wf_logger = logging.getLogger('nipype.workflow')
+wf_logger.setLevel(logging.WARNING)
+intf_logger = logging.getLogger('nipype.interface')
+intf_logger.setLevel(logging.WARNING)
+
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 

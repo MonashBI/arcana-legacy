@@ -1,6 +1,7 @@
 from pprint import pformat
 import os.path as op
 import tempfile
+from copy import copy
 import shutil
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
 from arcana.utils.testing import (
@@ -230,7 +231,7 @@ def change_value_w_prov(field, new_value):
     field.value = new_value
     # Update provenance record so it isn't determined to be protected
     record = field.record
-    record.prov['outputs']['derived_field4'] = new_value
+    record.prov['outputs'][field.name] = new_value
     field.repository.put_record(record)
 
 
@@ -454,7 +455,8 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('derived_field5', int, 'pipeline5')]
 
     add_param_specs = [
-        ParameterSpec('increment', 1)]
+        ParameterSpec('increment', 1),
+        ParameterSpec('pipeline3_op', 'add')]
 
     def pipeline1(self, **name_maps):
         pipeline = self.pipeline(
@@ -502,7 +504,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.add(
             'math',
             TestMath(
-                op='add',
+                op=self.parameter('pipeline3_op'),
                 as_file=False),
             inputs={
                 'x': ('derived_field1', int)},
@@ -583,19 +585,24 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     NUM_VISITS = 2
     STUDY_INPUTS = [FieldSelector('acquired_field1', int, 'acquired_field1')]
 
+    DEFAULT_FIELD5_VALUES = {
+        ('0', '0'): 41,
+        ('0', '1'): 43,
+        ('1', '0'): 61,
+        ('1', '1'): 63}
+
     @property
     def input_tree(self):
         fields = []
         for subj_i in range(self.NUM_SUBJECTS):
             for visit_i in range(self.NUM_VISITS):
-                subject_id, visit_id = self.session_id(subj_i, visit_i)
                 fields.append(
                     Field(name='acquired_field1', value=visit_i + subj_i * 10,
                           dtype=int, frequency='per_session',
-                          subject_id=subject_id, visit_id=visit_id))
+                          subject_id=str(subj_i), visit_id=str(visit_i)))
         return Tree.construct(fields=fields)
 
-    def test_process_dialation(self):
+    def test_filter_dialation1(self):
         study_name = 'process_dialation'
         study = self.create_study(
             TestProvDialationStudy,
@@ -603,43 +610,44 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             inputs=self.STUDY_INPUTS)
         field2 = study.data(
             'derived_field2',
-            session_ids=[self.session_id(0, 0),
-                         self.session_id(1, 1)])
-        self.assertEqual(field2.value(*self.session_id(subject=0)), 3)
-        self.assertEqual(field2.value(*self.session_id(subject=1)), 23)
+            session_ids=[('0', '0'),
+                         ('1', '1')])
+        self.assertEqual(field2.value(subject_id='0'), 3)
+        self.assertEqual(field2.value(subject_id='1'), 23)
         field3 = study.data(
             'derived_field3',
-            session_ids=[self.session_id(0, 0),
-                         self.session_id(1, 1)])
-        self.assertEqual(field3.value(*self.session_id(visit=0)), 12)
-        self.assertEqual(field3.value(*self.session_id(visit=1)), 14)
+            session_ids=[('0', '0'),
+                         ('1', '1')])
+        self.assertEqual(field3.value(visit_id='0'), 12)
+        self.assertEqual(field3.value(visit_id='1'), 14)
         field4 = study.data(
             'derived_field4',
-            session_ids=[self.session_id(1, 1)])
+            session_ids=[('1', '1')])
         self.assertEqual(field4.value(), 26)
 
-    def test_prereq_dialation(self):
-        study_name = 'process_prereq_dialation'
+    def test_filter_dialation2(self):
+        study_name = 'filter_dialation2'
         study = self.create_study(
             TestProvDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS)
         field5 = study.data(
             'derived_field5',
-            session_ids=[self.session_id(1, 1)])
+            session_ids=[('1', '1')])
         self.assertEqual(len(field5), 1)
-        self.assertEqual(field5.value(*self.session_id(1, 1)), 63)
+        self.assertEqual(field5.value(subject_id='1', visit_id='1'),
+                         self.DEFAULT_FIELD5_VALUES[('1', '1')])
 
         # Check that no more fields were generated than necessary
         tree = study.tree
-        sess00 = study.tree.session(*self.session_id(0, 0))
-        sess01 = study.tree.session(*self.session_id(0, 1))
-        sess10 = study.tree.session(*self.session_id(1, 0))
-        sess11 = study.tree.session(*self.session_id(1, 1))
-        subj0 = study.tree.subject(self.session_id(0, 0)[0])
-        subj1 = study.tree.subject(self.session_id(1, 0)[0])
-        vis0 = study.tree.visit(self.session_id(0, 0)[1])
-        vis1 = study.tree.visit(self.session_id(0, 1)[1])
+        sess00 = study.tree.session(subject_id='0', visit_id='0')
+        sess01 = study.tree.session(subject_id='0', visit_id='1')
+        sess10 = study.tree.session(subject_id='1', visit_id='0')
+        sess11 = study.tree.session(subject_id='1', visit_id='1')
+        subj0 = study.tree.subject('0')
+        subj1 = study.tree.subject('1')
+        vis0 = study.tree.visit('0')
+        vis1 = study.tree.visit('1')
         self.assertEqual(list(tree.field_keys),
                          [('derived_field4', study_name)])
         self.assertFalse(list(subj0.field_keys))
@@ -662,10 +670,63 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                           ('derived_field1', study_name),
                           ('derived_field5', study_name)])
 
-    def test_dialation_protect_conflict(self):
-        pass
+    def test_process_dialation(self):
+        study_name = 'process_dialation'
+        new_value = -101
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS)
+        study.data('derived_field5')
 
-    def session_id(self, subject=None, visit=None):
-        return (
-            ('SUBJECT{}'.format(subject) if subject is not None else None),
-            ('VISIT{}'.format(visit) if visit is not None else None))
+        def values_equal(field_name, values):
+            for subj_i in range(self.NUM_SUBJECTS):
+                for vis_i in range(self.NUM_VISITS):
+                    sess = study.tree.session(subj_i, vis_i)
+                    field = sess.field(field_name, from_study=study_name)
+                    self.assertEqual(field.value,
+                                     values[(str(subj_i), str(vis_i))])
+        # Test generated values
+        values_equal('derived_field5', self.DEFAULT_FIELD5_VALUES)
+        # Tag the field 1 value so we can detect if it gets regenerated
+        orig_field1_values = {}
+        orig_field3_values = {}
+        for vis_i in range(self.NUM_VISITS):
+            for subj_i in range(self.NUM_SUBJECTS):
+                sess = study.tree.session(subj_i, vis_i)
+                field1 = sess.field('derived_field1', from_study=study_name)
+                orig_field1_values[(str(subj_i),
+                                    str(vis_i))] = field1.value
+                change_value_w_prov(field1, new_value)
+            field3 = study.tree.visit(vis_i).field('derived_field3',
+                                                   from_study=study_name)
+            orig_field3_values[str(vis_i)] = field3.value
+        # Rerun analysis with new parameters
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS,
+            processor=LinearProcessor(self.work_dir, reprocess=True),
+            parameters={
+                'pipeline3_op': 'mul'})
+        study.data('derived_field3', subject_id='0', visit_id='0')
+        values_equal('derived_field1',
+                     {k: new_value for k in orig_field1_values})
+        self.assertEqual(
+            study.tree.visit('0').field('derived_field3',
+                                        from_study=study_name).value,
+            10201)
+        self.assertEqual(
+            study.tree.visit('1').field('derived_field3',
+                                        from_study=study_name).value,
+            orig_field3_values['1'])
+        study = self.create_study(
+            TestProvDialationStudy,
+            study_name,
+            inputs=self.STUDY_INPUTS,
+            processor=LinearProcessor(self.work_dir, reprocess=True),
+            parameters={
+                'increment': 2})
+        study.data('derived_field5', subject_id='0', visit_id='0')
+        values_equal('derived_field1',
+                     {k: v + 1 for k, v in orig_field1_values.items()})
