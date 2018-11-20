@@ -5,13 +5,14 @@ from collections import defaultdict
 import sys
 import os.path as op
 import types
+from copy import copy
 from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaError, ArcanaUsageError,
-    ArcanaOutputNotProducedException,
-    ArcanaMissingDataException, ArcanaNameError)
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaOutputNotProducedException)
 from arcana.pipeline import Pipeline
 from arcana.data import BaseData, BaseSpec
 from nipype.pipeline import engine as pe
@@ -217,34 +218,42 @@ class Study(object):
                                 "depending on this fileset will not "
                                 "run")
 
-    def data(self, name, subject_id=None, visit_id=None, **kwargs):
+    def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
+             **kwargs):
         """
-        Returns the Fileset or Field associated with the name,
-        generating derived filesets as required. Multiple names in a
-        list can be provided, in which case their workflows are
-        joined into a single workflow.
+        Returns the Fileset(s) or Field(s) associated with the provided spec
+        name(s), generating derived filesets as required. Multiple names in a
+        list can be provided, to allow their workflows to be combined into a
+        single workflow.
 
         Parameters
         ----------
         name : str | List[str]
             The name of the FilesetSpec|FieldSpec to retried the
             filesets for
-        subject_id : int | str | List[int|str] | None
-            The subject ID or subject IDs to return. If None all are
-            returned
-        visit_id : int | str | List[int|str] | None
-            The visit ID or visit IDs to return. If None all are
-            returned
+        subject_id : str | None
+            The subject ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            collection
+        visit_id : str | None
+            The visit ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            c ollection
+        subject_ids : list[str]
+            The subject IDs to include in the returned collection
+        visit_ids : list[str]
+            The visit IDs to include in the returned collection
+        session_ids : list[str]
+            The session IDs (i.e. 2-tuples of the form
+            (<subject-id>, <visit-id>) to include in the returned collection
 
         Returns
         -------
-        data : Fileset | Field | List[Fileset | Field] | List[List[Fileset | Field]]
-            If a single name is provided then data is either a single
-            Fileset or field if a single subject_id and visit_id are
-            provided, otherwise a list of filesets or fields
-            corresponding to the given name. If muliple names are
-            provided then a list is returned containing the data for
-            each provided name.
+        data : BaseItem | BaseCollection | list[BaseItem | BaseCollection]
+            If 'subject_id' or 'visit_id' is provided then the data returned is
+            a single Fileset or Field. Otherwise a collection of Filesets or
+            Fields are returned. If muliple spec names are provided then a
+            list of items or collections corresponding to each spec name.
         """
         if isinstance(name, basestring):
             single_name = True
@@ -252,56 +261,109 @@ class Study(object):
         else:
             names = name
             single_name = False
-        def is_single_id(id_):  # @IgnorePep8
-            return isinstance(id_, (basestring, int))
-        subject_ids = ([subject_id]
-                       if is_single_id(subject_id) else subject_id)
-        visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
+        single_item = 'subject_id' in kwargs or 'visit_id' in kwargs
+        filter_items = (subject_ids, visit_ids, session_ids) != (None, None,
+                                                                   None)
+        specs = [self.spec(n) for n in names]
+        if single_item:
+            if filter_items:
+                raise ArcanaUsageError(
+                    "Cannot provide 'subject_id' and/or 'visit_id' in "
+                    "combination with 'subject_ids', 'visit_ids' or "
+                    "'session_ids'")
+            subject_id = kwargs.pop('subject_id', None)
+            visit_id = kwargs.pop('visit_id', None)
+            iterators = set(chain(self.FREQUENCIES[s.frequency]
+                                  for s in specs))
+            if subject_id is not None and visit_id is not None:
+                session_ids = [(subject_id, visit_id)]
+            elif subject_id is not None:
+                if self.VISIT_ID in iterators:
+                    raise ArcanaUsageError(
+                        "Non-None values for visit IDs need to be "
+                        "provided to select a single item for each of '{}'"
+                        .format("', '".join(names)))
+                subject_ids = [subject_id]
+            elif visit_id is not None:
+                if self.SUBJECT_ID in iterators:
+                    raise ArcanaUsageError(
+                        "Non-None values for subject IDs need to be "
+                        "provided to select a single item for each of '{}'"
+                        .format("', '".join(names)))
+                visit_ids = [visit_id]
+            elif iterators:
+                raise ArcanaUsageError(
+                    "Non-None values for subject and/or visit IDs need to be "
+                    "provided to select a single item for each of '{}'"
+                    .format("', '".join(names)))
         # Work out which pipelines need to be run
-        pipelines = []
-        for name in names:
-            spec = self.spec(name)
-            if isinstance(spec, BaseSpec):
-                pipeline = spec.pipeline
-                pipeline._required_outputs.add(name)
-                pipelines.append(pipeline)
-        # Run all pipelines together
-        if pipelines:
-            self.processor.run(
-                *pipelines, subject_ids=subject_ids,
-                visit_ids=visit_ids, **kwargs)
+        pipeline_names = defaultdict(set)
+        for spec in specs:
+            if isinstance(spec, BaseSpec):  # Filter out Study inputs
+                # Add name of spec to set of required outputs
+                pipeline_names[spec.pipeline_name].add(spec.name)
+        # Run required pipelines
+        if pipeline_names:
+            kwargs = copy(kwargs)
+            kwargs.update({'subject_ids': subject_ids,
+                           'visit_ids': visit_ids,
+                           'session_ids': session_ids})
+            pipelines, required_outputs = zip(*(
+                (self.get_pipeline(k), v) for k, v in pipeline_names.items()))
+            kwargs['required_outputs'] = required_outputs
+            self.processor.run(*pipelines, **kwargs)
+        # Find and return Item/Collection corresponding to requested spec
+        # names
         all_data = []
         for name in names:
             spec = self.spec(name)
             data = spec.collection
-            if subject_ids is not None and spec.frequency in (
-                    'per_session', 'per_subject'):
-                data = [d for d in data if d.subject_id in subject_ids]
-            if visit_ids is not None and spec.frequency in (
-                    'per_session', 'per_visit'):
-                data = [d for d in data if d.visit_id in visit_ids]
-            if not data:
-                raise ArcanaUsageError(
-                    "No matching data found (subject_id={}, visit_id={})"
-                    .format(subject_id, visit_id))
-            if is_single_id(subject_id) and is_single_id(visit_id):
-                assert len(data) == 1
-                data = data[0]
-            else:
+            if single_item:
+                data = data.item(subject_id=subject_id, visit_id=visit_id)
+            elif filter_items and spec.frequency != 'per_study':
+                if subject_ids is None:
+                    subject_ids = []
+                if visit_ids is None:
+                    visit_ids = []
+                if session_ids is None:
+                    session_ids = []
+                if spec.frequency == 'per_session':
+                    data = [d for d in data
+                            if (d.subject_id in subject_ids or
+                                d.visit_id in visit_ids or
+                                d.session_id in session_ids)]
+                elif spec.frequency == 'per_subject':
+                    data = [d for d in data
+                            if (d.subject_id in subject_ids or
+                                d.subject_id in [s[0] for s in session_ids])]
+                elif spec.frequency == 'per_visit':
+                    data = [d for d in data
+                            if (d.visit_id in visit_ids or
+                                d.visit_id in [s[1] for s in session_ids])]
+                if not data:
+                    raise ArcanaUsageError(
+                        "No matching data found (subject_ids={}, visit_ids={} "
+                        ", session_ids={})"
+                        .format(subject_ids, visit_ids, session_ids))
                 data = spec.CollectionClass(spec.name, data)
             if single_name:
                 return data
-            all_data.append(data)
+            else:
+                all_data.append(data)
         return all_data
 
-    def get_pipeline(self, pipeline_name):
+    def get_pipeline(self, pipeline_name, required_outputs=None):
         try:
             getter = getattr(self, pipeline_name)
         except AttributeError:
-            raise ArcanaError(
+            raise ArcanaDesignError(
                 "There is no pipeline method named '{}' in present in "
                 "'{}' study".format(pipeline_name, self))
-        pipeline = getter()
+        self._pipeline_to_generate = pipeline_name
+        try:
+            pipeline = getter()
+        finally:
+            self._pipeline_to_generate = None
         if pipeline is None:
             raise ArcanaDesignError(
                 "'{}' pipeline constructor in {} is missing return "
@@ -312,11 +374,8 @@ class Study(object):
                 "'{}' pipeline constructor in {} doesn't return a Pipeline "
                 "object ({})".format(
                     pipeline_name, self, pipeline))
-        if pipeline.name != pipeline_name:
-            raise ArcanaDesignError(
-                "Name for Pipeline generated by '{}' method does not match "
-                "('{}')".format(pipeline.name, pipeline_name))
-        if self.name not in pipeline.output_names:
+        if required_outputs is not None and any(r not in pipeline.output_names
+                                                for r in required_outputs):
             raise ArcanaOutputNotProducedException(
                 "'{}' is not produced by {} pipeline in {} class given the "
                 "provided  switches ({}) and the missing inputs ('{}')".format(
@@ -324,6 +383,7 @@ class Study(object):
                     ', '.join('{}={}'.format(s.name, s.value)
                               for s in self.switches),
                     "', '".join(self.missing_inputs)))
+        pipeline._getter_name = pipeline_name  # Store for use in processor
         return pipeline
 
     def __repr__(self):

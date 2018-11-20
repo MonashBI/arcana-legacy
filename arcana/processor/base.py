@@ -3,18 +3,17 @@ import os  # @UnusedImport
 import os.path as op
 from collections import defaultdict, OrderedDict
 import shutil
+from itertools import zip_longest
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
-from pprint import pformat
-from deepdiff import DeepDiff
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
 from arcana.pipeline import Pipeline
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.utils import get_class_info
 from arcana.exceptions import (
-    ArcanaError, ArcanaMissingDataException,
+    ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
     ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError,
     ArcanaOutputNotProducedException)
@@ -146,6 +145,9 @@ class BaseProcessor(object):
         ----------
         pipeline(s) : Pipeline, ...
             The pipeline to connect to repository
+        required_outputs : list[set[str]]
+            A set of required outputs for each pipeline. If None then all
+            outputs are assumed to be required
         subject_ids : list[str]
             The subset of subject IDs to process. If None all available will be
             processed. Note this is not a duplication of the study
@@ -177,12 +179,13 @@ class BaseProcessor(object):
         if not pipelines:
             raise ArcanaUsageError("No pipelines provided to {}.run"
                                    .format(self))
-        # Get filter kwargs  (NB: in Python 3 they could be in the arg list)
+        # Get filter kwargs  (NB: in Python 3 they could be in the kwarg list)
         subject_ids = kwargs.pop('subject_ids', None)
         visit_ids = kwargs.pop('visit_ids', None)
         session_ids = kwargs.pop('session_ids', None)
         clean_work_dir = kwargs.pop('clean_work_dir',
                                     self._clean_work_dir_between_runs)
+        required_outputs = kwargs.pop('required_outputs', None)
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         # Clean work dir if required
@@ -237,32 +240,33 @@ class BaseProcessor(object):
         # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
 
-        def add_to_stack(pipeline, study=None, req_outputs=None):
+        def push_on_stack(pipeline, filt_array, study=None, req_outputs=None):
             if isinstance(pipeline, Pipeline):
                 # If a primary pipeline (i.e. one passed to this run method
                 # explicitly
-                pipeline_name = pipeline.name
-                primary_pipeline = pipeline
+                try:
+                    pipeline_name = pipeline._getter_name  # To match prereqs
+                except AttributeError:
+                    pipeline_name = pipeline.name
                 study = pipeline.study
-                req_outputs = pipeline._required_outputs
             else:
                 # If a prerequisite referenced by name
                 pipeline_name = pipeline
-                primary_pipeline = None
-            key = (study.name, pipeline_name)
+                pipeline = None
+            key = (id(study), pipeline_name)
             if key in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
-                pipeline, prev_req_outputs = stack.pop(key)
-                assert primary_pipeline is None or primary_pipeline == pipeline
+                pipeline, prev_req_outputs, prev_filt_array = stack.pop(key)
                 # Combined required outputs
+                req_outputs = copy(req_outputs)
                 req_outputs.update(prev_req_outputs)
-            else:
+                filt_array = filt_array | prev_filt_array
+            elif pipeline is None:
                 pipeline = study.get_pipeline(pipeline_name)
             # Check that the required outputs are created with the given
             # parameters
-            missing_outputs = pipeline._required_outputs - set(
-                d.name for d in pipeline.outputs)
+            missing_outputs = req_outputs - set(pipeline.output_names)
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
                     "Output(s) '{}', required for {}, will "
@@ -272,36 +276,65 @@ class BaseProcessor(object):
                         pipeline.name,
                         '\n'.join('{}={}'.format(o.name, o.value)
                                   for o in study.parameters)))
-            stack[pipeline.name] = pipeline, req_outputs
-            for prereq_name, prereq_req_outputs in pipeline.prerequisites:
-                add_to_stack(prereq_name, study, prereq_req_outputs)
+            # If the pipeline to process contains summary outputs (i.e. 'per-
+            # subject|visit|study' frequency), then we need to "dialate" the
+            # filter array to include IDs across the scope of the study, e.g.
+            # all subjects for per-vist, or all visits for per-subject.
+            output_freqs = set(pipeline.output_frequencies)
+            dialated_filt_array = self._dialate_array(filt_array, output_freqs)
+            added = dialated_filt_array ^ filt_array
+            if added.any():
+                filt_array = dialated_filt_array
+                # Invert the index dictionaries to get index-to-ID maps
+                inv_subject_inds = {v: k for k, v in subject_inds.items()}
+                inv_visit_inds = {v: k for k, v in visit_inds.items()}
+                logger.warning(
+                    "Dialated filter array used to process '{}' pipeline to "
+                    "include {} subject/visit IDs due to its summary outputs "
+                    "({})".format(
+                        pipeline.name,
+                        ', '.join('({},{})'.format(inv_subject_inds[s],
+                                                   inv_visit_inds[v])
+                                  for s, v in zip(*np.nonzero(added))),
+                        ', '.join(output_freqs)))
+            # Append pipeline to stack
+            if pipeline.name in [s[0].name for s in stack.values()]:
+                raise ArcanaDesignError(
+                    "Attempting to run muliple pipelines with the same name "
+                    "('{}') in the same workflow"
+                    .format(pipeline.name))
+            stack[key] = pipeline, req_outputs, filt_array
+            # Recursively add all prerequisites to stack
+            for prq_name, prq_req_outputs in pipeline.prerequisites.items():
+                try:
+                    push_on_stack(prq_name, filt_array, study=study,
+                                  req_outputs=prq_req_outputs)
+                except ArcanaMissingDataException as e:
+                    raise ArcanaMissingDataException(
+                        "{}, which is required as an input of the '{}' "
+                        "pipeline to produce '{}'"
+                        .format(e, self.name, "', '".join(req_outputs)))
 
         # Add all primary pipelines to the stack along with their prereqs
-        for pipeline in pipelines:
-            add_to_stack(pipeline)
+        for pipeline, req_outputs in zip_longest(pipelines, required_outputs):
+            push_on_stack(pipeline, filter_array, req_outputs=req_outputs)
 
         # Iterate through stack of required pipelines from upstream to
         # downstream
         connected_pipelines = {}
-        for pipeline, required_outputs in reversed(stack.items()):
+        for key, (pipeline, req_outputs, flt_array) in reversed(stack.items()):
             try:
-                connected_pipelines[(pipeline.study.name,
-                                     pipeline.name)] = self._connect_pipeline(
-                    pipeline, required_outputs, connected_pipelines, workflow,
-                    subject_inds, visit_inds, filter_array, **kwargs)
+                connected_pipelines[key] = self._connect_pipeline(
+                    pipeline, req_outputs, connected_pipelines, workflow,
+                    subject_inds, visit_inds, flt_array, **kwargs)
             except ArcanaNoRunRequiredException:
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
-            except ArcanaMissingDataException as e:
-                raise  # Work out what the data is ultimately required for
-#                 raise ArcanaMissingDataException(
-#                     "{},\n which in turn is required as an input of the '{}' "
-#                     "pipeline to produce '{}'"
-#                     .format(e, pipeline.name,
-#                             "', '".join(pipeline.required_outputs)))
-        workflow.write_graph(graph2use='flat', format='svg')
-        print('Graph saved in {} directory'.format(os.getcwd()))
+                connected_pipelines[key] = None
+#         workflow.write_graph(graph2use='flat', format='svg')
+#         print('Graph saved in {} directory'.format(os.getcwd()))
+        # Actually run the generated workflow
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
@@ -320,8 +353,9 @@ class BaseProcessor(object):
         ----------
         pipeline : Pipeline
             The pipeline to connect
-        required_outputs : set[str]
-            The outputs required to be produced by this pipeline
+        required_outputs : set[str] | None
+            The outputs required to be produced by this pipeline. If None all
+            are deemed to be required
         connected_pipelines : dict[str, Pipeline]
             A dictionary containing all pipelines that have already been
             connected to avoid the same pipeline being connected twice.
@@ -346,51 +380,25 @@ class BaseProcessor(object):
         # Close-off construction of the pipeline and created, input and output
         # nodes and provenance dictionary
         pipeline.cap()
-        # If the pipeline to process contains summary outputs
-        # (i.e. 'per-subject|visit|study' frequency), then we need to "dialate"
-        # the filter array to include IDs across the scope of the study, e.g.
-        # all subjects for per-vist, or all visits for per-subject.
-        output_freqs = list(pipeline.output_frequencies)
-        if output_freqs != ['per_session']:
-            dialated_filter = self._dialate_array(filter_array, output_freqs)
-            added = dialated_filter ^ filter_array
-            if added.any():
-                filter_array = dialated_filter
-                # Invert the index dictionaries to get index-to-ID maps
-                inv_subject_inds = {v: k for k, v in subject_inds.items()}
-                inv_visit_inds = {v: k for k, v in visit_inds.items()}
-                logger.warning("Dialated filter array used to process '{}' "
-                               "pipeline to include {} subject/visit IDs "
-                               "due to its low frequency outputs ({})"
-                               .format(
-                                   pipeline.name,
-                                   ', '.join(
-                                       '({},{})'.format(inv_subject_inds[s],
-                                                        inv_visit_inds[v])
-                                       for s, v in zip(*np.nonzero(added))),
-                                   ', '.join(output_freqs)))
         # Prepend prerequisite pipelines to complete workflow if they need
         # to be (re)processed
         final_nodes = []
-        # The array that represents the subject/visit pairs for which
-        # any prerequisite pipeline will be (re)processed, and therefore need
-        # to be included in the processing of the current pipeline. Row indices
-        # correspond to subject IDs and column indices visit IDs
-        prereqs_to_process_array = np.zeros(
-            (len(subject_inds), len(visit_inds)), dtype=bool)
-        for prereq_name in pipeline.prerequisites:
-            try:
-                final_node, prereq_to_process_array = connected_pipelines[
-                    prereq_name]
-            except KeyError:
-                pass
-            else:
-                prereqs_to_process_array |= prereq_to_process_array
+        # The array that represents the subject/visit pairs for which any
+        # prerequisite pipeline will be (re)processed, and which therefore
+        # needs to be included in the processing of the current pipeline. Row
+        # indices correspond to subjects and column indices visits
+        prqs_to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
+                                         dtype=bool)
+        for prq_name in pipeline.prerequisites:
+            prereq = connected_pipelines[(id(pipeline.study), prq_name)]
+            if prereq is not None:  # If prerequisite needs to be run
+                final_node, prq_to_process_array = prereq
+                prqs_to_process_array |= prq_to_process_array
                 final_nodes.append(final_node)
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         to_process_array = self._to_process(
-            pipeline, prereqs_to_process_array, filter_array,
+            pipeline, required_outputs, prqs_to_process_array, filter_array,
             subject_inds, visit_inds, force)
         # Check to see if there are any sessions to process
         if not to_process_array.any():
@@ -656,8 +664,8 @@ class BaseProcessor(object):
                              visit_it, self.study.SUBJECT_ID)
         return iter_nodes
 
-    def _to_process(self, pipeline, prereqs_to_process_array, filter_array,
-                    subject_inds, visit_inds, force):
+    def _to_process(self, pipeline, required_outputs, prqs_to_process_array,
+                    filter_array, subject_inds, visit_inds, force):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project repository and were generated with matching provenance.
@@ -668,7 +676,10 @@ class BaseProcessor(object):
         ----------
         pipeline : Pipeline
             The pipeline to determine the sessions to process
-        prereqs_to_process_array : 2-D numpy.array[bool]
+        required_ouputs : set[str]
+            The names of the pipeline outputs that are required. If None all
+            are deemed to be required
+        prqs_to_process_array : 2-D numpy.array[bool]
             A two-dimensional boolean array, where rows and columns correspond
             correspond to subjects and visits in the repository tree. True
             values represent a subject/visit ID pairs that will be
@@ -725,8 +736,6 @@ class BaseProcessor(object):
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
-            prereqs_to_process_array = self._dialate_array(
-                prereqs_to_process_array, output_freqs)
         # Initalise array to represent which sessions need to be reprocessed
         to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
                                     dtype=bool)
@@ -743,7 +752,8 @@ class BaseProcessor(object):
         # Check for sessions for missing required outputs
         for output in pipeline.outputs:
             # Check to see if output is required by downstream processing
-            required = output in pipeline.required_outputs
+            required = (required_outputs is None or
+                        output.name in required_outputs)
             for item in output.collection:
                 # Get row and column indices, if low-frequency (e.g.
                 # per_subject/visit/study) then just mark the first cell in
@@ -817,9 +827,7 @@ class BaseProcessor(object):
                             "reprocess flag == True to overwrite:\n{}".format(
                                 pipeline.name, self, mismatches))
         # Dialate to process array
-        if summary_outputs:
-            to_process_array = self._dialate_array(to_process_array,
-                                                   output_freqs)
+        to_process_array = self._dialate_array(to_process_array, output_freqs)
         # Check for conflicts between nodes to process and nodes to protect
         conflicting = to_process_array * to_protect_array
         if conflicting.any():
@@ -829,9 +837,14 @@ class BaseProcessor(object):
                                   if v == sess_inds[0])
                 visit_id = next(k for k, v in visit_inds.items()
                                 if v == sess_inds[1])
+                if required_outputs is None:
+                    conflict_outputs = pipeline.outputs
+                else:
+                    conflict_outputs = [pipeline.study.bound_spec(r)
+                                        for r in required_outputs]
                 items = [
                     o.collection.item(subject_id=subject_id, visit_id=visit_id)
-                    for o in pipeline.required_outputs]
+                    for o in conflict_outputs]
                 missing = [i for i in items if i not in to_protect[sess_inds]]
                 error_msg += (
                     "\n({}, {}): protected=[{}], missing=[{}]"
@@ -846,11 +859,10 @@ class BaseProcessor(object):
                 "missing required outputs to continue:{}".format(pipeline,
                                                                  error_msg))
         # Add in any prerequisites to process that aren't explicitly protected
-        to_process_array |= (prereqs_to_process_array *
+        to_process_array |= (prqs_to_process_array *
+                             filter_array *
                              np.invert(to_protect_array))
-        if summary_outputs:
-            to_process_array = self._dialate_array(to_process_array,
-                                                   output_freqs)
+        to_process_array = self._dialate_array(to_process_array, output_freqs)
         return to_process_array
 
     def _dialate_array(self, array, output_freqs):
@@ -861,7 +873,9 @@ class BaseProcessor(object):
         for 'per_study') are included in the array if any need for that
         subject/visit need to be processed.
         """
-        if array.all() or not array.any():
+        output_freqs = set(output_freqs)
+        if output_freqs == set(
+                ['per_session']) or array.all() or not array.any():
             return array
         dialated = np.copy(array)
         if 'per_study' in output_freqs:

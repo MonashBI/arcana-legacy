@@ -627,25 +627,40 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         field5 = study.data(
             'derived_field5',
             session_ids=[self.session_id(1, 1)])
-        self.assertEqual(field5.value(*self.session_id(1, 0)), 63)
-        self.assertFalse(any(field5.item(*self.session_id(*i)).exists
-                             for i in ((0, 0), (0, 1), (1, 1))))
+        self.assertEqual(len(field5), 1)
+        self.assertEqual(field5.value(*self.session_id(1, 1)), 63)
 
         # Check that no more fields were generated than necessary
-        def field_keys(inds):
-            return sorted(
-                [('acquired_field1', None)] + [
-                    ('derived_field{}'.format(i), study_name) for i in inds])
-
+        tree = study.tree
         sess00 = study.tree.session(*self.session_id(0, 0))
         sess01 = study.tree.session(*self.session_id(0, 1))
         sess10 = study.tree.session(*self.session_id(1, 0))
         sess11 = study.tree.session(*self.session_id(1, 1))
-        self.assertEqual(sorted(sess00.field_keys), field_keys([1, 4]))
-        self.assertEqual(sorted(sess01.field_keys), field_keys([1, 3, 4]))
-        self.assertEqual(sorted(sess10.field_keys), field_keys([1, 2, 4]))
+        subj0 = study.tree.subject(self.session_id(0, 0)[0])
+        subj1 = study.tree.subject(self.session_id(1, 0)[0])
+        vis0 = study.tree.visit(self.session_id(0, 0)[1])
+        vis1 = study.tree.visit(self.session_id(0, 1)[1])
+        self.assertEqual(list(tree.field_keys),
+                         [('derived_field4', study_name)])
+        self.assertFalse(list(subj0.field_keys))
+        self.assertEqual(list(subj1.field_keys),
+                         [('derived_field2', study_name)])
+        self.assertFalse(list(vis0.field_keys))
+        self.assertEqual(list(vis1.field_keys),
+                         [('derived_field3', study_name)])
+        self.assertEqual(sorted(sess00.field_keys),
+                         [('acquired_field1', None),
+                          ('derived_field1', study_name)])
+        self.assertEqual(sorted(sess01.field_keys),
+                         [('acquired_field1', None),
+                          ('derived_field1', study_name)])
+        self.assertEqual(sorted(sess10.field_keys),
+                         [('acquired_field1', None),
+                          ('derived_field1', study_name)])
         self.assertEqual(sorted(sess11.field_keys),
-                         field_keys([1, 2, 3, 4, 5]))
+                         [('acquired_field1', None),
+                          ('derived_field1', study_name),
+                          ('derived_field5', study_name)])
 
     def test_dialation_protect_conflict(self):
         pass

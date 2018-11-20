@@ -224,13 +224,10 @@ class BaseSpec(object):
         Whether the spec (only valid for derived specs) can be derived
         given the inputs and switches provided to the study
         """
-        if not self.derived:
-            raise ArcanaUsageError(
-                "'{}' is not a derived {}".format(self.name,
-                                                  type(self)))
         try:
-            for inpt in self.pipeline.study_inputs:
-                self.study.spec(inpt.name)
+            # Just need to iterate all study inputs and catch relevant
+            # exceptions
+            list(self.pipeline.study_inputs)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
             return False
@@ -242,7 +239,7 @@ class BaseSpec(object):
 
     @property
     def pipeline(self):
-        return self.study.get_pipeline(self.pipeline_name)
+        return self.study.get_pipeline(self.pipeline_name, [self.name])
 
     @property
     def study(self):

@@ -153,13 +153,7 @@ class Pipeline(object):
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
-            try:
-                spec = self._study.spec(input)
-            except ArcanaMissingDataException as e:
-                raise ArcanaMissingDataException(
-                    "{}, which is required as an input of the '{}' pipeline to"
-                    " produce '{}'"
-                    .format(e, self.name, "', '".join(self.required_outputs)))
+            spec = self._study.spec(input)
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
                 prereqs[spec.pipeline_name].add(input.name)
@@ -168,11 +162,13 @@ class Pipeline(object):
     @property
     def study_inputs(self):
         """
-        Returns all inputs to the pipeline, including inputs of
-        prerequisites (and their prerequisites recursively)
+        Returns all inputs of the study used by the pipeline, including inputs
+        of prerequisites (and their prerequisites recursively)
         """
-        return chain((i for i in self.inputs if not i.derived),
-                     *(p.study_inputs for p in self.prerequisites))
+        return set(chain(
+            (i for i in self.inputs if not i.derived),
+            *(self.study.get_pipeline(p, required_outputs=r).study_inputs
+              for p, r in self.prerequisites.items())))
 
     def add(self, name, interface, inputs=None, outputs=None, connect=None,
             requirements=None, wall_time=None, annotations=None, **kwargs):
