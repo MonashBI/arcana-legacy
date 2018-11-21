@@ -10,7 +10,7 @@ from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
-    ArcanaCantPickleStudyError, ArcanaError, ArcanaUsageError,
+    ArcanaCantPickleStudyError, ArcanaUsageError,
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaOutputNotProducedException)
 from arcana.pipeline import Pipeline
