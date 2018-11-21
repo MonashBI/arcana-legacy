@@ -1,7 +1,6 @@
 import os
 import errno
 import os.path as op
-from collections import defaultdict
 from itertools import chain
 from .base import BaseRepository
 import stat
@@ -9,12 +8,13 @@ import shutil
 import logging
 import json
 from fasteners import InterProcessLock
-from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset, Field
-from arcana.exception import (
+from arcana.pipeline.provenance import Record
+from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
     ArcanaMissingDataException)
+from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
 logger = logging.getLogger('arcana')
@@ -46,8 +46,8 @@ class DirectoryRepository(BaseRepository):
     type = 'simple'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
+    PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
-    DERIVED_LABEL_FNAME = '.derived'
     DEFAULT_SUBJECT_ID = 'SUBJECT'
     DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
@@ -72,6 +72,13 @@ class DirectoryRepository(BaseRepository):
             return self.root_dir == other.root_dir
         except AttributeError:
             return False
+
+    @property
+    def prov(self):
+        return {
+            'type': get_class_info(type(self)),
+            'root': self.root_dir,
+            'host': HOSTNAME}
 
     def __hash__(self):
         return hash(self.root_dir)
@@ -168,28 +175,39 @@ class DirectoryRepository(BaseRepository):
             with open(fpath, 'w') as f:
                 json.dump(dct, f)
 
-    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
+    def put_record(self, record):
+        fpath = self.prov_json_path(record)
+        if not op.exists(op.dirname(fpath)):
+            os.mkdir(op.dirname(fpath))
+        record.save(fpath)
+
+    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
         """
-        Return subject and session information for a project in the local
-        repository
+        Find all data within a repository, registering filesets, fields and
+        provenance with the found_fileset, found_field and found_provenance
+        methods, respectively
 
         Parameters
         ----------
         subject_ids : list(str)
-            List of subject IDs with which to filter the tree with. If None all
-            are returned
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
         visit_ids : list(str)
-            List of visit IDs with which to filter the tree with. If None all
-            are returned
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
 
         Returns
         -------
-        project : arcana.repository.Tree
-            A hierarchical tree of subject, session and fileset information for
-            the repository
+        filesets : list[Fileset]
+            All the filesets found in the repository
+        fields : list[Field]
+            All the fields found in the repository
+        records : list[Record]
+            The provenance records found in the repository
         """
-        all_data = defaultdict(dict)
-        all_visit_ids = set()
+        all_filesets = []
+        all_fields = []
+        all_records = []
         for session_path, dirs, files in os.walk(self.root_dir):
             relpath = op.relpath(session_path, self.root_dir)
             if relpath == '.':
@@ -201,7 +219,7 @@ class DirectoryRepository(BaseRepository):
                 # Load input data
                 from_study = None
             elif (depth == (self._depth + 1) and
-                  self.DERIVED_LABEL_FNAME in files):
+                  self.PROV_DIR in dirs):
                 # Load study output
                 from_study = path_parts.pop()
             elif (depth < self._depth and
@@ -225,89 +243,56 @@ class DirectoryRepository(BaseRepository):
             else:
                 subj_id = self.DEFAULT_SUBJECT_ID
                 visit_id = self.DEFAULT_VISIT_ID
-            subj_id = subj_id if subj_id != self.SUMMARY_NAME else None
-            visit_id = visit_id if visit_id != self.SUMMARY_NAME else None
-            if (subject_ids is not None and subj_id is not None and
-                    subj_id not in subject_ids):
+            # Check for summaries and filtered IDs
+            if subj_id == self.SUMMARY_NAME:
+                subj_id = None
+            elif subject_ids is not None and subj_id not in subject_ids:
                 continue
-            if (visit_ids is not None and visit_id is not None and
-                    visit_id not in visit_ids):
+            if visit_id == self.SUMMARY_NAME:
+                visit_id = None
+            elif visit_ids is not None and visit_id not in visit_ids:
                 continue
+            # Determine frequency of session|summary
             if (subj_id, visit_id) == (None, None):
                 frequency = 'per_study'
             elif subj_id is None:
                 frequency = 'per_visit'
-                all_visit_ids.add(visit_id)
             elif visit_id is None:
                 frequency = 'per_subject'
             else:
                 frequency = 'per_session'
-                all_visit_ids.add(visit_id)
-            try:
-                # Retrieve filesets and fields from other study directories
-                # or root acquired directory
-                filesets, fields = all_data[subj_id][visit_id]
-            except KeyError:
-                filesets = []
-                fields = []
             for fname in chain(self._filter_files(files, session_path),
                                self._filter_dirs(dirs, session_path)):
-                filesets.append(
+                all_filesets.append(
                     Fileset.from_path(
                         op.join(session_path, fname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
-                        from_study=from_study))
+                        from_study=from_study,
+                        **kwargs))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:
                     dct = json.load(f)
-                fields = [Field(name=k, value=v, frequency=frequency,
-                                subject_id=subj_id, visit_id=visit_id,
-                                repository=self, from_study=from_study)
-                          for k, v in list(dct.items())]
-            filesets = sorted(filesets)
-            fields = sorted(fields)
-            all_data[subj_id][visit_id] = (filesets, fields)
-        all_sessions = defaultdict(dict)
-        for subj_id, subj_data in all_data.items():
-            if subj_id is None:
-                continue  # Create Subject summaries later
-            for visit_id, (filesets, fields) in subj_data.items():
-                if visit_id is None:
-                    continue  # Create Visit summaries later
-                all_sessions[subj_id][visit_id] = Session(
-                    subject_id=subj_id, visit_id=visit_id,
-                    filesets=filesets, fields=fields)
-        subjects = []
-        for subj_id, subj_sessions in list(all_sessions.items()):
-            try:
-                filesets, fields = all_data[subj_id][None]
-            except KeyError:
-                filesets = []
-                fields = []
-            subjects.append(Subject(
-                subj_id, sorted(subj_sessions.values()), filesets,
-                fields))
-        visits = []
-        for visit_id in all_visit_ids:
-            visit_sessions = list(chain(
-                sess[visit_id] for sess in list(all_sessions.values())))
-            try:
-                filesets, fields = all_data[None][visit_id]
-            except KeyError:
-                filesets = []
-                fields = []
-            visits.append(Visit(visit_id, sorted(visit_sessions),
-                                filesets, fields))
-        try:
-            filesets, fields = all_data[None][None]
-        except KeyError:
-            filesets = []
-            fields = []
-        return Tree(sorted(subjects), sorted(visits), filesets,
-                    fields, **kwargs)
+                all_fields.extend(
+                    Field(name=k, value=v, frequency=frequency,
+                          subject_id=subj_id, visit_id=visit_id,
+                          repository=self, from_study=from_study,
+                          **kwargs)
+                    for k, v in list(dct.items()))
+            if self.PROV_DIR in dirs:
+                if from_study is None:
+                    raise ArcanaBadlyFormattedDirectoryRepositoryError(
+                        "Found provenance directory in session directory (i.e."
+                        " not in study-specific sub-directory)")
+                base_prov_dir = op.join(session_path, self.PROV_DIR)
+                for fname in os.listdir(base_prov_dir):
+                    all_records.append(Record.load(
+                        split_extension(fname)[0],
+                        frequency, subj_id, visit_id, from_study,
+                        op.join(base_prov_dir, fname)))
+        return all_filesets, all_fields, all_records
 
     def session_dir(self, item):
         if item.frequency == 'per_study':
@@ -342,14 +327,14 @@ class DirectoryRepository(BaseRepository):
         # Make session dir if required
         if not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-            # write breadcrumb file t
-            if item.from_study is not None:
-                open(op.join(sess_dir,
-                             self.DERIVED_LABEL_FNAME), 'w').close()
         return sess_dir
 
     def fields_json_path(self, field):
         return op.join(self.session_dir(field), self.FIELDS_FNAME)
+
+    def prov_json_path(self, record):
+        return op.join(self.session_dir(record), self.PROV_DIR,
+                       record.pipeline_name + '.json')
 
     def guess_depth(self, root_dir):
         """
@@ -373,7 +358,7 @@ class DirectoryRepository(BaseRepository):
                             .format(root_dir, depth,
                                     "', '".join(filtered_files), path))
                 return depth
-            if self.DERIVED_LABEL_FNAME in files:
+            if self.PROV_DIR in dirs:
                 depth_to_return = max(depth - 1, 0)
                 logger.info("Guessing depth of directory repository at '{}' is"
                             "{} due to \"Derived label file\" in '{}'"
@@ -411,10 +396,11 @@ class DirectoryRepository(BaseRepository):
     def _filter_dirs(cls, dirs, base_dir):
         # Filter out hidden directories (i.e. starting with '.')
         # and derived study directories from fileset names
-        return [
+        filtered = [
             op.join(base_dir, d) for d in dirs
-            if not (d.startswith('.') or (
-                cls.DERIVED_LABEL_FNAME in os.listdir(op.join(base_dir, d))))]
+            if not (d.startswith('.') or d == cls.PROV_DIR or (
+                cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
+        return filtered
 
     def path_depth(self, dpath):
         relpath = op.relpath(dpath, self.root_dir)

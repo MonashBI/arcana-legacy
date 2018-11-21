@@ -17,17 +17,16 @@ See the License for the specific language governing permissions and
 limitations under the License.
 """
 
-from .version_ import __version__
+from .pkg_info import __version__
 import os
 from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
-    SubStudySpec)
+    SubStudySpec, Parameter, ParameterSpec, SwitchSpec)
 from .data import (
     FilesetSpec, FilesetSelector, FieldSpec, FieldSelector,
     AcquiredFilesetSpec, AcquiredFieldSpec)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
-from .parameter import Parameter, ParameterSpec, SwitchSpec
 from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
 from .environment import StaticEnvironment, ModulesEnvironment
 from .repository import DirectoryRepository, XnatRepository

@@ -5,9 +5,9 @@ from arcana.data import AcquiredFilesetSpec, FilesetSpec, FilesetSelector, Files
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.testing import BaseTestCase
+from arcana.utils.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
-from arcana.interfaces.utils import ZipDir
+from arcana.utils.interfaces import ZipDir
 from future.utils import with_metaclass
 from unittest import TestCase
 
@@ -16,8 +16,7 @@ class TestConverterAvailability(TestCase):
 
     def test_find_converter(self):
         converter = zip_format.converter_from(directory_format)
-        node, _, _ = converter.get_node('dummy')
-        self.assertIsInstance(node.interface, ZipDir)
+        self.assertIsInstance(converter.interface, ZipDir)
 
 
 class ConversionStudy(with_metaclass(StudyMetaClass, Study)):

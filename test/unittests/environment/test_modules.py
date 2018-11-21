@@ -1,21 +1,36 @@
+import os
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
     AcquiredFilesetSpec, FilesetSpec, FilesetSelector, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.exception import (ArcanaModulesNotInstalledException,
+from arcana.exceptions import (ArcanaModulesNotInstalledException,
                               ArcanaError)
 import unittest
-from arcana.testing import BaseTestCase, TestMath
+from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
-from arcana.environment import Requirement, ModulesEnvironment
+from arcana.environment import ModulesEnvironment
 from arcana.processor import LinearProcessor
 from future.utils import with_metaclass
+from arcana.environment import BaseRequirement
 
 
-notinstalled1_req = Requirement(name='notinstalled1', min_version=(1, 0))
-notinstalled2_req = Requirement(name='notinstalled2', min_version=(1, 0))
-first_req = Requirement('firsttestmodule', min_version=(0, 15, 9))
-second_req = Requirement('secondtestmodule', min_version=(1, 0, 2))
+class DummyRequirement(BaseRequirement):
+
+    def detect_version_str(self):
+        try:
+            return os.environ[self.name.upper() + '_VERSION']
+        except KeyError:
+            loaded_modules = ModulesEnvironment.loaded()
+            raise ArcanaError(
+                "Did not find {} in environment variables, found '{}'. "
+                "The loaded modules are {}"
+                .format(self.name.upper() + '_VERSION',
+                        "', '".join(os.environ.keys()),
+                        ', '.join(loaded_modules)))
+
+
+first_req = DummyRequirement('firsttestmodule')
+second_req = DummyRequirement('secondtestmodule')
 
 try:
     ModulesEnvironment._run_module_cmd('avail')
@@ -23,6 +38,8 @@ except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
     MODULES_NOT_INSTALLED = False
+
+SKIP_ARGS = (MODULES_NOT_INSTALLED, "Environment modules are not installed")
 
 
 class TestMathWithReq(TestMath):
@@ -53,9 +70,8 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
             name_maps=name_maps)
         # Convert from DICOM to NIfTI.gz format on input
         maths = pipeline.add(
-            "maths", TestMathWithReq(), requirements=[
-                (notinstalled1_req, notinstalled2_req,
-                 first_req), second_req])
+            "maths", TestMathWithReq(),
+            requirements=[first_req.v('0.15.9'), second_req.v('1.0.2')])
         maths.inputs.op = 'add'
         maths.inputs.as_file = True
         maths.inputs.y = 1
@@ -73,8 +89,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         merge = pipeline.add("merge", Merge(2))
         maths = pipeline.add(
             "maths", TestMathWithReq(), iterfield='x', requirements=[
-                (notinstalled1_req, notinstalled2_req,
-                 first_req), second_req])
+                first_req.v('0.15.9'), second_req.v('1.0.2')])
         split = pipeline.add('split', Split())
         split.inputs.splits = [1, 1]
         split.inputs.squeeze = True
@@ -98,8 +113,7 @@ class TestModuleLoad(BaseTestCase):
         return LinearProcessor(
             self.work_dir)
 
-    @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Dcm2niix and Mrtrix modules are not installed")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
@@ -108,8 +122,7 @@ class TestModuleLoad(BaseTestCase):
         self.assertContentsEqual(study.data('twos'), 2.0)
         self.assertEqual(ModulesEnvironment.loaded(), {})
 
-    @unittest.skipIf(MODULES_NOT_INSTALLED,
-                     "Dcm2niix and Mrtrix modules are not installed")
+    @unittest.skipIf(*SKIP_ARGS)
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',

@@ -1,44 +1,39 @@
 from copy import copy
-from arcana.node import Node
-from arcana.interfaces.utils import (
+from arcana.utils.interfaces import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
 from .base import FileFormat, Converter
 
 
 class UnzipConverter(Converter):
 
-    requirements = []
-
-    def get_node(self, name, **kwargs):
-        convert_node = Node(UnzipDir(), name=name, memory=12000, **kwargs)
-        return convert_node, 'zipped', 'unzipped'
+    interface = UnzipDir()
+    mem_gb = 12
+    input = 'zipped'
+    output = 'unzipped'
 
 
 class ZipConverter(Converter):
 
-    requirements = []
-
-    def get_node(self, name, **kwargs):
-        convert_node = Node(ZipDir(), name=name, memory=12000, **kwargs)
-        return convert_node, 'dirname', 'zipped'
+    interface = ZipDir()
+    mem_gb = 12
+    input = 'dirname'
+    output = 'zipped'
 
 
 class TarGzConverter(Converter):
 
-    requirements = []
-
-    def get_node(self, name, **kwargs):
-        convert_node = Node(TarGzDir(), name=name, memory=12000, **kwargs)
-        return convert_node, 'dirname', 'zipped'
+    interface = TarGzDir()
+    mem_gb = 12
+    input = 'dirname'
+    output = 'zipped'
 
 
 class UnTarGzConverter(Converter):
 
-    requirements = []
-
-    def get_node(self, name, **kwargs):
-        convert_node = Node(UnTarGzDir(), name=name, memory=12000, **kwargs)
-        return convert_node, 'gzipped', 'gunzipped'
+    interface = UnTarGzDir()
+    mem_gb = 12
+    input = 'gzipped'
+    output = 'gunzipped'
 
 
 # General formats

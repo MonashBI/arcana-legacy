@@ -1,22 +1,32 @@
 from __future__ import division
 import logging
-from arcana.exception import ArcanaRequirementNotSatisfiedError
-
+from .base import BaseEnvironment
+from arcana.exceptions import (
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaVersionError)
 
 logger = logging.getLogger('arcana')
 
 
-class StaticEnvironment(object):
+class StaticEnvironment(BaseEnvironment):
     """
     Checks to see if requirements are satisfiable by the current
     computing environment. Subclasses can also manage the loading and
     unloading of modules
+
+    Parameters
+    ----------
+    fail_on_missing : bool
+        Raise an error if a requirement is not satisfied
+    fail_on_undetectable : bool
+        Raise an error if the version of a requirement cannot be detected
     """
 
-    def __eq__(self, other):
-        return type(self) == type(other)
+    def __init__(self, fail_on_missing=True, fail_on_undetectable=True):
+        self._fail_on_missing = fail_on_missing
+        self._fail_on_undectable = fail_on_undetectable
 
-    def satisfiable(self, *requirements, **kwargs):
+    def satisfy(self, *requirements):
         """
         Checks whether the given requirements are satisfiable within the given
         execution context
@@ -26,32 +36,23 @@ class StaticEnvironment(object):
         requirements : list(Requirement)
             List of requirements to check whether they are satisfiable
         """
-        self.load(*requirements, **kwargs)
-        not_satisfied = [r for r in requirements if not r.satisfied]
-        if not_satisfied:
-            raise ArcanaRequirementNotSatisfiedError(
-                "Could not satisfy the following requirements:\n"
-                .format('\n'.join(str(r) for r in not_satisfied)))
-        self.unload(*requirements, **kwargs)
-
-    def load(self, *requirements, **kwargs):
-        """
-        Loads the given requirements if necessary
-
-        Parameter
-        ---------
-        requirements : list(Requirement)
-            List of requirements to load
-        """
-        pass  # Nothing is done in the basic case
-
-    def unload(self, *requirements, **kwargs):
-        """
-        Unloads the given requirements if necessary
-
-        Parameter
-        ---------
-        requirements : list(Requirement)
-            List of requirements to unload
-        """
-        pass  # Nothing is done in the basic case
+        versions = []
+        for req_range in requirements:
+            try:
+                version = req_range.requirement.detect_version()
+            except ArcanaRequirementNotFoundError as e:
+                if self._fail_on_missing:
+                    raise
+                else:
+                    logger.warning(e)
+            except ArcanaVersionNotDectableError as e:
+                if self._fail_on_undetectable:
+                    raise
+                else:
+                    logger.warning(e)
+            if not req_range.within(version):
+                raise ArcanaVersionError(
+                    "Detected {} version {} is not within requested range {}"
+                    .format(req_range.requirement, version, req_range))
+            versions.append(version)
+        return versions

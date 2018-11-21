@@ -5,17 +5,20 @@ services:
 matrix:
   include:
     - python: 2.7
-      env: ARCANA_TEST_DATA=$HOME/data/py2.7
+      env: ARCANA_TEST_DATA=$HOME/data/py27
     - python: 3.4
-      env: ARCANA_TEST_DATA=$HOME/data/py3.4
+      env: ARCANA_TEST_DATA=$HOME/data/py34
     - python: 3.6
-      env: ARCANA_TEST_DATA=$HOME/data/py3.6
+      env: ARCANA_TEST_DATA=$HOME/data/py36
 env:
   global:
-    - ARCANA_TEST_XNAT='http://localhost'
     - XNAT_VER=1.7.4
+    - ARCANA_TEST_XNAT=http://localhost
+    - XNAT_DIR=$HOME/xnat
+    - DOCKER_VER=1.21.2
     - MODULESHOME=$HOME/packages/modules
     - MODULEPATH=$HOME/modules
+    - NUMBER_OF_PROCESSORS=8
 addons:
   apt:
     update: true
@@ -35,12 +38,12 @@ addons:
     - cmake
 before_install:
   - sudo rm /usr/local/bin/docker-compose
-  - curl -L https://github.com/docker/compose/releases/download/1.21.2/docker-compose-`uname -s`-`uname -m`  > docker-compose
+  - curl -L https://github.com/docker/compose/releases/download/$DOCKER_VER/docker-compose-`uname -s`-`uname -m`  > docker-compose
   - chmod +x docker-compose
   - sudo mv docker-compose /usr/local/bin
-install:
-  - export NUMBER_OF_PROCESSORS=8
+install: 
   - ci/xnat.sh
+  - pushd $XNAT_DIR; docker-compose up -d; popd
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .
@@ -50,6 +53,8 @@ install:
   - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
+after_script:
+  - pushd $XNAT_DIR; docker-compose down; popd
 cache:
   directories:
     - $HOME/packages

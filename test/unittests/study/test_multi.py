@@ -1,13 +1,13 @@
-from arcana.testing import BaseTestCase, TestMath
-from arcana.interfaces.utils import Merge
+from arcana.utils.testing import BaseTestCase, TestMath
+from arcana.utils.interfaces import Merge
 from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
 from arcana.data.file_format.standard import text_format
-from arcana.parameter import ParameterSpec
-from arcana.exception import ArcanaOutputNotProducedException
+from arcana.study.parameter import ParameterSpec
+from arcana.exceptions import ArcanaOutputNotProducedException
 from arcana.study.base import Study
 from arcana.study.multi import (
     MultiStudy, SubStudySpec, MultiStudyMetaClass, StudyMetaClass)
-from arcana.parameter import Parameter
+from arcana.study.parameter import Parameter
 from future.utils import with_metaclass
 import unittest
 

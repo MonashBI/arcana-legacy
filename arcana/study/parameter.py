@@ -1,7 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 from copy import copy
-from arcana.exception import ArcanaUsageError
+from arcana.exceptions import ArcanaUsageError
 
 
 class Parameter(object):

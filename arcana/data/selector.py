@@ -3,15 +3,15 @@ import re
 from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaFilesetSelectorError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseMatch(object):
+class BaseSelector(object):
     """
-    Base class for Fileset and Field Match classes
+    Base class for Fileset and Field Selector classes
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
@@ -31,14 +31,14 @@ class BaseMatch(object):
                 self.pattern == other.pattern and
                 self.is_regex == other.is_regex and
                 self.order == other.order and
-                self.repository == other.repository)
+                self._repository == other._repository)
 
     def __hash__(self):
         return (hash(self.from_study) ^
                 hash(self.pattern) ^
                 hash(self.is_regex) ^
                 hash(self.order) ^
-                hash(self.repository))
+                hash(self._repository))
 
     @property
     def pattern(self):
@@ -54,7 +54,16 @@ class BaseMatch(object):
 
     @property
     def repository(self):
-        return self._repository
+        if self._repository is None:
+            if self._study is None:
+                raise ArcanaUsageError(
+                    "Cannot access repository of {} as it wasn't explicitly "
+                    "provided and Selector hasn't been bound to a study"
+                    .format(self))
+            repo = self._study.repository
+        else:
+            repo = self._repository
+        return repo
 
     @property
     def collection(self):
@@ -160,7 +169,7 @@ class BaseMatch(object):
         return dct
 
 
-class FilesetSelector(BaseMatch, BaseFileset):
+class FilesetSelector(BaseSelector, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -219,7 +228,7 @@ class FilesetSelector(BaseMatch, BaseFileset):
                 "Either 'pattern' or 'id' need to be provided to "
                 "FilesetSelector constructor")
         BaseFileset.__init__(self, name, format, frequency)
-        BaseMatch.__init__(self, pattern, is_regex, order,
+        BaseSelector.__init__(self, pattern, is_regex, order,
                            from_study, repository, study_, collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
@@ -234,19 +243,19 @@ class FilesetSelector(BaseMatch, BaseFileset):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseMatch.__eq__(self, other) and
+                BaseSelector.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseMatch.__hash__(self) ^
+                BaseSelector.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseMatch.initkwargs(self))
+        dct.update(BaseSelector.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
         return dct
@@ -323,7 +332,7 @@ class FilesetSelector(BaseMatch, BaseFileset):
         return {'format': self.format}
 
 
-class FieldSelector(BaseMatch, BaseField):
+class FieldSelector(BaseSelector, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -367,21 +376,20 @@ class FieldSelector(BaseMatch, BaseField):
                  order=None, is_regex=False, from_study=None,
                  repository=None, study_=None, collection_=None):
         BaseField.__init__(self, name, dtype, frequency)
-        BaseMatch.__init__(self, pattern, is_regex, order,
+        BaseSelector.__init__(self, pattern, is_regex, order,
                            from_study, repository,
                            study_, collection_)
-        super(FieldSelector, self).__init__(name, dtype, frequency)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseMatch.__eq__(self, other))
+                BaseSelector.__eq__(self, other))
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseMatch.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseSelector.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseMatch.initkwargs(self))
+        dct.update(BaseSelector.initkwargs(self))
         return dct
 
     def _filtered_matches(self, node):

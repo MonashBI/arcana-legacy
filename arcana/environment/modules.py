@@ -7,17 +7,50 @@ import re
 import logging
 import subprocess as sp
 from collections import defaultdict
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
-    ArcanaEnvModuleNotLoadedError)
-from .static import StaticEnvironment
-from .requirement import Requirement
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaVersionError)
+from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
 
 
 logger = logging.getLogger('arcana')
 
 
-class ModulesEnvironment(StaticEnvironment):
+class ModulesNodeMixin(NodeMixin):
+
+    def _run_command(self, *args, **kwargs):
+        try:
+            self.environment.load(*self.versions)
+            result = self.base_cls._run_command(self, *args, **kwargs)
+        finally:
+            self.environment.unload(*self.versions)
+        return result
+
+    def _load_results(self, *args, **kwargs):
+        self.environment.load(*self.versions)
+        result = self.base_cls._load_results(self, *args, **kwargs)
+        self.environment.unload(*self.versions)
+        return result
+
+
+class ModulesNode(ModulesNodeMixin, Node):
+
+    base_cls = Node  # Not req. in Py3 where super() in mixin works
+
+
+class ModulesJoinNode(ModulesNodeMixin, JoinNode):
+
+    base_cls = JoinNode  # Not req. in Py3 where super() in mixin works
+
+
+class ModulesMapNode(ModulesNodeMixin, MapNode):
+
+    node_cls = ModulesNode
+    base_cls = MapNode  # Not req. in Py3 where super() in mixin works
+
+
+class ModulesEnvironment(BaseEnvironment):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
@@ -28,45 +61,138 @@ class ModulesEnvironment(StaticEnvironment):
 
     Parameters
     ----------
-    packages_map : dct[str, Requirement] | callable
-        A Mapping from the name a module installed on the system to a
-        requirement
-    versions_map : dct[str, str] | callable
-        A Mapping from the name of the version to the standarding versioning
-        conventions assumed by the corresponding requirement
+    packages_map : dct[str, str] | callable
+        A Mapping from the name of a requirement to a module installed in the
+        environment
+    versions_map : dct[str, dct[str, str]] | callable
+        A Mapping from the name of a requirement to a dictionary, which in
+        turn maps the version of a module installed in the environment to
+        a version recognised by the requirement.
+    ignore_unrecognised : bool
+        If True, then unrecognisable versions are ignored instead of
+        throwing an error
     """
 
-    def __init__(self, packages_map=None, versions_map=None):
-        self._loaded = {}
+    node_types = {'base': ModulesNode, 'map': ModulesMapNode,
+                  'join': ModulesJoinNode}
+
+    def __init__(self, packages_map=None, versions_map=None,
+                 fail_on_missing=True, ignore_unrecognised=True,
+                 detect_exact_versions=True):
         if packages_map is None:
             packages_map = {}
         if versions_map is None:
             versions_map = {}
-        self._avail_cache = None
         self._packages_map = packages_map
         self._versions_map = versions_map
+        self._ignore_unrecog = ignore_unrecognised
+        self._fail_on_missing = fail_on_missing
+        self._detect_exact_versions = detect_exact_versions
+        self._detected_cache = None
+        self._available = self.available()
 
-    def load(self, *requirements):
-        for req in requirements:
-            # Get best requirement from list of possible options
-            name, version = Requirement.best_requirement(
-                req, self._available_cache)
-            module_id = name + ('/' + version if version is not None else '')
-            self._run_module_cmd('load', module_id)
-            self._loaded[req] = module_id
+    def __eq__(self, other):
+        return (self._packages_map == other._packages_map and
+                self._versions_map == other._versions_map and
+                self._fail_on_missing == other._fail_on_missing and
+                self._ignore_unrecog == other._ignore_unrecog and
+                self._detect_exact_version == other._detect_exact_version)
 
-    def unload(self, *requirements, **kwargs):
-        not_loaded_ok = kwargs.pop('not_loaded_ok', False)
-        for req in requirements:
+    def satisfy(self, *requirements):
+        versions = []
+        for req_range in requirements:
+            req = req_range.requirement
+            local_name = self.map_name(req.name)
             try:
-                module_id = self._loaded[req]
+                version_names = self._available[local_name]
             except KeyError:
-                if not not_loaded_ok:
-                    raise ArcanaEnvModuleNotLoadedError(
-                        "Could not unload module ({}) as it wasn't loaded"
-                        .format(req))
-            else:
-                self._run_module_cmd('unload', module_id)
+                if self._fail_on_missing:
+                    raise ArcanaRequirementNotFoundError(
+                        "Could not find module for {} ({})".format(req.name,
+                                                                   local_name))
+                else:
+                    logger.warning("Did not find module for {} ({})"
+                                   .format(req.name, local_name))
+            avail_versions = []
+            for local_ver_name in version_names:
+                ver_name = self.map_version(req_range.name, local_ver_name)
+                try:
+                    avail_versions.append(
+                        req.v(ver_name, local_name=local_name,
+                              local_version=local_ver_name))
+                except ArcanaVersionNotDectableError:
+                    if self._ignore_unrecog:
+                        logger.warning(
+                            "Ignoring unrecognised available version '{}' of "
+                            "{}".format(ver_name, req_range.name))
+                        continue
+                    else:
+                        raise
+            version = req_range.latest_within(avail_versions)
+            # To get the exact version (i.e. not just what the
+            # modules administrator has called it) we load the module
+            # detect the version and unload it again
+            if self._detect_exact_versions:
+                self.load(version)
+                exact_version = req.detect_version(
+                    local_name=local_name, local_version=local_ver_name)
+                self.unload(version)
+                if not req_range.within(exact_version):
+                    raise ArcanaVersionError(
+                        "Version of {} specified by module {} does not match "
+                        "expected {} and is outside the acceptable range [{}]"
+                        .format(req.name, local_ver_name, str(version),
+                                str(req_range)))
+                if exact_version < version:
+                    raise ArcanaVersionError(
+                        "Version of {} specified by module {} is less than "
+                        "the expected {}"
+                        .format(req.name, local_ver_name, str(version)))
+                version = exact_version
+            # Get latest requirement from list of possible options
+            versions.append(version)
+        return versions
+
+    def load(self, *versions):
+        for version in versions:
+            self._run_module_cmd('load', self._module_id(version))
+
+    def unload(self, *versions):
+        for version in versions:
+            self._run_module_cmd('unload', self._module_id(version))
+
+    @classmethod
+    def _module_id(cls, version):
+        return '{}/{}'.format(version.local_name, version.local_version)
+
+    def map_name(self, name):
+        """
+        Maps the name of an Requirement class to the name of the corresponding
+        module in the environment
+        """
+        if isinstance(self._packages_map, dict):
+            local_name = self._packages_map.get(name, name)
+        else:
+            local_name = self._packages_map(name)
+        return local_name
+
+    def map_version(self, name, local_version):
+        """
+        Maps a local version name to one recognised by the Requirement class
+
+        Parameters
+        ----------
+        name : str
+            Name of the requirement
+        local_version : str
+            version string
+        """
+        if isinstance(self._versions_map, dict):
+            version = self._versions_map.get(name, {}).get(local_version,
+                                                           local_version)
+        else:
+            version = self._versions_map(name, local_version)
+        return version
 
     @classmethod
     def loaded(cls):
@@ -95,12 +221,6 @@ class ModulesEnvironment(StaticEnvironment):
                                       ' '.join(sanitized)):
             available[module.lower()].append(ver)
         return available
-
-    @property
-    def _available_cache(self):
-        if self._avail_cache is None:
-            self._avail_cache = self.available()
-        return self._avail_cache
 
     @classmethod
     def _run_module_cmd(cls, *args):

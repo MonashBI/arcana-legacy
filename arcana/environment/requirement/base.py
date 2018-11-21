@@ -1,69 +1,387 @@
 from __future__ import division
 from builtins import object
+import math
 import logging
-from itertools import zip_longest
-from arcana.exception import (
-    ArcanaError, ArcanaRequirementVersionException)
-from .utils import split_version
+from arcana.exceptions import (
+    ArcanaUsageError, ArcanaVersionNotDectableError, ArcanaVersionError)
+import re
 
 
 logger = logging.getLogger('arcana')
 
 
-class Requirement(object):
+class Version(object):
     """
-    Defines a software package that is required by a processing Node, which is
-    typically wrapped up in an environment module (see
-    http://modules.sourceforge.net)
+    Representation of a requirement version. Parses version strings that
+    follow the convention
+
+    i.e. <MACRO>.<MINOR>[<PRERELEASE>].[<MICRO>[<PRERELEASE>]][.dev<REVISION>]
+
+    Parameters
+    ----------
+    requirement : Requirement
+        The requirement the version is of
+    version : str
+        The string representation of the version
+    local_name : str
+        The name of the requirement as referred to in the local environment
+    local_version : str
+        The version str as referred to in the local environment
+    """
+
+    delimeter = '.'
+
+    def __init__(self, requirement, version, local_name=None,
+                 local_version=None):
+        self._req = requirement
+        self._seq, self._prerelease, self._dev = self.parse(version)
+        self._local_version = (local_version if local_version is not None
+                               else version)
+        self._local_name = (local_name if local_name is not None
+                            else requirement.name)
+
+    @property
+    def requirement(self):
+        return self._req
+
+    @property
+    def name(self):
+        return self.requirement.name
+
+    @property
+    def sequence(self):
+        return self._seq
+
+    @property
+    def prerelease(self):
+        return self._prerelease
+
+    @property
+    def dev(self):
+        return self._dev
+
+    @property
+    def local_version(self):
+        """
+        The un-parsed version string. Used to cross-reference with list of
+        available versions coming from an Environment
+        """
+        return self._local_version
+
+    @property
+    def local_name(self):
+        return self._local_name
+
+    def serialise(self):
+        pass
+
+    @classmethod
+    def unserialise(cls, dct):
+        pass
+
+    def __str__(self):
+        s = self.delimeter.join(str(i) for i in self._seq)
+        if self._prerelease is not None:
+            s += '{}{}'.format(*self._prerelease)
+        if self._dev is not None:
+            s += '.dev{}'.format(self._dev)
+        return s
+
+    def __repr__(self):
+        return "{}[{}]".format(self._req, str(self))
+
+    def __eq__(self, other):
+        return (self._req == other._req and
+                self._seq == other._seq and
+                self._prerelease == other._prerelease and
+                self._dev == other._dev)
+
+    def compare(self, other):
+        """
+        Compares the version with another
+
+        Parameters
+        ----------
+        other : Version
+            The version to compare to
+        """
+        if self._req != other._req:
+            raise ArcanaUsageError(
+                "Can't compare versions of different requirements {} and {}"
+                .format(self._req, other._req))
+        # Compare main sequence
+        if self._seq < other._seq:
+            return -1
+        elif self._seq > other._seq:
+            return 1
+        # If main sequence is equal check prerelease. If a prerelease is
+        # None then it is a full release which is > then a prerelease so we
+        # just assign it 'z' (which is greater than 'a', 'b' and 'rc')
+        s = self._prerelease if self._prerelease is not None else ('z',)
+        o = other._prerelease if other._prerelease is not None else ('z',)
+        if s < o:
+            return -1
+        if s > o:
+            return 1
+        # If both main sequence and prereleases are equal, compare development
+        # versions
+        if self._dev is not None or other._dev is not None:
+            if self._dev is None:
+                return -1
+            elif other._dev is None:
+                return 1
+            elif self._dev < other._dev:
+                return -1
+            elif self._dev > other._dev:
+                return 1
+        assert self == other
+        return 0
+
+    def __lt__(self, other):
+        return self.compare(other) < 0
+
+    def __gt__(self, other):
+        return self.compare(other) > 0
+
+    def __le__(self, other):
+        return self.compare(other) <= 0
+
+    def __ge__(self, other):
+        return self.compare(other) >= 0
+
+    @property
+    def regex(self):
+        # Escape delimeter if required
+        m = ('\\' + self.delimeter if self.delimeter in r'{}\$.|?*+()[]'
+             else self.delimeter)
+        # Pattern to match sub-version
+        sub_ver = r'{}\d+[a-zA-Z\-_0-9]*'.format(m)
+        return re.compile(r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'
+                          .format(m=m, sv=sub_ver))
+
+    def parse(self, version):
+        """
+        Splits a typical version string (e.g. <MAJOR>.<MINOR>.<MICRO>)
+        into a tuple that can be sorted properly. Ignores all leading
+        and trailing characters by using a regex search (instead of match) so
+        as to pick the version string out of a block of text.
+
+        Parameters
+        ----------
+        version : str | int | float | tuple(int)
+            The string containing the version numbers, or alternatively an
+            integer, float (number after decimal is interpreted as minor ver),
+            or tuple|list containing the version sequence.
+
+        Returns
+        -------
+        sequence : tuple(int | str)
+            A tuple containing the main sequence of the version,
+            e.g. <MAJOR>.<MINOR>.<MICRO>
+        prerelease : 2-tuple(str, int) | None
+            A 2-tuple containing the type of prerelease ('a' - alpha,
+            'b' - beta, or 'rc' - release-canditate) and the number of the
+            prerelease
+        dev : int | None
+            The number of the development version
+        """
+        # Check to see if version is not a string but rather another type
+        # that can be interpreted as a version
+        if isinstance(version, int):
+            return (version,), None, None
+        elif isinstance(version, (tuple, list)):
+            return tuple(int(i) for i in version), None, None
+        elif isinstance(version, float):
+            major = math.floor(version)
+            minor = version - major
+            return (major, minor), None, None
+        match = self.regex.search(version)
+        if match is None:
+            raise ArcanaVersionNotDectableError(
+                "Could not parse version string {} as {}. Regex ({}) did not "
+                "match any sub-string".format(version, type(self).__name__,
+                                              self.regex.pattern))
+        sequence = []
+        prerelease = None
+        dev = None
+        for part in match.group(1).split(self.delimeter):
+            if part.startswith('dev'):
+                try:
+                    dev = int(part[3:])
+                except ValueError:
+                    dev = part[3:]
+            else:
+                # Split on non-numeric parts of the version string so that we
+                # can detect prerelease
+                sub_parts = re.split('([^\d]+)', part)
+                if sub_parts[0]:
+                    try:
+                        seq_part = int(sub_parts[0])
+                    except ValueError:
+                        seq_part = sub_parts[0]
+                    sequence.append(seq_part)
+                if len(sub_parts) > 1:
+                    stage = sub_parts[1]
+                    pr_ver = ''.join(sub_parts[2:])
+                    try:
+                        pr_ver = int(pr_ver)
+                    except ValueError:
+                        pass
+                    stage = stage.strip('-_').lower()
+                    if not stage:  # No prerelease info, assume a dev version
+                        assert dev is None
+                        dev = pr_ver
+                        continue
+                    if 'alpha'.startswith(stage):
+                        stage = 'a'
+                    elif 'beta'.startswith(stage):
+                        stage = 'b'
+                    elif stage == 'rc' or stage == 'release-canditate':
+                        stage = 'rc'
+                    else:
+                        raise ArcanaVersionNotDectableError(
+                            "Could not parse version string {} as {}. "
+                            "Did not recognise pre-release stage {}"
+                            .format(version, type(self).__name__, stage))
+                    prerelease = (stage, pr_ver)
+        return tuple(sequence), prerelease, dev
+
+    def within(self, version):
+        """
+        A single version can also be interpreted as an open range (i.e. no
+        maximum version)
+        """
+        if not isinstance(version, Version):
+            version = type(self._min_ver)(self._req, version)
+        return version >= self
+
+    def latest_within(self, *args, **kwargs):
+        return self._req.latest_within_range(self, *args, **kwargs)
+
+
+class VersionRange(object):
+    """
+    A range of versions associated with a software requirement
+
+    Parameters
+    ----------
+    min_version : Version
+        The minimum version required by the node
+    max_version : Version
+        The maximum version that is compatible with the Node
+    """
+
+    def __init__(self, min_version, max_version):
+        if min_version.requirement != max_version.requirement:
+            raise ArcanaUsageError(
+                "Inconsistent requirements between min and max versions "
+                "({} and {})".format(min_version.requirement,
+                                     max_version.requirement))
+        self._min_ver = min_version
+        self._max_ver = max_version
+        if max_version < min_version:
+            raise ArcanaUsageError(
+                "Maxium version in is less than minimum in {}"
+                .format(self))
+
+    @property
+    def name(self):
+        return self.minimum.name
+
+    @property
+    def requirement(self):
+        return self.minimum.requirement
+
+    @property
+    def minimum(self):
+        return self._min_ver
+
+    @property
+    def maximum(self):
+        return self._max_ver
+
+    def __eq__(self, other):
+        return (self._min_ver == other._min_ver and
+                self._max_ver == other._max_ver)
+
+    def __str__(self):
+        return '{} <= v <= {}'.format(self.minimum, self.maximum)
+
+    def __repr__(self):
+        return "{}[{}]".format(
+            self._min_ver.requirement, self)
+
+    def within(self, version):
+        if not isinstance(version, Version):
+            version = type(self._min_ver)(self.requirement, version)
+        return version >= self._min_ver and version <= self._max_ver
+
+    def latest_within(self, *args, **kwargs):
+        return self._min_ver.requirement.latest_within_range(self, *args,
+                                                             **kwargs)
+
+
+class BaseRequirement(object):
+    """
+    Base class for a details of a software package that is required by
+    a node of a pipeline.
 
     Parameters
     ----------
     name : str
         Name of the package
-    min_version : tuple(int|str)
-        The minimum version required by the node
-    max_version : tuple(int|str) | None
-        The maximum version that is compatible with the Node
-    version_split : function
-        A function that splits the version string into major/minor/micro
-        parts or equivalent
     references : list[Citation]
         A list of references that should be cited when using this software
         requirement
     website : str
         Address of the website detailing the software
+    delimeter : str
+        Delimeter used to split a version string
     """
 
-    def __init__(self, name, min_version, max_version=None,
-                 version_split=split_version, references=None,
-                 website=None):
+    def __init__(self, name, references=None, website=None,
+                 version_cls=Version):
         self._name = name.lower()
-        self._min_ver = tuple(min_version)
-        if max_version is not None:
-            self._max_ver = tuple(max_version)
-            if not self.later_or_equal_version(self._max_ver, self._min_ver):
-                raise ArcanaError(
-                    "Supplied max version ({}) is not greater than min "
-                    " version ({})".format(self._min_ver, self._max_ver))
-        else:
-            self._max_ver = None
-        self._version_split = version_split
         self._references = references if references is not None else []
         self._website = website
+        self._version_cls = version_cls
+
+    def __eq__(self, other):
+        return (self.name == other.name and
+                self._references == other._references and
+                self.website == other.website and
+                self._version_cls == other._version_cls)
 
     @property
     def name(self):
         return self._name
 
-    def __repr__(self):
-        return "{} (v >= {}{})".format(
-            self.name, self.min_version,
-            (", v <= {}".format(self.max_version)
-             if self.max_version is not None else ''))
-
     @property
-    def min_version(self):
-        return self._min_ver
+    def version_cls(self):
+        return self._version_cls
+
+    def __repr__(self):
+        return "{}(name={})".format(type(self).__name__, self.name)
+
+    def v(self, version, max_version=None, **kwargs):
+        """
+        Returns either a single requirement version or a requirement version
+        range depending on whether two arguments are supplied or one
+
+        Parameters
+        ----------
+        version : str | Version
+            Either a version of the requirement, or the first version in a
+            range of acceptable versions
+        """
+        if not isinstance(version, Version):
+            version = self.version_cls(self, version, **kwargs)
+        # Return a version range instead of version
+        if max_version is not None:
+            if not isinstance(max_version, Version):
+                max_version = self.version_cls(self, max_version, **kwargs)
+            version = VersionRange(version, max_version)
+        return version
 
     @property
     def references(self):
@@ -73,98 +391,53 @@ class Requirement(object):
     def website(self):
         return self._website
 
-    @property
-    def max_version(self):
-        return self._max_ver
+    def detect_version(self, **kwargs):
+        return self.version_cls(self, self.detect_version_str(), **kwargs)
 
-    def split_version(self, version_str):
-        return tuple(self._version_split(version_str))
+    def detect_version_str(self):
+        """
+        Detects and returns the version string of the software requirement
+        that is accessible in the current environment. NB: to be overridden in
+        sub-classes.
 
-    def best_version(self, available_versions):
+        * If the requirement is not available in the current environment:
+            raise ArcanaRequirementNotFoundError
+        * If the requirement is available but its version cannot be detected
+          for whatever reason:
+            raise ArcanaVersionNotDectableError
+        """
+        raise NotImplementedError
+
+    def latest_within_range(self, version_range, available):
         """
         Picks the latest acceptible version from the versions available
 
         Parameters
         ----------
-        available_versions : list(str)
-            List of possible versions
+        version_range : VersionRange | Version
+            A range of versions or a single version. A single version
+            will be interpreted that there are no upper bounds on the version
+            range
+        available : list(Version)
+            List of possible versions to select from
+
+        Returns
+        -------
+        latest : Version
+            The latest version
         """
-        best = None
-        for ver in available_versions:
-            try:
-                v_parts = self.split_version(ver)
-            except ArcanaRequirementVersionException:
-                continue  # Incompatible version
-            if (self.later_or_equal_version(v_parts, self._min_ver) and
-                (self._max_ver is None or
-                 self.later_or_equal_version(self._max_ver, v_parts))):
-                if best is None or self.later_or_equal_version(v_parts,
-                                                               best[1]):
-                    best = ver, v_parts
-        if best is None:
-            msg = ("Could not find version of '{}' matching requirements "
-                   "> ({})"
-                   .format(self.name,
-                           ', '.join(str(v) for v in self._min_ver)))
-            if self._max_ver is not None:
-                msg += " and < ({})".format(
-                    ', '.join(str(v) for v in self._max_ver))
-            msg += " from available versions '{}'".format(
-                "', '".join(available_versions))
-            raise ArcanaRequirementVersionException(msg)
-        return best[0]
-
-    def valid_version(self, version):
-        return (self.later_or_equal_version(version, self.min_version) and
-                (self.max_version is None or
-                 self.later_or_equal_version(self.max_version, version)))
-
-    @classmethod
-    def later_or_equal_version(cls, version, reference):
-        for v_part, r_part in zip_longest(version, reference, fillvalue=0):
-            if type(v_part) != type(r_part):
-                raise ArcanaError(
-                    "Type of version part {} (of '{}'), {}, does not match "
-                    "type of reference part {}, {}".format(
-                        v_part, version, type(v_part), r_part, type(r_part)))
-            if v_part > r_part:
-                return True
-            elif v_part < r_part:
-                return False
-        return True
-
-    @classmethod
-    def best_requirement(cls, possible_requirements, available_modules):
-        # If possible reqs is a singleton, wrap it in a list for
-        # iterating
-        if isinstance(possible_requirements, Requirement):
-            possible_requirements = [possible_requirements]
-        # Loop through all parameters for a given requirement and see
-        # if at least one can be satisfied.
-        logger.debug(
-            "Searching for one of {}".format(
-                ', '.join(str(r) for r in possible_requirements)))
-        ver_exceptions = []  # Will hold all version error messages
-        for req in possible_requirements:
-            try:
-                best_version = req.best_version(available_modules[req.name])
-                logger.debug("Found best version '{}' of module '{}' for"
-                             " requirement {}".format(best_version,
-                                                      req.name, req))
-                return req.name, best_version
-            except ArcanaRequirementVersionException as e:
-                ver_exceptions.append(e)
-        # If no parameters can be satisfied, otherwise raise exception with
-        # combined messages from all parameters.
-        raise ArcanaRequirementVersionException(
-            ' and '.join(str(e) for e in ver_exceptions))
-
-
-class RequirementVersion(object):
-
-    pass
-
-
-class RequirementVersionRange(object):
-
-    pass
+        latest_ver = None
+        for ver in available:
+            if version_range.within(ver) and (latest_ver is None or
+                                              ver > latest_ver):
+                latest_ver = ver
+        if latest_ver is None:
+            if isinstance(version_range, VersionRange):
+                msg_part = 'within range'
+            else:
+                msg_part = 'greater than'
+            raise ArcanaVersionError(
+                "Could not find version {} {} from available: {}"
+                .format(msg_part, version_range,
+                        ', '.join(str(v) for v in available)))
+        return latest_ver

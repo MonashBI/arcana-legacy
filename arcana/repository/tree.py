@@ -1,27 +1,59 @@
 from builtins import zip
 from builtins import object
 from itertools import chain
+from collections import defaultdict
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
-from arcana.exception import ArcanaNameError
-from arcana.data import BaseFileset
+import logging
+from arcana.data import BaseFileset, BaseField
+from arcana.exceptions import (
+    ArcanaNameError)
 
 id_getter = attrgetter('id')
+
+logger = logging.getLogger('arcana')
 
 
 class TreeNode(object):
 
-    def __init__(self, filesets, fields):
+    def __init__(self, filesets, fields, records):
         if filesets is None:
             filesets = []
         if fields is None:
             fields = []
+        if records is None:
+            records = []
         # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
         self._filesets = OrderedDict(((d.name, d.from_study), d)
-                                     for d in filesets)
+                                     for d in sorted(filesets))
         self._fields = OrderedDict(((f.name, f.from_study), f)
-                                   for f in fields)
+                                   for f in sorted(fields))
+        self._records = OrderedDict(
+            ((r.pipeline_name, r.from_study), r)
+            for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
+                                                    r.from_study)))
+        # Match up provenance records with items in the node
+        for item in chain(self.filesets, self.fields):
+            if not item.derived:
+                continue  # Skip acquired items
+            records = [r for r in self.records
+                       if (item.from_study == r.from_study and
+                           item.name in r.outputs)]
+            if not records:
+                logger.warning(
+                    "No provenance records found for {} derivative. "
+                    "Will assume it is a \"protected\" (manually created) "
+                    "derivative".format(item))
+            elif len(records) > 1:
+                item.record = sorted(records, key=attrgetter('datetime'))[-1]
+                logger.warning(
+                    "Duplicate provenance records found for {} ({}). "
+                    "Selecting latest record {}"
+                    .format(item, ', '.join(str(r) for r in records),
+                            item.record))
+            else:
+                item.record = records[0]
 
     def __eq__(self, other):
         if not (isinstance(other, type(self)) or
@@ -34,60 +66,148 @@ class TreeNode(object):
         return hash(tuple(self.filesets)) ^ hash(tuple(self._fields))
 
     def __contains__(self, item):
-        if isinstance(item, BaseFileset):
+        if item.is_fileset:
             return (item.name, item.from_study) in self._filesets
 
     @property
     def filesets(self):
-        return iter(self._filesets.values())
+        return self._filesets.values()
 
     @property
     def fields(self):
-        return iter(self._fields.values())
+        return self._fields.values()
 
-    def fileset(self, name, study=None):
+    @property
+    def fileset_keys(self):
+        return self._filesets.keys()
+
+    @property
+    def field_keys(self):
+        return self._fields.keys()
+
+    @property
+    def records(self):
+        return self._records.values()
+
+    @property
+    def subject_id(self):
+        "To be overridden by subclasses where appropriate"
+        return None
+
+    @property
+    def visit_id(self):
+        "To be overridden by subclasses where appropriate"
+        return None
+
+    def fileset(self, name, from_study=None):
+        """
+        Gets the fileset named 'name' produced by the Study named 'study' if
+        provided. If a spec is passed instead of a str to the name argument,
+        then the study will be set from the spec iff it is derived
+
+        Parameters
+        ----------
+        name : str | FilesetSpec
+            The name of the fileset or a spec matching the given name
+        from_study : str | None
+            Name of the study that produced the fileset if derived. If None
+            and a spec is passed instaed of string to the name argument then
+            the study name will be taken from the spec instead.
+        """
+        if isinstance(name, BaseFileset):
+            if from_study is None and name.derived:
+                from_study = name.study.name
+            name = name.name
         try:
-            return self._filesets[(name, study)]
+            return self._filesets[(name, from_study)]
         except KeyError:
             available = [d.name for d in self.filesets
-                         if d.from_study == study]
-            other_studies = [d.from_study for d in self.filesets
+                         if d.from_study == from_study]
+            other_studies = [(d.from_study if d.from_study is not None
+                              else '<root>')
+                             for d in self.filesets
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching fileset(s) found for '{}' study(ies)"
-                       .format(name, other_studies))
+                msg = (". NB: matching fileset(s) found for '{}' study(ies) "
+                       "('{}')".format(name, "', '".join(other_studies)))
             else:
                 msg = ''
             raise ArcanaNameError(
                 name,
-                ("{} doesn't have a fileset named '{}'{}"
+                ("{} doesn't have a fileset named '{}'{} "
                    "(available '{}'){}"
                    .format(self, name,
-                           ("for study '{}'"
-                            if study is not None else ''),
-                           "', '".join(available), other_studies), msg))
+                           (" from study '{}'".format(from_study)
+                            if from_study is not None else ''),
+                           "', '".join(available), msg)))
 
-    def field(self, name, study=None):
+    def field(self, name, from_study=None):
+        """
+        Gets the field named 'name' produced by the Study named 'study' if
+        provided. If a spec is passed instead of a str to the name argument,
+        then the study will be set from the spec iff it is derived
+
+        Parameters
+        ----------
+        name : str | BaseField
+            The name of the field or a spec matching the given name
+        study : str | None
+            Name of the study that produced the field if derived. If None
+            and a spec is passed instaed of string to the name argument then
+            the study name will be taken from the spec instead.
+        """
+        if isinstance(name, BaseField):
+            if from_study is None and name.derived:
+                from_study = name.study.name
+            name = name.name
         try:
-            return self._fields[(name, study)]
+            return self._fields[(name, from_study)]
         except KeyError:
             available = [d.name for d in self.fields
-                         if d.from_study == study]
-            other_studies = [d.from_study for d in self.fields
+                         if d.from_study == from_study]
+            other_studies = [(d.from_study if d.from_study is not None
+                              else '<root>')
+                             for d in self.fields
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching field(s) found for '{}' study(ies)"
-                       .format(name, other_studies))
+                msg = (". NB: matching field(s) found for '{}' study(ies) "
+                       "('{}')".format(name, "', '".join(other_studies)))
             else:
                 msg = ''
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}' "
+                name, ("{} doesn't have a field named '{}'{} "
                        "(available '{}')"
                        .format(
                            self, name,
-                           ("for study '{}'"
-                            if study is not None else ''),
-                           "', '".join(available), other_studies), msg))
+                           (" from study '{}'".format(from_study)
+                            if from_study is not None else ''),
+                           "', '".join(available), msg)))
+
+    def record(self, pipeline_name, from_study):
+        """
+        Returns the provenance record for a given pipeline
+
+        Parameters
+        ----------
+        pipeline_name : str
+            The name of the pipeline that generated the record
+        from_study : str
+            The name of the study that the pipeline was generated from
+
+        Returns
+        -------
+        record : arcana.provenance.Record
+            The provenance record generated by the specified pipeline
+        """
+        try:
+            return self._records[(pipeline_name, from_study)]
+        except KeyError:
+            raise ArcanaNameError(
+                pipeline_name,
+                ("{} doesn't have a provenance record for pipeline '{}' "
+                 "for '{}' study (found {})".format(self, pipeline_name,
+                                                    from_study,
+                                                    self._records)))
 
     @property
     def data(self):
@@ -97,6 +217,21 @@ class TreeNode(object):
         return not (self == other)
 
     def find_mismatch(self, other, indent=''):
+        """
+        Highlights where two nodes differ in a human-readable form
+
+        Parameters
+        ----------
+        other : TreeNode
+            The node to compare
+        indent : str
+            The white-space with which to indent output string
+
+        Returns
+        -------
+        mismatch : str
+            The human-readable mismatch string
+        """
         if self != other:
             mismatch = "\n{}{}".format(indent, type(self).__name__)
         else:
@@ -158,15 +293,23 @@ class Tree(TreeNode):
         to the one that the derived products are stored in
     """
 
+    frequency = 'per_study'
+
     def __init__(self, subjects, visits, filesets=None, fields=None,
-                 fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
-        TreeNode.__init__(self, filesets, fields)
+                 records=None, fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
+        TreeNode.__init__(self, filesets, fields, records)
         self._subjects = OrderedDict(sorted(
             ((s.id, s) for s in subjects), key=itemgetter(0)))
         self._visits = OrderedDict(sorted(
             ((v.id, v) for v in visits), key=itemgetter(0)))
         if fill_subjects is not None or fill_visits is not None:
             self._fill_empty_sessions(fill_subjects, fill_visits)
+        for subject in self.subjects:
+            subject.tree = self
+        for visit in self.visits:
+            visit.tree = self
+        for session in self.sessions:
+            session.tree = self
 
     def __eq__(self, other):
         return (super(Tree, self).__eq__(other) and
@@ -177,14 +320,6 @@ class Tree(TreeNode):
         return (TreeNode.__hash_(self) ^
                 hash(tuple(self.subjects)) ^
                 hash(tuple(self._visits)))
-
-    @property
-    def subject_id(self):
-        return None
-
-    @property
-    def visit_id(self):
-        return None
 
     @property
     def subjects(self):
@@ -232,19 +367,19 @@ class Tree(TreeNode):
 
     def subject(self, id):  # @ReservedAssignment
         try:
-            return self._subjects[id]
+            return self._subjects[str(id)]
         except KeyError:
             raise ArcanaNameError(
-                id, ("{} doesn't have a subject named '{}'"
-                       .format(self, id)))
+                id, ("{} doesn't have a subject named '{}' ('{}')"
+                       .format(self, id, "', '".join(self._subjects))))
 
     def visit(self, id):  # @ReservedAssignment
         try:
-            return self._visits[id]
+            return self._visits[str(id)]
         except KeyError:
             raise ArcanaNameError(
-                id, ("{} doesn't have a visit named '{}'"
-                       .format(self, id)))
+                id, ("{} doesn't have a visit named '{}' ('{}')"
+                       .format(self, id, "', '".join(self._visits))))
 
     def session(self, subject_id, visit_id):
         return self.subject(subject_id).session(visit_id)
@@ -254,13 +389,18 @@ class Tree(TreeNode):
 
     def nodes(self, frequency=None):
         """
-        Returns an iterator over all nodes in the tree
+        Returns an iterator over all nodes in the tree for the specified
+        frequency. If no frequency is specified then all nodes are returned
 
         Parameters
         ----------
         frequency : str | None
             The frequency of the nodes to iterate over. If None all
             frequencies are returned
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
         """
         if frequency is None:
             nodes = chain(*(self._nodes(f)
@@ -350,6 +490,75 @@ class Tree(TreeNode):
                             visit_id, [], [], [])
                     visit._sessions[subject_id] = session
 
+    @classmethod
+    def construct(cls, filesets=(), fields=(), records=(), **kwargs):
+        """
+        Return the hierarchical tree of the filesets and fields stored in a
+        repository
+
+        Parameters
+        ----------
+        filesets : list[Fileset]
+            List of all filesets in the tree
+        fields : list[Field]
+            List of all fields in the tree
+        records : list[Record]
+            List of all records in the tree
+
+        Returns
+        -------
+        tree : arcana.repository.Tree
+            A hierarchical tree of subject, session and fileset
+            information for the repository
+        """
+        # Sort the data by subject and visit ID
+        filesets_dict = defaultdict(list)
+        for fset in filesets:
+            filesets_dict[(fset.subject_id, fset.visit_id)].append(fset)
+        fields_dict = defaultdict(list)
+        for field in fields:
+            fields_dict[(field.subject_id, field.visit_id)].append(field)
+        records_dict = defaultdict(list)
+        for record in records:
+            records_dict[(record.subject_id, record.visit_id)].append(record)
+        # Create all sessions
+        subj_sessions = defaultdict(list)
+        visit_sessions = defaultdict(list)
+        for sess_id in set(chain(filesets_dict, fields_dict,
+                                 records_dict)):
+            if None in sess_id:
+                continue  # Save summaries for later
+            subj_id, visit_id = sess_id
+            session = Session(
+                subject_id=subj_id, visit_id=visit_id,
+                filesets=filesets_dict[sess_id],
+                fields=fields_dict[sess_id],
+                records=records_dict[sess_id])
+            subj_sessions[subj_id].append(session)
+            visit_sessions[visit_id].append(session)
+        subjects = []
+        for subj_id in subj_sessions:
+            subjects.append(Subject(
+                subj_id,
+                sorted(subj_sessions[subj_id]),
+                filesets_dict[(subj_id, None)],
+                fields_dict[(subj_id, None)],
+                records_dict[(subj_id, None)]))
+        visits = []
+        for visit_id in visit_sessions:
+            visits.append(Visit(
+                visit_id,
+                sorted(visit_sessions[visit_id]),
+                filesets_dict[(None, visit_id)],
+                fields_dict[(None, visit_id)],
+                records_dict[(None, visit_id)]))
+        return Tree(sorted(subjects),
+                    sorted(visits),
+                    filesets_dict[(None, None)],
+                    fields_dict[(None, None)],
+                    records_dict[(None, None)],
+                    **kwargs)
+
 
 class Subject(TreeNode):
     """
@@ -369,14 +578,17 @@ class Subject(TreeNode):
         frequency
     """
 
+    frequency = 'per_subject'
+
     def __init__(self, subject_id, sessions, filesets=None,
-                 fields=None):
-        TreeNode.__init__(self, filesets, fields)
+                 fields=None, records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._id = subject_id
         self._sessions = OrderedDict(sorted(
             ((s.visit_id, s) for s in sessions), key=itemgetter(0)))
         for session in self.sessions:
             session.subject = self
+        self._tree = None
 
     @property
     def id(self):
@@ -387,8 +599,12 @@ class Subject(TreeNode):
         return self.id
 
     @property
-    def visit_id(self):
-        return None
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
 
     def __lt__(self, other):
         return self._id < other._id
@@ -413,17 +629,46 @@ class Subject(TreeNode):
     def sessions(self):
         return self._sessions.values()
 
+    def nodes(self, frequency=None):
+        """
+        Returns all sessions in the subject. If a frequency is passed then
+        it will return all nodes of that frequency related to the current node.
+        If there is no relationshop between the current node and the frequency
+        then all nodes in the tree for that frequency will be returned
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the subject for the specified frequency, or
+            all nodes in the tree if there is no relation with that frequency
+            (e.g. per_visit)
+        """
+        if frequency in (None, 'per_session'):
+            return self.sessions
+        elif frequency == 'per_visit':
+            return self.parent.nodes(frequency)
+        elif frequency == 'per_subject':
+            return [self]
+        elif frequency == 'per_study':
+            return [self.parent]
+
     @property
     def visit_ids(self):
         return self._sessions.values()
 
     def session(self, visit_id):
         try:
-            return self._sessions[visit_id]
+            return self._sessions[str(visit_id)]
         except KeyError:
             raise ArcanaNameError(
-                visit_id, ("{} doesn't have a session named '{}'"
-                           .format(self, visit_id)))
+                visit_id, ("{} doesn't have a session named '{}' ('{}')"
+                           .format(self, visit_id,
+                                   "', '".join(self._sessions))))
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
@@ -472,25 +717,33 @@ class Visit(TreeNode):
         frequency
     """
 
-    def __init__(self, visit_id, sessions, filesets=None, fields=None):
-        TreeNode.__init__(self, filesets, fields)
+    frequency = 'per_visit'
+
+    def __init__(self, visit_id, sessions, filesets=None, fields=None,
+                 records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._id = visit_id
         self._sessions = OrderedDict(sorted(
             ((s.subject_id, s) for s in sessions), key=itemgetter(0)))
         for session in sessions:
             session.visit = self
+        self._tree = None
 
     @property
     def id(self):
         return self._id
 
     @property
-    def subject_id(self):
-        return None
-
-    @property
     def visit_id(self):
         return self.id
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
 
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
@@ -515,13 +768,42 @@ class Visit(TreeNode):
     def sessions(self):
         return self._sessions.values()
 
+    def nodes(self, frequency=None):
+        """
+        Returns all sessions in the visit. If a frequency is passed then
+        it will return all nodes of that frequency related to the current node.
+        If there is no relationshop between the current node and the frequency
+        then all nodes in the tree for that frequency will be returned
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the visit for the specified frequency, or
+            all nodes in the tree if there is no relation with that frequency
+            (e.g. per_subject)
+        """
+        if frequency in (None, 'per_session'):
+            return self.sessions
+        elif frequency == 'per_subject':
+            return self.parent.nodes(frequency)
+        elif frequency == 'per_visit':
+            return [self]
+        elif frequency == 'per_study':
+            return [self.parent]
+
     def session(self, subject_id):
         try:
-            return self._sessions[subject_id]
+            return self._sessions[str(subject_id)]
         except KeyError:
             raise ArcanaNameError(
-                subject_id, ("{} doesn't have a session named '{}'"
-                             .format(self, subject_id)))
+                subject_id, ("{} doesn't have a session named '{}' ('{}')"
+                             .format(self, subject_id,
+                                     "', '".join(self._sessions))))
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)
@@ -567,12 +849,16 @@ class Session(TreeNode):
         Sessions storing derived scans are stored for separate analyses
     """
 
-    def __init__(self, subject_id, visit_id, filesets=None, fields=None):
-        TreeNode.__init__(self, filesets, fields)
+    frequency = 'per_session'
+
+    def __init__(self, subject_id, visit_id, filesets=None, fields=None,
+                 records=None):
+        TreeNode.__init__(self, filesets, fields, records)
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._subject = None
         self._visit = None
+        self._tree = None
 
     @property
     def visit_id(self):
@@ -613,6 +899,38 @@ class Session(TreeNode):
     @visit.setter
     def visit(self, visit):
         self._visit = visit
+
+    @property
+    def tree(self):
+        return self._tree
+
+    @tree.setter
+    def tree(self, tree):
+        self._tree = tree
+
+    def nodes(self, frequency=None):
+        """
+        Returns all nodes of the specified frequency that are related to
+        the given Session
+
+        Parameters
+        ----------
+        frequency : str | None
+            The frequency of the nodes to return
+
+        Returns
+        -------
+        nodes : iterable[TreeNode]
+            All nodes related to the Session for the specified frequency
+        """
+        if frequency is None:
+            []
+        elif frequency == 'per_session':
+            return [self]
+        elif frequency in ('per_visit', 'per_subject'):
+            return [self.parent]
+        elif frequency == 'per_study':
+            return [self.parent.parent]
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)

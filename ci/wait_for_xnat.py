@@ -19,6 +19,7 @@ NUM_RETRIES = 10
 WAIT_TIME = 600
 
 server = os.environ['ARCANA_TEST_XNAT']
+xnat_path = os.environ['XNAT_DIR']
 
 wait_incr = WAIT_TIME // NUM_RETRIES
 
@@ -45,7 +46,7 @@ for i in range(NUM_RETRIES + 1):
 orig_dir = os.getcwd()
 try:
     # Change to docker compose directory to get xnat-web logs
-    os.chdir(os.path.expanduser('~/xnat-docker-compose'))
+    os.chdir(xnat_path)
     logs = sp.check_output(
         '/usr/local/bin/docker-compose logs xnat-web',
         shell=True)

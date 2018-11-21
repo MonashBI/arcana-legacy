@@ -6,23 +6,24 @@ import os.path  # @IgnorePep8
 # config.enable_debug_mode()
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.testing import (  # @IgnorePep8
+from arcana.utils.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.exception import (  # @IgnorePep8
+from arcana.exceptions import (  # @IgnorePep8
     ArcanaCantPickleStudyError, ArcanaUsageError)  # @IgnorePep8
 from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.parameter import ParameterSpec  # @IgnorePep8
+from arcana.study.parameter import ParameterSpec  # @IgnorePep8
 from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.exception import ArcanaNoConverterError  # @IgnorePep8
+from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
+from arcana.repository import DirectoryRepository  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -45,8 +46,8 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('project_summary', text_format,
-                    'project_summary_pipeline',
+        FilesetSpec('study_summary', text_format,
+                    'study_summary_pipeline',
                     frequency='per_study'),
         FilesetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
@@ -186,9 +187,9 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output('visit_summary', math, 'z')
         return pipeline
 
-    def project_summary_pipeline(self, **name_maps):
+    def study_summary_pipeline(self, **name_maps):
         pipeline = self.pipeline(
-            name="project_summary",
+            name="study_summary",
             desc=("Test of project summary variables"),
             references=[],
             name_maps=name_maps)
@@ -204,7 +205,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('one', math1, 'x')
         pipeline.connect(math1, 'z', math2, 'x')
         # Connect outputs
-        pipeline.connect_output('project_summary', math2, 'z')
+        pipeline.connect_output('study_summary', math2, 'z')
         return pipeline
 
 
@@ -252,23 +253,17 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        sessions = []
+        filesets = []
         for subj_id in self.SUBJECT_IDS:
             for visit_id in self.VISIT_IDS:
-                sessions.append(
-                    Session(subj_id, visit_id, filesets=[
-                        Fileset('one_input', text_format,
-                                subject_id=subj_id, visit_id=visit_id),
-                        Fileset('ten_input', text_format,
-                                subject_id=subj_id,
-                                visit_id=visit_id)]))
-        subjects = [Subject(i, sessions=[s for s in sessions
-                                          if s.subject_id == i])
-                     for i in self.SUBJECT_IDS]
-        visits = [Visit(i, sessions=[s for s in sessions
-                                     if s.visit == i])
-                     for i in self.VISIT_IDS]
-        return Tree(subjects=subjects, visits=visits)
+                filesets.append(
+                    Fileset('one_input', text_format,
+                            subject_id=subj_id, visit_id=visit_id))
+                filesets.append(
+                    Fileset('ten_input', text_format,
+                            subject_id=subj_id,
+                            visit_id=visit_id))
+        return Tree.construct(filesets=filesets)
 
     def make_study(self):
         return self.create_study(
@@ -298,10 +293,10 @@ class TestStudy(BaseMultiSubjectTestCase):
             self.assertContentsEqual(fileset, ref,
                                      str(fileset.visit_id))
 
-    def test_project_summary(self):
+    def test_study_summary(self):
         study = self.make_study()
         ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        self.assertContentsEqual(study.data('project_summary'), ref)
+        self.assertContentsEqual(study.data('study_summary'), ref)
 
     def test_subject_ids_access(self):
         study = self.make_study()
@@ -330,13 +325,13 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         AcquiredFilesetSpec('one', text_format),
-        FilesetSpec('ten', text_format, 'tens_pipeline'),
-        FilesetSpec('hundred', text_format, 'hundreds_pipeline'),
-        FilesetSpec('thousand', text_format, 'thousands_pipeline')]
+        FilesetSpec('ten', text_format, 'ten_pipeline'),
+        FilesetSpec('hundred', text_format, 'hundred_pipeline'),
+        FilesetSpec('thousand', text_format, 'thousand_pipeline')]
 
-    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment
+    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment @IgnorePep8
         pipeline = self.pipeline(
-            name=output,
+            name=output + '_pipeline',
             desc="A dummy pipeline used to test 'partial-complete' method",
             references=[], name_maps=name_maps)
         # Nodes
@@ -350,14 +345,16 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output(output, math, 'z')
         return pipeline
 
-    def tens_pipeline(self, **name_maps):  # @UnusedVariable
+    def ten_pipeline(self, **name_maps):  # @UnusedVariable
         return self.pipeline_factory(10, 'one', 'ten', name_maps=name_maps)
 
-    def hundreds_pipeline(self, **name_maps):  # @UnusedVariable
-        return self.pipeline_factory(100, 'ten', 'hundred', name_maps=name_maps)
+    def hundred_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(100, 'ten', 'hundred',
+                                     name_maps=name_maps)
 
-    def thousands_pipeline(self, **name_maps):  # @UnusedVariable
-        return self.pipeline_factory(1000, 'hundred', 'thousand', name_maps=name_maps)
+    def thousand_pipeline(self, **name_maps):  # @UnusedVariable
+        return self.pipeline_factory(1000, 'hundred', 'thousand',
+                                     name_maps=name_maps)
 
 
 class TestExistingPrereqs(BaseMultiSubjectTestCase):
@@ -370,7 +367,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         'subject1': {
             'visit1': ['one', 'ten', 'hundred'],
             'visit2': ['one', 'ten'],
-            'visit3': ['one', 'hundred', 'thousand']},
+            'visit3': ['one', 'ten', 'hundred', 'thousand']},
         'subject2': {
             'visit1': ['one'],
             'visit2': ['one', 'ten'],
@@ -383,29 +380,45 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
     @property
     def input_tree(self):
-        sessions = []
-        visit_ids = set()
-        for subj_id, visits in list(self.PROJECT_STRUCTURE.items()):
-            for visit_id, filesets in list(visits.items()):
-                sessions.append(Session(subj_id, visit_id, filesets=[
-                    Fileset(d, text_format, subject_id=subj_id,
-                            visit_id=visit_id, from_study=(
-                                (self.STUDY_NAME
-                                 if d != 'one' else None)))
-                    for d in filesets]))
-                visit_ids.add(visit_id)
-        subjects = [Subject(i, sessions=[s for s in sessions
-                                         if s.subject_id == i])
-                    for i in self.PROJECT_STRUCTURE]
-        visits = [Visit(i, sessions=[s for s in sessions
-                                     if s.visit == i])
-                  for i in visit_ids]
-        return Tree(subjects=subjects, visits=visits)
+        filesets = []
+        for subj_id, visit_ids in list(self.PROJECT_STRUCTURE.items()):
+            for visit_id, fileset_names in list(visit_ids.items()):
+                # Create filesets
+                for name in fileset_names:
+                    from_study = self.STUDY_NAME if name != 'one' else None
+                    filesets.append(
+                        Fileset(name, text_format, subject_id=subj_id,
+                                visit_id=visit_id, from_study=from_study))
+        return Tree.construct(filesets=filesets)
+
+    def add_sessions(self):
+        BaseMultiSubjectTestCase.add_sessions(self)
+        # Create a study object, in order to generate appropriate provenance
+        # for the existing "derived" data
+        derived_filesets = [f for f in self.DATASET_CONTENTS
+                            if f != 'one']
+        study = self.create_study(
+            ExistingPrereqStudy, self.STUDY_NAME,
+            repository=self.local_repository,
+            inputs=[FilesetSelector('one', text_format, 'one')])
+        # Get all pipelines in the study
+        pipelines = {n: getattr(study, '{}_pipeline'.format(n))()
+                     for n in derived_filesets}
+        for node in study.tree:
+            for fileset in node.filesets:
+                if fileset.name != 'one' and fileset.exists:
+                    # Generate expected provenance record for each pipeline
+                    # and save in the local repository
+                    pipelines[fileset.name].cap()
+                    record = pipelines[fileset.name].expected_record(node)
+                    self.local_repository.put_record(record)
+        study.clear_cache()  # Reset repository trees
 
     def test_per_session_prereqs(self):
+        # Generate all data for 'thousand' spec
         study = self.create_study(
-            ExistingPrereqStudy, self.STUDY_NAME, inputs=[
-                FilesetSelector('one', text_format, 'one')])
+            ExistingPrereqStudy, self.STUDY_NAME,
+            inputs=[FilesetSelector('one', text_format, 'one')])
         study.data('thousand')
         targets = {
             'subject1': {
@@ -421,16 +434,10 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
-                                          study=self.STUDY_NAME)
+                                          from_study=self.STUDY_NAME)
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
-                if subj_id == 'subject1' and visit_id == 'visit3':
-                    self.assertNotIn(
-                        'ten', [d.name for d in session.filesets],
-                        "'ten' should not be generated for "
-                        "subject1:visit3 as hundred and thousand are "
-                        "already present")
 
 
 test1_format = FileFormat('test1', extension='.t1')
@@ -615,34 +622,3 @@ class TestGeneratedPickle(BaseTestCase):
                 pkl.dump,
                 study,
                 f)
-
-
-#     def test_explicit_prereqs(self):
-#         study = self.create_study(
-#             ExistingPrereqStudy, self.from_study, inputs=[
-#                 FilesetSelector('ones', text_format, 'ones')])
-#         study.data('thousands')
-#         targets = {
-#             'subject1': {
-#                 'visit1': 1100,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject2': {
-#                 'visit1': 1110,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject3': {
-#                 'visit1': 1111,
-#                 'visit2': 1110,
-#                 'visit3': 1000},
-#             'subject4': {
-#                 'visit1': 1111,
-#                 'visit2': 1110,
-#                 'visit3': 1000}}
-#         for subj_id, visits in self.saved_structure.iteritems():
-#             for visit_id in visits:
-#                 self.assertStatEqual('mean', 'thousands.mif',
-#                                      targets[subj_id][visit_id],
-#                                      self.from_study,
-#                                      subject=subj_id, session=visit_id,
-#                                      frequency='per_session')

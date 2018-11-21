@@ -2,15 +2,19 @@ class ArcanaException(Exception):
     pass
 
 
-class ArcanaRequirementVersionException(ArcanaException):
-    pass
-
-
 class ArcanaError(ArcanaException):
     pass
 
 
-class ArcanaRequirementNotSatisfiedError(ArcanaError):
+class ArcanaVersionError(ArcanaError):
+    pass
+
+
+class ArcanaRequirementNotFoundError(ArcanaVersionError):
+    pass
+
+
+class ArcanaVersionNotDectableError(ArcanaVersionError):
     pass
 
 
@@ -19,6 +23,10 @@ class ArcanaEnvModuleNotLoadedError(ArcanaError):
 
 
 class ArcanaMissingInputError(ArcanaException):
+    pass
+
+
+class ArcanaProtectedOutputConflictError(ArcanaError):
     pass
 
 
@@ -53,6 +61,10 @@ class ArcanaIndexError(ArcanaError):
 
 
 class ArcanaMissingDataException(ArcanaError):
+    pass
+
+
+class ArcanaDataNotDerivedYetError(ArcanaError):
     pass
 
 
@@ -118,4 +130,12 @@ class ArcanaConverterNotAvailableError(ArcanaError):
 
 
 class ArcanaFileFormatNotRegisteredError(ArcanaError):
+    pass
+
+
+class ArcanaProvenanceRecordMismatchError(ArcanaError):
+    pass
+
+
+class ArcanaWrongRepositoryError(ArcanaError):
     pass

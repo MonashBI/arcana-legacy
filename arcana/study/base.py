@@ -1,26 +1,27 @@
 from past.builtins import basestring
 from builtins import object
 from itertools import chain
+from collections import defaultdict
 import sys
 import os.path as op
 import types
+from copy import copy
 from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
-from arcana.exception import (
-    ArcanaMissingDataException, ArcanaNameError, ArcanaUsageError,
+from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
-    ArcanaCantPickleStudyError)
+    ArcanaCantPickleStudyError, ArcanaError, ArcanaUsageError,
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaOutputNotProducedException)
 from arcana.pipeline import Pipeline
-from arcana.data import (
-    BaseData, BaseField, BaseFileset, BaseAcquiredSpec)
+from arcana.data import BaseData, BaseSpec
 from nipype.pipeline import engine as pe
-from arcana.parameter import Parameter, SwitchSpec
-from arcana.node import Node
+from .parameter import Parameter, SwitchSpec
+from arcana.repository.interfaces import RepositorySource
 from arcana.repository import DirectoryRepository
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
-from arcana.interfaces.repository import (RepositorySource,
-                                          RepositorySink)
+from arcana.utils import get_class_info
 
 logger = getLogger('arcana')
 
@@ -60,11 +61,6 @@ class Study(object):
     enforce_inputs : bool (default: True)
         Whether to check the inputs to see if any acquired filesets
         are missing
-    reprocess : bool
-        Whether to reprocess fileset|fields that have been created with
-        different parameters and/or pipeline-versions. If False then
-        and exception will be thrown if the repository already contains
-        matching filesets|fields created with different parameters.
     fill_tree : bool
         Whether to fill the tree of the destination repository with the
         provided subject and/or visit IDs. Intended to be used when the
@@ -102,8 +98,7 @@ class Study(object):
 
     def __init__(self, name, repository, processor, inputs,
                  environment=None, parameters=None, subject_ids=None,
-                 visit_ids=None, enforce_inputs=True, reprocess=False,
-                 fill_tree=False):
+                 visit_ids=None, enforce_inputs=True, fill_tree=False):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -122,6 +117,7 @@ class Study(object):
             environment = StaticEnvironment()
         self._name = name
         self._repository = repository
+        self._repository.clear_cache()
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
@@ -136,13 +132,6 @@ class Study(object):
             raise ArcanaUsageError(
                 "No visit IDs provided and destination repository "
                 "is empty")
-        self._reprocess = reprocess
-        # For recording which parameters are accessed
-        # during pipeline generation so they can be attributed to the
-        # pipeline after it is generated (and then saved in the
-        # provenance
-        self._pipeline_to_generate = None
-        self._referenced_parameters = None
         # Set parameters
         if parameters is None:
             parameters = {}
@@ -181,8 +170,8 @@ class Study(object):
                         inpt.name, self.__class__.__name__,
                         "', '".join(self._data_specs)))
             else:
-                if isinstance(spec, BaseFileset):
-                    if isinstance(inpt, BaseField):
+                if spec.is_fileset:
+                    if inpt.is_field:
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
@@ -204,7 +193,7 @@ class Study(object):
                                     inpt, spec,
                                     "', '".join(
                                         f.name for f in spec.valid_formats)))
-                elif not isinstance(inpt, BaseField):
+                elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
                         .format(inpt, spec))
@@ -228,6 +217,174 @@ class Study(object):
                                 'Non-optional' + msg + " Pipelines "
                                 "depending on this fileset will not "
                                 "run")
+
+    def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
+             **kwargs):
+        """
+        Returns the Fileset(s) or Field(s) associated with the provided spec
+        name(s), generating derived filesets as required. Multiple names in a
+        list can be provided, to allow their workflows to be combined into a
+        single workflow.
+
+        Parameters
+        ----------
+        name : str | List[str]
+            The name of the FilesetSpec|FieldSpec to retried the
+            filesets for
+        subject_id : str | None
+            The subject ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            collection
+        visit_id : str | None
+            The visit ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            c ollection
+        subject_ids : list[str]
+            The subject IDs to include in the returned collection
+        visit_ids : list[str]
+            The visit IDs to include in the returned collection
+        session_ids : list[str]
+            The session IDs (i.e. 2-tuples of the form
+            (<subject-id>, <visit-id>) to include in the returned collection
+
+        Returns
+        -------
+        data : BaseItem | BaseCollection | list[BaseItem | BaseCollection]
+            If 'subject_id' or 'visit_id' is provided then the data returned is
+            a single Fileset or Field. Otherwise a collection of Filesets or
+            Fields are returned. If muliple spec names are provided then a
+            list of items or collections corresponding to each spec name.
+        """
+        if isinstance(name, basestring):
+            single_name = True
+            names = [name]
+        else:
+            names = name
+            single_name = False
+        single_item = 'subject_id' in kwargs or 'visit_id' in kwargs
+        filter_items = (subject_ids, visit_ids, session_ids) != (None, None,
+                                                                   None)
+        specs = [self.spec(n) for n in names]
+        if single_item:
+            if filter_items:
+                raise ArcanaUsageError(
+                    "Cannot provide 'subject_id' and/or 'visit_id' in "
+                    "combination with 'subject_ids', 'visit_ids' or "
+                    "'session_ids'")
+            subject_id = kwargs.pop('subject_id', None)
+            visit_id = kwargs.pop('visit_id', None)
+            iterators = set(chain(self.FREQUENCIES[s.frequency]
+                                  for s in specs))
+            if subject_id is not None and visit_id is not None:
+                session_ids = [(subject_id, visit_id)]
+            elif subject_id is not None:
+                if self.VISIT_ID in iterators:
+                    raise ArcanaUsageError(
+                        "Non-None values for visit IDs need to be "
+                        "provided to select a single item for each of '{}'"
+                        .format("', '".join(names)))
+                subject_ids = [subject_id]
+            elif visit_id is not None:
+                if self.SUBJECT_ID in iterators:
+                    raise ArcanaUsageError(
+                        "Non-None values for subject IDs need to be "
+                        "provided to select a single item for each of '{}'"
+                        .format("', '".join(names)))
+                visit_ids = [visit_id]
+            elif iterators:
+                raise ArcanaUsageError(
+                    "Non-None values for subject and/or visit IDs need to be "
+                    "provided to select a single item for each of '{}'"
+                    .format("', '".join(names)))
+        # Work out which pipelines need to be run
+        pipeline_names = defaultdict(set)
+        for spec in specs:
+            if isinstance(spec, BaseSpec):  # Filter out Study inputs
+                # Add name of spec to set of required outputs
+                pipeline_names[spec.pipeline_name].add(spec.name)
+        # Run required pipelines
+        if pipeline_names:
+            kwargs = copy(kwargs)
+            kwargs.update({'subject_ids': subject_ids,
+                           'visit_ids': visit_ids,
+                           'session_ids': session_ids})
+            pipelines, required_outputs = zip(*(
+                (self.get_pipeline(k), v) for k, v in pipeline_names.items()))
+            kwargs['required_outputs'] = required_outputs
+            self.processor.run(*pipelines, **kwargs)
+        # Find and return Item/Collection corresponding to requested spec
+        # names
+        all_data = []
+        for name in names:
+            spec = self.spec(name)
+            data = spec.collection
+            if single_item:
+                data = data.item(subject_id=subject_id, visit_id=visit_id)
+            elif filter_items and spec.frequency != 'per_study':
+                if subject_ids is None:
+                    subject_ids = []
+                if visit_ids is None:
+                    visit_ids = []
+                if session_ids is None:
+                    session_ids = []
+                if spec.frequency == 'per_session':
+                    data = [d for d in data
+                            if (d.subject_id in subject_ids or
+                                d.visit_id in visit_ids or
+                                d.session_id in session_ids)]
+                elif spec.frequency == 'per_subject':
+                    data = [d for d in data
+                            if (d.subject_id in subject_ids or
+                                d.subject_id in [s[0] for s in session_ids])]
+                elif spec.frequency == 'per_visit':
+                    data = [d for d in data
+                            if (d.visit_id in visit_ids or
+                                d.visit_id in [s[1] for s in session_ids])]
+                if not data:
+                    raise ArcanaUsageError(
+                        "No matching data found (subject_ids={}, visit_ids={} "
+                        ", session_ids={})"
+                        .format(subject_ids, visit_ids, session_ids))
+                data = spec.CollectionClass(spec.name, data)
+            if single_name:
+                return data
+            else:
+                all_data.append(data)
+        return all_data
+
+    def get_pipeline(self, pipeline_name, required_outputs=None):
+        try:
+            getter = getattr(self, pipeline_name)
+        except AttributeError:
+            raise ArcanaDesignError(
+                "There is no pipeline method named '{}' in present in "
+                "'{}' study".format(pipeline_name, self))
+        self._pipeline_to_generate = pipeline_name
+        try:
+            pipeline = getter()
+        finally:
+            self._pipeline_to_generate = None
+        if pipeline is None:
+            raise ArcanaDesignError(
+                "'{}' pipeline constructor in {} is missing return "
+                "statement (should return a Pipeline object)".format(
+                    pipeline_name, self))
+        elif not isinstance(pipeline, Pipeline):
+            raise ArcanaDesignError(
+                "'{}' pipeline constructor in {} doesn't return a Pipeline "
+                "object ({})".format(
+                    pipeline_name, self, pipeline))
+        if required_outputs is not None and any(r not in pipeline.output_names
+                                                for r in required_outputs):
+            raise ArcanaOutputNotProducedException(
+                "'{}' is not produced by {} pipeline in {} class given the "
+                "provided  switches ({}) and the missing inputs ('{}')".format(
+                    self.name, pipeline.name, self.__class__.__name__,
+                    ', '.join('{}={}'.format(s.name, s.value)
+                              for s in self.switches),
+                    "', '".join(self.missing_inputs)))
+        pipeline._getter_name = pipeline_name  # Store for use in processor
+        return pipeline
 
     def __repr__(self):
         """String representation of the study"""
@@ -276,7 +433,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_binds(self):
+    def clear_cache(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent
@@ -338,10 +495,6 @@ class Study(object):
         return self._name
 
     @property
-    def reprocess(self):
-        return self._reprocess
-
-    @property
     def repository(self):
         "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
         return self._repository
@@ -378,8 +531,6 @@ class Study(object):
         name : str
             The name of the parameter to retrieve
         """
-        if self._referenced_parameters is not None:
-            self._referenced_parameters.add(name)
         return self._get_parameter(name).value
 
     def branch(self, name, values=None):  # @UnusedVariable @IgnorePep8
@@ -423,8 +574,6 @@ class Study(object):
                         self._param_error_location,
                         "', '".join(spec.choices)))
             in_branch = switch.value in values
-        if self._referenced_parameters is not None:
-            self._referenced_parameters.add(name)
         return in_branch
 
     def unhandled_branch(self, name):
@@ -459,84 +608,6 @@ class Study(object):
         for name in self._param_specs:
             if isinstance(self.spec(name), SwitchSpec):
                 yield self._get_parameter(name)
-
-    def data(self, name, subject_id=None, visit_id=None, **kwargs):
-        """
-        Returns the Fileset or Field associated with the name,
-        generating derived filesets as required. Multiple names in a
-        list can be provided, in which case their workflows are
-        joined into a single workflow.
-
-        Parameters
-        ----------
-        name : str | List[str]
-            The name of the FilesetSpec|FieldSpec to retried the
-            filesets for
-        subject_id : int | str | List[int|str] | None
-            The subject ID or subject IDs to return. If None all are
-            returned
-        visit_id : int | str | List[int|str] | None
-            The visit ID or visit IDs to return. If None all are
-            returned
-
-        Returns
-        -------
-        data : Fileset | Field | List[Fileset | Field] | List[List[Fileset | Field]]
-            If a single name is provided then data is either a single
-            Fileset or field if a single subject_id and visit_id are
-            provided, otherwise a list of filesets or fields
-            corresponding to the given name. If muliple names are
-            provided then a list is returned containing the data for
-            each provided name.
-        """
-        if isinstance(name, basestring):
-            single_name = True
-            names = [name]
-        else:
-            names = name
-            single_name = False
-        def is_single_id(id_):  # @IgnorePep8
-            return isinstance(id_, (basestring, int))
-        subject_ids = ([subject_id]
-                       if is_single_id(subject_id) else subject_id)
-        visit_ids = ([visit_id] if is_single_id(visit_id) else visit_id)
-        # Work out which pipelines need to be run
-        pipelines = []
-        for name in names:
-            try:
-                pipeline = self.spec(name).pipeline
-                pipeline.required_outputs.add(name)
-                pipelines.append(pipeline)
-            except AttributeError:
-                pass  # Match objects don't have pipelines
-        # Run all pipelines together
-        if pipelines:
-            self.processor.run(
-                *pipelines, subject_ids=subject_ids,
-                visit_ids=visit_ids, **kwargs)
-        all_data = []
-        for name in names:
-            spec = self.spec(name)
-            data = spec.collection
-            if subject_ids is not None and spec.frequency in (
-                    'per_session', 'per_subject'):
-                data = [d for d in data if d.subject_id in subject_ids]
-            if visit_ids is not None and spec.frequency in (
-                    'per_session', 'per_visit'):
-                data = [d for d in data if d.visit_id in visit_ids]
-            if not data:
-                raise ArcanaUsageError(
-                    "No matching data found (subject_id={}, visit_id={})"
-                    .format(subject_id, visit_id))
-            if is_single_id(subject_id) and is_single_id(visit_id):
-                assert len(data) == 1
-                data = data[0]
-            else:
-                data = spec.CollectionClass(spec.name, data)
-            if single_name:
-                return data
-            all_data.append(data)
-        return all_data
 
     def save_workflow_graph_for(self, spec_name, fname, full=False,
                                 style='flat', **kwargs):
@@ -722,59 +793,12 @@ class Study(object):
                            name='sessions', environment=self.environment)
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
-        source = self.source(self.inputs)
+        source = pe.Node(RepositorySource(
+            self.bound_spec(i).collection for i in self.inputs), name='source')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
         workflow.run()
-
-    def source(self, inputs, name='source'):
-        """
-        Returns a NiPype node that gets the input data from the repository
-        system. The input spec of the node's interface should inherit from
-        RepositorySourceInputSpec
-
-        Parameters
-        ----------
-        project_id : str
-            The ID of the project to return the sessions for
-        inputs : list(Fileset|Field)
-            An iterable of arcana.Fileset or arcana.Field
-            objects, which specify the filesets to extract from the
-            repository system
-        name : str
-            Name of the NiPype node
-        from_study: str
-            Prefix used to distinguish filesets generated by a particular
-            study. Used for derived filesets only
-        """
-        return Node(RepositorySource(
-            self.spec(i).collection for i in inputs), name=name,
-            environment=self.environment)
-
-    def sink(self, outputs, name='sink'):
-        """
-        Returns a NiPype node that puts the output data back to the repository
-        system. The input spec of the node's interface should inherit from
-        RepositorySinkInputSpec
-
-        Parameters
-        ----------
-        project_id : str
-            The ID of the project to return the sessions for
-        outputs : List(BaseFile|Field) | list(
-            An iterable of arcana.Fileset arcana.Field objects,
-            which specify the filesets to put into the repository system
-        name : str
-            Name of the NiPype node
-        from_study: str
-            Prefix used to distinguish filesets generated by a particular
-            study. Used for derived filesets only
-
-        """
-        return Node(RepositorySink(
-            (self.spec(o).collection for o in outputs)), name=name,
-            environment=self.environment)
 
     @classmethod
     def print_specs(cls):
@@ -796,10 +820,62 @@ class Study(object):
             Name of a data spec
         """
         spec = self.bound_spec(spec_name)
-        if isinstance(spec, BaseAcquiredSpec):
+        if not spec.derived:
             return spec.default is None and default_okay
         else:
             return True
+
+    @classmethod
+    def freq_from_iterators(cls, iterators):
+        """
+        Returns the frequency corresponding to the given iterators
+        """
+        return {
+            set(it): f for f, it in cls.FREQUENCIES.items()}[set(iterators)]
+
+    @property
+    def prov(self):
+        """
+        Extracts provenance information from the study for storage alongside
+        generated derivatives. Typically for reference purposes only as only
+        the pipeline workflow, inputs and outputs are checked by default when
+        determining which sessions require reprocessing.
+
+        Returns
+        -------
+        prov : dict[str, *]
+            A dictionary containing the provenance information to record
+            for the study
+        """
+        # Get list of repositories where inputs to the study are stored
+        input_repos = list(set((i.repository for i in self.inputs)))
+        inputs = {}
+        for input in self.inputs:  # @ReservedAssignment
+            inputs[input.name] = {
+                'repository_index': input_repos.index(input.repository)}
+            if input.frequency == 'per_study':
+                inputs[input.name]['names'] = next(input.collection).name
+            elif input.frequency == 'per_subject':
+                inputs[input.name]['names'] = {i.subject_id: i.name
+                                               for i in input.collection}
+            elif input.frequency == 'per_visit':
+                inputs[input.name]['names'] = {i.visit_id: i.name
+                                               for i in input.collection}
+            elif input.frequency == 'per_session':
+                inputs[input.name]['names'] = defaultdict(dict)
+                for item in input.collection:
+                    inputs[input.name]['names'][
+                        item.subject_id][item.visit_id] = item.name
+        return {
+            'name': self.name,
+            'type': get_class_info(type(self)),
+            'parameters': {p.name: p.value for p in self.parameters},
+            'inputs': inputs,
+            'environment': self.environment.prov,
+            'repositories': {i: r.prov for i, r in enumerate(input_repos)},
+            'processor': self.processor.prov,
+            'subject_ids': self.subject_ids,
+            'visit_ids': self.visit_ids}
 
 
 class StudyMetaClass(type):

@@ -2,6 +2,10 @@ from builtins import object
 from abc import ABCMeta, abstractmethod
 from future.utils import with_metaclass
 import logging
+from collections import defaultdict
+from itertools import chain
+from .tree import Tree, Subject, Session, Visit
+
 
 logger = logging.getLogger('arcana')
 
@@ -46,6 +50,32 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
+    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
+        """
+        Find all data within a repository, registering filesets, fields and
+        provenance with the found_fileset, found_field and found_provenance
+        methods, respectively
+
+        Parameters
+        ----------
+        subject_ids : list(str)
+            List of subject IDs with which to filter the tree with. If
+            None all are returned
+        visit_ids : list(str)
+            List of visit IDs with which to filter the tree with. If
+            None all are returned
+
+        Returns
+        -------
+        filesets : list[Fileset]
+            All the filesets found in the repository
+        fields : list[Field]
+            All the fields found in the repository
+        records : list[Record]
+            The provenance records found in the repository
+        """
+
+    @abstractmethod
     def get_fileset(self, fileset):
         """
         If the repository is remote, cache the fileset here
@@ -57,7 +87,6 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
         If the repository is remote, cache the fileset here
         """
-        pass
 
     @abstractmethod
     def put_fileset(self, fileset):
@@ -72,6 +101,12 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         """
 
     @abstractmethod
+    def put_record(self, record):
+        """
+        Inserts a provenance record into a session or subject|visit|study
+        summary
+        """
+
     def tree(self, subject_ids=None, visit_ids=None, **kwargs):
         """
         Return the tree of subject and sessions information within a
@@ -92,6 +127,10 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             A hierarchical tree of subject, session and fileset
             information for the repository
         """
+        # Find all data present in the repository (filtered by the passed IDs)
+        return Tree.construct(*self.find_data(subject_ids=subject_ids,
+                                              visit_ids=visit_ids),
+                                              **kwargs)
 
     def cached_tree(self, subject_ids=None, visit_ids=None,
                     fill=False):
@@ -112,6 +151,12 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             subject_id x visit_id block. Typically only used if all
             the inputs to the study are coming from different repositories
             to the one that the derived products are stored in
+
+        Returns
+        -------
+        tree : arcana.repository.Tree
+            A hierarchical tree of subject, vist, session information and that
+            of the filesets and fields they contain
         """
         if subject_ids is not None:
             subject_ids = frozenset(subject_ids)
@@ -123,10 +168,8 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             fill_subjects = None
             fill_visits = None
             if fill:
-                if subject_ids is not None:
-                    fill_subjects = subject_ids
-                if visit_ids is not None:
-                    fill_visits = visit_ids
+                fill_subjects = subject_ids
+                fill_visits = visit_ids
             tree = self._cache[(subject_ids, visit_ids, fill)] = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
                 fill_visits=fill_visits, fill_subjects=fill_subjects)

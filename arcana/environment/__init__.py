@@ -1,5 +1,5 @@
-from .requirement import (
-    Requirement, CLIRequirement, MatlabRequirement,
-    split_version, matlab_version_split, date_split)
 from .static import StaticEnvironment
 from .modules import ModulesEnvironment
+from .requirement import (
+    BaseRequirement, CliRequirement, MatlabPackageRequirement,
+    PythonPackageRequirement, matlab_req)

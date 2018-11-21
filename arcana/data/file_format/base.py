@@ -1,12 +1,10 @@
 from builtins import object
-from abc import ABCMeta, abstractmethod
-from arcana.node import Node
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
-    ArcanaFileFormatNotRegisteredError)
+    ArcanaFileFormatNotRegisteredError, ArcanaMissingDataException)
 from nipype.interfaces.utility import IdentityInterface
+from arcana.utils import lower, split_extension
 import logging
-from future.utils import with_metaclass
 
 
 logger = logging.getLogger('arcana')
@@ -150,7 +148,7 @@ class FileFormat(object):
         "Lists acceptable XNAT resource names in order of preference"
         return (self.name.upper(),) + self.alternate_names
 
-    def converter_from(self, file_format, processor=None):
+    def converter_from(self, file_format, **kwargs):
         if file_format == self:
             return IdentityConverter(file_format, self)
         try:
@@ -162,7 +160,7 @@ class FileFormat(object):
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
-        return converter_cls(file_format, self, processor=processor)
+        return converter_cls(file_format, self, **kwargs)
 
     @classmethod
     def register(cls, file_format):
@@ -271,8 +269,37 @@ class FileFormat(object):
                     path, self.name))
         return self._header_loader(path)
 
+    def primary_file(self, file_names):
+        """
+        Selects the primary file from a list of filenames, as opposed to
+        side-cars and headers
 
-class Converter(with_metaclass(ABCMeta, object)):
+        Parameters
+        ----------
+        file_names : list[str]
+            The list of filenames to select from
+
+        Returns
+        -------
+        fname : str
+            The name of the primary file
+        """
+
+        match_fnames = [
+            f for f in file_names
+            if lower(split_extension(f)[-1]) == lower(self.extension)]
+        if len(match_fnames) == 1:
+            fname = match_fnames[0]
+        else:
+            raise ArcanaMissingDataException(
+                "Did not find single file with extension '{}' "
+                "(found '{}') in resource '{}'"
+                .format(self.extension,
+                        "', '".join(file_names), fname))
+        return fname
+
+
+class Converter(object):
     """
     Base class for all Arcana data format converters
 
@@ -284,12 +311,14 @@ class Converter(with_metaclass(ABCMeta, object)):
         The output format to convert to
     """
 
-    def __init__(self, input_format, output_format, processor=None):
+    requirements = []
+
+    def __init__(self, input_format, output_format, wall_time=None,
+                 mem_gb=None):
         self._input_format = input_format
         self._output_format = output_format
-        self._processor = processor
-        if processor is not None:
-            processor.requirements_satisfiable(*self.requirements)
+        self._wall_time = wall_time
+        self._mem_gb = mem_gb
 
     def __eq__(self, other):
         return (self.input_format == self.input_format and
@@ -304,20 +333,27 @@ class Converter(with_metaclass(ABCMeta, object)):
         return self._output_format
 
     @property
-    def processor(self):
-        return self._processor
+    def interface(self):
+        # To be overridden by subclasses
+        return NotImplementedError
 
-    @abstractmethod
-    def get_node(self, name):
-        """
-        Returns a NiPype node that converts a fileset from the input
-        format to the output format
+    @property
+    def input(self):
+        # To be overridden by subclasses
+        return NotImplementedError
 
-        Parameters
-        ----------
-        name : str
-            Name for the node
-        """
+    @property
+    def output(self):
+        # To be overridden by subclasses
+        return NotImplementedError
+
+    @property
+    def mem_gb(self):
+        return self._mem_gb
+
+    @property
+    def wall_time(self):
+        return self._wall_time
 
     def __repr__(self):
         return "{}(input_format={}, output_format={})".format(
@@ -327,6 +363,6 @@ class Converter(with_metaclass(ABCMeta, object)):
 class IdentityConverter(Converter):
 
     requirements = []
-
-    def get_node(self, name, **kwargs):
-        return Node(IdentityInterface(['i']), name=name, **kwargs), 'i', 'i'
+    interface = IdentityInterface(['i'])
+    input = 'i'
+    output = 'i'

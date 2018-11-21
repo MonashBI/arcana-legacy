@@ -9,9 +9,10 @@ from arcana.data import (  # @IgnorePep8
     FilesetSelector, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.testing import BaseTestCase  # @IgnorePep8
+from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
+from arcana.repository.interfaces import RepositorySource, RepositorySink  # @IgnorePep8
 from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
 
 
@@ -29,7 +30,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
                     frequency='per_subject'),
         FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('project_sink', text_format, 'dummy_pipeline',
+        FilesetSpec('study_sink', text_format, 'dummy_pipeline',
                     frequency='per_study'),
         FilesetSpec('resink1', text_format, 'dummy_pipeline'),
         FilesetSpec('resink2', text_format, 'dummy_pipeline'),
@@ -38,8 +39,8 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('field2', float, 'dummy_pipeline'),
         FieldSpec('field3', str, 'dummy_pipeline')]
 
-    def dummy_pipeline(self):
-        pass
+    def dummy_pipeline(self, **name_maps):
+        return self.pipeline('dummy', name_maps=name_maps)
 
 
 class TestSinkAndSource(BaseTestCase):
@@ -65,8 +66,18 @@ class TestSinkAndSource(BaseTestCase):
                             'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = study.source(source_files)
-        sink = study.sink(sink_files)
+        source = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection
+                for f in source_files),
+            name='source')
+        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline.cap()
+        sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection for f in sink_files),
+                dummy_pipeline),
+            name='sink')
         sink.inputs.name = 'repository_sink'
         sink.inputs.desc = (
             "A test session created by repository roundtrip unittest")
@@ -88,10 +99,9 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.STUDY_NAME)))
-            if not (f == DirectoryRepository.FIELDS_FNAME)]
-        self.assertEqual(outputs,
-                         ['.derived', 'sink1.txt', 'sink3.txt',
-                          'sink4.txt'])
+            if f not in (DirectoryRepository.FIELDS_FNAME,
+                         DirectoryRepository.PROV_DIR)]
+        self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
@@ -99,8 +109,12 @@ class TestSinkAndSource(BaseTestCase):
             STUDY_NAME, self.repository,
             processor=LinearProcessor('a_dir'),
             inputs=[])
-        sink = study.sink(
-            outputs=['field1', 'field2', 'field3'],
+        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline.cap()
+        sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection
+                 for f in ['field1', 'field2', 'field3']), dummy_pipeline),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
         sink.inputs.field2_field = field2 = 2.0
@@ -110,8 +124,10 @@ class TestSinkAndSource(BaseTestCase):
         sink.inputs.desc = "Test sink of fields"
         sink.inputs.name = 'test_sink'
         sink.run()
-        source = study.source(
-            inputs=['field1', 'field2', 'field3'],
+        source = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection
+                for f in ['field1', 'field2', 'field3']),
             name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
@@ -134,30 +150,47 @@ class TestSinkAndSource(BaseTestCase):
             IdentityInterface(['subject_id', 'visit_id']), 'inputnode')
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
-        source = study.source(source_files)
+        source = pe.Node(
+            RepositorySource(study.bound_spec(f).collection
+                             for f in source_files), name='source')
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        subject_sink = study.sink(subject_sink_files, name='subject_sink')
+        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline.cap()
+        subject_sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection for f in subject_sink_files),
+                dummy_pipeline),
+            name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
         subject_sink.inputs.desc = (
             "Tests the sinking of subject-wide filesets")
         # Test visit sink
         visit_sink_files = ['visit_sink']
-        visit_sink = study.sink(visit_sink_files, name='visit_sink')
+        visit_sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection
+                 for f in visit_sink_files),
+                dummy_pipeline),
+            name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
-        project_sink_files = ['project_sink']
-        project_sink = study.sink(project_sink_files, name='project_sink')
+        study_sink_files = ['study_sink']
+        study_sink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection for f in study_sink_files),
+                dummy_pipeline),
+            name='study_sink')
 
-        project_sink.inputs.name = 'project_summary'
-        project_sink.inputs.desc = (
+        study_sink.inputs.name = 'project_summary'
+        study_sink.inputs.desc = (
             "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
-                            project_sink))
+                            study_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
@@ -170,68 +203,75 @@ class TestSinkAndSource(BaseTestCase):
             visit_sink, 'visit_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source3' + PATH_SUFFIX,
-            project_sink, 'project_sink' + PATH_SUFFIX)
+            study_sink, 'study_sink' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(
             frequency='per_subject',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         ['.derived', 'subject_sink.txt'])
+                         [DirectoryRepository.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         ['.derived', 'visit_sink.txt'])
+                         [DirectoryRepository.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_study',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         ['.derived', 'project_sink.txt'])
+                         [DirectoryRepository.PROV_DIR, 'study_sink.txt'])
         # Reload the data from the summary directories
-        reloadinputnode = pe.Node(IdentityInterface(['subject_id',
-                                                     'visit_id']),
-                                  'reload_inputnode')
+        reloadinputnode = pe.Node(
+            IdentityInterface(['subject_id', 'visit_id']),
+            name='reload_inputnode')
         reloadinputnode.inputs.subject_id = self.SUBJECT
         reloadinputnode.inputs.visit_id = self.VISIT
-        reloadsource = study.source(
-            (source_files + subject_sink_files + visit_sink_files +
-             project_sink_files),
-            name='reload_source')
-        reloadsink = study.sink(
-            ['resink1', 'resink2', 'resink3'])
+        reloadsource_per_subject = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in subject_sink_files),
+            name='reload_source_per_subject')
+        reloadsource_per_visit = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in visit_sink_files),
+            name='reload_source_per_visit')
+        reloadsource_per_study = pe.Node(
+            RepositorySource(
+                study.bound_spec(f).collection for f in study_sink_files),
+            name='reload_source_per_study')
+        reloadsink = pe.Node(
+            RepositorySink(
+                (study.bound_spec(f).collection
+                 for f in ['resink1', 'resink2', 'resink3']),
+                dummy_pipeline),
+            name='reload_sink')
         reloadsink.inputs.name = 'reload_summary'
         reloadsink.inputs.desc = (
             "Tests the reloading of subject and project summary filesets")
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsource, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsource, 'visit_id')
-        reloadworkflow.connect(reloadinputnode, 'subject_id',
-                               reloadsink, 'subject_id')
-        reloadworkflow.connect(reloadinputnode, 'visit_id',
-                               reloadsink, 'visit_id')
-        reloadworkflow.connect(reloadsource,
+        for node in (reloadsource_per_subject, reloadsource_per_visit,
+                     reloadsource_per_study, reloadsink):
+            for iterator in ('subject_id', 'visit_id'):
+                reloadworkflow.connect(reloadinputnode, iterator,
+                                       node, iterator)
+        reloadworkflow.connect(reloadsource_per_subject,
                                'subject_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink1' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
+        reloadworkflow.connect(reloadsource_per_visit,
                                'visit_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink2' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource,
-                               'project_sink' + PATH_SUFFIX,
+        reloadworkflow.connect(reloadsource_per_study,
+                               'study_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
-            if f != DirectoryRepository.FIELDS_FNAME]
+            if f not in (DirectoryRepository.FIELDS_FNAME,
+                         DirectoryRepository.PROV_DIR)]
         self.assertEqual(outputs,
-                         ['.derived',
-                          'resink1.txt',
-                          'resink2.txt',
-                          'resink3.txt'])
+                         ['resink1.txt', 'resink2.txt', 'resink3.txt'])

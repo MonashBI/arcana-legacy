@@ -1,8 +1,8 @@
 from past.builtins import basestring
 from builtins import object
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError)
-from arcana.exception import ArcanaUsageError
+from arcana.exceptions import ArcanaUsageError
 from .base import Study, StudyMetaClass
 
 

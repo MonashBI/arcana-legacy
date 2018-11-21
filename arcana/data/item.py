@@ -1,12 +1,16 @@
 from past.builtins import basestring
-import os.path
+import os
+from itertools import chain
+import os.path as op
+import hashlib
 import pydicom
 from arcana.data.file_format import FileFormat
 from arcana.data.file_format.standard import directory_format
 from arcana.utils import split_extension, parse_value
-from arcana.exception import (
+from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
-    ArcanaFileFormatNotRegisteredError, ArcanaNameError)
+    ArcanaFileFormatNotRegisteredError, ArcanaNameError,
+    ArcanaDataNotDerivedYetError)
 from .base import BaseFileset, BaseField
 
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
@@ -17,22 +21,27 @@ class BaseItem(object):
     is_spec = False
 
     def __init__(self, subject_id, visit_id, repository, from_study,
-                 exists):
+                 exists, record):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
         self._from_study = from_study
         self._exists = exists
+        self._record = record
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
-                self.from_study == other.from_study)
+                self.from_study == other.from_study and
+                self.exists == other.exists and
+                self._record == other._record)
 
     def __hash__(self):
         return (hash(self.subject_id) ^
                 hash(self.visit_id) ^
-                hash(self.from_study))
+                hash(self.from_study) ^
+                hash(self.exists) ^
+                hash(self._record))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
@@ -49,6 +58,14 @@ class BaseItem(object):
             mismatch += ('\n{}from_study: self={} v other={}'
                          .format(sub_indent, self.from_study,
                                  other.from_study))
+        if self.exists != other.exists:
+            mismatch += ('\n{}exists: self={} v other={}'
+                         .format(sub_indent, self.exists,
+                                 other.exists))
+        if self._record != other._record:
+            mismatch += ('\n{}_record: self={} v other={}'
+                         .format(sub_indent, self._record,
+                                 other._record))
         return mismatch
 
     @property
@@ -72,8 +89,32 @@ class BaseItem(object):
         return self._visit_id
 
     @property
+    def session_id(self):
+        return (self.subject_id, self.visit_id)
+
+    @property
     def from_study(self):
         return self._from_study
+
+    @property
+    def record(self):
+        return self._record
+
+    @record.setter
+    def record(self, record):
+        if self.name not in record.outputs:
+            raise ArcanaNameError(
+                self.name,
+                "{} was not found in outputs {} of provenance record".format(
+                    self.name, record.outputs.keys(), record))
+        self._record = record
+
+    @property
+    def recorded_checksums(self):
+        if self.record is None:
+            return None
+        else:
+            return self._record.outputs[self.name]
 
     def initkwargs(self):
         dct = super(Fileset, self).initkwargs()
@@ -117,16 +158,29 @@ class Fileset(BaseItem, BaseFileset):
         The repository which the fileset is stored
     from_study : str
         Name of the Arcana study that that generated the field
+    exists : bool
+        Whether the fileset exists or is just a placeholder for a derivative
+    bids_attr : ??
+        BIDS attributes
+    checksums : dict[str, str]
+        A checksums of all files within the fileset in a dictionary sorted by
+        relative file paths
+    record : arcana.pipeline.provenance.Record | None
+        The provenance record for the pipeline that generated the file set,
+        if applicable
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, bids_attr=None):
+                 exists=True, bids_attr=None, checksums=None,
+                 record=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists)
+                          from_study, exists, record)
+        if path is not None:
+            path = op.abspath(op.realpath(path))
         self._path = path
         self._uri = uri
         self._bids_attr = bids_attr
@@ -135,20 +189,29 @@ class Fileset(BaseItem, BaseFileset):
                            [DICOM_SERIES_NUMBER_TAG])
         else:
             self._id = id
+        self._checksums = checksums
 
     def __eq__(self, other):
-        return (BaseFileset.__eq__(self, other) and
-                BaseItem.__eq__(self, other) and
-                self._path == other._path and
-                self.id == other.id and
-                self._bids_attr == other._bids_attr)
+        eq = (BaseFileset.__eq__(self, other) and
+              BaseItem.__eq__(self, other) and
+              self.id == other.id and
+              self.bids_attr == other.bids_attr and
+              self.checksums == other.checksums)
+        # Avoid having to cache fileset in order to test equality unless they
+        # are already both cached
+        try:
+            if self._path is not None and other._path is not None:
+                eq &= (self._path == other._path)
+        except AttributeError:
+            return False
+        return eq
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
-                hash(self._path) ^
                 hash(self.id) ^
-                hash(self._bids_attr))
+                hash(self.bids_attr) ^
+                hash(self.checksums))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -170,7 +233,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency='{}', "
-                "subject_id={}, visit_id={}, from_study={})".format(
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))
@@ -199,13 +262,21 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}bids_attr: self={} v other={}'
                          .format(sub_indent, self._bids_attr,
                                  other._bids_attr))
+        if self.checksums != other.checksums:
+            mismatch += ('\n{}checksum: self={} v other={}'
+                         .format(sub_indent, self.checksums,
+                                 other.checksums))
         return mismatch
 
     @property
     def path(self):
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access path of {} as it hasn't been derived yet"
+                .format(self))
         if self._path is None:
             if self.repository is not None:
-                self._path = self.repository.get_fileset(self)
+                self.get()  # Retrieve from repository
             else:
                 raise ArcanaError(
                     "Neither path nor repository has been set for Fileset("
@@ -214,7 +285,22 @@ class Fileset(BaseItem, BaseFileset):
 
     @path.setter
     def path(self, path):
+        if path is not None:
+            path = op.abspath(op.realpath(path))
+            self._exists = True
         self._path = path
+        self._checksums = None  # reset checksums
+        self.put()  # Push to repository
+
+    @property
+    def paths(self):
+        """Iterates through all files in the set"""
+        if self.format.directory:
+            return chain(*((op.join(root, f) for f in files)
+                           for root, _, files in os.walk(self.path)))
+        else:
+            # FIXME: Need to add support for headers/side-car files
+            return iter([self.path])
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
@@ -230,14 +316,29 @@ class Fileset(BaseItem, BaseFileset):
     def uri(self):
         return self._uri
 
+    @property
+    def checksums(self):
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access checksums of {} as it hasn't been derived yet"
+                .format(self))
+        if self._checksums is None:
+            self._checksums = {}
+            for fpath in self.paths:
+                with open(fpath, 'rb') as f:
+                    self._checksums[
+                        op.relpath(fpath, self.path)] = hashlib.md5(
+                            f.read()).hexdigest()
+        return self._checksums
+
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
                   **kwargs):
-        if not os.path.exists(path):
+        if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
                 "does not exist".format(path))
-        if os.path.isdir(path):
+        if op.isdir(path):
             within_exts = frozenset(
                 split_extension(f)[1] for f in os.listdir(path)
                 if not f.startswith('.'))
@@ -248,9 +349,9 @@ class Fileset(BaseItem, BaseFileset):
                 except ArcanaFileFormatNotRegisteredError:
                     # Fall back to general directory format
                     format = directory_format  # @ReservedAssignment
-            name = os.path.basename(path)
+            name = op.basename(path)
         else:
-            filename = os.path.basename(path)
+            filename = op.basename(path)
             name, ext = split_extension(filename)
             if format is None:
                 try:
@@ -284,7 +385,7 @@ class Fileset(BaseItem, BaseFileset):
                 .format(self))
         fnames = sorted([f for f in os.listdir(self.path)
                          if not f.startswith('.')])
-        with open(os.path.join(self.path, fnames[index]), 'rb') as f:
+        with open(op.join(self.path, fnames[index]), 'rb') as f:
             dcm = pydicom.dcmread(f)
         return dcm
 
@@ -328,14 +429,16 @@ class Fileset(BaseItem, BaseFileset):
         dct['id'] = self.id
         dct['uri'] = self.uri
         dct['bids_attr'] = self.bids_attr
+        dct['checksums'] = self.checksums
         return dct
 
     def get(self):
         if self.repository is not None:
-            self._value = self.repository.get_fileset(self)
+            self._exists = True
+            self._path = self.repository.get_fileset(self)
 
     def put(self):
-        if self.repository is not None:
+        if self.repository is not None and self._path is not None:
             self.repository.put_fileset(self)
 
     def get_array(self):
@@ -369,12 +472,17 @@ class Field(BaseItem, BaseField):
         The repository which the field is stored
     from_study : str
         Name of the Arcana study that that generated the field
+    exists : bool
+        Whether the field exists or is just a placeholder for a derivative
+    record : arcana.pipeline.provenance.Record | None
+        The provenance record for the pipeline that generated the field,
+        if applicable
     """
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', array=None, subject_id=None,
                  visit_id=None, repository=None, from_study=None,
-                 exists=True):
+                 exists=True, record=None):
         # Try to determine dtype and array from value if they haven't
         # been provided.
         if value is None:
@@ -415,7 +523,7 @@ class Field(BaseItem, BaseField):
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
         BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists)
+                          from_study, exists, record)
         self._value = value
 
     def __eq__(self, other):
@@ -461,8 +569,8 @@ class Field(BaseItem, BaseField):
             return self.name < other.name
 
     def __repr__(self):
-        return ("{}(name='{}', value={}, frequency='{}',  "
-                "subject_id={}, visit_id={}, from_study={})".format(
+        return ("{}(name='{}', value={}, frequency='{}', "
+                "subject_id={}, visit_id={}, from_study='{}')".format(
                     type(self).__name__, self.name, self._value,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study))
@@ -472,6 +580,10 @@ class Field(BaseItem, BaseField):
 
     @property
     def value(self):
+        if not self.exists:
+            raise ArcanaDataNotDerivedYetError(
+                "Cannot access value of {} as it hasn't been "
+                "derived yet".format(repr(self)))
         if self._value is None:
             if self.repository is not None:
                 self._value = self.repository.get_field(self)
@@ -487,6 +599,16 @@ class Field(BaseItem, BaseField):
             self._value = [self.dtype(v) for v in value]
         else:
             self._value = self.dtype(value)
+        self._exists = True
+        self.put()
+
+    @property
+    def checksums(self):
+        """
+        For duck-typing with filesets in checksum management. Instead of a
+        checksum, just the value of the field is used
+        """
+        return self.value
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
@@ -496,8 +618,9 @@ class Field(BaseItem, BaseField):
 
     def get(self):
         if self.repository is not None:
+            self._exists = True
             self._value = self.repository.get_field(self)
 
     def put(self):
-        if self.repository is not None:
+        if self.repository is not None and self._value is not None:
             self.repository.put_field(self)
