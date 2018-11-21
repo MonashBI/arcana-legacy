@@ -3,6 +3,7 @@ from builtins import str  # @UnusedImports
 from builtins import object
 import time
 import logging
+from nipype.interfaces.base import isdefined
 from nipype.pipeline.engine import (
     Node as NipypeNode, JoinNode as NipypeJoinNode,
     MapNode as NipypeMapNode)
@@ -70,6 +71,21 @@ class NodeMixin(object):
     @property
     def environment(self):
         return self._environment
+
+    @property
+    def prov(self):
+        prov = {
+            'id': self.name,
+            'interface': get_class_info(type(self.interface)),
+            'requirements': {
+                v.name: (str(v), v.local_name, v.local_version)
+                for v in self.versions},
+            'parameters': {}}
+        for trait_name in self.inputs.visible_traits():
+            val = getattr(self.inputs, trait_name)
+            if isdefined(val):
+                prov['parameters'][trait_name] = val
+        return prov
 
 
 class Node(NodeMixin, NipypeNode):

@@ -1,7 +1,6 @@
 import json
 import re
 from copy import deepcopy
-import sys
 from pprint import pformat
 from datetime import datetime
 from deepdiff import DeepDiff
@@ -188,10 +187,7 @@ class Record(object):
             include = ['']  # Include everything
         if exclude is None:
             exclude = []  # Don't exclude anything
-        kwargs = {}
-        if sys.version_info[0:2] < (3, 7):
-            kwargs['ignore_order'] = True
-        diff = DeepDiff(self._prov, other._prov, **kwargs)
+        diff = DeepDiff(self._prov, other._prov, ignore_order=True)
         # Create regular expresssions for the include and exclude paths in
         # the format that deepdiff uses for nested dictionary/lists
         include_res = [

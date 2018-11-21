@@ -1,9 +1,8 @@
 from past.builtins import basestring
+from future.utils import PY2
 from builtins import object
-from collections import OrderedDict
 import os
 from pprint import pformat
-import sys
 from copy import deepcopy, copy
 import tempfile
 import shutil
@@ -11,13 +10,11 @@ import errno
 import json
 from itertools import chain
 from collections import defaultdict
-import networkx as nx
 import networkx.readwrite.json_graph as nx_json
-from nipype.interfaces.base import isdefined
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
-from arcana.utils import get_class_info, extract_package_version
+from arcana.utils import extract_package_version
 from arcana.pkg_info import __version__
 from arcana.exceptions import ArcanaDesignError, ArcanaError, ArcanaUsageError
 from .provenance import (
@@ -829,35 +826,21 @@ class Pipeline(object):
             A dictionary containing the provenance information to record
             for the pipeline
         """
-        # Reconstruct network graph, expanding out the nodes into dictionaries
-        # that can be serialized to JSONs
-        wf_graph = nx.Graph()
-        for node in self.workflow._graph.nodes_iter():
-            parameters = {}
-            for trait_name in node.inputs.visible_traits():
-                val = getattr(node.inputs, trait_name)
-                if isdefined(val):
-                    parameters[trait_name] = val
-            wf_graph.add_node(
-                node.name,
-                interface=get_class_info(type(node.interface)),
-                parameters=parameters,
-                requirements={v.name: (str(v), v.local_name, v.local_version)
-                              for v in node.versions})
-        for from_, to in self.workflow._graph.edges_iter():
-            wf_graph.add_edge(from_.name, to.name,
-                              **self.workflow._graph.get_edge_data(from_, to))
-        # Roundtrip workflow graph to JSON to convert any tuples into lists
-        # so dictionaries can be compared directly
-        wf_dict = json.loads(json.dumps(nx_json.node_link_data(wf_graph)))
-        # Change link node-references from node index to node ID so it is
-        # not dependent on the order the nodes are written to the dictionary
-        # (which for Python < 3.7 is guaranteed to be the same between
-        # identical runs)
-        nodes = wf_dict['nodes']
+        # Export worfklow graph to node-link data format
+        wf_dict = nx_json.node_link_data(self.workflow._graph)
+        # Replace references to Node objects with the node's provenance
+        # information. Also change link node-references from node index to node
+        # ID so it is not dependent on the order the nodes are written to the
+        # dictionary (which for Python < 3.7 is guaranteed to be the same
+        # between identical runs)
+        for node in wf_dict['nodes']:
+            node.update(node['id'].prov)
         for link in wf_dict['links']:
-            link['source'] = nodes[link['source']]['id']
-            link['target'] = nodes[link['target']]['id']
+            link['source'] = wf_dict['nodes'][link['source']]['id']
+            link['target'] = wf_dict['nodes'][link['target']]['id']
+        # Roundtrip to JSON to convert any tuples into lists so dictionaries
+        # can be compared directly
+        wf_dict = json.loads(json.dumps(wf_dict))
         dependency_versions = {d: extract_package_version(d)
                                for d in ARCANA_DEPENDENCIES}
         pkg_versions = {'arcana': __version__}
@@ -923,6 +906,10 @@ class Pipeline(object):
             o.name: o.collection.item(node.subject_id, node.visit_id).checksums
             for o in self.outputs}
         exp_prov = copy(self.prov)
+        if PY2:
+            # Need to convert to unicode strings for Python 2
+            exp_inputs = json.loads(json.dumps(exp_inputs))
+            exp_outputs = json.loads(json.dumps(exp_outputs))
         exp_prov['inputs'] = exp_inputs
         exp_prov['outputs'] = exp_outputs
         return Record(
