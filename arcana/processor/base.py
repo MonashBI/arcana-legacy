@@ -1,5 +1,6 @@
 from builtins import object
 import os  # @UnusedImport
+from pprint import pformat
 import os.path as op
 from collections import defaultdict, OrderedDict
 import shutil
@@ -322,7 +323,8 @@ class BaseProcessor(object):
         # Iterate through stack of required pipelines from upstream to
         # downstream
         connected_pipelines = {}
-        for key, (pipeline, req_outputs, flt_array) in reversed(list(stack.items())):
+        for key, (pipeline,
+                  req_outputs, flt_array) in reversed(list(stack.items())):
             try:
                 connected_pipelines[key] = self._connect_pipeline(
                     pipeline, req_outputs, connected_pipelines, workflow,

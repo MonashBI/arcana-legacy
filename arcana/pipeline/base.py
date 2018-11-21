@@ -1,6 +1,9 @@
 from past.builtins import basestring
 from builtins import object
+from collections import OrderedDict
 import os
+from pprint import pformat
+import sys
 from copy import deepcopy, copy
 import tempfile
 import shutil
@@ -16,9 +19,7 @@ from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.utils import get_class_info, extract_package_version
 from arcana.pkg_info import __version__
-from arcana.exceptions import (
-    ArcanaDesignError, ArcanaError,
-    ArcanaOutputNotProducedException, ArcanaMissingDataException)
+from arcana.exceptions import ArcanaDesignError, ArcanaError, ArcanaUsageError
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -659,7 +660,7 @@ class Pipeline(object):
             The input node corresponding to the given frequency
         """
         if self._inputnodes is None:
-            raise ArcanaError(
+            raise ArcanaUsageError(
                 "The pipeline must be capped (see cap() method) before an "
                 "input node is accessed")
         return self._inputnodes[frequency]
@@ -680,7 +681,7 @@ class Pipeline(object):
             The output node corresponding to the given frequency
         """
         if self._outputnodes is None:
-            raise ArcanaError(
+            raise ArcanaUsageError(
                 "The pipeline must be capped (see cap() method) before an "
                 "output node is accessed")
         return self._outputnodes[frequency]
@@ -688,7 +689,7 @@ class Pipeline(object):
     @property
     def prov(self):
         if self._prov is None:
-            raise ArcanaError(
+            raise ArcanaUsageError(
                 "The pipeline must be capped (see cap() method) before the "
                 "provenance is accessed")
         return self._prov
@@ -849,9 +850,16 @@ class Pipeline(object):
         # Roundtrip workflow graph to JSON to convert any tuples into lists
         # so dictionaries can be compared directly
         wf_dict = json.loads(json.dumps(nx_json.node_link_data(wf_graph)))
+        # Change link node-references from node index to node ID so it is
+        # not dependent on the order the nodes are written to the dictionary
+        # (which for Python < 3.7 is guaranteed to be the same between
+        # identical runs)
+        nodes = wf_dict['nodes']
+        for link in wf_dict['links']:
+            link['source'] = nodes[link['source']]['id']
+            link['target'] = nodes[link['target']]['id']
         dependency_versions = {d: extract_package_version(d)
                                for d in ARCANA_DEPENDENCIES}
-
         pkg_versions = {'arcana': __version__}
         pkg_versions.update((k, v) for k, v in dependency_versions.items()
                             if v is not None)
