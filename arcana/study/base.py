@@ -872,7 +872,7 @@ class Study(object):
             'parameters': {p.name: p.value for p in self.parameters},
             'inputs': inputs,
             'environment': self.environment.prov,
-            'repositories': {i: r.prov for i, r in enumerate(input_repos)},
+            'repositories': [r.prov for r in input_repos],
             'processor': self.processor.prov,
             'subject_ids': self.subject_ids,
             'visit_ids': self.visit_ids}
