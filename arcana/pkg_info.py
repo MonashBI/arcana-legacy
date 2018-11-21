@@ -1,5 +1,5 @@
 
-__version__ = '0.2.6.dev1'
+__version__ = '0.2.7'
 
 install_requires = [
     'xnat>=0.3.9',
