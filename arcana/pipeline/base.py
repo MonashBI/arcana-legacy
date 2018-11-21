@@ -2,7 +2,7 @@ from past.builtins import basestring
 from future.utils import PY2
 from builtins import object
 import os
-from pprint import pformat
+import sys
 from copy import deepcopy, copy
 import tempfile
 import shutil
@@ -851,7 +851,8 @@ class Pipeline(object):
             'name': self.name,
             'workflow': wf_dict,
             'study': self.study.prov,
-            'pkg_versions': pkg_versions}
+            'pkg_versions': pkg_versions,
+            'python_version': sys.version}
 
     def expected_record(self, node):
         """
