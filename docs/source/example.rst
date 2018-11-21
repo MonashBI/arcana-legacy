@@ -10,7 +10,7 @@ A basic toy example
     from arcana.study.base import Study, StudyMetaClass
     from nipype.interfaces.base import (  # @IgnorePep8
         BaseInterface, File, TraitedSpec, traits, isdefined)
-    from arcana.parameter import ParameterSpec
+    from arcana.study import ParameterSpec
     from nipype.interfaces.utility import IdentityInterface
 
     class ExampleStudy(Study):
