@@ -236,7 +236,7 @@ class XnatRepository(BaseRepository):
                 shutil.copyfile(fileset.path, cache_path)
             with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
-                json.dump(fileset.checksums, f)
+                json.dump(fileset.checksums, f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
                 type=fileset.name, parent=xsession)
@@ -531,7 +531,7 @@ class XnatRepository(BaseRepository):
         shutil.move(data_path, cache_path)
         with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                   **JSON_ENCODING) as f:
-            json.dump(checksums, f)
+            json.dump(checksums, f, indent=2)
 
     @classmethod
     def _delayed_download(cls, tmp_dir, xresource, xscan, fileset,

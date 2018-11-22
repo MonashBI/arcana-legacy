@@ -321,7 +321,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         os.remove(md5_path)
         checksums['.'] = 'dummy_checksum'
         with open(md5_path, 'w', **JSON_ENCODING) as f:
-            json.dump(checksums, f)
+            json.dump(checksums, f, indent=2)
         # Retry the download, which should now download since the checksums
         # differ
         source.run()

@@ -173,7 +173,7 @@ class DirectoryRepository(BaseRepository):
             else:
                 dct[field.name] = field.value
             with open(fpath, 'w') as f:
-                json.dump(dct, f)
+                json.dump(dct, f, indent=2)
 
     def put_record(self, record):
         fpath = self.prov_json_path(record)

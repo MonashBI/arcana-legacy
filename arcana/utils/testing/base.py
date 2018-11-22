@@ -145,7 +145,7 @@ class BaseTestCase(TestCase):
             with open(op.join(session_dir,
                               DirectoryRepository.FIELDS_FNAME), 'w',
                       **JSON_ENCODING) as f:
-                json.dump(fields, f)
+                json.dump(fields, f, indent=2)
 
     def delete_project(self, project_dir):
         # Clean out any existing repository files
@@ -500,7 +500,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     dct = {}
                 dct[field.name] = field.value
                 with open(fields_path, 'w', **JSON_ENCODING) as f:
-                    json.dump(dct, f)
+                    json.dump(dct, f, indent=2)
                 if field.derived:
                     self._make_dir(op.join(session_path,
                                            DirectoryRepository.PROV_DIR))
