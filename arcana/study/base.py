@@ -14,7 +14,7 @@ from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaOutputNotProducedException)
 from arcana.pipeline import Pipeline
-from arcana.data import BaseData, BaseSpec
+from arcana.data import BaseData, BaseSpec, BaseAcquiredSpec
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -820,8 +820,8 @@ class Study(object):
             Name of a data spec
         """
         spec = self.bound_spec(spec_name)
-        if not spec.derived:
-            return spec.default is None and default_okay
+        if isinstance(spec, BaseAcquiredSpec):
+            return spec.default is not None and default_okay
         else:
             return True
 

@@ -83,8 +83,12 @@ class NodeMixin(object):
             'parameters': {}}
         for trait_name in self.inputs.visible_traits():
             val = getattr(self.inputs, trait_name)
+            try:
+                val_prov = val.prov
+            except AttributeError:
+                val_prov = val
             if isdefined(val):
-                prov['parameters'][trait_name] = val
+                prov['parameters'][trait_name] = val_prov
         return prov
 
 

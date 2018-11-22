@@ -25,6 +25,7 @@ class StaticEnvironment(BaseEnvironment):
     def __init__(self, fail_on_missing=True, fail_on_undetectable=True):
         self._fail_on_missing = fail_on_missing
         self._fail_on_undectable = fail_on_undetectable
+        self._detected_versions = {}
 
     def satisfy(self, *requirements):
         """
@@ -39,17 +40,22 @@ class StaticEnvironment(BaseEnvironment):
         versions = []
         for req_range in requirements:
             try:
-                version = req_range.requirement.detect_version()
-            except ArcanaRequirementNotFoundError as e:
-                if self._fail_on_missing:
-                    raise
+                version = self._detected_versions[req_range.name]
+            except KeyError:
+                try:
+                    version = req_range.requirement.detect_version()
+                except ArcanaRequirementNotFoundError as e:
+                    if self._fail_on_missing:
+                        raise
+                    else:
+                        logger.warning(e)
+                except ArcanaVersionNotDectableError as e:
+                    if self._fail_on_undetectable:
+                        raise
+                    else:
+                        logger.warning(e)
                 else:
-                    logger.warning(e)
-            except ArcanaVersionNotDectableError as e:
-                if self._fail_on_undetectable:
-                    raise
-                else:
-                    logger.warning(e)
+                    self._detected_versions[req_range.name] = version
             if not req_range.within(version):
                 raise ArcanaVersionError(
                     "Detected {} version {} is not within requested range {}"

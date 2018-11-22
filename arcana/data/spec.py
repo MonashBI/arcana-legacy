@@ -31,7 +31,7 @@ class BaseAcquiredSpec(object):
                 raise ArcanaUsageError(
                     "Frequency of default collection-like object passed to "
                     "'{}' spec ('{}'), does not match spec ('{}')".format(
-                        name, default.freqency, self.frequency))
+                        name, default.frequency, self.frequency))
             default = deepcopy(default)
         self._default = default
 
