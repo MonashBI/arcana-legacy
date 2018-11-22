@@ -15,12 +15,14 @@ class BaseSelector(object):
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
-                 repository=None, study_=None, collection_=None):
+                 fallback_to_default=False, repository=None, study_=None,
+                 collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
         self._from_study = from_study
         self._repository = repository
+        self._fallback_to_default = fallback_to_default
         # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._study = study_
@@ -31,14 +33,27 @@ class BaseSelector(object):
                 self.pattern == other.pattern and
                 self.is_regex == other.is_regex and
                 self.order == other.order and
-                self._repository == other._repository)
+                self._repository == other._repository and
+                self._fallback_to_default == other._fallback_to_default)
 
     def __hash__(self):
         return (hash(self.from_study) ^
                 hash(self.pattern) ^
                 hash(self.is_regex) ^
                 hash(self.order) ^
-                hash(self._repository))
+                hash(self._repository) ^
+                hash(self._fallback_to_default))
+
+    def initkwargs(self):
+        dct = {}
+        dct['from_study'] = self.from_study
+        dct['pattern'] = self.pattern
+        dct['order'] = self.order
+        dct['is_regex'] = self.is_regex
+        dct['study_'] = self._study
+        dct['collection_'] = self._collection
+        dct['fallback_to_default'] = self._fallback_to_default
+        return dct
 
     @property
     def pattern(self):
@@ -51,6 +66,10 @@ class BaseSelector(object):
     @property
     def from_study(self):
         return self._from_study
+
+    @property
+    def fallback_to_default(self):
+        return self._fallback_to_default
 
     @property
     def repository(self):
@@ -86,6 +105,13 @@ class BaseSelector(object):
         else:
             # Use the default study repository if not explicitly
             # provided to match
+            if self.fallback_to_default:
+                spec = study.data_spec(self.name)
+                if not spec.derived and spec.default is None:
+                    raise ArcanaUsageError(
+                        "Cannot fallback to default for '{}' spec in {} as it "
+                        " is not derived and doesn't have a default"
+                        .format(self.name, study))
             if self._repository is None:
                 tree = study.tree
             else:
@@ -158,16 +184,6 @@ class BaseSelector(object):
                         ', '.join(str(d) for d in node.filesets)))
         return match
 
-    def initkwargs(self):
-        dct = {}
-        dct['from_study'] = self.from_study
-        dct['pattern'] = self.pattern
-        dct['order'] = self.order
-        dct['is_regex'] = self.is_regex
-        dct['study_'] = self._study
-        dct['collection_'] = self._collection
-        return dct
-
 
 class FilesetSelector(BaseSelector, BaseFileset):
     """
@@ -210,6 +226,10 @@ class FilesetSelector(BaseSelector, BaseFileset):
         Is used to determine the location of the filesets in the
         repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
+    fallback_to_default : bool
+        If the there is no fileset/field matching the selection for a node
+        and corresponding data spec has a default or is a derived spec,
+        then fallback to the default or generate the derivative.
     repository : BaseRepository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
@@ -219,9 +239,9 @@ class FilesetSelector(BaseSelector, BaseFileset):
     CollectionClass = FilesetCollection
 
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
-                 frequency='per_session', id=None,  # @ReservedAssignment @IgnorePep8
-                 order=None, dicom_tags=None, is_regex=False,
-                 from_study=None, repository=None, study_=None,
+                 frequency='per_session', id=None,  # @ReservedAssignment
+                 order=None, dicom_tags=None, is_regex=False, from_study=None,
+                 fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
@@ -229,7 +249,8 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 "FilesetSelector constructor")
         BaseFileset.__init__(self, name, format, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                           from_study, repository, study_, collection_)
+                              from_study, fallback_to_default, repository,
+                              study_, collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -364,6 +385,10 @@ class FieldSelector(BaseSelector, BaseField):
         Is used to determine the location of the fields in the
         repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
+    fallback_to_default : bool
+        If the there is no fileset/field matching the selection for a node
+        and corresponding data spec has a default or is a derived spec,
+        then fallback to the default or generate the derivative.
     repository : BaseRepository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
@@ -374,11 +399,12 @@ class FieldSelector(BaseSelector, BaseField):
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
-                 repository=None, study_=None, collection_=None):
+                 fallback_to_default=False, repository=None, study_=None,
+                 collection_=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                           from_study, repository,
-                           study_, collection_)
+                              from_study, fallback_to_default, repository,
+                              study_, collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and

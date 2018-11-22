@@ -76,9 +76,7 @@ class NodeMixin(object):
     def prov(self):
         prov = {
             'interface': get_class_info(type(self.interface)),
-            'requirements': {
-                v.name: (str(v), v.local_name, v.local_version)
-                for v in self.versions},
+            'requirements': {v.name: v.prov for v in self.versions},
             'parameters': {}}
         for trait_name in self.inputs.visible_traits():
             val = getattr(self.inputs, trait_name)
