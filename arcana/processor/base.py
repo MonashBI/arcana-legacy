@@ -830,7 +830,7 @@ class BaseProcessor(object):
                             "Provenance recorded for '{}' pipeline in {} does "
                             "not match that of requested pipeline, set "
                             "reprocess flag == True to overwrite:\n{}".format(
-                                pipeline.name, self, mismatches))
+                                pipeline.name, self, pformat(mismatches)))
         # Dialate to process array
         to_process_array = self._dialate_array(to_process_array, output_freqs)
         # Check for conflicts between nodes to process and nodes to protect

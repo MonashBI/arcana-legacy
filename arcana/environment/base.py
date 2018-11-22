@@ -75,7 +75,6 @@ class NodeMixin(object):
     @property
     def prov(self):
         prov = {
-            'id': self.name,
             'interface': get_class_info(type(self.interface)),
             'requirements': {
                 v.name: (str(v), v.local_name, v.local_version)

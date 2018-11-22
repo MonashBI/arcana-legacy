@@ -829,15 +829,16 @@ class Pipeline(object):
         # Export worfklow graph to node-link data format
         wf_dict = nx_json.node_link_data(self.workflow._graph)
         # Replace references to Node objects with the node's provenance
-        # information. Also change link node-references from node index to node
-        # ID so it is not dependent on the order the nodes are written to the
-        # dictionary (which for Python < 3.7 is guaranteed to be the same
-        # between identical runs)
-        for node in wf_dict['nodes']:
-            node.update(node['id'].prov)
+        # information and convert to a dict organised by node name to allow it
+        # to be compared more easily. Also change link node-references from
+        # node index to node ID so it is not dependent on the order the nodes
+        # are written to the dictionary (which for Python < 3.7 is guaranteed
+        # to be the same between identical runs)
         for link in wf_dict['links']:
-            link['source'] = wf_dict['nodes'][link['source']]['id']
-            link['target'] = wf_dict['nodes'][link['target']]['id']
+            link['source'] = wf_dict['nodes'][link['source']]['id'].name
+            link['target'] = wf_dict['nodes'][link['target']]['id'].name
+        wf_dict['nodes'] = {n['id'].name: n['id'].prov
+                            for n in wf_dict['nodes']}
         # Roundtrip to JSON to convert any tuples into lists so dictionaries
         # can be compared directly
         wf_dict = json.loads(json.dumps(wf_dict))
