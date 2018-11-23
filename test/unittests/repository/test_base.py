@@ -40,7 +40,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('field3', str, 'dummy_pipeline')]
 
     def dummy_pipeline(self, **name_maps):
-        return self.pipeline('dummy', name_maps=name_maps)
+        return self.new_pipeline('dummy', name_maps=name_maps)
 
 
 class TestSinkAndSource(BaseTestCase):

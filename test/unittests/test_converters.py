@@ -36,7 +36,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
                     'conv_pipeline')]
 
     def conv_pipeline(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             name='conv_pipeline',
             name_maps=name_maps,
             desc=("A pipeline that tests out various data format "

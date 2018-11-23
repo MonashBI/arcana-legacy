@@ -48,7 +48,7 @@ class Pipeline(object):
         pipeline constructor, e.g.
 
         def my_pipeline(**name_maps):
-            pipeline = self.pipeline('my_pipeline', mods)
+            pipeline = self.new_pipeline('my_pipeline', mods)
             pipeline.add('a_node', MyInterface())
 
             ...

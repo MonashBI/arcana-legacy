@@ -64,7 +64,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('fours', float, 'pipeline2')]
 
     def pipeline1(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline1',
             desc=("A pipeline that tests loading of requirements"),
             name_maps=name_maps)
@@ -80,7 +80,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             name='pipeline2',
             desc=("A pipeline that tests loading of requirements in "
                   "map nodes"),
