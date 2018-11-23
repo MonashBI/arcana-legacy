@@ -117,13 +117,14 @@ class Study(object):
             environment = StaticEnvironment()
         self._name = name
         self._repository = repository
-        self._repository.clear_cache()
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
         self._fill_tree = fill_tree
+        # Initialise caches for data collection and pipeline objects
+        self.clear_caches()
         if not self.subject_ids:
             raise ArcanaUsageError(
                 "No subject IDs provided and destination repository "
@@ -201,7 +202,6 @@ class Study(object):
         # "Bind" data specs in the class to the current study object
         # this will allow them to prepend the study name to the name
         # of the fileset
-        self._bound_specs = {}
         for spec in self.data_specs():
             if spec.name not in self.input_names:
                 if not spec.derived and spec.default is None:
@@ -352,38 +352,47 @@ class Study(object):
                 all_data.append(data)
         return all_data
 
-    def get_pipeline(self, pipeline_name, required_outputs=None):
+    def get_pipeline(self, getter_name, required_outputs=None):
         try:
-            getter = getattr(self, pipeline_name)
-        except AttributeError:
-            raise ArcanaDesignError(
-                "There is no pipeline method named '{}' in present in "
-                "'{}' study".format(pipeline_name, self))
-        self._pipeline_to_generate = pipeline_name
-        try:
-            pipeline = getter()
-        finally:
-            self._pipeline_to_generate = None
-        if pipeline is None:
-            raise ArcanaDesignError(
-                "'{}' pipeline constructor in {} is missing return "
-                "statement (should return a Pipeline object)".format(
-                    pipeline_name, self))
-        elif not isinstance(pipeline, Pipeline):
-            raise ArcanaDesignError(
-                "'{}' pipeline constructor in {} doesn't return a Pipeline "
-                "object ({})".format(
-                    pipeline_name, self, pipeline))
-        if required_outputs is not None and any(r not in pipeline.output_names
-                                                for r in required_outputs):
-            raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} pipeline in {} class given the "
-                "provided  switches ({}) and the missing inputs ('{}')".format(
-                    self.name, pipeline.name, self.__class__.__name__,
-                    ', '.join('{}={}'.format(s.name, s.value)
-                              for s in self.switches),
-                    "', '".join(self.missing_inputs)))
-        pipeline._getter_name = pipeline_name  # Store for use in processor
+            pipeline = self._pipelines_cache[getter_name]
+        except KeyError:
+            try:
+                getter = getattr(self, getter_name)
+            except AttributeError:
+                raise ArcanaDesignError(
+                    "There is no pipeline constructor method named '{}' in "
+                    "present in '{}' study".format(getter_name, self))
+            self._pipeline_to_generate = getter_name
+            try:
+                pipeline = getter()
+            finally:
+                self._pipeline_to_generate = None
+            if pipeline is None:
+                raise ArcanaDesignError(
+                    "'{}' pipeline constructor in {} is missing return "
+                    "statement (should return a Pipeline object)".format(
+                        getter_name, self))
+            elif not isinstance(pipeline, Pipeline):
+                raise ArcanaDesignError(
+                    "'{}' pipeline constructor in {} doesn't return a Pipeline"
+                    " object ({})".format(
+                        getter_name, self, pipeline))
+            self._pipelines_cache[getter_name] = pipeline
+        if required_outputs is not None:
+            # Check that the required outputs are created with the given
+            # parameters
+            missing_outputs = (set(required_outputs) -
+                               set(pipeline.output_names))
+            if missing_outputs:
+                raise ArcanaOutputNotProducedException(
+                    "Output(s) '{}', required for {}, will not be created by "
+                    "pipeline '{}' with parameters: {}".format(
+                        "', '".join(missing_outputs),
+                        pipeline._error_msg_loc,
+                        pipeline.name,
+                        ', '.join('{}={}'.format(s.name, s.value)
+                                  for s in self.switches),
+                        "', '".join(self.missing_inputs)))
         return pipeline
 
     def __repr__(self):
@@ -433,7 +442,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_cache(self):
+    def clear_caches(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent
@@ -441,6 +450,7 @@ class Study(object):
         """
         self.repository.clear_cache()
         self._bound_specs = {}
+        self._pipelines_cache = {}
 
     @property
     def processor(self):

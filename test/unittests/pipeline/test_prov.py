@@ -398,7 +398,7 @@ class TestProvBasic(BaseTestCase):
             ('derived_fileset1', 'derived_field4'))
         with open(derived_fileset1_collection.path(*self.SESSION), 'w') as f:
             f.write(str(protected_derived_fileset1_value))
-        study.clear_cache()
+        study.clear_caches()
         # Protect the output of derived_fileset1 as well and it should return
         # the protected values
         derived_fileset1_collection, derived_field4_collection = study.data(
