@@ -1,5 +1,4 @@
 from __future__ import absolute_import
-from past.builtins import basestring
 import os
 import tempfile
 from arcana.utils import makedirs
@@ -18,7 +17,7 @@ from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
 from arcana.pipeline.provenance import Record
-from arcana.utils import dir_modtime, get_class_info
+from arcana.utils import dir_modtime, get_class_info, parse_value
 import re
 import xnat
 
@@ -212,11 +211,7 @@ class XnatRepository(BaseRepository):
         self._check_repository(field)
         with self:
             xsession = self.get_xsession(field)
-            val_str = xsession.fields[field.name]
-            if field.array:
-                val = [field.dtype(v) for v in val_str.split(',')]
-            else:
-                val = field.dtype(val_str)
+            val = parse_value(xsession.fields[field.name])
         return val
 
     def put_fileset(self, fileset):
@@ -258,9 +253,11 @@ class XnatRepository(BaseRepository):
         self._check_repository(field)
         val = field.value
         if field.array:
+            if field.dtype is str:
+                val = ['"{}"'.format(v) for v in val]
             val = ','.join(val)
-        if isinstance(val, basestring):
-            val = str(val)
+        if field.dtype is str:
+            val = '"{}"'.format(val)
         with self:
             xsession = self.get_xsession(field)
             xsession.fields[field.name] = val

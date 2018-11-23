@@ -106,31 +106,29 @@ def parse_single_value(value):
     is of type string. Useful when excepting values that may be string
     representations of numerical values
     """
-    if isinstance(value, (int, float)):
-        return value
-    try:
-        value = int(value)
-    except ValueError:
+    if isinstance(value, basestring):
         try:
-            value = float(value)
-        except ValueError:
-            if isinstance(value, basestring):
-                value = str(value)
+            if value.startswith('"') and value.endswith('"'):
+                value = str(value[1:-1])
+            elif '.' in value:
+                value = float(value)
             else:
-                raise ArcanaUsageError(
-                    "Unrecognised value type {}".format(value))
-    except:
-        raise
+                value = int(value)
+        except ValueError:
+            value = str(value)
+    elif not isinstance(value, (int, float)):
+        raise ArcanaUsageError(
+            "Unrecognised type for single value {}".format(value))
     return value
 
 
 def parse_value(value):
     # Split strings with commas into lists
     if isinstance(value, basestring):
-        if ',' in value:
-            value = value.split(',')
-    # Cast all iterables (except strings) into lists
+        if value.startswith('[') and value.endswith(']'):
+            value = value[1:-1].split(',')
     else:
+        # Cast all iterables (except strings) into lists
         try:
             value = list(value)
         except TypeError:
@@ -139,10 +137,7 @@ def parse_value(value):
         value = [parse_single_value(v) for v in value]
         # Check to see if datatypes are consistent
         dtypes = set(type(v) for v in value)
-        if dtypes == set((float, int)):
-            # If both ints and floats are presents, cast to floats
-            value = [float(v) for v in value]
-        elif len(dtypes) > 1:
+        if len(dtypes) > 1:
             raise ArcanaUsageError(
                 "Inconsistent datatypes in values array ({})"
                 .format(value))

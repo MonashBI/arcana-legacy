@@ -553,7 +553,18 @@ class Field(BaseItem, BaseField):
         return float(self.value)
 
     def __str__(self):
-        return str(self.value)
+        if self.array:
+            val = '[' + ','.join(self._to_str(v) for v in self.value) + ']'
+        else:
+            val = self._to_str(self.value)
+        return val
+
+    def _to_str(self, val):
+        if self.dtype is str:
+            val = '"{}"'.format(val)
+        else:
+            val = str(val)
+        return val
 
     def __lt__(self, other):
         if self.name == other.name:
