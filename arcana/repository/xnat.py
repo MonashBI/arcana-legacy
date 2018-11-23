@@ -211,7 +211,9 @@ class XnatRepository(BaseRepository):
         self._check_repository(field)
         with self:
             xsession = self.get_xsession(field)
-            val = parse_value(xsession.fields[field.name])
+            val = xsession.fields[field.name]
+            val = val.replace('&quot;', '"')
+            val = parse_value(val)
         return val
 
     def put_fileset(self, fileset):
@@ -391,6 +393,7 @@ class XnatRepository(BaseRepository):
                                 **kwargs))
                     # Find fields
                     for name, value in list(xsession.fields.items()):
+                        value = value.replace('&quot;', '"')
                         all_fields.append(Field(
                             name=name, value=value, repository=self,
                             frequency=frequency,
