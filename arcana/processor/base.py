@@ -281,7 +281,7 @@ class BaseProcessor(object):
             stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
             for prq_getter, prq_req_outputs in pipeline.prerequisites.items():
-                prereq = pipeline.study.get_pipeline(prq_getter,
+                prereq = pipeline.study.pipeline(prq_getter,
                                                      prq_req_outputs)
                 try:
                     push_on_stack(prereq, filt_array, prq_req_outputs)
@@ -361,7 +361,7 @@ class BaseProcessor(object):
         prqs_to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
                                          dtype=bool)
         for getter_name in pipeline.prerequisites:
-            prereq = pipeline.study.get_pipeline(getter_name)
+            prereq = pipeline.study.pipeline(getter_name)
             if prereq._to_process_array.any():
                 final_nodes.append(prereq.node('final'))
                 prqs_to_process_array |= prereq._to_process_array

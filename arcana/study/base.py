@@ -297,19 +297,19 @@ class Study(object):
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
         # Work out which pipelines need to be run
-        pipeline_names = defaultdict(set)
+        pipeline_getters = defaultdict(set)
         for spec in specs:
             if isinstance(spec, BaseSpec):  # Filter out Study inputs
                 # Add name of spec to set of required outputs
-                pipeline_names[spec.pipeline_name].add(spec.name)
+                pipeline_getters[spec.pipeline_getter].add(spec.name)
         # Run required pipelines
-        if pipeline_names:
+        if pipeline_getters:
             kwargs = copy(kwargs)
             kwargs.update({'subject_ids': subject_ids,
                            'visit_ids': visit_ids,
                            'session_ids': session_ids})
             pipelines, required_outputs = zip(*(
-                (self.get_pipeline(k), v) for k, v in pipeline_names.items()))
+                (self.pipeline(k), v) for k, v in pipeline_getters.items()))
             kwargs['required_outputs'] = required_outputs
             self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
@@ -352,7 +352,7 @@ class Study(object):
                 all_data.append(data)
         return all_data
 
-    def get_pipeline(self, getter_name, required_outputs=None):
+    def pipeline(self, getter_name, required_outputs=None):
         try:
             pipeline = self._pipelines_cache[getter_name]
         except KeyError:
@@ -938,17 +938,18 @@ class StudyMetaClass(type):
         # pipeline method in the class
         for spec in add_data_specs:
             if spec.derived:
-                if spec.pipeline_name == 'pipeline':
+                if spec.pipeline_getter in ('pipeline', 'new_pipeline'):
                     raise ArcanaDesignError(
-                        "Cannot use the name 'pipeline' for the name of a "
-                        "pipeline constructor in class {} as it clashes "
-                        "with base method to create pipelines"
-                        .format(name))
-                if spec.pipeline_name not in combined_attrs:
+                        "Cannot use the names 'pipeline' or  'new_pipeline' "
+                        "('{}') for the name of a pipeline constructor in "
+                        "class {} as it clashes with base method to create "
+                        "pipelines"
+                        .format(spec.pipeline_getter, name))
+                if spec.pipeline_getter not in combined_attrs:
                     raise ArcanaDesignError(
                         "Pipeline to generate '{}', '{}', is not present"
                         " in '{}' class".format(
-                            spec.name, spec.pipeline_name, name))
+                            spec.name, spec.pipeline_getter, name))
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_param_specs))

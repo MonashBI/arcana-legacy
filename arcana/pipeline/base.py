@@ -154,7 +154,7 @@ class Pipeline(object):
             spec = self._study.spec(input)
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
-                prereqs[spec.pipeline_name].add(input.name)
+                prereqs[spec.pipeline_getter].add(input.name)
         return prereqs
 
     @property
@@ -165,7 +165,7 @@ class Pipeline(object):
         """
         return set(chain(
             (i for i in self.inputs if not i.derived),
-            *(self.study.get_pipeline(p, required_outputs=r).study_inputs
+            *(self.study.pipeline(p, required_outputs=r).study_inputs
               for p, r in self.prerequisites.items())))
 
     def add(self, name, interface, inputs=None, outputs=None, connect=None,
