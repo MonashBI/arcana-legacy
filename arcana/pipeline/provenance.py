@@ -187,27 +187,9 @@ class Record(object):
             excluded
         """
         if include is not None:
-            include_res = []
-            for path in include:
-                if isinstance(path, basestring):
-                    include_res.append(re.compile(
-                        r"root\['{}'\].*"
-                        .format(r"'\]\['".join(path.split('/')))))
-                elif not isinstance(path, re.Pattern):
-                    raise ArcanaUsageError(
-                        "Include paths can either be path strings or regexes, "
-                        "not '{}'".format(path))
+            include_res = [self._gen_prov_path_regex(p) for p in include]
         if exclude is not None:
-            exclude_res = []
-            for path in exclude:
-                if isinstance(path, basestring):
-                    exclude_res.append(re.compile(
-                        r"root\['{}'\].*"
-                        .format(r"'\]\['".join(path.split('/')))))
-                elif not isinstance(path, re.Pattern):
-                    raise ArcanaUsageError(
-                        "Exclude paths can either be path strings or regexes, "
-                        "not '{}'".format(path))
+            exclude_res = [self._gen_prov_path_regex(p) for p in exclude]
         diff = DeepDiff(self._prov, other._prov, ignore_order=True)
         # Create regular expresssions for the include and exclude paths in
         # the format that deepdiff uses for nested dictionary/lists
@@ -231,3 +213,16 @@ class Record(object):
             if filtered:
                 filtered_diff[change_type] = filtered
         return filtered_diff
+
+    @classmethod
+    def _gen_prov_path_regex(self, path):
+        if isinstance(path, basestring):
+            if path.startswith('/'):
+                path = path[1:]
+            regex = re.compile(r"root\['{}'\].*"
+                               .format(r"'\]\['".join(path.split('/'))))
+        elif not isinstance(path, re.Pattern):
+            raise ArcanaUsageError(
+                "Provenance in/exclude paths can either be path strings or "
+                "regexes, not '{}'".format(path))
+        return regex

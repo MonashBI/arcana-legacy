@@ -25,9 +25,9 @@ logger = getLogger('arcana')
 
 WORKFLOW_MAX_NAME_LEN = 100
 
-PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids', 'inputs',
+DEFAULT_PROV_CHECK = ['workflow', 'study/subject_ids', 'study/visit_ids', 'inputs',
                 'outputs']
-PROV_EXCLUDE = ['workflow/nodes/interface/.*/pkg_version']
+DEFAULT_PROV_IGNORE = ['workflow/nodes/interface/.*/pkg_version']
 
 
 class BaseProcessor(object):
@@ -46,14 +46,14 @@ class BaseProcessor(object):
         step if a provenance mismatch is detected between save derivative and
         parameters passed to the Study. If False, an exception will be raised
         in this case
-    prov_include : iterable[str]
+    prov_check : iterable[str]
         Paths in the provenance dictionary to include in checks with previously
         generated derivatives to determine whether they need to be rerun.
         Paths are strings delimited by '/', with each part referring to a
         dictionary key in the nested provenance dictionary.
-    prov_exclude : iterable[str]
+    prov_ignore : iterable[str]
         Paths in the provenance dictionary to exclude (if they are already
-        included given the 'prov_include' kwarg) in checks with previously
+        included given the 'prov_check' kwarg) in checks with previously
         generated derivatives to determine whether they need to be rerun
         Paths are strings delimited by '/', with each part referring to a
         dictionary key in the nested provenance dictionary.
@@ -73,8 +73,8 @@ class BaseProcessor(object):
     default_plugin_args = {}
 
     def __init__(self, work_dir, reprocess=False,
-                 prov_include=PROV_INCLUDE,
-                 prov_exclude=PROV_EXCLUDE,
+                 prov_check=DEFAULT_PROV_CHECK,
+                 prov_ignore=DEFAULT_PROV_IGNORE,
                  max_process_time=None,
                  clean_work_dir_between_runs=True,
                  default_wall_time=DEFAULT_WALL_TIME,
@@ -82,8 +82,8 @@ class BaseProcessor(object):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
-        self._prov_include = prov_include
-        self._prov_exclude = prov_exclude
+        self._prov_check = prov_check
+        self._prov_ignore = prov_ignore
         self._plugin_args = copy(self.default_plugin_args)
         self._default_wall_time = default_wall_time
         self._deffault_mem_gb = default_mem_gb
@@ -118,12 +118,12 @@ class BaseProcessor(object):
         return self._reprocess
 
     @property
-    def prov_include(self):
-        return self._prov_include
+    def prov_check(self):
+        return self._prov_check
 
     @property
-    def prov_exclude(self):
-        return self._prov_exclude
+    def prov_ignore(self):
+        return self._prov_ignore
 
     @property
     def default_mem_gb(self):
@@ -758,7 +758,7 @@ class BaseProcessor(object):
         # Filter sessions to process by those requested
         to_process_array *= filter_array
         to_check_array *= (filter_array * np.invert(to_process_array))
-        if to_check_array.any() and self.prov_include:
+        if to_check_array.any() and self.prov_check:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
             to_check = []
@@ -791,11 +791,12 @@ class BaseProcessor(object):
                     expected_record = pipeline.expected_record(node)
                     # Compare record with expected
                     mismatches = record.mismatches(expected_record,
-                                                   self.prov_include,
-                                                   self.prov_exclude)
+                                                   self.prov_check,
+                                                   self.prov_ignore)
                     if mismatches:
                         msg = ("mismatch in provenance:\n{}\n Add mismatching "
-                               "paths to 'prov_exclude' to ignore.".format(
+                               "paths to 'prov_ignore' to ignore"
+                               .format(
                                    pformat(mismatches)))
                         reprocess = True
                 except ArcanaNameError as e:
@@ -815,7 +816,7 @@ class BaseProcessor(object):
                     else:
                         raise ArcanaReprocessException(
                             "Cannot use derivatives for '{}' pipeline stored "
-                            "in {} due to {}. To overwrite set 'reprocess' "
+                            "in {} due to {}, set 'reprocess' "
                             "flag to overwrite".format(
                                 pipeline.name, node, msg))
         # Dialate to process array
