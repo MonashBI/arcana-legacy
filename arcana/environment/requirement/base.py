@@ -224,11 +224,9 @@ class Version(object):
                     sequence.append(seq_part)
                 if len(sub_parts) > 1:
                     stage = sub_parts[1]
-                    pr_ver = ''.join(sub_parts[2:])
-                    try:
-                        pr_ver = int(pr_ver)
-                    except ValueError:
-                        pass
+                    pr_ver = int(sub_parts[2])
+                    if len(sub_parts) > 3:
+                        dev = ''.join(sub_parts[4:])
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None

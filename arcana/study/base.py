@@ -365,6 +365,13 @@ class Study(object):
             self._pipeline_to_generate = getter_name
             try:
                 pipeline = getter()
+            except ArcanaMissingDataException as e:
+                e.args = ("{}, which is required as an input when calling the "
+                          "pipeline constructor method '{}' to create a "
+                          "pipeline to produce '{}'".format(
+                              e, getter_name,
+                              "', '".join(required_outputs)),)
+                raise e
             finally:
                 self._pipeline_to_generate = None
             if pipeline is None:
@@ -385,14 +392,15 @@ class Study(object):
                                set(pipeline.output_names))
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
-                    "Output(s) '{}', required for {}, will not be created by "
-                    "pipeline '{}' with parameters: {}".format(
+                    "Required output(s) '{}', will not be created by the '{}' "
+                    "pipeline constructed by '{}' method in {} given the "
+                    "missing study inputs '{}' and the provided switches:\n{}"
+                    .format(
                         "', '".join(missing_outputs),
-                        pipeline._error_msg_loc,
-                        pipeline.name,
-                        ', '.join('{}={}'.format(s.name, s.value)
-                                  for s in self.switches),
-                        "', '".join(self.missing_inputs)))
+                        pipeline.name, getter_name, self,
+                        "', '".join(self.missing_inputs),
+                        '\n'.join('{}={}'.format(s.name, s.value)
+                                  for s in self.switches)))
         return pipeline
 
     def __repr__(self):
@@ -829,7 +837,10 @@ class Study(object):
         spec_name : str
             Name of a data spec
         """
-        spec = self.bound_spec(spec_name)
+        try:
+            spec = self.bound_spec(spec_name)
+        except ArcanaMissingDataException:
+            return False
         if isinstance(spec, BaseAcquiredSpec):
             return spec.default is not None and default_okay
         else:
@@ -872,10 +883,11 @@ class Study(object):
                 inputs[input.name]['names'] = {i.visit_id: i.name
                                                for i in input.collection}
             elif input.frequency == 'per_session':
-                inputs[input.name]['names'] = defaultdict(dict)
+                names = defaultdict(dict)
                 for item in input.collection:
-                    inputs[input.name]['names'][
-                        item.subject_id][item.visit_id] = item.name
+                    names[item.subject_id][item.visit_id] = item.name
+                # Convert from defaultdict to dict
+                inputs[input.name]['names'] = dict(names.items())
         return {
             'name': self.name,
             'type': get_class_info(type(self)),

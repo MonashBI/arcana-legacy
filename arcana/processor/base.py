@@ -10,14 +10,14 @@ from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
-from arcana.pipeline import Pipeline
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.utils import get_class_info
 from arcana.exceptions import (
     ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
-    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError,
-    ArcanaOutputNotProducedException)
+    ArcanaReprocessException, ArcanaProtectedOutputConflictError,
+    ArcanaOutputNotProducedException, ArcanaDataNotDerivedYetError,
+    ArcanaNameError)
 
 
 logger = getLogger('arcana')
@@ -281,15 +281,16 @@ class BaseProcessor(object):
             stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
             for prq_getter, prq_req_outputs in pipeline.prerequisites.items():
-                prereq = pipeline.study.pipeline(prq_getter,
-                                                     prq_req_outputs)
                 try:
+                    prereq = pipeline.study.pipeline(
+                        prq_getter, prq_req_outputs)
                     push_on_stack(prereq, filt_array, prq_req_outputs)
-                except ArcanaMissingDataException as e:
-                    raise ArcanaMissingDataException(
-                        "{}, which is required as an input of the '{}' "
-                        "pipeline to produce '{}'"
-                        .format(e, self.name, "', '".join(req_outputs)))
+                except (ArcanaMissingDataException,
+                        ArcanaOutputNotProducedException) as e:
+                    e.args = ("{}, which are required as inputs to the '{}' "
+                              "pipeline to produce '{}'".format(
+                                  e, pipeline.name, "', '".join(req_outputs)),)
+                    raise e
 
         # Add all primary pipelines to the stack along with their prereqs
         for pipeline, req_outputs in zip_longest(pipelines, required_outputs):
@@ -746,15 +747,16 @@ class BaseProcessor(object):
                             "is not intended".format(repr(item)))
                         to_protect_array[inds] = True
                         to_protect[inds].append(item)
-                    elif force and required:
-                        to_process_array[inds] = True
-                    else:
-                        to_check_array[inds] = True
+                    elif required:
+                        if force:
+                            to_process_array[inds] = True
+                        else:
+                            to_check_array[inds] = True
                 elif required:
                     to_process_array[inds] = True
         # Filter sessions to process by those requested
         to_process_array *= filter_array
-        to_check_array *= filter_array
+        to_check_array *= (filter_array * np.invert(to_process_array))
         if to_check_array.any() and self.prov_include:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
@@ -777,30 +779,44 @@ class BaseProcessor(object):
             if 'per_study' in output_freqs:
                 to_check.append(tree)
             for node in to_check:
-                # Retrieve record stored in tree node
-                record = node.record(pipeline.name, pipeline.study.name)
                 # Generated expected record from current pipeline/repository-
                 # state
-                expected_record = pipeline.expected_record(node)
-                # Compare record with expected
-                mismatches = record.mismatches(expected_record,
-                                               self.prov_include,
-                                               self.prov_exclude)
-                if mismatches:
+                index = ((subject_inds.get(node.subject_id, 0),
+                         visit_inds.get(node.visit_id, 0)))
+                reprocess = False
+                try:
+                    # Retrieve record stored in tree node
+                    record = node.record(pipeline.name, pipeline.study.name)
+                    expected_record = pipeline.expected_record(node)
+                    # Compare record with expected
+                    mismatches = record.mismatches(expected_record,
+                                                   self.prov_include,
+                                                   self.prov_exclude)
+                    if mismatches:
+                        msg = ("mismatch in provenance:\n{}\n Add mismatching "
+                               "paths to 'prov_exclude' to ignore.".format(
+                                   pformat(mismatches)))
+                        reprocess = True
+                except ArcanaNameError as e:
+                    msg = "missing provenance record"
+                    reprocess = False
+                    to_protect_array[index] = True
+                except ArcanaDataNotDerivedYetError as e:
+                    msg = ("missing input '{}' and therefore cannot check "
+                           "provenance".format(e.name))
+                    reprocess = True
+                if reprocess:
                     if self.reprocess:
-                        to_process_array[
-                            subject_inds.get(node.subject_id, 0),
-                            visit_inds.get(node.visit_id, 0)] = True
+                        to_process_array[index] = True
                         logger.info(
-                            "Reprocessing {} with '{}' "
-                            "pipeline due to mismatching provenance:\n{}"
-                            .format(node, pipeline.name, mismatches))
+                            "Reprocessing {} with '{}' due to {}"
+                            .format(node, pipeline.name, msg))
                     else:
-                        raise ArcanaProvenanceRecordMismatchError(
-                            "Provenance recorded for '{}' pipeline in {} does "
-                            "not match that of requested pipeline, set "
-                            "reprocess flag == True to overwrite:\n{}".format(
-                                pipeline.name, self, pformat(mismatches)))
+                        raise ArcanaReprocessException(
+                            "Cannot use derivatives for '{}' pipeline stored "
+                            "in {} due to {}. To overwrite set 'reprocess' "
+                            "flag to overwrite".format(
+                                pipeline.name, node, msg))
         # Dialate to process array
         to_process_array = self._dialate_array(to_process_array, output_freqs)
         # Check for conflicts between nodes to process and nodes to protect

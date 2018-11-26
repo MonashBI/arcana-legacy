@@ -19,7 +19,7 @@ from arcana.data import Fileset, Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import (
-    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError)
+    ArcanaReprocessException, ArcanaProtectedOutputConflictError)
 
 
 class DummyRequirement(BaseRequirement):
@@ -282,6 +282,7 @@ class TestProvBasic(BaseTestCase):
         finally:
             shutil.rmtree(tempdir)
         mismatches = record.mismatches(reloaded)
+        
         self.assertFalse(mismatches,
                          "Reloaded record did not match saved record:{}"
                          .format(mismatches))
@@ -429,7 +430,7 @@ class TestProvInputChange(BaseTestCase):
             f.write('99.9')
         # Should detect that the input has changed and throw an error
         self.assertRaises(
-            ArcanaProvenanceRecordMismatchError,
+            ArcanaReprocessException,
             study.data,
             'derived_field2')
         new_study = self.create_study(
