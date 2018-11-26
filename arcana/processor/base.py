@@ -25,6 +25,10 @@ logger = getLogger('arcana')
 
 WORKFLOW_MAX_NAME_LEN = 100
 
+PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids', 'inputs',
+                'outputs']
+PROV_EXCLUDE = ['workflow/nodes/interface/.*/pkg_version']
+
 
 class BaseProcessor(object):
     """
@@ -65,15 +69,12 @@ class BaseProcessor(object):
 
     DEFAULT_WALL_TIME = 20
     DEFAULT_MEM_GB = 4096
-    DEFAULT_PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids',
-                            'inputs', 'outputs']
-    DEFAULT_PROV_EXCLUDE = ['workflow/nodes/interface/.*/pkg_version']
 
     default_plugin_args = {}
 
     def __init__(self, work_dir, reprocess=False,
-                 prov_include=DEFAULT_PROV_INCLUDE,
-                 prov_exclude=DEFAULT_PROV_EXCLUDE,
+                 prov_include=PROV_INCLUDE,
+                 prov_exclude=PROV_EXCLUDE,
                  max_process_time=None,
                  clean_work_dir_between_runs=True,
                  default_wall_time=DEFAULT_WALL_TIME,

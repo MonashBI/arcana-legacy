@@ -256,37 +256,6 @@ class TestProvBasic(BaseTestCase):
     INPUT_DATASETS = INPUT_DATASETS
     INPUT_FIELDS = INPUT_FIELDS
 
-    def test_json_roundtrip(self):
-        """
-        Simple test whether provenance records can be written/read from a file
-        """
-        study_name = 'roundtrip_study'
-        # Test vanilla study
-        study = self.create_study(
-            TestProvStudy,
-            study_name,
-            inputs=STUDY_INPUTS)
-        # Just test to see if the pipeline works
-        self.assertEqual(next(iter(study.data('derived_field1'))).value,
-                         [3.0, 14.0, 140.0])
-        pipeline1 = study.pipeline1()
-        pipeline1.cap()
-        record = Record('pipeline1', 'per_session', self.SUBJECT, self.VISIT,
-                        study_name, pipeline1.prov)
-        tempdir = tempfile.mkdtemp()
-        try:
-            path = op.join(tempdir, 'prov1.json')
-            record.save(path)
-            reloaded = Record.load('pipeline1', 'per_session', self.SUBJECT,
-                                   self.VISIT, study_name, path)
-        finally:
-            shutil.rmtree(tempdir)
-        mismatches = record.mismatches(reloaded)
-        
-        self.assertFalse(mismatches,
-                         "Reloaded record did not match saved record:{}"
-                         .format(mismatches))
-
     def test_altered_workflow(self):
         """
         Tests whether data is regenerated if the pipeline workflows are altered
