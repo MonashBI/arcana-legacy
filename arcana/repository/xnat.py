@@ -61,6 +61,7 @@ class XnatRepository(BaseRepository):
     MD5_SUFFIX = '.__md5__.json'
     DERIVED_FROM_FIELD = '__derived_from__'
     PROV_SCAN = '__prov__'
+    PROV_RESOURCE = 'PROV'
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30):
@@ -455,22 +456,23 @@ class XnatRepository(BaseRepository):
                     if scan_type == self.PROV_SCAN:
                         # Download provenance JSON files and parse into
                         # records
-                        temp_dir = tempfile.mkdtemp()
-                        try:
-                            xscan.download_dir(op.join(temp_dir, 'PROV'))
-                            resources_dir = op.join(
-                                temp_dir, 'PROV', xsession.label, 'scans',
-                                xscan.id + '-' + xscan.type, 'resources')
-                            for pipeline_name in os.listdir(resources_dir):
-                                json_path = op.join(
-                                    resources_dir, pipeline_name, 'files',
-                                    pipeline_name + '.json')
-                                all_records.append(
-                                    Record.load(pipeline_name, frequency,
+                        with tempfile.TemporaryDirectory() as temp_dir:
+                            with tempfile.TemporaryFile() as temp_zip:
+                                self._login.download_stream(
+                                    scan_uri + '/files', temp_zip,
+                                    format='zip')
+                                with ZipFile(temp_zip) as zip_file:
+                                    zip_file.extractall(temp_dir)
+                            for base_dir, _, fnames in os.walk(temp_dir):
+                                for fname in fnames:
+                                    if fname.endswith('.json'):
+                                        pipeline_name = fname[:-len('.json')]
+                                        json_path = op.join(base_dir, fname)
+                                        all_records.append(
+                                            Record.load(
+                                                pipeline_name, frequency,
                                                 subject_id, visit_id,
                                                 from_study, json_path))
-                        finally:
-                            shutil.rmtree(temp_dir)
                     else:
                         try:
                             file_format = self._guess_file_format(resources,
