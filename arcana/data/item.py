@@ -326,13 +326,19 @@ class Fileset(BaseItem, BaseFileset):
                 "Cannot access checksums of {} as it hasn't been derived yet"
                 .format(self))
         if self._checksums is None:
-            self._checksums = {}
-            for fpath in self.paths:
-                with open(fpath, 'rb') as f:
-                    self._checksums[
-                        op.relpath(fpath, self.path)] = hashlib.md5(
-                            f.read()).hexdigest()
+            if self.repository is not None:
+                self._checksums = self.repository.get_checksums(self)
+            if self._checksums is None:
+                self._checksums = self.calculate_checksums()
         return self._checksums
+
+    def calculate_checksums(self):
+        checksums = {}
+        for fpath in self.paths:
+            with open(fpath, 'rb') as f:
+                checksums[op.relpath(fpath, self.path)] = hashlib.md5(
+                    f.read()).hexdigest()
+        return checksums
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8

@@ -25,9 +25,8 @@ logger = getLogger('arcana')
 
 WORKFLOW_MAX_NAME_LEN = 100
 
-DEFAULT_PROV_CHECK = ['workflow', 'study/subject_ids', 'study/visit_ids', 'inputs',
-                'outputs']
-DEFAULT_PROV_IGNORE = ['workflow/nodes/interface/.*/pkg_version']
+DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs']
+DEFAULT_PROV_IGNORE = ['.*/pkg_version']
 
 
 class BaseProcessor(object):
@@ -789,9 +788,19 @@ class BaseProcessor(object):
                     # Retrieve record stored in tree node
                     record = node.record(pipeline.name, pipeline.study.name)
                     expected_record = pipeline.expected_record(node)
+
+                    # Add subjects/visits to provenance check depending on
+                    # frequency of node
+                    prov_check = copy(self.prov_check)
+                    if (self.study.SUBJECT_ID not in
+                            self.study.FREQUENCIES[node.frequency]):
+                        prov_check.append('study/subject_ids')
+                    if (self.study.VISIT_ID not in
+                            self.study.FREQUENCIES[node.frequency]):
+                        prov_check.append('study/visit_ids')
                     # Compare record with expected
                     mismatches = record.mismatches(expected_record,
-                                                   self.prov_check,
+                                                   prov_check,
                                                    self.prov_ignore)
                     if mismatches:
                         msg = ("mismatch in provenance:\n{}\n Add mismatching "

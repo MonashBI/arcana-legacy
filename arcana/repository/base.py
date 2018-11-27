@@ -78,26 +78,77 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
     @abstractmethod
     def get_fileset(self, fileset):
         """
-        If the repository is remote, cache the fileset here
+        Cache the fileset locally if required
+
+        Parameters
+        ----------
+        fileset : Fileset
+            The fileset to cache locally
+
+        Returns
+        -------
+        path : str
+            The file-system path to the cached file
         """
-        pass
 
     @abstractmethod
     def get_field(self, field):
         """
-        If the repository is remote, cache the fileset here
+        Extract the value of the field from the repository
+
+        Parameters
+        ----------
+        field : Field
+            The field to retrieve the value for
+
+        Returns
+        -------
+        value : int | float | str | list[int] | list[float] | list[str]
+            The value of the Field
         """
+
+    def get_checksums(self, fileset):  # @UnusedVariable
+        """
+        Returns the checksums for the files in the fileset that are stored in
+        the repository. If no checksums are stored in the repository then this
+        method should be left to return None and the checksums will be
+        calculated by downloading the files and taking calculating the digests
+
+        Parameters
+        ----------
+        fileset : Fileset
+            The fileset to return the checksums for
+
+        Returns
+        -------
+        checksums : dct[str, str]
+            A dictionary with keys corresponding to the relative paths of all
+            files in the fileset from the base path and values equal to the MD5
+            hex digest. The primary file in the file-set (i.e. the one that the
+            path points to) should be specified by '.'.
+        """
+        return None
 
     @abstractmethod
     def put_fileset(self, fileset):
         """
         Inserts or updates the fileset into the repository
+
+        Parameters
+        ----------
+        fileset : Fileset
+            The fileset to insert into the repository
         """
 
     @abstractmethod
     def put_field(self, field):
         """
         Inserts or updates the fields into the repository
+
+        Parameters
+        ----------
+        field : Field
+            The field to insert into the repository
         """
 
     @abstractmethod

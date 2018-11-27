@@ -131,7 +131,11 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 else:
                     resource.upload(fileset.path, fileset.fname)
             for field in self.session.fields:
-                xsession.fields[field.name] = field.value
+                if field.dtype is str:
+                    value = '"{}"'.format(field.value)
+                else:
+                    value = field.value
+                xsession.fields[field.name] = value
 
     def tearDown(self):
         # Clean up working dirs
