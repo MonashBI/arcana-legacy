@@ -523,14 +523,15 @@ class XnatRepository(BaseRepository):
                 val = val.split('\\')
             return val
         with self:
-            response = self._login.get_json(
-                '/REST/services/dicomdump?src={}'
-                .format(fileset.uri[len('/data'):]))
-        hdr = {tag_parse_re.match(t['tag1']).groups():
-               convert(t['value'], t['vr'])
-               for t in response.json()['ResultSet']['Result']
-               if (tag_parse_re.match(t['tag1']) and
-                   t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
+            # Replace '/data' with '/archive' in uri
+            uri = '/archive' + fileset.uri[len('/data'):]
+            response = self._login.get(
+                '/REST/services/dicomdump?src=' + uri).json()[
+                    'ResultSet']['Result']
+        hdr = {tag_parse_re.match(t['tag1']).groups(): convert(t['value'],
+                                                               t['vr'])
+               for t in response if (tag_parse_re.match(t['tag1']) and
+                                     t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
         return hdr
 
     @classmethod
