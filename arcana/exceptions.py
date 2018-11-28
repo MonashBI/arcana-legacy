@@ -72,11 +72,11 @@ class ArcanaDataNotDerivedYetError(NamedArcanaError, ArcanaDesignError):
     pass
 
 
-class ArcanaFilesetSelectorError(ArcanaUsageError):
+class ArcanaSelectorError(ArcanaUsageError):
     pass
 
 
-class ArcanaFilesetSelectorMissingDataError(ArcanaFilesetSelectorError):
+class ArcanaSelectorMissingMatchError(ArcanaSelectorError):
     pass
 
 

@@ -66,7 +66,7 @@ class BaseAcquiredSpec(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study):
+    def bind(self, study, **kwargs):  # @UnusedVariable
         """
         Returns a copy of the AcquiredSpec bound to the given study
 
@@ -168,7 +168,7 @@ class BaseSpec(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study):
+    def bind(self, study, **kwargs):  # @UnusedVariable
         """
         Returns a copy of the Spec bound to the given study
 

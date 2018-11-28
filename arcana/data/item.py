@@ -232,7 +232,7 @@ class Fileset(BaseItem, BaseFileset):
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy='{}', exists={})"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}, exists={})"
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
@@ -605,7 +605,7 @@ class Field(BaseItem, BaseField):
             return self.name < other.name
 
     def __repr__(self):
-        return ("{}('{}',{} '{}', subj={}, vis={}, stdy='{}', exists={})"
+        return ("{}('{}',{} '{}', subj={}, vis={}, stdy={}, exists={})"
                 .format(
                     type(self).__name__, self.name,
                     ("{}, ".format(self._value)

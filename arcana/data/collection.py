@@ -19,14 +19,6 @@ class BaseCollection(object):
 
     def __init__(self, collection, frequency):
         self._frequency = frequency
-        if collection:
-            self._repository = self._common_attr(collection,
-                                                 'repository')
-            self._from_study = self._common_attr(collection,
-                                                 'from_study')
-        else:
-            self._repository = None
-            self._from_study = None
         if frequency == 'per_study':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
@@ -70,14 +62,6 @@ class BaseCollection(object):
 
     def __len__(self):
         return len(self._collection)
-
-    @property
-    def repository(self):
-        return self._repository
-
-    @property
-    def from_study(self):
-        return self._from_study
 
     @classmethod
     def _common_attr(self, collection, attr_name):
@@ -170,7 +154,7 @@ class BaseCollection(object):
         "in source and sink initiation"
         return self
 
-    def bind(self, study):
+    def bind(self, study, **kwargs):  # @UnusedVariable
         """
         Used for duck typing Collection objects with Spec and Match
         in source and sink initiation. Checks IDs match sessions in study.

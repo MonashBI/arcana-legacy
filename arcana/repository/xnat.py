@@ -54,6 +54,12 @@ class XnatRepository(BaseRepository):
         The amount of time to wait before checking that the required
         fileset has been downloaded to cache by another process has
         completed if they are attempting to download the same fileset
+    session_filter : str
+        A regular expression that is used to prefilter the discovered sessions
+        to avoid having to retrieve metadata for them, and potentially speeding
+        up the initialisation of the Study. Note that if the processing
+        relies on summary derivatives then the filter should match all sessions
+        in the Study's subject_ids and visit_ids.
     """
 
     type = 'xnat'
@@ -65,7 +71,8 @@ class XnatRepository(BaseRepository):
     PROV_RESOURCE = 'PROV'
 
     def __init__(self, server, project_id, cache_dir, user=None,
-                 password=None, check_md5=True, race_cond_delay=30):
+                 password=None, check_md5=True, race_cond_delay=30,
+                 session_filter=None):
         super(XnatRepository, self).__init__()
         self._project_id = project_id
         self._server = server
@@ -75,6 +82,9 @@ class XnatRepository(BaseRepository):
         self._password = password
         self._race_cond_delay = race_cond_delay
         self._check_md5 = check_md5
+        if session_filter is not None:
+            session_filter = re.compile(session_filter)
+        self._session_filter = session_filter
         self._login = None
 
     def __hash__(self):
@@ -123,6 +133,14 @@ class XnatRepository(BaseRepository):
     @property
     def cache_dir(self):
         return self._cache_dir
+
+    @property
+    def check_md5(self):
+        return self._check_md5
+
+    @property
+    def session_filter(self):
+        return self._session_filter
 
     def connect(self):
         """
@@ -367,7 +385,9 @@ class XnatRepository(BaseRepository):
             session_xids = [
                 s['ID'] for s in self._login.get_json(
                     '/data/projects/{}/experiments'.format(self.project_id))[
-                        'ResultSet']['Result']]
+                        'ResultSet']['Result']
+                if (self.session_filter is None or
+                    self.session_filter.match(s['label']))]
             for session_xid in session_xids:
                 session_json = self._login.get_json(
                     '/data/projects/{}/experiments/{}'.format(
@@ -381,16 +401,21 @@ class XnatRepository(BaseRepository):
                 # Get field values. We do this first so we can check for the
                 # DERIVED_FROM_FIELD to determine the correct session label and
                 # study name
+                field_values = {}
                 try:
                     fields_json = next(
                         c['items'] for c in session_json['children']
                         if c['field'] == 'fields/field')
                 except StopIteration:
-                    field_values = {}
+                    pass
                 else:
-                    field_values = {
-                        js['data_fields']['name']: js['data_fields']['field']
-                        for js in fields_json}
+                    for js in fields_json:
+                        try:
+                            value = js['data_fields']['field']
+                        except KeyError:
+                            pass
+                        else:
+                            field_values[js['data_fields']['name']] = value
                 # Extract study name and derived-from session
                 if self.DERIVED_FROM_FIELD in field_values:
                     df_sess_label = field_values.pop(self.DERIVED_FROM_FIELD)
@@ -496,7 +521,8 @@ class XnatRepository(BaseRepository):
                             uri=scan_uri, repository=self, frequency=frequency,
                             subject_id=subject_id, visit_id=visit_id,
                             from_study=from_study, **kwargs))
-                    # Find records
+                logger.debug("Found node {}:{} on {}:{}".format(
+                    subject_id, visit_id, self.server, self.project_id))
         return all_filesets, all_fields, all_records
 
     def convert_subject_ids(self, subject_ids):

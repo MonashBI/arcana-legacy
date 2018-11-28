@@ -4,8 +4,8 @@ from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaFilesetSelectorError,
-    ArcanaFilesetSelectorMissingDataError)
+    ArcanaUsageError, ArcanaSelectorError,
+    ArcanaSelectorMissingMatchError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
@@ -100,15 +100,18 @@ class BaseSelector(object):
     def order(self):
         return self._order
 
-    def bind(self, study, **kwargs):
+    def bind(self, study, spec_name, **kwargs):
         if self._study == study:
             bound = self
         else:
+            # Create copy and set study
+            bound = copy(self)
+            bound._study = study
             # Use the default study repository if not explicitly
             # provided to match
             if self.fallback_to_default:
-                spec = study.data_spec(self.name)
-                if spec.default is None and not spec.derived:
+                spec = study.data_spec(spec_name)
+                if not spec.derived and spec.default is None:
                     raise ArcanaUsageError(
                         "Cannot fallback to default for '{}' spec in {} as it "
                         " is not derived and doesn't have a default"
@@ -118,16 +121,16 @@ class BaseSelector(object):
                 default = spec.bind(study).collection
             else:
                 default = None
+            # Match against tree
             if self._repository is None:
-                tree = study.tree
+                repository = study.repository
             else:
-                tree = self._repository.cached_tree(
+                repository = self._repository
+            with repository:
+                tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-            # Match against tree
-            bound = copy(self)
-            bound._study = study
-            bound._collection = self.match(tree, default, **kwargs)
+                bound._collection = self.match(tree, default, **kwargs)
         return bound
 
     @property
@@ -158,7 +161,7 @@ class BaseSelector(object):
         for node in nodes:
             try:
                 matches.append(self._match_node(node, **kwargs))
-            except ArcanaFilesetSelectorMissingDataError as e:
+            except ArcanaSelectorMissingMatchError as e:
                 if default is not None:
                     matches.append(default.item(subject_id=node.subject_id,
                                                 visit_id=node.visit_id))
@@ -180,23 +183,19 @@ class BaseSelector(object):
             try:
                 match = matches[self.order]
             except IndexError:
-                raise ArcanaFilesetSelectorMissingDataError(
+                raise ArcanaSelectorMissingMatchError(
                     "Did not find {} named data matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
             match = matches[0]
         elif matches:
-            raise ArcanaFilesetSelectorError(
+            raise ArcanaSelectorError(
                 "Found multiple matches for {} pattern in {} ({})"
                 .format(self.pattern, node,
                         ', '.join(str(m) for m in matches)))
         else:
-            raise ArcanaFilesetSelectorMissingDataError(
-                "Did not find any matches for {} pattern in {} "
-                "(found {})"
-                .format(self.pattern, node,
-                        ', '.join(str(d) for d in node.filesets)))
+            assert False  # _filtered_matches should have raised an exception
         return match
 
 
@@ -309,14 +308,6 @@ class FilesetSelector(BaseSelector, BaseFileset):
     def id(self):
         return self._id
 
-    def bind(self, study, **kwargs):
-        with ExitStack() as stack:
-            # If dicom tags are used to match against then a connection
-            # to the repository may be required to query them.
-            if self.dicom_tags is not None and self._study != study:
-                stack.enter_context(study.repository)
-            return super(FilesetSelector, self).bind(study, **kwargs)
-
     @property
     def dicom_tags(self):
         return self._dicom_tags
@@ -333,14 +324,13 @@ class FilesetSelector(BaseSelector, BaseFileset):
         else:
             matches = list(node.filesets)
         if not matches:
-            raise ArcanaFilesetSelectorError(
-                "No fileset names in {}:{} match '{}' pattern, found: {}"
-                .format(node.subject_id, node.visit_id, self.pattern,
-                        ', '.join(d.name for d in node.filesets)))
+            raise ArcanaSelectorMissingMatchError(
+                "Did not find any matches for {} in {}, found:\n{}"
+                .format(self, node, '\n'.join(f.name for f in node.filesets)))
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
-                raise ArcanaFilesetSelectorError(
+                raise ArcanaSelectorMissingMatchError(
                     "Did not find filesets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
@@ -355,7 +345,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 if self.dicom_tags == values:
                     filtered.append(fileset)
             if not filtered:
-                raise ArcanaFilesetSelectorError(
+                raise ArcanaSelectorMissingMatchError(
                     "Did not find filesets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
@@ -445,9 +435,9 @@ class FieldSelector(BaseSelector, BaseField):
             matches = [f for f in matches
                        if f.from_study == self.from_study]
         if not matches:
-            raise ArcanaFilesetSelectorError(
-                "No field names in {} match '{}' pattern"
-                .format(node, self.pattern))
+            raise ArcanaSelectorMissingMatchError(
+                "Did not find any matches for {} in {}, found:\n{}"
+                .format(self, node, '\n'.join(f.name for f in node.fields)))
         return matches
 
     def __repr__(self):

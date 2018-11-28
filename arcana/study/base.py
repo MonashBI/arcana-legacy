@@ -125,14 +125,6 @@ class Study(object):
         self._fill_tree = fill_tree
         # Initialise caches for data collection and pipeline objects
         self.clear_caches()
-        if not self.subject_ids:
-            raise ArcanaUsageError(
-                "No subject IDs provided and destination repository "
-                "is empty")
-        if not self.visit_ids:
-            raise ArcanaUsageError(
-                "No visit IDs provided and destination repository "
-                "is empty")
         # Set parameters
         if parameters is None:
             parameters = {}
@@ -158,8 +150,7 @@ class Study(object):
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
-        # Add each "input fileset" checking to see whether the given
-        # fileset_spec name is valid for the study types
+        # Check validity of study inputs
         for inpt_name, inpt in list(inputs.items()):
             try:
                 spec = self.data_spec(inpt_name)
@@ -198,10 +189,20 @@ class Study(object):
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
                         .format(inpt, spec))
-            self._inputs[inpt_name] = inpt.bind(self)
-        # "Bind" data specs in the class to the current study object
-        # this will allow them to prepend the study name to the name
-        # of the fileset
+        # "Bind" input selectors to the current study object, and attempt to
+        # match with data in the repository
+        with self.repository:
+            if not self.subject_ids:
+                raise ArcanaUsageError(
+                    "No subject IDs provided and destination repository "
+                    "is empty")
+            if not self.visit_ids:
+                raise ArcanaUsageError(
+                    "No visit IDs provided and destination repository "
+                    "is empty")
+            for inpt_name, inpt in list(inputs.items()):
+                self._inputs[inpt_name] = inpt.bind(self, spec_name=inpt_name)
+        # Check remaining specs are optional or have default values
         for spec in self.data_specs():
             if spec.name not in self.input_names:
                 if not spec.derived and spec.default is None:
@@ -729,9 +730,9 @@ class Study(object):
         except KeyError:
             raise ArcanaNameError(
                 name,
-                "No fileset spec named '{}' in {} (available: "
-                "'{}')".format(name, cls.__name__,
-                               "', '".join(list(cls._data_specs.keys()))))
+                "No fileset spec named '{}' in {}, available:\n{}"
+                .format(name, cls.__name__,
+                        "\n".join(list(cls._data_specs.keys()))))
 
     @classmethod
     def parameter_spec(cls, name):
@@ -740,9 +741,9 @@ class Study(object):
         except KeyError:
             raise ArcanaNameError(
                 name,
-                "No parameter spec named '{}' in {} (available: "
-                "'{}')".format(name, cls.__name__,
-                               "', '".join(list(cls._param_specs.keys()))))
+                "No parameter spec named '{}' in {}, available:\n{}"
+                .format(name, cls.__name__,
+                        "\n".join(list(cls._param_specs.keys()))))
 
     @classmethod
     def data_specs(cls):
