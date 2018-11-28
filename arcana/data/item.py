@@ -314,6 +314,14 @@ class Fileset(BaseItem, BaseFileset):
         else:
             return self._id
 
+    @id.setter
+    def id(self, id):  # @ReservedAssignment
+        if self._id is None:
+            self._id = id
+        elif id != self._id:
+            raise ArcanaUsageError("Can't change value of ID for {} from {} "
+                                   "to {}".format(self, self._id, id))
+
     @property
     def uri(self):
         return self._uri
@@ -456,7 +464,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def put(self):
         if self.repository is not None and self._path is not None:
-            self._uri = self.repository.put_fileset(self)
+            self.repository.put_fileset(self)
 
     def get_array(self):
         return self.format.get_array(self.path)

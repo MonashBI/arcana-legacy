@@ -164,6 +164,7 @@ class XnatRepository(BaseRepository):
             xscan = xsession.scans[fileset.name]
             # Set URI so we can retrieve checksums if required
             fileset.uri = xscan.uri
+            fileset.id = xscan.id
             cache_path = self._cache_path(fileset)
             need_to_download = True
             if op.exists(cache_path):
@@ -240,6 +241,8 @@ class XnatRepository(BaseRepository):
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
                 type=fileset.name, parent=xsession)
+            fileset.uri = xscan.uri
+            fileset.id = xscan.id
             # Delete existing resource
             # TODO: probably should have check to see if we want to
             #       override it
@@ -253,7 +256,6 @@ class XnatRepository(BaseRepository):
             xresource = xscan.create_resource(
                 fileset.format.name.upper())
             xresource.upload(cache_path, fileset.fname)
-            return xscan.uri
 
     def put_field(self, field):
         self._check_repository(field)
