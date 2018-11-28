@@ -463,7 +463,8 @@ class XnatRepository(BaseRepository):
                     if scan_type == self.PROV_SCAN:
                         # Download provenance JSON files and parse into
                         # records
-                        with tempfile.TemporaryDirectory() as temp_dir:
+                        temp_dir = tempfile.mkdtemp()
+                        try:
                             with tempfile.TemporaryFile() as temp_zip:
                                 self._login.download_stream(
                                     scan_uri + '/files', temp_zip,
@@ -480,6 +481,8 @@ class XnatRepository(BaseRepository):
                                                 pipeline_name, frequency,
                                                 subject_id, visit_id,
                                                 from_study, json_path))
+                        finally:
+                            shutil.rmtree(temp_dir, ignore_errors=True)
                     else:
                         try:
                             file_format = self._guess_file_format(resources,
