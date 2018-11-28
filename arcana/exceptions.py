@@ -76,6 +76,10 @@ class ArcanaFilesetSelectorError(ArcanaUsageError):
     pass
 
 
+class ArcanaFilesetSelectorMissingDataError(ArcanaFilesetSelectorError):
+    pass
+
+
 class ArcanaOutputNotProducedException(ArcanaException):
     """
     Raised when a given spec is not produced due to switches and inputs

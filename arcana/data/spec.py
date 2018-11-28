@@ -121,6 +121,10 @@ class BaseAcquiredSpec(object):
             raise ArcanaUsageError(
                 "{} needs to be bound to a study before accessing "
                 "the corresponding collection".format(self))
+        if self.default is None:
+            raise ArcanaUsageError(
+                "{} does not have default so cannot access its collection"
+                .format(self))
         return self.default.collection
 
 

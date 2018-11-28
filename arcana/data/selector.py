@@ -4,7 +4,8 @@ from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaFilesetSelectorError)
+    ArcanaUsageError, ArcanaFilesetSelectorError,
+    ArcanaFilesetSelectorMissingDataError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
@@ -107,11 +108,16 @@ class BaseSelector(object):
             # provided to match
             if self.fallback_to_default:
                 spec = study.data_spec(self.name)
-                if not spec.derived and spec.default is None:
+                if spec.default is None and not spec.derived:
                     raise ArcanaUsageError(
                         "Cannot fallback to default for '{}' spec in {} as it "
                         " is not derived and doesn't have a default"
                         .format(self.name, study))
+                # We don't want to add the bound copy to the study so we
+                # bind it explicitly here
+                default = spec.bind(study).collection
+            else:
+                default = None
             if self._repository is None:
                 tree = study.tree
             else:
@@ -121,7 +127,7 @@ class BaseSelector(object):
             # Match against tree
             bound = copy(self)
             bound._study = study
-            bound._collection = self.match(tree, **kwargs)
+            bound._collection = self.match(tree, default, **kwargs)
         return bound
 
     @property
@@ -135,7 +141,7 @@ class BaseSelector(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def match(self, tree, **kwargs):
+    def match(self, tree, default=None, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -148,9 +154,18 @@ class BaseSelector(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
+        matches = []
+        for node in nodes:
+            try:
+                matches.append(self._match_node(node, **kwargs))
+            except ArcanaFilesetSelectorMissingDataError as e:
+                if default is not None:
+                    matches.append(default.item(subject_id=node.subject_id,
+                                                visit_id=node.visit_id))
+                else:
+                    raise e
         return self.CollectionClass(
-            self.name, (self._match_node(n, **kwargs)
-                        for n in nodes),
+            self.name, matches,
             frequency=self.frequency,
             **self._specific_collection_kwargs)
 
@@ -165,8 +180,8 @@ class BaseSelector(object):
             try:
                 match = matches[self.order]
             except IndexError:
-                raise ArcanaFilesetSelectorError(
-                    "Did not find {} filesets names matching pattern {}"
+                raise ArcanaFilesetSelectorMissingDataError(
+                    "Did not find {} named data matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(matches) == 1:
@@ -177,7 +192,7 @@ class BaseSelector(object):
                 .format(self.pattern, node,
                         ', '.join(str(m) for m in matches)))
         else:
-            raise ArcanaFilesetSelectorError(
+            raise ArcanaFilesetSelectorMissingDataError(
                 "Did not find any matches for {} pattern in {} "
                 "(found {})"
                 .format(self.pattern, node,
