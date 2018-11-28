@@ -847,13 +847,15 @@ class Pipeline(object):
         pkg_versions = {'arcana': __version__}
         pkg_versions.update((k, v) for k, v in dependency_versions.items()
                             if v is not None)
-        return {
+        prov = {
             '__prov_version__': PROVENANCE_VERSION,
             'name': self.name,
             'workflow': wf_dict,
             'study': self.study.prov,
             'pkg_versions': pkg_versions,
-            'python_version': sys.version}
+            'python_version': sys.version,
+            'joined_ids': self._joined_ids()}
+        return prov
 
     def expected_record(self, node):
         """
@@ -914,6 +916,19 @@ class Pipeline(object):
             exp_outputs = json.loads(json.dumps(exp_outputs))
         exp_prov['inputs'] = exp_inputs
         exp_prov['outputs'] = exp_outputs
+        exp_prov['joined_ids'] = self._joined_ids()
         return Record(
             self.name, node.frequency, node.subject_id, node.visit_id,
             self.study.name, exp_prov)
+
+    def _joined_ids(self):
+        """
+        Adds the subjects/visits used to generate the derivatives iff there are
+        any joins over them in the pipeline
+        """
+        joined_prov = {}
+        if self.joins_subjects:
+            joined_prov['subject_ids'] = self.study.subject_ids,
+        if self.joins_visits:
+            joined_prov['visit_ids'] = self.study.visit_ids
+        return joined_prov
