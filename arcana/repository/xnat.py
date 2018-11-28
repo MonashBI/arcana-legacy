@@ -471,7 +471,7 @@ class XnatRepository(BaseRepository):
                     scans_json = []
                 for scan_json in scans_json:
                     scan_id = scan_json['data_fields']['ID']
-                    scan_type = scan_json['data_fields']['type']
+                    scan_type = scan_json['data_fields'].get('type', '')
                     scan_uri = '{}/scans/{}'.format(session_uri, scan_id)
                     try:
                         resources_json = next(
