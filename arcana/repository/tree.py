@@ -1,6 +1,6 @@
 from builtins import zip
 from builtins import object
-from itertools import chain
+from itertools import chain, groupby
 from collections import defaultdict
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
@@ -44,13 +44,13 @@ class TreeNode(object):
                 logger.warning(
                     "No provenance records found for {} derivative. "
                     "Will assume it is a \"protected\" (manually created) "
-                    "derivative".format(item))
+                    "derivative".format(repr(item)))
             elif len(records) > 1:
                 item.record = sorted(records, key=attrgetter('datetime'))[-1]
                 logger.warning(
                     "Duplicate provenance records found for {} ({}). "
                     "Selecting latest record {}"
-                    .format(item, ', '.join(str(r) for r in records),
+                    .format(repr(item), ', '.join(str(r) for r in records),
                             item.record))
             else:
                 item.record = records[0]
@@ -202,12 +202,19 @@ class TreeNode(object):
         try:
             return self._records[(pipeline_name, from_study)]
         except KeyError:
+            found = []
+            for sname, pnames in groupby(sorted(self._records,
+                                                key=itemgetter(1)),
+                                         key=itemgetter(1)):
+                found.append(
+                    "'{}' for '{}'".format("', '".join(p for p, _ in pnames),
+                                           sname))
             raise ArcanaNameError(
-                pipeline_name,
+                (pipeline_name, from_study),
                 ("{} doesn't have a provenance record for pipeline '{}' "
-                 "for '{}' study (found {})".format(self, pipeline_name,
-                                                    from_study,
-                                                    self._records)))
+                 "for '{}' study (found {})".format(
+                     self, pipeline_name, from_study,
+                     '; '.join(found))))
 
     @property
     def data(self):

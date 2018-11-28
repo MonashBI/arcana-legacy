@@ -232,11 +232,12 @@ class Fileset(BaseItem, BaseFileset):
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}(name='{}', format={}, frequency='{}', "
-                "subject_id={}, visit_id={}, from_study='{}')".format(
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy='{}', exists={})"
+                .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
-                    self.visit_id, self.from_study))
+                    self.visit_id, self.from_study,
+                    self.exists))
 
     @property
     def fname(self):
@@ -272,6 +273,7 @@ class Fileset(BaseItem, BaseFileset):
     def path(self):
         if not self.exists:
             raise ArcanaDataNotDerivedYetError(
+                self.name,
                 "Cannot access path of {} as it hasn't been derived yet"
                 .format(self))
         if self._path is None:
@@ -289,7 +291,7 @@ class Fileset(BaseItem, BaseFileset):
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
-        self._checksums = None  # reset checksums
+        self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
 
     @property
@@ -312,24 +314,47 @@ class Fileset(BaseItem, BaseFileset):
         else:
             return self._id
 
+    @id.setter
+    def id(self, id):  # @ReservedAssignment
+        if self._id is None:
+            self._id = id
+        elif id != self._id:
+            raise ArcanaUsageError("Can't change value of ID for {} from {} "
+                                   "to {}".format(self, self._id, id))
+
     @property
     def uri(self):
         return self._uri
+
+    @uri.setter
+    def uri(self, uri):
+        if self._uri is None:
+            self._uri = uri
+        elif uri != self._uri:
+            raise ArcanaUsageError("Can't change value of URI for {} from {} "
+                                   "to {}".format(self, self._uri, uri))
 
     @property
     def checksums(self):
         if not self.exists:
             raise ArcanaDataNotDerivedYetError(
+                self.name,
                 "Cannot access checksums of {} as it hasn't been derived yet"
                 .format(self))
         if self._checksums is None:
-            self._checksums = {}
-            for fpath in self.paths:
-                with open(fpath, 'rb') as f:
-                    self._checksums[
-                        op.relpath(fpath, self.path)] = hashlib.md5(
-                            f.read()).hexdigest()
+            if self.repository is not None:
+                self._checksums = self.repository.get_checksums(self)
+            if self._checksums is None:
+                self._checksums = self.calculate_checksums()
         return self._checksums
+
+    def calculate_checksums(self):
+        checksums = {}
+        for fpath in self.paths:
+            with open(fpath, 'rb') as f:
+                checksums[op.relpath(fpath, self.path)] = hashlib.md5(
+                    f.read()).hexdigest()
+        return checksums
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
@@ -553,7 +578,18 @@ class Field(BaseItem, BaseField):
         return float(self.value)
 
     def __str__(self):
-        return str(self.value)
+        if self.array:
+            val = '[' + ','.join(self._to_str(v) for v in self.value) + ']'
+        else:
+            val = self._to_str(self.value)
+        return val
+
+    def _to_str(self, val):
+        if self.dtype is str:
+            val = '"{}"'.format(val)
+        else:
+            val = str(val)
+        return val
 
     def __lt__(self, other):
         if self.name == other.name:
@@ -569,11 +605,14 @@ class Field(BaseItem, BaseField):
             return self.name < other.name
 
     def __repr__(self):
-        return ("{}(name='{}', value={}, frequency='{}', "
-                "subject_id={}, visit_id={}, from_study='{}')".format(
-                    type(self).__name__, self.name, self._value,
+        return ("{}('{}',{} '{}', subj={}, vis={}, stdy='{}', exists={})"
+                .format(
+                    type(self).__name__, self.name,
+                    ("{}, ".format(self._value)
+                     if self._value is not None else ''),
                     self.frequency, self.subject_id,
-                    self.visit_id, self.from_study))
+                    self.visit_id, self.from_study,
+                    self.exists))
 
     def basename(self, **kwargs):  # @UnusedVariable
         return self.name
@@ -582,6 +621,7 @@ class Field(BaseItem, BaseField):
     def value(self):
         if not self.exists:
             raise ArcanaDataNotDerivedYetError(
+                self.name,
                 "Cannot access value of {} as it hasn't been "
                 "derived yet".format(repr(self)))
         if self._value is None:

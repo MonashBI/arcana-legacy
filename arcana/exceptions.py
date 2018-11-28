@@ -46,11 +46,15 @@ class ArcanaDesignError(ArcanaError):
     pass
 
 
-class ArcanaNameError(ArcanaError):
+class NamedArcanaError(ArcanaError):
 
     def __init__(self, name, msg):
-        super(ArcanaNameError, self).__init__(msg)
+        super(NamedArcanaError, self).__init__(msg)
         self.name = name
+
+
+class ArcanaNameError(NamedArcanaError):
+    pass
 
 
 class ArcanaIndexError(ArcanaError):
@@ -60,11 +64,11 @@ class ArcanaIndexError(ArcanaError):
         self.index = index
 
 
-class ArcanaMissingDataException(ArcanaError):
+class ArcanaMissingDataException(ArcanaUsageError):
     pass
 
 
-class ArcanaDataNotDerivedYetError(ArcanaError):
+class ArcanaDataNotDerivedYetError(NamedArcanaError, ArcanaDesignError):
     pass
 
 
@@ -133,7 +137,7 @@ class ArcanaFileFormatNotRegisteredError(ArcanaError):
     pass
 
 
-class ArcanaProvenanceRecordMismatchError(ArcanaError):
+class ArcanaReprocessException(ArcanaException):
     pass
 
 

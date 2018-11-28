@@ -35,10 +35,10 @@ class Version(object):
                  local_version=None):
         self._req = requirement
         self._seq, self._prerelease, self._dev = self.parse(version)
-        self._local_version = (local_version if local_version is not None
-                               else version)
-        self._local_name = (local_name if local_name is not None
-                            else requirement.name)
+        self._local_version = (
+            local_version if local_version != str(self) else None)
+        self._local_name = (
+            local_name if local_name != requirement.name else None)
 
     @property
     def requirement(self):
@@ -66,11 +66,13 @@ class Version(object):
         The un-parsed version string. Used to cross-reference with list of
         available versions coming from an Environment
         """
-        return self._local_version
+        return (self._local_version
+                if self._local_version is not None else str(self))
 
     @property
     def local_name(self):
-        return self._local_name
+        return (self._local_name
+                if self._local_name is not None else self.requirement.name)
 
     def serialise(self):
         pass
@@ -222,11 +224,9 @@ class Version(object):
                     sequence.append(seq_part)
                 if len(sub_parts) > 1:
                     stage = sub_parts[1]
-                    pr_ver = ''.join(sub_parts[2:])
-                    try:
-                        pr_ver = int(pr_ver)
-                    except ValueError:
-                        pass
+                    pr_ver = int(sub_parts[2])
+                    if len(sub_parts) > 3:
+                        dev = ''.join(sub_parts[4:])
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None
@@ -257,6 +257,15 @@ class Version(object):
 
     def latest_within(self, *args, **kwargs):
         return self._req.latest_within_range(self, *args, **kwargs)
+
+    @property
+    def prov(self):
+        prov = {'version': str(self)}
+        if self._local_name is not None:
+            prov['local_name'] = self.local_name
+        if self._local_version is not None:
+            prov['local_version'] = self.local_version
+        return prov
 
 
 class VersionRange(object):

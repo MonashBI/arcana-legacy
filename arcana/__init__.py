@@ -27,7 +27,9 @@ from .data import (
     AcquiredFilesetSpec, AcquiredFieldSpec)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
-from .processor import LinearProcessor, MultiProcProcessor, SlurmProcessor
+from .processor import (
+    LinearProcessor, MultiProcProcessor, SlurmProcessor, DEFAULT_PROV_CHECK,
+    DEFAULT_PROV_IGNORE)
 from .environment import StaticEnvironment, ModulesEnvironment
 from .repository import DirectoryRepository, XnatRepository
 # Should be set explicitly in all FSL interfaces, but this squashes the warning

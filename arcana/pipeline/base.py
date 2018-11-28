@@ -48,7 +48,7 @@ class Pipeline(object):
         pipeline constructor, e.g.
 
         def my_pipeline(**name_maps):
-            pipeline = self.pipeline('my_pipeline', mods)
+            pipeline = self.new_pipeline('my_pipeline', mods)
             pipeline.add('a_node', MyInterface())
 
             ...
@@ -154,7 +154,7 @@ class Pipeline(object):
             spec = self._study.spec(input)
             # Could be an input to the study or optional acquired spec
             if spec.is_spec and spec.derived:
-                prereqs[spec.pipeline_name].add(input.name)
+                prereqs[spec.pipeline_getter].add(input.name)
         return prereqs
 
     @property
@@ -165,7 +165,7 @@ class Pipeline(object):
         """
         return set(chain(
             (i for i in self.inputs if not i.derived),
-            *(self.study.get_pipeline(p, required_outputs=r).study_inputs
+            *(self.study.pipeline(p, required_outputs=r).study_inputs
               for p, r in self.prerequisites.items())))
 
     def add(self, name, interface, inputs=None, outputs=None, connect=None,
@@ -847,13 +847,15 @@ class Pipeline(object):
         pkg_versions = {'arcana': __version__}
         pkg_versions.update((k, v) for k, v in dependency_versions.items()
                             if v is not None)
-        return {
+        prov = {
             '__prov_version__': PROVENANCE_VERSION,
             'name': self.name,
             'workflow': wf_dict,
             'study': self.study.prov,
             'pkg_versions': pkg_versions,
-            'python_version': sys.version}
+            'python_version': sys.version,
+            'joined_ids': self._joined_ids()}
+        return prov
 
     def expected_record(self, node):
         """
@@ -914,6 +916,19 @@ class Pipeline(object):
             exp_outputs = json.loads(json.dumps(exp_outputs))
         exp_prov['inputs'] = exp_inputs
         exp_prov['outputs'] = exp_outputs
+        exp_prov['joined_ids'] = self._joined_ids()
         return Record(
             self.name, node.frequency, node.subject_id, node.visit_id,
             self.study.name, exp_prov)
+
+    def _joined_ids(self):
+        """
+        Adds the subjects/visits used to generate the derivatives iff there are
+        any joins over them in the pipeline
+        """
+        joined_prov = {}
+        if self.joins_subjects:
+            joined_prov['subject_ids'] = self.study.subject_ids,
+        if self.joins_visits:
+            joined_prov['visit_ids'] = self.study.visit_ids
+        return joined_prov

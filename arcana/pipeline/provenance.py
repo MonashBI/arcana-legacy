@@ -1,10 +1,11 @@
+from past.builtins import basestring
 import json
 import re
 from copy import deepcopy
 from pprint import pformat
 from datetime import datetime
 from deepdiff import DeepDiff
-from arcana.exceptions import ArcanaError
+from arcana.exceptions import ArcanaError, ArcanaUsageError
 from arcana.pkg_info import install_requires
 
 
@@ -179,28 +180,49 @@ class Record(object):
         other : Provenance
             The provenance object to compare against
         include : list[list[str]] | None
-            Paths in the provenance to include in the match
+            Paths in the provenance to include in the match. If None all are
+            incluced
         exclude : list[list[str]] | None
-            Paths in the provenance to exclude from the match
+            Paths in the provenance to exclude from the match. In None all are
+            excluded
         """
-        if include is None:
-            include = ['']  # Include everything
-        if exclude is None:
-            exclude = []  # Don't exclude anything
+        if include is not None:
+            include_res = [self._gen_prov_path_regex(p) for p in include]
+        if exclude is not None:
+            exclude_res = [self._gen_prov_path_regex(p) for p in exclude]
         diff = DeepDiff(self._prov, other._prov, ignore_order=True)
         # Create regular expresssions for the include and exclude paths in
         # the format that deepdiff uses for nested dictionary/lists
-        include_res = [
-            re.compile(r"root\['{}'\].*".format(r"'\]\['".join(p.split('/'))))
-            for p in include]
-        exclude_res = [
-            re.compile(r"root\['{}'\].*".format(r"'\]\['".join(p.split('/'))))
-            for p in exclude]
+
+        def include_change(change):
+            if include is None:
+                included = True
+            else:
+                included = any(rx.match(change) for rx in include_res)
+            if included and exclude is not None:
+                included = not any(rx.match(change) for rx in exclude_res)
+            return included
+
         filtered_diff = {}
         for change_type, changes in diff.items():
-            filtered = [c for c in changes if (
-                any(rx.match(c) for rx in include_res) and
-                not any(rx.match(c) for rx in exclude_res))]
+            if isinstance(changes, dict):
+                filtered = dict((k, v) for k, v in changes.items()
+                                if include_change(k))
+            else:
+                filtered = [c for c in changes if include_change(c)]
             if filtered:
                 filtered_diff[change_type] = filtered
         return filtered_diff
+
+    @classmethod
+    def _gen_prov_path_regex(self, path):
+        if isinstance(path, basestring):
+            if path.startswith('/'):
+                path = path[1:]
+            regex = re.compile(r"root\['{}'\].*"
+                               .format(r"'\]\['".join(path.split('/'))))
+        elif not isinstance(path, re.Pattern):
+            raise ArcanaUsageError(
+                "Provenance in/exclude paths can either be path strings or "
+                "regexes, not '{}'".format(path))
+        return regex

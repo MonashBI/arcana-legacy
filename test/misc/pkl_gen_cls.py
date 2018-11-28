@@ -64,7 +64,7 @@ class NormalClass(with_metaclass(StudyMetaClass, Study)):
                                   'a_pipeline')]
 
     def a_pipeline(self):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'a_pipeline',
             inputs=[FilesetSpec('fileset', text_format)],
             outputs=[FilesetSpec('out_fileset', text_format)],

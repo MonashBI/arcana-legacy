@@ -18,6 +18,11 @@ sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
 import test_data  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
+# Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
+sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'pipeline'))
+import test_prov  # @UnresolvedImport @IgnorePep8
+sys.path.pop(0)
+
 
 dicom_format = FileFormat(name='dicom', extension=None,
                           directory=True, within_dir_exts=['.dcm'])
@@ -50,6 +55,16 @@ class TestConnectDisconnect(TestCase):
             getattr,
             repository._login,
             'classes')
+
+
+class TestProvInputChangeOnXnat(TestOnXnatMixin,
+                                test_prov.TestProvInputChange):
+
+    BASE_CLASS = test_prov.TestProvInputChange
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_input_change(self):
+        super(TestProvInputChangeOnXnat, self).test_input_change()
 
 
 class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,

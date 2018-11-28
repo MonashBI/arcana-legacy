@@ -117,13 +117,14 @@ class Study(object):
             environment = StaticEnvironment()
         self._name = name
         self._repository = repository
-        self._repository.clear_cache()
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
         self._subject_ids = subject_ids
         self._visit_ids = visit_ids
         self._fill_tree = fill_tree
+        # Initialise caches for data collection and pipeline objects
+        self.clear_caches()
         if not self.subject_ids:
             raise ArcanaUsageError(
                 "No subject IDs provided and destination repository "
@@ -201,7 +202,6 @@ class Study(object):
         # "Bind" data specs in the class to the current study object
         # this will allow them to prepend the study name to the name
         # of the fileset
-        self._bound_specs = {}
         for spec in self.data_specs():
             if spec.name not in self.input_names:
                 if not spec.derived and spec.default is None:
@@ -297,19 +297,19 @@ class Study(object):
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
         # Work out which pipelines need to be run
-        pipeline_names = defaultdict(set)
+        pipeline_getters = defaultdict(set)
         for spec in specs:
             if isinstance(spec, BaseSpec):  # Filter out Study inputs
                 # Add name of spec to set of required outputs
-                pipeline_names[spec.pipeline_name].add(spec.name)
+                pipeline_getters[spec.pipeline_getter].add(spec.name)
         # Run required pipelines
-        if pipeline_names:
+        if pipeline_getters:
             kwargs = copy(kwargs)
             kwargs.update({'subject_ids': subject_ids,
                            'visit_ids': visit_ids,
                            'session_ids': session_ids})
             pipelines, required_outputs = zip(*(
-                (self.get_pipeline(k), v) for k, v in pipeline_names.items()))
+                (self.pipeline(k), v) for k, v in pipeline_getters.items()))
             kwargs['required_outputs'] = required_outputs
             self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
@@ -352,38 +352,55 @@ class Study(object):
                 all_data.append(data)
         return all_data
 
-    def get_pipeline(self, pipeline_name, required_outputs=None):
+    def pipeline(self, getter_name, required_outputs=None):
         try:
-            getter = getattr(self, pipeline_name)
-        except AttributeError:
-            raise ArcanaDesignError(
-                "There is no pipeline method named '{}' in present in "
-                "'{}' study".format(pipeline_name, self))
-        self._pipeline_to_generate = pipeline_name
-        try:
-            pipeline = getter()
-        finally:
-            self._pipeline_to_generate = None
-        if pipeline is None:
-            raise ArcanaDesignError(
-                "'{}' pipeline constructor in {} is missing return "
-                "statement (should return a Pipeline object)".format(
-                    pipeline_name, self))
-        elif not isinstance(pipeline, Pipeline):
-            raise ArcanaDesignError(
-                "'{}' pipeline constructor in {} doesn't return a Pipeline "
-                "object ({})".format(
-                    pipeline_name, self, pipeline))
-        if required_outputs is not None and any(r not in pipeline.output_names
-                                                for r in required_outputs):
-            raise ArcanaOutputNotProducedException(
-                "'{}' is not produced by {} pipeline in {} class given the "
-                "provided  switches ({}) and the missing inputs ('{}')".format(
-                    self.name, pipeline.name, self.__class__.__name__,
-                    ', '.join('{}={}'.format(s.name, s.value)
-                              for s in self.switches),
-                    "', '".join(self.missing_inputs)))
-        pipeline._getter_name = pipeline_name  # Store for use in processor
+            pipeline = self._pipelines_cache[getter_name]
+        except KeyError:
+            try:
+                getter = getattr(self, getter_name)
+            except AttributeError:
+                raise ArcanaDesignError(
+                    "There is no pipeline constructor method named '{}' in "
+                    "present in '{}' study".format(getter_name, self))
+            self._pipeline_to_generate = getter_name
+            try:
+                pipeline = getter()
+            except ArcanaMissingDataException as e:
+                e.args = ("{}, which is required as an input when calling the "
+                          "pipeline constructor method '{}' to create a "
+                          "pipeline to produce '{}'".format(
+                              e, getter_name,
+                              "', '".join(required_outputs)),)
+                raise e
+            finally:
+                self._pipeline_to_generate = None
+            if pipeline is None:
+                raise ArcanaDesignError(
+                    "'{}' pipeline constructor in {} is missing return "
+                    "statement (should return a Pipeline object)".format(
+                        getter_name, self))
+            elif not isinstance(pipeline, Pipeline):
+                raise ArcanaDesignError(
+                    "'{}' pipeline constructor in {} doesn't return a Pipeline"
+                    " object ({})".format(
+                        getter_name, self, pipeline))
+            self._pipelines_cache[getter_name] = pipeline
+        if required_outputs is not None:
+            # Check that the required outputs are created with the given
+            # parameters
+            missing_outputs = (set(required_outputs) -
+                               set(pipeline.output_names))
+            if missing_outputs:
+                raise ArcanaOutputNotProducedException(
+                    "Required output(s) '{}', will not be created by the '{}' "
+                    "pipeline constructed by '{}' method in {} given the "
+                    "missing study inputs '{}' and the provided switches:\n{}"
+                    .format(
+                        "', '".join(missing_outputs),
+                        pipeline.name, getter_name, self,
+                        "', '".join(self.missing_inputs),
+                        '\n'.join('{}={}'.format(s.name, s.value)
+                                  for s in self.switches)))
         return pipeline
 
     def __repr__(self):
@@ -433,7 +450,7 @@ class Study(object):
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
 
-    def clear_cache(self):
+    def clear_caches(self):
         """
         Called after a pipeline is run against the study to force an update of
         the derivatives that are now present in the repository if a subsequent
@@ -441,6 +458,7 @@ class Study(object):
         """
         self.repository.clear_cache()
         self._bound_specs = {}
+        self._pipelines_cache = {}
 
     @property
     def processor(self):
@@ -499,7 +517,7 @@ class Study(object):
         "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
         return self._repository
 
-    def pipeline(self, *args, **kwargs):
+    def new_pipeline(self, *args, **kwargs):
         """
         Creates a Pipeline object, passing the study (self) as the first
         argument
@@ -819,7 +837,10 @@ class Study(object):
         spec_name : str
             Name of a data spec
         """
-        spec = self.bound_spec(spec_name)
+        try:
+            spec = self.bound_spec(spec_name)
+        except ArcanaMissingDataException:
+            return False
         if isinstance(spec, BaseAcquiredSpec):
             return spec.default is not None and default_okay
         else:
@@ -862,10 +883,11 @@ class Study(object):
                 inputs[input.name]['names'] = {i.visit_id: i.name
                                                for i in input.collection}
             elif input.frequency == 'per_session':
-                inputs[input.name]['names'] = defaultdict(dict)
+                names = defaultdict(dict)
                 for item in input.collection:
-                    inputs[input.name]['names'][
-                        item.subject_id][item.visit_id] = item.name
+                    names[item.subject_id][item.visit_id] = item.name
+                # Convert from defaultdict to dict
+                inputs[input.name]['names'] = dict(names.items())
         return {
             'name': self.name,
             'type': get_class_info(type(self)),
@@ -928,17 +950,18 @@ class StudyMetaClass(type):
         # pipeline method in the class
         for spec in add_data_specs:
             if spec.derived:
-                if spec.pipeline_name == 'pipeline':
+                if spec.pipeline_getter in ('pipeline', 'new_pipeline'):
                     raise ArcanaDesignError(
-                        "Cannot use the name 'pipeline' for the name of a "
-                        "pipeline constructor in class {} as it clashes "
-                        "with base method to create pipelines"
-                        .format(name))
-                if spec.pipeline_name not in combined_attrs:
+                        "Cannot use the names 'pipeline' or  'new_pipeline' "
+                        "('{}') for the name of a pipeline constructor in "
+                        "class {} as it clashes with base method to create "
+                        "pipelines"
+                        .format(spec.pipeline_getter, name))
+                if spec.pipeline_getter not in combined_attrs:
                     raise ArcanaDesignError(
                         "Pipeline to generate '{}', '{}', is not present"
                         " in '{}' class".format(
-                            spec.name, spec.pipeline_name, name))
+                            spec.name, spec.pipeline_getter, name))
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_param_specs))

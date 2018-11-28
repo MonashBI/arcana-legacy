@@ -53,7 +53,7 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
         tree = self.repository.tree()
-        ref_tree = self.get_tree(self.repository, set_ids=True)
+        ref_tree = self.get_tree(self.repository, sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

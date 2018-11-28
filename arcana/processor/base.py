@@ -10,20 +10,27 @@ from logging import getLogger
 import numpy as np
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface, Merge
-from arcana.pipeline import Pipeline
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.utils import get_class_info
 from arcana.exceptions import (
     ArcanaMissingDataException,
     ArcanaNoRunRequiredException, ArcanaUsageError, ArcanaDesignError,
-    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError,
-    ArcanaOutputNotProducedException)
+    ArcanaReprocessException, ArcanaProtectedOutputConflictError,
+    ArcanaOutputNotProducedException, ArcanaDataNotDerivedYetError,
+    ArcanaNameError)
 
 
 logger = getLogger('arcana')
 
 
 WORKFLOW_MAX_NAME_LEN = 100
+
+# The default paths in the provenance JSON to check for mismatches that would
+# require the derivative to be reprocessed
+DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs', 'joined_ids']
+# The default paths in the provenance JSON to ignore mismatches that would
+# otherwise require the derivative to be reprocessed
+DEFAULT_PROV_IGNORE = ['.*/pkg_version']
 
 
 class BaseProcessor(object):
@@ -42,14 +49,14 @@ class BaseProcessor(object):
         step if a provenance mismatch is detected between save derivative and
         parameters passed to the Study. If False, an exception will be raised
         in this case
-    prov_include : iterable[str]
+    prov_check : iterable[str]
         Paths in the provenance dictionary to include in checks with previously
         generated derivatives to determine whether they need to be rerun.
         Paths are strings delimited by '/', with each part referring to a
         dictionary key in the nested provenance dictionary.
-    prov_exclude : iterable[str]
+    prov_ignore : iterable[str]
         Paths in the provenance dictionary to exclude (if they are already
-        included given the 'prov_include' kwarg) in checks with previously
+        included given the 'prov_check' kwarg) in checks with previously
         generated derivatives to determine whether they need to be rerun
         Paths are strings delimited by '/', with each part referring to a
         dictionary key in the nested provenance dictionary.
@@ -65,15 +72,12 @@ class BaseProcessor(object):
 
     DEFAULT_WALL_TIME = 20
     DEFAULT_MEM_GB = 4096
-    DEFAULT_PROV_INCLUDE = ['workflow', 'study/subject_ids', 'study/visit_ids',
-                            'inputs', 'outputs']
-    DEFAULT_PROV_EXCLUDE = ['workflow/nodes/interface/.*/pkg_version']
 
     default_plugin_args = {}
 
     def __init__(self, work_dir, reprocess=False,
-                 prov_include=DEFAULT_PROV_INCLUDE,
-                 prov_exclude=DEFAULT_PROV_EXCLUDE,
+                 prov_check=DEFAULT_PROV_CHECK,
+                 prov_ignore=DEFAULT_PROV_IGNORE,
                  max_process_time=None,
                  clean_work_dir_between_runs=True,
                  default_wall_time=DEFAULT_WALL_TIME,
@@ -81,8 +85,8 @@ class BaseProcessor(object):
         self._work_dir = work_dir
         self._max_process_time = max_process_time
         self._reprocess = reprocess
-        self._prov_include = prov_include
-        self._prov_exclude = prov_exclude
+        self._prov_check = prov_check
+        self._prov_ignore = prov_ignore
         self._plugin_args = copy(self.default_plugin_args)
         self._default_wall_time = default_wall_time
         self._deffault_mem_gb = default_mem_gb
@@ -117,12 +121,12 @@ class BaseProcessor(object):
         return self._reprocess
 
     @property
-    def prov_include(self):
-        return self._prov_include
+    def prov_check(self):
+        return self._prov_check
 
     @property
-    def prov_exclude(self):
-        return self._prov_exclude
+    def prov_ignore(self):
+        return self._prov_ignore
 
     @property
     def default_mem_gb(self):
@@ -241,42 +245,21 @@ class BaseProcessor(object):
         # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
 
-        def push_on_stack(pipeline, filt_array, study=None, req_outputs=None):
-            if isinstance(pipeline, Pipeline):
-                # If a primary pipeline (i.e. one passed to this run method
-                # explicitly
-                try:
-                    pipeline_name = pipeline._getter_name  # To match prereqs
-                except AttributeError:
-                    pipeline_name = pipeline.name
-                study = pipeline.study
-            else:
-                # If a prerequisite referenced by name
-                pipeline_name = pipeline
-                pipeline = None
-            key = (id(study), pipeline_name)
-            if key in stack:
+        def push_on_stack(pipeline, filt_array, req_outputs):
+            if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
-                pipeline, prev_req_outputs, prev_filt_array = stack.pop(key)
-                # Combined required outputs
+                prev_pipeline, prev_req_outputs, prev_filt_array = stack.pop(
+                    pipeline.name)
+                if pipeline is not prev_pipeline and pipeline != prev_pipeline:
+                    raise ArcanaDesignError(
+                        "Attempting to run two different pipelines with the "
+                        "same name, {} and {}".format(pipeline, prev_pipeline))
+                # Combined required outputs and filter array with previous
+                # references to the pipeline
                 req_outputs = copy(req_outputs)
                 req_outputs.update(prev_req_outputs)
                 filt_array = filt_array | prev_filt_array
-            elif pipeline is None:
-                pipeline = study.get_pipeline(pipeline_name)
-            # Check that the required outputs are created with the given
-            # parameters
-            missing_outputs = req_outputs - set(pipeline.output_names)
-            if missing_outputs:
-                raise ArcanaOutputNotProducedException(
-                    "Output(s) '{}', required for {}, will "
-                    "not be created by prerequisite pipeline '{}' "
-                    "with parameters: {}".format(
-                        "', '".join(missing_outputs), pipeline._error_msg_loc,
-                        pipeline.name,
-                        '\n'.join('{}={}'.format(o.name, o.value)
-                                  for o in study.parameters)))
             # If the pipeline to process contains summary outputs (i.e. 'per-
             # subject|visit|study' frequency), then we need to "dialate" the
             # filter array to include IDs across the scope of the study, e.g.
@@ -298,54 +281,48 @@ class BaseProcessor(object):
                                                    inv_visit_inds[v])
                                   for s, v in zip(*np.nonzero(added))),
                         "' and '".join(output_freqs)))
-            # Append pipeline to stack
-            if pipeline.name in [s[0].name for s in stack.values()]:
-                raise ArcanaDesignError(
-                    "Attempting to run muliple pipelines with the same name "
-                    "('{}') in the same workflow"
-                    .format(pipeline.name))
-            stack[key] = pipeline, req_outputs, filt_array
+
+            stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
-            for prq_name, prq_req_outputs in pipeline.prerequisites.items():
+            for prq_getter, prq_req_outputs in pipeline.prerequisites.items():
                 try:
-                    push_on_stack(prq_name, filt_array, study=study,
-                                  req_outputs=prq_req_outputs)
-                except ArcanaMissingDataException as e:
-                    raise ArcanaMissingDataException(
-                        "{}, which is required as an input of the '{}' "
-                        "pipeline to produce '{}'"
-                        .format(e, self.name, "', '".join(req_outputs)))
+                    prereq = pipeline.study.pipeline(
+                        prq_getter, prq_req_outputs)
+                    push_on_stack(prereq, filt_array, prq_req_outputs)
+                except (ArcanaMissingDataException,
+                        ArcanaOutputNotProducedException) as e:
+                    e.args = ("{}, which are required as inputs to the '{}' "
+                              "pipeline to produce '{}'".format(
+                                  e, pipeline.name, "', '".join(req_outputs)),)
+                    raise e
 
         # Add all primary pipelines to the stack along with their prereqs
         for pipeline, req_outputs in zip_longest(pipelines, required_outputs):
-            push_on_stack(pipeline, filter_array, req_outputs=req_outputs)
+            push_on_stack(pipeline, filter_array, req_outputs)
 
         # Iterate through stack of required pipelines from upstream to
         # downstream
-        connected_pipelines = {}
-        for key, (pipeline,
-                  req_outputs, flt_array) in reversed(list(stack.items())):
+        for pipeline, req_outputs, flt_array in reversed(list(stack.values())):
             try:
-                connected_pipelines[key] = self._connect_pipeline(
-                    pipeline, req_outputs, connected_pipelines, workflow,
-                    subject_inds, visit_inds, flt_array, **kwargs)
+                self._connect_pipeline(
+                    pipeline, req_outputs, workflow, subject_inds, visit_inds,
+                    flt_array, **kwargs)
             except ArcanaNoRunRequiredException:
                 logger.info("Not running '{}' pipeline as its outputs "
                             "are already present in the repository"
                             .format(pipeline.name))
-                connected_pipelines[key] = None
-#         workflow.write_graph(graph2use='flat', format='svg')
-#         print('Graph saved in {} directory'.format(os.getcwd()))
+        # Save complete graph for debugging purposes
+        # workflow.write_graph(graph2use='flat', format='svg')
+        # print('Graph saved in {} directory'.format(os.getcwd()))
         # Actually run the generated workflow
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
-        self.study.clear_cache()
+        self.study.clear_caches()
         return result
 
-    def _connect_pipeline(self, pipeline, required_outputs,
-                          connected_pipelines, workflow, subject_inds,
-                          visit_inds, filter_array, force=False):
+    def _connect_pipeline(self, pipeline, required_outputs, workflow,
+                          subject_inds, visit_inds, filter_array, force=False):
         """
         Connects a pipeline to a overarching workflow that sets up iterators
         over subjects|visits present in the repository (if required) and
@@ -358,9 +335,6 @@ class BaseProcessor(object):
         required_outputs : set[str] | None
             The outputs required to be produced by this pipeline. If None all
             are deemed to be required
-        connected_pipelines : dict[str, Pipeline]
-            A dictionary containing all pipelines that have already been
-            connected to avoid the same pipeline being connected twice.
         workflow : nipype.pipeline.engine.Workflow
             The overarching workflow to connect the pipeline to
         subject_inds : dct[str, int]
@@ -391,17 +365,19 @@ class BaseProcessor(object):
         # indices correspond to subjects and column indices visits
         prqs_to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
                                          dtype=bool)
-        for prq_name in pipeline.prerequisites:
-            prereq = connected_pipelines[(id(pipeline.study), prq_name)]
-            if prereq is not None:  # If prerequisite needs to be run
-                final_node, prq_to_process_array = prereq
-                prqs_to_process_array |= prq_to_process_array
-                final_nodes.append(final_node)
+        for getter_name in pipeline.prerequisites:
+            prereq = pipeline.study.pipeline(getter_name)
+            if prereq._to_process_array.any():
+                final_nodes.append(prereq.node('final'))
+                prqs_to_process_array |= prereq._to_process_array
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
         to_process_array = self._to_process(
             pipeline, required_outputs, prqs_to_process_array, filter_array,
             subject_inds, visit_inds, force)
+        # Store the to process to it can be combined with arrays of downstream
+        # pipelines
+        pipeline._to_process_array = to_process_array
         # Check to see if there are any sessions to process
         if not to_process_array.any():
             raise ArcanaNoRunRequiredException(
@@ -533,16 +509,15 @@ class BaseProcessor(object):
                         'checksums': (deiter_nodes[freq], 'checksums')},
                     joinsource=iterator,
                     joinfield='checksums')
-        # Create a final node, which is used to connect with dependent
-        # pipelines into large workflows
-        final = pipeline.add(
+        # Create a final node, which is used to connect with downstream
+        # pipelines
+        pipeline.add(
             'final',
             Merge(
                 len(deiter_nodes)),
             connect={
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
-        return final, to_process_array
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
         """
@@ -776,16 +751,17 @@ class BaseProcessor(object):
                             "is not intended".format(repr(item)))
                         to_protect_array[inds] = True
                         to_protect[inds].append(item)
-                    elif force and required:
-                        to_process_array[inds] = True
-                    else:
-                        to_check_array[inds] = True
+                    elif required:
+                        if force:
+                            to_process_array[inds] = True
+                        else:
+                            to_check_array[inds] = True
                 elif required:
                     to_process_array[inds] = True
         # Filter sessions to process by those requested
         to_process_array *= filter_array
-        to_check_array *= filter_array
-        if to_check_array.any() and self.prov_include:
+        to_check_array *= (filter_array * np.invert(to_process_array))
+        if to_check_array.any() and self.prov_check:
             # Get list of sessions, subjects, visits, tree objects to check
             # their provenance against that of the pipeline
             to_check = []
@@ -807,30 +783,46 @@ class BaseProcessor(object):
             if 'per_study' in output_freqs:
                 to_check.append(tree)
             for node in to_check:
-                # Retrieve record stored in tree node
-                record = node.record(pipeline.name, pipeline.study.name)
                 # Generated expected record from current pipeline/repository-
                 # state
-                expected_record = pipeline.expected_record(node)
-                # Compare record with expected
-                mismatches = record.mismatches(expected_record,
-                                               self.prov_include,
-                                               self.prov_exclude)
-                if mismatches:
+                index = ((subject_inds.get(node.subject_id, 0),
+                         visit_inds.get(node.visit_id, 0)))
+                reprocess = False
+                try:
+                    # Retrieve record stored in tree node
+                    record = node.record(pipeline.name, pipeline.study.name)
+                    expected_record = pipeline.expected_record(node)
+
+                    # Compare record with expected
+                    mismatches = record.mismatches(expected_record,
+                                                   self.prov_check,
+                                                   self.prov_ignore)
+                    if mismatches:
+                        msg = ("mismatch in provenance:\n{}\n Add mismatching "
+                               "paths to 'prov_ignore' to ignore"
+                               .format(
+                                   pformat(mismatches)))
+                        reprocess = True
+                except ArcanaNameError as e:
+                    msg = "missing provenance record"
+                    reprocess = False
+                    to_protect_array[index] = True
+                except ArcanaDataNotDerivedYetError as e:
+                    msg = ("missing input '{}' and therefore cannot check "
+                           "provenance".format(e.name))
+                    reprocess = True
+                if reprocess:
                     if self.reprocess:
-                        to_process_array[
-                            subject_inds.get(node.subject_id, 0),
-                            visit_inds.get(node.visit_id, 0)] = True
+                        to_process_array[index] = True
                         logger.info(
-                            "Reprocessing {} with '{}' "
-                            "pipeline due to mismatching provenance:\n{}"
-                            .format(node, pipeline.name, mismatches))
+                            "Reprocessing {} with '{}' due to {}"
+                            .format(node, pipeline.name, msg))
                     else:
-                        raise ArcanaProvenanceRecordMismatchError(
-                            "Provenance recorded for '{}' pipeline in {} does "
-                            "not match that of requested pipeline, set "
-                            "reprocess flag == True to overwrite:\n{}".format(
-                                pipeline.name, self, pformat(mismatches)))
+                        raise ArcanaReprocessException(
+                            "Cannot use derivatives for '{}' pipeline stored "
+                            "in {} due to {}, set 'reprocess' "
+                            "flag to overwrite".format(
+                                pipeline.name, node, msg))
         # Dialate to process array
         to_process_array = self._dialate_array(to_process_array, output_freqs)
         # Check for conflicts between nodes to process and nodes to protect

@@ -164,7 +164,7 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name)
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_name, auto_added=False):
+    def translate(cls, sub_study_name, pipeline_getter, auto_added=False):
         """
         A method for translating pipeline constructors from a sub-study to the
         namespace of a multi-study. Returns a new method that calls the
@@ -174,20 +174,20 @@ class MultiStudy(Study):
         ----------
         sub_study_name : str
             Name of the sub-study
-        pipeline_name : str
-            Unbound method used to create the pipeline in the sub-study
+        pipeline_getter : str
+            Name of method used to construct the pipeline in the sub-study
         auto_added : bool
             Signify that a method was automatically added by the
             MultiStudyMetaClass. Used in checks when pickling Study
             objects
         """
         assert isinstance(sub_study_name, basestring)
-        assert isinstance(pipeline_name, basestring)
+        assert isinstance(pipeline_getter, basestring)
 
         def translated_getter(self, **name_maps):
             sub_study_spec = self.sub_study_spec(sub_study_name)
             # Combine mapping of names of sub-study specs with
-            return getattr(self.sub_study(sub_study_name), pipeline_name)(
+            return getattr(self.sub_study(sub_study_name), pipeline_getter)(
                 prefix=sub_study_name + '_',
                 input_map=sub_study_spec.name_map,
                 output_map=sub_study_spec.name_map,
@@ -319,8 +319,8 @@ class MultiStudyMetaClass(StudyMetaClass):
                     initkwargs['name'] = trans_sname
                     if data_spec.derived:
                         trans_pname = sub_study_spec.apply_prefix(
-                            data_spec.pipeline_name)
-                        initkwargs['pipeline_name'] = trans_pname
+                            data_spec.pipeline_getter)
+                        initkwargs['pipeline_getter'] = trans_pname
                         # Check to see whether pipeline has already been
                         # translated or always existed in the class (when
                         # overriding default parameters for example)
@@ -328,7 +328,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                             setattr(cls, trans_pname,
                                     MultiStudy.translate(
                                         sub_study_spec.name,
-                                        data_spec.pipeline_name,
+                                        data_spec.pipeline_getter,
                                         auto_added=True))
                     trans_data_spec = type(data_spec)(**initkwargs)
                     # Allow the default input (e.g. an atlas) to translate

@@ -47,7 +47,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('field3', str, 'dummy_pipeline')]
 
     def dummy_pipeline(self, **name_maps):
-        return self.pipeline('dummy_pipeline', name_maps=name_maps)
+        return self.new_pipeline('dummy_pipeline', name_maps=name_maps)
 
 
 class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
@@ -438,7 +438,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             source, 'source3' + PATH_SUFFIX,
             study_sink, 'study_sink' + PATH_SUFFIX)
         workflow.run()
-        study.clear_cache()  # Refreshed cached repository tree object
+        study.clear_caches()  # Refreshed cached repository tree object
         with self._connect() as login:
             # Check subject summary directories were created properly in cache
             expected_subj_filesets = ['subject_sink']

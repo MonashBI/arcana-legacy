@@ -128,37 +128,37 @@ class BaseSpec(object):
 
     derived = True
 
-    def __init__(self, name, pipeline_name, desc=None):
-        if pipeline_name is not None:
-            if not isinstance(pipeline_name, basestring):
+    def __init__(self, name, pipeline_getter, desc=None):
+        if pipeline_getter is not None:
+            if not isinstance(pipeline_getter, basestring):
                 raise ArcanaUsageError(
                     "Pipeline name for {} '{}' is not a string "
-                    "'{}'".format(name, pipeline_name))
-        self._pipeline_name = pipeline_name
+                    "'{}'".format(name, pipeline_getter))
+        self._pipeline_getter = pipeline_getter
         self._desc = desc
         self._study = None
         self._collection = None
 
     def __eq__(self, other):
-        return (self.pipeline_name == other.pipeline_name and
+        return (self.pipeline_getter == other.pipeline_getter and
                 self.desc == other.desc)
 
     def __hash__(self):
-        return (hash(self.pipeline_name) ^ hash(self.desc))
+        return (hash(self.pipeline_getter) ^ hash(self.desc))
 
     def initkwargs(self):
         dct = {}
-        dct['pipeline_name'] = self.pipeline_name
+        dct['pipeline_getter'] = self.pipeline_getter
         dct['desc'] = self.desc
         return dct
 
     def find_mismatch(self, other, indent=''):
         mismatch = ''
         sub_indent = indent + '  '
-        if self.pipeline_name != other.pipeline_name:
-            mismatch += ('\n{}pipeline_name: self={} v other={}'
-                         .format(sub_indent, self.pipeline_name,
-                                 other.pipeline_name))
+        if self.pipeline_getter != other.pipeline_getter:
+            mismatch += ('\n{}pipeline_getter: self={} v other={}'
+                         .format(sub_indent, self.pipeline_getter,
+                                 other.pipeline_getter))
         if self.desc != other.desc:
             mismatch += ('\n{}desc: self={} v other={}'
                          .format(sub_indent, self.desc, other.desc))
@@ -181,10 +181,10 @@ class BaseSpec(object):
         else:
             bound = copy(self)
             bound._study = study
-            if not hasattr(study, self.pipeline_name):
+            if not hasattr(study, self.pipeline_getter):
                 raise ArcanaError(
                     "{} does not have a method named '{}' required to "
-                    "derive {}".format(study, self.pipeline_name,
+                    "derive {}".format(study, self.pipeline_getter,
                                        self))
             bound._bind_tree(study.tree)
         return bound
@@ -234,12 +234,12 @@ class BaseSpec(object):
         return True
 
     @property
-    def pipeline_name(self):
-        return self._pipeline_name
+    def pipeline_getter(self):
+        return self._pipeline_getter
 
     @property
     def pipeline(self):
-        return self.study.get_pipeline(self.pipeline_name, [self.name])
+        return self.study.pipeline(self.pipeline_getter, [self.name])
 
     @property
     def study(self):
@@ -364,9 +364,9 @@ class FilesetSpec(BaseFileset, BaseSpec):
     format : FileFormat
         The file format used to store the fileset. Can be one of the
         recognised formats
-    pipeline_name : str
-        Name of the method in the study that is used to generate the
-        fileset. If None the fileset is assumed to be acq
+    pipeline_getter : str
+        Name of the method in the study that constructs a pipeline to derive
+        the fileset
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,
@@ -378,10 +378,10 @@ class FilesetSpec(BaseFileset, BaseSpec):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format, pipeline_name, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
+    def __init__(self, name, format, pipeline_getter, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
                  desc=None):
         BaseFileset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_name, desc)
+        BaseSpec.__init__(self, name, pipeline_getter, desc)
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -397,9 +397,9 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return dct
 
     def __repr__(self):
-        return ("FilesetSpec(name='{}', format={}, pipeline_name={}, "
+        return ("FilesetSpec(name='{}', format={}, pipeline_getter={}, "
                 "frequency={})".format(
-                    self.name, self.format, self.pipeline_name,
+                    self.name, self.format, self.pipeline_getter,
                     self.frequency))
 
     def find_mismatch(self, other, indent=''):
@@ -497,8 +497,8 @@ class FieldSpec(BaseField, BaseSpec):
         The name of the fileset
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
-    pipeline_name : str
-        Name of the method that generates values for the specified field.
+    pipeline_getter : str
+        Name of the method that constructs pipelines to derive the field
     frequency : str
         One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
         specifying whether the fileset is present for each session, subject,
@@ -510,10 +510,10 @@ class FieldSpec(BaseField, BaseSpec):
     is_spec = True
     CollectionClass = FieldCollection
 
-    def __init__(self, name, dtype, pipeline_name=None,
+    def __init__(self, name, dtype, pipeline_getter=None,
                  frequency='per_session', desc=None, array=False):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseSpec.__init__(self, name, pipeline_name, desc)
+        BaseSpec.__init__(self, name, pipeline_getter, desc)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
@@ -528,10 +528,10 @@ class FieldSpec(BaseField, BaseSpec):
         return mismatch
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, pipeline_name={}, "
+        return ("{}(name='{}', dtype={}, pipeline_getter={}, "
                 "frequency={}, array={})".format(
                     self.__class__.__name__, self.name, self.dtype,
-                    self.pipeline_name, self.frequency, self.array))
+                    self.pipeline_getter, self.frequency, self.array))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)

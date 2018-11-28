@@ -131,7 +131,11 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 else:
                     resource.upload(fileset.path, fileset.fname)
             for field in self.session.fields:
-                xsession.fields[field.name] = field.value
+                if field.dtype is str:
+                    value = '"{}"'.format(field.value)
+                else:
+                    value = field.value
+                xsession.fields[field.name] = value
 
     def tearDown(self):
         # Clean up working dirs
@@ -163,12 +167,12 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                     # Need to forcibly change the repository to be XNAT
                     fileset = copy(fileset)
                     fileset._repository = repo
-                    repo.put_fileset(fileset)
+                    fileset.put()
                 for field in node.fields:
                     # Need to forcibly change the repository to be XNAT
                     field = copy(field)
                     field._repository = repo
-                    repo.put_field(field)
+                    field.put()
                 for record in node.records:
                     repo.put_record(record)
 

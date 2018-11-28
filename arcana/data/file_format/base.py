@@ -293,9 +293,8 @@ class FileFormat(object):
         else:
             raise ArcanaMissingDataException(
                 "Did not find single file with extension '{}' "
-                "(found '{}') in resource '{}'"
-                .format(self.extension,
-                        "', '".join(file_names), fname))
+                "(found '{}')"
+                .format(self.extension, "', '".join(file_names), fname))
         return fname
 
 

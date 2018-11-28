@@ -130,7 +130,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee'))]
 
     def pipeline1(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
             references=[],
@@ -141,7 +141,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
             references=[],
@@ -153,7 +153,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
             references=[],
@@ -167,7 +167,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline4(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline4',
             desc="",
             references=[],
@@ -178,7 +178,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline5(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline5',
             desc="",
             references=[],

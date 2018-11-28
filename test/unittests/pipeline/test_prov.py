@@ -19,7 +19,7 @@ from arcana.data import Fileset, Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import (
-    ArcanaProvenanceRecordMismatchError, ArcanaProtectedOutputConflictError)
+    ArcanaReprocessException, ArcanaProtectedOutputConflictError)
 
 
 class DummyRequirement(BaseRequirement):
@@ -58,7 +58,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('subtract', 3)]
 
     def pipeline1(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
             references=[],
@@ -109,7 +109,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
             references=[],
@@ -158,7 +158,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
             references=[],
@@ -255,36 +255,6 @@ class TestProvBasic(BaseTestCase):
 
     INPUT_DATASETS = INPUT_DATASETS
     INPUT_FIELDS = INPUT_FIELDS
-
-    def test_json_roundtrip(self):
-        """
-        Simple test whether provenance records can be written/read from a file
-        """
-        study_name = 'roundtrip_study'
-        # Test vanilla study
-        study = self.create_study(
-            TestProvStudy,
-            study_name,
-            inputs=STUDY_INPUTS)
-        # Just test to see if the pipeline works
-        self.assertEqual(next(iter(study.data('derived_field1'))).value,
-                         [3.0, 14.0, 140.0])
-        pipeline1 = study.pipeline1()
-        pipeline1.cap()
-        record = Record('pipeline1', 'per_session', self.SUBJECT, self.VISIT,
-                        study_name, pipeline1.prov)
-        tempdir = tempfile.mkdtemp()
-        try:
-            path = op.join(tempdir, 'prov1.json')
-            record.save(path)
-            reloaded = Record.load('pipeline1', 'per_session', self.SUBJECT,
-                                   self.VISIT, study_name, path)
-        finally:
-            shutil.rmtree(tempdir)
-        mismatches = record.mismatches(reloaded)
-        self.assertFalse(mismatches,
-                         "Reloaded record did not match saved record:{}"
-                         .format(mismatches))
 
     def test_altered_workflow(self):
         """
@@ -398,7 +368,7 @@ class TestProvBasic(BaseTestCase):
             ('derived_fileset1', 'derived_field4'))
         with open(derived_fileset1_collection.path(*self.SESSION), 'w') as f:
             f.write(str(protected_derived_fileset1_value))
-        study.clear_cache()
+        study.clear_caches()
         # Protect the output of derived_fileset1 as well and it should return
         # the protected values
         derived_fileset1_collection, derived_field4_collection = study.data(
@@ -429,7 +399,7 @@ class TestProvInputChange(BaseTestCase):
             f.write('99.9')
         # Should detect that the input has changed and throw an error
         self.assertRaises(
-            ArcanaProvenanceRecordMismatchError,
+            ArcanaReprocessException,
             study.data,
             'derived_field2')
         new_study = self.create_study(
@@ -459,7 +429,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         ParameterSpec('pipeline3_op', 'add')]
 
     def pipeline1(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
             references=[],
@@ -477,7 +447,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline2(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
             references=[],
@@ -496,7 +466,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline3(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
             references=[],
@@ -515,7 +485,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline4(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline4',
             desc="",
             references=[],
@@ -550,7 +520,7 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
     def pipeline5(self, **name_maps):
-        pipeline = self.pipeline(
+        pipeline = self.new_pipeline(
             'pipeline5',
             desc="",
             references=[],

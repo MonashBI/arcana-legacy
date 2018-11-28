@@ -58,151 +58,126 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
     DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
                         'thousands': 1000}
 
-    def get_tree(self, repository, set_ids=False):
-        sessions = [
-            Session(
-                'subject1', 'visit1', filesets=[
-                    Fileset('hundreds', text_format,
-                            subject_id='subject1', visit_id='visit1',
-                            repository=repository),
-                    Fileset('ones', text_format,
-                            subject_id='subject1', visit_id='visit1',
-                            repository=repository),
-                    Fileset('tens', text_format,
-                            subject_id='subject1', visit_id='visit1',
-                            repository=repository)],
-                fields=[
-                    Field('a', value=1,
-                          subject_id='subject1', visit_id='visit1',
-                          repository=repository),
-                    Field('b', value=10,
-                          subject_id='subject1', visit_id='visit1',
-                          repository=repository),
-                    Field('d', value=42.42,
-                          subject_id='subject1', visit_id='visit1',
-                          repository=repository)]),
-            Session(
-                'subject1', 'visit2', filesets=[
-                    Fileset('ones', text_format,
-                            subject_id='subject1', visit_id='visit2',
-                            repository=repository),
-                    Fileset('tens', text_format,
-                            subject_id='subject1', visit_id='visit2',
-                            repository=repository)],
-                fields=[
-                    Field('a', value=2,
-                          subject_id='subject1', visit_id='visit2',
-                          repository=repository),
-                    Field('c', value='van',
-                          subject_id='subject1', visit_id='visit2',
-                          repository=repository)]),
-            Session(
-                'subject2', 'visit1', filesets=[
-                    Fileset('ones', text_format,
-                            subject_id='subject2', visit_id='visit1',
-                            repository=repository),
-                    Fileset('tens', text_format,
-                            subject_id='subject2', visit_id='visit1',
-                            repository=repository)],
-                fields=[]),
-            Session(
-                'subject2', 'visit2', filesets=[
-                    Fileset('ones', text_format,
-                            subject_id='subject2', visit_id='visit2',
-                            repository=repository),
-                    Fileset('tens', text_format,
-                            subject_id='subject2', visit_id='visit2',
-                            repository=repository)],
-                fields=[
-                    Field('a', value=22,
-                          subject_id='subject2', visit_id='visit2',
-                          repository=repository),
-                    Field('b', value=220,
-                          subject_id='subject2', visit_id='visit2',
-                          repository=repository),
-                    Field('c', value='buggy',
-                          subject_id='subject2', visit_id='visit2',
-                          repository=repository)])]
-        project = Tree(
-            subjects=[
-                Subject(
-                    'subject1', sessions=[s for s in sessions
-                                          if s.subject_id == 'subject1'],
-                    filesets=[
-                        Fileset('ones', text_format,
-                                frequency='per_subject',
-                                subject_id='subject1',
-                                repository=repository),
-                        Fileset('tens', text_format,
-                                frequency='per_subject',
-                                subject_id='subject1',
-                                repository=repository)],
-                    fields=[
-                        Field('e', value=4.44444,
-                              frequency='per_subject',
-                              subject_id='subject1',
-                              repository=repository)]),
-                Subject(
-                    'subject2', sessions=[s for s in sessions
-                                          if s.subject_id == 'subject2'],
-                    filesets=[
-                        Fileset('ones', text_format,
-                                frequency='per_subject',
-                                subject_id='subject2',
-                                repository=repository),
-                        Fileset('tens', text_format,
-                                frequency='per_subject',
-                                subject_id='subject2',
-                                repository=repository)],
-                    fields=[
-                        Field('e', value=3.33333,
-                              frequency='per_subject',
-                              subject_id='subject2',
-                              repository=repository)])],
-            visits=[
-                Visit(
-                    'visit1', sessions=[s for s in sessions
-                                        if s.visit_id == 'visit1'],
-                    filesets=[
-                        Fileset('ones', text_format,
-                                frequency='per_visit',
-                                visit_id='visit1',
-                                repository=repository)],
-                    fields=[
-                        Field('f', value='dog',
-                              frequency='per_visit',
-                              visit_id='visit1',
-                              repository=repository)]),
-                Visit(
-                    'visit2', sessions=[s for s in sessions
-                                        if s.visit_id == 'visit2'],
-                    filesets=[],
-                    fields=[
-                        Field('f', value='cat',
-                              frequency='per_visit',
-                              visit_id='visit2',
-                              repository=repository)])],
-            filesets=[
-                Fileset('ones', text_format,
-                        frequency='per_study',
-                        repository=repository)],
-            fields=[
-                Field('g', value=100,
-                      frequency='per_study',
-                      repository=repository)])
-        if set_ids:  # For xnat repository
-            for fileset in project.filesets:
-                fileset._id = fileset.name
-            for visit in project.visits:
-                for fileset in visit.filesets:
-                    fileset._id = fileset.name
-            for subject in project.subjects:
-                for fileset in subject.filesets:
-                    fileset._id = fileset.name
-                for session in subject.sessions:
-                    for fileset in session.filesets:
-                        fileset._id = fileset.name
-        return project
+    def get_tree(self, repo, sync_with_repo=False):
+        filesets = [
+            # Subject 2
+            Fileset('ones', text_format,
+                    frequency='per_subject',
+                    subject_id='subject2',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    frequency='per_subject',
+                    subject_id='subject2',
+                    repository=repo),
+            # subject2/visit1
+            Fileset('ones', text_format,
+                    subject_id='subject2', visit_id='visit1',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject2', visit_id='visit1',
+                    repository=repo),
+            # subject2/visit2
+            Fileset('ones', text_format,
+                    subject_id='subject2', visit_id='visit2',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject2', visit_id='visit2',
+                    repository=repo),
+            # Subject1
+            Fileset('ones', text_format,
+                    frequency='per_subject',
+                    subject_id='subject1',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    frequency='per_subject',
+                    subject_id='subject1',
+                    repository=repo),
+            # subject1/visit1
+            Fileset('hundreds', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            Fileset('ones', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            # subject1/visit2
+            Fileset('ones', text_format,
+                    subject_id='subject1', visit_id='visit2',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject1', visit_id='visit2',
+                    repository=repo),
+            # Visit 1
+            Fileset('ones', text_format,
+                    frequency='per_visit',
+                    visit_id='visit1',
+                    repository=repo),
+            # Study
+            Fileset('ones', text_format,
+                    frequency='per_study',
+                    repository=repo)]
+        fields = [
+            # Subject 2
+            Field('e', value=3.33333,
+                  frequency='per_subject',
+                  subject_id='subject2',
+                  repository=repo),
+            # subject2/visit2
+            Field('a', value=22,
+                  subject_id='subject2', visit_id='visit2',
+                  repository=repo),
+            Field('b', value=220,
+                  subject_id='subject2', visit_id='visit2',
+                  repository=repo),
+            Field('c', value='buggy',
+                  subject_id='subject2', visit_id='visit2',
+                  repository=repo),
+            # Subject1
+            Field('e', value=4.44444,
+                  frequency='per_subject',
+                  subject_id='subject1',
+                  repository=repo),
+            # subject1/visit1
+            Field('a', value=1,
+                  subject_id='subject1', visit_id='visit1',
+                  repository=repo),
+            Field('b', value=10,
+                  subject_id='subject1', visit_id='visit1',
+                  repository=repo),
+            Field('d', value=42.42,
+                  subject_id='subject1', visit_id='visit1',
+                  repository=repo),
+            # subject1/visit2
+            Field('a', value=2,
+                  subject_id='subject1', visit_id='visit2',
+                  repository=repo),
+            Field('c', value='van',
+                  subject_id='subject1', visit_id='visit2',
+                  repository=repo),
+            # Visit 1
+            Field('f', value='dog',
+                  frequency='per_visit',
+                  visit_id='visit1',
+                  repository=repo),
+            # Visit 2
+            Field('f', value='cat',
+                  frequency='per_visit',
+                  visit_id='visit2',
+                  repository=repo),
+            # Study
+            Field('g', value=100,
+                  frequency='per_study',
+                  repository=repo)]
+        # Set URI and IDs if necessary for repository type
+        if sync_with_repo:
+            for fileset in filesets:
+                fileset.get()
+            for field in fields:
+                field.get()
+        tree = Tree.construct(filesets, fields)
+        return tree
 
     @property
     def input_tree(self):
