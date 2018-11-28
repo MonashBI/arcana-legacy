@@ -291,7 +291,7 @@ class Fileset(BaseItem, BaseFileset):
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
-        self._checksums = None  # reset checksums
+        self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
 
     @property
@@ -317,6 +317,14 @@ class Fileset(BaseItem, BaseFileset):
     @property
     def uri(self):
         return self._uri
+
+    @uri.setter
+    def uri(self, uri):
+        if self._uri is None:
+            self._uri = uri
+        elif uri != self._uri:
+            raise ArcanaUsageError("Can't change value of URI for {} from {} "
+                                   "to {}".format(self, self._uri, uri))
 
     @property
     def checksums(self):
@@ -448,7 +456,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def put(self):
         if self.repository is not None and self._path is not None:
-            self.repository.put_fileset(self)
+            self._uri = self.repository.put_fileset(self)
 
     def get_array(self):
         return self.format.get_array(self.path)

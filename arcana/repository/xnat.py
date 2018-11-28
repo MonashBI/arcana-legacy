@@ -15,7 +15,8 @@ from arcana.data import Fileset, Field
 from arcana.repository.base import BaseRepository
 from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
-    ArcanaError, ArcanaFileFormatError, ArcanaWrongRepositoryError)
+    ArcanaError, ArcanaUsageError, ArcanaFileFormatError,
+    ArcanaWrongRepositoryError)
 from arcana.pipeline.provenance import Record
 from arcana.utils import dir_modtime, get_class_info, parse_value
 import re
@@ -160,8 +161,9 @@ class XnatRepository(BaseRepository):
         self._check_repository(fileset)
         with self:  # Connect to the XNAT repository if haven't already
             xsession = self.get_xsession(fileset)
-            scan_type = fileset.name
-            xscan = xsession.scans[scan_type]
+            xscan = xsession.scans[fileset.name]
+            # Set URI so we can retrieve checksums if required
+            fileset.uri = xscan.uri
             cache_path = self._cache_path(fileset)
             need_to_download = True
             if op.exists(cache_path):
@@ -234,7 +236,7 @@ class XnatRepository(BaseRepository):
                 shutil.copyfile(fileset.path, cache_path)
             with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
-                json.dump(fileset.checksums, f, indent=2)
+                json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
                 type=fileset.name, parent=xsession)
@@ -251,6 +253,7 @@ class XnatRepository(BaseRepository):
             xresource = xscan.create_resource(
                 fileset.format.name.upper())
             xresource.upload(cache_path, fileset.fname)
+            return xscan.uri
 
     def put_field(self, field):
         self._check_repository(field)
@@ -309,7 +312,9 @@ class XnatRepository(BaseRepository):
             the way it is generated locally by Arcana.
         """
         if fileset.uri is None:
-            return None
+            raise ArcanaUsageError(
+                "Can't retrieve checksums as URI has not been set for {}"
+                .format(fileset))
         with self:
             checksums = {r['Name']: r['digest']
                          for r in self._login.get_json(fileset.uri + '/files')[
@@ -368,9 +373,9 @@ class XnatRepository(BaseRepository):
                 subject_xid = session_json['data_fields']['subject_ID']
                 subject_id = subject_xids_to_labels[subject_xid]
                 session_label = session_json['data_fields']['label']
-                session_uri = ('/data/projects/{}/subjects/{}/experiments/{}'
-                               .format(self.project_id, subject_xid,
-                                       session_xid))
+                session_uri = (
+                    '/data/archive/projects/{}/subjects/{}/experiments/{}'
+                    .format(self.project_id, subject_xid, session_xid))
                 # Get field values. We do this first so we can check for the
                 # DERIVED_FROM_FIELD to determine the correct session label and
                 # study name
@@ -525,11 +530,9 @@ class XnatRepository(BaseRepository):
                 val = val.split('\\')
             return val
         with self:
-            # Replace '/data' with '/archive' in uri
-            uri = '/archive' + fileset.uri[len('/data'):]
             response = self._login.get(
-                '/REST/services/dicomdump?src=' + uri).json()[
-                    'ResultSet']['Result']
+                '/REST/services/dicomdump?src=' +
+                fileset.uri[len('/data'):]).json()['ResultSet']['Result']
         hdr = {tag_parse_re.match(t['tag1']).groups(): convert(t['value'],
                                                                t['vr'])
                for t in response if (tag_parse_re.match(t['tag1']) and

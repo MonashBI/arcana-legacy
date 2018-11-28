@@ -167,12 +167,12 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                     # Need to forcibly change the repository to be XNAT
                     fileset = copy(fileset)
                     fileset._repository = repo
-                    repo.put_fileset(fileset)
+                    fileset.put()
                 for field in node.fields:
                     # Need to forcibly change the repository to be XNAT
                     field = copy(field)
                     field._repository = repo
-                    repo.put_field(field)
+                    field.put()
                 for record in node.records:
                     repo.put_record(record)
 

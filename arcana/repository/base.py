@@ -138,6 +138,12 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         ----------
         fileset : Fileset
             The fileset to insert into the repository
+
+        Returns
+        -------
+        uri : str | None
+            The URI corresponding to the uploaded fileset if applicable. None
+            if not.
         """
 
     @abstractmethod

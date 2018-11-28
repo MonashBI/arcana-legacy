@@ -25,11 +25,6 @@ sys.path.insert(0, op.join(op.dirname(__file__), '..'))
 import test_directory  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
-# Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
-sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'pipeline'))
-import test_prov  # @UnresolvedImport @IgnorePep8
-sys.path.pop(0)
-
 
 class TestStudy(with_metaclass(StudyMetaClass, Study)):
 
@@ -63,14 +58,6 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
             .format(tree.find_mismatch(ref_tree)))
-
-
-class TestProvDialationOnXnat(TestMultiSubjectOnXnatMixin,
-                              test_prov.TestProvDialation):
-
-    @unittest.skipIf(*SKIP_ARGS)
-    def test_filter_dialation1(self):
-        super(TestProvDialationOnXnat, self).test_filter_dialation1()
 
 
 class TestXnatCache(TestMultiSubjectOnXnatMixin,
