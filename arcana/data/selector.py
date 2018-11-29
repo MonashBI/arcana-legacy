@@ -192,7 +192,7 @@ class BaseSelector(object):
                         subject_id=node.subject_id,
                         visit_id=node.visit_id,
                         repository=self.study.repository,
-                        from_study=self.study.name,
+                        from_study=self.from_study,
                         exists=False,
                         **self._specific_kwargs))
                 else:

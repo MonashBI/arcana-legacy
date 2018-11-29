@@ -605,7 +605,7 @@ class Field(BaseItem, BaseField):
         return ("{}('{}',{} '{}', subj={}, vis={}, stdy={}, exists={})"
                 .format(
                     type(self).__name__, self.name,
-                    ("{}, ".format(self._value)
+                    (" {},".format(self._value)
                      if self._value is not None else ''),
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,

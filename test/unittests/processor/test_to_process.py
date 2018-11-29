@@ -800,15 +800,20 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
                 FieldSelector('acquired_field1', int, 'acquired_field1'),
                 FieldSelector('acquired_field2', int, 'acquired_field2',
                               skip_missing=True)])
-        field1 = study.data('derived_field1')
-        self.assertEqual([f.exists for f in field1], [True, True, True, False])
-        field2 = study.data('derived_field2')
-        self.assertEqual([f.exists for f in field2], [True, False])
-        field3 = study.data('derived_field3')
-        self.assertEqual([f.exists for f in field3], [True, False])
-        field4 = study.data('derived_field4')
-        self.assertEqual([f.exists for f in field4], [False])
-        field5 = study.data('derived_field5')
-        self.assertEqual([f.exists for f in field5], [False, False, False,
-                                                      False])
-        
+        derived_field1 = study.data('derived_field1')
+        self.assertEqual([f.exists for f in derived_field1],
+                         [True, True, True, False])
+        derived_field2 = study.data('derived_field2')
+        self.assertEqual([f.exists for f in derived_field2], [True, False])
+        derived_field3 = study.data('derived_field3')
+        self.assertEqual([f.exists for f in derived_field3], [True, False])
+        derived_field4 = study.data('derived_field4')
+        self.assertEqual([f.exists for f in derived_field4], [False])
+        derived_field5 = study.data('derived_field5')
+        self.assertEqual([f.exists for f in derived_field5],
+                         [False, False, False, False])
+        # Provide missing data
+        missing_field = study.data('acquired_field2').item('1', '1')
+        missing_field.value = 40
+        derived_field5 = study.data('derived_field5')
+        self.assertTrue(all(f.exists for f in derived_field5))
