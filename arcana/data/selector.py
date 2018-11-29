@@ -1,6 +1,5 @@
 from builtins import object
 import re
-from arcana.utils import ExitStack
 from copy import copy
 from itertools import chain
 from arcana.exceptions import (
@@ -16,13 +15,14 @@ class BaseSelector(object):
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
-                 fallback_to_default=False, repository=None, study_=None,
-                 collection_=None):
+                 skip_missing=False, fallback_to_default=False,
+                 repository=None, study_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
         self._from_study = from_study
         self._repository = repository
+        self._skip_missing = skip_missing
         self._fallback_to_default = fallback_to_default
         # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
@@ -35,6 +35,7 @@ class BaseSelector(object):
                 self.is_regex == other.is_regex and
                 self.order == other.order and
                 self._repository == other._repository and
+                self._skip_missing == other._skip_missing and
                 self._fallback_to_default == other._fallback_to_default)
 
     def __hash__(self):
@@ -43,6 +44,7 @@ class BaseSelector(object):
                 hash(self.is_regex) ^
                 hash(self.order) ^
                 hash(self._repository) ^
+                hash(self._skip_missing) ^
                 hash(self._fallback_to_default))
 
     def initkwargs(self):
@@ -53,6 +55,7 @@ class BaseSelector(object):
         dct['is_regex'] = self.is_regex
         dct['study_'] = self._study
         dct['collection_'] = self._collection
+        dct['skip_missing'] = self._skip_missing
         dct['fallback_to_default'] = self._fallback_to_default
         return dct
 
@@ -240,9 +243,13 @@ class FilesetSelector(BaseSelector, BaseFileset):
         Is used to determine the location of the filesets in the
         repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
+    skip_missing : bool
+        If there is no fileset matching the selector for a node then pipelines
+        that use it as an input, including downstream pipelines, will not be
+        run for that node
     fallback_to_default : bool
-        If the there is no fileset/field matching the selection for a node
-        and corresponding data spec has a default or is a derived spec,
+        If there is no fileset matching the selection for a node
+        and corresponding data spec has a default or is a derived spec
         then fallback to the default or generate the derivative.
     repository : BaseRepository | None
         The repository to draw the matches from, if not the main repository
@@ -255,16 +262,16 @@ class FilesetSelector(BaseSelector, BaseFileset):
     def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
-                 fallback_to_default=False, repository=None, study_=None,
-                 collection_=None):
+                 skip_missing=False, fallback_to_default=False,
+                 repository=None, study_=None, collection_=None):
         if pattern is None and id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
                 "FilesetSelector constructor")
         BaseFileset.__init__(self, name, format, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                              from_study, fallback_to_default, repository,
-                              study_, collection_)
+                              from_study, skip_missing, fallback_to_default,
+                              repository, study_, collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -390,6 +397,10 @@ class FieldSelector(BaseSelector, BaseField):
         Is used to determine the location of the fields in the
         repository as the derived filesets and fields are grouped by
         the name of the study that generated them.
+    skip_missing : bool
+        If there is no field matching the selector for a node then pipelines
+        that use it as an input, including downstream pipelines, will not be
+        run for that node
     fallback_to_default : bool
         If the there is no fileset/field matching the selection for a node
         and corresponding data spec has a default or is a derived spec,
@@ -404,12 +415,12 @@ class FieldSelector(BaseSelector, BaseField):
 
     def __init__(self, name, dtype, pattern, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
-                 fallback_to_default=False, repository=None, study_=None,
-                 collection_=None):
+                 skip_missing=False, fallback_to_default=False,
+                 repository=None, study_=None, collection_=None):
         BaseField.__init__(self, name, dtype, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                              from_study, fallback_to_default, repository,
-                              study_, collection_)
+                              from_study, skip_missing, fallback_to_default,
+                              repository, study_, collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
