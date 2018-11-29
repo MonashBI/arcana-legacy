@@ -265,7 +265,8 @@ class BaseProcessor(object):
             # filter array to include IDs across the scope of the study, e.g.
             # all subjects for per-vist, or all visits for per-subject.
             output_freqs = set(pipeline.output_frequencies)
-            dialated_filt_array = self._dialate_array(filt_array, output_freqs)
+            dialated_filt_array = self._dialate_array(filt_array,
+                                                      pipeline.joins)
             added = dialated_filt_array ^ filt_array
             if added.any():
                 filt_array = dialated_filt_array
@@ -751,14 +752,22 @@ class BaseProcessor(object):
         to_skip = defaultdict(list)
         # Check data tree for missing inputs
         for input in pipeline.inputs:  # @ReservedAssignment
-            # NB: Inputs that don't have skip_missing set will raise an error
-            #     before this point if a match is missing
+            # NB: Inputs that don't have skip_missing set and have missing
+            # data will raise an error before this point
             if input.skip_missing:
                 for item in input.collection:
                     if not item.exists:
-                        to_skip_array[array_inds(item)] = True
-                        to_skip[array_inds(item)].append(item)
-        to_skip_array = self._dialate_array(to_skip_array, output_freqs)
+                        if item.frequency == 'per_session':
+                            to_skip_array[array_inds(item)] = True
+                        elif item.frequency == 'per_subject':
+                            to_skip_array[array_inds(item)[0], :] = True
+                        elif item.frequency == 'per_visit':
+                            to_skip_array[:, array_inds(item)[1]] = True
+                        elif item.frequency == 'per_study':
+                            to_skip_array[:, :] = True
+                        else:
+                            assert False
+                        to_skip[(item.subject_id, item.visit_id)].append(item)
         # Check data tree for missing required outputs
         for output in pipeline.outputs:
             # Check to see if output is required by downstream processing
@@ -857,7 +866,8 @@ class BaseProcessor(object):
             return (subject_id, visit_id)
 
         # Dialate to process array
-        to_process_array = self._dialate_array(to_process_array, output_freqs)
+        to_process_array = self._dialate_array(to_process_array,
+                                               pipeline.joins)
         intersection = to_process_array * to_skip_array
         if intersection.any():
             warning_msg = ''
@@ -903,28 +913,39 @@ class BaseProcessor(object):
         to_process_array |= (prqs_to_process_array *
                              filter_array *
                              np.invert(to_protect_array))
-        to_process_array = self._dialate_array(to_process_array, output_freqs)
+        to_process_array = self._dialate_array(to_process_array,
+                                               pipeline.joins)
         return to_process_array, to_protect_array, to_skip_array
 
-    def _dialate_array(self, array, output_freqs):
+    def _dialate_array(self, array, joins):
         """
-        'Dialates' an array so all subject/visit ID cells required by
-        low frequency outputs (i.e. all subjects per-visit for
-        'per_visit', all visits per-subject for 'per_subject', all
-        for 'per_study') are included in the array if any need for that
-        subject/visit need to be processed.
+        'Dialates' a to_process/to_protect array to include all subject and/or
+        visits if the pipeline contains any joins over the corresponding
+        iterators.
+
+        Parameters
+        ----------
+        array : np.array[M, N]
+            The array to potentially dialate
+        joins : set[str]
+            The iterators that the pipeline joins over
+
+        Returns
+        -------
+        dialated : np.array[M, N]
+            The dialated array
         """
-        output_freqs = set(output_freqs)
-        if output_freqs == set(
-                ['per_session']) or array.all() or not array.any():
+        if not joins:
             return array
         dialated = np.copy(array)
-        if 'per_study' in output_freqs:
-            dialated[:, :] = True
-        elif 'per_subject' in output_freqs:
-            dialated[dialated.any(axis=1), :] = True
-        elif 'per_visit' in output_freqs:
+        if self.study.SUBJECT_ID in joins:
+            # If we join over subjects we should include all subjects for every
+            # visit we want to process
             dialated[:, dialated.any(axis=0)] = True
+        if self.study.VISIT_ID in joins:
+            # If we join over visits we should include all visits for every
+            # subject we want to process
+            dialated[dialated.any(axis=1), :] = True
         return dialated
 
     @property
