@@ -24,6 +24,10 @@ class BaseSelector(object):
         self._repository = repository
         self._skip_missing = skip_missing
         self._fallback_to_default = fallback_to_default
+        if skip_missing and fallback_to_default:
+            raise ArcanaUsageError(
+                "Cannot provide both mutually exclusive 'skip_missing' and "
+                "'fallback_to_default' flags to {}".format(self))
         # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._study = study_

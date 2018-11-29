@@ -365,19 +365,26 @@ class BaseProcessor(object):
         # indices correspond to subjects and column indices visits
         prqs_to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
                                          dtype=bool)
+        # The array that represents the subject/visit pairs for which any
+        # prerequisite pipeline will be skipped due to missing inputs. Row
+        # indices correspond to subjects and column indices visits
+        prqs_to_skip_array = np.zeros((len(subject_inds), len(visit_inds)),
+                                      dtype=bool)
         for getter_name in pipeline.prerequisites:
             prereq = pipeline.study.pipeline(getter_name)
             if prereq._to_process_array.any():
                 final_nodes.append(prereq.node('final'))
                 prqs_to_process_array |= prereq._to_process_array
+            prqs_to_skip_array |= prereq._to_skip_array
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
-        to_process_array = self._to_process(
-            pipeline, required_outputs, prqs_to_process_array, filter_array,
-            subject_inds, visit_inds, force)
-        # Store the to process to it can be combined with arrays of downstream
-        # pipelines
+        to_process_array, to_skip_array = self._to_process(
+            pipeline, required_outputs, prqs_to_process_array,
+            prqs_to_skip_array, filter_array, subject_inds, visit_inds, force)
+        # Store the arrays signifying which nodes to process or skip so they
+        # can be passed to downstream pipelines
         pipeline._to_process_array = to_process_array
+        pipeline._to_skip_array = to_skip_array
         # Check to see if there are any sessions to process
         if not to_process_array.any():
             raise ArcanaNoRunRequiredException(
@@ -642,7 +649,8 @@ class BaseProcessor(object):
         return iter_nodes
 
     def _to_process(self, pipeline, required_outputs, prqs_to_process_array,
-                    filter_array, subject_inds, visit_inds, force):
+                    prqs_to_skip_array, filter_array, subject_inds, visit_inds,
+                    force):
         """
         Check whether the outputs of the pipeline are present in all sessions
         in the project repository and were generated with matching provenance.
@@ -719,6 +727,8 @@ class BaseProcessor(object):
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
         to_protect_array = np.copy(to_process_array)
+        # An array to mark nodes with missing inputs that will be skipped
+        to_skip_array = np.copy(to_process_array)
         # As well as the the sessions that need to be protected, keep track
         # of the items in those sessions that need to be protected for more
         # informative warnings/errors
@@ -860,7 +870,7 @@ class BaseProcessor(object):
                              filter_array *
                              np.invert(to_protect_array))
         to_process_array = self._dialate_array(to_process_array, output_freqs)
-        return to_process_array
+        return to_process_array, to_skip_array
 
     def _dialate_array(self, array, output_freqs):
         """
