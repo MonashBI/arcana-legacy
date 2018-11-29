@@ -176,12 +176,24 @@ class BaseSelector(object):
                 if default is not None:
                     matches.append(default.item(subject_id=node.subject_id,
                                                 visit_id=node.visit_id))
+                elif self.skip_missing:
+                    # Insert a non-existant item placeholder in-place of the
+                    # the missing item
+                    matches.append(self.CollectionClass.CollectedClass(
+                        self.name,
+                        frequency=self.frequency,
+                        subject_id=node.subject_id,
+                        visit_id=node.visit_id,
+                        repository=self.study.repository,
+                        from_study=self.study.name,
+                        exists=False,
+                        **self._specific_kwargs))
                 else:
                     raise e
         return self.CollectionClass(
             self.name, matches,
             frequency=self.frequency,
-            **self._specific_collection_kwargs)
+            **self._specific_kwargs)
 
     def _match_node(self, node, **kwargs):
         # Get names matching pattern
@@ -369,7 +381,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
         return matches
 
     @property
-    def _specific_collection_kwargs(self):
+    def _specific_kwargs(self):
         return {'format': self.format}
 
 
@@ -467,5 +479,5 @@ class FieldSelector(BaseSelector, BaseField):
                         self.order, self._from_study))
 
     @property
-    def _specific_collection_kwargs(self):
+    def _specific_kwargs(self):
         return {'dtype': self.dtype}
