@@ -61,7 +61,11 @@ class BaseCollection(object):
             return iter(self._collection.values())
 
     def __len__(self):
-        return len(self._collection)
+        if self.frequency == 'per_session':
+            ln = sum(len(d) for d in self._collection.values())
+        else:
+            ln = len(self._collection)
+        return ln
 
     @classmethod
     def _common_attr(self, collection, attr_name):

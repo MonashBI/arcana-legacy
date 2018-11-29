@@ -928,7 +928,7 @@ class Pipeline(object):
         """
         joined_prov = {}
         if self.joins_subjects:
-            joined_prov['subject_ids'] = self.study.subject_ids,
+            joined_prov['subject_ids'] = list(self.study.subject_ids)
         if self.joins_visits:
-            joined_prov['visit_ids'] = self.study.visit_ids
+            joined_prov['visit_ids'] = list(self.study.visit_ids)
         return joined_prov

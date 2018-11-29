@@ -84,6 +84,13 @@ class BaseSelector(object):
         return self._fallback_to_default
 
     @property
+    def study(self):
+        if self._study is None:
+            raise ArcanaUsageError(
+                "{} is not bound to a study".format(self))
+        return self._study
+
+    @property
     def repository(self):
         if self._repository is None:
             if self._study is None:
@@ -141,7 +148,7 @@ class BaseSelector(object):
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-                bound._collection = self.match(tree, default, **kwargs)
+                bound._collection = bound.match(tree, default, **kwargs)
         return bound
 
     @property

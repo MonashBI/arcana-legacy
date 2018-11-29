@@ -19,8 +19,8 @@ import test_data  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
-sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'pipeline'))
-import test_prov  # @UnresolvedImport @IgnorePep8
+sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'processor'))
+import test_to_process  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
@@ -58,9 +58,9 @@ class TestConnectDisconnect(TestCase):
 
 
 class TestProvInputChangeOnXnat(TestOnXnatMixin,
-                                test_prov.TestProvInputChange):
+                                test_to_process.TestProvInputChange):
 
-    BASE_CLASS = test_prov.TestProvInputChange
+    BASE_CLASS = test_to_process.TestProvInputChange
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_input_change(self):

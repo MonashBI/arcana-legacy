@@ -515,10 +515,7 @@ class Field(BaseItem, BaseField):
                 raise ArcanaUsageError(
                     "Either 'value' or 'dtype' must be provided to "
                     "Field init")
-            if array is None:
-                raise ArcanaUsageError(
-                    "Either 'value' or 'array' must be provided to "
-                    "Field init")
+            array = bool(array)  # Convert to array is None to False
         else:
             value = parse_value(value)
             if isinstance(value, list):
