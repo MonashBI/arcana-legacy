@@ -76,6 +76,10 @@ class BaseSelector(object):
         return self._from_study
 
     @property
+    def skip_missing(self):
+        return self._skip_missing
+
+    @property
     def fallback_to_default(self):
         return self._fallback_to_default
 

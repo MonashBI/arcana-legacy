@@ -372,19 +372,20 @@ class BaseProcessor(object):
                                       dtype=bool)
         for getter_name in pipeline.prerequisites:
             prereq = pipeline.study.pipeline(getter_name)
-            if prereq._to_process_array.any():
+            if prereq.to_process_array.any():
                 final_nodes.append(prereq.node('final'))
-                prqs_to_process_array |= prereq._to_process_array
-            prqs_to_skip_array |= prereq._to_skip_array
+                prqs_to_process_array |= prereq.to_process_array
+            prqs_to_skip_array |= prereq.to_skip_array
         # Get list of sessions that need to be processed (i.e. if
         # they don't contain the outputs of this pipeline)
-        to_process_array, to_skip_array = self._to_process(
+        to_process_array, to_protect_array, to_skip_array = self._to_process(
             pipeline, required_outputs, prqs_to_process_array,
             prqs_to_skip_array, filter_array, subject_inds, visit_inds, force)
-        # Store the arrays signifying which nodes to process or skip so they
-        # can be passed to downstream pipelines
-        pipeline._to_process_array = to_process_array
-        pipeline._to_skip_array = to_skip_array
+        # Store the arrays signifying which nodes to process, protect or skip
+        # so they can be passed to downstream pipelines
+        pipeline.to_process_array = to_process_array
+        pipeline.to_protect_array = to_protect_array
+        pipeline.to_skip_array = to_skip_array
         # Check to see if there are any sessions to process
         if not to_process_array.any():
             raise ArcanaNoRunRequiredException(
@@ -721,32 +722,49 @@ class BaseProcessor(object):
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))
+
+        def array_inds(x):
+            """
+            Get the array index corresponding to an item or node. If it doesn't
+            have a subject and/or visit ID (i.e. frequency != 'per_session')
+            then the first index in the row/column is selected as it will be
+            dialated to the whole row/column later
+            """
+            return (subject_inds.get(x.subject_id, 0),
+                    visit_inds.get(x.visit_id, 0))
+
         # Initalise array to represent which sessions need to be reprocessed
         to_process_array = np.zeros((len(subject_inds), len(visit_inds)),
                                     dtype=bool)
         # An array to mark outputs that have been altered outside of Arcana
         # and therefore protect from over-writing
         to_protect_array = np.copy(to_process_array)
-        # An array to mark nodes with missing inputs that will be skipped
+        # An array to mark inputs that are missing and should be skipped
         to_skip_array = np.copy(to_process_array)
-        # As well as the the sessions that need to be protected, keep track
-        # of the items in those sessions that need to be protected for more
-        # informative warnings/errors
-        to_protect = defaultdict(list)
         # Mark the sessions that we should check to see if the configuration
         # saved in the provenance record matches that of the current pipeline
         to_check_array = np.copy(to_process_array)
-        # Check for sessions for missing required outputs
+        # As well as the the sessions that need to be protected or skipped,
+        # keep track of the items in those sessions that are protected or
+        # missing for more informative error messages
+        to_protect = defaultdict(list)
+        to_skip = defaultdict(list)
+        # Check data tree for missing inputs
+        for input in pipeline.inputs:  # @ReservedAssignment
+            # NB: Inputs that don't have skip_missing set will raise an error
+            #     before this point if a match is missing
+            if input.skip_missing:
+                for item in input.collection:
+                    if not item.exists:
+                        to_skip_array[array_inds(item)] = True
+                        to_skip[array_inds(item)].append(item)
+        to_skip_array = self._dialate_array(to_skip_array, output_freqs)
+        # Check data tree for missing required outputs
         for output in pipeline.outputs:
             # Check to see if output is required by downstream processing
             required = (required_outputs is None or
                         output.name in required_outputs)
             for item in output.collection:
-                # Get row and column indices, if low-frequency (e.g.
-                # per_subject/visit/study) then just mark the first cell in
-                # row|column as it will be "dialated" afterwards
-                inds = (subject_inds.get(item.subject_id, 0),
-                        visit_inds.get(item.visit_id, 0))
                 if item.exists:
                     # Check to see if checksums recorded when derivative
                     # was generated by previous run match those of current file
@@ -759,15 +777,15 @@ class BaseProcessor(object):
                             "corrected outside of Arcana and will therefore "
                             "not overwrite. Please delete manually if this "
                             "is not intended".format(repr(item)))
-                        to_protect_array[inds] = True
-                        to_protect[inds].append(item)
+                        to_protect_array[array_inds(item)] = True
+                        to_protect[array_inds(item)].append(item)
                     elif required:
                         if force:
-                            to_process_array[inds] = True
+                            to_process_array[array_inds(item)] = True
                         else:
-                            to_check_array[inds] = True
+                            to_check_array[array_inds(item)] = True
                 elif required:
-                    to_process_array[inds] = True
+                    to_process_array[array_inds(item)] = True
         # Filter sessions to process by those requested
         to_process_array *= filter_array
         to_check_array *= (filter_array * np.invert(to_process_array))
@@ -795,8 +813,6 @@ class BaseProcessor(object):
             for node in to_check:
                 # Generated expected record from current pipeline/repository-
                 # state
-                index = ((subject_inds.get(node.subject_id, 0),
-                         visit_inds.get(node.visit_id, 0)))
                 reprocess = False
                 try:
                     # Retrieve record stored in tree node
@@ -816,14 +832,14 @@ class BaseProcessor(object):
                 except ArcanaNameError as e:
                     msg = "missing provenance record"
                     reprocess = False
-                    to_protect_array[index] = True
+                    to_protect_array[array_inds(node)] = True
                 except ArcanaDataNotDerivedYetError as e:
                     msg = ("missing input '{}' and therefore cannot check "
                            "provenance".format(e.name))
                     reprocess = True
                 if reprocess:
                     if self.reprocess:
-                        to_process_array[index] = True
+                        to_process_array[array_inds(node)] = True
                         logger.info(
                             "Reprocessing {} with '{}' due to {}"
                             .format(node, pipeline.name, msg))
@@ -833,17 +849,35 @@ class BaseProcessor(object):
                             "in {} due to {}, set 'reprocess' "
                             "flag to overwrite".format(
                                 pipeline.name, node, msg))
+
+        def inds_to_ids(inds):
+            subject_id = next(k for k, v in subject_inds.items()
+                              if v == inds[0])
+            visit_id = next(k for k, v in visit_inds.items() if v == inds[1])
+            return (subject_id, visit_id)
+
         # Dialate to process array
         to_process_array = self._dialate_array(to_process_array, output_freqs)
+        intersection = to_process_array * to_skip_array
+        if intersection.any():
+            warning_msg = ''
+            for sess_inds in zip(*np.nonzero(intersection)):
+                subject_id, visit_id = inds_to_ids(sess_inds)
+                warning_msg += (
+                    "\n({}, {}): [{}]".format(
+                        subject_id, visit_id,
+                        ', '.join(i.name for i in to_skip[sess_inds])))
+            logger.warning(
+                "Skipping the following nodes for '{}' pipeline due to "
+                "missing inputs:{}".format(pipeline, warning_msg))
+        # Remove nodes that are to be skipped due to missing inputs
+        to_process_array *= np.invert(to_skip_array | prqs_to_skip_array)
         # Check for conflicts between nodes to process and nodes to protect
         conflicting = to_process_array * to_protect_array
         if conflicting.any():
             error_msg = ''
             for sess_inds in zip(*np.nonzero(conflicting)):
-                subject_id = next(k for k, v in subject_inds.items()
-                                  if v == sess_inds[0])
-                visit_id = next(k for k, v in visit_inds.items()
-                                if v == sess_inds[1])
+                subject_id, visit_id = inds_to_ids(sess_inds)
                 if required_outputs is None:
                     conflict_outputs = pipeline.outputs
                 else:
@@ -857,8 +891,8 @@ class BaseProcessor(object):
                     "\n({}, {}): protected=[{}], missing=[{}]"
                     .format(
                         subject_id, visit_id,
-                        ', '.join(repr(i) for i in to_protect[sess_inds]),
-                        ', '.join(repr(i) for i in missing)))
+                        ', '.join(i.name for i in to_protect[sess_inds]),
+                        ', '.join(i.name for i in missing)))
             raise ArcanaProtectedOutputConflictError(
                 "Cannot process {} as there are nodes with both protected "
                 "outputs (ones modified externally to Arcana) and missing "
@@ -870,7 +904,7 @@ class BaseProcessor(object):
                              filter_array *
                              np.invert(to_protect_array))
         to_process_array = self._dialate_array(to_process_array, output_freqs)
-        return to_process_array, to_skip_array
+        return to_process_array, to_protect_array, to_skip_array
 
     def _dialate_array(self, array, output_freqs):
         """

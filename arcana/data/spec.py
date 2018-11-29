@@ -14,6 +14,7 @@ from .collection import FilesetCollection, FieldCollection
 class BaseAcquiredSpec(object):
 
     derived = False
+    skip_missing = False  # For duck-typing with *Selector objects
 
     def __init__(self, name, desc=None, optional=False, default=None):
         if optional and default is not None:
@@ -131,6 +132,7 @@ class BaseAcquiredSpec(object):
 class BaseSpec(object):
 
     derived = True
+    skip_missing = False  # For duck-typing with *Selector objects
 
     def __init__(self, name, pipeline_getter, desc=None):
         if pipeline_getter is not None:
