@@ -206,26 +206,28 @@ class BaseSelector(object):
         # Get names matching pattern
         matches = self._filtered_matches(node, **kwargs)
         # Filter matches by study name
-        matches = [d for d in matches
-                   if d.from_study == self.from_study]
+        study_matches = [d for d in matches
+                         if d.from_study == self.from_study]
         # Select the fileset from the matches
-        if self.order is not None:
+        if not study_matches:
+            raise ArcanaSelectorMissingMatchError(
+                "No matches found for {} in {} for study {}, however, found {}"
+                .format(self, node, self.from_study,
+                        ', '.join(str(m) for m in matches)))
+        elif self.order is not None:
             try:
-                match = matches[self.order]
+                match = study_matches[self.order]
             except IndexError:
                 raise ArcanaSelectorMissingMatchError(
                     "Did not find {} named data matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
-        elif len(matches) == 1:
-            match = matches[0]
-        elif matches:
-            raise ArcanaSelectorError(
-                "Found multiple matches for {} pattern in {} ({})"
-                .format(self.pattern, node,
-                        ', '.join(str(m) for m in matches)))
+        elif len(study_matches) == 1:
+            match = study_matches[0]
         else:
-            assert False  # _filtered_matches should have raised an exception
+            raise ArcanaSelectorError(
+                "Found multiple matches for {} in {} ({})"
+                .format(self, node, ', '.join(str(m) for m in study_matches)))
         return match
 
 
