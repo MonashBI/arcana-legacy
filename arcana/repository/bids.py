@@ -4,9 +4,9 @@ import os.path as op
 from collections import defaultdict
 from itertools import chain
 from arcana.utils import makedirs
-from .directory import DirectoryRepository
+from .base import BaseRepository
 import logging
-from bids import grabbids as gb
+from bids.layout import BIDSLayout
 from .tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
 from arcana.exceptions import ArcanaNameError
@@ -14,31 +14,81 @@ from arcana.exceptions import ArcanaNameError
 logger = logging.getLogger('arcana')
 
 
-class BidsRepository(DirectoryRepository):
+class BidsRepository(BaseRepository):
     """
     An 'Repository' class for directories on the local file system organised
     into sub-directories by subject and then visit.
 
     Parameters
     ----------
-    base_dir : str (path)
-        Path to local directory containing data
+    paths : str | list
+        The path(s) where project files are located.
+            Must be one of:
+
+            - A string giving the name of a built-in config (e.g., 'bids')
+            - A path to a directory containing files to index
+            - A list of paths to directories to be indexed
+            - A list of 2-tuples where each tuple encodes a mapping from
+              directories to domains. The first element is a string or
+              list giving the paths to one or more directories to index.
+              The second element specifies which domains to apply to the
+              specified files, and can be one of:
+                * A string giving the name of a built-in config
+                * A string giving the path to a JSON config file
+                * A dictionary containing config information
+                * A list of any combination of strings or dicts
+
+        At present, built-in domains include 'bids' and 'derivatives'.
+
+    root : str
+        The root directory of the BIDS project. All other paths
+        will be set relative to this if absolute_paths is False. If None,
+        filesystem root ('/') is used.
+    validate : bool
+        If True, all files are checked for BIDS compliance
+        when first indexed, and non-compliant files are ignored. This
+        provides a convenient way to restrict file indexing to only those
+        files defined in the "core" BIDS spec, as setting validate=True
+        will lead files in supplementary folders like derivatives/, code/,
+        etc. to be ignored.
+    index_associated : bool
+        Argument passed onto the BIDSValidator;
+        ignored if validate = False.
+    include : str | list
+        String or list of strings giving paths to files or
+        directories to include in indexing. Note that if this argument is
+        passed, *only* files and directories that match at least one of the
+        patterns in the include list will be indexed. Cannot be used
+        together with 'exclude'.
+    include : str | list
+        String or list of strings giving paths to files or
+        directories to exclude from indexing. If this argument is passed,
+        all files and directories that match at least one of the patterns
+        in the include list will be ignored. Cannot be used together with
+        'include'.
+    absolute_paths : bool
+        If True, queries always return absolute paths.
+        If False, queries return relative paths, unless the root argument
+        was left empty (in which case the root defaults to the file system
+        root).
+    kwargs:
+        Optional keyword arguments to pass onto the Layout initializer
+        in grabbit.
     """
 
     type = 'bids'
-    DERIVATIVES_SUB_PATH = op.join('derivatives')
 
     def __init__(self, root_dir):
         self._root_dir = root_dir
-        derivatives_path = op.join(root_dir,
-                                        self.DERIVATIVES_SUB_PATH)
-        makedirs(derivatives_path, exist_ok=True)
-        DirectoryRepository.__init__(derivatives_path)
-        self._layout = gb.BIDSLayout(self.base_dir)
+        self._layout = BIDSLayout(root_dir)
 
     @property
     def root_dir(self):
         return self._root_dir
+
+    @property
+    def derivatives_path(self):
+        return op.join(self.root_dir, 'derivatives')
 
     @property
     def layout(self):

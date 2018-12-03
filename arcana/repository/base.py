@@ -1,10 +1,9 @@
 from builtins import object
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from future.utils import with_metaclass
 import logging
-from collections import defaultdict
-from itertools import chain
-from .tree import Tree, Subject, Session, Visit
+from .tree import Tree
 
 
 logger = logging.getLogger('arcana')
@@ -19,7 +18,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         self._connection_depth = 0
-        self._cache = {}
+        self._cache = defaultdict(dict)
 
     def __enter__(self):
         # This allows the repository to be used within nested contexts
@@ -213,7 +212,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         if visit_ids is not None:
             visit_ids = frozenset(visit_ids)
         try:
-            tree = self._cache[(subject_ids, visit_ids)]
+            tree = self._cache[subject_ids][visit_ids]
         except KeyError:
             if fill:
                 fill_subjects = subject_ids
@@ -223,8 +222,10 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             tree = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
                 fill_visits=fill_visits, fill_subjects=fill_subjects)
-            self._cache[(frozenset(tree.subject_ids),
-                         frozenset(tree.visit_ids))] = tree
+            # Save the tree within the cache under the given subject/
+            # visit ID filters and the IDs that were actually returned
+            self._cache[subject_ids][visit_ids] = self._cache[
+                frozenset(tree.subject_ids)][frozenset(tree.visit_ids)] = tree
         return tree
 
     def clear_cache(self):
