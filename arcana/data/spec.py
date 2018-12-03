@@ -14,6 +14,7 @@ from .collection import FilesetCollection, FieldCollection
 class BaseAcquiredSpec(object):
 
     derived = False
+    skip_missing = False  # For duck-typing with *Selector objects
 
     def __init__(self, name, desc=None, optional=False, default=None):
         if optional and default is not None:
@@ -66,7 +67,7 @@ class BaseAcquiredSpec(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study):
+    def bind(self, study, **kwargs):  # @UnusedVariable
         """
         Returns a copy of the AcquiredSpec bound to the given study
 
@@ -121,12 +122,17 @@ class BaseAcquiredSpec(object):
             raise ArcanaUsageError(
                 "{} needs to be bound to a study before accessing "
                 "the corresponding collection".format(self))
+        if self.default is None:
+            raise ArcanaUsageError(
+                "{} does not have default so cannot access its collection"
+                .format(self))
         return self.default.collection
 
 
 class BaseSpec(object):
 
     derived = True
+    skip_missing = False  # For duck-typing with *Selector objects
 
     def __init__(self, name, pipeline_getter, desc=None):
         if pipeline_getter is not None:
@@ -164,7 +170,7 @@ class BaseSpec(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study):
+    def bind(self, study, **kwargs):  # @UnusedVariable
         """
         Returns a copy of the Spec bound to the given study
 

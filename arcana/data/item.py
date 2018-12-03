@@ -232,7 +232,7 @@ class Fileset(BaseItem, BaseFileset):
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy='{}', exists={})"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}, exists={})"
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
@@ -515,10 +515,7 @@ class Field(BaseItem, BaseField):
                 raise ArcanaUsageError(
                     "Either 'value' or 'dtype' must be provided to "
                     "Field init")
-            if array is None:
-                raise ArcanaUsageError(
-                    "Either 'value' or 'array' must be provided to "
-                    "Field init")
+            array = bool(array)  # Convert to array is None to False
         else:
             value = parse_value(value)
             if isinstance(value, list):
@@ -605,10 +602,10 @@ class Field(BaseItem, BaseField):
             return self.name < other.name
 
     def __repr__(self):
-        return ("{}('{}',{} '{}', subj={}, vis={}, stdy='{}', exists={})"
+        return ("{}('{}',{} '{}', subj={}, vis={}, stdy={}, exists={})"
                 .format(
                     type(self).__name__, self.name,
-                    ("{}, ".format(self._value)
+                    (" {},".format(self._value)
                      if self._value is not None else ''),
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,

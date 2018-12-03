@@ -51,8 +51,9 @@ class BaseRepositoryInterface(BaseInterface):
             #     would only really happen in unittests
             self._frequency = next(iter(frequencies))
         # Extract set of repositories used to source/sink from/to
-        self.repositories = set(c.repository for c in collections
-                                 if c.repository is not None)
+        self.repositories = set(chain(*(
+            (i.repository for i in c if i.repository is not None)
+            for c in collections)))
         # Segregate into fileset and field collections
         self.fileset_collections = [c for c in collections if c.is_fileset]
         self.field_collections = [c for c in collections if c.is_field]

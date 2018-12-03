@@ -47,8 +47,8 @@ class Pipeline(object):
         It should be passed directly from wildcard keyword args passed to the
         pipeline constructor, e.g.
 
-        def my_pipeline(**name_maps):
-            pipeline = self.new_pipeline('my_pipeline', mods)
+        def my_pipeline_constructor(**name_maps):
+            pipeline = self.new_pipeline('my_pipeline', name_maps=name_maps)
             pipeline.add('a_node', MyInterface())
 
             ...
@@ -396,7 +396,7 @@ class Pipeline(object):
 
     @property
     def joins(self):
-        return self._iterator_joins.keys()
+        return self._iterator_joins
 
     @property
     def joins_subjects(self):
@@ -928,7 +928,7 @@ class Pipeline(object):
         """
         joined_prov = {}
         if self.joins_subjects:
-            joined_prov['subject_ids'] = self.study.subject_ids,
+            joined_prov['subject_ids'] = list(self.study.subject_ids)
         if self.joins_visits:
-            joined_prov['visit_ids'] = self.study.visit_ids
+            joined_prov['visit_ids'] = list(self.study.visit_ids)
         return joined_prov

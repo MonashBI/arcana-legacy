@@ -411,10 +411,11 @@ class TestProvInputChange(BaseTestCase):
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
 
 
-class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
+class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         AcquiredFieldSpec('acquired_field1', int),
+        AcquiredFieldSpec('acquired_field2', int, optional=True),
         FieldSpec('derived_field1', int, 'pipeline1'),
         FieldSpec('derived_field2', int, 'pipeline2',
                   frequency='per_subject'),
@@ -434,16 +435,19 @@ class TestProvDialationStudy(with_metaclass(StudyMetaClass, Study)):
             desc="",
             references=[],
             name_maps=name_maps)
-        pipeline.add(
+        math = pipeline.add(
             'math',
             TestMath(
                 op='add',
-                y=self.parameter('increment'),
                 as_file=False),
             inputs={
                 'x': ('acquired_field1', int)},
             outputs={
                 'z': ('derived_field1', int)})
+        if self.provided('acquired_field2'):
+            pipeline.connect_input('acquired_field2', math, 'y')
+        else:
+            math.inputs.y = self.parameter('increment')
         return pipeline
 
     def pipeline2(self, **name_maps):
@@ -575,7 +579,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_filter_dialation1(self):
         study_name = 'process_dialation'
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS)
         field2 = study.data(
@@ -598,7 +602,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_filter_dialation2(self):
         study_name = 'filter_dialation2'
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS)
         field5 = study.data(
@@ -644,7 +648,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         study_name = 'process_dialation'
         new_value = -101
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS)
         study.data('derived_field5')
@@ -673,7 +677,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             orig_field3_values[str(vis_i)] = field3.value
         # Rerun analysis with new parameters
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
             processor=LinearProcessor(self.work_dir, reprocess=True),
@@ -691,7 +695,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                                         from_study=study_name).value,
             orig_field3_values['1'])
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
             processor=LinearProcessor(self.work_dir, reprocess=True),
@@ -704,7 +708,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_dialation_protection(self):
         study_name = 'dialation_protection'
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS)
         field5 = study.data('derived_field5')
@@ -719,7 +723,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         # Manually change value of field 2
         field2.item(subject_id='0').value = -1000
         study = self.create_study(
-            TestProvDialationStudy,
+            TestDialationStudy,
             study_name,
             processor=LinearProcessor(self.work_dir, reprocess=True),
             inputs=self.STUDY_INPUTS,
@@ -746,3 +750,70 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                          2000012 + 14 + 3000014)
         self.assertEqual(field5.value(subject_id='1', visit_id='1'),
                          2000012 + 3000000 + 3000014)
+
+
+class TestSkipMissing(BaseMultiSubjectTestCase):
+    """
+    Tests the skipping of missing inputs in the to process array
+    summary outputs (i.e. frequency != 'per_session') of a pipeline.
+    """
+
+    @property
+    def input_tree(self):
+        fields = [
+            Field(name='acquired_field1',
+                  value=1,
+                  dtype=int, frequency='per_session',
+                  subject_id='0', visit_id='0'),
+            Field(name='acquired_field1',
+                  value=2,
+                  dtype=int, frequency='per_session',
+                  subject_id='0', visit_id='1'),
+            Field(name='acquired_field1',
+                  value=3,
+                  dtype=int, frequency='per_session',
+                  subject_id='1', visit_id='0'),
+            Field(name='acquired_field1',
+                  value=4,
+                  dtype=int, frequency='per_session',
+                  subject_id='1', visit_id='1'),
+            Field(name='acquired_field2',
+                  value=10,
+                  dtype=int, frequency='per_session',
+                  subject_id='0', visit_id='0'),
+            Field(name='acquired_field2',
+                  value=20,
+                  dtype=int, frequency='per_session',
+                  subject_id='0', visit_id='1'),
+            Field(name='acquired_field2',
+                  value=30,
+                  dtype=int, frequency='per_session',
+                  subject_id='1', visit_id='0')]
+        return Tree.construct(fields=fields)
+
+    def test_skip_missing(self):
+        study_name = 'skip_missing'
+        study = self.create_study(
+            TestDialationStudy,
+            study_name,
+            inputs=[
+                FieldSelector('acquired_field1', int, 'acquired_field1'),
+                FieldSelector('acquired_field2', int, 'acquired_field2',
+                              skip_missing=True)])
+        derived_field1 = study.data('derived_field1')
+        self.assertEqual([f.exists for f in derived_field1],
+                         [True, True, True, False])
+        derived_field2 = study.data('derived_field2')
+        self.assertEqual([f.exists for f in derived_field2], [True, False])
+        derived_field3 = study.data('derived_field3')
+        self.assertEqual([f.exists for f in derived_field3], [True, False])
+        derived_field4 = study.data('derived_field4')
+        self.assertEqual([f.exists for f in derived_field4], [False])
+        derived_field5 = study.data('derived_field5')
+        self.assertEqual([f.exists for f in derived_field5],
+                         [False, False, False, False])
+        # Provide missing data
+        missing_field = study.data('acquired_field2').item('1', '1')
+        missing_field.value = 40
+        derived_field5 = study.data('derived_field5')
+        self.assertTrue(all(f.exists for f in derived_field5))

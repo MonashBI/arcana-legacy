@@ -183,8 +183,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
                                               visit_ids=visit_ids),
                                               **kwargs)
 
-    def cached_tree(self, subject_ids=None, visit_ids=None,
-                    fill=False):
+    def cached_tree(self, subject_ids=None, visit_ids=None, fill=False):
         """
         Access the repository tree and caches it for subsequent
         accesses
@@ -214,16 +213,18 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         if visit_ids is not None:
             visit_ids = frozenset(visit_ids)
         try:
-            tree = self._cache[(subject_ids, visit_ids, fill)]
+            tree = self._cache[(subject_ids, visit_ids)]
         except KeyError:
-            fill_subjects = None
-            fill_visits = None
             if fill:
                 fill_subjects = subject_ids
                 fill_visits = visit_ids
-            tree = self._cache[(subject_ids, visit_ids, fill)] = self.tree(
+            else:
+                fill_subjects = fill_visits = None
+            tree = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
                 fill_visits=fill_visits, fill_subjects=fill_subjects)
+            self._cache[(frozenset(tree.subject_ids),
+                         frozenset(tree.visit_ids))] = tree
         return tree
 
     def clear_cache(self):

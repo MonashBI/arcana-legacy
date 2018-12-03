@@ -115,7 +115,9 @@ class MultiStudy(Study):
             sub_study = sub_study_spec.study_class(
                 name + '_' + sub_study_spec.name,
                 repository, processor, mapped_inputs,
-                parameters=mapped_parameters, enforce_inputs=False)
+                parameters=mapped_parameters, enforce_inputs=False,
+                subject_ids=self.subject_ids, visit_ids=self.visit_ids,
+                clear_caches=False)
             # Append to dictionary of sub_studies
             if sub_study_spec.name in self._sub_studies:
                 raise ArcanaNameError(

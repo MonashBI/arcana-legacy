@@ -1,4 +1,4 @@
-from arcana.exceptions import ArcanaFilesetSelectorError, ArcanaUsageError
+from arcana.exceptions import ArcanaSelectorError, ArcanaUsageError
 from .selector import FilesetSelector
 
 
@@ -94,7 +94,7 @@ class BidsMatch(FilesetSelector):
             if (d.bids_attr.entities['type'] == self.type and
                 d.bids_attr.entities['modality'] == self.modality)]
         if not matches:
-            raise ArcanaFilesetSelectorError(
+            raise ArcanaSelectorError(
                 "No BIDS filesets for subject={}, visit={} match "
                 "modality '{}' and type '{}' found:\n{}"
                 .format(node.subject_id, node.visit_id, self.modality,
@@ -187,7 +187,7 @@ class BidsAssociatedMatch(FilesetSelector):
             try:
                 match = matches[0]
             except IndexError:
-                raise ArcanaFilesetSelectorError(
+                raise ArcanaSelectorError(
                     "Provided order to associated BIDS fileset match "
                     "{} is out of range")
         elif self._association == 'bvec':

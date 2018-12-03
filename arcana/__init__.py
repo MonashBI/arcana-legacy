@@ -28,7 +28,7 @@ from .data import (
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
 from .processor import (
-    LinearProcessor, MultiProcProcessor, SlurmProcessor, DEFAULT_PROV_CHECK,
+    LinearProcessor, MultiProcessor, SlurmProcessor, DEFAULT_PROV_CHECK,
     DEFAULT_PROV_IGNORE)
 from .environment import StaticEnvironment, ModulesEnvironment
 from .repository import DirectoryRepository, XnatRepository
