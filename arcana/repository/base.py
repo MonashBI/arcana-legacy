@@ -18,7 +18,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
 
     def __init__(self):
         self._connection_depth = 0
-        self._cache = defaultdict(dict)
+        self.clear_cache()
 
     def __enter__(self):
         # This allows the repository to be used within nested contexts
@@ -229,7 +229,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         return tree
 
     def clear_cache(self):
-        self._cache = {}
+        self._cache = defaultdict(dict)
 
     def __ne__(self, other):
         return not (self == other)
