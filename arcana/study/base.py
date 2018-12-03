@@ -98,7 +98,8 @@ class Study(object):
 
     def __init__(self, name, repository, processor, inputs,
                  environment=None, parameters=None, subject_ids=None,
-                 visit_ids=None, enforce_inputs=True, fill_tree=False):
+                 visit_ids=None, enforce_inputs=True, fill_tree=False,
+                 clear_caches=True):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -124,7 +125,8 @@ class Study(object):
         self._visit_ids = visit_ids
         self._fill_tree = fill_tree
         # Initialise caches for data collection and pipeline objects
-        self.clear_caches()
+        if clear_caches:
+            self.clear_caches()
         # Set parameters
         if parameters is None:
             parameters = {}
