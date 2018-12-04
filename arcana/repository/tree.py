@@ -313,26 +313,27 @@ class Tree(TreeNode):
         for session in self.sessions:
             session.tree = self
         # Collate missing and duplicates provenance records for single warnings
-        missing_records = defaultdict(list)
-        duplicate_records = defaultdict(list)
+        missing_records = defaultdict(lambda: defaultdict(list))
+        duplicate_records = defaultdict(lambda: defaultdict(list))
         for node in self.nodes():
             for missing in node._missing_records:
-                missing_records[missing].append((node.subject_id,
-                                                 node.visit_id))
+                missing_records[missing][node.visit_id].append(node.subject_id)
             for duplicate in node._duplicate_records:
-                duplicate_records[duplicate].append((node.subject_id,
-                                                     node.visit_id))
+                duplicate_records[duplicate][node.visit_id].append(
+                    node.subject_id)
         for name, ids in missing_records.items():
             logger.warning(
                 "No provenance records found for {} derivative in "
-                "{} nodes. Will assume they are a "
+                "the following nodes: {}. Will assume they are a "
                 "\"protected\" (manually created) derivatives"
-                .format(name, ids))
+                .format(name, '; '.join('visit={}, subjects={}'.format(k, v)
+                                        for k, v in ids.items())))
         for name, ids in duplicate_records.items():
             logger.warning(
-                "Duplicate provenance records found for {} in {} nodes. "
-                "Will selecting latest record in each case"
-                .format(name, ids))
+                "Duplicate provenance records found for {} in the following "
+                "nodes: {}. Will select the latest record in each case"
+                .format(name, '; '.join('visit={}, subjects={}'.format(k, v)
+                                        for k, v in ids.items())))
 
     def __eq__(self, other):
         return (super(Tree, self).__eq__(other) and
