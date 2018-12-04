@@ -33,6 +33,8 @@ class TreeNode(object):
             ((r.pipeline_name, r.from_study), r)
             for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
                                                     r.from_study)))
+        self._missing_records = []
+        self._duplicate_records = {}
         # Match up provenance records with items in the node
         for item in chain(self.filesets, self.fields):
             if not item.derived:
@@ -41,17 +43,10 @@ class TreeNode(object):
                        if (item.from_study == r.from_study and
                            item.name in r.outputs)]
             if not records:
-                logger.warning(
-                    "No provenance records found for {} derivative. "
-                    "Will assume it is a \"protected\" (manually created) "
-                    "derivative".format(repr(item)))
+                self._missing_records.append(item.name)
             elif len(records) > 1:
                 item.record = sorted(records, key=attrgetter('datetime'))[-1]
-                logger.warning(
-                    "Duplicate provenance records found for {} ({}). "
-                    "Selecting latest record {}"
-                    .format(repr(item), ', '.join(str(r) for r in records),
-                            item.record))
+                self._duplicate_records.append(item.name)
             else:
                 item.record = records[0]
 
@@ -317,6 +312,27 @@ class Tree(TreeNode):
             visit.tree = self
         for session in self.sessions:
             session.tree = self
+        # Collate missing and duplicates provenance records for single warnings
+        missing_records = defaultdict(list)
+        duplicate_records = defaultdict(list)
+        for node in self.nodes():
+            for missing in node._missing_records:
+                missing_records[missing].append((node.subject_id,
+                                                 node.visit_id))
+            for duplicate in node._duplicate_records:
+                duplicate_records[duplicate].append((node.subject_id,
+                                                     node.visit_id))
+        for name, ids in missing_records.items():
+            logger.warning(
+                "No provenance records found for {} derivative in "
+                "{} nodes. Will assume they are a "
+                "\"protected\" (manually created) derivatives"
+                .format(name, ids))
+        for name, ids in duplicate_records.items():
+            logger.warning(
+                "Duplicate provenance records found for {} in {} nodes. "
+                "Will selecting latest record in each case"
+                .format(name, ids))
 
     def __eq__(self, other):
         return (super(Tree, self).__eq__(other) and

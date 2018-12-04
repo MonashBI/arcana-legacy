@@ -144,7 +144,7 @@ class Fileset(BaseItem, BaseFileset):
         used to store the fileset this is used to determine the location of the
         fileset.
     path : str | None
-        The path to the fileset (for repositorys on the local system)
+        The path to the fileset (for repositories on the local system)
     id : int | None
         The ID of the fileset in the session. To be used to
         distinguish multiple filesets with the same scan type in the
