@@ -98,7 +98,7 @@ class DirectoryRepository(BaseRepository):
         # Don't need to cache fileset as it is already local as long
         # as the path is set
         if fileset._path is None:
-            path = op.join(self.session_dir(fileset), fileset.fname)
+            path = self.fileset_path(fileset)
             if not op.exists(path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in the local repository {}"
@@ -142,7 +142,7 @@ class DirectoryRepository(BaseRepository):
         """
         Inserts or updates a fileset in the repository
         """
-        target_path = op.join(self.session_dir(fileset), fileset.fname)
+        target_path = self.fileset_path(fileset)
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
         elif op.isdir(fileset.path):
@@ -294,7 +294,9 @@ class DirectoryRepository(BaseRepository):
                         op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
 
-    def session_dir(self, item):
+    def fileset_path(self, item, fname=None):
+        if fname is None:
+            fname = item.fname
         if item.frequency == 'per_study':
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
@@ -325,16 +327,17 @@ class DirectoryRepository(BaseRepository):
             # hold derived products)
             sess_dir = op.join(acq_dir, item.from_study)
         # Make session dir if required
-        if not op.exists(sess_dir):
+        if item.derived and not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-        return sess_dir
+        return op.join(sess_dir, fname)
 
     def fields_json_path(self, field):
-        return op.join(self.session_dir(field), self.FIELDS_FNAME)
+        return self.fileset_path(field, self.FIELDS_FNAME)
 
     def prov_json_path(self, record):
-        return op.join(self.session_dir(record), self.PROV_DIR,
-                       record.pipeline_name + '.json')
+        return self.fileset_path(
+            record,
+            fname=op.join(self.PROV_DIR, record.pipeline_name + '.json'))
 
     def guess_depth(self, root_dir):
         """
