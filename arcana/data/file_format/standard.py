@@ -42,7 +42,7 @@ directory_format = FileFormat(name='directory', extension=None,
                               converters={'zip': UnzipConverter,
                                           'targz': UnTarGzConverter})
 text_format = FileFormat(name='text', extension='.txt')
-
+json_format = FileFormat(name='json', extension='.json')
 
 # Compressed formats
 zip_format = FileFormat(name='zip', extension='.zip',
