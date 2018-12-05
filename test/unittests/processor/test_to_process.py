@@ -238,7 +238,7 @@ def change_value_w_prov(field, new_value):
 STUDY_INPUTS = [FilesetSelector('acquired_fileset1', 'acquired_fileset1'),
                 FilesetSelector('acquired_fileset2', 'acquired_fileset2'),
                 FilesetSelector('acquired_fileset3', 'acquired_fileset3'),
-                FieldSelector('acquired_field1', 'acquired_field1')]
+                FieldSelector('acquired_field1', 'acquired_field1', int)]
 
 
 INPUT_DATASETS = {'acquired_fileset1': '1.0',

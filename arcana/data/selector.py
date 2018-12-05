@@ -4,7 +4,7 @@ from copy import copy
 from itertools import chain
 from arcana.exceptions import (
     ArcanaUsageError, ArcanaSelectorError,
-    ArcanaSelectorMissingMatchError)
+    ArcanaSelectorMissingMatchError, ArcanaNotBoundToStudyError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
@@ -93,7 +93,7 @@ class BaseSelector(object):
     @property
     def study(self):
         if self._study is None:
-            raise ArcanaUsageError(
+            raise ArcanaNotBoundToStudyError(
                 "{} is not bound to a study".format(self))
         return self._study
 
@@ -364,7 +364,10 @@ class FilesetSelector(BaseSelector, BaseFileset):
     @property
     def format(self):
         if self._format is None:
-            spec = self.study.data_spec(self.name)
+            try:
+                spec = self.study.data_spec(self.name)
+            except ArcanaNotBoundToStudyError:
+                return None
             if spec.derived:
                 format = spec.format  # @ReservedAssignment
             elif len(spec.valid_formats) == 1:
@@ -496,7 +499,10 @@ class FieldSelector(BaseSelector, BaseField):
     @property
     def dtype(self):
         if self._dtype is None:
-            dtype = self.study.data_spec(self.name).dtype
+            try:
+                dtype = self.study.data_spec(self.name).dtype
+            except ArcanaNotBoundToStudyError:
+                dtype = None
         else:
             dtype = self._dtype
         return dtype

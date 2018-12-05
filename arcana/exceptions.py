@@ -6,6 +6,10 @@ class ArcanaError(ArcanaException):
     pass
 
 
+class ArcanaNotBoundToStudyError(ArcanaError):
+    pass
+
+
 class ArcanaVersionError(ArcanaError):
     pass
 

@@ -179,7 +179,13 @@ class Study(object):
                                 "{}, which is requried to convert:\n{} "
                                 "to\n{}.".format(e, inpt, spec))
                     else:
-                        if inpt.format not in spec.valid_formats:
+                        if inpt.format is None:
+                            if len(spec.valid_formats) > 1:
+                                raise ArcanaUsageError(
+                                    "Must provide explicit format for {} as "
+                                    "there are multiple valid formats for {}"
+                                    .format(inpt, spec))
+                        elif inpt.format not in spec.valid_formats:
                             raise ArcanaUsageError(
                                 "Cannot pass {} as an input to {} as it is "
                                 "not in one of the valid formats ('{}')"
