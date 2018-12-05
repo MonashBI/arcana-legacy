@@ -28,21 +28,21 @@ class BaseData(with_metaclass(ABCMeta, object)):
         self._frequency = frequency
 
     def __eq__(self, other):
-        return (self.name == other.name and
+        return (self.basename == other.basename and
                 self.frequency == other.frequency)
 
     def __hash__(self):
-        return hash(self.name) ^ hash(self.frequency)
+        return hash(self.basename) ^ hash(self.frequency)
 
     def find_mismatch(self, other, indent=''):
         if self != other:
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
-                indent, self.name, other.name,
+                indent, self.basename, other.basename,
                 t=type(self).__name__)
         else:
             mismatch = ''
         sub_indent = indent + '  '
-        if self.name != other.name:
+        if self.basename != other.basename:
             mismatch += ('\n{}name: self={} v other={}'
                          .format(sub_indent, self.name, other.name))
         if self.frequency != other.frequency:
@@ -59,6 +59,10 @@ class BaseData(with_metaclass(ABCMeta, object)):
 
     @property
     def name(self):
+        return self._name
+
+    @property
+    def basename(self):
         return self._name
 
     @property

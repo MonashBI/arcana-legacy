@@ -325,7 +325,7 @@ class Study(object):
         # names
         all_data = []
         for name in names:
-            spec = self.spec(name)
+            spec = self.bound_spec(name)
             data = spec.collection
             if single_item:
                 data = data.item(subject_id=subject_id, visit_id=visit_id)

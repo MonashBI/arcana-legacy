@@ -406,7 +406,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                      for n in derived_filesets}
         for node in study.tree:
             for fileset in node.filesets:
-                if fileset.name != 'one' and fileset.exists:
+                if fileset.basename != 'one' and fileset.exists:
                     # Generate expected provenance record for each pipeline
                     # and save in the local repository
                     pipelines[fileset.name].cap()

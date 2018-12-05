@@ -160,8 +160,6 @@ class Fileset(BaseItem, BaseFileset):
         Name of the Arcana study that that generated the field
     exists : bool
         Whether the fileset exists or is just a placeholder for a derivative
-    bids_attr : ??
-        BIDS attributes
     checksums : dict[str, str]
         A checksums of all files within the fileset in a dictionary sorted by
         relative file paths
@@ -173,8 +171,7 @@ class Fileset(BaseItem, BaseFileset):
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, bids_attr=None, checksums=None,
-                 record=None):
+                 exists=True, checksums=None, record=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
@@ -183,7 +180,6 @@ class Fileset(BaseItem, BaseFileset):
             path = op.abspath(op.realpath(path))
         self._path = path
         self._uri = uri
-        self._bids_attr = bids_attr
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
                            [DICOM_SERIES_NUMBER_TAG])
@@ -195,7 +191,6 @@ class Fileset(BaseItem, BaseFileset):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
               self.id == other.id and
-              self.bids_attr == other.bids_attr and
               self.checksums == other.checksums)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
@@ -210,7 +205,6 @@ class Fileset(BaseItem, BaseFileset):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self.id) ^
-                hash(self.bids_attr) ^
                 hash(self.checksums))
 
     def __lt__(self, other):
@@ -239,14 +233,6 @@ class Fileset(BaseItem, BaseFileset):
                     self.visit_id, self.from_study,
                     self.exists))
 
-    @property
-    def fname(self):
-        return self.name + self.format.ext_str
-
-    @property
-    def bids_attr(self):
-        return self._bids_attr
-
     def find_mismatch(self, other, indent=''):
         mismatch = BaseFileset.find_mismatch(self, other, indent)
         mismatch += BaseItem.find_mismatch(self, other, indent)
@@ -259,10 +245,6 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
-        if self._bids_attr != other._bids_attr:
-            mismatch += ('\n{}bids_attr: self={} v other={}'
-                         .format(sub_indent, self._bids_attr,
-                                 other._bids_attr))
         if self.checksums != other.checksums:
             mismatch += ('\n{}checksum: self={} v other={}'
                          .format(sub_indent, self.checksums,
@@ -304,8 +286,21 @@ class Fileset(BaseItem, BaseFileset):
             # FIXME: Need to add support for headers/side-car files
             return iter([self.path])
 
-    def basename(self, **kwargs):  # @UnusedVariable
-        return self.name
+    @property
+    def fname(self):
+        if not self.name.endswith(self.format.ext_str):
+            fname = self.name + self.format.ext_str
+        else:
+            fname = self.name
+        return fname
+
+    @property
+    def basename(self):
+        if self.name.endswith(self.format.ext_str):
+            basename = self.name[:-len(self.format.ext_str)]
+        else:
+            basename = self.name
+        return basename
 
     @property
     def id(self):
@@ -358,7 +353,7 @@ class Fileset(BaseItem, BaseFileset):
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  **kwargs):
+                  from_study=None, **kwargs):
         if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
@@ -377,7 +372,7 @@ class Fileset(BaseItem, BaseFileset):
             name = op.basename(path)
         else:
             filename = op.basename(path)
-            name, ext = split_extension(filename)
+            basename, ext = split_extension(filename)
             if format is None:
                 try:
                     format = FileFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
@@ -385,8 +380,15 @@ class Fileset(BaseItem, BaseFileset):
                     raise ArcanaFileFormatNotRegisteredError(
                         str(e) + ", which is required to identify the "
                         "format of the fileset at '{}'".format(path))
-        return cls(name, format, frequency=frequency,
-                   path=path, **kwargs)
+            if from_study is None:
+                # For acquired datasets we can't be sure that the name is
+                # unique within the directory if we strip the extension so we
+                # need to keep it in
+                name = filename
+            else:
+                name = basename
+        return cls(name, format, frequency=frequency, path=path,
+                   from_study=from_study, **kwargs)
 
     def dicom(self, index):
         """
@@ -610,9 +612,6 @@ class Field(BaseItem, BaseField):
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
                     self.exists))
-
-    def basename(self, **kwargs):  # @UnusedVariable
-        return self.name
 
     @property
     def value(self):

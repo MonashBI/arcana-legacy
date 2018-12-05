@@ -172,12 +172,12 @@ class BaseSelector(object):
     def prefixed_name(self):
         return self.name
 
-    def basename(self, **kwargs):
-        if not self.is_regex:
-            basename = self.pattern
-        else:
-            basename = self.match(**kwargs).name
-        return basename
+#     def basename(self):
+#         if not self.is_regex:
+#             basename = self.pattern
+#         else:
+#             basename = self.match(**kwargs).name
+#         return basename
 
     def match(self, tree, **kwargs):
         # Run the match against the tree
@@ -392,17 +392,25 @@ class FilesetSelector(BaseSelector, BaseFileset):
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
-                matches = [d for d in node.filesets
-                           if pattern_re.match(d.name)]
+                matches = [f for f in node.filesets
+                           if pattern_re.match(f.basename)]
             else:
-                matches = [d for d in node.filesets
-                           if d.name == self.pattern]
+                matches = [f for f in node.filesets
+                           if f.basename == self.pattern]
         else:
             matches = list(node.filesets)
         if not matches:
             raise ArcanaSelectorMissingMatchError(
                 "Did not find any matches for {} in {}, found:\n{}"
-                .format(self, node, '\n'.join(f.name for f in node.filesets)))
+                .format(self, node,
+                        '\n'.join(str(f) for f in node.filesets)))
+        format_matches = [f for f in matches if f.format == self.format]
+        if not format_matches:
+            raise ArcanaSelectorMissingMatchError(
+                "Did not find any matches with the appropriate format for {} "
+                "in {}, found:\n{}"
+                .format(self, node, '\n'.join(str(f) for f in matches)))
+        matches = format_matches
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
