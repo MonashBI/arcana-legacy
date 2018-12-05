@@ -55,10 +55,10 @@ class TestSinkAndSource(BaseTestCase):
     def test_repository_roundtrip(self):
         study = DummyStudy(
             self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', text_format, 'source1'),
-                    FilesetSelector('source2', text_format, 'source2'),
-                    FilesetSelector('source3', text_format, 'source3'),
-                    FilesetSelector('source4', text_format, 'source4')])
+            inputs=[FilesetSelector('source1', 'source1', text_format),
+                    FilesetSelector('source2', 'source2', text_format),
+                    FilesetSelector('source3', 'source3', text_format),
+                    FilesetSelector('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -141,9 +141,9 @@ class TestSinkAndSource(BaseTestCase):
     def test_summary(self):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector('source1', text_format, 'source1'),
-                    FilesetSelector('source2', text_format, 'source2'),
-                    FilesetSelector('source3', text_format, 'source3')])
+            inputs=[FilesetSelector('source1', 'source1', text_format),
+                    FilesetSelector('source2', 'source2', text_format),
+                    FilesetSelector('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(

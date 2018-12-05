@@ -94,10 +94,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', text_format, 'source1'),
-                    FilesetSelector('source2', text_format, 'source2'),
-                    FilesetSelector('source3', text_format, 'source3'),
-                    FilesetSelector('source4', text_format, 'source4')])
+            inputs=[FilesetSelector('source1', 'source1', text_format),
+                    FilesetSelector('source2', 'source2', text_format),
+                    FilesetSelector('source3', 'source3', text_format),
+                    FilesetSelector('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -157,7 +157,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', text_format, 'source1')])
+            inputs=[FilesetSelector('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -375,9 +375,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[
-                FilesetSelector('source1', text_format, 'source1'),
-                FilesetSelector('source2', text_format, 'source2'),
-                FilesetSelector('source3', text_format, 'source3')])
+                FilesetSelector('source1', 'source1', text_format),
+                FilesetSelector('source2', 'source2', text_format),
+                FilesetSelector('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),

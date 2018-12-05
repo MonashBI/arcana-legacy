@@ -318,14 +318,14 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
             if not valid_formats:
                 raise ArcanaError(
                     "'{}' spec doesn't have any allowed formats".format(name))
-        self._valid_formats = valid_formats
+        self._valid_formats = tuple(valid_formats)
         BaseFileset.__init__(self, name, valid_formats[0], frequency)
         BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
                                   default=default)
 
     @property
     def valid_formats(self):
-        return iter(self._valid_formats)
+        return self._valid_formats
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and

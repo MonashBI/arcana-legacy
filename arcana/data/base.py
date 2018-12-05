@@ -28,11 +28,8 @@ class BaseData(with_metaclass(ABCMeta, object)):
         self._frequency = frequency
 
     def __eq__(self, other):
-        try:
-            return (self.name == other.name and
-                    self.frequency == other.frequency)
-        except:
-            raise
+        return (self.name == other.name and
+                self.frequency == other.frequency)
 
     def __hash__(self):
         return hash(self.name) ^ hash(self.frequency)
@@ -173,7 +170,7 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
 
     def __init__(self, name, dtype, frequency, array=False):
         super(BaseField, self).__init__(name, frequency)
-        if dtype not in self.dtypes + (newstr,):
+        if dtype not in self.dtypes + (newstr, None):
             raise ArcanaError(
                 "Invalid dtype {}, can be one of {}".format(
                     dtype, ', '.join(self._dtype_names())))

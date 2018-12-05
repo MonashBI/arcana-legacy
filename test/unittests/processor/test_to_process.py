@@ -235,13 +235,10 @@ def change_value_w_prov(field, new_value):
     field.repository.put_record(record)
 
 
-STUDY_INPUTS = [FilesetSelector('acquired_fileset1', text_format,
-                                'acquired_fileset1'),
-                FilesetSelector('acquired_fileset2', text_format,
-                                'acquired_fileset2'),
-                FilesetSelector('acquired_fileset3', text_format,
-                                'acquired_fileset3'),
-                FieldSelector('acquired_field1', int, 'acquired_field1')]
+STUDY_INPUTS = [FilesetSelector('acquired_fileset1', 'acquired_fileset1'),
+                FilesetSelector('acquired_fileset2', 'acquired_fileset2'),
+                FilesetSelector('acquired_fileset3', 'acquired_fileset3'),
+                FieldSelector('acquired_field1', 'acquired_field1')]
 
 
 INPUT_DATASETS = {'acquired_fileset1': '1.0',
@@ -557,7 +554,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [FieldSelector('acquired_field1', int, 'acquired_field1')]
+    STUDY_INPUTS = [FieldSelector('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -797,8 +794,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=[
-                FieldSelector('acquired_field1', int, 'acquired_field1'),
-                FieldSelector('acquired_field2', int, 'acquired_field2',
+                FieldSelector('acquired_field1', 'acquired_field1', int),
+                FieldSelector('acquired_field2', 'acquired_field2', int,
                               skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],

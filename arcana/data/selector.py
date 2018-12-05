@@ -305,7 +305,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
     is_spec = False
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format, pattern=None, # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, fallback_to_default=False,
@@ -360,6 +360,26 @@ class FilesetSelector(BaseSelector, BaseFileset):
     @property
     def id(self):
         return self._id
+
+    @property
+    def format(self):
+        if self._format is None:
+            spec = self.study.data_spec(self.name)
+            if spec.derived:
+                format = spec.format  # @ReservedAssignment
+            elif len(spec.valid_formats) == 1:
+                format = spec.valid_formats[0]  # @ReservedAssignment
+            else:
+                raise ArcanaUsageError(
+                    "Cannot implicitly determine the format of {} from "
+                    "the acquired fileset spec it is bound to as there are "
+                    "multiple valid formats ('{}'). Please pass explicitly to "
+                    "the 'format' keyword argument".format(
+                        self,
+                        "', '".join(f.name for f in spec.valid_formats)))
+        else:
+            format = self._format  # @ReservedAssignment
+        return format
 
     @property
     def dicom_tags(self):
@@ -420,12 +440,13 @@ class FieldSelector(BaseSelector, BaseField):
     ----------
     name : str
         The name of the fileset
-    dtype : type
-        The datatype of the value. Can be one of (float, int, str)
     pattern : str
         A regex pattern to match the field names with. Must match
         one and only one fileset per <frequency>. If None, the name
         is used instead.
+    dtype : type | None
+        The datatype of the value. Can be one of (float, int, str). If None
+        then the dtype is taken from the FieldSpec that it is bound to
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
@@ -459,7 +480,7 @@ class FieldSelector(BaseSelector, BaseField):
     is_spec = False
     CollectionClass = FieldCollection
 
-    def __init__(self, name, dtype, pattern, frequency='per_session',
+    def __init__(self, name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
                  skip_missing=False, fallback_to_default=False,
                  repository=None, study_=None, collection_=None):
@@ -471,6 +492,14 @@ class FieldSelector(BaseSelector, BaseField):
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
                 BaseSelector.__eq__(self, other))
+
+    @property
+    def dtype(self):
+        if self._dtype is None:
+            dtype = self.study.data_spec(self.name).dtype
+        else:
+            dtype = self._dtype
+        return dtype
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^ BaseSelector.__hash__(self))

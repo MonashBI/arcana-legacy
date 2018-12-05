@@ -122,9 +122,9 @@ class TestFormatConversions(BaseTestCase):
     def test_format_conversions(self):
         study = self.create_study(
             ConversionStudy, 'conversion', [
-                FilesetSelector('text', text_format, 'text'),
-                FilesetSelector('directory', directory_format, 'directory'),
-                FilesetSelector('zip', zip_format, 'zip')])
+                FilesetSelector('text', 'text', text_format),
+                FilesetSelector('directory', 'directory', directory_format),
+                FilesetSelector('zip', 'zip', zip_format)])
         self.assertCreated(list(study.data('text_from_text'))[0])
         self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
         self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])

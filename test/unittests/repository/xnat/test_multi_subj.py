@@ -95,8 +95,8 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
         study = self.create_study(
             TestStudy, 'cache_download',
             inputs=[
-                FilesetSelector('fileset1', text_format, 'fileset1'),
-                FilesetSelector('fileset3', text_format, 'fileset3')],
+                FilesetSelector('fileset1', 'fileset1', text_format),
+                FilesetSelector('fileset3', 'fileset3', text_format)],
             repository=repository)
         study.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):
