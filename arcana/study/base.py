@@ -14,7 +14,7 @@ from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaOutputNotProducedException)
 from arcana.pipeline import Pipeline
-from arcana.data import BaseData, BaseSpec, BaseAcquiredSpec
+from arcana.data import BaseData, BaseAcquiredSpec
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
