@@ -305,7 +305,7 @@ class Fileset(BaseItem, BaseFileset):
     @property
     def id(self):
         if self._id is None:
-            return self.name
+            return self.basename
         else:
             return self._id
 

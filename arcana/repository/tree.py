@@ -54,8 +54,8 @@ class TreeNode(object):
         if not (isinstance(other, type(self)) or
                 isinstance(self, type(other))):
             return False
-        return (self._filesets == other._filesets and
-                self._fields == other._fields)
+        return (list(self.filesets) == list(other.filesets) and
+                list(self.fields) == list(other.fields))
 
     def __hash__(self):
         return hash(tuple(self.filesets)) ^ hash(tuple(self._fields))
