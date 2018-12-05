@@ -296,7 +296,7 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def basename(self):
-        if self.name.endswith(self.format.ext_str):
+        if self.format.ext_str and self.name.endswith(self.format.ext_str):
             basename = self.name[:-len(self.format.ext_str)]
         else:
             basename = self.name
