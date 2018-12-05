@@ -326,13 +326,13 @@ class Tree(TreeNode):
                 "No provenance records found for {} derivative in "
                 "the following nodes: {}. Will assume they are a "
                 "\"protected\" (manually created) derivatives"
-                .format(name, '; '.join('visit={}, subjects={}'.format(k, v)
+                .format(name, '; '.join("visit='{}', subjects={}".format(k, v)
                                         for k, v in ids.items())))
         for name, ids in duplicate_records.items():
             logger.warning(
                 "Duplicate provenance records found for {} in the following "
                 "nodes: {}. Will select the latest record in each case"
-                .format(name, '; '.join('visit={}, subjects={}'.format(k, v)
+                .format(name, '; '.join("visit='{}', subjects={}".format(k, v)
                                         for k, v in ids.items())))
 
     def __eq__(self, other):

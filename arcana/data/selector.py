@@ -28,6 +28,8 @@ class BaseSelector(object):
             raise ArcanaUsageError(
                 "Cannot provide both mutually exclusive 'skip_missing' and "
                 "'fallback_to_default' flags to {}".format(self))
+        # Set when fallback_to_default is True and there are missing matches
+        self._derivable = False
         # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._study = study_
@@ -70,6 +72,10 @@ class BaseSelector(object):
     @property
     def derived(self):
         return self._from_study is not None
+
+    @property
+    def derivable(self):
+        return self._derivable
 
     @property
     def from_study(self):
@@ -129,7 +135,9 @@ class BaseSelector(object):
             # provided to match
             if self.fallback_to_default:
                 spec = study.data_spec(spec_name)
-                if not spec.derived and spec.default is None:
+                if not spec.derived:
+                    bound._derivable = True
+                elif spec.default is not None:
                     raise ArcanaUsageError(
                         "Cannot fallback to default for '{}' spec in {} as it "
                         " is not derived and doesn't have a default"
@@ -162,7 +170,7 @@ class BaseSelector(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def match(self, tree, default=None, **kwargs):
+    def match(self, tree, fallback=None, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -180,9 +188,9 @@ class BaseSelector(object):
             try:
                 matches.append(self._match_node(node, **kwargs))
             except ArcanaSelectorMissingMatchError as e:
-                if default is not None:
-                    matches.append(default.item(subject_id=node.subject_id,
-                                                visit_id=node.visit_id))
+                if fallback is not None:
+                    matches.append(fallback.item(subject_id=node.subject_id,
+                                                 visit_id=node.visit_id))
                 elif self.skip_missing:
                     # Insert a non-existant item placeholder in-place of the
                     # the missing item
@@ -197,10 +205,10 @@ class BaseSelector(object):
                         **self._specific_kwargs))
                 else:
                     raise e
-        return self.CollectionClass(
-            self.name, matches,
-            frequency=self.frequency,
-            **self._specific_kwargs)
+        return self.CollectionClass(self.name,
+                                    matches,
+                                    frequency=self.frequency,
+                                    **self._specific_kwargs)
 
     def _match_node(self, node, **kwargs):
         # Get names matching pattern

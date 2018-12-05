@@ -753,8 +753,8 @@ class BaseProcessor(object):
         to_skip = defaultdict(list)
         # Check data tree for missing inputs
         for input in pipeline.inputs:  # @ReservedAssignment
-            # NB: Inputs that don't have skip_missing set and have missing
-            # data will raise an error before this point
+            # NB: Study inputs that don't have skip_missing set and have
+            # missing data should raise an error before this point
             if input.skip_missing:
                 for item in input.collection:
                     if not item.exists:
