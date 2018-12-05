@@ -30,6 +30,7 @@ class BaseSelector(object):
                 "'fallback_to_default' flags to {}".format(self))
         # Set when fallback_to_default is True and there are missing matches
         self._derivable = False
+        self._fallback = None
         # study_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._study = study_
@@ -117,6 +118,15 @@ class BaseSelector(object):
         return self._collection
 
     @property
+    def pipeline_getter(self):
+        "For duck-typing with *Spec types"
+        if not self.derivable:
+            raise ArcanaUsageError(
+                "There is no pipeline getter for {} because it doesn't "
+                "fallback to a derived spec".format(self))
+        return self._fallback.pipeline_getter
+
+    @property
     def is_regex(self):
         return self._is_regex
 
@@ -142,11 +152,10 @@ class BaseSelector(object):
                         "Cannot fallback to default for '{}' spec in {} as it "
                         " is not derived and doesn't have a default"
                         .format(self.name, study))
-                # We don't want to add the bound copy to the study so we
-                # bind it explicitly here
-                default = spec.bind(study).collection
-            else:
-                default = None
+                # We don't want to add the bound copy to the study as that will
+                # override the selector so we bind the fallback to the study
+                # from the spec explicitly
+                bound._fallback = spec.bind(study)
             # Match against tree
             if self._repository is None:
                 repository = study.repository
@@ -156,7 +165,7 @@ class BaseSelector(object):
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-                bound._collection = bound.match(tree, default, **kwargs)
+                bound._collection = bound.match(tree, **kwargs)
         return bound
 
     @property
@@ -170,7 +179,7 @@ class BaseSelector(object):
             basename = self.match(**kwargs).name
         return basename
 
-    def match(self, tree, fallback=None, **kwargs):
+    def match(self, tree, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -188,9 +197,9 @@ class BaseSelector(object):
             try:
                 matches.append(self._match_node(node, **kwargs))
             except ArcanaSelectorMissingMatchError as e:
-                if fallback is not None:
-                    matches.append(fallback.item(subject_id=node.subject_id,
-                                                 visit_id=node.visit_id))
+                if self._fallback is not None:
+                    matches.append(self._fallback.collection.item(
+                        subject_id=node.subject_id, visit_id=node.visit_id))
                 elif self.skip_missing:
                     # Insert a non-existant item placeholder in-place of the
                     # the missing item
