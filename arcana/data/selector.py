@@ -352,7 +352,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
         return ("{}(name='{}', format={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, id={}, dicom_tags={}, "
                 "from_study={})"
-                .format(self.__class__.__name__, self.name, self.format,
+                .format(self.__class__.__name__, self.name, self._format,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self.id, self.dicom_tags,
                         self._from_study))
@@ -529,7 +529,7 @@ class FieldSelector(BaseSelector, BaseField):
     def __repr__(self):
         return ("{}(name='{}', dtype={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, from_study={})"
-                .format(self.__class__.__name__, self.name, self.dtype,
+                .format(self.__class__.__name__, self.name, self._dtype,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self._from_study))
 

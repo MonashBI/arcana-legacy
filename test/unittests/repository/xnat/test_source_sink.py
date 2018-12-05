@@ -205,8 +205,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                     project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, text_format,
-                                    DATASET_NAME)])
+            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
                 [study.bound_spec(DATASET_NAME).collection]),
@@ -289,8 +288,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, text_format,
-                                    DATASET_NAME,
+            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format,
                                     repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
