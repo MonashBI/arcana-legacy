@@ -135,7 +135,7 @@ class BaseSelector(object):
             # provided to match
             if self.fallback_to_default:
                 spec = study.data_spec(spec_name)
-                if not spec.derived:
+                if spec.derived:
                     bound._derivable = True
                 elif spec.default is not None:
                     raise ArcanaUsageError(
