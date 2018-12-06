@@ -11,6 +11,7 @@ import json
 from itertools import chain
 from collections import defaultdict
 import networkx.readwrite.json_graph as nx_json
+import networkx
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
@@ -845,8 +846,12 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            link['source'] = link['source'].name
-            link['target'] = link['target'].name
+            if str(networkx.__version__).split('.')[0] < 2:
+                link['source'] = wf_dict['nodes'][link['source']]['id'].name
+                link['target'] = wf_dict['nodes'][link['target']]['id'].name
+            else:
+                link['source'] = link['source'].name
+                link['target'] = link['target'].name
         wf_dict['nodes'] = {n['id'].name: n['id'].prov
                             for n in wf_dict['nodes']}
         # Roundtrip to JSON to convert any tuples into lists so dictionaries
