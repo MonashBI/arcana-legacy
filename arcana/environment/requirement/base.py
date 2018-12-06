@@ -34,7 +34,7 @@ class Version(object):
     def __init__(self, requirement, version, local_name=None,
                  local_version=None):
         self._req = requirement
-        self._seq, self._prerelease, self._dev, self._post = self.parse(
+        self._seq, self._prerelease, self._post, self._dev = self.parse(
             version)
         self._local_version = (
             local_version if local_version != str(self) else None)
@@ -195,19 +195,21 @@ class Version(object):
             A 2-tuple containing the type of prerelease ('a' - alpha,
             'b' - beta, or 'rc' - release-canditate) and the number of the
             prerelease
+        post : int |None
+            The number of the post version
         dev : int | None
             The number of the development version
         """
         # Check to see if version is not a string but rather another type
         # that can be interpreted as a version
         if isinstance(version, int):
-            return (version,), None, None
+            return (version,), None, None, None
         elif isinstance(version, (tuple, list)):
-            return tuple(int(i) for i in version), None, None
+            return tuple(int(i) for i in version), None, None, None
         elif isinstance(version, float):
             major = math.floor(version)
             minor = version - major
-            return (major, minor), None, None
+            return (major, minor), None, None, None
         match = self.regex.search(version)
         if match is None:
             raise ArcanaVersionNotDectableError(
@@ -220,17 +222,9 @@ class Version(object):
         post = None
         for part in match.group(1).split(self.delimeter):
             if part.startswith('dev'):
-                dev = part[len('dev'):]
-                try:
-                    dev = int(dev)
-                except ValueError:
-                    pass
+                dev = int(part[len('dev'):])
             elif part.startswith('post'):
-                post = part[len('post'):]
-                try:
-                    post = int(post)
-                except ValueError:
-                    pass
+                post = int(part[len('post'):])
             else:
                 # Split on non-numeric parts of the version string so that we
                 # can detect prerelease
@@ -244,8 +238,6 @@ class Version(object):
                 if len(sub_parts) > 1:
                     stage = sub_parts[1]
                     pr_ver = int(sub_parts[2])
-                    if len(sub_parts) > 3:
-                        dev = ''.join(sub_parts[4:])
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None
@@ -263,7 +255,7 @@ class Version(object):
                             "Did not recognise pre-release stage {}"
                             .format(version, type(self).__name__, stage))
                     prerelease = (stage, pr_ver)
-        return tuple(sequence), prerelease, dev, post
+        return tuple(sequence), prerelease, post, dev
 
     def within(self, version):
         """
