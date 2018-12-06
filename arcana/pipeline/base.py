@@ -15,7 +15,7 @@ from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.utils import extract_package_version
-from arcana.pkg_info import __version__
+from arcana.__about__ import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError)
 from .provenance import (
@@ -845,8 +845,8 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            link['source'] = wf_dict['nodes'][link['source']]['id'].name
-            link['target'] = wf_dict['nodes'][link['target']]['id'].name
+            link['source'] = link['source'].name
+            link['target'] = link['target'].name
         wf_dict['nodes'] = {n['id'].name: n['id'].prov
                             for n in wf_dict['nodes']}
         # Roundtrip to JSON to convert any tuples into lists so dictionaries

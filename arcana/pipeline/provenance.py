@@ -6,7 +6,7 @@ from pprint import pformat
 from datetime import datetime
 from deepdiff import DeepDiff
 from arcana.exceptions import ArcanaError, ArcanaUsageError
-from arcana.pkg_info import install_requires
+from arcana.__about__ import install_requires
 
 
 PROVENANCE_VERSION = '1.0'

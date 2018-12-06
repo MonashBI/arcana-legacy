@@ -1,5 +1,5 @@
 
-__version__ = '0.3.0.dev1'
+__version__ = '0.3.0.dev2'
 
 __authors__ = [
     ("Thomas G. Close", "tom.g.close@gmail.com"),
@@ -10,7 +10,7 @@ install_requires = [
     'xnat>=0.3.9',
     'nipype>=1.0.4',
     'pydicom>=1.0.2',
-    'networkx==1.9',
+    'networkx>=2',
     'fasteners>=0.7.0',
     'future>=0.16.0',
     'pybids>=0.5.1',
