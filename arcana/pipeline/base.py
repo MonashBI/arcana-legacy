@@ -11,7 +11,7 @@ import json
 from itertools import chain
 from collections import defaultdict
 import networkx.readwrite.json_graph as nx_json
-import networkx
+from networkx import __version__ as networkx_version
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
@@ -846,7 +846,7 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            if str(networkx.__version__).split('.')[0] < 2:
+            if int(networkx_version.split('.')[0]) < 2:
                 link['source'] = wf_dict['nodes'][link['source']]['id'].name
                 link['target'] = wf_dict['nodes'][link['target']]['id'].name
             else:
