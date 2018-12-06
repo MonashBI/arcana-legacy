@@ -34,4 +34,4 @@ class MultiProcessor(BaseProcessor):
 
     @property
     def num_processes(self):
-        return self._plugin.n_procs
+        return self._plugin.processes

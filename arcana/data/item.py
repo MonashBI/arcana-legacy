@@ -444,9 +444,9 @@ class Fileset(BaseItem, BaseFileset):
                 dcm = self.dicom(0)
                 dct = {t: dcm[t].value for t in tags}
         except KeyError as e:
-            raise ArcanaNameError(
-                e.args[0], "{} does not have dicom tag {}".format(
-                    self, e.args[0]))
+            e.msg = ("{} does not have dicom tag {}".format(
+                     self, e.msg))
+            raise e
         return dct
 
     def initkwargs(self):

@@ -43,7 +43,7 @@ class DirectoryRepository(BaseRepository):
         subject.
     """
 
-    type = 'simple'
+    type = 'directory'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'
@@ -69,7 +69,7 @@ class DirectoryRepository(BaseRepository):
 
     def __eq__(self, other):
         try:
-            return self.root_dir == other.root_dir
+            return self.type == other.type and self.root_dir == other.root_dir
         except AttributeError:
             return False
 
@@ -81,7 +81,7 @@ class DirectoryRepository(BaseRepository):
             'host': HOSTNAME}
 
     def __hash__(self):
-        return hash(self.root_dir)
+        return hash(self.type) ^ hash(self.root_dir)
 
     @property
     def root_dir(self):

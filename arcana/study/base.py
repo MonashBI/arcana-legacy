@@ -178,21 +178,8 @@ class Study(object):
                             raise ArcanaNoConverterError(
                                 "{}, which is requried to convert:\n{} "
                                 "to\n{}.".format(e, inpt, spec))
-                    else:
-                        if inpt.format is None:
-                            if len(spec.valid_formats) > 1:
-                                raise ArcanaUsageError(
-                                    "Must provide explicit format for {} as "
-                                    "there are multiple valid formats for {}"
-                                    .format(inpt, spec))
-                        elif inpt.format not in spec.valid_formats:
-                            raise ArcanaUsageError(
-                                "Cannot pass {} as an input to {} as it is "
-                                "not in one of the valid formats ('{}')"
-                                .format(
-                                    inpt, spec,
-                                    "', '".join(
-                                        f.name for f in spec.valid_formats)))
+                    # else:  Delay check of acquired filesets until after the
+                    #        inputs have been bound
                 elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
@@ -210,6 +197,18 @@ class Study(object):
                     "is empty")
             for inpt_name, inpt in list(inputs.items()):
                 self._inputs[inpt_name] = inpt.bind(self, spec_name=inpt_name)
+        # Perform delayed check for valid input formats for acquired specs
+        # after the inputs have been bound
+        for inpt_name, inpt in self._inputs.items():
+            spec = self.data_spec(inpt_name)
+            if not spec.derived and spec.is_fileset:
+                if inpt.format not in spec.valid_formats:
+                    raise ArcanaUsageError(
+                        "Cannot pass {} as an input to {} as it is "
+                        "not in one of the valid formats ('{}')"
+                        .format(inpt, spec,
+                                "', '".join(f.name
+                                            for f in spec.valid_formats)))
         # Check remaining specs are optional or have default values
         for spec in self.data_specs():
             if spec.name not in self.input_names:
@@ -375,11 +374,11 @@ class Study(object):
             try:
                 pipeline = getter()
             except ArcanaMissingDataException as e:
-                e.args = ("{}, which is required as an input when calling the "
+                e.msg += ("{}, which is required as an input when calling the "
                           "pipeline constructor method '{}' to create a "
                           "pipeline to produce '{}'".format(
                               e, getter_name,
-                              "', '".join(required_outputs)),)
+                              "', '".join(required_outputs)))
                 raise e
             finally:
                 self._pipeline_to_generate = None

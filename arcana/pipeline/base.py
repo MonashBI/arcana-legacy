@@ -16,7 +16,8 @@ from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.utils import extract_package_version
 from arcana.pkg_info import __version__
-from arcana.exceptions import ArcanaDesignError, ArcanaError, ArcanaUsageError
+from arcana.exceptions import (
+    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -745,7 +746,16 @@ class Pipeline(object):
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
                 if self.requires_conversion(input, format):
-                    conv = format.converter_from(input.format, **conv_kwargs)
+                    try:
+                        conv = format.converter_from(input.format,
+                                                     **conv_kwargs)
+                    except ArcanaNoConverterError as e:
+                        e.msg += (
+                            "which is required to convert '{}' from {} to {} "
+                            "for '{}' input of '{}' node".format(
+                                input.name, input.format, format, node_in,
+                                node.name))
+                        raise e
                     try:
                         in_node = prev_conv_nodes[format.name]
                     except KeyError:

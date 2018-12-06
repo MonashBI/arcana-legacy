@@ -292,9 +292,9 @@ class BaseProcessor(object):
                     push_on_stack(prereq, filt_array, prq_req_outputs)
                 except (ArcanaMissingDataException,
                         ArcanaOutputNotProducedException) as e:
-                    e.args = ("{}, which are required as inputs to the '{}' "
+                    e.msg += ("{}, which are required as inputs to the '{}' "
                               "pipeline to produce '{}'".format(
-                                  e, pipeline.name, "', '".join(req_outputs)),)
+                                  pipeline.name, "', '".join(req_outputs)))
                     raise e
 
         # Add all primary pipelines to the stack along with their prereqs

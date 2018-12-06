@@ -310,10 +310,6 @@ class FilesetSelector(BaseSelector, BaseFileset):
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, fallback_to_default=False,
                  repository=None, study_=None, collection_=None):
-        if pattern is None and id is None:
-            raise ArcanaUsageError(
-                "Either 'pattern' or 'id' need to be provided to "
-                "FilesetSelector constructor")
         BaseFileset.__init__(self, name, format, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, fallback_to_default,
@@ -328,6 +324,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
         self._id = str(id) if id is not None else id
+        self._check_args()
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -340,6 +337,12 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 BaseSelector.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id))
+
+    def _check_args(self):
+        if self._pattern is None and self._id is None:
+            raise ArcanaUsageError(
+                "Either 'pattern' or 'id' need to be provided to "
+                "FilesetSelector constructor")
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
