@@ -34,7 +34,8 @@ class Version(object):
     def __init__(self, requirement, version, local_name=None,
                  local_version=None):
         self._req = requirement
-        self._seq, self._prerelease, self._dev = self.parse(version)
+        self._seq, self._prerelease, self._dev, self._post = self.parse(
+            version)
         self._local_version = (
             local_version if local_version != str(self) else None)
         self._local_name = (
@@ -61,6 +62,10 @@ class Version(object):
         return self._dev
 
     @property
+    def post(self):
+        return self._post
+
+    @property
     def local_version(self):
         """
         The un-parsed version string. Used to cross-reference with list of
@@ -85,6 +90,8 @@ class Version(object):
         s = self.delimeter.join(str(i) for i in self._seq)
         if self._prerelease is not None:
             s += '{}{}'.format(*self._prerelease)
+        if self._post is not None:
+            s += '.post{}'.format(self._post)
         if self._dev is not None:
             s += '.dev{}'.format(self._dev)
         return s
@@ -125,17 +132,21 @@ class Version(object):
             return -1
         if s > o:
             return 1
+        # If both main sequence and prereleases are equal, compare post release
+        s = self._post if self._post is not None else 0
+        o = other._post if other._post is not None else 0
+        if s < o:
+            return -1
+        if s > o:
+            return 1
         # If both main sequence and prereleases are equal, compare development
-        # versions
-        if self._dev is not None or other._dev is not None:
-            if self._dev is None:
-                return -1
-            elif other._dev is None:
-                return 1
-            elif self._dev < other._dev:
-                return -1
-            elif self._dev > other._dev:
-                return 1
+        # release
+        s = self._dev if self._dev is not None else 0
+        o = other._dev if other._dev is not None else 0
+        if s < o:
+            return -1
+        if s > o:
+            return 1
         assert self == other
         return 0
 
@@ -158,8 +169,8 @@ class Version(object):
              else self.delimeter)
         # Pattern to match sub-version
         sub_ver = r'{}\d+[a-zA-Z\-_0-9]*'.format(m)
-        return re.compile(r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'
-                          .format(m=m, sv=sub_ver))
+        return re.compile(
+            r'(?<!\d{m})(\d+{sv}(?:{sv})?(?:{m}\w+)?)'.format(m=m, sv=sub_ver))
 
     def parse(self, version):
         """
@@ -206,12 +217,20 @@ class Version(object):
         sequence = []
         prerelease = None
         dev = None
+        post = None
         for part in match.group(1).split(self.delimeter):
             if part.startswith('dev'):
+                dev = part[len('dev'):]
                 try:
-                    dev = int(part[3:])
+                    dev = int(dev)
                 except ValueError:
-                    dev = part[3:]
+                    pass
+            elif part.startswith('post'):
+                post = part[len('post'):]
+                try:
+                    post = int(post)
+                except ValueError:
+                    pass
             else:
                 # Split on non-numeric parts of the version string so that we
                 # can detect prerelease
@@ -244,7 +263,7 @@ class Version(object):
                             "Did not recognise pre-release stage {}"
                             .format(version, type(self).__name__, stage))
                     prerelease = (stage, pr_ver)
-        return tuple(sequence), prerelease, dev
+        return tuple(sequence), prerelease, dev, post
 
     def within(self, version):
         """
