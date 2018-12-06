@@ -258,7 +258,7 @@ class XnatRepository(BaseRepository):
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
-                type=fileset.name, parent=xsession)
+                type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
             fileset.id = xscan.id
             # Delete existing resource

@@ -152,4 +152,4 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
         self.assertEqual(fileset.path, target_path)
         with open(target_path) as f:
             self.assertEqual(f.read(),
-                             self.INPUT_DATASETS[fileset.name])
+                             self.INPUT_DATASETS[fileset.basename])
