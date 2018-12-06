@@ -19,7 +19,7 @@ class MatlabVersion(Version):
                 "Could not parse Matlab version string {} as {}. Regex ({})"
                 " did not match any sub-string".format(
                     version_str, cls.__name__, regex))
-        return (int(match.group(1)), match.group(2).lower()), None, None
+        return (int(match.group(1)), match.group(2).lower()), None, None, None
 
     def __str__(self):
         return 'R{}{}'.format(*self.sequence)
