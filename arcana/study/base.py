@@ -28,7 +28,6 @@ logger = getLogger('arcana')
 
 class Study(object):
     """
-    Abstract base study class from which all study derive.
 
     Parameters
     ----------
@@ -944,12 +943,12 @@ class StudyMetaClass(type):
                 combined_data_specs.update(
                     (d.name, d) for d in base.data_specs())
             except AttributeError:
-                pass
+                pass  # Not a Study class
             try:
                 combined_param_specs.update(
                     (p.name, p) for p in base.parameter_specs())
             except AttributeError:
-                pass
+                pass  # Not a Study class
         combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_param_specs.update(
@@ -987,6 +986,14 @@ class StudyMetaClass(type):
         dct['_param_specs'] = combined_param_specs
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
+        # Append description of Study parameters to class
+        try:
+            docstring = dct['__doc__']
+        except KeyError:
+            docstring = '{} Study class'.format(name)
+        if 'Parameters' not in docstring:
+            docstring += Study.__doc__
+        dct['__doc__'] = docstring
         return type(name, bases, dct)
 
 

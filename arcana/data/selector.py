@@ -71,6 +71,10 @@ class BaseSelector(object):
         return self._pattern
 
     @property
+    def spec_name(self):
+        return self.name
+
+    @property
     def derived(self):
         return self._from_study is not None
 
@@ -255,8 +259,8 @@ class FilesetSelector(BaseSelector, BaseFileset):
 
     Parameters
     ----------
-    name : str
-        The name of the fileset, typically left None and set in Study
+    spec_name : str
+        The name of the fileset spec to match against
     format : FileFormat
         The file format used to store the fileset. Can be one of the
         recognised formats
@@ -305,12 +309,12 @@ class FilesetSelector(BaseSelector, BaseFileset):
     is_spec = False
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
+    def __init__(self, spec_name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, fallback_to_default=False,
                  repository=None, study_=None, collection_=None):
-        BaseFileset.__init__(self, name, format, frequency)
+        BaseFileset.__init__(self, spec_name, format, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, fallback_to_default,
                               repository, study_, collection_)
@@ -452,8 +456,8 @@ class FieldSelector(BaseSelector, BaseField):
 
     Parameters
     ----------
-    name : str
-        The name of the fileset
+    spec_name : str
+        The name of the field spec to match against.
     pattern : str
         A regex pattern to match the field names with. Must match
         one and only one fileset per <frequency>. If None, the name
@@ -494,11 +498,11 @@ class FieldSelector(BaseSelector, BaseField):
     is_spec = False
     CollectionClass = FieldCollection
 
-    def __init__(self, name, pattern, dtype=None, frequency='per_session',
+    def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
                  skip_missing=False, fallback_to_default=False,
                  repository=None, study_=None, collection_=None):
-        BaseField.__init__(self, name, dtype, frequency)
+        BaseField.__init__(self, spec_name, dtype, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, fallback_to_default,
                               repository, study_, collection_)
