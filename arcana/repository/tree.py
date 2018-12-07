@@ -34,7 +34,7 @@ class TreeNode(object):
             for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
                                                     r.from_study)))
         self._missing_records = []
-        self._duplicate_records = {}
+        self._duplicate_records = []
         # Match up provenance records with items in the node
         for item in chain(self.filesets, self.fields):
             if not item.derived:
