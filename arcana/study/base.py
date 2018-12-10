@@ -12,7 +12,7 @@ from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaUsageError,
     ArcanaMissingDataException, ArcanaNameError,
-    ArcanaOutputNotProducedException)
+    ArcanaOutputNotProducedException, ArcanaSelectorMissingMatchError)
 from arcana.pipeline import Pipeline
 from arcana.data import BaseData, BaseAcquiredSpec
 from nipype.pipeline import engine as pe
@@ -195,7 +195,12 @@ class Study(object):
                     "No visit IDs provided and destination repository "
                     "is empty")
             for inpt_name, inpt in list(inputs.items()):
-                self._inputs[inpt_name] = inpt.bind(self, spec_name=inpt_name)
+                try:
+                    self._inputs[inpt_name] = inpt.bind(self,
+                                                        spec_name=inpt_name)
+                except ArcanaSelectorMissingMatchError as e:
+                    if not inpt.drop_if_missing:
+                        raise e
         # Perform delayed check for valid input formats for acquired specs
         # after the inputs have been bound
         for inpt_name, inpt in self._inputs.items():

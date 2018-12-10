@@ -15,7 +15,8 @@ class BaseSelector(object):
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
-                 skip_missing=False, fallback_to_default=False,
+                 skip_missing=False, drop_if_missing=False,
+                 fallback_to_default=False,
                  repository=None, study_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
@@ -23,6 +24,7 @@ class BaseSelector(object):
         self._from_study = from_study
         self._repository = repository
         self._skip_missing = skip_missing
+        self._drop_if_missing = drop_if_missing
         self._fallback_to_default = fallback_to_default
         if skip_missing and fallback_to_default:
             raise ArcanaUsageError(
@@ -43,6 +45,7 @@ class BaseSelector(object):
                 self.order == other.order and
                 self._repository == other._repository and
                 self._skip_missing == other._skip_missing and
+                self._drop_if_missing == other._drop_if_missing and
                 self._fallback_to_default == other._fallback_to_default)
 
     def __hash__(self):
@@ -52,6 +55,7 @@ class BaseSelector(object):
                 hash(self.order) ^
                 hash(self._repository) ^
                 hash(self._skip_missing) ^
+                hash(self._drop_if_missing) ^
                 hash(self._fallback_to_default))
 
     def initkwargs(self):
@@ -63,6 +67,7 @@ class BaseSelector(object):
         dct['study_'] = self._study
         dct['collection_'] = self._collection
         dct['skip_missing'] = self._skip_missing
+        dct['drop_if_missing'] = self._drop_if_missing
         dct['fallback_to_default'] = self._fallback_to_default
         return dct
 
@@ -89,6 +94,10 @@ class BaseSelector(object):
     @property
     def skip_missing(self):
         return self._skip_missing
+
+    @property
+    def drop_if_missing(self):
+        return self._drop_if_missing
 
     @property
     def fallback_to_default(self):
@@ -138,7 +147,9 @@ class BaseSelector(object):
     def order(self):
         return self._order
 
-    def bind(self, study, spec_name, **kwargs):
+    def bind(self, study, spec_name=None, **kwargs):
+        if spec_name is None:
+            spec_name = self.spec_name
         if self._study == study:
             bound = self
         else:
@@ -199,7 +210,7 @@ class BaseSelector(object):
         matches = []
         for node in nodes:
             try:
-                matches.append(self._match_node(node, **kwargs))
+                matches.append(self.match_node(node, **kwargs))
             except ArcanaSelectorMissingMatchError as e:
                 if self._fallback is not None:
                     matches.append(self._fallback.collection.item(
@@ -223,7 +234,7 @@ class BaseSelector(object):
                                     frequency=self.frequency,
                                     **self._specific_kwargs)
 
-    def _match_node(self, node, **kwargs):
+    def match_node(self, node, **kwargs):
         # Get names matching pattern
         matches = self._filtered_matches(node, **kwargs)
         # Filter matches by study name
@@ -297,6 +308,11 @@ class FilesetSelector(BaseSelector, BaseFileset):
         If there is no fileset matching the selector for a node then pipelines
         that use it as an input, including downstream pipelines, will not be
         run for that node
+    drop_if_missing : bool
+        If there are missing filesets then drop the selector from the study
+        input. Useful in the case where you want to provide selectors for the
+        a list of inputs which may or may not be acquired for a range of
+        studies
     fallback_to_default : bool
         If there is no fileset matching the selection for a node
         and corresponding data spec has a default or is a derived spec
@@ -312,12 +328,14 @@ class FilesetSelector(BaseSelector, BaseFileset):
     def __init__(self, spec_name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
-                 skip_missing=False, fallback_to_default=False,
-                 repository=None, study_=None, collection_=None):
+                 skip_missing=False, drop_if_missing=False,
+                 fallback_to_default=False, repository=None, study_=None,
+                 collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                              from_study, skip_missing, fallback_to_default,
-                              repository, study_, collection_)
+                              from_study, skip_missing, drop_if_missing,
+                              fallback_to_default, repository, study_,
+                              collection_)
         if dicom_tags is not None and format.name != 'dicom':
             raise ArcanaUsageError(
                 "Cannot use 'dicom_tags' kwarg with non-DICOM "
@@ -486,6 +504,11 @@ class FieldSelector(BaseSelector, BaseField):
         If there is no field matching the selector for a node then pipelines
         that use it as an input, including downstream pipelines, will not be
         run for that node
+    drop_if_missing : bool
+        If there are missing filesets then drop the selector from the study
+        input. Useful in the case where you want to provide selectors for the
+        a list of inputs which may or may not be acquired for a range of
+        studies
     fallback_to_default : bool
         If the there is no fileset/field matching the selection for a node
         and corresponding data spec has a default or is a derived spec,
@@ -500,12 +523,14 @@ class FieldSelector(BaseSelector, BaseField):
 
     def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
-                 skip_missing=False, fallback_to_default=False,
-                 repository=None, study_=None, collection_=None):
+                 skip_missing=False, drop_if_missing=False,
+                 fallback_to_default=False, repository=None, study_=None,
+                 collection_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
         BaseSelector.__init__(self, pattern, is_regex, order,
-                              from_study, skip_missing, fallback_to_default,
-                              repository, study_, collection_)
+                              from_study, skip_missing, drop_if_missing,
+                              fallback_to_default, repository, study_,
+                              collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
