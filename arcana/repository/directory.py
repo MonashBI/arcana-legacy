@@ -22,7 +22,7 @@ logger = logging.getLogger('arcana')
 
 class DirectoryRepository(BaseRepository):
     """
-    An 'Repository' class for data stored simply in file-system
+    A 'Repository' class for data stored simply in file-system
     directories. Can be a single directory if it contains only one subject
     and visit, otherwise if sub-directories are present (that aren't
     recognised as single filesets) then they are assumed to be
@@ -210,39 +210,11 @@ class DirectoryRepository(BaseRepository):
         all_records = []
         for session_path, dirs, files in os.walk(self.root_dir):
             relpath = op.relpath(session_path, self.root_dir)
-            if relpath == '.':
-                path_parts = []
-            else:
-                path_parts = relpath.split(op.sep)
-            depth = len(path_parts)
-            if depth == self._depth:
-                # Load input data
-                from_study = None
-            elif (depth == (self._depth + 1) and
-                  self.PROV_DIR in dirs):
-                # Load study output
-                from_study = path_parts.pop()
-            elif (depth < self._depth and
-                  any(not f.startswith('.') for f in files)):
-                # Check to see if there are files in upper level
-                # directories, which shouldn't be there (ignoring
-                # "hidden" files that start with '.')
-                raise ArcanaBadlyFormattedDirectoryRepositoryError(
-                    "Files ('{}') not permitted at {} level in local "
-                    "repository".format("', '".join(files),
-                                        ('subject'
-                                         if depth else 'project')))
-            else:
-                # Not a directory that contains data files or directories
+            path_parts = relpath.split(op.sep) if relpath != '.' else []
+            ids = self._extract_ids_from_path(path_parts, dirs, files)
+            if ids is None:
                 continue
-            if len(path_parts) == 2:
-                subj_id, visit_id = path_parts
-            elif len(path_parts) == 1:
-                subj_id = path_parts[0]
-                visit_id = self.DEFAULT_SUBJECT_ID
-            else:
-                subj_id = self.DEFAULT_SUBJECT_ID
-                visit_id = self.DEFAULT_VISIT_ID
+            subj_id, visit_id, from_study = ids
             # Check for summaries and filtered IDs
             if subj_id == self.SUMMARY_NAME:
                 subj_id = None
@@ -293,6 +265,38 @@ class DirectoryRepository(BaseRepository):
                         frequency, subj_id, visit_id, from_study,
                         op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
+
+    def _extract_ids_from_path(self, path_parts, dirs, files):
+        depth = len(path_parts)
+        if depth == self._depth:
+            # Load input data
+            from_study = None
+        elif (depth == (self._depth + 1) and
+              self.PROV_DIR in dirs):
+            # Load study output
+            from_study = path_parts.pop()
+        elif (depth < self._depth and
+              any(not f.startswith('.') for f in files)):
+            # Check to see if there are files in upper level
+            # directories, which shouldn't be there (ignoring
+            # "hidden" files that start with '.')
+            raise ArcanaBadlyFormattedDirectoryRepositoryError(
+                "Files ('{}') not permitted at {} level in local "
+                "repository".format("', '".join(files),
+                                    ('subject'
+                                     if depth else 'project')))
+        else:
+            # Not a directory that contains data files or directories
+            return None
+        if len(path_parts) == 2:
+            subj_id, visit_id = path_parts
+        elif len(path_parts) == 1:
+            subj_id = path_parts[0]
+            visit_id = self.DEFAULT_SUBJECT_ID
+        else:
+            subj_id = self.DEFAULT_SUBJECT_ID
+            visit_id = self.DEFAULT_VISIT_ID
+        return subj_id, visit_id, from_study
 
     def fileset_path(self, item, fname=None):
         if fname is None:
