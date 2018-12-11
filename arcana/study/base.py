@@ -168,17 +168,6 @@ class Study(object):
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
-                    if spec.derived:
-                        try:
-                            # FIXME: should provide requirement manager to
-                            # converter_from but it hasn't been implemented yet
-                            spec.format.converter_from(inpt.format)
-                        except ArcanaNoConverterError as e:
-                            raise ArcanaNoConverterError(
-                                "{}, which is requried to convert:\n{} "
-                                "to\n{}.".format(e, inpt, spec))
-                    # else:  Delay check of acquired filesets until after the
-                    #        inputs have been bound
                 elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
@@ -196,22 +185,31 @@ class Study(object):
                     "is empty")
             for inpt_name, inpt in list(inputs.items()):
                 try:
-                    self._inputs[inpt_name] = inpt.bind(self,
-                                                        spec_name=inpt_name)
+                    self._inputs[inpt_name] = bound_inpt = inpt.bind(
+                        self, spec_name=inpt_name)
                 except ArcanaSelectorMissingMatchError as e:
                     if not inpt.drop_if_missing:
                         raise e
-        # Perform delayed check for valid input formats for acquired specs
-        # after the inputs have been bound
-        for inpt_name, inpt in self._inputs.items():
-            spec = self.data_spec(inpt_name)
-            if not spec.derived and spec.is_fileset:
-                if inpt.format not in spec.valid_formats:
-                    raise ArcanaUsageError(
-                        "Cannot pass {} as an input to {} as it is "
-                        "not in one of the valid formats ('{}')"
-                        .format(inpt, spec,
-                                "', '".join(f.name
+                else:
+                    spec = self.data_spec(inpt_name)
+                    if spec.is_fileset:
+                        if spec.derived:
+                            try:
+                                spec.format.converter_from(bound_inpt.format)
+                            except ArcanaNoConverterError as e:
+                                e.msg += (
+                                    ", which is requried to convert:\n{} "
+                                    "to\n{}.".format(e, bound_inpt, spec))
+                                raise e
+                        else:
+                            if inpt.format not in spec.valid_formats:
+                                raise ArcanaUsageError(
+                                    "Cannot pass {} as an input to {} as it is"
+                                    " not in one of the valid formats ('{}')"
+                                    .format(
+                                        bound_inpt, spec,
+                                        "', '".join(
+                                            f.name
                                             for f in spec.valid_formats)))
         # Check remaining specs are optional or have default values
         for spec in self.data_specs():
