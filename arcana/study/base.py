@@ -214,7 +214,7 @@ class Study(object):
                                     "to\n{}.".format(e, bound_inpt, spec))
                                 raise e
                         else:
-                            if inpt.format not in spec.valid_formats:
+                            if bound_inpt.format not in spec.valid_formats:
                                 raise ArcanaUsageError(
                                     "Cannot pass {} as an input to {} as it is"
                                     " not in one of the valid formats ('{}')"
