@@ -36,7 +36,6 @@ class BaseData(with_metaclass(ABCMeta, object)):
 
     def find_mismatch(self, other, indent=''):
         if self != other:
-            self == other
             mismatch = "\n{}{t}('{}') != {t}('{}')".format(
                 indent, self.basename, other.basename,
                 t=type(self).__name__)

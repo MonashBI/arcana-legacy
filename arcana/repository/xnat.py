@@ -72,8 +72,8 @@ class XnatRepository(BaseRepository):
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30,
-                 session_filter=None):
-        super(XnatRepository, self).__init__()
+                 session_filter=None, **kwargs):
+        super(XnatRepository, self).__init__(**kwargs)
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
@@ -681,8 +681,10 @@ class XnatRepository(BaseRepository):
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
         """
+        subject_id = self.inv_map_subject_id(item.subject_id)
+        visit_id = self.inv_map_visit_id(item.visit_id)
         subj_label, sess_label = self._get_labels(
-            item.frequency, item.subject_id, item.visit_id)
+            item.frequency, subject_id, visit_id)
         if not no_from_study and item.from_study is not None:
             sess_label += '_' + item.from_study
         return (subj_label, sess_label)

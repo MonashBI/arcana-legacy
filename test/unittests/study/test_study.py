@@ -540,7 +540,7 @@ class TestInputNoConverter(BaseTestCase):
             inputs=[
                 FilesetSelector('a', 'a', test1_format),
                 FilesetSelector('b', 'b', test3_format),
-                FilesetSelector('c', 'a', test3_format),
+                FilesetSelector('c', 'c', test3_format),
                 FilesetSelector('d', 'd', test3_format)])
 
 

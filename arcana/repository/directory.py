@@ -52,8 +52,8 @@ class DirectoryRepository(BaseRepository):
     DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
 
-    def __init__(self, root_dir, depth=None):
-        super(DirectoryRepository, self).__init__()
+    def __init__(self, root_dir, depth=None, **kwargs):
+        super(DirectoryRepository, self).__init__(**kwargs)
         if not op.exists(root_dir):
             raise ArcanaError(
                 "Base directory for DirectoryRepository '{}' does not exist"
@@ -224,6 +224,9 @@ class DirectoryRepository(BaseRepository):
                 visit_id = None
             elif visit_ids is not None and visit_id not in visit_ids:
                 continue
+            # Map IDs into ID space of study
+            subj_id = self.map_subject_id(subj_id)
+            visit_id = self.map_visit_id(visit_id)
             # Determine frequency of session|summary
             if (subj_id, visit_id) == (None, None):
                 frequency = 'per_study'
@@ -301,18 +304,20 @@ class DirectoryRepository(BaseRepository):
     def fileset_path(self, item, fname=None):
         if fname is None:
             fname = item.fname
+        subject_id = self.inv_map_subject_id(item.subject_id)
+        visit_id = self.inv_map_visit_id(item.visit_id)
         if item.frequency == 'per_study':
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_subject'):
-            subj_dir = str(item.subject_id)
+            subj_dir = str(subject_id)
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_visit'):
             subj_dir = self.SUMMARY_NAME
-            visit_dir = str(item.visit_id)
+            visit_dir = str(visit_id)
         elif item.frequency.startswith('per_session'):
-            subj_dir = str(item.subject_id)
-            visit_dir = str(item.visit_id)
+            subj_dir = str(subject_id)
+            visit_dir = str(visit_id)
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
