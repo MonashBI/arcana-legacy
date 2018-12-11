@@ -117,7 +117,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetSelector('ones', 'ones', text_format)],
+            {'ones': 'ones'},
             environment=ModulesEnvironment())
         self.assertContentsEqual(study.data('twos'), 2.0)
         self.assertEqual(ModulesEnvironment.loaded(), {})

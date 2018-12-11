@@ -235,10 +235,10 @@ def change_value_w_prov(field, new_value):
     field.repository.put_record(record)
 
 
-STUDY_INPUTS = [FilesetSelector('acquired_fileset1', 'acquired_fileset1'),
-                FilesetSelector('acquired_fileset2', 'acquired_fileset2'),
-                FilesetSelector('acquired_fileset3', 'acquired_fileset3'),
-                FieldSelector('acquired_field1', 'acquired_field1', int)]
+STUDY_INPUTS = {'acquired_fileset1': 'acquired_fileset1',
+                'acquired_fileset2': 'acquired_fileset2',
+                'acquired_fileset3': 'acquired_fileset3',
+                'acquired_field1': 'acquired_field1'}
 
 
 INPUT_DATASETS = {'acquired_fileset1': '1.0',

@@ -201,7 +201,7 @@ class TestDerivable(BaseTestCase):
         study = self.create_study(
             TestDerivableStudy,
             'study',
-            inputs=[FilesetSelector('required', 'required', text_format)])
+            inputs={'required': 'required'})
         self.assertTrue(study.spec('derivable').derivable)
         self.assertTrue(
             study.spec('another_derivable').derivable)

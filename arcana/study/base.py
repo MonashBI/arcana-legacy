@@ -14,7 +14,8 @@ from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaOutputNotProducedException, ArcanaSelectorMissingMatchError)
 from arcana.pipeline import Pipeline
-from arcana.data import BaseData, BaseAcquiredSpec
+from arcana.data import (
+    BaseData, BaseAcquiredSpec, FilesetSelector, FieldSelector)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -151,8 +152,19 @@ class Study(object):
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
+        else:
+            # Convert string patterns into Selector objects
+            for inpt_name, inpt in list(inputs.items()):
+                if isinstance(inpt, basestring):
+                    spec = self.data_spec(inpt_name)
+                    if spec.is_fileset:
+                        inpt = FilesetSelector(inpt_name, pattern=inpt)
+                    else:
+                        inpt = FieldSelector(inpt_name, pattern=inpt,
+                                             dtype=spec.dtype)
+                    inputs[inpt_name] = inpt
         # Check validity of study inputs
-        for inpt_name, inpt in list(inputs.items()):
+        for inpt_name, inpt in inputs.items():
             try:
                 spec = self.data_spec(inpt_name)
             except ArcanaNameError:
