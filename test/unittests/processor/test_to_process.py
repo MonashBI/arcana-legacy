@@ -1,8 +1,3 @@
-from pprint import pformat
-import os.path as op
-import tempfile
-from copy import copy
-import shutil
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -10,12 +5,11 @@ from arcana.processor import LinearProcessor
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParameterSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
-    AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector,
+    AcquiredFilesetSpec, FilesetSpec, FieldSpec,
     AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.pipeline.provenance import Record
-from arcana.data import Fileset, Field
+from arcana.data import Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import (
@@ -245,7 +239,7 @@ INPUT_DATASETS = {'acquired_fileset1': '1.0',
                   'acquired_fileset2': '2.0',
                   'acquired_fileset3': '3.0'}
 
-INPUT_FIELDS = {'acquired_field1': 11}
+INPUT_FIELDS = {'acquired_field1': 11.0}
 
 
 class TestProvBasic(BaseTestCase):
