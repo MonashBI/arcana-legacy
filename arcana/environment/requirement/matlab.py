@@ -2,7 +2,7 @@ import re
 from .base import BaseRequirement, Version
 from arcana.utils import run_matlab_cmd
 from arcana.exceptions import (
-    ArcanaVersionNotDectableError, ArcanaRequirementNotFoundError)
+    ArcanaVersionNotDetectableError, ArcanaRequirementNotFoundError)
 
 
 class MatlabVersion(Version):
@@ -15,7 +15,7 @@ class MatlabVersion(Version):
         regex = r'R?(\d+)(a|b)'
         match = re.search(regex, version_str, re.IGNORECASE)
         if match is None:
-            raise ArcanaVersionNotDectableError(
+            raise ArcanaVersionNotDetectableError(
                 "Could not parse Matlab version string {} as {}. Regex ({})"
                 " did not match any sub-string".format(
                     version_str, cls.__name__, regex))

@@ -2,7 +2,7 @@ from __future__ import division
 import logging
 from .base import BaseEnvironment
 from arcana.exceptions import (
-    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
 
 logger = logging.getLogger('arcana')
@@ -49,7 +49,7 @@ class StaticEnvironment(BaseEnvironment):
                         raise
                     else:
                         logger.warning(e)
-                except ArcanaVersionNotDectableError as e:
+                except ArcanaVersionNotDetectableError as e:
                     if self._fail_on_undetectable:
                         raise
                     else:

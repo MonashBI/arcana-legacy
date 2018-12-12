@@ -9,7 +9,7 @@ import subprocess as sp
 from collections import defaultdict
 from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
-    ArcanaRequirementNotFoundError, ArcanaVersionNotDectableError,
+    ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
 from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
 
@@ -120,7 +120,7 @@ class ModulesEnvironment(BaseEnvironment):
                     avail_versions.append(
                         req.v(ver_name, local_name=local_name,
                               local_version=local_ver_name))
-                except ArcanaVersionNotDectableError:
+                except ArcanaVersionNotDetectableError:
                     if self._ignore_unrecog:
                         logger.warning(
                             "Ignoring unrecognised available version '{}' of "
