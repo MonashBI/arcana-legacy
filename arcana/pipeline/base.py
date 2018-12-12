@@ -233,7 +233,7 @@ class Pipeline(object):
             requirements = []
         if wall_time is None:
             wall_time = self.study.processor.default_wall_time
-        if 'mem_gb' not in kwargs:
+        if 'mem_gb' not in kwargs or kwargs['mem_gb'] is None:
             kwargs['mem_gb'] = self.study.processor.default_mem_gb
         if 'iterfield' in kwargs:
             if 'joinfield' in kwargs or 'joinsource' in kwargs:
@@ -846,7 +846,7 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            if int(networkx_version.split('.')[0]) < 2:
+            if int(networkx_version.split('.')[0]) < 2:  # @UndefinedVariable
                 link['source'] = wf_dict['nodes'][link['source']]['id'].name
                 link['target'] = wf_dict['nodes'][link['target']]['id'].name
             else:
