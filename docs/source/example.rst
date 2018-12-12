@@ -106,8 +106,8 @@ which can then be instantiated and used to generate 'derived2' with
         archive=LocalArchive('/path/to/local/archive'),
         processor=LinearProcessor('/my/work/dir'),
         inputs=[
-            FilesetSelector('one', text_format, 'one'),
-            FilesetSelector('ten', text_format, 'ten')],
+            FilesetSelector('one', 'one', text_format),
+            FilesetSelector('ten', 'ten', text_format)],
         parameters={'pipeline_option': True})
     derived_filesets = study.data('derived2')
     for fileset in derived_filesets:

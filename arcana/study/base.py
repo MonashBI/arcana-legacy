@@ -12,9 +12,10 @@ from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaUsageError,
     ArcanaMissingDataException, ArcanaNameError,
-    ArcanaOutputNotProducedException)
+    ArcanaOutputNotProducedException, ArcanaSelectorMissingMatchError)
 from arcana.pipeline import Pipeline
-from arcana.data import BaseData, BaseSpec, BaseAcquiredSpec
+from arcana.data import (
+    BaseData, BaseAcquiredSpec, FilesetSelector, FieldSelector)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -28,7 +29,6 @@ logger = getLogger('arcana')
 
 class Study(object):
     """
-    Abstract base study class from which all study derive.
 
     Parameters
     ----------
@@ -152,8 +152,19 @@ class Study(object):
         # Convert inputs to a dictionary if passed in as a list/tuple
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
+        else:
+            # Convert string patterns into Selector objects
+            for inpt_name, inpt in list(inputs.items()):
+                if isinstance(inpt, basestring):
+                    spec = self.data_spec(inpt_name)
+                    if spec.is_fileset:
+                        inpt = FilesetSelector(inpt_name, pattern=inpt)
+                    else:
+                        inpt = FieldSelector(inpt_name, pattern=inpt,
+                                             dtype=spec.dtype)
+                    inputs[inpt_name] = inpt
         # Check validity of study inputs
-        for inpt_name, inpt in list(inputs.items()):
+        for inpt_name, inpt in inputs.items():
             try:
                 spec = self.data_spec(inpt_name)
             except ArcanaNameError:
@@ -169,24 +180,6 @@ class Study(object):
                         raise ArcanaUsageError(
                             "Passed field ({}) as input to fileset spec"
                             " {}".format(inpt, spec))
-                    if spec.derived:
-                        try:
-                            # FIXME: should provide requirement manager to
-                            # converter_from but it hasn't been implemented yet
-                            spec.format.converter_from(inpt.format)
-                        except ArcanaNoConverterError as e:
-                            raise ArcanaNoConverterError(
-                                "{}, which is requried to convert:\n{} "
-                                "to\n{}.".format(e, inpt, spec))
-                    else:
-                        if inpt.format not in spec.valid_formats:
-                            raise ArcanaUsageError(
-                                "Cannot pass {} as an input to {} as it is "
-                                "not in one of the valid formats ('{}')"
-                                .format(
-                                    inpt, spec,
-                                    "', '".join(
-                                        f.name for f in spec.valid_formats)))
                 elif not inpt.is_field:
                     raise ArcanaUsageError(
                         "Passed fileset ({}) as input to field spec {}"
@@ -203,7 +196,33 @@ class Study(object):
                     "No visit IDs provided and destination repository "
                     "is empty")
             for inpt_name, inpt in list(inputs.items()):
-                self._inputs[inpt_name] = inpt.bind(self, spec_name=inpt_name)
+                try:
+                    self._inputs[inpt_name] = bound_inpt = inpt.bind(
+                        self, spec_name=inpt_name)
+                except ArcanaSelectorMissingMatchError as e:
+                    if not inpt.drop_if_missing:
+                        raise e
+                else:
+                    spec = self.data_spec(inpt_name)
+                    if spec.is_fileset:
+                        if spec.derived:
+                            try:
+                                spec.format.converter_from(bound_inpt.format)
+                            except ArcanaNoConverterError as e:
+                                e.msg += (
+                                    ", which is requried to convert:\n{} "
+                                    "to\n{}.".format(e, bound_inpt, spec))
+                                raise e
+                        else:
+                            if bound_inpt.format not in spec.valid_formats:
+                                raise ArcanaUsageError(
+                                    "Cannot pass {} as an input to {} as it is"
+                                    " not in one of the valid formats ('{}')"
+                                    .format(
+                                        bound_inpt, spec,
+                                        "', '".join(
+                                            f.name
+                                            for f in spec.valid_formats)))
         # Check remaining specs are optional or have default values
         for spec in self.data_specs():
             if spec.name not in self.input_names:
@@ -302,7 +321,7 @@ class Study(object):
         # Work out which pipelines need to be run
         pipeline_getters = defaultdict(set)
         for spec in specs:
-            if isinstance(spec, BaseSpec):  # Filter out Study inputs
+            if spec.derivable:  # Filter out Study inputs
                 # Add name of spec to set of required outputs
                 pipeline_getters[spec.pipeline_getter].add(spec.name)
         # Run required pipelines
@@ -319,7 +338,7 @@ class Study(object):
         # names
         all_data = []
         for name in names:
-            spec = self.spec(name)
+            spec = self.bound_spec(name)
             data = spec.collection
             if single_item:
                 data = data.item(subject_id=subject_id, visit_id=visit_id)
@@ -369,11 +388,11 @@ class Study(object):
             try:
                 pipeline = getter()
             except ArcanaMissingDataException as e:
-                e.args = ("{}, which is required as an input when calling the "
+                e.msg += ("{}, which is required as an input when calling the "
                           "pipeline constructor method '{}' to create a "
                           "pipeline to produce '{}'".format(
                               e, getter_name,
-                              "', '".join(required_outputs)),)
+                              "', '".join(required_outputs)))
                 raise e
             finally:
                 self._pipeline_to_generate = None
@@ -939,12 +958,12 @@ class StudyMetaClass(type):
                 combined_data_specs.update(
                     (d.name, d) for d in base.data_specs())
             except AttributeError:
-                pass
+                pass  # Not a Study class
             try:
                 combined_param_specs.update(
                     (p.name, p) for p in base.parameter_specs())
             except AttributeError:
-                pass
+                pass  # Not a Study class
         combined_attrs.update(list(dct.keys()))
         combined_data_specs.update((d.name, d) for d in add_data_specs)
         combined_param_specs.update(
@@ -982,6 +1001,14 @@ class StudyMetaClass(type):
         dct['_param_specs'] = combined_param_specs
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
+        # Append description of Study parameters to class
+        try:
+            docstring = dct['__doc__']
+        except KeyError:
+            docstring = '{} Study class'.format(name)
+        if 'Parameters' not in docstring:
+            docstring += Study.__doc__
+        dct['__doc__'] = docstring
         return type(name, bases, dct)
 
 

@@ -117,7 +117,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetSelector('ones', text_format, 'ones')],
+            {'ones': 'ones'},
             environment=ModulesEnvironment())
         self.assertContentsEqual(study.data('twos'), 2.0)
         self.assertEqual(ModulesEnvironment.loaded(), {})
@@ -126,7 +126,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetSelector('ones', text_format, 'ones')],
+            [FilesetSelector('ones', 'ones', text_format)],
             environment=ModulesEnvironment())
         threes = study.data('threes')
         fours = study.data('fours')

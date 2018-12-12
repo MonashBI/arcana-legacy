@@ -1,10 +1,10 @@
 from builtins import object
+from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 from future.utils import with_metaclass
 import logging
-from collections import defaultdict
-from itertools import chain
-from .tree import Tree, Subject, Session, Visit
+from .tree import Tree
+from arcana.exceptions import ArcanaUsageError
 
 
 logger = logging.getLogger('arcana')
@@ -17,9 +17,13 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
     classes should implement.
     """
 
-    def __init__(self):
+    def __init__(self, subject_id_map=None, visit_id_map=None):
         self._connection_depth = 0
-        self._cache = {}
+        self._subject_id_map = subject_id_map
+        self._visit_id_map = visit_id_map
+        self._inv_subject_id_map = {}
+        self._inv_visit_id_map = {}
+        self.clear_cache()
 
     def __enter__(self):
         # This allows the repository to be used within nested contexts
@@ -213,7 +217,7 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
         if visit_ids is not None:
             visit_ids = frozenset(visit_ids)
         try:
-            tree = self._cache[(subject_ids, visit_ids)]
+            tree = self._cache[subject_ids][visit_ids]
         except KeyError:
             if fill:
                 fill_subjects = subject_ids
@@ -223,12 +227,59 @@ class BaseRepository(with_metaclass(ABCMeta, object)):
             tree = self.tree(
                 subject_ids=subject_ids, visit_ids=visit_ids,
                 fill_visits=fill_visits, fill_subjects=fill_subjects)
-            self._cache[(frozenset(tree.subject_ids),
-                         frozenset(tree.visit_ids))] = tree
+            # Save the tree within the cache under the given subject/
+            # visit ID filters and the IDs that were actually returned
+            self._cache[subject_ids][visit_ids] = self._cache[
+                frozenset(tree.subject_ids)][frozenset(tree.visit_ids)] = tree
         return tree
 
     def clear_cache(self):
-        self._cache = {}
+        self._cache = defaultdict(dict)
 
     def __ne__(self, other):
         return not (self == other)
+
+    def map_subject_id(self, subject_id):
+        return self._map_id(subject_id, self._subject_id_map,
+                            self._inv_subject_id_map)
+
+    def map_visit_id(self, visit_id):
+        return self._map_id(visit_id, self._visit_id_map,
+                            self._inv_visit_id_map)
+
+    def inv_map_subject_id(self, subject_id):
+        try:
+            return self._inv_subject_id_map[subject_id]
+        except KeyError:
+            return subject_id
+
+    def inv_map_visit_id(self, visit_id):
+        try:
+            return self._inv_visit_id_map[visit_id]
+        except KeyError:
+            return visit_id
+
+    def _map_id(self, id, map, inv_map):  # @ReservedAssignment
+        if id is None:
+            return None
+        mapped = id
+        if callable(map):
+            mapped = map(id)
+        elif self._visit_id_map is not None:
+            try:
+                mapped = map(id)
+            except KeyError:
+                pass
+        if mapped != id:
+            # Check for multiple mappings onto the same ID
+            try:
+                prev = inv_map[mapped]
+            except KeyError:
+                inv_map[mapped] = id
+            else:
+                if prev != id:
+                    raise ArcanaUsageError(
+                        "Both '{}' and '{}' have been mapped onto the same ID "
+                        "in repository {}"
+                        .format(prev, id, self))
+        return mapped

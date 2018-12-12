@@ -11,12 +11,14 @@ import json
 from itertools import chain
 from collections import defaultdict
 import networkx.readwrite.json_graph as nx_json
+from networkx import __version__ as networkx_version
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from logging import getLogger
 from arcana.utils import extract_package_version
-from arcana.pkg_info import __version__
-from arcana.exceptions import ArcanaDesignError, ArcanaError, ArcanaUsageError
+from arcana.__about__ import __version__
+from arcana.exceptions import (
+    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -745,7 +747,16 @@ class Pipeline(object):
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
                 if self.requires_conversion(input, format):
-                    conv = format.converter_from(input.format, **conv_kwargs)
+                    try:
+                        conv = format.converter_from(input.format,
+                                                     **conv_kwargs)
+                    except ArcanaNoConverterError as e:
+                        e.msg += (
+                            "which is required to convert '{}' from {} to {} "
+                            "for '{}' input of '{}' node".format(
+                                input.name, input.format, format, node_in,
+                                node.name))
+                        raise e
                     try:
                         in_node = prev_conv_nodes[format.name]
                     except KeyError:
@@ -835,8 +846,12 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            link['source'] = wf_dict['nodes'][link['source']]['id'].name
-            link['target'] = wf_dict['nodes'][link['target']]['id'].name
+            if int(networkx_version.split('.')[0]) < 2:
+                link['source'] = wf_dict['nodes'][link['source']]['id'].name
+                link['target'] = wf_dict['nodes'][link['target']]['id'].name
+            else:
+                link['source'] = link['source'].name
+                link['target'] = link['target'].name
         wf_dict['nodes'] = {n['id'].name: n['id'].prov
                             for n in wf_dict['nodes']}
         # Roundtrip to JSON to convert any tuples into lists so dictionaries

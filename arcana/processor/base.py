@@ -292,9 +292,9 @@ class BaseProcessor(object):
                     push_on_stack(prereq, filt_array, prq_req_outputs)
                 except (ArcanaMissingDataException,
                         ArcanaOutputNotProducedException) as e:
-                    e.args = ("{}, which are required as inputs to the '{}' "
+                    e.msg += ("{}, which are required as inputs to the '{}' "
                               "pipeline to produce '{}'".format(
-                                  e, pipeline.name, "', '".join(req_outputs)),)
+                                  pipeline.name, "', '".join(req_outputs)))
                     raise e
 
         # Add all primary pipelines to the stack along with their prereqs
@@ -753,8 +753,8 @@ class BaseProcessor(object):
         to_skip = defaultdict(list)
         # Check data tree for missing inputs
         for input in pipeline.inputs:  # @ReservedAssignment
-            # NB: Inputs that don't have skip_missing set and have missing
-            # data will raise an error before this point
+            # NB: Study inputs that don't have skip_missing set and have
+            # missing data should raise an error before this point
             if input.skip_missing:
                 for item in input.collection:
                     if not item.exists:

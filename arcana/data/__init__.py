@@ -6,4 +6,3 @@ from .spec import (
 from .base import BaseField, BaseFileset, BaseData
 from .selector import FilesetSelector, FieldSelector, BaseSelector
 from .file_format import FileFormat, Converter, IdentityConverter
-from .bids import BidsMatch, BidsAssociatedMatch

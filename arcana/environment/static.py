@@ -24,7 +24,7 @@ class StaticEnvironment(BaseEnvironment):
 
     def __init__(self, fail_on_missing=True, fail_on_undetectable=True):
         self._fail_on_missing = fail_on_missing
-        self._fail_on_undectable = fail_on_undetectable
+        self._fail_on_undetectable = fail_on_undetectable
         self._detected_versions = {}
 
     def satisfy(self, *requirements):

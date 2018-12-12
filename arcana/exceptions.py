@@ -1,8 +1,19 @@
 class ArcanaException(Exception):
-    pass
+
+    @property
+    def msg(self):
+        return self.args[0]
+
+    @msg.setter
+    def msg(self, msg):
+        self.args = (msg,) + self.args[1:]
 
 
 class ArcanaError(ArcanaException):
+    pass
+
+
+class ArcanaNotBoundToStudyError(ArcanaError):
     pass
 
 

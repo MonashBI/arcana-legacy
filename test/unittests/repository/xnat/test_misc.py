@@ -114,8 +114,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
             inputs=[
-                FilesetSelector('gre_phase', dicom_format, id=7),
-                FilesetSelector('gre_mag', dicom_format, id=6)])
+                FilesetSelector('gre_phase', format=dicom_format, id=7),
+                FilesetSelector('gre_mag', format=dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -152,4 +152,4 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
         self.assertEqual(fileset.path, target_path)
         with open(target_path) as f:
             self.assertEqual(f.read(),
-                             self.INPUT_DATASETS[fileset.name])
+                             self.INPUT_DATASETS[fileset.basename])

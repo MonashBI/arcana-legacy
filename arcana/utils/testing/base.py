@@ -480,7 +480,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
             for fileset in node.filesets:
                 fileset._repository = self.local_repository
                 fileset._path = op.join(
-                    fileset.repository.session_dir(fileset), fileset.fname)
+                    fileset.repository.fileset_path(fileset))
                 session_path = op.dirname(fileset.path)
                 self._make_dir(session_path)
                 with open(fileset.path, 'w') as f:
@@ -489,14 +489,13 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     self._make_dir(op.join(session_path,
                                            DirectoryRepository.PROV_DIR))
             for field in node.fields:
-                session_path = self.local_repository.session_dir(field)
-                self._make_dir(session_path)
-                fields_path = op.join(session_path,
-                                      DirectoryRepository.FIELDS_FNAME)
+                fields_path = self.local_repository.fields_json_path(field)
                 if op.exists(fields_path):
                     with open(fields_path, **JSON_ENCODING) as f:
                         dct = json.load(f)
                 else:
+                    if not op.exists(op.dirname(fields_path)):
+                        os.makedirs(op.dirname(fields_path))
                     dct = {}
                 dct[field.name] = field.value
                 with open(fields_path, 'w', **JSON_ENCODING) as f:

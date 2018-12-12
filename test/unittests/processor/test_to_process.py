@@ -1,8 +1,3 @@
-from pprint import pformat
-import os.path as op
-import tempfile
-from copy import copy
-import shutil
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -10,12 +5,11 @@ from arcana.processor import LinearProcessor
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParameterSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
-    AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector,
+    AcquiredFilesetSpec, FilesetSpec, FieldSpec,
     AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.pipeline.provenance import Record
-from arcana.data import Fileset, Field
+from arcana.data import Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
 from arcana.exceptions import (
@@ -235,20 +229,17 @@ def change_value_w_prov(field, new_value):
     field.repository.put_record(record)
 
 
-STUDY_INPUTS = [FilesetSelector('acquired_fileset1', text_format,
-                                'acquired_fileset1'),
-                FilesetSelector('acquired_fileset2', text_format,
-                                'acquired_fileset2'),
-                FilesetSelector('acquired_fileset3', text_format,
-                                'acquired_fileset3'),
-                FieldSelector('acquired_field1', int, 'acquired_field1')]
+STUDY_INPUTS = {'acquired_fileset1': 'acquired_fileset1',
+                'acquired_fileset2': 'acquired_fileset2',
+                'acquired_fileset3': 'acquired_fileset3',
+                'acquired_field1': 'acquired_field1'}
 
 
 INPUT_DATASETS = {'acquired_fileset1': '1.0',
                   'acquired_fileset2': '2.0',
                   'acquired_fileset3': '3.0'}
 
-INPUT_FIELDS = {'acquired_field1': 11}
+INPUT_FIELDS = {'acquired_field1': 11.0}
 
 
 class TestProvBasic(BaseTestCase):
@@ -557,7 +548,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [FieldSelector('acquired_field1', int, 'acquired_field1')]
+    STUDY_INPUTS = [FieldSelector('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -797,8 +788,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=[
-                FieldSelector('acquired_field1', int, 'acquired_field1'),
-                FieldSelector('acquired_field2', int, 'acquired_field2',
+                FieldSelector('acquired_field1', 'acquired_field1', int),
+                FieldSelector('acquired_field2', 'acquired_field2', int,
                               skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],
