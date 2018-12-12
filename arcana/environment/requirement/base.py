@@ -237,7 +237,14 @@ class Version(object):
                     sequence.append(seq_part)
                 if len(sub_parts) > 1:
                     stage = sub_parts[1]
-                    pr_ver = int(sub_parts[2])
+                    try:
+                        pr_ver = int(sub_parts[2])
+                    except ValueError:
+                        raise ArcanaVersionNotDetectableError(
+                            "Could not parse version string {} as {}. "
+                            "Did not recognise pre-release version {}"
+                            .format(version, type(self).__name__,
+                                sub_parts[2]))
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None
