@@ -25,7 +25,7 @@ class ArcanaRequirementNotFoundError(ArcanaVersionError):
     pass
 
 
-class ArcanaVersionNotDectableError(ArcanaVersionError):
+class ArcanaVersionNotDetectableError(ArcanaVersionError):
     pass
 
 

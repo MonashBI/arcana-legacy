@@ -2,7 +2,7 @@ import importlib
 from .base import BaseRequirement
 from arcana.exceptions import (
     ArcanaRequirementNotFoundError,
-    ArcanaVersionNotDectableError)
+    ArcanaVersionNotDetectableError)
 
 
 class PythonPackageRequirement(BaseRequirement):
@@ -34,13 +34,13 @@ class PythonPackageRequirement(BaseRequirement):
                 "Did not find '{}' module/package for {}"
                 .format(self.package_name, self))
         if self.version_attr is None:
-            raise ArcanaVersionNotDectableError(
+            raise ArcanaVersionNotDetectableError(
                 "Could not detect version of {} as version information is not "
                 "provided in package".format(self))
         try:
             version_str = getattr(module, self.version_attr)
         except KeyError:
-            raise ArcanaVersionNotDectableError(
+            raise ArcanaVersionNotDetectableError(
                 "Version attribute '{}' is not present in loaded version of {}"
                 " ({})".format(self.version_attr, self, self.package_name))
         return version_str
