@@ -82,8 +82,6 @@ class XnatRepository(BaseRepository):
         self._password = password
         self._race_cond_delay = race_cond_delay
         self._check_md5 = check_md5
-        if session_filter is not None:
-            session_filter = re.compile(session_filter)
         self._session_filter = session_filter
         self._login = None
 
@@ -140,7 +138,7 @@ class XnatRepository(BaseRepository):
 
     @property
     def session_filter(self):
-        return self._session_filter
+        return re.compile(self._session_filter)
 
     def connect(self):
         """
