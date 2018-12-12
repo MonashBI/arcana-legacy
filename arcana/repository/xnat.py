@@ -138,7 +138,8 @@ class XnatRepository(BaseRepository):
 
     @property
     def session_filter(self):
-        return re.compile(self._session_filter)
+        return (re.compile(self._session_filter)
+                if self._session_filter is not None else None)
 
     def connect(self):
         """
