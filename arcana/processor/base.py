@@ -71,7 +71,7 @@ class BaseProcessor(object):
     """
 
     DEFAULT_WALL_TIME = 20
-    DEFAULT_MEM_GB = 4096
+    DEFAULT_MEM_GB = 4
 
     default_plugin_args = {}
 
