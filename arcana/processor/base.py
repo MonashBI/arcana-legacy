@@ -30,7 +30,9 @@ WORKFLOW_MAX_NAME_LEN = 100
 DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs', 'joined_ids']
 # The default paths in the provenance JSON to ignore mismatches that would
 # otherwise require the derivative to be reprocessed
-DEFAULT_PROV_IGNORE = ['.*/pkg_version']
+DEFAULT_PROV_IGNORE = ['.*/pkg_version',
+                       'workflow/nodes/.*/requirements/.*/local_version',
+                       'workflow/nodes/.*/requirements/.*/local_name']
 
 
 class BaseProcessor(object):
