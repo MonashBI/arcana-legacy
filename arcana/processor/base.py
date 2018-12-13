@@ -425,7 +425,7 @@ class BaseProcessor(object):
                 '{}_source'.format(freq),
                 RepositorySource(
                     i.collection for i in inputs),
-                connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
+                inputs=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
             # Connect iter_nodes to source and input nodes
             for iterator in pipeline.iterators(freq):
@@ -499,7 +499,7 @@ class BaseProcessor(object):
                 '{}_sink'.format(freq),
                 RepositorySink(
                     (o.collection for o in outputs), pipeline),
-                connect=to_connect)
+                inputs=to_connect)
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
             # the sink and subject_id as the default deiterator if there are no
