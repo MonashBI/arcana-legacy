@@ -762,7 +762,7 @@ class Pipeline(object):
                             'conv_{}_to_{}_format'.format(input.name,
                                                           format.name),
                             conv.interface,
-                            connect={conv.input: (inputnode, input.name)},
+                            inputs={conv.input: (inputnode, input.name)},
                             requirements=conv.requirements,
                             mem_gb=conv.mem_gb,
                             wall_time=conv.wall_time)
@@ -816,7 +816,7 @@ class Pipeline(object):
                 node = self.add(
                     'conv_{}_from_{}_format'.format(output.name, format.name),
                     conv.interface,
-                    connect={conv.input: (node, node_out)},
+                    inputs={conv.input: (node, node_out)},
                     requirements=conv.requirements,
                     mem_gb=conv.mem_gb,
                     wall_time=conv.wall_time)

@@ -487,7 +487,7 @@ class BaseProcessor(object):
                             input_freq, freq, iterator),
                         IdentityInterface(
                             checksums_to_connect),
-                        connect={
+                        inputs={
                             tc: (source, tc) for tc in checksums_to_connect},
                         joinsource=iterator,
                         joinfield=checksums_to_connect)
@@ -516,7 +516,7 @@ class BaseProcessor(object):
                     '{}_{}_deiter'.format(freq, iterator),
                     IdentityInterface(
                         ['checksums']),
-                    connect={
+                    inputs={
                         'checksums': (deiter_nodes[freq], 'checksums')},
                     joinsource=iterator,
                     joinfield='checksums')
@@ -526,7 +526,7 @@ class BaseProcessor(object):
             'final',
             Merge(
                 len(deiter_nodes)),
-            connect={
+            inputs={
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
 

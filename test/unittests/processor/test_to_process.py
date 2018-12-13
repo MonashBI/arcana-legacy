@@ -72,8 +72,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
             TestMath(
                 op='add'),
             inputs={
-                'y': ('acquired_field1', float)},
-            connect={
+                'y': ('acquired_field1', float),
                 'x': (math1, 'z')},
             requirements=[
                 c_req.v(0.1)])
@@ -86,19 +85,19 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
             TestMath(
                 op='mul',
                 y=self.parameter('multiplier')),
-            connect={
+            inputs={
                 'x': (math2, 'z')},
             requirements=[
                 b_req.v('2.7.0', '3.0')])
         pipeline.add(
             'merge1',
             Merge(3),
-            connect={
+            inputs={
                 'in1': (math1, 'z'),
                 'in2': (math2, 'z'),
                 'in3': (math3, 'z')},
             outputs={
-                'out': ('derived_field1', float)},
+                'derived_field1': ('out', float)},
             requirements=math3_reqs)
         return pipeline
 
@@ -121,8 +120,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 op='add',
                 as_file=True),
             inputs={
-                'y': ('acquired_fileset3', text_format)},
-            connect={
+                'y': ('acquired_fileset3', text_format),
                 'x': (split, 'out3')},
             requirements=[
                 a_req.v('1.0')])
@@ -132,11 +130,10 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 op='add',
                 as_file=True),
             inputs={
-                'y': ('acquired_field1', float)},
-            connect={
+                'y': ('acquired_field1', float),
                 'x': (math1, 'z')},
             outputs={
-                'z': ('derived_fileset1', text_format)},
+                'derived_fileset1': ('z', text_format)},
             requirements=[
                 c_req.v(0.1)])
         pipeline.add(
@@ -145,10 +142,10 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 op='sub',
                 as_file=False,
                 y=-1),
-            connect={
+            inputs={
                 'x': (math2, 'z')},
             outputs={
-                'z': ('derived_field4', float)})
+                'derived_field4': ('z', float)})
         return pipeline
 
     def pipeline3(self, **name_maps):
@@ -166,7 +163,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
                 'x': ('acquired_fileset2', text_format),
                 'y': ('derived_fileset1', text_format)},
             outputs={
-                'z': ('derived_field2', float)},
+                'derived_field2': ('z', float)},
             requirements=[
                 a_req.v('1.0')])
         pipeline.add(
@@ -178,7 +175,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'x': ('acquired_field1', float)},
             outputs={
-                'z': ('derived_field3', float)},
+                'derived_field3': ('z', float)},
             requirements=[
                 c_req.v(0.1)])
         return pipeline
@@ -200,7 +197,7 @@ class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
                 x=self.parameter('a'),
                 y=self.parameter('b')),
             outputs={
-                'z': ('derived_fileset1', text_format)})
+                'derived_fileset1': ('z', text_format)})
         return pipeline
 
 
@@ -434,7 +431,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'x': ('acquired_field1', int)},
             outputs={
-                'z': ('derived_field1', int)})
+                'derived_field1': ('z', int)})
         if self.provided('acquired_field2'):
             pipeline.connect_input('acquired_field2', math, 'y')
         else:
@@ -455,7 +452,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'x': ('derived_field1', int)},
             outputs={
-                'z': ('derived_field2', int)},
+                'derived_field2': ('z', int)},
             joinsource=self.VISIT_ID,
             joinfield='x')
         return pipeline
@@ -474,7 +471,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'x': ('derived_field1', int)},
             outputs={
-                'z': ('derived_field3', int)},
+                'derived_field3': ('z', int)},
             joinsource=self.SUBJECT_ID,
             joinfield='x')
         return pipeline
@@ -499,7 +496,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             Merge(
                 numinputs=1,
                 ravel_inputs=True),
-            connect={
+            inputs={
                 'in1': (merge1, 'out')},
             joinsource=self.VISIT_ID,
             joinfield='in1')
@@ -508,10 +505,10 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             TestMath(
                 op='add',
                 as_file=False),
-            connect={
+            inputs={
                 'x': (merge2, 'out')},
             outputs={
-                'z': ('derived_field4', int)})
+                'derived_field4': ('z', int)})
         return pipeline
 
     def pipeline5(self, **name_maps):
@@ -533,10 +530,10 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
             TestMath(
                 op='add',
                 as_file=False),
-            connect={
+            inputs={
                 'x': (merge, 'out')},
             outputs={
-                'z': ('derived_field5', float)})
+                'derived_field5': ('z', float)})
         return pipeline
 
 
