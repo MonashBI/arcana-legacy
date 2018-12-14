@@ -101,8 +101,13 @@ class DirectoryRepository(BaseRepository):
             path = self.fileset_path(fileset)
             if not op.exists(path):
                 raise ArcanaMissingDataException(
-                    "{} does not exist in the local repository {}"
+                    "{} does not exist in {}"
                     .format(fileset, self))
+            for sc_name, sc_path in fileset.format.side_car_paths(path):
+                if not op.exists(sc_path):
+                    raise ArcanaMissingDataException(
+                        "{} is missing '{}' side car in {}"
+                        .format(fileset, sc_name, self))
         else:
             path = fileset.path
         return path
@@ -145,6 +150,9 @@ class DirectoryRepository(BaseRepository):
         target_path = self.fileset_path(fileset)
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
+            # Copy side car files into repository
+            for sc_name, sc_path in fileset.format.side_car_paths(target_path):
+                shutil.copyfile(self.side_car[sc_name], sc_path)
         elif op.isdir(fileset.path):
             if op.exists(target_path):
                 shutil.rmtree(target_path)

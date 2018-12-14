@@ -145,6 +145,9 @@ class Fileset(BaseItem, BaseFileset):
         fileset.
     path : str | None
         The path to the fileset (for repositories on the local system)
+    side_cars : dict[str, str] | None
+        Additional files in the fileset. Keys should match corresponding
+        side_cars dictionary in format.
     id : int | None
         The ID of the fileset in the session. To be used to
         distinguish multiple filesets with the same scan type in the
@@ -169,27 +172,42 @@ class Fileset(BaseItem, BaseFileset):
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
-                 path=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+                 path=None, side_cars=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
-        if path is not None:
+        if path is None:
+            if side_cars is not None:
+                raise ArcanaUsageError(
+                    "Side cars provided to {} fileset ({}) but not primary "
+                    "path".format(self.name, side_cars))
+        else:
             path = op.abspath(op.realpath(path))
+            if side_cars is None:
+                side_cars = {}
+            if set(side_cars.keys()) != set(self.format.side_cars.keys()):
+                raise ArcanaUsageError(
+                    "Provided side cars for '{}' but expected '{}'"
+                    .format("', '".join(side_cars.keys()),
+                            "', '".join(self.format.side_cars.keys())))
         self._path = path
+        self._side_cars = side_cars
         self._uri = uri
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
                            [DICOM_SERIES_NUMBER_TAG])
         else:
             self._id = id
+
         self._checksums = checksums
 
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
+              self.side_cars == other.side_cars and
               self.id == other.id and
               self.checksums == other.checksums)
         # Avoid having to cache fileset in order to test equality unless they
@@ -205,6 +223,7 @@ class Fileset(BaseItem, BaseFileset):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self.id) ^
+                hash(tuple(sorted(self.side_cars.items()))) ^
                 hash(self.checksums))
 
     def __lt__(self, other):
@@ -273,6 +292,7 @@ class Fileset(BaseItem, BaseFileset):
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
+        self._side_cars = dict(self.format.side_car_paths(path))
         self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
 
@@ -283,8 +303,7 @@ class Fileset(BaseItem, BaseFileset):
             return chain(*((op.join(root, f) for f in files)
                            for root, _, files in os.walk(self.path)))
         else:
-            # FIXME: Need to add support for headers/side-car files
-            return iter([self.path])
+            return chain([self.path], self.side_cars.values())
 
     @property
     def fname(self):
@@ -330,6 +349,15 @@ class Fileset(BaseItem, BaseFileset):
                                    "to {}".format(self, self._uri, uri))
 
     @property
+    def side_cars(self):
+        return self._side_cars
+
+    @property
+    def side_car_fnames_and_paths(self):
+        return ((self.basename + self.format.side_cars[sc_name], sc_path)
+                for sc_name, sc_path in self.side_cars.items())
+
+    @property
     def checksums(self):
         if not self.exists:
             raise ArcanaDataNotDerivedYetError(
@@ -353,7 +381,7 @@ class Fileset(BaseItem, BaseFileset):
 
     @classmethod
     def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  from_study=None, **kwargs):
+                  from_study=None, side_cars=None, **kwargs):
         if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
@@ -387,8 +415,13 @@ class Fileset(BaseItem, BaseFileset):
                 name = filename
             else:
                 name = basename
+            # Create side cars dictionary from default extensions
+            if side_cars is None:
+                side_cars = {}
+                for sc_name, sc_ext in format.side_cars.items():
+                    side_cars[sc_name] = basename + sc_ext
         return cls(name, format, frequency=frequency, path=path,
-                   from_study=from_study, **kwargs)
+                   from_study=from_study, side_cars=side_cars, **kwargs)
 
     def dicom(self, index):
         """

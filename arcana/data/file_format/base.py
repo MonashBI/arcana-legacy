@@ -33,10 +33,19 @@ class FileFormat(object):
         A dictionary mapping names of alternative data formats
         to Converter objects that can convert from the alternative
         format to this format.
+    side_cars : dict[str, str]
+        A dictionary of side cars (e.g. header or NIfTI json side cars) aside
+        from the primary file, along with their expected extension.
+        Automatically they will be assumed to be located adjancent to the
+        primary file, with the same base name and this extension. However, in
+        the initialisation of the fileset, alternate locations can be specified
     alternate_names : List[str]
         A list of alternate names to use to load the file format with
         (when the format is saved by format name, e.g. XNAT, instead
         of a file with an extension)
+    array_loader : Function
+        A function that takes the fileset path in the given format and
+        returns a data array
     array_loader : Function
         A function that takes the fileset path in the given format and
         returns a data array
@@ -49,7 +58,7 @@ class FileFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None, alternate_names=None,
+                 converters=None, side_cars=None, alternate_names=None,
                  array_loader=None, header_loader=None):
         if not name.islower():
             raise ArcanaUsageError(
@@ -75,6 +84,12 @@ class FileFormat(object):
                                  if alternate_names is not None else ())
         self._array_loader = array_loader
         self._header_loader = header_loader
+        self._side_cars = side_cars if side_cars is not None else {}
+        for sc_name, sc_ext in self.side_cars.items():
+            if sc_ext == self.ext:
+                raise ArcanaUsageError(
+                    "Extension for side car '{}' cannot be the same as the "
+                    "primary file ('{}')".format(sc_name, sc_ext))
 
     def __eq__(self, other):
         try:
@@ -85,7 +100,8 @@ class FileFormat(object):
                 self._directory == other._directory and
                 self._within_dir_exts ==
                 other._within_dir_exts and
-                self.alternate_names == other.alternate_names)
+                self.alternate_names == other.alternate_names and
+                self.side_cars == other.side_cars)
         except AttributeError:
             return False
 
@@ -96,7 +112,8 @@ class FileFormat(object):
             hash(self._desc) ^
             hash(self._directory) ^
             hash(self._within_dir_exts) ^
-            hash(self._alternate_names))
+            hash(self._alternate_names) ^
+            hash(tuple(sorted(self.side_cars.items()))))
 
     def __ne__(self, other):
         return not self == other
@@ -138,6 +155,14 @@ class FileFormat(object):
     @property
     def alternate_names(self):
         return self._alternate_names
+
+    @property
+    def side_cars(self):
+        return self._side_cars
+
+    def side_car_paths(self, path):
+        return ((name, path[:-len(self.ext)] + ext)
+                for n, ext in self.side_cars.items())
 
     @property
     def within_dir_exts(self):
@@ -294,7 +319,7 @@ class FileFormat(object):
             raise ArcanaMissingDataException(
                 "Did not find single file with extension '{}' "
                 "(found '{}')"
-                .format(self.extension, "', '".join(file_names), fname))
+                .format(self.extension, "', '".join(file_names)))
         return fname
 
 

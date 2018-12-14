@@ -47,6 +47,7 @@ install:
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .
+  - pip install networkx==1.9  # Only needed until Nipype 1.1.7 is released
   - mkdir -p $HOME/data
   - pip install nose
   - pip install codecov
