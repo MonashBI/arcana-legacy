@@ -1,4 +1,5 @@
 from builtins import object
+from past.builtins import basestring
 from arcana.exceptions import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError, ArcanaMissingDataException)
@@ -137,6 +138,10 @@ class FileFormat(object):
         return self._extension
 
     @property
+    def extensions(self):
+        return tuple([self._extension] + sorted(self.side_car_exts))
+
+    @property
     def ext(self):
         return self._extension
 
@@ -163,6 +168,10 @@ class FileFormat(object):
     def side_car_paths(self, path):
         return ((n, path[:-len(self.ext)] + ext)
                 for n, ext in self.side_cars.items())
+
+    @property
+    def side_car_exts(self):
+        return self._side_cars.values()
 
     @property
     def within_dir_exts(self):
@@ -214,12 +223,12 @@ class FileFormat(object):
                                 cls.by_within_exts[
                                     file_format.within_dir_exts]))
             else:
-                if file_format.extension in cls.by_exts:
+                if file_format.extensions in cls.by_exts:
                     raise ArcanaFileFormatClashError(
-                        "Cannot register {} due to extension clash with "
+                        "Cannot register {} due to extension(s) clash with "
                         "previously registered {}".format(
                             file_format,
-                            cls.by_exts[file_format.ext]))
+                            cls.by_exts[file_format.extensions]))
             for alt_name in file_format.alternate_names:
                 if alt_name in cls.by_names:
                     raise ArcanaFileFormatClashError(
@@ -230,8 +239,8 @@ class FileFormat(object):
             cls.by_names[file_format.name] = file_format
             for alt_name in file_format.alternate_names:
                 cls.by_names[alt_name] = file_format
-            if file_format.ext is not None:
-                cls.by_exts[file_format.ext] = file_format
+            if file_format.extension is not None:
+                cls.by_exts[file_format.extensions] = file_format
             if file_format.within_dir_exts is not None:
                 cls.by_within_exts[
                     file_format.within_dir_exts] = file_format
@@ -249,6 +258,9 @@ class FileFormat(object):
 
     @classmethod
     def by_ext(cls, ext):
+        # Convert to tuple
+        if isinstance(ext, basestring):
+            ext = (ext,)
         try:
             return cls.by_exts[ext]
         except KeyError:
