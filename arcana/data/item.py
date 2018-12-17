@@ -413,12 +413,19 @@ class Fileset(BaseItem, BaseFileset):
             filename = op.basename(path)
             basename, ext = split_extension(filename)
             if format is None:
+                possible_side_car_exts = [
+                    split_extension(f)[1] for f in os.listdir(op.dirname(path))
+                    if f.startswith(basename) and f != filename]
+                extensions = tuple([ext] + sorted(possible_side_car_exts))
                 try:
-                    format = FileFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
-                except ArcanaFileFormatNotRegisteredError as e:
-                    e.msg += (", which is required to identify the "
-                              "format of the fileset at '{}'".format(path))
-                    raise e
+                    format = FileFormat.by_ext(extensions)  # @ReservedAssignment @IgnorePep8
+                except ArcanaFileFormatNotRegisteredError:
+                    try:
+                        format = FileFormat.by_ext(ext)  # @ReservedAssignment
+                    except ArcanaFileFormatNotRegisteredError as e:
+                        e.msg += (", which is required to identify the "
+                                  "format of the fileset at '{}'".format(path))
+                        raise e
             if from_study is None:
                 # For acquired datasets we can't be sure that the name is
                 # unique within the directory if we strip the extension so we
