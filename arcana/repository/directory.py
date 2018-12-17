@@ -13,7 +13,7 @@ from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
-    ArcanaMissingDataException)
+    ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
@@ -246,14 +246,19 @@ class DirectoryRepository(BaseRepository):
                 frequency = 'per_session'
             for fname in chain(self._filter_files(files, session_path),
                                self._filter_dirs(dirs, session_path)):
-                all_filesets.append(
-                    Fileset.from_path(
-                        op.join(session_path, fname),
-                        frequency=frequency,
-                        subject_id=subj_id, visit_id=visit_id,
-                        repository=self,
-                        from_study=from_study,
-                        **kwargs))
+                try:
+                    all_filesets.append(
+                        Fileset.from_path(
+                            op.join(session_path, fname),
+                            frequency=frequency,
+                            subject_id=subj_id, visit_id=visit_id,
+                            repository=self,
+                            from_study=from_study,
+                            **kwargs))
+                except ArcanaFileFormatNotRegisteredError:
+                    logger.info("Skipping '{}' as its extension is not "
+                                "recognised".format(op.join(session_path,
+                                                            fname)))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:

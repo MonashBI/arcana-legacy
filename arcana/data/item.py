@@ -286,15 +286,26 @@ class Fileset(BaseItem, BaseFileset):
                     "'{}')".format(self.name))
         return self._path
 
-    @path.setter
-    def path(self, path):
+    def set_path(self, path, side_cars=None):
         if path is not None:
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
-        self._side_cars = dict(self.format.side_car_paths(path))
+        if side_cars is None:
+            self._side_cars = dict(self.format.side_car_paths(path))
+        else:
+            if set(self.format.side_cars.keys()) != set(side_cars.keys()):
+                raise ArcanaUsageError(
+                    "Keys of provided side cars ('{}') don't match format "
+                    "('{}')".format("', '".join(side_cars.keys()),
+                                    "', '".join(self.format.side_cars.keys())))
+            self._side_cars = side_cars
         self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
+
+    @path.setter
+    def path(self, path):
+        self.set_path(path, side_cars=None)
 
     @property
     def paths(self):
@@ -350,7 +361,7 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def side_cars(self):
-        return self._side_cars
+        return self._side_cars if self._side_cars is not None else {}
 
     @property
     def side_car_fnames_and_paths(self):
@@ -405,9 +416,9 @@ class Fileset(BaseItem, BaseFileset):
                 try:
                     format = FileFormat.by_ext(ext)  # @ReservedAssignment @IgnorePep8
                 except ArcanaFileFormatNotRegisteredError as e:
-                    raise ArcanaFileFormatNotRegisteredError(
-                        str(e) + ", which is required to identify the "
-                        "format of the fileset at '{}'".format(path))
+                    e.msg += (", which is required to identify the "
+                              "format of the fileset at '{}'".format(path))
+                    raise e
             if from_study is None:
                 # For acquired datasets we can't be sure that the name is
                 # unique within the directory if we strip the extension so we
@@ -419,7 +430,8 @@ class Fileset(BaseItem, BaseFileset):
             if side_cars is None:
                 side_cars = {}
                 for sc_name, sc_ext in format.side_cars.items():
-                    side_cars[sc_name] = basename + sc_ext
+                    side_cars[sc_name] = op.join(op.dirname(path),
+                                                 basename + sc_ext)
         return cls(name, format, frequency=frequency, path=path,
                    from_study=from_study, side_cars=side_cars, **kwargs)
 

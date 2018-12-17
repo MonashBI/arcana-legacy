@@ -7,7 +7,7 @@ from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
 from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 from arcana.data.file_format import FileFormat  # @IgnorePep8
@@ -16,6 +16,7 @@ from arcana.data.file_format import FileFormat  # @IgnorePep8
 # A dummy format that contains a header
 with_header_format = FileFormat(name='with_header', extension='.whf',
                                 side_cars={'header': '.hdr'})
+FileFormat.register(with_header_format)
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):

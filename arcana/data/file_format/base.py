@@ -161,7 +161,7 @@ class FileFormat(object):
         return self._side_cars
 
     def side_car_paths(self, path):
-        return ((name, path[:-len(self.ext)] + ext)
+        return ((n, path[:-len(self.ext)] + ext)
                 for n, ext in self.side_cars.items())
 
     @property
