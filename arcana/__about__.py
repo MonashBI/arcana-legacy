@@ -8,7 +8,7 @@ __authors__ = [
 
 install_requires = [
     'xnat>=0.3.9',
-    'nipype>=1.0.4',
+    'nipype>=1.1.7',
     'pydicom>=1.0.2',
     'networkx>=1.9',
     'fasteners>=0.7.0',

@@ -261,6 +261,8 @@ class FileFormat(object):
         # Convert to tuple
         if isinstance(ext, basestring):
             ext = (ext,)
+        elif not isinstance(ext, tuple):
+            ext = tuple(ext)
         try:
             return cls.by_exts[ext]
         except KeyError:

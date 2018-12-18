@@ -416,7 +416,7 @@ class Fileset(BaseItem, BaseFileset):
                 possible_side_car_exts = [
                     split_extension(f)[1] for f in os.listdir(op.dirname(path))
                     if f.startswith(basename) and f != filename]
-                extensions = tuple([ext] + sorted(possible_side_car_exts))
+                extensions = [ext] + sorted(possible_side_car_exts)
                 try:
                     format = FileFormat.by_ext(extensions)  # @ReservedAssignment @IgnorePep8
                 except ArcanaFileFormatNotRegisteredError:
