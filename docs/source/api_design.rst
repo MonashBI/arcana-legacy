@@ -37,7 +37,7 @@ Pipeline
 --------
 
 .. autoclass:: arcana.pipeline.Pipeline
-    :members: connect, connect_input, connect_output, connect_subject_id, connect_visit_id, create_node, create_map_node, create_join_node, create_join_visits_node, create_join_subjects_node, option 
+    :members: add, provided, parameter, connect, connect_input, connect_output 
 
 
 Other

@@ -7,9 +7,16 @@ from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
 from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase  # @IgnorePep8
+from arcana.data.file_format import FileFormat  # @IgnorePep8
+
+
+# A dummy format that contains a header
+with_header_format = FileFormat(name='with_header', extension='.whf',
+                                side_cars={'header': '.hdr'})
+FileFormat.register(with_header_format)
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -56,10 +63,41 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
     """
 
     DATASET_CONTENTS = {'ones': 1, 'tens': 10, 'hundreds': 100,
-                        'thousands': 1000}
+                        'thousands': 1000, 'with_header': {'.': 'main',
+                                                           'header': 'header'}}
 
     def get_tree(self, repo, sync_with_repo=False):
         filesets = [
+            # Subject1
+            Fileset('ones', text_format,
+                    frequency='per_subject',
+                    subject_id='subject1',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    frequency='per_subject',
+                    subject_id='subject1',
+                    repository=repo),
+            # subject1/visit1
+            Fileset('hundreds', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            Fileset('ones', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            Fileset('with_header', with_header_format,
+                    frequency='per_session',
+                    subject_id='subject1', visit_id='visit1',
+                    repository=repo),
+            # subject1/visit2
+            Fileset('ones', text_format,
+                    subject_id='subject1', visit_id='visit2',
+                    repository=repo),
+            Fileset('tens', text_format,
+                    subject_id='subject1', visit_id='visit2',
+                    repository=repo),
             # Subject 2
             Fileset('ones', text_format,
                     frequency='per_subject',
@@ -82,32 +120,6 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit2',
-                    repository=repo),
-            # Subject1
-            Fileset('ones', text_format,
-                    frequency='per_subject',
-                    subject_id='subject1',
-                    repository=repo),
-            Fileset('tens', text_format,
-                    frequency='per_subject',
-                    subject_id='subject1',
-                    repository=repo),
-            # subject1/visit1
-            Fileset('hundreds', text_format,
-                    subject_id='subject1', visit_id='visit1',
-                    repository=repo),
-            Fileset('ones', text_format,
-                    subject_id='subject1', visit_id='visit1',
-                    repository=repo),
-            Fileset('tens', text_format,
-                    subject_id='subject1', visit_id='visit1',
-                    repository=repo),
-            # subject1/visit2
-            Fileset('ones', text_format,
-                    subject_id='subject1', visit_id='visit2',
-                    repository=repo),
-            Fileset('tens', text_format,
-                    subject_id='subject1', visit_id='visit2',
                     repository=repo),
             # Visit 1
             Fileset('ones', text_format,

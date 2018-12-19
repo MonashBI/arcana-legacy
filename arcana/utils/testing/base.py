@@ -483,8 +483,17 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     fileset.repository.fileset_path(fileset))
                 session_path = op.dirname(fileset.path)
                 self._make_dir(session_path)
+                contents = self.DATASET_CONTENTS[fileset.name]
+                if fileset.format.side_cars:
+                    fileset._side_cars = {}
+                    for sc_name, sc_path in fileset.format.side_car_paths(
+                            fileset._path):
+                        fileset._side_cars[sc_name] = sc_path
+                        with open(sc_path, 'w') as f:
+                            f.write(str(contents[sc_name]))
+                    contents = contents['.']
                 with open(fileset.path, 'w') as f:
-                    f.write(str(self.DATASET_CONTENTS[fileset.name]))
+                    f.write(str(contents))
                 if fileset.derived:
                     self._make_dir(op.join(session_path,
                                            DirectoryRepository.PROV_DIR))

@@ -48,7 +48,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'file': ('text', text_format)},
             outputs={
-                'file': ('text_from_text', text_format)})
+                'text_from_text': ('file', text_format)})
         # Convert from zip file to directory format on input
         pipeline.add(
             'directory_from_zip_on_input',
@@ -56,7 +56,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'file': ('zip', directory_format)},
             outputs={
-                'file': ('directory_from_zip_on_input', directory_format)})
+                'directory_from_zip_on_input': ('file', directory_format)})
         # Convert from zip file to directory format on input
         pipeline.add(
             'directory_from_zip_on_output',
@@ -64,7 +64,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'file': ('zip', zip_format)},
             outputs={
-                'file': ('directory_from_zip_on_output', zip_format)})
+                'directory_from_zip_on_output': ('file', zip_format)})
         # Convert from directory to zip format on input
         pipeline.add(
             'zip_from_directory_on_input',
@@ -72,7 +72,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'file': ('directory', zip_format)},
             outputs={
-                'file': ('zip_from_directory_on_input', zip_format)})
+                'zip_from_directory_on_input': ('file', zip_format)})
         # Convert from directory to zip format on input
         pipeline.add(
             'zip_from_directory_on_output',
@@ -80,7 +80,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             inputs={
                 'file': ('directory', directory_format)},
             outputs={
-                'file': ('zip_from_directory_on_output', directory_format)})
+                'zip_from_directory_on_output': ('file', directory_format)})
         return pipeline
 
 

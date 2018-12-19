@@ -30,7 +30,9 @@ WORKFLOW_MAX_NAME_LEN = 100
 DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs', 'joined_ids']
 # The default paths in the provenance JSON to ignore mismatches that would
 # otherwise require the derivative to be reprocessed
-DEFAULT_PROV_IGNORE = ['.*/pkg_version']
+DEFAULT_PROV_IGNORE = ['.*/pkg_version',
+                       'workflow/nodes/.*/requirements/.*/local_version',
+                       'workflow/nodes/.*/requirements/.*/local_name']
 
 
 class BaseProcessor(object):
@@ -423,7 +425,7 @@ class BaseProcessor(object):
                 '{}_source'.format(freq),
                 RepositorySource(
                     i.collection for i in inputs),
-                connect=({'prereqs': (prereqs, 'out')} if prereqs is not None
+                inputs=({'prereqs': (prereqs, 'out')} if prereqs is not None
                          else {}))
             # Connect iter_nodes to source and input nodes
             for iterator in pipeline.iterators(freq):
@@ -485,7 +487,7 @@ class BaseProcessor(object):
                             input_freq, freq, iterator),
                         IdentityInterface(
                             checksums_to_connect),
-                        connect={
+                        inputs={
                             tc: (source, tc) for tc in checksums_to_connect},
                         joinsource=iterator,
                         joinfield=checksums_to_connect)
@@ -497,7 +499,7 @@ class BaseProcessor(object):
                 '{}_sink'.format(freq),
                 RepositorySink(
                     (o.collection for o in outputs), pipeline),
-                connect=to_connect)
+                inputs=to_connect)
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
             # the sink and subject_id as the default deiterator if there are no
@@ -514,7 +516,7 @@ class BaseProcessor(object):
                     '{}_{}_deiter'.format(freq, iterator),
                     IdentityInterface(
                         ['checksums']),
-                    connect={
+                    inputs={
                         'checksums': (deiter_nodes[freq], 'checksums')},
                     joinsource=iterator,
                     joinfield='checksums')
@@ -524,7 +526,7 @@ class BaseProcessor(object):
             'final',
             Merge(
                 len(deiter_nodes)),
-            connect={
+            inputs={
                 'in{}'.format(i): (di, 'checksums')
                 for i, di in enumerate(deiter_nodes.values(), start=1)})
 
