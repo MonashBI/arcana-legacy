@@ -415,7 +415,8 @@ class Fileset(BaseItem, BaseFileset):
             if format is None:
                 possible_side_car_exts = [
                     split_extension(f)[1] for f in os.listdir(op.dirname(path))
-                    if f.startswith(basename) and f != filename]
+                    if (f.startswith(basename) and f != filename and
+                        split_extension(f)[1] is not None)]
                 extensions = [ext] + sorted(possible_side_car_exts)
                 try:
                     format = FileFormat.by_ext(extensions)  # @ReservedAssignment @IgnorePep8
