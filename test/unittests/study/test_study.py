@@ -18,12 +18,11 @@ from arcana.study.parameter import ParameterSpec  # @IgnorePep8
 from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
-from arcana.repository import Tree, Subject, Session, Visit  # @IgnorePep8
+from arcana.repository import Tree  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
-from arcana.repository import DirectoryRepository  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:

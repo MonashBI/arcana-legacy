@@ -284,7 +284,7 @@ class XnatRepository(BaseRepository):
                 xresource.delete()
             xresource = xscan.create_resource(
                 fileset.format.name.upper())
-            xresource.upload(cache_path, fileset.fname)
+            xresource.upload(fileset.path, fileset.fname)
             for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
                 xresource.upload(sc_path, sc_fname)
 
