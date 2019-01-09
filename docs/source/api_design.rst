@@ -5,8 +5,8 @@ The Arcana public API is based around the Study class, which should
 be sub-classed to implement workflows.
 
 
-Base Study Classes
-------------------
+Study
+-----
 
 .. autoclass:: arcana.study.Study
     :members: data, new_pipeline, pipeline, inputs, branch, parameter, unhandled_branch, data_spec, parameter_spec
