@@ -9,9 +9,10 @@ Study
 -----
 
 .. autoclass:: arcana.study.Study
-    :members: data, pre_option, new_pipeline
+    :members: data, new_pipeline, pipeline, inputs, branch, parameter, unhandled_branch, data_spec, parameter_spec
 
 .. autoclass:: arcana.study.MultiStudy
+    :members: sub_study, translate
 
 Meta-classes
 ------------
@@ -28,9 +29,9 @@ Specs
 
 .. autoclass:: arcana.data.FieldSpec
 
-.. autoclass:: arcana.study.multi.SubStudySpec
+.. autoclass:: arcana.study.SubStudySpec
 
-.. autoclass:: arcana.option.OptionSpec
+.. autoclass:: arcana.study.ParameterSpec
 
 
 Pipeline
@@ -40,11 +41,17 @@ Pipeline
     :members: add, provided, parameter, connect, connect_input, connect_output 
 
 
-Other
------
+Requirements
+------------
 
-.. autoclass:: arcana.requirement.Requirement
+.. autoclass:: CliRequirement
 
-.. autoclass:: arcana.data_format.DataFormat
+.. autoclass:: MatlabPackageRequirement,
+
+.. autoclass:: PythonPackageRequirement
+
+
+Misc
+----
 
 .. autoclass:: arcana.citation.Citation
