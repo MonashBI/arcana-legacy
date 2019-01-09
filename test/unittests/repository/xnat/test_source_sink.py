@@ -142,9 +142,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         expected_sink_filesets = ['sink1', 'sink3', 'sink4']
         self.assertEqual(
             filter_scans(os.listdir(self.session_cache(
-                from_study=self.STUDY_NAME))),
-            [d + text_format.extension
-             for d in expected_sink_filesets])
+                from_study=self.STUDY_NAME))), expected_sink_filesets)
         with self._connect() as login:
             fileset_names = filter_scans(login.experiments[self.session_label(
                 from_study=self.STUDY_NAME)].scans.keys())
@@ -446,8 +444,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 visit=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(subject_dir)),
-                             [d + text_format.extension
-                              for d in expected_subj_filesets])
+                             expected_subj_filesets)
             # and on XNAT
             subject_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
@@ -463,8 +460,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 subject=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(visit_dir)),
-                             [d + text_format.extension
-                              for d in expected_visit_filesets])
+                             expected_visit_filesets)
             # and on XNAT
             visit_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
@@ -479,8 +475,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 visit=XnatRepository.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(project_dir)),
-                             [d + text_format.extension
-                              for d in expected_proj_filesets])
+                             expected_proj_filesets)
             # and on XNAT
             project_fileset_names = filter_scans(login.projects[
                 self.project].experiments[

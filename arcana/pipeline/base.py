@@ -739,8 +739,8 @@ class Pipeline(object):
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
-            for (node, node_in,
-                 format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
+            for (node, node_in, format,  # @ReservedAssignment @IgnorePep8
+                 conv_kwargs) in self._input_conns[input.name]:
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
@@ -806,8 +806,8 @@ class Pipeline(object):
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
         for output in outputs:  # @ReservedAssignment
-            (node, node_out,
-             format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
+            (node, node_out, format,  # @ReservedAssignment @IgnorePep8
+             conv_kwargs) = self._output_conns[output.name]
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode

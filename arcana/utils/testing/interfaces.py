@@ -89,4 +89,7 @@ class TestMath(BaseInterface):
     @classmethod
     def _load_file(self, path):
         with open(path) as f:
-            return float(f.read())
+            try:
+                return float(f.read())
+            except:
+                raise
