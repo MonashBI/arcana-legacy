@@ -5,14 +5,19 @@ The Arcana public API is based around the Study class, which should
 be sub-classed to implement workflows.
 
 
-Study
------
+Base Study Classes
+------------------
 
 .. autoclass:: arcana.study.Study
     :members: data, new_pipeline, pipeline, inputs, branch, parameter, unhandled_branch, data_spec, parameter_spec
 
 .. autoclass:: arcana.study.MultiStudy
     :members: sub_study, translate
+
+.. autoclass:: arcana.study.ParameterSpec
+
+.. autoclass:: arcana.study.SubStudySpec
+
 
 Meta-classes
 ------------
@@ -22,16 +27,14 @@ Meta-classes
 .. autoclass:: arcana.study.MultiStudyMetaClass
 
 
-Specs
------
+Data Specs
+----------
 
 .. autoclass:: arcana.data.FilesetSpec
 
 .. autoclass:: arcana.data.FieldSpec
 
-.. autoclass:: arcana.study.SubStudySpec
-
-.. autoclass:: arcana.study.ParameterSpec
+.. autoclass:: arcana.data.FileFormat
 
 
 Pipeline
@@ -44,11 +47,11 @@ Pipeline
 Requirements
 ------------
 
-.. autoclass:: CliRequirement
+.. autoclass:: arcana.environment.CliRequirement
 
-.. autoclass:: MatlabPackageRequirement,
+.. autoclass:: arcana.environment.MatlabPackageRequirement
 
-.. autoclass:: PythonPackageRequirement
+.. autoclass:: arcana.environment.PythonPackageRequirement
 
 
 Misc
