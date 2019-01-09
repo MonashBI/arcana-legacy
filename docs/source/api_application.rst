@@ -4,12 +4,12 @@ API - Application
 In addition to a (derived) Study class the following classes are used
 when applying the designed workflows.
 
-Archives
---------
+Repositories
+------------
 
-.. autoclass:: arcana.archive.xnat.XnatRepository
+.. autoclass:: arcana.repository.XnatRepository
 
-.. autoclass:: arcana.archive.directory.DirectoryRepository
+.. autoclass:: arcana.repository.DirectoryRepository
 
 
 Processors
@@ -17,9 +17,17 @@ Processors
 
 .. autoclass:: arcana.processor.LinearProcessor
 
-.. autoclass:: arcana.processor.MultiProcProcessor
+.. autoclass:: arcana.processor.MultiProcessor
 
 .. autoclass:: arcana.processor.SlurmProcessor
+
+
+Environments
+------------
+
+.. autoclass:: StaticEnvironment
+
+.. autoclass:: ModulesEnvironment
 
 
 Inputs
@@ -29,24 +37,14 @@ Inputs
 
 .. autoclass:: arcana.data.FieldSelector
 
-.. autoclass:: arcana.option.Option
+.. autoclass:: arcana.study.Parameter
 
 
-Project tree
-------------
-
-.. autoclass:: arcana.archive.Project
-
-.. autoclass:: arcana.archive.Subject
-
-.. autoclass:: arcana.archive.Visit
-
-.. autoclass:: arcana.archive.Session
-
-
-Filesets and Fields
--------------------
+Data
+----
 
 .. autoclass:: arcana.data.Fileset
 
 .. autoclass:: arcana.data.Field
+
+.. autoclass:: arcana.data.FileFormat

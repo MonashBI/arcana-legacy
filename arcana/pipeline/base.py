@@ -170,7 +170,7 @@ class Pipeline(object):
             *(self.study.pipeline(p, required_outputs=r).study_inputs
               for p, r in self.prerequisites.items())))
 
-    def add(self, name, interface, inputs=None, outputs=None, connect=None,
+    def add(self, name, interface, inputs=None, outputs=None,
             requirements=None, wall_time=None, annotations=None, **kwargs):
         """
         Adds a processing Node to the pipeline
@@ -181,26 +181,22 @@ class Pipeline(object):
             Name for the node
         interface : nipype.Interface
             The interface to use for the node
-        inputs : dict[str, str | (str, FileFormat)]
-            Connections from inputs of the pipeline to inputs of the interface.
-            The keys of the dictionary are the field names and the values
-            are the the name of the data spec or a tuple containing the name
-            of the spec and the data format it is expected in. Note that input
-            connections can also be specified using the 'connect_input'
-            method.
-        outputs : dict[str, str | (str, FileFormat)]
+        inputs : dict[str, (str, FileFormat) | (Node, str)]
+            Connections from inputs of the pipeline and outputs of other nodes
+            to inputs of node. The keys of the dictionary are the field names
+            and the values are 2-tuple containing either the name of the data
+            spec and the data format it is expected in for pipeline inputs or
+            the sending Node and the the name of an output of the sending Node.
+            Note that pipeline inputs can be specified outside this method
+            using the 'connect_input' method and connections between nodes with
+            the the 'connect' method.
+        outputs : dict[str, (str, FileFormat)]
             Connections to outputs of the pipeline from fields of the
-            interface. The keys of the dictionary are the field names and the
-            values are the the name of the data spec or a tuple containing the
-            name of the spec and the data format it is produced in. Note that
-            output connections can also be specified using the 'connect_output'
+            interface. The keys of the dictionary are the names of the data
+            specs that will be written to and the values are the interface
+            field name and the data format it is produced in. Note that output
+            connections can also be specified using the 'connect_output'
             method.
-        connect : dict[str, (Node, str)]
-            A dictionary containing connections from other nodes within the
-            pipeline to inputs of the interface. The values of the dictionary
-            are 2-tuples with the first item the sending Node and the second
-            the name of an output of the sending Node. Note that inputs can
-            also be specified outside this method using the 'connect' method.
         requirements : list(Requirement)
             List of required packages need for the node to run (default: [])
         wall_time : float
@@ -233,7 +229,7 @@ class Pipeline(object):
             requirements = []
         if wall_time is None:
             wall_time = self.study.processor.default_wall_time
-        if 'mem_gb' not in kwargs:
+        if 'mem_gb' not in kwargs or kwargs['mem_gb'] is None:
             kwargs['mem_gb'] = self.study.processor.default_mem_gb
         if 'iterfield' in kwargs:
             if 'joinfield' in kwargs or 'joinsource' in kwargs:
@@ -269,17 +265,19 @@ class Pipeline(object):
         # Connect inputs, outputs and internal connections
         if inputs is not None:
             assert isinstance(inputs, dict)
-            for node_input, (input, input_format) in inputs.items():  # @ReservedAssignment @IgnorePep8
-                self.connect_input(input, node, node_input, input_format)
+            for node_input, connect_from in inputs.items():
+                if isinstance(connect_from[0], basestring):
+                    input_spec, input_format = connect_from
+                    self.connect_input(input_spec, node,
+                                       node_input, input_format)
+                else:
+                    conn_node, conn_field = connect_from
+                    self.connect(conn_node, conn_field, node, node_input)
         if outputs is not None:
             assert isinstance(outputs, dict)
-            for node_input, (output, output_format) in outputs.items():
-                self.connect_output(output, node, node_input, output_format)
-        # Connect internal noes of the pipeline
-        if connect is not None:
-            assert isinstance(connect, dict)
-            for node_input, (conn_node, conn_field) in connect.items():
-                self.connect(conn_node, conn_field, node, node_input)
+            for output_spec, (node_output, output_format) in outputs.items():
+                self.connect_output(output_spec, node, node_output,
+                                    output_format)
         return node
 
     def connect_input(self, spec_name, node, node_input, format=None, **kwargs):  # @ReservedAssignment @IgnorePep8
@@ -741,8 +739,8 @@ class Pipeline(object):
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
-            for (node, node_in,
-                 format, conv_kwargs) in self._input_conns[input.name]:  # @ReservedAssignment @IgnorePep8
+            for (node, node_in, format,  # @ReservedAssignment @IgnorePep8
+                 conv_kwargs) in self._input_conns[input.name]:
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
@@ -764,7 +762,7 @@ class Pipeline(object):
                             'conv_{}_to_{}_format'.format(input.name,
                                                           format.name),
                             conv.interface,
-                            connect={conv.input: (inputnode, input.name)},
+                            inputs={conv.input: (inputnode, input.name)},
                             requirements=conv.requirements,
                             mem_gb=conv.mem_gb,
                             wall_time=conv.wall_time)
@@ -808,8 +806,8 @@ class Pipeline(object):
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
         for output in outputs:  # @ReservedAssignment
-            (node, node_out,
-             format, conv_kwargs) = self._output_conns[output.name]  # @ReservedAssignment @IgnorePep8
+            (node, node_out, format,  # @ReservedAssignment @IgnorePep8
+             conv_kwargs) = self._output_conns[output.name]
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
@@ -818,7 +816,7 @@ class Pipeline(object):
                 node = self.add(
                     'conv_{}_from_{}_format'.format(output.name, format.name),
                     conv.interface,
-                    connect={conv.input: (node, node_out)},
+                    inputs={conv.input: (node, node_out)},
                     requirements=conv.requirements,
                     mem_gb=conv.mem_gb,
                     wall_time=conv.wall_time)
@@ -846,7 +844,7 @@ class Pipeline(object):
         # are written to the dictionary (which for Python < 3.7 is guaranteed
         # to be the same between identical runs)
         for link in wf_dict['links']:
-            if int(networkx_version.split('.')[0]) < 2:
+            if int(networkx_version.split('.')[0]) < 2:  # @UndefinedVariable
                 link['source'] = wf_dict['nodes'][link['source']]['id'].name
                 link['target'] = wf_dict['nodes'][link['target']]['id'].name
             else:

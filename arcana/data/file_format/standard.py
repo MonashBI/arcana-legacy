@@ -1,7 +1,7 @@
 from copy import copy
 from arcana.utils.interfaces import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
-from .base import FileFormat, Converter
+from .base import FileFormat, Converter, IdentityConverter  # @UnusedImport
 
 
 class UnzipConverter(Converter):

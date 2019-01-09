@@ -82,8 +82,6 @@ class XnatRepository(BaseRepository):
         self._password = password
         self._race_cond_delay = race_cond_delay
         self._check_md5 = check_md5
-        if session_filter is not None:
-            session_filter = re.compile(session_filter)
         self._session_filter = session_filter
         self._login = None
 
@@ -140,7 +138,8 @@ class XnatRepository(BaseRepository):
 
     @property
     def session_filter(self):
-        return self._session_filter
+        return (re.compile(self._session_filter)
+                if self._session_filter is not None else None)
 
     def connect(self):
         """
@@ -227,7 +226,12 @@ class XnatRepository(BaseRepository):
                         tmp_dir, xresource, xscan, fileset,
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
-        return cache_path
+        if not fileset.format.directory:
+            path = op.join(cache_path,
+                           fileset.format.primary_file(os.listdir(cache_path)))
+        else:
+            path = cache_path
+        return path
 
     def get_field(self, field):
         self._check_repository(field)
@@ -246,13 +250,20 @@ class XnatRepository(BaseRepository):
             xsession = self.get_xsession(fileset)
             cache_path = self._cache_path(fileset)
             # Make session cache dir
-            if not os.path.exists(op.dirname(cache_path)):
-                os.makedirs(op.dirname(cache_path),
+            cache_path_dir = (op.dirname(cache_path)
+                              if fileset.format.directory else cache_path)
+            if not os.path.exists(cache_path_dir):
+                os.makedirs(cache_path_dir,
                             stat.S_IRWXU | stat.S_IRWXG)
             if fileset.format.directory:
                 shutil.copytree(fileset.path, cache_path)
             else:
-                shutil.copyfile(fileset.path, cache_path)
+                # Copy primary file
+                shutil.copyfile(fileset.path,
+                                op.join(cache_path, fileset.fname))
+                # Copy side-cars
+                for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                    shutil.copyfile(sc_path, op.join(cache_path, sc_fname))
             with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fileset.calculate_checksums(), f, indent=2)
@@ -273,7 +284,9 @@ class XnatRepository(BaseRepository):
                 xresource.delete()
             xresource = xscan.create_resource(
                 fileset.format.name.upper())
-            xresource.upload(cache_path, fileset.fname)
+            xresource.upload(fileset.path, fileset.fname)
+            for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                xresource.upload(sc_path, sc_fname)
 
     def put_field(self, field):
         self._check_repository(field)
@@ -608,14 +621,12 @@ class XnatRepository(BaseRepository):
             expanded_dir, session_label, 'scans',
             (xscan.id + '-' + special_char_re.sub('_', xscan.type)),
             'resources', xresource.label, 'files')
-        if not fileset.format.directory:
-            # If the dataformat is not a directory (e.g. DICOM),
-            # attempt to locate a single file within the resource
-            # directory with the appropriate filename and add that
-            # to be the complete data path.
-            data_path = op.join(
-                data_path, fileset.format.primary_file(os.listdir(data_path)))
-
+        # Remove existing cache if present
+        try:
+            shutil.rmtree(cache_path)
+        except OSError as e:
+            if e.errno != errno.ENOENT:
+                raise e
         shutil.move(data_path, cache_path)
         with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
                   **JSON_ENCODING) as f:
@@ -727,7 +738,7 @@ class XnatRepository(BaseRepository):
         cache_dir = op.join(self._cache_dir, self.project_id,
                             subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
-        return op.join(cache_dir, fileset.fname if name is None else name)
+        return op.join(cache_dir, fileset.name if name is None else name)
 
     @classmethod
     def _guess_file_format(cls, resources, uri):

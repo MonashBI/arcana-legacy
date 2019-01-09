@@ -13,7 +13,7 @@ from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaBadlyFormattedDirectoryRepositoryError,
-    ArcanaMissingDataException)
+    ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
@@ -101,8 +101,13 @@ class DirectoryRepository(BaseRepository):
             path = self.fileset_path(fileset)
             if not op.exists(path):
                 raise ArcanaMissingDataException(
-                    "{} does not exist in the local repository {}"
+                    "{} does not exist in {}"
                     .format(fileset, self))
+            for sc_name, sc_path in fileset.format.side_car_paths(path):
+                if not op.exists(sc_path):
+                    raise ArcanaMissingDataException(
+                        "{} is missing '{}' side car in {}"
+                        .format(fileset, sc_name, self))
         else:
             path = fileset.path
         return path
@@ -145,6 +150,9 @@ class DirectoryRepository(BaseRepository):
         target_path = self.fileset_path(fileset)
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
+            # Copy side car files into repository
+            for sc_name, sc_path in fileset.format.side_car_paths(target_path):
+                shutil.copyfile(self.side_car[sc_name], sc_path)
         elif op.isdir(fileset.path):
             if op.exists(target_path):
                 shutil.rmtree(target_path)
@@ -238,14 +246,19 @@ class DirectoryRepository(BaseRepository):
                 frequency = 'per_session'
             for fname in chain(self._filter_files(files, session_path),
                                self._filter_dirs(dirs, session_path)):
-                all_filesets.append(
-                    Fileset.from_path(
-                        op.join(session_path, fname),
-                        frequency=frequency,
-                        subject_id=subj_id, visit_id=visit_id,
-                        repository=self,
-                        from_study=from_study,
-                        **kwargs))
+                try:
+                    all_filesets.append(
+                        Fileset.from_path(
+                            op.join(session_path, fname),
+                            frequency=frequency,
+                            subject_id=subj_id, visit_id=visit_id,
+                            repository=self,
+                            from_study=from_study,
+                            **kwargs))
+                except ArcanaFileFormatNotRegisteredError:
+                    logger.info("Skipping '{}' as its extension is not "
+                                "recognised".format(op.join(session_path,
+                                                            fname)))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:

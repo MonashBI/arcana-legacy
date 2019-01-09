@@ -116,7 +116,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 # label
                 query = {'xsiType': 'xnat:mrScanData',
                          'req_format': 'qa',
-                         'type': fileset.name}
+                         'type': fileset.basename}
                 uri = '{}/scans/{}'.format(xsession.fulluri, fileset.id)
                 login.put(uri, query=query)
                 # Get XnatPy object for newly created fileset
@@ -129,7 +129,8 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                         resource.upload(
                             op.join(fileset.path, fname), fname)
                 else:
-                    resource.upload(fileset.path, fileset.fname)
+                    for path in fileset.paths:
+                        resource.upload(path, op.basename(path))
             for field in self.session.fields:
                 if field.dtype is str:
                     value = '"{}"'.format(field.value)

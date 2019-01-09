@@ -3,7 +3,7 @@ from builtins import object
 import math
 import logging
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaVersionNotDectableError, ArcanaVersionError)
+    ArcanaUsageError, ArcanaVersionNotDetectableError, ArcanaVersionError)
 import re
 
 
@@ -212,7 +212,7 @@ class Version(object):
             return (major, minor), None, None, None
         match = self.regex.search(version)
         if match is None:
-            raise ArcanaVersionNotDectableError(
+            raise ArcanaVersionNotDetectableError(
                 "Could not parse version string {} as {}. Regex ({}) did not "
                 "match any sub-string".format(version, type(self).__name__,
                                               self.regex.pattern))
@@ -237,7 +237,14 @@ class Version(object):
                     sequence.append(seq_part)
                 if len(sub_parts) > 1:
                     stage = sub_parts[1]
-                    pr_ver = int(sub_parts[2])
+                    try:
+                        pr_ver = int(sub_parts[2])
+                    except ValueError:
+                        raise ArcanaVersionNotDetectableError(
+                            "Could not parse version string {} as {}. "
+                            "Did not recognise pre-release version {}"
+                            .format(version, type(self).__name__,
+                                sub_parts[2]))
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None
@@ -250,7 +257,7 @@ class Version(object):
                     elif stage == 'rc' or stage == 'release-canditate':
                         stage = 'rc'
                     else:
-                        raise ArcanaVersionNotDectableError(
+                        raise ArcanaVersionNotDetectableError(
                             "Could not parse version string {} as {}. "
                             "Did not recognise pre-release stage {}"
                             .format(version, type(self).__name__, stage))
@@ -424,7 +431,7 @@ class BaseRequirement(object):
             raise ArcanaRequirementNotFoundError
         * If the requirement is available but its version cannot be detected
           for whatever reason:
-            raise ArcanaVersionNotDectableError
+            raise ArcanaVersionNotDetectableError
         """
         raise NotImplementedError
 
