@@ -367,7 +367,7 @@ class Tree(TreeNode):
 
     @property
     def session_ids(self):
-        return ((s.subject_id, s.visit_id) for s in sessions)
+        return ((s.subject_id, s.visit_id) for s in self.sessions)
 
     @property
     def complete_subjects(self):
