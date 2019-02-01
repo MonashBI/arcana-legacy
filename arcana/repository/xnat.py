@@ -40,13 +40,13 @@ class XnatRepository(BaseRepository):
     server : str (URI)
         URI of XNAT server to connect to
     project_id : str
-        The ID of the project on XNAT
+        The ID of the project in the XNAT repository
     cache_dir : str (path)
-        Path to local directory to cache XNAT data in
+        Path to local directory to cache remote data in
     user : str
         Username with which to connect to XNAT with
     password : str
-        Password to connect to XNAt with
+        Password to connect to the XNAT repository with
     check_md5 : bool
         Whether to check the MD5 digest of cached files before using. This
         checks for updates on the server since the file was cached
