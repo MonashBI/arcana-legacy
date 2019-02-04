@@ -76,10 +76,12 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
     def checksum_sink_project(self):
         return self.project + 'SINK'
 
+    @unittest.skipIf(*SKIP_ARGS)
     def setUp(self):
         TestXnatSourceAndSinkBase.setUp(self)
         self._create_project(self.checksum_sink_project)
 
+    @unittest.skipIf(*SKIP_ARGS)
     def tearDown(self):
         TestXnatSourceAndSinkBase.tearDown(self)
         self._delete_project(self.checksum_sink_project)
