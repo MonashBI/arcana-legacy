@@ -13,7 +13,7 @@ Repositories
 
 
 Processors
--------
+----------
 
 .. autoclass:: arcana.processor.LinearProcessor
 
@@ -25,9 +25,9 @@ Processors
 Environments
 ------------
 
-.. autoclass:: StaticEnvironment
+.. autoclass:: arcana.environment.StaticEnvironment
 
-.. autoclass:: ModulesEnvironment
+.. autoclass:: arcana.environment.ModulesEnvironment
 
 
 Inputs
@@ -46,5 +46,3 @@ Data
 .. autoclass:: arcana.data.Fileset
 
 .. autoclass:: arcana.data.Field
-
-.. autoclass:: arcana.data.FileFormat

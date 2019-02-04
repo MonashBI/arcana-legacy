@@ -14,6 +14,11 @@ Study
 .. autoclass:: arcana.study.MultiStudy
     :members: sub_study, translate
 
+.. autoclass:: arcana.study.ParameterSpec
+
+.. autoclass:: arcana.study.SubStudySpec
+
+
 Meta-classes
 ------------
 
@@ -22,16 +27,14 @@ Meta-classes
 .. autoclass:: arcana.study.MultiStudyMetaClass
 
 
-Specs
------
+Data Specs
+----------
 
 .. autoclass:: arcana.data.FilesetSpec
 
 .. autoclass:: arcana.data.FieldSpec
 
-.. autoclass:: arcana.study.SubStudySpec
-
-.. autoclass:: arcana.study.ParameterSpec
+.. autoclass:: arcana.data.FileFormat
 
 
 Pipeline
@@ -44,11 +47,11 @@ Pipeline
 Requirements
 ------------
 
-.. autoclass:: CliRequirement
+.. autoclass:: arcana.environment.CliRequirement
 
-.. autoclass:: MatlabPackageRequirement,
+.. autoclass:: arcana.environment.MatlabPackageRequirement
 
-.. autoclass:: PythonPackageRequirement
+.. autoclass:: arcana.environment.PythonPackageRequirement
 
 
 Misc

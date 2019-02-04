@@ -20,12 +20,12 @@ import sphinx_rtd_theme
 package_path = op.abspath(
     op.join(op.dirname(op.abspath(__file__)), '..', '..'))
 
-print(package_path)
 sys.path.insert(0, package_path)
-from arcana.version_ import __version__  # @UnresolvedImport @IgnorePep8
-import arcana.repository.directory  # @UnusedImport @IgnorePep8
-import arcana.repository.xnat  # @UnusedImport @IgnorePep8
+from arcana.__about__ import __version__  # @UnresolvedImport @IgnorePep8
+import arcana.repository  # @UnusedImport @IgnorePep8
 import arcana.processor  # @UnusedImport @IgnorePep8
+import arcana.environment  # @UnusedImport @IgnorePep8
+import arcana.data  # @UnusedImport @IgnorePep8
 import arcana.study  # @UnusedImport @IgnorePep8
 
 
