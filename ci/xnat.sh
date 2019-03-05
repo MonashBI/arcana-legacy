@@ -5,7 +5,7 @@ if [ ! -d $XNAT_DIR ]; then
 	mkdir -p $XNAT_DIR
 	
 	# Clone the docker compose script
-	git clone https://github.com/NrgXnat/xnat-docker-compose $XNAT_DIR
+	git clone https://github.com/MonashBI/xnat-docker-compose $XNAT_DIR
 	
 	pushd $XNAT_DIR
 	# Checkout special branch with prefs initialised to dummy defaults
