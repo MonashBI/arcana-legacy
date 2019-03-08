@@ -248,6 +248,8 @@ class BaseProcessor(object):
         stack = OrderedDict()
 
         def push_on_stack(pipeline, filt_array, req_outputs):
+            if req_outputs is None:
+                req_outputs = pipeline.output_names
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
