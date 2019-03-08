@@ -429,13 +429,14 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
-        format_matches = [f for f in matches if f.format == self.format]
-        if not format_matches:
-            raise ArcanaSelectorMissingMatchError(
-                "Did not find any matches with the appropriate format for {} "
-                "in {}, found:\n{}"
-                .format(self, node, '\n'.join(str(f) for f in matches)))
-        matches = format_matches
+        if self.format is not None:
+            format_matches = [f for f in matches if f.format == self.format]
+            if not format_matches:
+                raise ArcanaSelectorMissingMatchError(
+                    "Did not find any matches with the appropriate format for "
+                    "{} in {}, found:\n{}"
+                    .format(self, node, '\n'.join(str(f) for f in matches)))
+            matches = format_matches
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
