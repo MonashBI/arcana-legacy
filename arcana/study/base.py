@@ -525,6 +525,22 @@ class Study(object):
         return self._visit_ids
 
     @property
+    def num_subjects(self):
+        return len(self.subject_ids)
+
+    @property
+    def num_visits(self):
+        return len(self.visit_ids)
+
+    @property
+    def num_sessions(self):
+        if self._visit_ids is None and self._subject_ids is None:
+            num_sessions = len(list(self.tree.sessions))
+        else:
+            num_sessions = self.num_subjects * self.num_visits
+        return num_sessions
+
+    @property
     def prefix(self):
         """The study name as a prefix for fileset names"""
         return self.name + '_'

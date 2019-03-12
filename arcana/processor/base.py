@@ -317,8 +317,8 @@ class BaseProcessor(object):
                             "are already present in the repository"
                             .format(pipeline.name))
         # Save complete graph for debugging purposes
-        workflow.write_graph(graph2use='flat', format='svg')
-        print('Graph saved in {} directory'.format(os.getcwd()))
+#         workflow.write_graph(graph2use='flat', format='svg')
+#         print('Graph saved in {} directory'.format(os.getcwd()))
         # Actually run the generated workflow
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
