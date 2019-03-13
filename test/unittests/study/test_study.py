@@ -475,14 +475,11 @@ class TestInputValidation(BaseTestCase):
     def setUp(self):
         self.reset_dirs()
         os.makedirs(self.session_dir)
-        for spec in TestInputValidationStudy.data_specs():
-            if spec.format == test2_format:
-                ext = test1_format.ext
-            else:
-                ext = spec.format.ext
-            with open(os.path.join(self.session_dir, spec.name) +
-                      ext, 'w') as f:
-                f.write(spec.name)
+        for spec_name, fformat in (('a', test1_format), ('b', test3_format),
+                                   ('c', test1_format), ('d', test3_format)):
+            with open(os.path.join(self.session_dir, spec_name) +
+                      fformat.ext, 'w') as f:
+                f.write(spec_name)
 
     def test_input_validation(self):
         self.create_study(
