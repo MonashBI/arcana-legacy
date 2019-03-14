@@ -8,7 +8,7 @@ A basic toy example
     from arcana import (
         Study, StudyMetaClass, FilesetInputSpec, FilesetSpec,
         FieldInputSpec, FieldSpec, ParamSpec, SwitchSpec,
-        FilesetSelector, FieldSelector)
+        FilesetInput, FieldInput)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
         software_req2, matlab_req, toolbox_req)
@@ -143,9 +143,9 @@ which can then be instantiated and used to generate 'derived2' with
         processor=LinearProcessor('/my/work/dir'),
         environment=StaticEnvironment(),
         inputs=[
-            FilesetSelector('acquired_file1', 'your-name-for-file1'),
-            FilesetSelector('acquired_file2', 'your-name-for-file2'),
-            FieldSelector('acquired_field1', 'your-name-for-field1')],
+            FilesetInput('acquired_file1', 'your-name-for-file1'),
+            FilesetInput('acquired_file2', 'your-name-for-file2'),
+            FieldInput('acquired_field1', 'your-name-for-field1')],
         parameters={'parameter2': 50.0,
                     'node1_option': True})
 

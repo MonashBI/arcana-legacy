@@ -13,7 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepo
 from arcana.processor import LinearProcessor
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.data import FilesetSelector
+from arcana.data import FilesetInput
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format.standard import text_format
 from arcana.utils.testing.xnat import (
@@ -96,10 +96,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', 'source1', text_format),
-                    FilesetSelector('source2', 'source2', text_format),
-                    FilesetSelector('source3', 'source3', text_format),
-                    FilesetSelector('source4', 'source4', text_format)])
+            inputs=[FilesetInput('source1', 'source1', text_format),
+                    FilesetInput('source2', 'source2', text_format),
+                    FilesetInput('source3', 'source3', text_format),
+                    FilesetInput('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -157,7 +157,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', 'source1', text_format)])
+            inputs=[FilesetInput('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -207,7 +207,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                     project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format)])
+            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
                 [study.bound_spec(DATASET_NAME).collection]),
@@ -291,7 +291,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format,
+            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format,
                                     repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
@@ -376,9 +376,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
             inputs=[
-                FilesetSelector('source1', 'source1', text_format),
-                FilesetSelector('source2', 'source2', text_format),
-                FilesetSelector('source3', 'source3', text_format)])
+                FilesetInput('source1', 'source1', text_format),
+                FilesetInput('source2', 'source2', text_format),
+                FilesetInput('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),

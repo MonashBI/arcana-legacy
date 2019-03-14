@@ -20,7 +20,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, FilesetInputSpec, FilesetSelector, FilesetSpec)
+    Fileset, FilesetInputSpec, FilesetInput, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -267,8 +267,8 @@ class TestStudy(BaseMultiSubjectTestCase):
     def make_study(self):
         return self.create_study(
             ExampleStudy, 'dummy', inputs=[
-                FilesetSelector('one', 'one_input', text_format),
-                FilesetSelector('ten', 'ten_input', text_format)],
+                FilesetInput('one', 'one_input', text_format),
+                FilesetInput('ten', 'ten_input', text_format)],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
@@ -399,7 +399,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME,
             repository=self.local_repository,
-            inputs=[FilesetSelector('one', 'one', text_format)])
+            inputs=[FilesetInput('one', 'one', text_format)])
         # Get all pipelines in the study
         pipelines = {n: getattr(study, '{}_pipeline'.format(n))()
                      for n in derived_filesets}
@@ -417,7 +417,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         # Generate all data for 'thousand' spec
         study = self.create_study(
             ExistingPrereqStudy, self.STUDY_NAME,
-            inputs=[FilesetSelector('one', 'one', text_format)])
+            inputs=[FilesetInput('one', 'one', text_format)])
         study.data('thousand')
         targets = {
             'subject1': {
@@ -486,10 +486,10 @@ class TestInputValidation(BaseTestCase):
             TestInputValidationStudy,
             'test_input_validation',
             inputs=[
-                FilesetSelector('a', 'a', test1_format),
-                FilesetSelector('b', 'b', test3_format),
-                FilesetSelector('c', 'a', test1_format),
-                FilesetSelector('d', 'd', test3_format)])
+                FilesetInput('a', 'a', test1_format),
+                FilesetInput('b', 'b', test3_format),
+                FilesetInput('c', 'a', test1_format),
+                FilesetInput('d', 'd', test3_format)])
 
 
 class TestInputValidationFail(BaseTestCase):
@@ -509,8 +509,8 @@ class TestInputValidationFail(BaseTestCase):
             TestInputValidationStudy,
             'test_validation_fail',
             inputs=[
-                FilesetSelector('a', 'a', test3_format),
-                FilesetSelector('b', 'b', test3_format)])
+                FilesetInput('a', 'a', test3_format),
+                FilesetInput('b', 'b', test3_format)])
 
 
 class TestInputNoConverter(BaseTestCase):
@@ -534,10 +534,10 @@ class TestInputNoConverter(BaseTestCase):
             TestInputValidationStudy,
             'test_validation_fail',
             inputs=[
-                FilesetSelector('a', 'a', test1_format),
-                FilesetSelector('b', 'b', test3_format),
-                FilesetSelector('c', 'c', test3_format),
-                FilesetSelector('d', 'd', test3_format)])
+                FilesetInput('a', 'a', test1_format),
+                FilesetInput('b', 'b', test3_format),
+                FilesetInput('c', 'c', test3_format),
+                FilesetInput('d', 'd', test3_format)])
 
 
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
@@ -568,7 +568,7 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
-            inputs=[FilesetSelector('fileset', 'fileset', text_format)])
+            inputs=[FilesetInput('fileset', 'fileset', text_format)])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
@@ -587,8 +587,8 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[FilesetSelector('ss1_fileset', 'fileset', text_format),
-                    FilesetSelector('ss2_fileset', 'fileset', text_format)])
+            inputs=[FilesetInput('ss1_fileset', 'fileset', text_format),
+                    FilesetInput('ss2_fileset', 'fileset', text_format)])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
             pkl.dump(study, f)
@@ -609,8 +609,8 @@ class TestGeneratedPickle(BaseTestCase):
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
-            inputs=[FilesetSelector('ss1_fileset', 'fileset', text_format),
-                    FilesetSelector('ss2_fileset', 'fileset', text_format)])
+            inputs=[FilesetInput('ss1_fileset', 'fileset', text_format),
+                    FilesetInput('ss2_fileset', 'fileset', text_format)])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'w') as f:
             self.assertRaises(
