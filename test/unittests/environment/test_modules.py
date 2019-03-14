@@ -9,7 +9,7 @@ import unittest
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
 from arcana.environment import ModulesEnvironment
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from future.utils import with_metaclass
 from arcana.environment import BaseRequirement
 
@@ -110,7 +110,7 @@ class TestModuleLoad(BaseTestCase):
 
     @property
     def processor(self):
-        return LinearProcessor(
+        return SingleProc(
             self.work_dir)
 
     @unittest.skipIf(*SKIP_ARGS)

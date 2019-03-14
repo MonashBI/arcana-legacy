@@ -1,7 +1,7 @@
 import logging
 import tempfile
 import shutil
-from arcana.processor import SlurmProcessor
+from arcana.processor import SlurmProc
 from nipype.interfaces.utility import IdentityInterface
 from unittest import TestCase
 from arcana.node import Node
@@ -18,7 +18,7 @@ class TestSlurmTemplate(TestCase):
 
     def setUp(self):
         self.work_dir = tempfile.mkdtemp()
-        self.processor = SlurmProcessor(
+        self.processor = SlurmProc(
             self.work_dir, account='test_account', email='test@email.org',
             partition='m3a')
 

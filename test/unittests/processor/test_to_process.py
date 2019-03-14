@@ -1,7 +1,7 @@
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
@@ -260,7 +260,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudyAddNode,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          1252.0)
@@ -276,7 +276,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudyAddConnect,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          170.0)
@@ -329,7 +329,7 @@ class TestProvBasic(BaseTestCase):
             TestProvStudy,
             study_name,
             inputs=STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={'multiplier': 100.0})
         derived_fileset1_collection, derived_field4_collection = study.data(
             ('derived_fileset1', 'derived_field4'))
@@ -345,7 +345,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS,
             parameters={'multiplier': 1000.0})
         # Check to see protected conflict error is raise if only one of
@@ -393,7 +393,7 @@ class TestProvInputChange(BaseTestCase):
         new_study = self.create_study(
             TestProvStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
@@ -668,7 +668,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'pipeline3_op': 'mul'})
         study.data('derived_field3', subject_id='0', visit_id='0')
@@ -686,7 +686,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'increment': 2})
         study.data('derived_field5', subject_id='0', visit_id='0')
@@ -713,7 +713,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         study = self.create_study(
             TestDialationStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=self.STUDY_INPUTS,
             parameters={
                 'increment': 2})

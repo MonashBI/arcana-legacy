@@ -35,7 +35,7 @@ DEFAULT_PROV_IGNORE = ['.*/pkg_version',
                        'workflow/nodes/.*/requirements/.*/local_name']
 
 
-class BaseProcessor(object):
+class BaseProc(object):
     """
     A thin wrapper around the NiPype LinearPlugin used to connect
     runs pipelines on the local workstation

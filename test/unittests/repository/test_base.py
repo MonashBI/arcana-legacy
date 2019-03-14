@@ -4,7 +4,7 @@ import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
-from arcana.processor import LinearProcessor  # @IgnorePep8
+from arcana.processor import SingleProc  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     FilesetInput, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
@@ -54,7 +54,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_repository_roundtrip(self):
         study = DummyStudy(
-            self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
+            self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
             inputs=[FilesetInput('source1', 'source1', text_format),
                     FilesetInput('source2', 'source2', text_format),
                     FilesetInput('source3', 'source3', text_format),
@@ -107,7 +107,7 @@ class TestSinkAndSource(BaseTestCase):
         STUDY_NAME = 'fields_roundtrip'
         study = DummyStudy(
             STUDY_NAME, self.repository,
-            processor=LinearProcessor('a_dir'),
+            processor=SingleProc('a_dir'),
             inputs=[])
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -140,7 +140,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_summary(self):
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
+            self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
             inputs=[FilesetInput('source1', 'source1', text_format),
                     FilesetInput('source2', 'source2', text_format),
                     FilesetInput('source3', 'source3', text_format)])

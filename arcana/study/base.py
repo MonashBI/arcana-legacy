@@ -20,7 +20,7 @@ from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
 from arcana.repository import DirectoryRepo
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.environment import StaticEnvironment
 from arcana.utils import get_class_info
 
@@ -113,7 +113,7 @@ class Study(object):
         if isinstance(repository, basestring):
             repository = DirectoryRepo(repository, depth=None)
         if isinstance(processor, basestring):
-            processor = LinearProcessor(processor)
+            processor = SingleProc(processor)
         if environment is None:
             environment = StaticEnvironment()
         self._name = name

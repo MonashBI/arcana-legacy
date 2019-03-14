@@ -1,8 +1,8 @@
-from .base import BaseProcessor
+from .base import BaseProc
 from nipype.pipeline.plugins import MultiProcPlugin
 
 
-class MultiProcessor(BaseProcessor):
+class MultiProc(BaseProc):
     """
     A thin wrapper around the NiPype MultiProcPlugin used to
     run pipelines on the local workstation on muliple processes
@@ -29,7 +29,7 @@ class MultiProcessor(BaseProcessor):
             plugin_args = {}
         if num_processes is not None:
             plugin_args['n_procs'] = num_processes
-        super(MultiProcessor, self).__init__(
+        super(MultiProc, self).__init__(
             work_dir, plugin_args=plugin_args, **kwargs)
 
     @property

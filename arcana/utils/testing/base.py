@@ -17,7 +17,7 @@ import arcana
 from arcana.data import Fileset
 from arcana.utils import classproperty
 from arcana.repository.directory import DirectoryRepo
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.environment import StaticEnvironment
 from arcana.exceptions import ArcanaError
 from arcana.exceptions import ArcanaUsageError
@@ -206,7 +206,7 @@ class BaseTestCase(TestCase):
 
     @property
     def processor(self):
-        return LinearProcessor(self.work_dir)
+        return SingleProc(self.work_dir)
 
     @property
     def environment(self):
@@ -272,7 +272,7 @@ class BaseTestCase(TestCase):
             The repository to use (a default local repository is used if one
             isn't provided
         processor : Processor | None
-            The processor to use (a default LinearProcessor is used if one
+            The processor to use (a default SingleProc is used if one
             isn't provided
         """
         if repository is None:

@@ -140,7 +140,7 @@ which can then be instantiated and used to generate 'derived2' with
     your_study = ExampleStudy(
         name='your_study',
         repository=DirectoryRepo('/path/to/local/archive'),
-        processor=LinearProcessor('/my/work/dir'),
+        processor=SingleProc('/my/work/dir'),
         environment=StaticEnvironment(),
         inputs=[
             FilesetInput('acquired_file1', 'your-name-for-file1'),

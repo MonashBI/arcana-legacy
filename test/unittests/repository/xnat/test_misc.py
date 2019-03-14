@@ -9,7 +9,7 @@ from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetInput
 from arcana.repository import XnatRepo
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
 
@@ -98,7 +98,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            processor=LinearProcessor(self.work_dir),
+            processor=SingleProc(self.work_dir),
             inputs=test_data.TestDicomTagMatch.DICOM_MATCH)
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
@@ -112,7 +112,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            processor=LinearProcessor(self.work_dir),
+            processor=SingleProc(self.work_dir),
             inputs=[
                 FilesetInput('gre_phase', format=dicom_format, id=7),
                 FilesetInput('gre_mag', format=dicom_format, id=6)])

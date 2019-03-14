@@ -15,11 +15,11 @@ Repositories
 Processors
 ----------
 
-.. autoclass:: arcana.processor.LinearProcessor
+.. autoclass:: arcana.processor.SingleProc
 
-.. autoclass:: arcana.processor.MultiProcessor
+.. autoclass:: arcana.processor.MultiProc
 
-.. autoclass:: arcana.processor.SlurmProcessor
+.. autoclass:: arcana.processor.SlurmProc
 
 
 Environments

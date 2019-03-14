@@ -11,7 +11,7 @@ from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepo
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.data import FilesetInput
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
@@ -95,7 +95,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project,
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
-            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
+            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
             inputs=[FilesetInput('source1', 'source1', text_format),
                     FilesetInput('source2', 'source2', text_format),
                     FilesetInput('source3', 'source3', text_format),
@@ -156,7 +156,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
+            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
             inputs=[FilesetInput('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = study.dummy_pipeline()
@@ -206,7 +206,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepo(server=SERVER, cache_dir=cache_dir,
                                     project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, LinearProcessor('ad'),
+            self.STUDY_NAME, repository, SingleProc('ad'),
             inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
@@ -290,7 +290,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.checksum_sink_project, server=SERVER,
             cache_dir=cache_dir)
         study = DummyStudy(
-            STUDY_NAME, sink_repository, LinearProcessor('ad'),
+            STUDY_NAME, sink_repository, SingleProc('ad'),
             inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format,
                                     repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
@@ -374,7 +374,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
+            self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
             inputs=[
                 FilesetInput('source1', 'source1', text_format),
                 FilesetInput('source2', 'source2', text_format),
