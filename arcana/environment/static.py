@@ -1,6 +1,6 @@
 from __future__ import division
 import logging
-from .base import BaseEnvironment
+from .base import Environment
 from arcana.exceptions import (
     ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
@@ -8,7 +8,7 @@ from arcana.exceptions import (
 logger = logging.getLogger('arcana')
 
 
-class StaticEnvironment(BaseEnvironment):
+class StaticEnv(Environment):
     """
     Checks to see if requirements are satisfiable by the current
     computing environment. Subclasses can also manage the loading and

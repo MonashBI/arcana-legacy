@@ -141,7 +141,7 @@ which can then be instantiated and used to generate 'derived2' with
         name='your_study',
         repository=DirectoryRepo('/path/to/local/archive'),
         processor=SingleProc('/my/work/dir'),
-        environment=StaticEnvironment(),
+        environment=StaticEnv(),
         inputs=[
             FilesetInput('acquired_file1', 'your-name-for-file1'),
             FilesetInput('acquired_file2', 'your-name-for-file2'),

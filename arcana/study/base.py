@@ -21,7 +21,7 @@ from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
 from arcana.repository import DirectoryRepo
 from arcana.processor import SingleProc
-from arcana.environment import StaticEnvironment
+from arcana.environment import StaticEnv
 from arcana.utils import get_class_info
 
 logger = getLogger('arcana')
@@ -115,7 +115,7 @@ class Study(object):
         if isinstance(processor, basestring):
             processor = SingleProc(processor)
         if environment is None:
-            environment = StaticEnvironment()
+            environment = StaticEnv()
         self._name = name
         self._repository = repository
         self._processor = processor.bind(self)

@@ -25,9 +25,9 @@ Processors
 Environments
 ------------
 
-.. autoclass:: arcana.environment.StaticEnvironment
+.. autoclass:: arcana.environment.StaticEnv
 
-.. autoclass:: arcana.environment.ModulesEnvironment
+.. autoclass:: arcana.environment.ModulesEnv
 
 
 Inputs

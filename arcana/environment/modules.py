@@ -11,7 +11,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
-from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
+from .base import Environment, NodeMixin, Node, JoinNode, MapNode
 
 
 logger = logging.getLogger('arcana')
@@ -50,7 +50,7 @@ class ModulesMapNode(ModulesNodeMixin, MapNode):
     base_cls = MapNode  # Not req. in Py3 where super() in mixin works
 
 
-class ModulesEnvironment(BaseEnvironment):
+class ModulesEnv(Environment):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package

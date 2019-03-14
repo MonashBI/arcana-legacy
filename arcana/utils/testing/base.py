@@ -18,7 +18,7 @@ from arcana.data import Fileset
 from arcana.utils import classproperty
 from arcana.repository.directory import DirectoryRepo
 from arcana.processor import SingleProc
-from arcana.environment import StaticEnvironment
+from arcana.environment import StaticEnv
 from arcana.exceptions import ArcanaError
 from arcana.exceptions import ArcanaUsageError
 
@@ -210,7 +210,7 @@ class BaseTestCase(TestCase):
 
     @property
     def environment(self):
-        return StaticEnvironment()
+        return StaticEnv()
 
     @property
     def project_dir(self):
