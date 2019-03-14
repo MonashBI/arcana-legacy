@@ -4,7 +4,7 @@ import os.path as op
 import tempfile
 import unittest
 from arcana.utils.testing import BaseMultiSubjectTestCase
-from arcana.repository.xnat import XnatRepository
+from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     FilesetSelector, AcquiredFilesetSpec)
 from arcana.study import Study, StudyMetaClass
@@ -88,7 +88,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):
-        repository = XnatRepository(
+        repository = XnatRepo(
             project_id=self.project,
             server=SERVER,
             cache_dir=tempfile.mkdtemp())

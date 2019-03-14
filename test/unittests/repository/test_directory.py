@@ -44,7 +44,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         pass
 
 
-class TestDirectoryRepository(BaseTestCase):
+class TestDirectoryRepo(BaseTestCase):
 
     STUDY_NAME = 'local_repo'
     INPUT_DATASETS = {'source1': '1',

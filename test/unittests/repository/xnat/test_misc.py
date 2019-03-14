@@ -8,7 +8,7 @@ import xnat
 from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetSelector
-from arcana.repository import XnatRepository
+from arcana.repository import XnatRepo
 from arcana.processor import LinearProcessor
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
@@ -32,7 +32,7 @@ class TestConnectDisconnect(TestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_connect_disconnect(self):
-        repository = XnatRepository(project_id='dummy',
+        repository = XnatRepo(project_id='dummy',
                                     server=SERVER,
                                     cache_dir=tempfile.mkdtemp())
         with repository:
@@ -95,7 +95,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_dicom_match(self):
         study = test_data.TestMatchStudy(
             name='test_dicom',
-            repository=XnatRepository(
+            repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
@@ -109,7 +109,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_id_match(self):
         study = test_data.TestMatchStudy(
             name='test_dicom',
-            repository=XnatRepository(
+            repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=LinearProcessor(self.work_dir),
@@ -134,7 +134,7 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_on_path_access(self):
         tmp_dir = tempfile.mkdtemp()
-        repository = XnatRepository(
+        repository = XnatRepo(
             project_id=self.project,
             server=SERVER, cache_dir=tmp_dir)
         tree = repository.tree(

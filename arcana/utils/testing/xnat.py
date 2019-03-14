@@ -10,8 +10,8 @@ import re
 from copy import copy
 import xnat
 from arcana.utils.testing import BaseTestCase
-from arcana.repository.xnat import XnatRepository
-from arcana.repository.directory import DirectoryRepository
+from arcana.repository.xnat import XnatRepo
+from arcana.repository.directory import DirectoryRepo
 from arcana.study import Study, StudyMetaClass
 from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
 from arcana.exceptions import ArcanaError
@@ -154,14 +154,14 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     def setUp(self):
         self._clean_up()
-        self._repository = XnatRepository(project_id=self.project,
+        self._repository = XnatRepo(project_id=self.project,
                                           server=SERVER,
                                           cache_dir=self.cache_dir)
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_repository = DirectoryRepository(self.project_dir)
+        local_repository = DirectoryRepo(self.project_dir)
         tree = local_repository.tree()
-        repo = XnatRepository(SERVER, self.project, '/tmp')
+        repo = XnatRepo(SERVER, self.project, '/tmp')
         with repo:
             for node in tree:
                 for fileset in node.filesets:
@@ -221,16 +221,16 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         elif frequency == 'per_subject':
             assert subject is not None
             assert visit is None
-            parts = [self.project, subject, XnatRepository.SUMMARY_NAME]
+            parts = [self.project, subject, XnatRepo.SUMMARY_NAME]
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
-            parts = [self.project, XnatRepository.SUMMARY_NAME, visit]
+            parts = [self.project, XnatRepo.SUMMARY_NAME, visit]
         elif frequency == 'per_study':
             assert subject is None
             assert visit is None
-            parts = [self.project, XnatRepository.SUMMARY_NAME,
-                     XnatRepository.SUMMARY_NAME]
+            parts = [self.project, XnatRepo.SUMMARY_NAME,
+                     XnatRepo.SUMMARY_NAME]
         else:
             assert False
         session_id = '_'.join(parts)
@@ -268,5 +268,5 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
 def filter_scans(names):
     return sorted(f for f in sorted(names)
-                  if (f != XnatRepository.PROV_SCAN and
-                      not f.endswith(XnatRepository.MD5_SUFFIX)))
+                  if (f != XnatRepo.PROV_SCAN and
+                      not f.endswith(XnatRepo.MD5_SUFFIX)))

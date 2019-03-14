@@ -19,7 +19,7 @@ from arcana.data import (
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
-from arcana.repository import DirectoryRepository
+from arcana.repository import DirectoryRepo
 from arcana.processor import LinearProcessor
 from arcana.environment import StaticEnvironment
 from arcana.utils import get_class_info
@@ -111,7 +111,7 @@ class Study(object):
                 "Need to have StudyMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Study")
         if isinstance(repository, basestring):
-            repository = DirectoryRepository(repository, depth=None)
+            repository = DirectoryRepo(repository, depth=None)
         if isinstance(processor, basestring):
             processor = LinearProcessor(processor)
         if environment is None:

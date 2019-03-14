@@ -7,9 +7,9 @@ when applying the designed workflows.
 Repositories
 ------------
 
-.. autoclass:: arcana.repository.XnatRepository
+.. autoclass:: arcana.repository.XnatRepo
 
-.. autoclass:: arcana.repository.DirectoryRepository
+.. autoclass:: arcana.repository.DirectoryRepo
 
 
 Processors

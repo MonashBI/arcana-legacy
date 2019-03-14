@@ -139,7 +139,7 @@ which can then be instantiated and used to generate 'derived2' with
     # used in the processing
     your_study = ExampleStudy(
         name='your_study',
-        repository=DirectoryRepository('/path/to/local/archive'),
+        repository=DirectoryRepo('/path/to/local/archive'),
         processor=LinearProcessor('/my/work/dir'),
         environment=StaticEnvironment(),
         inputs=[
