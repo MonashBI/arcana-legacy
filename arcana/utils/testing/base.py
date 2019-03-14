@@ -268,7 +268,7 @@ class BaseTestCase(TestCase):
             Name of the study
         inputs : List[BaseSpec]
             List of inputs to the study
-        repository : BaseRepository | None
+        repository : Repositorysitory | None
             The repository to use (a default local repository is used if one
             isn't provided
         processor : Processor | None

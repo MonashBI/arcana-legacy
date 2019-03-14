@@ -157,7 +157,7 @@ class Fileset(BaseItem, BaseFileset):
         The id of the subject which the fileset belongs to
     visit_id : int | str | None
         The id of the visit which the fileset belongs to
-    repository : BaseRepository
+    repository : Repositorysitory
         The repository which the fileset is stored
     from_study : str
         Name of the Arcana study that that generated the field
@@ -548,7 +548,7 @@ class Field(BaseItem, BaseField):
         The id of the subject which the field belongs to
     visit_id : int | str | None
         The id of the visit which the field belongs to
-    repository : BaseRepository
+    repository : Repositorysitory
         The repository which the field is stored
     from_study : str
         Name of the Arcana study that that generated the field

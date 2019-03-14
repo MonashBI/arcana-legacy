@@ -3,7 +3,7 @@ import math
 import os
 from arcana.exceptions import (
     ArcanaError, ArcanaJobSubmittedException)
-from .base import BaseProc
+from .base import Processor
 from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin
 
 
@@ -30,7 +30,7 @@ class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
         return tuple(new_args)
 
 
-class SlurmProc(BaseProc):
+class SlurmProc(Processor):
     """
     A thin wrapper around the NiPype SLURMGraphPlugin used to connect
     submit pipelines to a Slurm scheduler

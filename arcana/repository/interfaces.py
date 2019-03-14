@@ -22,7 +22,7 @@ JOINED_CHECKSUM_TRAIT = traits.Either(
     traits.List(traits.List(CHECKSUM_TRAIT)))
 
 
-class BaseRepositoryInterface(BaseInterface):
+class RepositorysitoryInterface(BaseInterface):
     """
     Parameters
     ----------
@@ -37,7 +37,7 @@ class BaseRepositoryInterface(BaseInterface):
     """
 
     def __init__(self, collections):
-        super(BaseRepositoryInterface, self).__init__()
+        super(RepositorysitoryInterface, self).__init__()
         # Protect against iterators
         collections = list(collections)
         # Check for consistent frequencies in collections
@@ -102,7 +102,7 @@ class BaseRepositoryInterface(BaseInterface):
         return trait
 
 
-class BaseRepositorySpec(DynamicTraitedSpec):
+class RepositorysitorySpec(DynamicTraitedSpec):
     """
     Base class for input and output specifications for repository source
     and sink interfaces
@@ -111,7 +111,7 @@ class BaseRepositorySpec(DynamicTraitedSpec):
     visit_id = traits.Str(desc="The visit ID")
 
 
-class RepositorySourceInputSpec(BaseRepositorySpec):
+class RepositorySourceInputSpec(RepositorysitorySpec):
     """
     Input specification for repository source interfaces.
     """
@@ -122,7 +122,7 @@ class RepositorySourceInputSpec(BaseRepositorySpec):
               "repository)"))
 
 
-class RepositorySource(BaseRepositoryInterface):
+class RepositorySource(RepositorysitoryInterface):
     """
     Parameters
     ----------
@@ -133,7 +133,7 @@ class RepositorySource(BaseRepositoryInterface):
     """
 
     input_spec = RepositorySourceInputSpec
-    output_spec = BaseRepositorySpec
+    output_spec = RepositorysitorySpec
     _always_run = True
 
     def _outputs(self):
@@ -189,7 +189,7 @@ class RepositorySinkOutputSpec(DynamicTraitedSpec):
               "pipeline outputs have been sunk"))
 
 
-class RepositorySink(BaseRepositoryInterface):
+class RepositorySink(RepositorysitoryInterface):
     """
     Interface used to sink derivatives into the output repository
 
@@ -202,7 +202,7 @@ class RepositorySink(BaseRepositoryInterface):
         The pipeline that has produced the outputs to sink
     """
 
-    input_spec = BaseRepositorySpec
+    input_spec = RepositorysitorySpec
     output_spec = RepositorySinkOutputSpec
 
     def __init__(self, collections, pipeline):

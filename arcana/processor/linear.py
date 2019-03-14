@@ -1,8 +1,8 @@
-from .base import BaseProc
+from .base import Processor
 from nipype.pipeline.plugins import LinearPlugin
 
 
-class SingleProc(BaseProc):
+class SingleProc(Processor):
     """
     A thin wrapper around the NiPype LinearPlugin used to
     run pipelines on the local workstation on a single process

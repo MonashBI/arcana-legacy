@@ -1,8 +1,8 @@
-from .base import BaseProc
+from .base import Processor
 from nipype.pipeline.plugins import MultiProcPlugin
 
 
-class MultiProc(BaseProc):
+class MultiProc(Processor):
     """
     A thin wrapper around the NiPype MultiProcPlugin used to
     run pipelines on the local workstation on muliple processes

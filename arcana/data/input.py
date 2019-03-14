@@ -317,7 +317,7 @@ class FilesetInput(BaseSelector, BaseFileset):
         If there is no fileset matching the selection for a node
         and corresponding data spec has a default or is a derived spec
         then fallback to the default or generate the derivative.
-    repository : BaseRepository | None
+    repository : Repositorysitory | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
     """
@@ -514,7 +514,7 @@ class FieldInput(BaseSelector, BaseField):
         If the there is no fileset/field matching the selection for a node
         and corresponding data spec has a default or is a derived spec,
         then fallback to the default or generate the derivative.
-    repository : BaseRepository | None
+    repository : Repositorysitory | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
     """
