@@ -12,7 +12,7 @@ import errno
 import json
 from zipfile import ZipFile, BadZipfile
 from arcana.data import Fileset, Field
-from arcana.repository.base import Repositorysitory
+from arcana.repository.base import Repository
 from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaFileFormatError,
@@ -31,7 +31,7 @@ RELEVANT_DICOM_TAG_TYPES = set(('UI', 'CS', 'DA', 'TM', 'SH', 'LO',
                                 'PN', 'ST', 'AS'))
 
 
-class XnatRepo(Repositorysitory):
+class XnatRepo(Repository):
     """
     An 'Repository' class for XNAT repositories
 

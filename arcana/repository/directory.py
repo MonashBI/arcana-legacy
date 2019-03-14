@@ -2,7 +2,7 @@ import os
 import errno
 import os.path as op
 from itertools import chain
-from .base import Repositorysitory
+from .base import Repository
 import stat
 import shutil
 import logging
@@ -20,7 +20,7 @@ from arcana.utils import get_class_info, HOSTNAME, split_extension
 logger = logging.getLogger('arcana')
 
 
-class DirectoryRepo(Repositorysitory):
+class DirectoryRepo(Repository):
     """
     A 'Repository' class for data stored simply in file-system
     directories. Can be a single directory if it contains only one subject
