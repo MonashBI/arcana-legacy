@@ -61,13 +61,14 @@ class ModulesEnvironment(BaseEnvironment):
 
     Parameters
     ----------
-    packages_map : dct[str, str] | callable
+    packages_map : dct[Requirement, str] | callable
         A Mapping from the name of a requirement to a module installed in the
         environment
-    versions_map : dct[str, dct[str, str]] | callable
-        A Mapping from the name of a requirement to a dictionary, which in
-        turn maps the version of a module installed in the environment to
-        a version recognised by the requirement.
+    versions_map : dct[Requirement, dct[str, str]] | callable
+        A dictionary containing a mapping from a Requirement to dictionary,
+        which in turn maps the local name of a version of a module installed in
+        the environment to the standard versioning system recognised by the
+        requirement.
     ignore_unrecognised : bool
         If True, then unrecognisable versions are ignored instead of
         throwing an error
@@ -102,7 +103,7 @@ class ModulesEnvironment(BaseEnvironment):
         versions = []
         for req_range in requirements:
             req = req_range.requirement
-            local_name = self.map_name(req.name)
+            local_name = self.map_req(req)
             try:
                 version_names = self._available[local_name]
             except KeyError:
@@ -115,7 +116,7 @@ class ModulesEnvironment(BaseEnvironment):
                                    .format(req.name, local_name))
             avail_versions = []
             for local_ver_name in version_names:
-                ver_name = self.map_version(req_range.name, local_ver_name)
+                ver_name = self.map_version(req_range, local_ver_name)
                 try:
                     avail_versions.append(
                         req.v(ver_name, local_name=local_name,
@@ -165,33 +166,38 @@ class ModulesEnvironment(BaseEnvironment):
     def _module_id(cls, version):
         return '{}/{}'.format(version.local_name, version.local_version)
 
-    def map_name(self, name):
+    def map_req(self, requirement):
         """
         Maps the name of an Requirement class to the name of the corresponding
         module in the environment
+
+        Parameters
+        ----------
+        requirement : Requirement
+            The requirement to map to the name of a module on the system
         """
         if isinstance(self._packages_map, dict):
-            local_name = self._packages_map.get(name, name)
+            local_name = self._packages_map.get(requirement, requirement.name)
         else:
-            local_name = self._packages_map(name)
+            local_name = self._packages_map(requirement)
         return local_name
 
-    def map_version(self, name, local_version):
+    def map_version(self, requirement, local_version):
         """
         Maps a local version name to one recognised by the Requirement class
 
         Parameters
         ----------
-        name : str
+        requirement : str
             Name of the requirement
-        local_version : str
+        version : str
             version string
         """
         if isinstance(self._versions_map, dict):
-            version = self._versions_map.get(name, {}).get(local_version,
-                                                           local_version)
+            version = self._versions_map.get(requirement, {}).get(
+                local_version, local_version)
         else:
-            version = self._versions_map(name, local_version)
+            version = self._versions_map(requirement, local_version)
         return version
 
     @classmethod

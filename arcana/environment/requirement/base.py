@@ -244,7 +244,7 @@ class Version(object):
                             "Could not parse version string {} as {}. "
                             "Did not recognise pre-release version {}"
                             .format(version, type(self).__name__,
-                                sub_parts[2]))
+                                    sub_parts[2]))
                     stage = stage.strip('-_').lower()
                     if not stage:  # No prerelease info, assume a dev version
                         assert dev is None
@@ -374,10 +374,7 @@ class BaseRequirement(object):
         self._version_cls = version_cls
 
     def __eq__(self, other):
-        return (self.name == other.name and
-                self.citations == other.citations and
-                self.website == other.website and
-                self._version_cls == other._version_cls)
+        return (self.name == other.name and self.website == other.website)
 
     @property
     def name(self):
@@ -386,6 +383,9 @@ class BaseRequirement(object):
     @property
     def version_cls(self):
         return self._version_cls
+
+    def __hash__(self):
+        return hash(self.name) ^ hash(self.website)
 
     def __repr__(self):
         return "{}(name={})".format(type(self).__name__, self.name)
