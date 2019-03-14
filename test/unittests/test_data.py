@@ -131,7 +131,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
@@ -142,7 +142,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
@@ -154,7 +154,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
@@ -168,7 +168,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline4',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('requires_switch', identity, 'a')
@@ -179,7 +179,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline5',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')

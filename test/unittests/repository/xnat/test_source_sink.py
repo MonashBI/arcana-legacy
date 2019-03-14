@@ -187,7 +187,8 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(results.outputs.field2_field, field2)
         self.assertEqual(results.outputs.field3_field, field3)
 
-    @unittest.skip  # This test is proving problematic If(*SKIP_ARGS)
+    @unittest.skip('Skipping delayed download test as it is is proving '
+                   'problematic')
     def test_delayed_download(self):
         """
         Tests handling of race conditions where separate processes attempt to

@@ -68,7 +68,7 @@ A basic toy example
                 name='pipeline2',
                 name_maps=name_maps,
                 desc="Description of the pipeline",
-                references=[methods_paper_cite])
+                citations=[methods_paper_cite])
     
             # Add a pipeline that runs "Interface1", pulling 
             # acquired file and fields 1 & derived file 2, from the repository

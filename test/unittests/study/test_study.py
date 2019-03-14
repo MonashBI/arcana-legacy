@@ -62,7 +62,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline1',
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not accessible")
@@ -80,7 +80,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline2',
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         if not self.parameter('pipeline_parameter'):
             raise Exception("Pipeline parameter was not cascaded down to "
@@ -99,7 +99,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline3',
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         indent = pipeline.add('ident', IdentityInterface(['file']))
         # Connect inputs
@@ -112,7 +112,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline4',
             desc="A dummy pipeline used to test 'run_pipeline' method",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math = pipeline.add("mrcat", TestMath())
         math.inputs.op = 'mul'
@@ -129,7 +129,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             name='visit_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'session' IDs"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         visits_to_file = pipeline.add(
             'visits_to_file', IteratorToFile(), joinsource=self.VISIT_ID,
@@ -144,7 +144,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
             name='subject_ids_access',
             desc=(
                 "A dummy pipeline used to test access to 'subject' IDs"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         subjects_to_file = pipeline.add(
             'subjects_to_file', IteratorToFile(), joinfield='ids',
@@ -158,7 +158,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name="subject_summary",
             desc=("Test of project summary variables"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math = pipeline.add(
             'math', TestMath(), joinfield='x', joinsource=self.VISIT_ID)
@@ -174,7 +174,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name="visit_summary",
             desc=("Test of project summary variables"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math = pipeline.add('math', TestMath(), joinfield='x',
                             joinsource=self.SUBJECT_ID)
@@ -190,7 +190,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name="study_summary",
             desc=("Test of project summary variables"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math1 = pipeline.add(
             'math1', TestMath(), joinfield='x', joinsource=self.VISIT_ID)
@@ -332,7 +332,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name=output + '_pipeline',
             desc="A dummy pipeline used to test 'partial-complete' method",
-            references=[], name_maps=name_maps)
+            citations=[], name_maps=name_maps)
         # Nodes
         math = pipeline.add("math", TestMath())
         math.inputs.y = incr
@@ -461,7 +461,7 @@ class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline',
             desc="A dummy pipeline used to test study input validation",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('a', identity, 'a')
@@ -550,7 +550,7 @@ class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'a_pipeline',
             desc='a dummy pipeline',
-            references=[],
+            citations=[],
             name_maps=name_maps)
         ident = pipeline.add('ident', IdentityInterface(['fileset']))
         pipeline.connect_input('fileset', ident, 'fileset')

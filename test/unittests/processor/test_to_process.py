@@ -55,7 +55,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math1 = pipeline.add(
             'math1',
@@ -105,7 +105,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         split = pipeline.add(
             'split',
@@ -152,7 +152,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         pipeline.add(
             'math1',
@@ -421,7 +421,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math = pipeline.add(
             'math',
@@ -442,7 +442,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         pipeline.add(
             'math',
@@ -461,7 +461,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         pipeline.add(
             'math',
@@ -480,7 +480,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline4',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         merge1 = pipeline.add(
             'merge1',
@@ -515,7 +515,7 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline5',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         merge = pipeline.add(
             'merge',

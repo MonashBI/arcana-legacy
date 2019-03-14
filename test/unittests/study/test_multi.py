@@ -32,7 +32,7 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline_alpha',
             desc="A dummy pipeline used to test MultiStudy class",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         math = pipeline.add("math", TestMath())
         math.inputs.op = 'add'
@@ -63,7 +63,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             name='pipeline_beta',
             desc="A dummy pipeline used to test MultiStudy class",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         add1 = pipeline.add("add1", TestMath())
         add2 = pipeline.add("add2", TestMath())
@@ -170,7 +170,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
             name='combined',
             desc=(
                 "A dummy pipeline used to test MultiMultiStudy class"),
-            references=[],
+            citations=[],
             name_maps=name_maps)
         merge = pipeline.add("merge", Merge(3))
         math = pipeline.add("math", TestMath())
