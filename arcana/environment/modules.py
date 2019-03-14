@@ -116,7 +116,7 @@ class ModulesEnvironment(BaseEnvironment):
                                    .format(req.name, local_name))
             avail_versions = []
             for local_ver_name in version_names:
-                ver_name = self.map_version(req_range, local_ver_name)
+                ver_name = self.map_version(req, local_ver_name)
                 try:
                     avail_versions.append(
                         req.v(ver_name, local_name=local_name,
