@@ -9,7 +9,7 @@ from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseSelector(object):
+class BaseInput(object):
     """
     Base class for Fileset and Field Selector classes
     """
@@ -263,7 +263,7 @@ class BaseSelector(object):
         return match
 
 
-class FilesetInput(BaseSelector, BaseFileset):
+class FilesetInput(BaseInput, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -332,7 +332,7 @@ class FilesetInput(BaseSelector, BaseFileset):
                  fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
-        BaseSelector.__init__(self, pattern, is_regex, order,
+        BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
@@ -350,13 +350,13 @@ class FilesetInput(BaseSelector, BaseFileset):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseSelector.__eq__(self, other) and
+                BaseInput.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseSelector.__hash__(self) ^
+                BaseInput.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id))
 
@@ -368,7 +368,7 @@ class FilesetInput(BaseSelector, BaseFileset):
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseSelector.initkwargs(self))
+        dct.update(BaseInput.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
         return dct
@@ -468,7 +468,7 @@ class FilesetInput(BaseSelector, BaseFileset):
         return {'format': self.format}
 
 
-class FieldInput(BaseSelector, BaseField):
+class FieldInput(BaseInput, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -528,14 +528,14 @@ class FieldInput(BaseSelector, BaseField):
                  fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
-        BaseSelector.__init__(self, pattern, is_regex, order,
+        BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseSelector.__eq__(self, other))
+                BaseInput.__eq__(self, other))
 
     @property
     def dtype(self):
@@ -549,11 +549,11 @@ class FieldInput(BaseSelector, BaseField):
         return dtype
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseSelector.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseInput.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseSelector.initkwargs(self))
+        dct.update(BaseInput.initkwargs(self))
         return dct
 
     def _filtered_matches(self, node):
