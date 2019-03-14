@@ -13,7 +13,7 @@ from arcana.utils.testing import BaseTestCase  # @IgnorePep8
 from arcana.data import FilesetInputSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.repository.interfaces import RepositorySource, RepositorySink  # @IgnorePep8
-from arcana.repository.directory import DirectoryRepo  # @IgnorePep8
+from arcana.repository.basic import BasicRepo  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -99,8 +99,8 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.STUDY_NAME)))
-            if f not in (DirectoryRepo.FIELDS_FNAME,
-                         DirectoryRepo.PROV_DIR)]
+            if f not in (BasicRepo.FIELDS_FNAME,
+                         BasicRepo.PROV_DIR)]
         self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
@@ -210,17 +210,17 @@ class TestSinkAndSource(BaseTestCase):
             frequency='per_subject',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         [DirectoryRepo.PROV_DIR, 'subject_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         [DirectoryRepo.PROV_DIR, 'visit_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_study',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [DirectoryRepo.PROV_DIR, 'study_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'study_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']),
@@ -271,7 +271,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
-            if f not in (DirectoryRepo.FIELDS_FNAME,
-                         DirectoryRepo.PROV_DIR)]
+            if f not in (BasicRepo.FIELDS_FNAME,
+                         BasicRepo.PROV_DIR)]
         self.assertEqual(outputs,
                          ['resink1.txt', 'resink2.txt', 'resink3.txt'])

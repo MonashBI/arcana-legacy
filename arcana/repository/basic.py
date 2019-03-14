@@ -12,7 +12,7 @@ from arcana.data import Fileset, Field
 from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
-    ArcanaBadlyFormattedDirectoryRepoError,
+    ArcanaBadlyFormattedBasicRepoError,
     ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
@@ -20,7 +20,7 @@ from arcana.utils import get_class_info, HOSTNAME, split_extension
 logger = logging.getLogger('arcana')
 
 
-class DirectoryRepo(Repository):
+class BasicRepo(Repository):
     """
     A 'Repository' class for data stored simply in file-system
     directories. Can be a single directory if it contains only one subject
@@ -53,10 +53,10 @@ class DirectoryRepo(Repository):
     MAX_DEPTH = 2
 
     def __init__(self, root_dir, depth=None, **kwargs):
-        super(DirectoryRepo, self).__init__(**kwargs)
+        super(BasicRepo, self).__init__(**kwargs)
         if not op.exists(root_dir):
             raise ArcanaError(
-                "Base directory for DirectoryRepo '{}' does not exist"
+                "Base directory for BasicRepo '{}' does not exist"
                 .format(root_dir))
         self._root_dir = op.abspath(root_dir)
         if depth is None:
@@ -271,7 +271,7 @@ class DirectoryRepo(Repository):
                     for k, v in list(dct.items()))
             if self.PROV_DIR in dirs:
                 if from_study is None:
-                    raise ArcanaBadlyFormattedDirectoryRepoError(
+                    raise ArcanaBadlyFormattedBasicRepoError(
                         "Found provenance directory in session directory (i.e."
                         " not in study-specific sub-directory)")
                 base_prov_dir = op.join(session_path, self.PROV_DIR)
@@ -296,7 +296,7 @@ class DirectoryRepo(Repository):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
             # "hidden" files that start with '.')
-            raise ArcanaBadlyFormattedDirectoryRepoError(
+            raise ArcanaBadlyFormattedBasicRepoError(
                 "Files ('{}') not permitted at {} level in local "
                 "repository".format("', '".join(files),
                                     ('subject'
@@ -404,7 +404,7 @@ class DirectoryRepo(Repository):
                 if depth > deepest:
                     deepest = depth
         if deepest == -1:
-            raise ArcanaBadlyFormattedDirectoryRepoError(
+            raise ArcanaBadlyFormattedBasicRepoError(
                 "Could not guess depth of '{}' repository as did not find "
                 "a valid session directory within sub-directories."
                 .format(root_dir))

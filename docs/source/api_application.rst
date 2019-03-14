@@ -9,7 +9,7 @@ Repositories
 
 .. autoclass:: arcana.repository.XnatRepo
 
-.. autoclass:: arcana.repository.DirectoryRepo
+.. autoclass:: arcana.repository.BasicRepo
 
 
 Processors

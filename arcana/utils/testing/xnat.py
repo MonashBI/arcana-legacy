@@ -11,7 +11,7 @@ from copy import copy
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
-from arcana.repository.directory import DirectoryRepo
+from arcana.repository.basic import BasicRepo
 from arcana.study import Study, StudyMetaClass
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
 from arcana.exceptions import ArcanaError
@@ -159,7 +159,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                           cache_dir=self.cache_dir)
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_repository = DirectoryRepo(self.project_dir)
+        local_repository = BasicRepo(self.project_dir)
         tree = local_repository.tree()
         repo = XnatRepo(SERVER, self.project, '/tmp')
         with repo:

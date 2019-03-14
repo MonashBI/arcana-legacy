@@ -45,7 +45,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedDirectoryRepoError(ArcanaError):
+class ArcanaBadlyFormattedBasicRepoError(ArcanaError):
     pass
 
 
