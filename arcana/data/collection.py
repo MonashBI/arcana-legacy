@@ -15,7 +15,7 @@ class BaseCollection(object):
     Base class for collection of filesets and field items
     """
 
-    # For duck-typing with *Spec and *Selector objects
+    # For duck-typing with *Spec and *Input objects
     is_spec = False
     skip_missing = False
     drop_if_missing = False

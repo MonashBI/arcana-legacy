@@ -12,10 +12,10 @@ from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaUsageError,
     ArcanaMissingDataException, ArcanaNameError,
-    ArcanaOutputNotProducedException, ArcanaSelectorMissingMatchError)
+    ArcanaOutputNotProducedException, ArcanaInputMissingMatchError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseAcquiredSpec, FilesetInput, FieldInput)
+    BaseData, BaseInputSpec, FilesetInput, FieldInput)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -153,7 +153,7 @@ class Study(object):
         if not isinstance(inputs, dict):
             inputs = {i.name: i for i in inputs}
         else:
-            # Convert string patterns into Selector objects
+            # Convert string patterns into Input objects
             for inpt_name, inpt in list(inputs.items()):
                 if isinstance(inpt, basestring):
                     spec = self.data_spec(inpt_name)
@@ -199,7 +199,7 @@ class Study(object):
                 try:
                     self._inputs[inpt_name] = bound_inpt = inpt.bind(
                         self, spec_name=inpt_name)
-                except ArcanaSelectorMissingMatchError as e:
+                except ArcanaInputMissingMatchError as e:
                     if not inpt.drop_if_missing:
                         raise e
                 else:
@@ -879,7 +879,7 @@ class Study(object):
             spec = self.bound_spec(spec_name)
         except ArcanaMissingDataException:
             return False
-        if isinstance(spec, BaseAcquiredSpec):
+        if isinstance(spec, BaseInputSpec):
             return spec.default is not None and default_okay
         else:
             return True
