@@ -2,7 +2,7 @@ from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
 from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
 from arcana.data.file_format.standard import text_format
-from arcana.study.parameter import ParameterSpec
+from arcana.study.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
 from arcana.study.base import Study
 from arcana.study.multi import (
@@ -24,9 +24,9 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('z', text_format, 'pipeline_alpha')]
 
     add_param_specs = [
-        ParameterSpec('o1', 1),
-        ParameterSpec('o2', '2'),
-        ParameterSpec('o3', 3.0)]
+        ParamSpec('o1', 1),
+        ParamSpec('o2', '2'),
+        ParamSpec('o3', 3.0)]
 
     def pipeline_alpha(self, **name_maps):  # @UnusedVariable
         pipeline = self.new_pipeline(
@@ -54,10 +54,10 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('z', text_format, 'pipeline_beta')]
 
     add_param_specs = [
-        ParameterSpec('o1', 10),
-        ParameterSpec('o2', '20'),
-        ParameterSpec('o3', 30.0),
-        ParameterSpec('product_op', None, dtype=str)]  # Needs to be set to 'product' @IgnorePep8
+        ParamSpec('o1', 10),
+        ParamSpec('o2', '20'),
+        ParamSpec('o3', 30.0),
+        ParamSpec('product_op', None, dtype=str)]  # Needs to be set to 'product' @IgnorePep8
 
     def pipeline_beta(self, **name_maps):  # @UnusedVariable
         pipeline = self.new_pipeline(
@@ -119,12 +119,12 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         FilesetSpec('f', text_format, 'pipeline_beta_trans')]
 
     add_param_specs = [
-        ParameterSpec('p1', 100),
-        ParameterSpec('p2', '200'),
-        ParameterSpec('p3', 300.0),
-        ParameterSpec('q1', 150),
-        ParameterSpec('q2', '250'),
-        ParameterSpec('required_op', None, dtype=str)]
+        ParamSpec('p1', 100),
+        ParamSpec('p2', '200'),
+        ParamSpec('p3', 300.0),
+        ParamSpec('q1', 150),
+        ParamSpec('q2', '250'),
+        ParamSpec('required_op', None, dtype=str)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -149,7 +149,7 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         'ss1', 'pipeline_alpha')
 
     add_param_specs = [
-        ParameterSpec('p1', 1000)]
+        ParamSpec('p1', 1000)]
 
 
 class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
@@ -163,7 +163,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
         FilesetSpec('g', text_format, 'combined_pipeline')]
 
     add_param_specs = [
-        ParameterSpec('combined_op', 'add')]
+        ParamSpec('combined_op', 'add')]
 
     def combined_pipeline(self, **name_maps):
         pipeline = self.new_pipeline(

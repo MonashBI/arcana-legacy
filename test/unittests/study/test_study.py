@@ -14,7 +14,7 @@ from arcana.study.multi import (  # @IgnorePep8
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
 from nipype.interfaces.base import (  # @IgnorePep8
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.study.parameter import ParameterSpec  # @IgnorePep8
+from arcana.study.parameter import ParamSpec  # @IgnorePep8
 from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
@@ -56,7 +56,7 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
                     frequency='per_subject')]
 
     add_param_specs = [
-        ParameterSpec('pipeline_parameter', False)]
+        ParamSpec('pipeline_parameter', False)]
 
     def pipeline1(self, **name_maps):
         pipeline = self.new_pipeline(

@@ -21,7 +21,7 @@ from .__about__ import __version__, __authors__
 import os
 from .study import (
     Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
-    SubStudySpec, Parameter, ParameterSpec, SwitchSpec)
+    SubStudySpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
     FilesetSpec, FilesetSelector, FieldSpec, FieldSelector,
     AcquiredFilesetSpec, AcquiredFieldSpec)

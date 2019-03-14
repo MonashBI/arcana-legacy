@@ -7,7 +7,7 @@ A basic toy example
 
     from arcana import (
         Study, StudyMetaClass, AcquiredFilesetSpec, FilesetSpec,
-        AcquiredFieldSpec, FieldSpec, ParameterSpec, SwitchSpec,
+        AcquiredFieldSpec, FieldSpec, ParamSpec, SwitchSpec,
         FilesetSelector, FieldSelector)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
@@ -50,8 +50,8 @@ A basic toy example
         # (Parameter) and qualitative (Switches) options.
         add_param_specs = [
             # Standard parameters
-            ParameterSpec('parameter1', 10),
-            ParameterSpec('parameter2', 25.8),
+            ParamSpec('parameter1', 10),
+            ParamSpec('parameter2', 25.8),
             # "Switch" parameters that specify a qualitative change
             # in the analysis
             SwitchSpec('node1_option', False),  # Boolean switch

@@ -3,7 +3,7 @@ from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
 from arcana.processor import LinearProcessor
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.study.parameter import ParameterSpec, SwitchSpec  # @IgnorePep8
+from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
     AcquiredFilesetSpec, FilesetSpec, FieldSpec,
     AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
@@ -48,8 +48,8 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
     add_param_specs = [
         SwitchSpec('extra_req', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee')),
-        ParameterSpec('multiplier', 10.0),
-        ParameterSpec('subtract', 3)]
+        ParamSpec('multiplier', 10.0),
+        ParamSpec('subtract', 3)]
 
     def pipeline1(self, **name_maps):
         pipeline = self.new_pipeline(
@@ -184,8 +184,8 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
 class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
 
     add_param_specs = [
-        ParameterSpec('a', 50.0),
-        ParameterSpec('b', 25.0)]
+        ParamSpec('a', 50.0),
+        ParamSpec('b', 25.0)]
 
     def pipeline2(self, **name_maps):
         pipeline = super(TestProvStudyAddNode, self).pipeline2(**name_maps)
@@ -414,8 +414,8 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('derived_field5', int, 'pipeline5')]
 
     add_param_specs = [
-        ParameterSpec('increment', 1),
-        ParameterSpec('pipeline3_op', 'add')]
+        ParamSpec('increment', 1),
+        ParamSpec('pipeline3_op', 'add')]
 
     def pipeline1(self, **name_maps):
         pipeline = self.new_pipeline(
