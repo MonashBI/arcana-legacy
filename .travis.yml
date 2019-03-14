@@ -50,6 +50,7 @@ install:
   - mkdir -p $HOME/data
   - pip install nose
   - pip install codecov
+  - sed -i 's/^            _save_resultfile(result, outdir, self.name)/            print(result)\n            _save_resultfile(result, outdir, self.name)/g' /home/travis/virtualenv/python2.7.14/lib/python2.7/site-packages/nipype/pipeline/engine/nodes.py
   - python ci/wait_for_xnat.py
 script:
   nosetests test/unittests --with-coverage --cover-package=arcana
