@@ -47,7 +47,11 @@ class NodeMixin(object):
     def _run_command(self, *args, **kwargs):
         # Detect run time and compare against specified wall_time
         start_time = time.time()
-        result = self.nipype_cls._run_command(self, *args, **kwargs)
+        try:
+            result = self.nipype_cls._run_command(self, *args, **kwargs)
+        except TypeError as e:
+            print(result)
+            raise e
         end_time = time.time()
         run_time = (end_time - start_time) // 60
         if run_time > self._wall_time:

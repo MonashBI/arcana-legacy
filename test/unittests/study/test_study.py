@@ -540,22 +540,88 @@ class TestInputNoConverter(BaseTestCase):
                 FilesetInput('d', 'd', test3_format)])
 
 
-class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
+class AlwaysRaisedError(Exception):
+    pass
+
+
+class ErrorInterfaceInputSpec(TraitedSpec):
+
+    in_file = File('a file')
+
+
+class ErrorInterfaceOutputSpec(TraitedSpec):
+
+    out_file = File('a file')
+
+
+class ErrorInterface(BaseInterface):
+
+    input_spec = ErrorInterfaceInputSpec
+    output_spec = ErrorInterfaceOutputSpec
+
+    def _run_interface(self, runtime):
+        raise AlwaysRaisedError
+
+
+class BasicTestStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
         FilesetInputSpec('fileset', text_format),
-        FilesetSpec('out_fileset', text_format, 'a_pipeline')]
+        FilesetSpec('out_fileset', text_format, 'a_pipeline'),
+        FilesetSpec('raise_error', text_format, 'raise_error_pipeline')]
 
     def a_pipeline(self, **name_maps):
+
         pipeline = self.new_pipeline(
             'a_pipeline',
             desc='a dummy pipeline',
             citations=[],
             name_maps=name_maps)
-        ident = pipeline.add('ident', IdentityInterface(['fileset']))
-        pipeline.connect_input('fileset', ident, 'fileset')
-        pipeline.connect_output('out_fileset', ident, 'fileset')
+
+        pipeline.add(
+            'ident',
+            IdentityInterface(
+                ['fileset']),
+            inputs={
+                'fileset': ('fileset', text_format)},
+            outputs={
+                'out_fileset': ('fileset', text_format)})
+
         return pipeline
+
+    def raise_error_pipeline(self, **name_maps):
+
+        pipeline = self.new_pipeline(
+            'error_pipeline',
+            desc='a pipeline that always throws an error',
+            citations=[],
+            name_maps=name_maps)
+
+        pipeline.add(
+            'error',
+            ErrorInterface(),
+            inputs={
+                'in_file': ('fileset', text_format)},
+            outputs={
+                'raise_error': ('out_file', text_format)})
+
+        return pipeline
+
+
+class TestInterfaceErrorHandling(BaseTestCase):
+
+    INPUT_DATASETS = {'fileset': 'foo'}
+
+    def test_raised_error(self):
+        study = self.create_study(
+            BasicTestStudy,
+            'base',
+            inputs=[FilesetInput('fileset', 'fileset', text_format)])
+
+        self.assertRaises(
+            RuntimeError,
+            study.data,
+            'raise_error')
 
 
 class TestGeneratedPickle(BaseTestCase):
@@ -564,7 +630,7 @@ class TestGeneratedPickle(BaseTestCase):
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(
-            'GeneratedClass', (BasicTestClass,), {})
+            'GeneratedClass', (BasicTestStudy,), {})
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
@@ -580,8 +646,8 @@ class TestGeneratedPickle(BaseTestCase):
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
             'add_sub_study_specs': [
-                SubStudySpec('ss1', BasicTestClass),
-                SubStudySpec('ss2', BasicTestClass)]}
+                SubStudySpec('ss1', BasicTestStudy),
+                SubStudySpec('ss2', BasicTestStudy)]}
         MultiGeneratedClass = MultiStudyMetaClass(
             'MultiGeneratedClass', (MultiStudy,), cls_dct)
         study = self.create_study(
@@ -600,8 +666,8 @@ class TestGeneratedPickle(BaseTestCase):
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
             'add_sub_study_specs': [
-                SubStudySpec('ss1', BasicTestClass),
-                SubStudySpec('ss2', BasicTestClass)],
+                SubStudySpec('ss1', BasicTestStudy),
+                SubStudySpec('ss2', BasicTestStudy)],
             'default_fileset_pipeline': MultiStudy.translate(
                 'ss1', 'pipeline')}
         MultiGeneratedClass = MultiStudyMetaClass(
