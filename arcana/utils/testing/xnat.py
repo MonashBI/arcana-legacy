@@ -13,7 +13,7 @@ from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.repository.directory import DirectoryRepo
 from arcana.study import Study, StudyMetaClass
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
+from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
 from arcana.exceptions import ArcanaError
 from arcana.data.file_format.standard import text_format
 import logging

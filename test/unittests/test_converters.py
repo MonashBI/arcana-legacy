@@ -1,7 +1,7 @@
 import os
 import tempfile
 import os.path as op
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FilesetSelector, Fileset
+from arcana.data import FilesetInputSpec, FilesetSpec, FilesetSelector, Fileset
 from arcana.data.file_format.standard import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
@@ -22,9 +22,9 @@ class TestConverterAvailability(TestCase):
 class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('text', text_format),
-        AcquiredFilesetSpec('directory', directory_format),
-        AcquiredFilesetSpec('zip', zip_format),
+        FilesetInputSpec('text', text_format),
+        FilesetInputSpec('directory', directory_format),
+        FilesetInputSpec('zip', zip_format),
         FilesetSpec('text_from_text', text_format, 'conv_pipeline'),
         FilesetSpec('directory_from_zip_on_input', directory_format,
                     'conv_pipeline'),

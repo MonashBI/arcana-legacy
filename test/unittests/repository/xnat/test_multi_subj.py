@@ -6,7 +6,7 @@ import unittest
 from arcana.utils.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.data import (
-    FilesetSelector, AcquiredFilesetSpec)
+    FilesetSelector, FilesetInputSpec)
 from arcana.study import Study, StudyMetaClass
 from arcana.data.file_format.standard import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
@@ -29,10 +29,10 @@ sys.path.pop(0)
 class TestStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('fileset1', text_format),
-        AcquiredFilesetSpec('fileset2', text_format, optional=True),
-        AcquiredFilesetSpec('fileset3', text_format),
-        AcquiredFilesetSpec('fileset5', text_format, optional=True)]
+        FilesetInputSpec('fileset1', text_format),
+        FilesetInputSpec('fileset2', text_format, optional=True),
+        FilesetInputSpec('fileset3', text_format),
+        FilesetInputSpec('fileset5', text_format, optional=True)]
 
 
 class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,

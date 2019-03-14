@@ -24,7 +24,7 @@ from .study import (
     SubStudySpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
     FilesetSpec, FilesetSelector, FieldSpec, FieldSelector,
-    AcquiredFilesetSpec, AcquiredFieldSpec)
+    FilesetInputSpec, FieldInputSpec)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
 from .processor import (

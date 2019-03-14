@@ -9,7 +9,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
+from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
 from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
 from arcana.exceptions import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
@@ -54,8 +54,8 @@ class TestFilesetSpecPickle(TestCase):
 class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('gre_phase', dicom_format),
-        AcquiredFilesetSpec('gre_mag', dicom_format)]
+        FilesetInputSpec('gre_phase', dicom_format),
+        FilesetInputSpec('gre_mag', dicom_format)]
 
     def dummy_pipeline1(self):
         pass
@@ -113,8 +113,8 @@ class TestDicomTagMatch(BaseTestCase):
 class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('required', text_format),
-        AcquiredFilesetSpec('optional', text_format, optional=True),
+        FilesetInputSpec('required', text_format),
+        FilesetInputSpec('optional', text_format, optional=True),
         FilesetSpec('derivable', text_format, 'pipeline1'),
         FilesetSpec('missing_input', text_format, 'pipeline2'),
         FilesetSpec('another_derivable', text_format, 'pipeline3'),

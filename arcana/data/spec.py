@@ -278,7 +278,7 @@ class BaseSpec(object):
         return node
 
 
-class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
+class FilesetInputSpec(BaseFileset, BaseAcquiredSpec):
     """
     A specification for an "acquired" fileset (e.g from the scanner or
     standard atlas)
@@ -439,7 +439,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return {'format': self.format}
 
 
-class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
+class FieldInputSpec(BaseField, BaseAcquiredSpec):
     """
     An abstract base class representing an acquired field
 

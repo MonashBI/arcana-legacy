@@ -6,8 +6,8 @@ A basic toy example
 .. code-block:: python
 
     from arcana import (
-        Study, StudyMetaClass, AcquiredFilesetSpec, FilesetSpec,
-        AcquiredFieldSpec, FieldSpec, ParamSpec, SwitchSpec,
+        Study, StudyMetaClass, FilesetInputSpec, FilesetSpec,
+        FieldInputSpec, FieldSpec, ParamSpec, SwitchSpec,
         FilesetSelector, FieldSelector)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
@@ -21,15 +21,15 @@ A basic toy example
         # and generating pipeline (for derived filesets/fields)
         add_data_specs = [
             # Acquired file sets
-            AcquiredFilesetSpec('acquired_file1', text_format),
-            AcquiredFilesetSpec('acquired_file2', STD_IMAGE_FORMATS),
+            FilesetInputSpec('acquired_file1', text_format),
+            FilesetInputSpec('acquired_file2', STD_IMAGE_FORMATS),
             # Acquired fields
-            AcquiredFieldSpec('acquired_field1', int, array=True,
+            FieldInputSpec('acquired_field1', int, array=True,
                               frequency='per_subject'),
-            AcquiredFieldSpec('acquired_field2', float, optional=True),
+            FieldInputSpec('acquired_field2', float, optional=True),
             # "Acquired" file set with default value. Useful for
             # standard templates
-            AcquiredFilesetSpec('template1', STD_IMAGE_FORMATS,
+            FilesetInputSpec('template1', STD_IMAGE_FORMATS,
                                 frequency='per_study',
                                 default=template_collectn),
             # Derived file sets

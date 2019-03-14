@@ -1,6 +1,6 @@
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
-from arcana.data import FilesetSelector, FilesetSpec, AcquiredFilesetSpec
+from arcana.data import FilesetSelector, FilesetSpec, FilesetInputSpec
 from arcana.data.file_format.standard import text_format
 from arcana.study.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
@@ -19,8 +19,8 @@ class NotSpecifiedRequiredParameter(Exception):
 class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('x', text_format),
-        AcquiredFilesetSpec('y', text_format),
+        FilesetInputSpec('x', text_format),
+        FilesetInputSpec('y', text_format),
         FilesetSpec('z', text_format, 'pipeline_alpha')]
 
     add_param_specs = [
@@ -48,8 +48,8 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
 class StudyB(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('w', text_format),
-        AcquiredFilesetSpec('x', text_format),
+        FilesetInputSpec('w', text_format),
+        FilesetInputSpec('x', text_format),
         FilesetSpec('y', text_format, 'pipeline_beta'),
         FilesetSpec('z', text_format, 'pipeline_beta')]
 
@@ -111,9 +111,9 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                       'product_op': 'required_op'})]
 
     add_data_specs = [
-        AcquiredFilesetSpec('a', text_format),
-        AcquiredFilesetSpec('b', text_format),
-        AcquiredFilesetSpec('c', text_format),
+        FilesetInputSpec('a', text_format),
+        FilesetInputSpec('b', text_format),
+        FilesetInputSpec('c', text_format),
         FilesetSpec('d', text_format, 'pipeline_alpha_trans'),
         FilesetSpec('e', text_format, 'pipeline_beta_trans'),
         FilesetSpec('f', text_format, 'pipeline_beta_trans')]
@@ -141,9 +141,9 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                      {'w': 'b', 'x': 'c', 'o1': 'p1'})]
 
     add_data_specs = [
-        AcquiredFilesetSpec('a', text_format),
-        AcquiredFilesetSpec('b', text_format),
-        AcquiredFilesetSpec('c', text_format)]
+        FilesetInputSpec('a', text_format),
+        FilesetInputSpec('b', text_format),
+        FilesetInputSpec('c', text_format)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')

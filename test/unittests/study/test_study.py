@@ -20,7 +20,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, AcquiredFilesetSpec, FilesetSelector, FilesetSpec)
+    Fileset, FilesetInputSpec, FilesetSelector, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 if PY2:
@@ -32,8 +32,8 @@ else:
 class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('one', text_format),
-        AcquiredFilesetSpec('ten', text_format),
+        FilesetInputSpec('one', text_format),
+        FilesetInputSpec('ten', text_format),
         FilesetSpec('derived1_1', text_format, 'pipeline1'),
         FilesetSpec('derived1_2', text_format, 'pipeline1'),
         FilesetSpec('derived2', text_format, 'pipeline2'),
@@ -323,7 +323,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('one', text_format),
+        FilesetInputSpec('one', text_format),
         FilesetSpec('ten', text_format, 'ten_pipeline'),
         FilesetSpec('hundred', text_format, 'hundred_pipeline'),
         FilesetSpec('thousand', text_format, 'thousand_pipeline')]
@@ -452,8 +452,8 @@ FileFormat.register(test3_format)
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('a', (test1_format, test2_format)),
-        AcquiredFilesetSpec('b', test3_format),
+        FilesetInputSpec('a', (test1_format, test2_format)),
+        FilesetInputSpec('b', test3_format),
         FilesetSpec('c', test2_format, 'identity_pipeline'),
         FilesetSpec('d', test3_format, 'identity_pipeline')]
 
@@ -543,7 +543,7 @@ class TestInputNoConverter(BaseTestCase):
 class BasicTestClass(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('fileset', text_format),
+        FilesetInputSpec('fileset', text_format),
         FilesetSpec('out_fileset', text_format, 'a_pipeline')]
 
     def a_pipeline(self, **name_maps):

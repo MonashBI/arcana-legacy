@@ -19,17 +19,17 @@ from arcana.data.file_format.standard import text_format
 from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
 from arcana.study import Study, StudyMetaClass
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
+from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
 from future.utils import with_metaclass
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('source1', text_format),
-        AcquiredFilesetSpec('source2', text_format, optional=True),
-        AcquiredFilesetSpec('source3', text_format, optional=True),
-        AcquiredFilesetSpec('source4', text_format, optional=True),
+        FilesetInputSpec('source1', text_format),
+        FilesetInputSpec('source2', text_format, optional=True),
+        FilesetInputSpec('source3', text_format, optional=True),
+        FilesetInputSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),

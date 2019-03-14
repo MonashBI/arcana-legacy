@@ -5,8 +5,8 @@ from arcana.processor import LinearProcessor
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
-    AcquiredFilesetSpec, FilesetSpec, FieldSpec,
-    AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
+    FilesetInputSpec, FilesetSpec, FieldSpec,
+    FieldInputSpec, FieldSelector)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
@@ -35,10 +35,10 @@ d_req = DummyRequirement('d', detected_version='0.9.dev10')
 class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('acquired_fileset1', text_format),
-        AcquiredFilesetSpec('acquired_fileset2', text_format),
-        AcquiredFilesetSpec('acquired_fileset3', text_format),
-        AcquiredFieldSpec('acquired_field1', float),
+        FilesetInputSpec('acquired_fileset1', text_format),
+        FilesetInputSpec('acquired_fileset2', text_format),
+        FilesetInputSpec('acquired_fileset3', text_format),
+        FieldInputSpec('acquired_field1', float),
         FilesetSpec('derived_fileset1', text_format, 'pipeline2'),
         FieldSpec('derived_field1', float, 'pipeline1', array=True),
         FieldSpec('derived_field2', float, 'pipeline3'),
@@ -402,8 +402,8 @@ class TestProvInputChange(BaseTestCase):
 class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFieldSpec('acquired_field1', int),
-        AcquiredFieldSpec('acquired_field2', int, optional=True),
+        FieldInputSpec('acquired_field1', int),
+        FieldInputSpec('acquired_field2', int, optional=True),
         FieldSpec('derived_field1', int, 'pipeline1'),
         FieldSpec('derived_field2', int, 'pipeline2',
                   frequency='per_subject'),
