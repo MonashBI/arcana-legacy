@@ -1,7 +1,7 @@
-from .docker import DockerEnvironment
+from .docker import DockerEnv
 
 
-class SingularityEnvironment(DockerEnvironment):
+class SingularityEnv(DockerEnv):
     """
     Placeholder class for Singularity environments
     """

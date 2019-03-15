@@ -3,7 +3,7 @@ import math
 import os
 from arcana.exceptions import (
     ArcanaError, ArcanaJobSubmittedException)
-from .base import BaseProcessor
+from .base import Processor
 from nipype.pipeline.plugins.slurmgraph import SLURMGraphPlugin
 
 
@@ -30,7 +30,7 @@ class ArcanaSlurmGraphPlugin(SLURMGraphPlugin):
         return tuple(new_args)
 
 
-class SlurmProcessor(BaseProcessor):
+class SlurmProc(Processor):
     """
     A thin wrapper around the NiPype SLURMGraphPlugin used to connect
     submit pipelines to a Slurm scheduler
@@ -71,7 +71,7 @@ class SlurmProcessor(BaseProcessor):
                 email = os.environ['EMAIL']
             except KeyError:
                 raise ArcanaError(
-                    "'email' kwarg needs to be provided for SlurmProcessor"
+                    "'email' kwarg needs to be provided for SlurmProc"
                     " if 'EMAIL' environment variable not set")
         self._email = email
         self._mail_on = mail_on
@@ -80,7 +80,7 @@ class SlurmProcessor(BaseProcessor):
         self._ntasks_per_node = ntasks_per_node
         self._cpus_per_task = cpus_per_task
         self._generic_resources = generic_resources
-        super(SlurmProcessor, self).__init__(work_dir, **kwargs)
+        super(SlurmProc, self).__init__(work_dir, **kwargs)
 
     def _init_plugin(self):
         self._plugin = self.nipype_plugin_cls(processor=self,
@@ -99,7 +99,7 @@ class SlurmProcessor(BaseProcessor):
         return self._account
 
     def run(self, pipeline, **kwargs):
-        super(SlurmProcessor, self).run(pipeline, **kwargs)
+        super(SlurmProc, self).run(pipeline, **kwargs)
         raise ArcanaJobSubmittedException(
             "Pipeline '{}' has been submitted to SLURM scheduler "
             "for processing. Please run script again after the jobs "

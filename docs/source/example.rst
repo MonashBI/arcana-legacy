@@ -6,9 +6,9 @@ A basic toy example
 .. code-block:: python
 
     from arcana import (
-        Study, StudyMetaClass, AcquiredFilesetSpec, FilesetSpec,
-        AcquiredFieldSpec, FieldSpec, ParameterSpec, SwitchSpec,
-        FilesetSelector, FieldSelector)
+        Study, StudyMetaClass, FilesetInputSpec, FilesetSpec,
+        FieldInputSpec, FieldSpec, ParamSpec, SwitchSpec,
+        FilesetInput, FieldInput)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
         software_req2, matlab_req, toolbox_req)
@@ -21,15 +21,15 @@ A basic toy example
         # and generating pipeline (for derived filesets/fields)
         add_data_specs = [
             # Acquired file sets
-            AcquiredFilesetSpec('acquired_file1', text_format),
-            AcquiredFilesetSpec('acquired_file2', STD_IMAGE_FORMATS),
+            FilesetInputSpec('acquired_file1', text_format),
+            FilesetInputSpec('acquired_file2', STD_IMAGE_FORMATS),
             # Acquired fields
-            AcquiredFieldSpec('acquired_field1', int, array=True,
+            FieldInputSpec('acquired_field1', int, array=True,
                               frequency='per_subject'),
-            AcquiredFieldSpec('acquired_field2', float, optional=True),
+            FieldInputSpec('acquired_field2', float, optional=True),
             # "Acquired" file set with default value. Useful for
             # standard templates
-            AcquiredFilesetSpec('template1', STD_IMAGE_FORMATS,
+            FilesetInputSpec('template1', STD_IMAGE_FORMATS,
                                 frequency='per_study',
                                 default=template_collectn),
             # Derived file sets
@@ -50,8 +50,8 @@ A basic toy example
         # (Parameter) and qualitative (Switches) options.
         add_param_specs = [
             # Standard parameters
-            ParameterSpec('parameter1', 10),
-            ParameterSpec('parameter2', 25.8),
+            ParamSpec('parameter1', 10),
+            ParamSpec('parameter2', 25.8),
             # "Switch" parameters that specify a qualitative change
             # in the analysis
             SwitchSpec('node1_option', False),  # Boolean switch
@@ -139,13 +139,13 @@ which can then be instantiated and used to generate 'derived2' with
     # used in the processing
     your_study = ExampleStudy(
         name='your_study',
-        repository=DirectoryRepository('/path/to/local/archive'),
-        processor=LinearProcessor('/my/work/dir'),
-        environment=StaticEnvironment(),
+        repository=BasicRepo('/path/to/local/archive'),
+        processor=SingleProc('/my/work/dir'),
+        environment=StaticEnv(),
         inputs=[
-            FilesetSelector('acquired_file1', 'your-name-for-file1'),
-            FilesetSelector('acquired_file2', 'your-name-for-file2'),
-            FieldSelector('acquired_field1', 'your-name-for-field1')],
+            FilesetInput('acquired_file1', 'your-name-for-file1'),
+            FilesetInput('acquired_file2', 'your-name-for-file2'),
+            FieldInput('acquired_field1', 'your-name-for-field1')],
         parameters={'parameter2': 50.0,
                     'node1_option': True})
 

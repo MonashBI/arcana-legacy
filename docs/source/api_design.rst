@@ -14,7 +14,7 @@ Study
 .. autoclass:: arcana.study.MultiStudy
     :members: sub_study, translate
 
-.. autoclass:: arcana.study.ParameterSpec
+.. autoclass:: arcana.study.ParamSpec
 
 .. autoclass:: arcana.study.SubStudySpec
 

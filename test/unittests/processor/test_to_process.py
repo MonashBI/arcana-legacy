@@ -1,12 +1,12 @@
 from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.processor import LinearProcessor
+from arcana.processor import SingleProc
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.study.parameter import ParameterSpec, SwitchSpec  # @IgnorePep8
+from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
-    AcquiredFilesetSpec, FilesetSpec, FieldSpec,
-    AcquiredFieldSpec, FieldSelector)  # @IgnorePep8
+    FilesetInputSpec, FilesetSpec, FieldSpec,
+    FieldInputSpec, FieldInput)  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
@@ -35,10 +35,10 @@ d_req = DummyRequirement('d', detected_version='0.9.dev10')
 class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('acquired_fileset1', text_format),
-        AcquiredFilesetSpec('acquired_fileset2', text_format),
-        AcquiredFilesetSpec('acquired_fileset3', text_format),
-        AcquiredFieldSpec('acquired_field1', float),
+        FilesetInputSpec('acquired_fileset1', text_format),
+        FilesetInputSpec('acquired_fileset2', text_format),
+        FilesetInputSpec('acquired_fileset3', text_format),
+        FieldInputSpec('acquired_field1', float),
         FilesetSpec('derived_fileset1', text_format, 'pipeline2'),
         FieldSpec('derived_field1', float, 'pipeline1', array=True),
         FieldSpec('derived_field2', float, 'pipeline3'),
@@ -48,8 +48,8 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
     add_param_specs = [
         SwitchSpec('extra_req', False),
         SwitchSpec('branch', 'foo', ('foo', 'bar', 'wee')),
-        ParameterSpec('multiplier', 10.0),
-        ParameterSpec('subtract', 3)]
+        ParamSpec('multiplier', 10.0),
+        ParamSpec('subtract', 3)]
 
     def pipeline1(self, **name_maps):
         pipeline = self.new_pipeline(
@@ -184,8 +184,8 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
 class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
 
     add_param_specs = [
-        ParameterSpec('a', 50.0),
-        ParameterSpec('b', 25.0)]
+        ParamSpec('a', 50.0),
+        ParamSpec('b', 25.0)]
 
     def pipeline2(self, **name_maps):
         pipeline = super(TestProvStudyAddNode, self).pipeline2(**name_maps)
@@ -260,7 +260,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudyAddNode,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          1252.0)
@@ -276,7 +276,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudyAddConnect,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          170.0)
@@ -329,7 +329,7 @@ class TestProvBasic(BaseTestCase):
             TestProvStudy,
             study_name,
             inputs=STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={'multiplier': 100.0})
         derived_fileset1_collection, derived_field4_collection = study.data(
             ('derived_fileset1', 'derived_field4'))
@@ -345,7 +345,7 @@ class TestProvBasic(BaseTestCase):
         study = self.create_study(
             TestProvStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS,
             parameters={'multiplier': 1000.0})
         # Check to see protected conflict error is raise if only one of
@@ -393,7 +393,7 @@ class TestProvInputChange(BaseTestCase):
         new_study = self.create_study(
             TestProvStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
@@ -402,8 +402,8 @@ class TestProvInputChange(BaseTestCase):
 class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFieldSpec('acquired_field1', int),
-        AcquiredFieldSpec('acquired_field2', int, optional=True),
+        FieldInputSpec('acquired_field1', int),
+        FieldInputSpec('acquired_field2', int, optional=True),
         FieldSpec('derived_field1', int, 'pipeline1'),
         FieldSpec('derived_field2', int, 'pipeline2',
                   frequency='per_subject'),
@@ -414,8 +414,8 @@ class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
         FieldSpec('derived_field5', int, 'pipeline5')]
 
     add_param_specs = [
-        ParameterSpec('increment', 1),
-        ParameterSpec('pipeline3_op', 'add')]
+        ParamSpec('increment', 1),
+        ParamSpec('pipeline3_op', 'add')]
 
     def pipeline1(self, **name_maps):
         pipeline = self.new_pipeline(
@@ -545,7 +545,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [FieldSelector('acquired_field1', 'acquired_field1', int)]
+    STUDY_INPUTS = [FieldInput('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -668,7 +668,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'pipeline3_op': 'mul'})
         study.data('derived_field3', subject_id='0', visit_id='0')
@@ -686,7 +686,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=self.STUDY_INPUTS,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'increment': 2})
         study.data('derived_field5', subject_id='0', visit_id='0')
@@ -713,7 +713,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         study = self.create_study(
             TestDialationStudy,
             study_name,
-            processor=LinearProcessor(self.work_dir, reprocess=True),
+            processor=SingleProc(self.work_dir, reprocess=True),
             inputs=self.STUDY_INPUTS,
             parameters={
                 'increment': 2})
@@ -785,8 +785,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=[
-                FieldSelector('acquired_field1', 'acquired_field1', int),
-                FieldSelector('acquired_field2', 'acquired_field2', int,
+                FieldInput('acquired_field1', 'acquired_field1', int),
+                FieldInput('acquired_field2', 'acquired_field2', int,
                               skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],

@@ -16,9 +16,9 @@ import logging
 import arcana
 from arcana.data import Fileset
 from arcana.utils import classproperty
-from arcana.repository.directory import DirectoryRepository
-from arcana.processor import LinearProcessor
-from arcana.environment import StaticEnvironment
+from arcana.repository.basic import BasicRepo
+from arcana.processor import SingleProc
+from arcana.environment import StaticEnv
 from arcana.exceptions import ArcanaError
 from arcana.exceptions import ArcanaUsageError
 
@@ -143,7 +143,7 @@ class BaseTestCase(TestCase):
                     .format(fileset, self))
         if fields is not None:
             with open(op.join(session_dir,
-                              DirectoryRepository.FIELDS_FNAME), 'w',
+                              BasicRepo.FIELDS_FNAME), 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fields, f, indent=2)
 
@@ -200,17 +200,17 @@ class BaseTestCase(TestCase):
         try:
             return self._local_repository
         except AttributeError:
-            self._local_repository = DirectoryRepository(self.project_dir,
+            self._local_repository = BasicRepo(self.project_dir,
                                                          depth=2)
             return self._local_repository
 
     @property
     def processor(self):
-        return LinearProcessor(self.work_dir)
+        return SingleProc(self.work_dir)
 
     @property
     def environment(self):
-        return StaticEnvironment()
+        return StaticEnv()
 
     @property
     def project_dir(self):
@@ -268,11 +268,11 @@ class BaseTestCase(TestCase):
             Name of the study
         inputs : List[BaseSpec]
             List of inputs to the study
-        repository : BaseRepository | None
+        repository : Repository | None
             The repository to use (a default local repository is used if one
             isn't provided
         processor : Processor | None
-            The processor to use (a default LinearProcessor is used if one
+            The processor to use (a default SingleProc is used if one
             isn't provided
         """
         if repository is None:
@@ -346,7 +346,7 @@ class BaseTestCase(TestCase):
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir,
-                              DirectoryRepository.FIELDS_FNAME)) as f:
+                              BasicRepo.FIELDS_FNAME)) as f:
                 fields = json.load(f, 'rb')
         except IOError as e:
             if e.errno == errno.ENOENT:
@@ -428,18 +428,18 @@ class BaseTestCase(TestCase):
             assert visit is None
             path = op.join(
                 self.project_dir, subject,
-                DirectoryRepository.SUMMARY_NAME)
+                BasicRepo.SUMMARY_NAME)
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
             path = op.join(self.project_dir,
-                           DirectoryRepository.SUMMARY_NAME, visit)
+                           BasicRepo.SUMMARY_NAME, visit)
         elif frequency == 'per_study':
             assert subject is None
             assert visit is None
             path = op.join(self.project_dir,
-                           DirectoryRepository.SUMMARY_NAME,
-                           DirectoryRepository.SUMMARY_NAME)
+                           BasicRepo.SUMMARY_NAME,
+                           BasicRepo.SUMMARY_NAME)
         else:
             assert False
         if from_study is not None:
@@ -468,7 +468,7 @@ class BaseTestCase(TestCase):
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
-    SUMMARY_NAME = DirectoryRepository.SUMMARY_NAME
+    SUMMARY_NAME = BasicRepo.SUMMARY_NAME
 
     def setUp(self):
         self.reset_dirs()
@@ -496,7 +496,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     f.write(str(contents))
                 if fileset.derived:
                     self._make_dir(op.join(session_path,
-                                           DirectoryRepository.PROV_DIR))
+                                           BasicRepo.PROV_DIR))
             for field in node.fields:
                 fields_path = self.local_repository.fields_json_path(field)
                 if op.exists(fields_path):
@@ -511,7 +511,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     json.dump(dct, f, indent=2)
                 if field.derived:
                     self._make_dir(op.join(session_path,
-                                           DirectoryRepository.PROV_DIR))
+                                           BasicRepo.PROV_DIR))
 
     @property
     def subject_ids(self):

@@ -1,5 +1,5 @@
-from .static import StaticEnvironment
-from .modules import ModulesEnvironment
+from .static import StaticEnv
+from .modules import ModulesEnv
 from .requirement import (
     BaseRequirement, CliRequirement, MatlabPackageRequirement,
     PythonPackageRequirement, matlab_req)

@@ -10,26 +10,26 @@ from multiprocessing import Process
 from arcana.utils.testing import BaseTestCase
 from nipype.pipeline import engine as pe
 from nipype.interfaces.utility import IdentityInterface
-from arcana.repository.xnat import XnatRepository
-from arcana.processor import LinearProcessor
+from arcana.repository.xnat import XnatRepo
+from arcana.processor import SingleProc
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.data import FilesetSelector
+from arcana.data import FilesetInput
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format.standard import text_format
 from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
 from arcana.study import Study, StudyMetaClass
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec
+from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
 from future.utils import with_metaclass
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('source1', text_format),
-        AcquiredFilesetSpec('source2', text_format, optional=True),
-        AcquiredFilesetSpec('source3', text_format, optional=True),
-        AcquiredFilesetSpec('source4', text_format, optional=True),
+        FilesetInputSpec('source1', text_format),
+        FilesetInputSpec('source2', text_format, optional=True),
+        FilesetInputSpec('source3', text_format, optional=True),
+        FilesetInputSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),
@@ -91,15 +91,15 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
 
         # Create working dirs
         # Create DarisSource node
-        repository = XnatRepository(
+        repository = XnatRepo(
             project_id=self.project,
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
-            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', 'source1', text_format),
-                    FilesetSelector('source2', 'source2', text_format),
-                    FilesetSelector('source3', 'source3', text_format),
-                    FilesetSelector('source4', 'source4', text_format)])
+            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
+            inputs=[FilesetInput('source1', 'source1', text_format),
+                    FilesetInput('source2', 'source2', text_format),
+                    FilesetInput('source3', 'source3', text_format),
+                    FilesetInput('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -152,12 +152,12 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_fields_roundtrip(self):
-        repository = XnatRepository(
+        repository = XnatRepo(
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', 'source1', text_format)])
+            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
+            inputs=[FilesetInput('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -203,11 +203,11 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        repository = XnatRepository(server=SERVER, cache_dir=cache_dir,
+        repository = XnatRepo(server=SERVER, cache_dir=cache_dir,
                                     project_id=self.project)
         study = DummyStudy(
-            self.STUDY_NAME, repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format)])
+            self.STUDY_NAME, repository, SingleProc('ad'),
+            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
                 [study.bound_spec(DATASET_NAME).collection]),
@@ -279,19 +279,19 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         fileset_fname = DATASET_NAME + text_format.extension
         source_target_path = op.join(self.session_cache(cache_dir),
                                      DATASET_NAME)
-        md5_path = source_target_path + XnatRepository.MD5_SUFFIX
+        md5_path = source_target_path + XnatRepo.MD5_SUFFIX
         source_target_fpath = op.join(source_target_path, fileset_fname)
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        source_repository = XnatRepository(
+        source_repository = XnatRepo(
             project_id=self.project,
             server=SERVER, cache_dir=cache_dir)
-        sink_repository = XnatRepository(
+        sink_repository = XnatRepo(
             project_id=self.checksum_sink_project, server=SERVER,
             cache_dir=cache_dir)
         study = DummyStudy(
-            STUDY_NAME, sink_repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector(DATASET_NAME, DATASET_NAME, text_format,
+            STUDY_NAME, sink_repository, SingleProc('ad'),
+            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format,
                                     repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
@@ -352,7 +352,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                 cache_dir, project=self.checksum_sink_project,
                 subject=(self.SUBJECT), from_study=STUDY_NAME),
             DATASET_NAME)
-        sink_md5_path = sink_target_path + XnatRepository.MD5_SUFFIX
+        sink_md5_path = sink_target_path + XnatRepo.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
             source_checksums = json.load(f)
@@ -370,15 +370,15 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
     def test_summary(self):
         # Create working dirs
         # Create XnatSource node
-        repository = XnatRepository(
+        repository = XnatRepo(
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, repository, LinearProcessor('ad'),
+            self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
             inputs=[
-                FilesetSelector('source1', 'source1', text_format),
-                FilesetSelector('source2', 'source2', text_format),
-                FilesetSelector('source3', 'source3', text_format)])
+                FilesetInput('source1', 'source1', text_format),
+                FilesetInput('source2', 'source2', text_format),
+                FilesetInput('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
@@ -444,7 +444,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             # Check subject summary directories were created properly in cache
             expected_subj_filesets = ['subject_sink']
             subject_dir = self.session_cache(
-                visit=XnatRepository.SUMMARY_NAME,
+                visit=XnatRepo.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(subject_dir)),
                              expected_subj_filesets)
@@ -452,7 +452,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             subject_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
-                        visit=XnatRepository.SUMMARY_NAME,
+                        visit=XnatRepo.SUMMARY_NAME,
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_subj_filesets,
                              subject_fileset_names)
@@ -460,7 +460,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             # cache
             expected_visit_filesets = ['visit_sink']
             visit_dir = self.session_cache(
-                subject=XnatRepository.SUMMARY_NAME,
+                subject=XnatRepo.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(visit_dir)),
                              expected_visit_filesets)
@@ -468,14 +468,14 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             visit_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
-                        subject=XnatRepository.SUMMARY_NAME,
+                        subject=XnatRepo.SUMMARY_NAME,
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_visit_filesets, visit_fileset_names)
             # Check project summary directories were created properly in cache
             expected_proj_filesets = ['study_sink']
             project_dir = self.session_cache(
-                subject=XnatRepository.SUMMARY_NAME,
-                visit=XnatRepository.SUMMARY_NAME,
+                subject=XnatRepo.SUMMARY_NAME,
+                visit=XnatRepo.SUMMARY_NAME,
                 from_study=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(project_dir)),
                              expected_proj_filesets)
@@ -483,8 +483,8 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
             project_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
                     self.session_label(
-                        subject=XnatRepository.SUMMARY_NAME,
-                        visit=XnatRepository.SUMMARY_NAME,
+                        subject=XnatRepo.SUMMARY_NAME,
+                        visit=XnatRepo.SUMMARY_NAME,
                         from_study=self.SUMMARY_STUDY_NAME)].scans.keys())
             self.assertEqual(expected_proj_filesets, project_fileset_names)
         # Reload the data from the summary directories

@@ -11,7 +11,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
-from .base import BaseEnvironment, NodeMixin, Node, JoinNode, MapNode
+from .base import Environment, NodeMixin, Node, JoinNode, MapNode
 
 
 logger = logging.getLogger('arcana')
@@ -50,7 +50,7 @@ class ModulesMapNode(ModulesNodeMixin, MapNode):
     base_cls = MapNode  # Not req. in Py3 where super() in mixin works
 
 
-class ModulesEnvironment(BaseEnvironment):
+class ModulesEnv(Environment):
     """
     An environment in which software requirements (e.g. FSL, matlab,
     MRtrix) are loaded using the 'modules' package
@@ -116,7 +116,7 @@ class ModulesEnvironment(BaseEnvironment):
                                    .format(req.name, local_name))
             avail_versions = []
             for local_ver_name in version_names:
-                ver_name = self.map_version(req_range, local_ver_name)
+                ver_name = self.map_version(req, local_ver_name)
                 try:
                     avail_versions.append(
                         req.v(ver_name, local_name=local_name,

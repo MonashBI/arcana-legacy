@@ -4,8 +4,8 @@ standard_library.install_aliases()
 import os
 import shutil
 from arcana import (
-    StudyMetaClass, Study, DirectoryRepository, LinearProcessor, FilesetSpec,
-    FilesetSelector)
+    StudyMetaClass, Study, BasicRepo, SingleProc, FilesetSpec,
+    FilesetInput)
 from arcana.data.file_format.standard import text_format
 import pickle as pkl
 import os.path as op
@@ -81,15 +81,15 @@ GeneratedClass = StudyMetaClass(
     'GeneratedClass', (NormalClass,), {})
 
 
-norm = NormalClass('norm', DirectoryRepository(ARCHIVE_DIR),
-                   LinearProcessor(WORK_DIR),
-                   inputs=[FilesetSelector('fileset', text_format,
+norm = NormalClass('norm', BasicRepo(ARCHIVE_DIR),
+                   SingleProc(WORK_DIR),
+                   inputs=[FilesetInput('fileset', text_format,
                                            'fileset')])
 
 
-gen = GeneratedClass('gen', DirectoryRepository(ARCHIVE_DIR),
-                     LinearProcessor(WORK_DIR),
-                     inputs=[FilesetSelector('fileset', text_format,
+gen = GeneratedClass('gen', BasicRepo(ARCHIVE_DIR),
+                     SingleProc(WORK_DIR),
+                     inputs=[FilesetInput('fileset', text_format,
                                           'fileset')])
 
 print(norm)

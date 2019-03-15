@@ -7,9 +7,9 @@ from unittest import TestCase
 import xnat
 from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
-from arcana.data import FilesetSelector
-from arcana.repository import XnatRepository
-from arcana.processor import LinearProcessor
+from arcana.data import FilesetInput
+from arcana.repository import XnatRepo
+from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
 
@@ -32,7 +32,7 @@ class TestConnectDisconnect(TestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_connect_disconnect(self):
-        repository = XnatRepository(project_id='dummy',
+        repository = XnatRepo(project_id='dummy',
                                     server=SERVER,
                                     cache_dir=tempfile.mkdtemp())
         with repository:
@@ -95,10 +95,10 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_dicom_match(self):
         study = test_data.TestMatchStudy(
             name='test_dicom',
-            repository=XnatRepository(
+            repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            processor=LinearProcessor(self.work_dir),
+            processor=SingleProc(self.work_dir),
             inputs=test_data.TestDicomTagMatch.DICOM_MATCH)
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
@@ -109,13 +109,13 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_id_match(self):
         study = test_data.TestMatchStudy(
             name='test_dicom',
-            repository=XnatRepository(
+            repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
-            processor=LinearProcessor(self.work_dir),
+            processor=SingleProc(self.work_dir),
             inputs=[
-                FilesetSelector('gre_phase', format=dicom_format, id=7),
-                FilesetSelector('gre_mag', format=dicom_format, id=6)])
+                FilesetInput('gre_phase', format=dicom_format, id=7),
+                FilesetInput('gre_mag', format=dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -134,7 +134,7 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_on_path_access(self):
         tmp_dir = tempfile.mkdtemp()
-        repository = XnatRepository(
+        repository = XnatRepo(
             project_id=self.project,
             server=SERVER, cache_dir=tmp_dir)
         tree = repository.tree(

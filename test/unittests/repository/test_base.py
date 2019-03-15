@@ -4,25 +4,25 @@ import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
-from arcana.processor import LinearProcessor  # @IgnorePep8
+from arcana.processor import SingleProc  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    FilesetSelector, FieldSpec)  # @IgnorePep8
+    FilesetInput, FieldSpec)  # @IgnorePep8
 from arcana.utils import PATH_SUFFIX  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase  # @IgnorePep8
-from arcana.data import AcquiredFilesetSpec, FilesetSpec  # @IgnorePep8
+from arcana.data import FilesetInputSpec, FilesetSpec  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.repository.interfaces import RepositorySource, RepositorySink  # @IgnorePep8
-from arcana.repository.directory import DirectoryRepository  # @IgnorePep8
+from arcana.repository.basic import BasicRepo  # @IgnorePep8
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('source1', text_format, optional=True),
-        AcquiredFilesetSpec('source2', text_format, optional=True),
-        AcquiredFilesetSpec('source3', text_format, optional=True),
-        AcquiredFilesetSpec('source4', text_format, optional=True),
+        FilesetInputSpec('source1', text_format, optional=True),
+        FilesetInputSpec('source2', text_format, optional=True),
+        FilesetInputSpec('source3', text_format, optional=True),
+        FilesetInputSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),
@@ -54,11 +54,11 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_repository_roundtrip(self):
         study = DummyStudy(
-            self.STUDY_NAME, self.repository, processor=LinearProcessor('a_dir'),
-            inputs=[FilesetSelector('source1', 'source1', text_format),
-                    FilesetSelector('source2', 'source2', text_format),
-                    FilesetSelector('source3', 'source3', text_format),
-                    FilesetSelector('source4', 'source4', text_format)])
+            self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
+            inputs=[FilesetInput('source1', 'source1', text_format),
+                    FilesetInput('source2', 'source2', text_format),
+                    FilesetInput('source3', 'source3', text_format),
+                    FilesetInput('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -99,15 +99,15 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.STUDY_NAME)))
-            if f not in (DirectoryRepository.FIELDS_FNAME,
-                         DirectoryRepository.PROV_DIR)]
+            if f not in (BasicRepo.FIELDS_FNAME,
+                         BasicRepo.PROV_DIR)]
         self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
         study = DummyStudy(
             STUDY_NAME, self.repository,
-            processor=LinearProcessor('a_dir'),
+            processor=SingleProc('a_dir'),
             inputs=[])
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -140,10 +140,10 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_summary(self):
         study = DummyStudy(
-            self.SUMMARY_STUDY_NAME, self.repository, LinearProcessor('ad'),
-            inputs=[FilesetSelector('source1', 'source1', text_format),
-                    FilesetSelector('source2', 'source2', text_format),
-                    FilesetSelector('source3', 'source3', text_format)])
+            self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
+            inputs=[FilesetInput('source1', 'source1', text_format),
+                    FilesetInput('source2', 'source2', text_format),
+                    FilesetInput('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(
@@ -210,17 +210,17 @@ class TestSinkAndSource(BaseTestCase):
             frequency='per_subject',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         [DirectoryRepository.PROV_DIR, 'subject_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         [DirectoryRepository.PROV_DIR, 'visit_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_study',
             from_study=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [DirectoryRepository.PROV_DIR, 'study_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'study_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']),
@@ -271,7 +271,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
-            if f not in (DirectoryRepository.FIELDS_FNAME,
-                         DirectoryRepository.PROV_DIR)]
+            if f not in (BasicRepo.FIELDS_FNAME,
+                         BasicRepo.PROV_DIR)]
         self.assertEqual(outputs,
                          ['resink1.txt', 'resink2.txt', 'resink3.txt'])

@@ -1,3 +1,3 @@
-from .xnat import XnatRepository
-from .directory import DirectoryRepository
+from .xnat import XnatRepo
+from .basic import BasicRepo
 from .tree import Tree, Subject, Visit, Session

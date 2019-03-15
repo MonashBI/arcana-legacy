@@ -12,7 +12,7 @@ import errno
 import json
 from zipfile import ZipFile, BadZipfile
 from arcana.data import Fileset, Field
-from arcana.repository.base import BaseRepository
+from arcana.repository.base import Repository
 from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaFileFormatError,
@@ -31,7 +31,7 @@ RELEVANT_DICOM_TAG_TYPES = set(('UI', 'CS', 'DA', 'TM', 'SH', 'LO',
                                 'PN', 'ST', 'AS'))
 
 
-class XnatRepository(BaseRepository):
+class XnatRepo(Repository):
     """
     An 'Repository' class for XNAT repositories
 
@@ -73,7 +73,7 @@ class XnatRepository(BaseRepository):
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30,
                  session_filter=None, **kwargs):
-        super(XnatRepository, self).__init__(**kwargs)
+        super(XnatRepo, self).__init__(**kwargs)
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
@@ -186,7 +186,7 @@ class XnatRepository(BaseRepository):
             need_to_download = True
             if op.exists(cache_path):
                 if self._check_md5:
-                    md5_path = cache_path + XnatRepository.MD5_SUFFIX
+                    md5_path = cache_path + XnatRepo.MD5_SUFFIX
                     try:
                         with open(md5_path, 'r') as f:
                             cached_checksums = json.load(f)
@@ -264,7 +264,7 @@ class XnatRepository(BaseRepository):
                 # Copy side-cars
                 for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
                     shutil.copyfile(sc_path, op.join(cache_path, sc_fname))
-            with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
+            with open(cache_path + XnatRepo.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
@@ -446,13 +446,13 @@ class XnatRepository(BaseRepository):
                     subject_id = subject_id[len(self.project_id) + 1:]
                 # Check subject is summary or not and whether it is to be
                 # filtered
-                if subject_id == XnatRepository.SUMMARY_NAME:
+                if subject_id == XnatRepo.SUMMARY_NAME:
                     subject_id = None
                 elif not (subject_ids is None or subject_id in subject_ids):
                     continue
                 # Check visit is summary or not and whether it is to be
                 # filtered
-                if visit_id == XnatRepository.SUMMARY_NAME:
+                if visit_id == XnatRepo.SUMMARY_NAME:
                     visit_id = None
                 elif not (visit_ids is None or visit_id in visit_ids):
                     continue
@@ -628,7 +628,7 @@ class XnatRepository(BaseRepository):
             if e.errno != errno.ENOENT:
                 raise e
         shutil.move(data_path, cache_path)
-        with open(cache_path + XnatRepository.MD5_SUFFIX, 'w',
+        with open(cache_path + XnatRepo.MD5_SUFFIX, 'w',
                   **JSON_ENCODING) as f:
             json.dump(checksums, f, indent=2)
 

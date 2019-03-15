@@ -11,10 +11,10 @@ from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseAcquiredSpec(object):
+class BaseInputSpec(object):
 
     derived = False
-    # For duck-typing with *Selector objects
+    # For duck-typing with *Input objects
     skip_missing = False
     drop_if_missing = False
     derivable = False
@@ -135,7 +135,7 @@ class BaseAcquiredSpec(object):
 class BaseSpec(object):
 
     derived = True
-    # For duck-typing with *Selector objects
+    # For duck-typing with *Input objects
     skip_missing = False
     drop_if_missing = False
     derivable = True
@@ -278,7 +278,7 @@ class BaseSpec(object):
         return node
 
 
-class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
+class FilesetInputSpec(BaseFileset, BaseInputSpec):
     """
     A specification for an "acquired" fileset (e.g from the scanner or
     standard atlas)
@@ -322,7 +322,7 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
                     "'{}' spec doesn't have any allowed formats".format(name))
         self._valid_formats = tuple(valid_formats)
         BaseFileset.__init__(self, name, None, frequency)
-        BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
+        BaseInputSpec.__init__(self, name, desc, optional=optional,
                                   default=default)
 
     @property
@@ -331,18 +331,18 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseAcquiredSpec.__eq__(self, other) and
+                BaseInputSpec.__eq__(self, other) and
                 self._valid_formats == other._valid_formats)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseAcquiredSpec.__hash__(self) and
+                BaseInputSpec.__hash__(self) and
                 hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
         del dct['format']
-        dct.update(BaseAcquiredSpec.initkwargs(self))
+        dct.update(BaseInputSpec.initkwargs(self))
         dct['valid_formats'] = self._valid_formats
         return dct
 
@@ -356,7 +356,7 @@ class AcquiredFilesetSpec(BaseFileset, BaseAcquiredSpec):
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
         mismatch = BaseFileset.find_mismatch(self, other, indent)
-        mismatch += BaseAcquiredSpec.find_mismatch(self, other, indent)
+        mismatch += BaseInputSpec.find_mismatch(self, other, indent)
         if self.valid_formats != other.valid_formats:
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, list(self.valid_formats),
@@ -439,7 +439,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return {'format': self.format}
 
 
-class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
+class FieldInputSpec(BaseField, BaseInputSpec):
     """
     An abstract base class representing an acquired field
 
@@ -472,19 +472,19 @@ class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
     def __init__(self, name, dtype, frequency='per_session', desc=None,
                  optional=False, default=None, array=False):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseAcquiredSpec.__init__(self, name, desc, optional=optional,
+        BaseInputSpec.__init__(self, name, desc, optional=optional,
                                   default=default)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseAcquiredSpec.__eq__(self, other))
+                BaseInputSpec.__eq__(self, other))
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseAcquiredSpec.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseInputSpec.__hash__(self))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseAcquiredSpec.find_mismatch(self, other, indent)
+        mismatch += BaseInputSpec.find_mismatch(self, other, indent)
         return mismatch
 
     def __repr__(self):
@@ -494,7 +494,7 @@ class AcquiredFieldSpec(BaseField, BaseAcquiredSpec):
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseAcquiredSpec.initkwargs(self))
+        dct.update(BaseInputSpec.initkwargs(self))
         return dct
 
 

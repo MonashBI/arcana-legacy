@@ -119,7 +119,7 @@ class MapNode(NodeMixin, NipypeMapNode):
             yield i, node
 
 
-class BaseEnvironment(object):
+class Environment(object):
     """
     Base class for all Environment classes
     """
