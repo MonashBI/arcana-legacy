@@ -53,9 +53,9 @@ to statistics.
 Installation
 ------------
 
-Arcana can be installed using *pip*::
+Arcana can be installed for Python 3 using *pip*::
 
-    $ pip install arcana
+    $ pip3 install arcana
 
 .. _Arcana: http://arcana.readthedocs.io
 .. _Nipype: http://nipype.readthedocs.io
