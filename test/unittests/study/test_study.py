@@ -645,7 +645,7 @@ class TestGeneratedPickle(BaseTestCase):
 
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
-            'add_sub_study_specs': [
+            'add_substudy_specs': [
                 SubStudySpec('ss1', BasicTestStudy),
                 SubStudySpec('ss2', BasicTestStudy)]}
         MultiGeneratedClass = MultiStudyMetaClass(
@@ -665,7 +665,7 @@ class TestGeneratedPickle(BaseTestCase):
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
-            'add_sub_study_specs': [
+            'add_substudy_specs': [
                 SubStudySpec('ss1', BasicTestStudy),
                 SubStudySpec('ss2', BasicTestStudy)],
             'default_fileset_pipeline': MultiStudy.translate(

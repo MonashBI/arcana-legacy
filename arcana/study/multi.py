@@ -44,8 +44,8 @@ class MultiStudy(Study):
 
     Class Attrs
     -----------
-    add_sub_study_specs : list[SubStudySpec]
-        Subclasses of MultiStudy typically have a 'add_sub_study_specs'
+    add_substudy_specs : list[SubStudySpec]
+        Subclasses of MultiStudy typically have a 'add_substudy_specs'
         class member, which defines the sub-studies that make up the
         combined study and the mapping of their fileset names. The key
         of the outer dictionary will be the name of the sub-study, and
@@ -53,7 +53,7 @@ class MultiStudy(Study):
         and a map of fileset names from the combined study to the
         sub-study e.g.
 
-            add_sub_study_specs = [
+            add_substudy_specs = [
                 SubStudySpec('t1_study', T1Study, {'magnitude': 't1'}),
                 SubStudySpec('t2_study', T2Study, {'magnitude': 't2'})]
 
@@ -68,9 +68,9 @@ class MultiStudy(Study):
         Default parameters for the class
     """
 
-    _sub_study_specs = {}
+    _substudy_specs = {}
 
-    implicit_cls_attrs = Study.implicit_cls_attrs + ['_sub_study_specs']
+    implicit_cls_attrs = Study.implicit_cls_attrs + ['_substudy_specs']
 
     def __init__(self, name, repository, processor, inputs,
                  parameters=None, **kwargs):
@@ -88,13 +88,13 @@ class MultiStudy(Study):
         super(MultiStudy, self).__init__(
             name, repository, processor, inputs, parameters=parameters,
             **kwargs)
-        self._sub_studies = {}
-        for sub_study_spec in self.sub_study_specs():
-            sub_study_cls = sub_study_spec.study_class
-            # Map inputs, data_specs to the sub_study
+        self._substudies = {}
+        for substudy_spec in self.substudy_specs():
+            substudy_cls = substudy_spec.study_class
+            # Map inputs, data_specs to the substudy
             mapped_inputs = {}
-            for data_name in sub_study_cls.data_spec_names():
-                mapped_name = sub_study_spec.map(data_name)
+            for data_name in substudy_cls.data_spec_names():
+                mapped_name = substudy_spec.map(data_name)
                 if mapped_name in self.input_names:
                     mapped_inputs[data_name] = self.input(mapped_name)
                 else:
@@ -105,68 +105,68 @@ class MultiStudy(Study):
                     else:
                         if inpt.derived:
                             mapped_inputs[data_name] = inpt
-            # Map parameters to the sub_study
+            # Map parameters to the substudy
             mapped_parameters = {}
-            for param_name in sub_study_cls.parameter_spec_names():
-                mapped_name = sub_study_spec.map(param_name)
+            for param_name in substudy_cls.parameter_spec_names():
+                mapped_name = substudy_spec.map(param_name)
                 parameter = self._get_parameter(mapped_name)
                 mapped_parameters[param_name] = parameter
             # Create sub-study
-            sub_study = sub_study_spec.study_class(
-                name + '_' + sub_study_spec.name,
+            substudy = substudy_spec.study_class(
+                name + '_' + substudy_spec.name,
                 repository, processor, mapped_inputs,
                 parameters=mapped_parameters, enforce_inputs=False,
                 subject_ids=self.subject_ids, visit_ids=self.visit_ids,
                 clear_caches=False)
-            # Append to dictionary of sub_studies
-            if sub_study_spec.name in self._sub_studies:
+            # Append to dictionary of substudies
+            if substudy_spec.name in self._substudies:
                 raise ArcanaNameError(
-                    sub_study_spec.name,
+                    substudy_spec.name,
                     "Duplicate sub-study names '{}'"
-                    .format(sub_study_spec.name))
-            self._sub_studies[sub_study_spec.name] = sub_study
+                    .format(substudy_spec.name))
+            self._substudies[substudy_spec.name] = substudy
 
     @property
-    def sub_studies(self):
-        return iter(self._sub_studies.values())
+    def substudies(self):
+        return iter(self._substudies.values())
 
     @property
-    def sub_study_names(self):
-        return iter(self._sub_studies.keys())
+    def substudy_names(self):
+        return iter(self._substudies.keys())
 
-    def sub_study(self, name):
+    def substudy(self, name):
         try:
-            return self._sub_studies[name]
+            return self._substudies[name]
         except KeyError:
             raise ArcanaNameError(
                 name,
                 "'{}' not found in sub-studes ('{}')"
-                .format(name, "', '".join(self._sub_studies)))
+                .format(name, "', '".join(self._substudies)))
 
     @classmethod
-    def sub_study_spec(cls, name):
+    def substudy_spec(cls, name):
         try:
-            return cls._sub_study_specs[name]
+            return cls._substudy_specs[name]
         except KeyError:
             raise ArcanaNameError(
                 name,
                 "'{}' not found in sub-studes ('{}')"
-                .format(name, "', '".join(cls._sub_study_specs)))
+                .format(name, "', '".join(cls._substudy_specs)))
 
     @classmethod
-    def sub_study_specs(cls):
-        return iter(cls._sub_study_specs.values())
+    def substudy_specs(cls):
+        return iter(cls._substudy_specs.values())
 
     @classmethod
-    def sub_study_spec_names(cls):
-        return iter(cls._sub_study_specs.keys())
+    def substudy_spec_names(cls):
+        return iter(cls._substudy_specs.keys())
 
     def __repr__(self):
         return "{}(name='{}')".format(
             self.__class__.__name__, self.name)
 
     @classmethod
-    def translate(cls, sub_study_name, pipeline_getter, auto_added=False):
+    def translate(cls, substudy_name, pipeline_getter, auto_added=False):
         """
         A method for translating pipeline constructors from a sub-study to the
         namespace of a multi-study. Returns a new method that calls the
@@ -174,7 +174,7 @@ class MultiStudy(Study):
 
         Parameters
         ----------
-        sub_study_name : str
+        substudy_name : str
             Name of the sub-study
         pipeline_getter : str
             Name of method used to construct the pipeline in the sub-study
@@ -183,16 +183,16 @@ class MultiStudy(Study):
             MultiStudyMetaClass. Used in checks when pickling Study
             objects
         """
-        assert isinstance(sub_study_name, basestring)
+        assert isinstance(substudy_name, basestring)
         assert isinstance(pipeline_getter, basestring)
 
         def translated_getter(self, **name_maps):
-            sub_study_spec = self.sub_study_spec(sub_study_name)
+            substudy_spec = self.substudy_spec(substudy_name)
             # Combine mapping of names of sub-study specs with
-            return getattr(self.sub_study(sub_study_name), pipeline_getter)(
-                prefix=sub_study_name + '_',
-                input_map=sub_study_spec.name_map,
-                output_map=sub_study_spec.name_map,
+            return getattr(self.substudy(substudy_name), pipeline_getter)(
+                prefix=substudy_name + '_',
+                input_map=substudy_spec.name_map,
+                output_map=substudy_spec.name_map,
                 study=self, name_maps=name_maps)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
@@ -294,33 +294,33 @@ class MultiStudyMetaClass(StudyMetaClass):
                 "MultiStudyMetaClass can only be used for classes that "
                 "have MultiStudy as a base class")
         try:
-            add_sub_study_specs = dct['add_sub_study_specs']
+            add_substudy_specs = dct['add_substudy_specs']
         except KeyError:
-            add_sub_study_specs = dct['add_sub_study_specs'] = []
-        dct['_sub_study_specs'] = sub_study_specs = {}
+            add_substudy_specs = dct['add_substudy_specs'] = []
+        dct['_substudy_specs'] = substudy_specs = {}
         for base in reversed(bases):
             try:
-                sub_study_specs.update(
-                    (d.name, d) for d in base.sub_study_specs())
+                substudy_specs.update(
+                    (d.name, d) for d in base.substudy_specs())
             except AttributeError:
                 pass
-        sub_study_specs.update(
-            (s.name, s) for s in add_sub_study_specs)
+        substudy_specs.update(
+            (s.name, s) for s in add_substudy_specs)
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
         cls = StudyMetaClass(name, bases, dct)
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
-        for sub_study_spec in list(sub_study_specs.values()):
+        for substudy_spec in list(substudy_specs.values()):
             # Map data specs
-            for data_spec in sub_study_spec.auto_data_specs:
-                trans_sname = sub_study_spec.apply_prefix(
+            for data_spec in substudy_spec.auto_data_specs:
+                trans_sname = substudy_spec.apply_prefix(
                     data_spec.name)
                 if trans_sname not in cls.data_spec_names():
                     initkwargs = data_spec.initkwargs()
                     initkwargs['name'] = trans_sname
                     if data_spec.derived:
-                        trans_pname = sub_study_spec.apply_prefix(
+                        trans_pname = substudy_spec.apply_prefix(
                             data_spec.pipeline_getter)
                         initkwargs['pipeline_getter'] = trans_pname
                         # Check to see whether pipeline has already been
@@ -329,7 +329,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                         if not hasattr(cls, trans_pname):
                             setattr(cls, trans_pname,
                                     MultiStudy.translate(
-                                        sub_study_spec.name,
+                                        substudy_spec.name,
                                         data_spec.pipeline_getter,
                                         auto_added=True))
                     trans_data_spec = type(data_spec)(**initkwargs)
@@ -337,13 +337,13 @@ class MultiStudyMetaClass(StudyMetaClass):
                     # any parameter names it needs to use
                     if not data_spec.derived and data_spec.default is not None:
                         try:
-                            trans_data_spec.default.translate(sub_study_spec)
+                            trans_data_spec.default.translate(substudy_spec)
                         except AttributeError:
                             pass
                     cls._data_specs[trans_sname] = trans_data_spec
             # Map parameter specs
-            for param_spec in sub_study_spec.auto_param_specs:
-                trans_sname = sub_study_spec.apply_prefix(
+            for param_spec in substudy_spec.auto_param_specs:
+                trans_sname = substudy_spec.apply_prefix(
                     param_spec.name)
                 if trans_sname not in cls.parameter_spec_names():
                     renamed_spec = param_spec.renamed(trans_sname)
@@ -351,21 +351,21 @@ class MultiStudyMetaClass(StudyMetaClass):
                         renamed_spec.name] = renamed_spec
         # Check all names in name-map correspond to data or parameter
         # specs
-        for sub_study_spec in list(sub_study_specs.values()):
+        for substudy_spec in list(substudy_specs.values()):
             local_spec_names = list(
-                sub_study_spec.study_class.spec_names())
+                substudy_spec.study_class.spec_names())
             for (local_name,
-                 global_name) in sub_study_spec._name_map.items():
+                 global_name) in substudy_spec._name_map.items():
                 if local_name not in local_spec_names:
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
                         "MultiStudy class does not name a spec in {} "
                         "class"
-                        .format(local_name, sub_study_spec.name,
-                                name, sub_study_spec.study_class))
+                        .format(local_name, substudy_spec.name,
+                                name, substudy_spec.study_class))
                 if global_name not in cls.spec_names():
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
                         "MultiStudy class does not name a spec"
-                        .format(global_name, sub_study_spec.name, name))
+                        .format(global_name, substudy_spec.name, name))
         return cls

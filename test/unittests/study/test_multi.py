@@ -92,7 +92,7 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
 
 class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
-    add_sub_study_specs = [
+    add_substudy_specs = [
         SubStudySpec('ss1', StudyA,
                      {'x': 'a',
                       'y': 'b',
@@ -134,7 +134,7 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
 class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
-    add_sub_study_specs = [
+    add_substudy_specs = [
         SubStudySpec('ss1', StudyA,
                      {'x': 'a', 'y': 'b', 'o1': 'p1'}),
         SubStudySpec('ss2', StudyB,
@@ -154,7 +154,7 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
 class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
-    add_sub_study_specs = [
+    add_substudy_specs = [
         SubStudySpec('ss1', StudyA),
         SubStudySpec('full', FullMultiStudy),
         SubStudySpec('partial', PartialMultiStudy)]
@@ -211,11 +211,11 @@ class TestMulti(BaseTestCase):
         self.assertEqual(study._get_parameter('q2').value, '250')
         self.assertEqual(study._get_parameter('required_op').value, 'mul')
         # Test parameter values in SubStudy
-        ss1 = study.sub_study('ss1')
+        ss1 = study.substudy('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 100)
         self.assertEqual(ss1._get_parameter('o2').value, '200')
         self.assertEqual(ss1._get_parameter('o3').value, 300.0)
-        ss2 = study.sub_study('ss2')
+        ss2 = study.substudy('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 150)
         self.assertEqual(ss2._get_parameter('o2').value, '250')
         self.assertEqual(ss2._get_parameter('o3').value, 300.0)
@@ -242,11 +242,11 @@ class TestMulti(BaseTestCase):
         self.assertEqual(study._get_parameter('ss2_o3').value, 30.0)
         self.assertEqual(study._get_parameter('ss2_product_op').value, 'mul')
         # Test parameter values in SubStudy
-        ss1 = study.sub_study('ss1')
+        ss1 = study.substudy('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 1000)
         self.assertEqual(ss1._get_parameter('o2').value, '2')
         self.assertEqual(ss1._get_parameter('o3').value, 3.0)
-        ss2 = study.sub_study('ss2')
+        ss2 = study.substudy('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 1000)
         self.assertEqual(ss2._get_parameter('o2').value, '20')
         self.assertEqual(ss2._get_parameter('o3').value, 30.0)
@@ -275,11 +275,11 @@ class TestMulti(BaseTestCase):
         self.assertEqual(study._get_parameter('full_required_op').value,
                          'mul')
         # Test parameter values in SubStudy
-        ss1 = study.sub_study('full').sub_study('ss1')
+        ss1 = study.substudy('full').substudy('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 100)
         self.assertEqual(ss1._get_parameter('o2').value, '200')
         self.assertEqual(ss1._get_parameter('o3').value, 300.0)
-        ss2 = study.sub_study('full').sub_study('ss2')
+        ss2 = study.substudy('full').substudy('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 150)
         self.assertEqual(ss2._get_parameter('o2').value, '250')
         self.assertEqual(ss2._get_parameter('o3').value, 300.0)
@@ -293,11 +293,11 @@ class TestMulti(BaseTestCase):
         self.assertEqual(
             study._get_parameter('partial_ss2_product_op').value, 'mul')
         # Test parameter values in SubStudy
-        ss1 = study.sub_study('partial').sub_study('ss1')
+        ss1 = study.substudy('partial').substudy('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 1000)
         self.assertEqual(ss1._get_parameter('o2').value, '2')
         self.assertEqual(ss1._get_parameter('o3').value, 3.0)
-        ss2 = study.sub_study('partial').sub_study('ss2')
+        ss2 = study.substudy('partial').substudy('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 1000)
         self.assertEqual(ss2._get_parameter('o2').value, '20')
         self.assertEqual(ss2._get_parameter('o3').value, 30.0)
