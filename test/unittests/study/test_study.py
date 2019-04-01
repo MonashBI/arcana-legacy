@@ -23,6 +23,7 @@ from arcana.data import (  # @IgnorePep8
     Fileset, FilesetInputSpec, FilesetInput, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
+import logging  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -592,7 +593,7 @@ class BasicTestStudy(with_metaclass(StudyMetaClass, Study)):
     def raise_error_pipeline(self, **name_maps):
 
         pipeline = self.new_pipeline(
-            'error_pipeline',
+            'raise_error_pipeline',
             desc='a pipeline that always throws an error',
             citations=[],
             name_maps=name_maps)
@@ -618,10 +619,15 @@ class TestInterfaceErrorHandling(BaseTestCase):
             'base',
             inputs=[FilesetInput('fileset', 'fileset', text_format)])
 
+        # Disable error logs as it should always throw an error
+        logger = logging.getLogger('nipype.workflow')
+        orig_level = logger.level
+        logger.setLevel(50)
         self.assertRaises(
             RuntimeError,
             study.data,
             'raise_error')
+        logger.setLevel(orig_level)
 
 
 class TestGeneratedPickle(BaseTestCase):
