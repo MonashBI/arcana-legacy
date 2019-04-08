@@ -7,7 +7,7 @@ __authors__ = [
     ("Phillip G. D. Ward", "phillipgdward@gmail.com")]
 
 install_requires = [
-    'xnat>=0.3.9',
+    'xnat>=0.3.17',
     'nipype>=1.1.7',
     'pydicom>=1.0.2',
     'networkx>=2.2',

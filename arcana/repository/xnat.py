@@ -269,7 +269,7 @@ class XnatRepo(Repository):
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
-                type=fileset.basename, parent=xsession)
+                id=fileset.basename, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
             fileset.id = xscan.id
             # Delete existing resource
@@ -316,7 +316,7 @@ class XnatRepo(Repository):
         #       has been altered remotely
         xsession = self.get_xsession(record)
         xprov = self._login.classes.MrScanData(
-            type=self.PROV_SCAN, parent=xsession)
+            id=self.PROV_SCAN, type=self.PROV_SCAN, parent=xsession)
         # Delete existing provenance if present
         try:
             xresource = xprov.resources[record.pipeline_name]
