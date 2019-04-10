@@ -329,6 +329,15 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
     def valid_formats(self):
         return self._valid_formats
 
+    @property
+    def format(self):
+        try:
+            return self.default.format
+        except AttributeError:
+            raise ArcanaUsageError(
+                "File formats is not defined for FilesetInputSpec objects "
+                "without a default")
+
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
                 BaseInputSpec.__eq__(self, other) and

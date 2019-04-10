@@ -269,9 +269,8 @@ class XnatRepo(Repository):
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
-                id=fileset.basename, type=fileset.basename, parent=xsession)
+                id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
-            fileset.id = xscan.id
             # Delete existing resource
             # TODO: probably should have check to see if we want to
             #       override it
@@ -282,11 +281,14 @@ class XnatRepo(Repository):
                 pass
             else:
                 xresource.delete()
-            xresource = xscan.create_resource(
-                fileset.format.name.upper())
-            xresource.upload(fileset.path, fileset.fname)
-            for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
-                xresource.upload(sc_path, sc_fname)
+            xresource = xscan.create_resource(fileset.format.name.upper())
+            if fileset.format.directory:
+                for fname in os.listdir(fileset.path):
+                    xresource.upload(op.join(fileset.path, fname), fname)
+            else:
+                xresource.upload(fileset.path, fileset.fname)
+                for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                    xresource.upload(sc_path, sc_fname)
 
     def put_field(self, field):
         self._check_repository(field)
@@ -294,7 +296,7 @@ class XnatRepo(Repository):
         if field.array:
             if field.dtype is str:
                 val = ['"{}"'.format(v) for v in val]
-            val = ','.join(val)
+            val = ','.join(str(v) for v in val)
         if field.dtype is str:
             val = '"{}"'.format(val)
         with self:
