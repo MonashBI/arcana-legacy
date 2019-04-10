@@ -7,35 +7,35 @@ when applying the designed workflows.
 Repositories
 ------------
 
-.. autoclass:: arcana.repository.XnatRepository
+.. autoclass:: arcana.repository.XnatRepo
 
-.. autoclass:: arcana.repository.DirectoryRepository
+.. autoclass:: arcana.repository.BasicRepo
 
 
 Processors
 ----------
 
-.. autoclass:: arcana.processor.LinearProcessor
+.. autoclass:: arcana.processor.SingleProc
 
-.. autoclass:: arcana.processor.MultiProcessor
+.. autoclass:: arcana.processor.MultiProc
 
-.. autoclass:: arcana.processor.SlurmProcessor
+.. autoclass:: arcana.processor.SlurmProc
 
 
 Environments
 ------------
 
-.. autoclass:: arcana.environment.StaticEnvironment
+.. autoclass:: arcana.environment.StaticEnv
 
-.. autoclass:: arcana.environment.ModulesEnvironment
+.. autoclass:: arcana.environment.ModulesEnv
 
 
 Inputs
 ------
 
-.. autoclass:: arcana.data.FilesetSelector
+.. autoclass:: arcana.data.FilesetInput
 
-.. autoclass:: arcana.data.FieldSelector
+.. autoclass:: arcana.data.FieldInput
 
 .. autoclass:: arcana.study.Parameter
 

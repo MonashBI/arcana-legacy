@@ -17,7 +17,7 @@ from nipype.interfaces.io import IOBase, add_traits
 from nipype.utils.filemanip import filename_to_list
 from nipype.interfaces.base import OutputMultiPath, InputMultiPath
 import numpy as np
-from arcana.exceptions import ArcanaError
+from arcana.exceptions import ArcanaError, ArcanaDesignError
 
 
 bash_resources = op.abspath(op.join(op.dirname(__file__), 'resources', 'bash'))
@@ -546,8 +546,8 @@ class UnTarGzDir(CommandLine):
         new_files = set(os.listdir(os.getcwd())) - self.listdir_before
         if len(new_files) > 1:
             raise ArcanaUsageError(
-                "Zip repositorys can only contain a single directory, found '{}'"
-                .format("', '".join(new_files)))
+                "Zip repositorys can only contain a single directory, found "
+                "'{}'".format("', '".join(new_files)))
         try:
             unzipped = next(iter(new_files))
         except StopIteration:
@@ -560,7 +560,8 @@ class UnTarGzDir(CommandLine):
 class SelectOneInputSpec(BaseInterfaceInputSpec):
     inlist = InputMultiPath(
         traits.Any, mandatory=True, desc='list of values to choose from')
-    index = traits.Int(mandatory=True, desc='0-based indice of element to extract')
+    index = traits.Int(mandatory=True,
+                       desc='0-based indice of element to extract')
 
 
 class SelectOneOutputSpec(TraitedSpec):
@@ -594,4 +595,63 @@ class SelectOne(IOBase):
         outputs = self._outputs().get()
         out = np.array(self.inputs.inlist)[self.inputs.index]
         outputs['out'] = out
+        return outputs
+
+
+class SelectSessionInputSpec(BaseInterfaceInputSpec):
+    inlist = InputMultiPath(
+        traits.Any, mandatory=True, desc='List of items to select from')
+    subject_ids = traits.List(traits.Str, mandatory=True,
+                              desc=('List of subject IDs corresponding to the '
+                                    'provided items'))
+    visit_ids = traits.List(traits.Str, mandatory=True,
+                            desc=('List of visit IDs corresponding to the '
+                                  'provided items'))
+    subject_id = traits.Str(mandatory=True, desc='Subject ID')
+    visit_id = traits.Str(mandatory=True, desc='Visit ID')
+
+
+class SelectSessionOutputSpec(TraitedSpec):
+    out = traits.Any(desc='selected value')
+
+
+class SelectSession(IOBase):
+    """Basic interface class to select specific elements from a list
+
+    Examples
+    --------
+
+    >>> from nipype.interfaces.utility import Select
+    >>> sl = Select()
+    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
+    >>> out = sl.run()
+    >>> out.outputs.out
+    4
+
+    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
+    >>> out = sl.run()
+    >>> out.outputs.out
+    [4, 5]
+
+    """
+
+    input_spec = SelectSessionInputSpec
+    output_spec = SelectSessionOutputSpec
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
+        if len(self.inputs.subject_ids) != len(self.inputs.inlist):
+            raise ArcanaDesignError(
+                "Length of subject IDs ({}) doesn't match that of input items "
+                "({})".format(len(self.inputs.subject_ids),
+                              len(self.inputs.inlist)))
+        if len(self.inputs.visit_ids) != len(self.inputs.inlist):
+            raise ArcanaDesignError(
+                "Length of visit IDs ({}) doesn't match that of input items "
+                "({})".format(len(self.inputs.visit_ids),
+                              len(self.inputs.inlist)))
+        session_ids = list(zip(self.inputs.subject_ids, self.inputs.visit_ids))
+        index = session_ids.index((self.inputs.subject_id,
+                                   self.inputs.visit_id))
+        outputs['out'] = self.inputs.inlist[index]
         return outputs

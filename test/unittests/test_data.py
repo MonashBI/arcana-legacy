@@ -9,7 +9,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
-from arcana.data import AcquiredFilesetSpec, FilesetSpec, FieldSpec, FilesetSelector  # @IgnorePep8
+from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec, FilesetInput  # @IgnorePep8
 from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
 from arcana.exceptions import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
@@ -54,8 +54,8 @@ class TestFilesetSpecPickle(TestCase):
 class TestMatchStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('gre_phase', dicom_format),
-        AcquiredFilesetSpec('gre_mag', dicom_format)]
+        FilesetInputSpec('gre_phase', dicom_format),
+        FilesetInputSpec('gre_mag', dicom_format)]
 
     def dummy_pipeline1(self):
         pass
@@ -78,10 +78,10 @@ class TestDicomTagMatch(BaseTestCase):
     PHASE_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'P', 'ND']
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
-        FilesetSelector('gre_phase', GRE_PATTERN, dicom_format,
+        FilesetInput('gre_phase', GRE_PATTERN, dicom_format,
                         dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
                         is_regex=True),
-        FilesetSelector('gre_mag', GRE_PATTERN, dicom_format,
+        FilesetInput('gre_mag', GRE_PATTERN, dicom_format,
                         dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
                         is_regex=True)]
 
@@ -100,9 +100,9 @@ class TestDicomTagMatch(BaseTestCase):
         study = self.create_study(
             TestMatchStudy, 'test_dicom',
             inputs=[
-                FilesetSelector('gre_phase', pattern=self.GRE_PATTERN,
+                FilesetInput('gre_phase', pattern=self.GRE_PATTERN,
                                 format=dicom_format, order=1, is_regex=True),
-                FilesetSelector('gre_mag', pattern=self.GRE_PATTERN,
+                FilesetInput('gre_mag', pattern=self.GRE_PATTERN,
                                 format=dicom_format, order=0, is_regex=True)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
@@ -113,8 +113,8 @@ class TestDicomTagMatch(BaseTestCase):
 class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('required', text_format),
-        AcquiredFilesetSpec('optional', text_format, optional=True),
+        FilesetInputSpec('required', text_format),
+        FilesetInputSpec('optional', text_format, optional=True),
         FilesetSpec('derivable', text_format, 'pipeline1'),
         FilesetSpec('missing_input', text_format, 'pipeline2'),
         FilesetSpec('another_derivable', text_format, 'pipeline3'),
@@ -131,7 +131,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline1',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
@@ -142,7 +142,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline2',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
@@ -154,7 +154,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline3',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
         pipeline.connect_input('required', identity, 'a')
@@ -168,7 +168,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline4',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('requires_switch', identity, 'a')
@@ -179,7 +179,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline = self.new_pipeline(
             'pipeline5',
             desc="",
-            references=[],
+            citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a']))
         pipeline.connect_input('required', identity, 'a')
@@ -217,7 +217,7 @@ class TestDerivable(BaseTestCase):
         study_with_switch = self.create_study(
             TestDerivableStudy,
             'study_with_switch',
-            inputs=[FilesetSelector('required', 'required', text_format)],
+            inputs=[FilesetInput('required', 'required', text_format)],
             parameters={'switch': True})
         self.assertTrue(
             study_with_switch.spec('requires_switch').derivable)
@@ -227,7 +227,7 @@ class TestDerivable(BaseTestCase):
         study_bar_branch = self.create_study(
             TestDerivableStudy,
             'study_bar_branch',
-            inputs=[FilesetSelector('required', 'required', text_format)],
+            inputs=[FilesetInput('required', 'required', text_format)],
             parameters={'branch': 'bar'})
         self.assertFalse(study_bar_branch.spec('requires_foo').derivable)
         self.assertTrue(study_bar_branch.spec('requires_bar').derivable)
@@ -235,14 +235,14 @@ class TestDerivable(BaseTestCase):
         study_with_input = self.create_study(
             TestDerivableStudy,
             'study_with_inputs',
-            inputs=[FilesetSelector('required', 'required', text_format),
-                    FilesetSelector('optional', 'required', text_format)])
+            inputs=[FilesetInput('required', 'required', text_format),
+                    FilesetInput('optional', 'required', text_format)])
         self.assertTrue(
             study_with_input.spec('missing_input').derivable)
         study_unhandled = self.create_study(
             TestDerivableStudy,
             'study_unhandled',
-            inputs=[FilesetSelector('required', 'required', text_format)],
+            inputs=[FilesetInput('required', 'required', text_format)],
             parameters={'branch': 'wee'})
         self.assertRaises(
             ArcanaDesignError,

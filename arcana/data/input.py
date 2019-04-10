@@ -3,15 +3,15 @@ import re
 from copy import copy
 from itertools import chain
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaSelectorError,
-    ArcanaSelectorMissingMatchError, ArcanaNotBoundToStudyError)
+    ArcanaUsageError, ArcanaInputError,
+    ArcanaInputMissingMatchError, ArcanaNotBoundToStudyError)
 from .base import BaseFileset, BaseField
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseSelector(object):
+class BaseInput(object):
     """
-    Base class for Fileset and Field Selector classes
+    Base class for Fileset and Field Input classes
     """
 
     def __init__(self, pattern, is_regex, order, from_study,
@@ -116,7 +116,7 @@ class BaseSelector(object):
             if self._study is None:
                 raise ArcanaUsageError(
                     "Cannot access repository of {} as it wasn't explicitly "
-                    "provided and Selector hasn't been bound to a study"
+                    "provided and Input hasn't been bound to a study"
                     .format(self))
             repo = self._study.repository
         else:
@@ -211,7 +211,7 @@ class BaseSelector(object):
         for node in nodes:
             try:
                 matches.append(self.match_node(node, **kwargs))
-            except ArcanaSelectorMissingMatchError as e:
+            except ArcanaInputMissingMatchError as e:
                 if self._fallback is not None:
                     matches.append(self._fallback.collection.item(
                         subject_id=node.subject_id, visit_id=node.visit_id))
@@ -242,7 +242,7 @@ class BaseSelector(object):
                          if d.from_study == self.from_study]
         # Select the fileset from the matches
         if not study_matches:
-            raise ArcanaSelectorMissingMatchError(
+            raise ArcanaInputMissingMatchError(
                 "No matches found for {} in {} for study {}, however, found {}"
                 .format(self, node, self.from_study,
                         ', '.join(str(m) for m in matches)))
@@ -250,20 +250,20 @@ class BaseSelector(object):
             try:
                 match = study_matches[self.order]
             except IndexError:
-                raise ArcanaSelectorMissingMatchError(
+                raise ArcanaInputMissingMatchError(
                     "Did not find {} named data matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
         elif len(study_matches) == 1:
             match = study_matches[0]
         else:
-            raise ArcanaSelectorError(
+            raise ArcanaInputError(
                 "Found multiple matches for {} in {} ({})"
                 .format(self, node, ', '.join(str(m) for m in study_matches)))
         return match
 
 
-class FilesetSelector(BaseSelector, BaseFileset):
+class FilesetInput(BaseInput, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -317,7 +317,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
         If there is no fileset matching the selection for a node
         and corresponding data spec has a default or is a derived spec
         then fallback to the default or generate the derivative.
-    repository : BaseRepository | None
+    repository : Repository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
     """
@@ -332,7 +332,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
                  fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
-        BaseSelector.__init__(self, pattern, is_regex, order,
+        BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
@@ -350,13 +350,13 @@ class FilesetSelector(BaseSelector, BaseFileset):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseSelector.__eq__(self, other) and
+                BaseInput.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseSelector.__hash__(self) ^
+                BaseInput.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id))
 
@@ -364,11 +364,11 @@ class FilesetSelector(BaseSelector, BaseFileset):
         if self._pattern is None and self._id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
-                "FilesetSelector constructor")
+                "FilesetInput constructor")
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseSelector.initkwargs(self))
+        dct.update(BaseInput.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
         return dct
@@ -425,21 +425,22 @@ class FilesetSelector(BaseSelector, BaseFileset):
         else:
             matches = list(node.filesets)
         if not matches:
-            raise ArcanaSelectorMissingMatchError(
+            raise ArcanaInputMissingMatchError(
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
-        format_matches = [f for f in matches if f.format == self.format]
-        if not format_matches:
-            raise ArcanaSelectorMissingMatchError(
-                "Did not find any matches with the appropriate format for {} "
-                "in {}, found:\n{}"
-                .format(self, node, '\n'.join(str(f) for f in matches)))
-        matches = format_matches
+        if self.format is not None:
+            format_matches = [f for f in matches if f.format == self.format]
+            if not format_matches:
+                raise ArcanaInputMissingMatchError(
+                    "Did not find any matches with the appropriate format for "
+                    "{} in {}, found:\n{}"
+                    .format(self, node, '\n'.join(str(f) for f in matches)))
+            matches = format_matches
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
-                raise ArcanaSelectorMissingMatchError(
+                raise ArcanaInputMissingMatchError(
                     "Did not find filesets names matching pattern {} "
                     "with an id of {} (found {}) in {}".format(
                         self.pattern, self.id,
@@ -454,7 +455,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
                 if self.dicom_tags == values:
                     filtered.append(fileset)
             if not filtered:
-                raise ArcanaSelectorMissingMatchError(
+                raise ArcanaInputMissingMatchError(
                     "Did not find filesets names matching pattern {}"
                     "that matched DICOM tags {} (found {}) in {}"
                     .format(self.pattern, self.dicom_tags,
@@ -467,7 +468,7 @@ class FilesetSelector(BaseSelector, BaseFileset):
         return {'format': self.format}
 
 
-class FieldSelector(BaseSelector, BaseField):
+class FieldInput(BaseInput, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -513,7 +514,7 @@ class FieldSelector(BaseSelector, BaseField):
         If the there is no fileset/field matching the selection for a node
         and corresponding data spec has a default or is a derived spec,
         then fallback to the default or generate the derivative.
-    repository : BaseRepository | None
+    repository : Repository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
     """
@@ -527,14 +528,14 @@ class FieldSelector(BaseSelector, BaseField):
                  fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
-        BaseSelector.__init__(self, pattern, is_regex, order,
+        BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseSelector.__eq__(self, other))
+                BaseInput.__eq__(self, other))
 
     @property
     def dtype(self):
@@ -548,11 +549,11 @@ class FieldSelector(BaseSelector, BaseField):
         return dtype
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseSelector.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseInput.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseSelector.initkwargs(self))
+        dct.update(BaseInput.initkwargs(self))
         return dct
 
     def _filtered_matches(self, node):
@@ -567,7 +568,7 @@ class FieldSelector(BaseSelector, BaseField):
             matches = [f for f in matches
                        if f.from_study == self.from_study]
         if not matches:
-            raise ArcanaSelectorMissingMatchError(
+            raise ArcanaInputMissingMatchError(
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node, '\n'.join(f.name for f in node.fields)))
         return matches

@@ -58,7 +58,7 @@ class Parameter(object):
                                                        self.value)
 
 
-class ParameterSpec(Parameter):
+class ParamSpec(Parameter):
     """
     Specifies a parameter that can be passed to the study
 
@@ -79,7 +79,7 @@ class ParameterSpec(Parameter):
 
     def __init__(self, name, default, desc=None, dtype=None,
                  array=False):
-        super(ParameterSpec, self).__init__(name, default)
+        super(ParamSpec, self).__init__(name, default)
         self._desc = desc
         self._array = array
         if dtype is not None:
@@ -109,7 +109,7 @@ class ParameterSpec(Parameter):
         return self._desc
 
     def __repr__(self):
-        return "ParameterSpec(name='{}', default={}, desc='{}')".format(
+        return "ParamSpec(name='{}', default={}, desc='{}')".format(
             self.name, self.default, self.desc)
 
     def check_valid(self, parameter, context=None):
@@ -127,7 +127,7 @@ class ParameterSpec(Parameter):
                 raise ArcanaUsageError(error_msg)
 
 
-class SwitchSpec(ParameterSpec):
+class SwitchSpec(ParamSpec):
     """
     Specifies a special parameter that switches between different
     methods and/or pipeline input/outputs. Typically used to select

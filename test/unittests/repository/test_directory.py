@@ -5,7 +5,7 @@ import os.path as op  # @IgnorePep8
 from arcana.data.file_format.standard import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, AcquiredFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
+    Fileset, FilesetInputSpec, FilesetSpec, Field)  # @IgnorePep8
 from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -22,10 +22,10 @@ FileFormat.register(with_header_format)
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('source1', text_format),
-        AcquiredFilesetSpec('source2', text_format),
-        AcquiredFilesetSpec('source3', text_format),
-        AcquiredFilesetSpec('source4', text_format,
+        FilesetInputSpec('source1', text_format),
+        FilesetInputSpec('source2', text_format),
+        FilesetInputSpec('source3', text_format),
+        FilesetInputSpec('source4', text_format,
                             optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
@@ -44,7 +44,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         pass
 
 
-class TestDirectoryRepository(BaseTestCase):
+class TestBasicRepo(BaseTestCase):
 
     STUDY_NAME = 'local_repo'
     INPUT_DATASETS = {'source1': '1',

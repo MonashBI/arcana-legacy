@@ -45,7 +45,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedDirectoryRepositoryError(ArcanaError):
+class ArcanaBadlyFormattedBasicRepoError(ArcanaError):
     pass
 
 
@@ -83,11 +83,11 @@ class ArcanaDataNotDerivedYetError(NamedArcanaError, ArcanaDesignError):
     pass
 
 
-class ArcanaSelectorError(ArcanaUsageError):
+class ArcanaInputError(ArcanaUsageError):
     pass
 
 
-class ArcanaSelectorMissingMatchError(ArcanaSelectorError):
+class ArcanaInputMissingMatchError(ArcanaInputError):
     pass
 
 

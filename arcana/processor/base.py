@@ -4,7 +4,7 @@ from pprint import pformat
 import os.path as op
 from collections import defaultdict, OrderedDict
 import shutil
-from itertools import zip_longest
+from itertools import zip_longest, repeat
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
@@ -35,7 +35,7 @@ DEFAULT_PROV_IGNORE = ['.*/pkg_version',
                        'workflow/nodes/.*/requirements/.*/local_name']
 
 
-class BaseProcessor(object):
+class Processor(object):
     """
     A thin wrapper around the NiPype LinearPlugin used to connect
     runs pipelines on the local workstation
@@ -192,7 +192,7 @@ class BaseProcessor(object):
         session_ids = kwargs.pop('session_ids', None)
         clean_work_dir = kwargs.pop('clean_work_dir',
                                     self._clean_work_dir_between_runs)
-        required_outputs = kwargs.pop('required_outputs', None)
+        required_outputs = kwargs.pop('required_outputs', repeat(None))
         # Create name by combining pipelines
         name = '_'.join(p.name for p in pipelines)
         # Clean work dir if required
@@ -248,6 +248,8 @@ class BaseProcessor(object):
         stack = OrderedDict()
 
         def push_on_stack(pipeline, filt_array, req_outputs):
+            if req_outputs is None:
+                req_outputs = pipeline.output_names
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
@@ -300,7 +302,7 @@ class BaseProcessor(object):
                     raise e
 
         # Add all primary pipelines to the stack along with their prereqs
-        for pipeline, req_outputs in zip_longest(pipelines, required_outputs):
+        for pipeline, req_outputs in zip(pipelines, required_outputs):
             push_on_stack(pipeline, filter_array, req_outputs)
 
         # Iterate through stack of required pipelines from upstream to
@@ -315,8 +317,8 @@ class BaseProcessor(object):
                             "are already present in the repository"
                             .format(pipeline.name))
         # Save complete graph for debugging purposes
-        # workflow.write_graph(graph2use='flat', format='svg')
-        # print('Graph saved in {} directory'.format(os.getcwd()))
+#         workflow.write_graph(graph2use='flat', format='svg')
+#         print('Graph saved in {} directory'.format(os.getcwd()))
         # Actually run the generated workflow
         result = workflow.run(plugin=self._plugin)
         # Reset the cached tree of filesets in the repository as it will
@@ -818,7 +820,7 @@ class BaseProcessor(object):
             for node in to_check:
                 # Generated expected record from current pipeline/repository-
                 # state
-                reprocess = False
+                requires_reprocess = False
                 try:
                     # Retrieve record stored in tree node
                     record = node.record(pipeline.name, pipeline.study.name)
@@ -834,16 +836,16 @@ class BaseProcessor(object):
                                "argument of Processor to ignore"
                                .format(
                                    pformat(mismatches)))
-                        reprocess = True
+                        requires_reprocess = True
                 except ArcanaNameError as e:
                     msg = "missing provenance record"
-                    reprocess = False
+                    requires_reprocess = False
                     to_protect_array[array_inds(node)] = True
                 except ArcanaDataNotDerivedYetError as e:
                     msg = ("missing input '{}' and therefore cannot check "
                            "provenance".format(e.name))
-                    reprocess = True
-                if reprocess:
+                    requires_reprocess = True
+                if requires_reprocess:
                     if self.reprocess:
                         to_process_array[array_inds(node)] = True
                         logger.info(

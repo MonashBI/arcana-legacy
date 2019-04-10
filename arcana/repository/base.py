@@ -10,7 +10,7 @@ from arcana.exceptions import ArcanaUsageError
 logger = logging.getLogger('arcana')
 
 
-class BaseRepository(with_metaclass(ABCMeta, object)):
+class Repository(with_metaclass(ABCMeta, object)):
     """
     Abstract base class for all Repository systems, DaRIS, XNAT and
     local file system. Sets out the interface that all Repository

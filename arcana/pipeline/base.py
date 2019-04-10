@@ -88,7 +88,7 @@ class Pipeline(object):
         cited in publications that use it
     """
 
-    def __init__(self, study, name, name_maps, desc=None, references=None):
+    def __init__(self, study, name, name_maps, desc=None, citations=None):
         name, study, maps = self._unwrap_maps(name_maps, name, study=study)
         self._name = name
         self._input_map = maps.get('input_map', None)
@@ -101,7 +101,7 @@ class Pipeline(object):
         self._output_conns = {}
         self._iterator_joins = set()
         # Set up inputs
-        self._references = references if references is not None else []
+        self._citations = citations if citations is not None else []
         # For recording which parameters are accessed
         # during pipeline generation so they can be attributed to the
         # pipeline after it is generated (and then saved in the

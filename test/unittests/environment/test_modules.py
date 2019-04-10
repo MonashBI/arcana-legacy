@@ -1,15 +1,15 @@
 import os
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
-    AcquiredFilesetSpec, FilesetSpec, FilesetSelector, FieldSpec)
+    FilesetInputSpec, FilesetSpec, FilesetInput, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exceptions import (ArcanaModulesNotInstalledException,
                               ArcanaError)
 import unittest
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.data.file_format.standard import text_format
-from arcana.environment import ModulesEnvironment
-from arcana.processor import LinearProcessor
+from arcana.environment import ModulesEnv
+from arcana.processor import SingleProc
 from future.utils import with_metaclass
 from arcana.environment import BaseRequirement
 
@@ -20,7 +20,7 @@ class DummyRequirement(BaseRequirement):
         try:
             return os.environ[self.name.upper() + '_VERSION']
         except KeyError:
-            loaded_modules = ModulesEnvironment.loaded()
+            loaded_modules = ModulesEnv.loaded()
             raise ArcanaError(
                 "Did not find {} in environment variables, found '{}'. "
                 "The loaded modules are {}"
@@ -33,7 +33,7 @@ first_req = DummyRequirement('firsttestmodule')
 second_req = DummyRequirement('secondtestmodule')
 
 try:
-    ModulesEnvironment._run_module_cmd('avail')
+    ModulesEnv._run_module_cmd('avail')
 except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
@@ -45,7 +45,7 @@ SKIP_ARGS = (MODULES_NOT_INSTALLED, "Environment modules are not installed")
 class TestMathWithReq(TestMath):
 
     def _run_interface(self, runtime):
-        loaded_modules = ModulesEnvironment.loaded()
+        loaded_modules = ModulesEnv.loaded()
         if first_req.name not in loaded_modules:
             raise ArcanaError(
                 "First Test module was not loaded in Node")
@@ -58,7 +58,7 @@ class TestMathWithReq(TestMath):
 class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        AcquiredFilesetSpec('ones', text_format),
+        FilesetInputSpec('ones', text_format),
         FilesetSpec('twos', text_format, 'pipeline1'),
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
@@ -110,7 +110,7 @@ class TestModuleLoad(BaseTestCase):
 
     @property
     def processor(self):
-        return LinearProcessor(
+        return SingleProc(
             self.work_dir)
 
     @unittest.skipIf(*SKIP_ARGS)
@@ -118,18 +118,18 @@ class TestModuleLoad(BaseTestCase):
         study = self.create_study(
             RequirementsStudy, 'requirements',
             {'ones': 'ones'},
-            environment=ModulesEnvironment())
+            environment=ModulesEnv())
         self.assertContentsEqual(study.data('twos'), 2.0)
-        self.assertEqual(ModulesEnvironment.loaded(), {})
+        self.assertEqual(ModulesEnv.loaded(), {})
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetSelector('ones', 'ones', text_format)],
-            environment=ModulesEnvironment())
+            [FilesetInput('ones', 'ones', text_format)],
+            environment=ModulesEnv())
         threes = study.data('threes')
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
-        self.assertEqual(ModulesEnvironment.loaded(), {})
+        self.assertEqual(ModulesEnv.loaded(), {})
