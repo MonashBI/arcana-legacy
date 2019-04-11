@@ -527,6 +527,26 @@ class Fileset(BaseItem, BaseFileset):
     def get_header(self):
         return self.format.get_header(self.path)
 
+    def contents_equal(self, other, **kwargs):
+        """
+        Test the equality of the fileset contents with another fileset. If the
+        fileset's format implements a 'contents_equal' method than that is used
+        to determine the equality, otherwise a straight comparison of the
+        checksums is used.
+
+        Parameters
+        ----------
+        other : Fileset
+            The other fileset to compare to
+        """
+        if self.format != other.format:
+            equal = False
+        elif hasattr(self.format, 'are_equal'):
+            equal = self.format.contents_equal(self, other, **kwargs)
+        else:
+            equal = (self.checksums == other.checksums)
+        return equal
+
 
 class Field(BaseItem, BaseField):
     """

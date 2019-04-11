@@ -6,7 +6,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException, ArcanaNameError)
-from .base import BaseFileset, BaseField
+from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
@@ -335,7 +335,7 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
             return self.default.format
         except AttributeError:
             raise ArcanaUsageError(
-                "File formats is not defined for FilesetInputSpec objects "
+                "File format is not defined for FilesetInputSpec objects "
                 "without a default")
 
     def __eq__(self, other):
@@ -349,8 +349,7 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
                 hash(self.valid_formats))
 
     def initkwargs(self):
-        dct = BaseFileset.initkwargs(self)
-        del dct['format']
+        dct = BaseData.initkwargs(self)
         dct.update(BaseInputSpec.initkwargs(self))
         dct['valid_formats'] = self._valid_formats
         return dct
