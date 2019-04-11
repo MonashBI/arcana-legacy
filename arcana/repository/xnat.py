@@ -296,7 +296,7 @@ class XnatRepo(Repository):
         if field.array:
             if field.dtype is str:
                 val = ['"{}"'.format(v) for v in val]
-            val = ','.join(str(v) for v in val)
+            val = '[' + ','.join(str(v) for v in val) + ']'
         if field.dtype is str:
             val = '"{}"'.format(val)
         with self:

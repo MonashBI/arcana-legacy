@@ -126,7 +126,7 @@ class BaseInput(object):
     @property
     def collection(self):
         if self._collection is None:
-            raise ArcanaUsageError(
+            raise ArcanaNotBoundToStudyError(
                 "{} has not been bound to a study".format(self))
         return self._collection
 
@@ -390,21 +390,9 @@ class FilesetInput(BaseInput, BaseFileset):
     def format(self):
         if self._format is None:
             try:
-                spec = self.study.data_spec(self.name)
+                format = self.collection.format  # @ReservedAssignment
             except ArcanaNotBoundToStudyError:
-                return None
-            if spec.derived:
-                format = spec.format  # @ReservedAssignment
-            elif len(spec.valid_formats) == 1:
-                format = spec.valid_formats[0]  # @ReservedAssignment
-            else:
-                raise ArcanaUsageError(
-                    "Cannot implicitly determine the format of {} from "
-                    "the acquired fileset spec it is bound to as there are "
-                    "multiple valid formats ('{}'). Please pass explicitly to "
-                    "the 'format' keyword argument".format(
-                        self,
-                        "', '".join(f.name for f in spec.valid_formats)))
+                format = None  # @ReservedAssignment
         else:
             format = self._format  # @ReservedAssignment
         return format

@@ -46,11 +46,12 @@ class Processor(object):
         A directory in which to run the nipype workflows
     max_process_time : float
         The maximum time allowed for the process
-    reprocess: bool
+    reprocess: bool | 'force'
         A flag which determines whether to rerun the processing for this
         step if a provenance mismatch is detected between save derivative and
         parameters passed to the Study. If False, an exception will be raised
-        in this case
+        in this case. If passed a value of 'force' then the outputs will be
+        regenerated regardless of existing derivatives (used mainly in testing)
     prov_check : iterable[str]
         Paths in the provenance dictionary to include in checks with previously
         generated derivatives to determine whether they need to be rerun.
@@ -358,6 +359,8 @@ class Processor(object):
             array, regardless of whether the parameters|pipeline used
             to generate existing data matches the given pipeline
         """
+        if self.reprocess == 'force':
+            force = True
         # Close-off construction of the pipeline and created, input and output
         # nodes and provenance dictionary
         pipeline.cap()
