@@ -204,6 +204,33 @@ class Fileset(BaseItem, BaseFileset):
 
         self._checksums = checksums
 
+    def __getattr__(self, attr):
+        """
+        For the convenience of being able to make calls on a fileset that are
+        dependent on its format, e.g.
+
+            >>> fileset = Fileset('a_name', format=AnImageFormat())
+            >>> fileset.get_header()
+
+        we capture missing attributes and attempt to redirect them to methods
+        of the format class that take the fileset as the first argument
+        """
+        try:
+            frmt = self.__dict__['_format']
+        except KeyError:
+            pass
+        else:
+            try:
+                format_attr = getattr(frmt, attr)
+            except AttributeError:
+                pass
+            else:
+                if callable(format_attr):
+                    return lambda *args, **kwargs: format_attr(self, *args,
+                                                               **kwargs)
+        raise AttributeError("'{}' object has no attribute '{}'"
+                             .format(type(self), attr))
+
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
@@ -358,6 +385,9 @@ class Fileset(BaseItem, BaseFileset):
         elif uri != self._uri:
             raise ArcanaUsageError("Can't change value of URI for {} from {} "
                                    "to {}".format(self, self._uri, uri))
+
+    def side_car(self, name):
+        return self.side_cars[name]
 
     @property
     def side_cars(self):
@@ -521,12 +551,6 @@ class Fileset(BaseItem, BaseFileset):
         if self.repository is not None and self._path is not None:
             self.repository.put_fileset(self)
 
-    def get_array(self):
-        return self.format.get_array(self.path)
-
-    def get_header(self):
-        return self.format.get_header(self.path)
-
     def contents_equal(self, other, **kwargs):
         """
         Test the equality of the fileset contents with another fileset. If the
@@ -539,9 +563,7 @@ class Fileset(BaseItem, BaseFileset):
         other : Fileset
             The other fileset to compare to
         """
-        if self.format != other.format:
-            equal = False
-        elif hasattr(self.format, 'are_equal'):
+        if hasattr(self.format, 'contents_equal'):
             equal = self.format.contents_equal(self, other, **kwargs)
         else:
             equal = (self.checksums == other.checksums)
