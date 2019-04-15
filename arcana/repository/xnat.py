@@ -197,7 +197,28 @@ class XnatRepo(Repository):
                 else:
                     need_to_download = False
             if need_to_download:
-                xresource = self.get_resource(xscan, fileset.format)
+                if self._format_name is None:
+                    xresource = xscan.resources[self._format_name.upper()]
+                else:
+                    xresource = None
+                    for resource_name in self.format.xnat_resource_names:
+                        try:
+                            xresource = xscan.resources[resource_name]
+                        except KeyError:
+                            continue
+                        else:
+                            break
+                    if xresource is None:
+                        raise ArcanaError(
+                            "Could not find matching resource for {} ('{}') "
+                            "in {}, available resources are '{}'"
+                            .format(
+                                self.format,
+                                "', '".join(self.format.xnat_resource_names),
+                                xscan.uri,
+                                "', '".join(
+                                    r.label
+                                    for r in list(xscan.resources.values()))))
                 # The path to the directory which the files will be
                 # downloaded to.
                 tmp_dir = cache_path + '.download'
@@ -281,7 +302,7 @@ class XnatRepo(Repository):
                 pass
             else:
                 xresource.delete()
-            xresource = xscan.create_resource(fileset.format.name.upper())
+            xresource = xscan.create_resource(fileset.format_name.upper())
             if fileset.format.directory:
                 for fname in os.listdir(fileset.path):
                     xresource.upload(op.join(fileset.path, fname), fname)
@@ -524,18 +545,13 @@ class XnatRepo(Repository):
                         finally:
                             shutil.rmtree(temp_dir, ignore_errors=True)
                     else:
-                        try:
-                            file_format = self._guess_file_format(resources,
-                                                                  scan_uri)
-                        except ArcanaFileFormatError as e:
-                            logger.warning(
-                                "Ignoring '{}' as couldn't guess its file "
-                                "format:\n{}".format(scan_type, e))
-                        all_filesets.append(Fileset(
-                            scan_type, format=file_format, id=scan_id,
-                            uri=scan_uri, repository=self, frequency=frequency,
-                            subject_id=subject_id, visit_id=visit_id,
-                            from_study=from_study, **kwargs))
+                        for resource in resources:
+                            all_filesets.append(Fileset(
+                                scan_type, id=scan_id, uri=scan_uri,
+                                repository=self, frequency=frequency,
+                                subject_id=subject_id, visit_id=visit_id,
+                                from_study=from_study,
+                                format_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))
         return all_filesets, all_fields, all_records
@@ -584,23 +600,6 @@ class XnatRepo(Repository):
                for t in response if (tag_parse_re.match(t['tag1']) and
                                      t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
         return hdr
-
-    @classmethod
-    def get_resource(cls, xscan, file_format):
-        for resource_name in file_format.xnat_resource_names:
-            try:
-                return xscan.resources[resource_name]
-            except KeyError:
-                continue
-        raise ArcanaError(
-            "Could not find matching resource for {} ('{}') in {}, "
-            "available resources are '{}'"
-            .format(
-                file_format,
-                "', '".join(file_format.xnat_resource_names),
-                xscan.uri,
-                "', '".join(
-                    r.label for r in list(xscan.resources.values()))))
 
     def download_fileset(self, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path):
