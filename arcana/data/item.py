@@ -218,7 +218,7 @@ class Fileset(BaseItem, BaseFileset):
         try:
             frmt = self.__dict__['_format']
         except KeyError:
-            pass
+            frmt = None
         else:
             try:
                 format_attr = getattr(frmt, attr)
@@ -228,8 +228,8 @@ class Fileset(BaseItem, BaseFileset):
                 if callable(format_attr):
                     return lambda *args, **kwargs: format_attr(self, *args,
                                                                **kwargs)
-        raise AttributeError("'{}' object has no attribute '{}'"
-                             .format(type(self), attr))
+        raise AttributeError("Filesets of {} format don't have a '{}' "
+                             "attribute".format(frmt, attr))
 
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
