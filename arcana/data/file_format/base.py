@@ -162,7 +162,7 @@ class FileFormat(object):
 
     @property
     def side_car_exts(self):
-        return self._side_cars.values()
+        return frozenset(self._side_cars.values())
 
     @property
     def within_dir_exts(self):

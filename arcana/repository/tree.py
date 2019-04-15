@@ -515,7 +515,8 @@ class Tree(TreeNode):
                     visit._sessions[subject_id] = session
 
     @classmethod
-    def construct(cls, filesets=(), fields=(), records=(), **kwargs):
+    def construct(cls, filesets=(), fields=(), records=(),
+                  file_formats=(), **kwargs):
         """
         Return the hierarchical tree of the filesets and fields stored in a
         repository
@@ -538,6 +539,8 @@ class Tree(TreeNode):
         # Sort the data by subject and visit ID
         filesets_dict = defaultdict(list)
         for fset in filesets:
+            if file_formats:
+                fset.set_format(file_formats)
             filesets_dict[(fset.subject_id, fset.visit_id)].append(fset)
         fields_dict = defaultdict(list)
         for field in fields:
