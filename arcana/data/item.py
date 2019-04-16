@@ -457,6 +457,38 @@ class Fileset(BaseItem, BaseFileset):
             # Create side cars dictionary from default extensions
         return cls(name, from_study=from_study, **kwargs)
 
+    def matches_format(self, file_format):
+        """
+        Determines whether the fileset matches the provided format, either
+        by the 'format_name' attribute if present or by the extensions of its
+        constituent files
+
+        Parameters
+        ----------
+        file_format : FileFormat
+            The file format to test the given fileset against
+        """
+        if self._format_name is not None:
+            return (self._format_name in chain([file_format.name],
+                                               file_format.alternate_names))
+        else:
+            if op.isdir(self.path):
+                # Get set of all extensions in the directory
+                within_exts = frozenset(
+                    split_extension(f)[1] for f in os.listdir(self.path)
+                    if not f.startswith('.'))
+                return (within_exts == file_format.within_dir_exts)
+            else:
+                filename = op.basename(self.path)
+                basename, ext = split_extension(filename)
+                potential_side_car_exts = set(
+                    split_extension(f)[1]
+                    for f in os.listdir(op.dirname(self.path))
+                    if f.startswith(basename))
+                return (ext == file_format.ext and
+                        file_format.side_car_exts.issubset(
+                            potential_side_car_exts))
+
     def set_format(self, candidates):
         """
         Sets the format of a fileset from a list of candidates. If a
@@ -476,55 +508,21 @@ class Fileset(BaseItem, BaseFileset):
         # Ensure candidates is a list of file formats (i.e. not a single frmat)
         if not isinstance(candidates, Iterable):
             candidates = [candidates]
-        if self._format_name is not None:
-            matches = [c for c in candidates if c.name == self._format_name]
-            if not matches:
-                raise ArcanaFileFormatError(
-                    "None of the candidate file formats ({}) match the "
-                    "saved format name '{}' of {}"
-                    .format(', '.join(str(c) for c in candidates),
-                            self._format_name, {}))
-        else:
-            if op.isdir(self.path):
-                # Get set of all extensions in the directory
-                within_exts = frozenset(
-                    split_extension(f)[1] for f in os.listdir(self.path)
-                    if not f.startswith('.'))
-                matches = [c for c in candidates
-                           if c.within_dir_exts == within_exts]
-                if not matches:
-                    raise ArcanaFileFormatError(
-                        "None of the candidate file formats ({}) match the "
-                        "file extensions within {} ({})"
-                        .format(', '.join(str(c) for c in candidates),
-                                self, within_exts))
-            else:
-                filename = op.basename(self.path)
-                basename, ext = split_extension(filename)
-                side_car_exts = frozenset(
-                    split_extension(f)[1]
-                    for f in os.listdir(op.dirname(self.path))
-                    if (f.startswith(basename) and f != filename and
-                        split_extension(f)[1] is not None))
-                matches = [c for c in candidates
-                           if (c.ext == ext and
-                               c.side_car_exts == side_car_exts)]
-                if not matches:
-                    raise ArcanaFileFormatError(
-                        "None of the candidate file formats ({}) match the "
-                        "extension '{}' and side-car extensions '{}' of {}"
-                        .format(', '.join(str(c) for c in candidates),
-                                ext, side_car_exts, self))
+        matches = [c for c in candidates if self.matches_format(c)]
+        if not matches:
+            raise ArcanaFileFormatError(
+                "None of the candidate file formats ({}) match {}"
+                .format(', '.join(str(c) for c in candidates), self))
         if len(matches) > 1:
             raise ArcanaFileFormatError(
                 "Multiple candidate file formats ({}) match {}"
                 .format(', '.join(str(m) for m in matches), self))
         self._format = candidates[0]
         if self.format.side_cars:
+            basename = split_extension(self.path)[0]
             self._side_cars = {}
             for sc_name, sc_ext in self.format.side_cars.items():
-                self._side_cars[sc_name] = op.join(op.dirname(self.path),
-                                                   basename + sc_ext)
+                self._side_cars[sc_name] = basename + sc_ext
 
     def dicom(self, index):
         """

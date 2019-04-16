@@ -6,6 +6,7 @@ from arcana.exceptions import (
     ArcanaUsageError, ArcanaInputError,
     ArcanaInputMissingMatchError, ArcanaNotBoundToStudyError)
 from .base import BaseFileset, BaseField
+from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
 
@@ -194,7 +195,7 @@ class BaseInput(object):
 #             basename = self.match(**kwargs).name
 #         return basename
 
-    def match(self, tree, **kwargs):
+    def _match(self, tree, item_cls, **kwargs):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -205,8 +206,7 @@ class BaseInput(object):
         elif self.frequency == 'per_study':
             nodes = [tree]
         else:
-            assert False, "Unrecognised frequency '{}'".format(
-                self.frequency)
+            assert False, "Unrecognised frequency '{}'".format(self.frequency)
         matches = []
         for node in nodes:
             try:
@@ -218,21 +218,17 @@ class BaseInput(object):
                 elif self.skip_missing:
                     # Insert a non-existant item placeholder in-place of the
                     # the missing item
-                    matches.append(self.CollectionClass.CollectedClass(
+                    matches.append(item_cls(
                         self.name,
                         frequency=self.frequency,
                         subject_id=node.subject_id,
                         visit_id=node.visit_id,
                         repository=self.study.repository,
                         from_study=self.from_study,
-                        exists=False,
-                        **self._specific_kwargs))
+                        exists=False))
                 else:
                     raise e
-        return self.CollectionClass(self.name,
-                                    matches,
-                                    frequency=self.frequency,
-                                    **self._specific_kwargs)
+        return matches
 
     def match_node(self, node, **kwargs):
         # Get names matching pattern
@@ -273,8 +269,7 @@ class FilesetInput(BaseInput, BaseFileset):
     spec_name : str
         The name of the fileset spec to match against
     format : FileFormat
-        The file format used to store the fileset. Can be one of the
-        recognised formats
+        The file format used to store the fileset.
     pattern : str
         A regex pattern to match the fileset names with. Must match
         one and only one fileset per <frequency>. If None, the name
@@ -323,7 +318,6 @@ class FilesetInput(BaseInput, BaseFileset):
     """
 
     is_spec = False
-    CollectionClass = FilesetCollection
 
     def __init__(self, spec_name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
@@ -382,6 +376,13 @@ class FilesetInput(BaseInput, BaseFileset):
                         self.order, self.id, self.dicom_tags,
                         self._from_study))
 
+    def match(self, tree, **kwargs):
+        # Run the match against the tree
+        return FilesetCollection(self.name,
+                                 self._match(tree, Fileset, **kwargs),
+                                 frequency=self.frequency,
+                                 format=self.format)
+
     @property
     def id(self):
         return self._id
@@ -417,14 +418,6 @@ class FilesetInput(BaseInput, BaseFileset):
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
-        if self.format is not None:
-            format_matches = [f for f in matches if f.format == self.format]
-            if not format_matches:
-                raise ArcanaInputMissingMatchError(
-                    "Did not find any matches with the appropriate format for "
-                    "{} in {}, found:\n{}"
-                    .format(self, node, '\n'.join(str(f) for f in matches)))
-            matches = format_matches
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
@@ -449,11 +442,16 @@ class FilesetInput(BaseInput, BaseFileset):
                     .format(self.pattern, self.dicom_tags,
                             ', '.join(str(m) for m in matches), node))
             matches = filtered
+        if self.format is not None:
+            format_matches = [f for f in matches
+                              if f.matches_format(self.format)]
+            if not format_matches:
+                raise ArcanaInputMissingMatchError(
+                    "Did not find any filesets that match the file format "
+                    "specified by {} in {}, found:\n{}"
+                    .format(self, node, '\n'.join(str(f) for f in matches)))
+            matches = format_matches
         return matches
-
-    @property
-    def _specific_kwargs(self):
-        return {'format': self.format}
 
 
 class FieldInput(BaseInput, BaseField):
@@ -508,7 +506,6 @@ class FieldInput(BaseInput, BaseField):
     """
 
     is_spec = False
-    CollectionClass = FieldCollection
 
     def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_study=None,
@@ -524,6 +521,13 @@ class FieldInput(BaseInput, BaseField):
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
                 BaseInput.__eq__(self, other))
+
+    def match(self, tree, **kwargs):
+        # Run the match against the tree
+        return FieldCollection(self.name,
+                               self._match(tree, Field, **kwargs),
+                               frequency=self.frequency,
+                               dtype=self.dtype)
 
     @property
     def dtype(self):
@@ -567,7 +571,3 @@ class FieldInput(BaseInput, BaseField):
                 .format(self.__class__.__name__, self.name, self._dtype,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self._from_study))
-
-    @property
-    def _specific_kwargs(self):
-        return {'dtype': self.dtype}

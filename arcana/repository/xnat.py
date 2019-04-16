@@ -551,7 +551,7 @@ class XnatRepo(Repository):
                                 repository=self, frequency=frequency,
                                 subject_id=subject_id, visit_id=visit_id,
                                 from_study=from_study,
-                                format_name=resource, **kwargs))
+                                format_name=resource.lower(), **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))
         return all_filesets, all_fields, all_records
