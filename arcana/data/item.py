@@ -2,6 +2,8 @@ from past.builtins import basestring
 import os
 from itertools import chain
 from collections.abc import Iterable
+from collections import defaultdict
+from copy import copy
 import os.path as op
 import hashlib
 import pydicom
@@ -171,12 +173,19 @@ class Fileset(BaseItem, BaseFileset):
         For repositories where the name of the file format is saved with the
         data (i.e. XNAT) the format name can be recorded to aid format
         identification
+    potential_side_cars : list[str]
+        A list of paths to potential files to include in the fileset as
+        "side-cars" or headers or in a directory format. Used when the
+        format of the fileset is not set when it is detected in the repository
+        but determined later from a list of candidates in the specification it
+        is matched to.
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, side_cars=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, checksums=None, record=None, format_name=None):
+                 exists=True, checksums=None, record=None, format_name=None,
+                 potential_side_cars=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
@@ -209,6 +218,12 @@ class Fileset(BaseItem, BaseFileset):
             self._id = id
         self._checksums = checksums
         self._format_name = format_name
+        if potential_side_cars is not None and format is not None:
+            raise ArcanaUsageError(
+                "Potential paths should only be provided to Fileset.__init__ "
+                "({}) when the format of the fileset ({}) is not determined"
+                .format(self.name, format))
+        self._potential_side_cars = potential_side_cars
 
     def __getattr__(self, attr):
         """
@@ -472,72 +487,115 @@ class Fileset(BaseItem, BaseFileset):
             # Create side cars dictionary from default extensions
         return cls(name, from_study=from_study, **kwargs)
 
-    def matches_format(self, file_format):
+    def select_format(self, candidates):
         """
-        Determines whether the fileset matches the provided format, either
-        by the 'format_name' attribute if present or by the extensions of its
-        constituent files
+        Selects a single matching format of the fileset from a list of possible
+        candidates. If multiple candidates match the potential files (e.g.
+        NiFTI-X and NiFTI) then the first matching candidate is selected.
+
+        If a 'format_name' was specified when the fileset was
+        created then that is used to select between the candidates. Otherwise
+        the file extensions of the primary path and potential side-car files,
+        or extensions of the files within the directory for directories are
+        matched against those specified for the file formats
 
         Parameters
         ----------
-        file_format : FileFormat
-            The file format to test the given fileset against
+        candidates : FileFormat
+            A list of file-formats to select from.
         """
         if self._format_name is not None:
-            return (self._format_name in chain([file_format.name],
-                                               file_format.alternate_names))
+            matches = [c for c in candidates if c.name == self._format_name]
+            if not matches:
+                raise ArcanaFileFormatError(
+                    "None of the candidate file formats ({}) match the "
+                    "saved format name '{}' of {}"
+                    .format(', '.join(str(c) for c in candidates),
+                            self._format_name, {}))
+            elif len(matches) > 1:
+                raise ArcanaFileFormatError(
+                    "Multiple candidate file formats ({}) match saved format "
+                    "name {}".format(', '.join(str(m) for m in matches), self))
         else:
             if op.isdir(self.path):
                 # Get set of all extensions in the directory
                 within_exts = frozenset(
                     split_extension(f)[1] for f in os.listdir(self.path)
                     if not f.startswith('.'))
-                return (within_exts == file_format.within_dir_exts)
+                matches = [c for c in candidates
+                           if c.within_dir_exts == within_exts]
+                if not matches:
+                    raise ArcanaFileFormatError(
+                        "None of the candidate file formats ({}) match the "
+                        "file extensions within {} ({})"
+                        .format(', '.join(str(c) for c in candidates),
+                                self, within_exts))
             else:
-                filename = op.basename(self.path)
-                basename, ext = split_extension(filename)
+                ext = split_extension(self.path)[1]
                 potential_side_car_exts = set(
-                    split_extension(f)[1]
-                    for f in os.listdir(op.dirname(self.path))
-                    if f.startswith(basename))
-                return (ext == file_format.ext and
-                        file_format.side_car_exts.issubset(
-                            potential_side_car_exts))
+                    split_extension(f)[1] for f in self._potential_side_cars)
+                matches = [c for c in candidates
+                           if (c.ext == ext and
+                               c.side_car_exts.issubset(
+                                   potential_side_car_exts))]
+                if not matches:
+                    raise ArcanaFileFormatError(
+                        "None of the candidate file formats ({}) match the "
+                        "extension '{}' and side-car extensions '{}' of {}"
+                        .format(', '.join(str(c) for c in candidates),
+                                ext, potential_side_car_exts, self))
+        return matches[0]
 
-    def set_format(self, candidates):
+    def formatted(self, candidates):
         """
-        Sets the format of a fileset from a list of candidates. If a
-        'format_name' was specified when the fileset was created then that
-        is used to select between the candidates. Otherwise the file extensions
-        of the primary path and potential side-car files, or extensions of the
-        files within the directory for directories are matched against those
-        specified for the file formats
+        Creates a copy of a fileset and sets the format of a fileset from a
+        list of possible candidates.
 
         Parameters
         ----------
         candidates : list[FileFormat] | FileFormat
-            A list of file-formats to select from. This list is typically
-            passed by the Repository object or list of valid formats for a
-            given data specification entry
+            A list of file-formats to select from.
+
+        Returns
+        -------
+        formatted : Fileset
+            A copy of the fileset with the format set
         """
         # Ensure candidates is a list of file formats (i.e. not a single frmat)
         if not isinstance(candidates, Iterable):
             candidates = [candidates]
-        matches = [c for c in candidates if self.matches_format(c)]
-        if not matches:
-            raise ArcanaFileFormatError(
-                "None of the candidate file formats ({}) match {}"
-                .format(', '.join(str(c) for c in candidates), self))
-        if len(matches) > 1:
-            raise ArcanaFileFormatError(
-                "Multiple candidate file formats ({}) match {}"
-                .format(', '.join(str(m) for m in matches), self))
-        self._format = candidates[0]
-        if self.format.side_cars:
-            basename = split_extension(self.path)[0]
-            self._side_cars = {}
-            for sc_name, sc_ext in self.format.side_cars.items():
-                self._side_cars[sc_name] = basename + sc_ext
+        formatted = copy(self)
+        selected_format = formatted._format = self.select_format(candidates)
+        if selected_format.side_cars and self._path is not None:
+            formatted._side_cars = {}
+            for sc_name, sc_ext in selected_format.side_cars.items():
+                potential_sc = self._potential_side_cars[sc_ext]
+                if len(potential_sc) > 1:
+                    raise ArcanaUsageError(
+                        "Multiple potential files for '{}' side-car extension "
+                        "({}) of {}".format("', '".join(potential_sc),
+                                            selected_format))
+                formatted._side_cars[sc_name] = potential_sc[0]
+        # No longer need to retain potentials after we have assigned the real
+        # side-cars
+        formatted._potential_side_cars = None
+        return formatted
+
+    def matches_format(self, file_format):
+        """
+        Checks whether the provided file format matches the given fileset
+
+        Parameters
+        ----------
+        file_format : FileFormat
+            The file format to check.
+        """
+        try:
+            self.select_format([file_format])
+        except ArcanaFileFormatError:
+            return False
+        else:
+            return True
 
     def dicom(self, index):
         """

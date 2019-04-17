@@ -275,7 +275,7 @@ class FileFormat(object):
                     ', '.format(repr(f)
                                 for f in list(cls.by_within_exts.values()))))
 
-    def primary_file(self, file_names):
+    def select_primary_and_aux_files(self, potential_paths):
         """
         Selects the primary file from a list of filenames, as opposed to
         side-cars and headers
@@ -297,7 +297,7 @@ class FileFormat(object):
         if len(match_fnames) == 1:
             fname = match_fnames[0]
         else:
-            raise ArcanaMissingDataException(
+            raise ArcanaFileFormatError(
                 "Did not find single file with extension '{}' "
                 "(found '{}')"
                 .format(self.extension, "', '".join(file_names)))

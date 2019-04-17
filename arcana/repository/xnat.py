@@ -175,6 +175,10 @@ class XnatRepo(Repository):
             An XNATSession object to use for the connection. A new
             one is created if one isn't provided
         """
+        if fileset.format is None:
+            raise ArcanaUsageError(
+                "Attempting to download {}, which has not been assigned a "
+                "file format (see Fileset.formatted)".format(fileset))
         self._check_repository(fileset)
         with self:  # Connect to the XNAT repository if haven't already
             xsession = self.get_xsession(fileset)
