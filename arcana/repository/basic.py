@@ -247,21 +247,29 @@ class BasicRepo(Repository):
                 frequency = 'per_subject'
             else:
                 frequency = 'per_session'
-            for fname in chain(self._filter_files(files, session_path),
-                               self._filter_dirs(dirs, session_path)):
-                try:
-                    all_filesets.append(
-                        Fileset.from_path(
-                            op.join(session_path, fname),
-                            frequency=frequency,
-                            subject_id=subj_id, visit_id=visit_id,
-                            repository=self,
-                            from_study=from_study,
-                            **kwargs))
-                except ArcanaFileFormatNotRegisteredError:
-                    logger.info("Skipping '{}' as its extension is not "
-                                "recognised".format(op.join(session_path,
-                                                            fname)))
+            files = self._filter_files(files, session_path)
+            for fname in files:
+                basename = split_extension(fname)[0]
+                all_filesets.append(
+                    Fileset.from_path(
+                        op.join(session_path, fname),
+                        frequency=frequency,
+                        subject_id=subj_id, visit_id=visit_id,
+                        repository=self,
+                        from_study=from_study,
+                        potential_aux_files=[
+                            f for f in files
+                            if split_extension(f)[0] == basename],
+                        **kwargs))
+            for fname in self._filter_dirs(dirs, session_path):
+                all_filesets.append(
+                    Fileset.from_path(
+                        op.join(session_path, fname),
+                        frequency=frequency,
+                        subject_id=subj_id, visit_id=visit_id,
+                        repository=self,
+                        from_study=from_study,
+                        **kwargs))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:

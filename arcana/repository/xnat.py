@@ -260,13 +260,12 @@ class XnatRepo(Repository):
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
         if not fileset.format.directory:
-            (primary_path,
-             auxiliary_path) = fileset.format.select_primary_and_aux_files(
+            (primary_path, aux_paths) = fileset.format.select_files(
                 op.join(cache_path, f) for f in os.listdir(cache_path))
         else:
             primary_path = cache_path
-            auxiliary_path = None
-        return primary_path, auxiliary_path
+            aux_paths = None
+        return primary_path, aux_paths
 
     def get_field(self, field):
         self._check_repository(field)

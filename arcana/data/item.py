@@ -538,8 +538,7 @@ class Fileset(BaseItem, BaseFileset):
                 all_paths = [self.path] + self._potential_aux_files
                 for candidate in candidates:
                     try:
-                        primary_path = candidate.select_primary_and_aux_files(
-                            all_paths)[0]
+                        primary_path = candidate.select_files(all_paths)[0]
                     except ArcanaFileFormatError:
                         continue
                     else:
@@ -575,7 +574,7 @@ class Fileset(BaseItem, BaseFileset):
         formatted = copy(self)
         format = formatted._format = self.select_format(candidates)  # @ReservedAssignment @IgnorePep8
         if format.aux_files and self._path is not None:
-            formatted._aux_files = format.select_primary_and_aux_files(
+            formatted._aux_files = format.select_files(
                 [self._path] + list(self._potential_aux_files))[1]
         # No longer need to retain potentials after we have assigned the real
         # auxiliaries

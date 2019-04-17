@@ -25,8 +25,9 @@ class TreeNode(object):
             records = []
         # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
-        self._filesets = OrderedDict(((d.name, d.from_study), d)
-                                     for d in sorted(filesets))
+        self._filesets = OrderedDict(((f.name, f.from_study, f._format_name),
+                                      f)
+                                     for f in sorted(filesets))
         self._fields = OrderedDict(((f.name, f.from_study), f)
                                    for f in sorted(fields))
         self._records = OrderedDict(
@@ -94,7 +95,7 @@ class TreeNode(object):
         "To be overridden by subclasses where appropriate"
         return None
 
-    def fileset(self, name, from_study=None):
+    def fileset(self, name, from_study=None, format_name=None):
         """
         Gets the fileset named 'name' produced by the Study named 'study' if
         provided. If a spec is passed instead of a str to the name argument,
@@ -108,20 +109,25 @@ class TreeNode(object):
             Name of the study that produced the fileset if derived. If None
             and a spec is passed instaed of string to the name argument then
             the study name will be taken from the spec instead.
+        format_name : str | None
+            The name of the format that the fileset was saved under
         """
         if isinstance(name, BaseFileset):
             if from_study is None and name.derived:
                 from_study = name.study.name
             name = name.name
         try:
-            return self._filesets[(name, from_study)]
+            return self._filesets[(name, from_study, format_name)]
         except KeyError:
-            available = [d.name for d in self.filesets
-                         if d.from_study == from_study]
-            other_studies = [(d.from_study if d.from_study is not None
-                              else '<root>')
-                             for d in self.filesets
-                             if d.name == name]
+            available = [
+                ('{}(format={})'.format(f.name, f._format_name)
+                 if f._format_name is not None else f.name)
+                for f in self.filesets
+                if f.from_study == from_study]
+            other_studies = [
+                (f.from_study if f.from_study is not None else '<root>')
+                for f in self.filesets if (f.name == name and
+                                           f._format_name == name)]
             if other_studies:
                 msg = (". NB: matching fileset(s) found for '{}' study(ies) "
                        "('{}')".format(name, "', '".join(other_studies)))

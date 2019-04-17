@@ -291,7 +291,7 @@ class FileFormat(object):
                     ', '.format(repr(f)
                                 for f in list(cls.by_within_exts.values()))))
 
-    def select_primary_and_aux_files(self, candidates):
+    def select_files(self, candidates):
         """
         Selects primary and auxiliary files that match the format by their file
         extensionsfrom a list of candidate file paths
