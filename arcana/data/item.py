@@ -242,7 +242,8 @@ class Fileset(BaseItem, BaseFileset):
               BaseItem.__eq__(self, other) and
               self.side_cars == other.side_cars and
               self.id == other.id and
-              self.checksums == other.checksums)
+              self.checksums == other.checksums and
+              self.format_name == other.format_name)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -257,7 +258,8 @@ class Fileset(BaseItem, BaseFileset):
                 BaseItem.__hash__(self) ^
                 hash(self.id) ^
                 hash(tuple(sorted(self.side_cars.items()))) ^
-                hash(self.checksums))
+                hash(self.checksums) ^
+                hash(self.format_name))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -269,20 +271,29 @@ class Fileset(BaseItem, BaseFileset):
                 # If ids are equal order depending on study name
                 # with acquired (from_study==None) coming first
                 if self.from_study is None:
-                    return other.from_study is None
+                    return other.from_study is not None
                 elif other.from_study is None:
                     return False
+                elif self.from_study == other.from_study:
+                    if self.format_name is None:
+                        return other.format_name is not None
+                    elif other.format_name is None:
+                        return False
+                    else:
+                        return self.format_name < other.format_name
                 else:
                     return self.from_study < other.from_study
             else:
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}, exists={}{})"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={}{})"
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
+                    (", format_name='{}'" if self._format_name is not None
+                     else ''),
                     self.exists,
                     (", path='{}'".format(self.path)
                      if self._path is not None else '')))
@@ -303,6 +314,10 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}checksum: self={} v other={}'
                          .format(sub_indent, self.checksums,
                                  other.checksums))
+        if self._format_name != other._format_name:
+            mismatch += ('\n{}format_name: self={} v other={}'
+                         .format(sub_indent, self._format_name,
+                                 other._format_name))
         return mismatch
 
     @property

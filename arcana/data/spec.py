@@ -323,7 +323,7 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
         self._valid_formats = tuple(valid_formats)
         BaseFileset.__init__(self, name, None, frequency)
         BaseInputSpec.__init__(self, name, desc, optional=optional,
-                                  default=default)
+                               default=default)
 
     @property
     def valid_formats(self):
@@ -393,27 +393,42 @@ class FilesetSpec(BaseFileset, BaseSpec):
         visit or project.
     desc : str
         Description of what the field represents
+    valid_formats : list[FileFormat]
+        A list of valid file formats that can be supplied to the spec if
+        overridden as an input. Typically not required, but useful for some
+        specs that are typically provided as inputs (e.g. magnitude MRI)
+        but can be derived from other inputs (e.g. coil-wise MRI images)
     """
 
     is_spec = True
     CollectionClass = FilesetCollection
 
     def __init__(self, name, format, pipeline_getter, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
-                 desc=None):
+                 desc=None, valid_formats=None):
         BaseFileset.__init__(self, name, format, frequency)
         BaseSpec.__init__(self, name, pipeline_getter, desc)
+        if valid_formats is not None:
+            # Ensure allowed formats is a list
+            try:
+                valid_formats = sorted(valid_formats, key=attrgetter('name'))
+            except TypeError:
+                valid_formats = [valid_formats]
+        self._valid_formats = valid_formats
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseSpec.__eq__(self, other))
+                BaseSpec.__eq__(self, other) and
+                self.valid_formats == other.valid_formats)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseSpec.__hash__(self))
+                BaseSpec.__hash__(self) ^
+                hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
         dct.update(BaseSpec.initkwargs(self))
+        dct['valid_formats'] = self._valid_formats
         return dct
 
     def __repr__(self):
@@ -423,8 +438,13 @@ class FilesetSpec(BaseFileset, BaseSpec):
                     self.frequency))
 
     def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
         mismatch = BaseFileset.find_mismatch(self, other, indent)
         mismatch += BaseSpec.find_mismatch(self, other, indent)
+        if self.valid_formats != other.valid_formats:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, list(self.valid_formats),
+                                 list(other.valid_formats)))
         return mismatch
 
     def _bind_node(self, node, **kwargs):
@@ -441,6 +461,10 @@ class FilesetSpec(BaseFileset, BaseSpec):
                               exists=False,
                               **kwargs)
         return fileset
+
+    @property
+    def valid_formats(self):
+        return self._valid_formats
 
     @property
     def _specific_collection_kwargs(self):
