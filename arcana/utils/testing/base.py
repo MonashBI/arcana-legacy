@@ -484,11 +484,11 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 session_path = op.dirname(fileset.path)
                 self._make_dir(session_path)
                 contents = self.DATASET_CONTENTS[fileset.name]
-                if fileset.format.side_cars:
-                    fileset._side_cars = {}
-                    for sc_name, sc_path in fileset.format.side_car_paths(
+                if fileset.format.aux_files:
+                    fileset._aux_files = {}
+                    for sc_name, sc_path in fileset.format.aux_file_paths(
                             fileset._path):
-                        fileset._side_cars[sc_name] = sc_path
+                        fileset._aux_files[sc_name] = sc_path
                         with open(sc_path, 'w') as f:
                             f.write(str(contents[sc_name]))
                     contents = contents['.']

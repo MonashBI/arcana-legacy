@@ -15,7 +15,7 @@ from arcana.data.file_format import FileFormat  # @IgnorePep8
 
 # A dummy format that contains a header
 with_header_format = FileFormat(name='with_header', extension='.whf',
-                                side_cars={'header': '.hdr'})
+                                aux_files={'header': '.hdr'})
 FileFormat.register(with_header_format)
 
 

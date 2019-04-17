@@ -145,9 +145,9 @@ class Fileset(BaseItem, BaseFileset):
         fileset.
     path : str | None
         The path to the fileset (for repositories on the local system)
-    side_cars : dict[str, str] | None
+    aux_files : dict[str, str] | None
         Additional files in the fileset. Keys should match corresponding
-        side_cars dictionary in format.
+        aux_files dictionary in format.
     id : int | None
         The ID of the fileset in the session. To be used to
         distinguish multiple filesets with the same scan type in the
@@ -173,7 +173,7 @@ class Fileset(BaseItem, BaseFileset):
         For repositories where the name of the file format is saved with the
         data (i.e. XNAT) the format name can be recorded to aid format
         identification
-    potential_side_cars : list[str]
+    potential_aux_files : list[str]
         A list of paths to potential files to include in the fileset as
         "side-cars" or headers or in a directory format. Used when the
         format of the fileset is not set when it is detected in the repository
@@ -182,34 +182,34 @@ class Fileset(BaseItem, BaseFileset):
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
-                 path=None, side_cars=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+                 path=None, aux_files=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None, format_name=None,
-                 potential_side_cars=None):
+                 potential_aux_files=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
-        if side_cars is not None:
+        if aux_files is not None:
             if path is None:
                 raise ArcanaUsageError(
                     "Side cars provided to '{}' fileset ({}) but not primary "
-                    "path".format(self.name, side_cars))
+                    "path".format(self.name, aux_files))
             if format is None:
                 raise ArcanaUsageError(
                     "Side cars provided to '{}' fileset ({}) but format is "
-                    "not specified".format(self.name, side_cars))
+                    "not specified".format(self.name, aux_files))
         if path is not None:
             path = op.abspath(op.realpath(path))
-            if side_cars is None:
-                side_cars = {}
-            if set(side_cars.keys()) != set(self.format.side_cars.keys()):
+            if aux_files is None:
+                aux_files = {}
+            if set(aux_files.keys()) != set(self.format.aux_files.keys()):
                 raise ArcanaUsageError(
                     "Provided side cars for '{}' but expected '{}'"
-                    .format("', '".join(side_cars.keys()),
-                            "', '".join(self.format.side_cars.keys())))
+                    .format("', '".join(aux_files.keys()),
+                            "', '".join(self.format.aux_files.keys())))
         self._path = path
-        self._side_cars = side_cars
+        self._aux_files = aux_files
         self._uri = uri
         if id is None and path is not None and format.name == 'dicom':
             self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
@@ -218,12 +218,12 @@ class Fileset(BaseItem, BaseFileset):
             self._id = id
         self._checksums = checksums
         self._format_name = format_name
-        if potential_side_cars is not None and format is not None:
+        if potential_aux_files is not None and format is not None:
             raise ArcanaUsageError(
                 "Potential paths should only be provided to Fileset.__init__ "
                 "({}) when the format of the fileset ({}) is not determined"
                 .format(self.name, format))
-        self._potential_side_cars = potential_side_cars
+        self._potential_aux_files = potential_aux_files
 
     def __getattr__(self, attr):
         """
@@ -255,7 +255,7 @@ class Fileset(BaseItem, BaseFileset):
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
-              self.side_cars == other.side_cars and
+              self.aux_files == other.aux_files and
               self.id == other.id and
               self.checksums == other.checksums and
               self.format_name == other.format_name)
@@ -272,7 +272,7 @@ class Fileset(BaseItem, BaseFileset):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
                 hash(self.id) ^
-                hash(tuple(sorted(self.side_cars.items()))) ^
+                hash(tuple(sorted(self.aux_files.items()))) ^
                 hash(self.checksums) ^
                 hash(self.format_name))
 
@@ -351,26 +351,26 @@ class Fileset(BaseItem, BaseFileset):
                     "'{}')".format(self.name))
         return self._path
 
-    def set_path(self, path, side_cars=None):
+    def set_path(self, path, aux_files=None):
         if path is not None:
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
-        if side_cars is None:
-            self._side_cars = dict(self.format.side_car_paths(path))
+        if aux_files is None:
+            self._aux_files = dict(self.format.aux_file_paths(path))
         else:
-            if set(self.format.side_cars.keys()) != set(side_cars.keys()):
+            if set(self.format.aux_files.keys()) != set(aux_files.keys()):
                 raise ArcanaUsageError(
                     "Keys of provided side cars ('{}') don't match format "
-                    "('{}')".format("', '".join(side_cars.keys()),
-                                    "', '".join(self.format.side_cars.keys())))
-            self._side_cars = side_cars
+                    "('{}')".format("', '".join(aux_files.keys()),
+                                    "', '".join(self.format.aux_files.keys())))
+            self._aux_files = aux_files
         self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
 
     @path.setter
     def path(self, path):
-        self.set_path(path, side_cars=None)
+        self.set_path(path, aux_files=None)
 
     @property
     def paths(self):
@@ -379,7 +379,7 @@ class Fileset(BaseItem, BaseFileset):
             return chain(*((op.join(root, f) for f in files)
                            for root, _, files in os.walk(self.path)))
         else:
-            return chain([self.path], self.side_cars.values())
+            return chain([self.path], self.aux_files.values())
 
     @property
     def fname(self):
@@ -424,17 +424,17 @@ class Fileset(BaseItem, BaseFileset):
             raise ArcanaUsageError("Can't change value of URI for {} from {} "
                                    "to {}".format(self, self._uri, uri))
 
-    def side_car(self, name):
-        return self.side_cars[name]
+    def aux_file(self, name):
+        return self.aux_files[name]
 
     @property
-    def side_cars(self):
-        return self._side_cars if self._side_cars is not None else {}
+    def aux_files(self):
+        return self._aux_files if self._aux_files is not None else {}
 
     @property
-    def side_car_fnames_and_paths(self):
-        return ((self.basename + self.format.side_cars[sc_name], sc_path)
-                for sc_name, sc_path in self.side_cars.items())
+    def aux_file_fnames_and_paths(self):
+        return ((self.basename + self.format.aux_files[sc_name], sc_path)
+                for sc_name, sc_path in self.aux_files.items())
 
     @property
     def format_name(self):
@@ -532,18 +532,18 @@ class Fileset(BaseItem, BaseFileset):
                                 self, within_exts))
             else:
                 ext = split_extension(self.path)[1]
-                potential_side_car_exts = set(
-                    split_extension(f)[1] for f in self._potential_side_cars)
+                potential_aux_file_exts = set(
+                    split_extension(f)[1] for f in self._potential_aux_files)
                 matches = [c for c in candidates
                            if (c.ext == ext and
-                               c.side_car_exts.issubset(
-                                   potential_side_car_exts))]
+                               c.aux_file_exts.issubset(
+                                   potential_aux_file_exts))]
                 if not matches:
                     raise ArcanaFileFormatError(
                         "None of the candidate file formats ({}) match the "
                         "extension '{}' and side-car extensions '{}' of {}"
                         .format(', '.join(str(c) for c in candidates),
-                                ext, potential_side_car_exts, self))
+                                ext, potential_aux_file_exts, self))
         return matches[0]
 
     def formatted(self, candidates):
@@ -566,19 +566,19 @@ class Fileset(BaseItem, BaseFileset):
             candidates = [candidates]
         formatted = copy(self)
         selected_format = formatted._format = self.select_format(candidates)
-        if selected_format.side_cars and self._path is not None:
-            formatted._side_cars = {}
-            for sc_name, sc_ext in selected_format.side_cars.items():
-                potential_sc = self._potential_side_cars[sc_ext]
+        if selected_format.aux_files and self._path is not None:
+            formatted._aux_files = {}
+            for sc_name, sc_ext in selected_format.aux_files.items():
+                potential_sc = self._potential_aux_files[sc_ext]
                 if len(potential_sc) > 1:
                     raise ArcanaUsageError(
                         "Multiple potential files for '{}' side-car extension "
                         "({}) of {}".format("', '".join(potential_sc),
                                             selected_format))
-                formatted._side_cars[sc_name] = potential_sc[0]
+                formatted._aux_files[sc_name] = potential_sc[0]
         # No longer need to retain potentials after we have assigned the real
         # side-cars
-        formatted._potential_side_cars = None
+        formatted._potential_aux_files = None
         return formatted
 
     def matches_format(self, file_format):

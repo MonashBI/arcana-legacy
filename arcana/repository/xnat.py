@@ -287,7 +287,7 @@ class XnatRepo(Repository):
                 shutil.copyfile(fileset.path,
                                 op.join(cache_path, fileset.fname))
                 # Copy side-cars
-                for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
                     shutil.copyfile(sc_path, op.join(cache_path, sc_fname))
             with open(cache_path + XnatRepo.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
@@ -312,7 +312,7 @@ class XnatRepo(Repository):
                     xresource.upload(op.join(fileset.path, fname), fname)
             else:
                 xresource.upload(fileset.path, fileset.fname)
-                for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
                     xresource.upload(sc_path, sc_fname)
 
     def put_field(self, field):

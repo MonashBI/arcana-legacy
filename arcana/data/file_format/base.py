@@ -34,7 +34,7 @@ class FileFormat(object):
         A dictionary mapping names of alternative data formats
         to Converter objects that can convert from the alternative
         format to this format.
-    side_cars : dict[str, str]
+    aux_files : dict[str, str]
         A dictionary of side cars (e.g. header or NIfTI json side cars) aside
         from the primary file, along with their expected extension.
         Automatically they will be assumed to be located adjancent to the
@@ -53,7 +53,7 @@ class FileFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None, side_cars=None, alternate_names=None):
+                 converters=None, aux_files=None, alternate_names=None):
         if not name.islower():
             raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
@@ -76,8 +76,8 @@ class FileFormat(object):
         self._converters = converters if converters is not None else {}
         self._alternate_names = (tuple(alternate_names)
                                  if alternate_names is not None else ())
-        self._side_cars = side_cars if side_cars is not None else {}
-        for sc_name, sc_ext in self.side_cars.items():
+        self._aux_files = aux_files if aux_files is not None else {}
+        for sc_name, sc_ext in self.aux_files.items():
             if sc_ext == self.ext:
                 raise ArcanaUsageError(
                     "Extension for side car '{}' cannot be the same as the "
@@ -93,7 +93,7 @@ class FileFormat(object):
                 self._within_dir_exts ==
                 other._within_dir_exts and
                 self.alternate_names == other.alternate_names and
-                self.side_cars == other.side_cars)
+                self.aux_files == other.aux_files)
         except AttributeError:
             return False
 
@@ -105,7 +105,7 @@ class FileFormat(object):
             hash(self._directory) ^
             hash(self._within_dir_exts) ^
             hash(self._alternate_names) ^
-            hash(tuple(sorted(self.side_cars.items()))))
+            hash(tuple(sorted(self.aux_files.items()))))
 
     def __ne__(self, other):
         return not self == other
@@ -130,7 +130,7 @@ class FileFormat(object):
 
     @property
     def extensions(self):
-        return tuple([self._extension] + sorted(self.side_car_exts))
+        return tuple([self._extension] + sorted(self.aux_file_exts))
 
     @property
     def ext(self):
@@ -153,16 +153,16 @@ class FileFormat(object):
         return self._alternate_names
 
     @property
-    def side_cars(self):
-        return self._side_cars
+    def aux_files(self):
+        return self._aux_files
 
-    def side_car_paths(self, path):
+    def aux_file_paths(self, path):
         return ((n, path[:-len(self.ext)] + ext)
-                for n, ext in self.side_cars.items())
+                for n, ext in self.aux_files.items())
 
     @property
-    def side_car_exts(self):
-        return frozenset(self._side_cars.values())
+    def aux_file_exts(self):
+        return frozenset(self._aux_files.values())
 
     @property
     def within_dir_exts(self):
