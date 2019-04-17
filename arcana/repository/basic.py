@@ -98,19 +98,21 @@ class BasicRepo(Repository):
         # Don't need to cache fileset as it is already local as long
         # as the path is set
         if fileset._path is None:
-            path = self.fileset_path(fileset)
-            if not op.exists(path):
+            primary_path = self.fileset_path(fileset)
+            aux_files = self.format.default_aux_file_paths(primary_path)
+            if not op.exists(primary_path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in {}"
                     .format(fileset, self))
-            for sc_name, sc_path in fileset.format.aux_file_paths(path):
-                if not op.exists(sc_path):
+            for aux_name, aux_path in aux_files.items():
+                if not op.exists(aux_path):
                     raise ArcanaMissingDataException(
                         "{} is missing '{}' side car in {}"
-                        .format(fileset, sc_name, self))
+                        .format(fileset, aux_name, self))
         else:
             path = fileset.path
-        return path
+            aux_files = fileset.aux_files
+        return path, aux_files
 
     def get_field(self, field):
         """
@@ -151,8 +153,9 @@ class BasicRepo(Repository):
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
             # Copy side car files into repository
-            for sc_name, sc_path in fileset.format.aux_file_paths(target_path):
-                shutil.copyfile(self.aux_file[sc_name], sc_path)
+            for aux_name, aux_path in fileset.format.default_aux_file_paths(
+                    target_path).items():
+                shutil.copyfile(self.aux_file[aux_name], aux_path)
         elif op.isdir(fileset.path):
             if op.exists(target_path):
                 shutil.rmtree(target_path)

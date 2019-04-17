@@ -223,6 +223,8 @@ class Fileset(BaseItem, BaseFileset):
                 "Potential paths should only be provided to Fileset.__init__ "
                 "({}) when the format of the fileset ({}) is not determined"
                 .format(self.name, format))
+        if potential_aux_files is not None:
+            potential_aux_files = list(potential_aux_files)
         self._potential_aux_files = potential_aux_files
 
     def __getattr__(self, attr):
@@ -490,12 +492,13 @@ class Fileset(BaseItem, BaseFileset):
     def select_format(self, candidates):
         """
         Selects a single matching format of the fileset from a list of possible
-        candidates. If multiple candidates match the potential files (e.g.
-        NiFTI-X and NiFTI) then the first matching candidate is selected.
+        candidates. If multiple candidates match the potential files, e.g.
+        NiFTI-X (see dcm2niix) and NiFTI, then the first matching candidate is
+        selected.
 
         If a 'format_name' was specified when the fileset was
         created then that is used to select between the candidates. Otherwise
-        the file extensions of the primary path and potential side-car files,
+        the file extensions of the primary path and potential auxiliary files,
         or extensions of the files within the directory for directories are
         matched against those specified for the file formats
 
@@ -531,19 +534,24 @@ class Fileset(BaseItem, BaseFileset):
                         .format(', '.join(str(c) for c in candidates),
                                 self, within_exts))
             else:
-                ext = split_extension(self.path)[1]
-                potential_aux_file_exts = set(
-                    split_extension(f)[1] for f in self._potential_aux_files)
-                matches = [c for c in candidates
-                           if (c.ext == ext and
-                               c.aux_file_exts.issubset(
-                                   potential_aux_file_exts))]
+                matches = []
+                all_paths = [self.path] + self._potential_aux_files
+                for candidate in candidates:
+                    try:
+                        primary_path = candidate.select_primary_and_aux_files(
+                            all_paths)[0]
+                    except ArcanaFileFormatError:
+                        continue
+                    else:
+                        if primary_path == self.path:
+                            matches.append(candidate)
                 if not matches:
                     raise ArcanaFileFormatError(
                         "None of the candidate file formats ({}) match the "
-                        "extension '{}' and side-car extensions '{}' of {}"
+                        "extensions of the primary ('{}') and auxiliary files"
+                        "('{}') in {}"
                         .format(', '.join(str(c) for c in candidates),
-                                ext, potential_aux_file_exts, self))
+                                self.path, self._potential_aux_files, self))
         return matches[0]
 
     def formatted(self, candidates):
@@ -565,19 +573,12 @@ class Fileset(BaseItem, BaseFileset):
         if not isinstance(candidates, Iterable):
             candidates = [candidates]
         formatted = copy(self)
-        selected_format = formatted._format = self.select_format(candidates)
-        if selected_format.aux_files and self._path is not None:
-            formatted._aux_files = {}
-            for sc_name, sc_ext in selected_format.aux_files.items():
-                potential_sc = self._potential_aux_files[sc_ext]
-                if len(potential_sc) > 1:
-                    raise ArcanaUsageError(
-                        "Multiple potential files for '{}' side-car extension "
-                        "({}) of {}".format("', '".join(potential_sc),
-                                            selected_format))
-                formatted._aux_files[sc_name] = potential_sc[0]
+        format = formatted._format = self.select_format(candidates)  # @ReservedAssignment @IgnorePep8
+        if format.aux_files and self._path is not None:
+            formatted._aux_files = format.select_primary_and_aux_files(
+                [self._path] + list(self._potential_aux_files))[1]
         # No longer need to retain potentials after we have assigned the real
-        # side-cars
+        # auxiliaries
         formatted._potential_aux_files = None
         return formatted
 
@@ -665,12 +666,13 @@ class Fileset(BaseItem, BaseFileset):
         dct['bids_attr'] = self.bids_attr
         dct['checksums'] = self.checksums
         dct['format_name'] = self._format_name
+        dct['potential_aux_files'] = self._potential_aux_files
         return dct
 
     def get(self):
         if self.repository is not None:
             self._exists = True
-            self._path = self.repository.get_fileset(self)
+            self._path, self._aux_files = self.repository.get_fileset(self)
 
     def put(self):
         if self.repository is not None and self._path is not None:

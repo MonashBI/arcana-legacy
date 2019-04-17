@@ -174,6 +174,14 @@ class XnatRepo(Repository):
         prev_login : xnat.XNATSession
             An XNATSession object to use for the connection. A new
             one is created if one isn't provided
+
+        Returns
+        -------
+        primary_path : str
+            The path of the primary file once it has been cached
+        aux_paths : dict[str, str]
+            A dictionary containing a mapping of auxiliary file names to
+            paths
         """
         if fileset.format is None:
             raise ArcanaUsageError(
@@ -252,11 +260,13 @@ class XnatRepo(Repository):
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
         if not fileset.format.directory:
-            path = op.join(cache_path,
-                           fileset.format.primary_file(os.listdir(cache_path)))
+            (primary_path,
+             auxiliary_path) = fileset.format.select_primary_and_aux_files(
+                op.join(cache_path, f) for f in os.listdir(cache_path))
         else:
-            path = cache_path
-        return path
+            primary_path = cache_path
+            auxiliary_path = None
+        return primary_path, auxiliary_path
 
     def get_field(self, field):
         self._check_repository(field)
@@ -286,7 +296,7 @@ class XnatRepo(Repository):
                 # Copy primary file
                 shutil.copyfile(fileset.path,
                                 op.join(cache_path, fileset.fname))
-                # Copy side-cars
+                # Copy auxiliaries
                 for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
                     shutil.copyfile(sc_path, op.join(cache_path, sc_fname))
             with open(cache_path + XnatRepo.MD5_SUFFIX, 'w',

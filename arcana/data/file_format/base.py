@@ -1,8 +1,9 @@
 from builtins import object
+from collections import defaultdict
 from past.builtins import basestring
 from arcana.exceptions import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
-    ArcanaFileFormatNotRegisteredError, ArcanaMissingDataException)
+    ArcanaFileFormatNotRegisteredError, ArcanaFileFormatError)
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils import lower, split_extension
 import logging
@@ -156,9 +157,24 @@ class FileFormat(object):
     def aux_files(self):
         return self._aux_files
 
-    def aux_file_paths(self, path):
-        return ((n, path[:-len(self.ext)] + ext)
-                for n, ext in self.aux_files.items())
+    def default_aux_file_paths(self, primary_path):
+        """
+        Get the default paths for auxiliary files relative to the path of the
+        primary file, i.e. the same name as the primary path with a different
+        extension
+
+        Parameters
+        ----------
+        primary_path : str
+            Path to the primary file in the fileset
+
+        Returns
+        -------
+        aux_paths : dict[str, str]
+            A dictionary of auxiliary file names and default paths
+        """
+        return dict((n, primary_path[:-len(self.ext)] + ext)
+                    for n, ext in self.aux_files.items())
 
     @property
     def aux_file_exts(self):
@@ -275,33 +291,53 @@ class FileFormat(object):
                     ', '.format(repr(f)
                                 for f in list(cls.by_within_exts.values()))))
 
-    def select_primary_and_aux_files(self, potential_paths):
+    def select_primary_and_aux_files(self, candidates):
         """
-        Selects the primary file from a list of filenames, as opposed to
-        side-cars and headers
+        Selects primary and auxiliary files that match the format by their file
+        extensionsfrom a list of candidate file paths
 
         Parameters
         ----------
-        file_names : list[str]
+        candidates : list[str]
             The list of filenames to select from
 
         Returns
         -------
-        fname : str
-            The name of the primary file
+        primary_file : str
+            Path to the selected primary file
+        aux_files : dict[str, str]
+            A dictionary mapping the auxiliary file name to the selected path
         """
-
-        match_fnames = [
-            f for f in file_names
-            if lower(split_extension(f)[-1]) == lower(self.extension)]
-        if len(match_fnames) == 1:
-            fname = match_fnames[0]
-        else:
+        by_ext = defaultdict(list)
+        for path in candidates:
+            by_ext[split_extension(path)[1].lower()] = path
+        try:
+            primary_file = by_ext[self.ext]
+        except KeyError:
             raise ArcanaFileFormatError(
-                "Did not find single file with extension '{}' "
-                "(found '{}')"
-                .format(self.extension, "', '".join(file_names)))
-        return fname
+                "No files match primary file extension of {} out of "
+                "potential candidates of {}"
+                .format(self, "', '".join(candidates)))
+        if len(primary_file) > 1:
+            raise ArcanaFileFormatError(
+                "Multiple potential files for '{}' primary file of {}"
+                .format("', '".join(primary_file), self))
+        aux_files = {}
+        for aux_name, aux_ext in self.aux_files.items():
+            try:
+                aux = by_ext[aux_ext]
+            except KeyError:
+                raise ArcanaFileFormatError(
+                    "No files match auxiliary file extension '{}' of {} out of"
+                    " potential candidates of {}"
+                    .format(aux_ext, self, "', '".join(candidates)))
+            if len(aux) > 1:
+                raise ArcanaFileFormatError(
+                    "Multiple potential files for '{}' auxiliary file ext. "
+                    "({}) of {}".format("', '".join(aux),
+                                        self))
+            aux_files[aux_name] = aux[0]
+        return primary_file, aux_files
 
 
 class Converter(object):
