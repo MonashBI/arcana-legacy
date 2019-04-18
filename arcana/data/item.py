@@ -2,7 +2,6 @@ from past.builtins import basestring
 import os
 from itertools import chain
 from collections.abc import Iterable
-from collections import defaultdict
 from copy import copy
 import os.path as op
 import hashlib

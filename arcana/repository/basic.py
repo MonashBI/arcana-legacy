@@ -12,7 +12,7 @@ from arcana.data import Fileset, Field
 from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
-    ArcanaBadlyFormattedBasicRepoError,
+    ArcanaRepositoryError,
     ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
@@ -282,7 +282,7 @@ class BasicRepo(Repository):
                     for k, v in list(dct.items()))
             if self.PROV_DIR in dirs:
                 if from_study is None:
-                    raise ArcanaBadlyFormattedBasicRepoError(
+                    raise ArcanaRepositoryError(
                         "Found provenance directory in session directory (i.e."
                         " not in study-specific sub-directory)")
                 base_prov_dir = op.join(session_path, self.PROV_DIR)
@@ -307,7 +307,7 @@ class BasicRepo(Repository):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
             # "hidden" files that start with '.')
-            raise ArcanaBadlyFormattedBasicRepoError(
+            raise ArcanaRepositoryError(
                 "Files ('{}') not permitted at {} level in local "
                 "repository".format("', '".join(files),
                                     ('subject'
@@ -415,7 +415,7 @@ class BasicRepo(Repository):
                 if depth > deepest:
                     deepest = depth
         if deepest == -1:
-            raise ArcanaBadlyFormattedBasicRepoError(
+            raise ArcanaRepositoryError(
                 "Could not guess depth of '{}' repository as did not find "
                 "a valid session directory within sub-directories."
                 .format(root_dir))
