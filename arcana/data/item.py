@@ -468,7 +468,7 @@ class Fileset(BaseItem, BaseFileset):
         return checksums
 
     @classmethod
-    def from_path(cls, path, from_study=None, **kwargs):
+    def from_path(cls, path, **kwargs):
         if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
@@ -476,17 +476,8 @@ class Fileset(BaseItem, BaseFileset):
         if op.isdir(path):
             name = op.basename(path)
         else:
-            filename = op.basename(path)
-            basename = split_extension(filename)[0]
-            if from_study is None:
-                # For acquired datasets we can't be sure that the name is
-                # unique within the directory if we strip the extension so we
-                # need to keep it in
-                name = filename
-            else:
-                name = basename
-            # Create side cars dictionary from default extensions
-        return cls(name, from_study=from_study, **kwargs)
+            name = split_extension(op.basename(path))[0]
+        return cls(name, path=path, **kwargs)
 
     def select_format(self, candidates):
         """

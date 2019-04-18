@@ -209,7 +209,10 @@ class BaseSpec(object):
                 "the corresponding collection".format(self))
         return self._collection
 
-    def _bind_tree(self, tree, **kwargs):
+    def nodes(self, tree):
+        """
+        Returns the relevant nodes for the spec's frequency
+        """
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = []
@@ -225,10 +228,7 @@ class BaseSpec(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
-        self._collection = self.CollectionClass(
-            self.name, (self._bind_node(n, **kwargs) for n in nodes),
-            frequency=self.frequency,
-            **self._specific_collection_kwargs)
+        return nodes
 
     @property
     def derivable(self):
@@ -463,13 +463,21 @@ class FilesetSpec(BaseFileset, BaseSpec):
                               **kwargs)
         return fileset
 
-    @property
-    def valid_formats(self):
-        return self._valid_formats
+    def _bind_tree(self, tree, **kwargs):
+        self._collection = FilesetCollection(
+            self.name,
+            (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
+            frequency=self.frequency,
+            format=self.format)
 
     @property
-    def _specific_collection_kwargs(self):
-        return {'format': self.format}
+    def valid_formats(self):
+        if self._valid_formats is not None:
+            valid_formats = self._valid_formats
+        else:
+            valid_formats = [self.format]
+            # TODO: Should add in formats that can be converted to
+        return valid_formats
 
 
 class FieldInputSpec(BaseField, BaseInputSpec):
@@ -598,7 +606,10 @@ class FieldSpec(BaseField, BaseSpec):
                           exists=False, **kwargs)
         return field
 
-    @property
-    def _specific_collection_kwargs(self):
-        return {'dtype': self.dtype,
-                'array': self.array}
+    def _bind_tree(self, tree, **kwargs):
+        self._collection = FieldCollection(
+            self.name,
+            (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
+            frequency=self.frequency,
+            dtype=self.dtype,
+            array=self.array)

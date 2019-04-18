@@ -157,10 +157,10 @@ class BaseInput(object):
             # Create copy and set study
             bound = copy(self)
             bound._study = study
+            spec = study.data_spec(spec_name)
             # Use the default study repository if not explicitly
             # provided to match
             if self.fallback_to_default:
-                spec = study.data_spec(spec_name)
                 if spec.derived:
                     bound._derivable = True
                 elif spec.default is not None:
@@ -181,7 +181,7 @@ class BaseInput(object):
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-                bound._collection = bound.match(tree, **kwargs)
+                bound._collection = bound.match(tree, spec=spec, **kwargs)
         return bound
 
     @property
@@ -195,7 +195,7 @@ class BaseInput(object):
 #             basename = self.match(**kwargs).name
 #         return basename
 
-    def _match(self, tree, item_cls, **kwargs):
+    def nodes(self, tree):
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = chain(*(s.sessions for s in tree.subjects))
@@ -207,8 +207,11 @@ class BaseInput(object):
             nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(self.frequency)
+        return nodes
+
+    def _match(self, tree, item_cls, **kwargs):
         matches = []
-        for node in nodes:
+        for node in self.nodes(tree):
             try:
                 matches.append(self.match_node(node, **kwargs))
             except ArcanaInputMissingMatchError as e:
@@ -376,12 +379,16 @@ class FilesetInput(BaseInput, BaseFileset):
                         self.order, self.id, self.dicom_tags,
                         self._from_study))
 
-    def match(self, tree, **kwargs):
+    def match(self, tree, spec, **kwargs):
+        if self.format is not None:
+            candidate_formats = [self.format]
+        else:
+            candidate_formats = spec.valid_formats
         # Run the match against the tree
         return FilesetCollection(self.name,
                                  self._match(tree, Fileset, **kwargs),
                                  frequency=self.frequency,
-                                 format=self.format)
+                                 format=candidate_formats)
 
     @property
     def id(self):

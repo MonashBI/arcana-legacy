@@ -48,7 +48,7 @@ json_format = FileFormat(name='json', extension='.json')
 zip_format = FileFormat(name='zip', extension='.zip',
                         converters={'directory': ZipConverter})
 targz_format = FileFormat(name='targz', extension='.tar.gz',
-                          converters={'direcctory': TarGzConverter})
+                          converters={'directory': TarGzConverter})
 
 # Register all data formats in module
 for file_format in copy(globals()).values():

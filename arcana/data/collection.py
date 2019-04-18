@@ -3,6 +3,7 @@ from arcana.exceptions import (
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field
 from collections import OrderedDict
+from collections.abc import Iterable
 from operator import itemgetter
 from itertools import chain
 
@@ -230,10 +231,19 @@ class FilesetCollection(BaseCollection, BaseFileset):
 
     CollectedClass = Fileset
 
-    def __init__(self, name, collection, frequency=None,
-                 format=None):  # @ReservedAssignment
+    def __init__(self, name, collection, format, frequency=None):  # @ReservedAssignment @IgnorePep8
+        if not isinstance(format, Iterable):
+            candidate_formats = [format]
+        else:
+            candidate_formats = list(candidate_formats)
         collection = list(collection)
-        if collection:
+        if not collection:
+            format = candidate_formats[0]  # @ReservedAssignment
+            if frequency is None:
+                raise ArcanaUsageError(
+                    "Need to provide explicit frequency for empty "
+                    "FilesetCollection")
+        else:
             implicit_frequency = self._common_attr(collection,
                                                    'frequency')
             if frequency is None:
@@ -243,23 +253,12 @@ class FilesetCollection(BaseCollection, BaseFileset):
                     "Implicit frequency '{}' does not match explicit "
                     "frequency '{}' for '{}' FilesetCollection"
                     .format(implicit_frequency, frequency, name))
-            implicit_format = self._common_attr(collection, 'format')
-            if format is None:
-                format = implicit_format  # @ReservedAssignment
-            elif format != implicit_format:
-                raise ArcanaUsageError(
-                    "Implicit format '{}' does not match explicit "
-                    "format '{}' for '{}' FilesetCollection"
-                    .format(implicit_format, format, name))
-        if frequency is None:
-            raise ArcanaUsageError(
-                "Need to provide explicit frequency for empty "
-                "FilesetCollection")
-        if format is None:
-            raise ArcanaUsageError(
-                "Need to provide explicit format for empty "
-                "FilesetCollection")
-        BaseFileset.__init__(self, name, format, frequency=frequency)
+            formatted_collection = []
+            for fileset in collection:
+                formatted_collection = fileset.formatted(candidate_formats)
+            format = self._common_attr(collection, 'format')  # @ReservedAssignment @IgnorePep8
+        BaseFileset.__init__(self, name, formatted_collection,
+                             frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):
