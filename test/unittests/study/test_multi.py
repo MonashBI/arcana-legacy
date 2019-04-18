@@ -1,7 +1,7 @@
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
 from arcana.data import FilesetInput, FilesetSpec, FilesetInputSpec
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 from arcana.study.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
 from arcana.study.base import Study
@@ -189,7 +189,7 @@ class MultiMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
 
 class TestMulti(BaseTestCase):
 
-    INPUT_DATASETS = {'ones': '1'}
+    INPUT_FILESETS = {'ones': '1'}
 
     def test_full_multi_study(self):
         study = self.create_study(

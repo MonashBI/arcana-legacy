@@ -6,7 +6,7 @@ import shutil
 from arcana import (
     StudyMetaClass, Study, BasicRepo, SingleProc, FilesetSpec,
     FilesetInput)
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 import pickle as pkl
 import os.path as op
 from nipype.interfaces.utility import IdentityInterface

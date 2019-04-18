@@ -10,7 +10,7 @@ from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @Igno
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec, FilesetInput  # @IgnorePep8
-from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
+from arcana.data.file_format import text_format, FileFormat  # @IgnorePep8
 from arcana.exceptions import ArcanaDesignError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -79,8 +79,8 @@ class TestDicomTagMatch(BaseTestCase):
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
         FilesetInput('gre_phase', GRE_PATTERN, dicom_format,
-                        dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
-                        is_regex=True),
+                     dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
+                     is_regex=True),
         FilesetInput('gre_mag', GRE_PATTERN, dicom_format,
                         dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
                         is_regex=True)]
@@ -194,7 +194,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
 class TestDerivable(BaseTestCase):
 
-    INPUT_DATASETS = {'required': 'blah'}
+    INPUT_FILESETS = {'required': 'blah'}
 
     def test_derivable(self):
         # Test vanilla study

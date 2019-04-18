@@ -7,7 +7,7 @@ from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
     FilesetInputSpec, FilesetSpec, FieldSpec,
     FieldInputSpec, FieldInput)  # @IgnorePep8
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
 from arcana.repository import Tree
@@ -232,7 +232,7 @@ STUDY_INPUTS = {'acquired_fileset1': 'acquired_fileset1',
                 'acquired_field1': 'acquired_field1'}
 
 
-INPUT_DATASETS = {'acquired_fileset1': '1.0',
+INPUT_FILESETS = {'acquired_fileset1': '1.0',
                   'acquired_fileset2': '2.0',
                   'acquired_fileset3': '3.0'}
 
@@ -241,7 +241,7 @@ INPUT_FIELDS = {'acquired_field1': 11.0}
 
 class TestProvBasic(BaseTestCase):
 
-    INPUT_DATASETS = INPUT_DATASETS
+    INPUT_FILESETS = INPUT_FILESETS
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_altered_workflow(self):
@@ -369,7 +369,7 @@ class TestProvBasic(BaseTestCase):
 
 class TestProvInputChange(BaseTestCase):
 
-    INPUT_DATASETS = INPUT_DATASETS
+    INPUT_FILESETS = INPUT_FILESETS
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_input_change(self):

@@ -8,7 +8,7 @@ from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     FilesetInput, FilesetInputSpec)
 from arcana.study import Study, StudyMetaClass
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
 import sys

@@ -5,7 +5,9 @@ from arcana.exceptions import (
     ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
     ArcanaFileFormatNotRegisteredError, ArcanaFileFormatError)
 from nipype.interfaces.utility import IdentityInterface
-from arcana.utils import lower, split_extension
+from arcana.utils.interfaces import (
+    ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
+from arcana.utils import split_extension
 import logging
 
 
@@ -310,7 +312,7 @@ class FileFormat(object):
         """
         by_ext = defaultdict(list)
         for path in candidates:
-            by_ext[split_extension(path)[1].lower()] = path
+            by_ext[split_extension(path)[1].lower()].append(path)
         try:
             primary_file = by_ext[self.ext]
         except KeyError:
@@ -318,10 +320,15 @@ class FileFormat(object):
                 "No files match primary file extension of {} out of "
                 "potential candidates of {}"
                 .format(self, "', '".join(candidates)))
-        if len(primary_file) > 1:
+        if not primary_file:
+            raise ArcanaFileFormatError(
+                "No potential files for primary file of {}".format(self))
+        elif len(primary_file) > 1:
             raise ArcanaFileFormatError(
                 "Multiple potential files for '{}' primary file of {}"
                 .format("', '".join(primary_file), self))
+        else:
+            primary_file = primary_file[0]
         aux_files = {}
         for aux_name, aux_ext in self.aux_files.items():
             try:
@@ -407,3 +414,50 @@ class IdentityConverter(Converter):
     interface = IdentityInterface(['i'])
     input = 'i'
     output = 'i'
+
+
+class UnzipConverter(Converter):
+
+    interface = UnzipDir()
+    mem_gb = 12
+    input = 'zipped'
+    output = 'unzipped'
+
+
+class ZipConverter(Converter):
+
+    interface = ZipDir()
+    mem_gb = 12
+    input = 'dirname'
+    output = 'zipped'
+
+
+class TarGzConverter(Converter):
+
+    interface = TarGzDir()
+    mem_gb = 12
+    input = 'dirname'
+    output = 'zipped'
+
+
+class UnTarGzConverter(Converter):
+
+    interface = UnTarGzDir()
+    mem_gb = 12
+    input = 'gzipped'
+    output = 'gunzipped'
+
+
+# General formats
+directory_format = FileFormat(name='directory', extension=None,
+                              directory=True,
+                              converters={'zip': UnzipConverter,
+                                          'targz': UnTarGzConverter})
+text_format = FileFormat(name='text', extension='.txt')
+json_format = FileFormat(name='json', extension='.json')
+
+# Compressed formats
+zip_format = FileFormat(name='zip', extension='.zip',
+                        converters={'directory': ZipConverter})
+targz_format = FileFormat(name='targz', extension='.tar.gz',
+                          converters={'directory': TarGzConverter})

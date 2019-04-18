@@ -2,7 +2,7 @@ from future import standard_library
 standard_library.install_aliases()
 import os  # @IgnorePep8
 import os.path as op  # @IgnorePep8
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, FilesetInputSpec, FilesetSpec, Field)  # @IgnorePep8
@@ -47,7 +47,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 class TestBasicRepo(BaseTestCase):
 
     STUDY_NAME = 'local_repo'
-    INPUT_DATASETS = {'source1': '1',
+    INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
                       'source3': '3',
                       'source4': '4'}

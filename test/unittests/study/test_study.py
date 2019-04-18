@@ -4,7 +4,7 @@ from builtins import str  # @IgnorePep8
 import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.utils.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -611,7 +611,7 @@ class BasicTestStudy(with_metaclass(StudyMetaClass, Study)):
 
 class TestInterfaceErrorHandling(BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': 'foo'}
+    INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_raised_error(self):
         study = self.create_study(
@@ -632,7 +632,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
 
 class TestGeneratedPickle(BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': 'foo'}
+    INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(

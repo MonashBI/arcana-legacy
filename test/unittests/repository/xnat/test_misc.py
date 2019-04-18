@@ -129,7 +129,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
                                    BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': '1'}
+    INPUT_FILESETS = {'fileset': '1'}
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_on_path_access(self):
@@ -152,4 +152,4 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
         self.assertEqual(fileset.path, target_path)
         with open(target_path) as f:
             self.assertEqual(f.read(),
-                             self.INPUT_DATASETS[fileset.basename])
+                             self.INPUT_FILESETS[fileset.basename])

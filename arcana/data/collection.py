@@ -1,3 +1,4 @@
+from copy import copy
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaIndexError)
 from .base import BaseFileset, BaseField
@@ -231,14 +232,17 @@ class FilesetCollection(BaseCollection, BaseFileset):
 
     CollectedClass = Fileset
 
-    def __init__(self, name, collection, format, frequency=None):  # @ReservedAssignment @IgnorePep8
-        if not isinstance(format, Iterable):
-            candidate_formats = [format]
-        else:
-            candidate_formats = list(candidate_formats)
+    def __init__(self, name, collection, format=None, frequency=None,  # @ReservedAssignment @IgnorePep8
+                 candidate_formats=None):
+        if format is None and candidate_formats is None:
+            raise ArcanaUsageError(
+                "Either 'format' or candidate_formats needs to be supplied "
+                "during the initialisation of a FilesetCollection ('{}')"
+                .format(name))
         collection = list(collection)
         if not collection:
-            format = candidate_formats[0]  # @ReservedAssignment
+            if format is None:
+                format = candidate_formats[0]  # @ReservedAssignment
             if frequency is None:
                 raise ArcanaUsageError(
                     "Need to provide explicit frequency for empty "
@@ -255,10 +259,13 @@ class FilesetCollection(BaseCollection, BaseFileset):
                     .format(implicit_frequency, frequency, name))
             formatted_collection = []
             for fileset in collection:
-                formatted_collection = fileset.formatted(candidate_formats)
+                fileset = copy(fileset)
+                fileset.format = (fileset.select_format(candidate_formats)
+                                  if format is None else format)
+                formatted_collection.append(fileset)
+            collection = formatted_collection
             format = self._common_attr(collection, 'format')  # @ReservedAssignment @IgnorePep8
-        BaseFileset.__init__(self, name, formatted_collection,
-                             frequency=frequency)
+        BaseFileset.__init__(self, name, format, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):

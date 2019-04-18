@@ -99,7 +99,7 @@ class BasicRepo(Repository):
         # as the path is set
         if fileset._path is None:
             primary_path = self.fileset_path(fileset)
-            aux_files = self.format.default_aux_file_paths(primary_path)
+            aux_files = fileset.format.default_aux_file_paths(primary_path)
             if not op.exists(primary_path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in {}"
@@ -110,9 +110,9 @@ class BasicRepo(Repository):
                         "{} is missing '{}' side car in {}"
                         .format(fileset, aux_name, self))
         else:
-            path = fileset.path
+            primary_path = fileset.path
             aux_files = fileset.aux_files
-        return path, aux_files
+        return primary_path, aux_files
 
     def get_field(self, field):
         """
@@ -259,7 +259,8 @@ class BasicRepo(Repository):
                         from_study=from_study,
                         potential_aux_files=[
                             f for f in files
-                            if split_extension(f)[0] == basename],
+                            if (split_extension(f)[0] == basename and
+                                f != fname)],
                         **kwargs))
             for fname in self._filter_dirs(dirs, session_path):
                 all_filesets.append(

@@ -186,9 +186,8 @@ class Repository(with_metaclass(ABCMeta, object)):
         """
         # Find all data present in the repository (filtered by the passed IDs)
         return Tree.construct(
-            *self.find_data(subject_ids=subject_ids,
-                            visit_ids=visit_ids),
-            file_formats=self.file_formats, **kwargs)
+            *self.find_data(subject_ids=subject_ids, visit_ids=visit_ids),
+            **kwargs)
 
     def cached_tree(self, subject_ids=None, visit_ids=None, fill=False):
         """

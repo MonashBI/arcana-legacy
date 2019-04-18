@@ -388,7 +388,7 @@ class FilesetInput(BaseInput, BaseFileset):
         return FilesetCollection(self.name,
                                  self._match(tree, Fileset, **kwargs),
                                  frequency=self.frequency,
-                                 format=candidate_formats)
+                                 candidate_formats=candidate_formats)
 
     @property
     def id(self):
@@ -453,6 +453,8 @@ class FilesetInput(BaseInput, BaseFileset):
             format_matches = [f for f in matches
                               if f.matches_format(self.format)]
             if not format_matches:
+                for f in matches:
+                    f.matches_format(self.format)
                 raise ArcanaInputMissingMatchError(
                     "Did not find any filesets that match the file format "
                     "specified by {} in {}, found:\n{}"

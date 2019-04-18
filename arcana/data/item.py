@@ -5,14 +5,12 @@ from collections.abc import Iterable
 from copy import copy
 import os.path as op
 import hashlib
-import pydicom
 from arcana.utils import split_extension, parse_value
 from arcana.exceptions import (
     ArcanaError, ArcanaFileFormatError, ArcanaUsageError, ArcanaNameError,
     ArcanaDataNotDerivedYetError)
+from .file_format import FileFormat
 from .base import BaseFileset, BaseField
-
-DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
 class BaseItem(object):
@@ -202,7 +200,7 @@ class Fileset(BaseItem, BaseFileset):
             path = op.abspath(op.realpath(path))
             if aux_files is None:
                 aux_files = {}
-            if set(aux_files.keys()) != set(self.format.aux_files.keys()):
+            elif set(aux_files.keys()) != set(self.format.aux_files.keys()):
                 raise ArcanaUsageError(
                     "Provided side cars for '{}' but expected '{}'"
                     .format("', '".join(aux_files.keys()),
@@ -210,11 +208,7 @@ class Fileset(BaseItem, BaseFileset):
         self._path = path
         self._aux_files = aux_files
         self._uri = uri
-        if id is None and path is not None and format.name == 'dicom':
-            self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
-                           [DICOM_SERIES_NUMBER_TAG])
-        else:
-            self._id = id
+        self._id = id
         self._checksums = checksums
         self._format_name = format_name
         if potential_aux_files is not None and format is not None:
@@ -250,7 +244,7 @@ class Fileset(BaseItem, BaseFileset):
                 if callable(format_attr):
                     return lambda *args, **kwargs: format_attr(self, *args,
                                                                **kwargs)
-        raise AttributeError("Filesets of {} format don't have a '{}' "
+        raise AttributeError("Filesets of '{}' format don't have a '{}' "
                              "attribute".format(frmt, attr))
 
     def __eq__(self, other):
@@ -326,7 +320,7 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
-        if self.checksums != other.checksums:
+        if self._checksums != other._checksums:
             mismatch += ('\n{}checksum: self={} v other={}'
                          .format(sub_indent, self.checksums,
                                  other.checksums))
@@ -358,7 +352,7 @@ class Fileset(BaseItem, BaseFileset):
             self._exists = True
         self._path = path
         if aux_files is None:
-            self._aux_files = dict(self.format.aux_file_paths(path))
+            self._aux_files = dict(self.format.default_aux_file_paths(path))
         else:
             if set(self.format.aux_files.keys()) != set(aux_files.keys()):
                 raise ArcanaUsageError(
@@ -376,11 +370,32 @@ class Fileset(BaseItem, BaseFileset):
     @property
     def paths(self):
         """Iterates through all files in the set"""
+        if self.format is None:
+            raise ArcanaFileFormatError(
+                "Cannot get paths of fileset ({}) that hasn't had its format "
+                "set".format(self))
         if self.format.directory:
             return chain(*((op.join(root, f) for f in files)
                            for root, _, files in os.walk(self.path)))
         else:
             return chain([self.path], self.aux_files.values())
+
+    @property
+    def format(self):
+        return self._format
+
+    @format.setter
+    def format(self, format):  # @ReservedAssignment
+        assert isinstance(format, FileFormat)
+        self._format = format
+        if format.aux_files and self._path is not None:
+            self._aux_files = format.select_files(
+                [self._path] + list(self._potential_aux_files))[1]
+        if self._id is None and hasattr(format, 'extract_id'):
+            self._id = format.extract_id(self)
+        # No longer need to retain potentials after we have assigned the real
+        # auxiliaries
+        self._potential_aux_files = None
 
     @property
     def fname(self):
@@ -392,11 +407,7 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def basename(self):
-        if self.format.ext_str and self.name.endswith(self.format.ext_str):
-            basename = self.name[:-len(self.format.ext_str)]
-        else:
-            basename = self.name
-        return basename
+        return self.name
 
     @property
     def id(self):
@@ -543,34 +554,6 @@ class Fileset(BaseItem, BaseFileset):
                                 self.path, self._potential_aux_files, self))
         return matches[0]
 
-    def formatted(self, candidates):
-        """
-        Creates a copy of a fileset and sets the format of a fileset from a
-        list of possible candidates.
-
-        Parameters
-        ----------
-        candidates : list[FileFormat] | FileFormat
-            A list of file-formats to select from.
-
-        Returns
-        -------
-        formatted : Fileset
-            A copy of the fileset with the format set
-        """
-        # Ensure candidates is a list of file formats (i.e. not a single frmat)
-        if not isinstance(candidates, Iterable):
-            candidates = [candidates]
-        formatted = copy(self)
-        format = formatted._format = self.select_format(candidates)  # @ReservedAssignment @IgnorePep8
-        if format.aux_files and self._path is not None:
-            formatted._aux_files = format.select_files(
-                [self._path] + list(self._potential_aux_files))[1]
-        # No longer need to retain potentials after we have assigned the real
-        # auxiliaries
-        formatted._potential_aux_files = None
-        return formatted
-
     def matches_format(self, file_format):
         """
         Checks whether the provided file format matches the given fileset
@@ -586,65 +569,6 @@ class Fileset(BaseItem, BaseFileset):
             return False
         else:
             return True
-
-    def dicom(self, index):
-        """
-        Returns a PyDicom object for the DICOM file at index 'index'
-
-        Parameters
-        ----------
-        fileset : Fileset
-            The fileset to read a DICOM file from
-        index : int
-            The index of the DICOM file in the fileset to read
-
-        Returns
-        -------
-        dcm : pydicom.DICOM
-            A PyDicom file object
-        """
-        if self.format.name != 'dicom':
-            raise ArcanaFileFormatError(
-                "Can not read DICOM header as {} is not in DICOM format"
-                .format(self))
-        fnames = sorted([f for f in os.listdir(self.path)
-                         if not f.startswith('.')])
-        with open(op.join(self.path, fnames[index]), 'rb') as f:
-            dcm = pydicom.dcmread(f)
-        return dcm
-
-    def dicom_values(self, tags):
-        """
-        Returns a dictionary with the DICOM header fields corresponding
-        to the given tag names
-
-        Parameters
-        ----------
-        tags : List[Tuple[str, str]]
-            List of DICOM tag values as 2-tuple of strings, e.g.
-            [('0080', '0020')]
-        repository_login : <repository-login-object>
-            A login object for the repository to avoid having to relogin
-            for every dicom_header call.
-
-        Returns
-        -------
-        dct : Dict[Tuple[str, str], str|int|float]
-        """
-        try:
-            if (self._path is None and self._repository is not None and
-                    hasattr(self.repository, 'dicom_header')):
-                hdr = self.repository.dicom_header(self)
-                dct = {t: hdr[t] for t in tags}
-            else:
-                # Get the DICOM object for the first file in the fileset
-                dcm = self.dicom(0)
-                dct = {t: dcm[t].value for t in tags}
-        except KeyError as e:
-            e.msg = ("{} does not have dicom tag {}".format(
-                     self, e.msg))
-            raise e
-        return dct
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)

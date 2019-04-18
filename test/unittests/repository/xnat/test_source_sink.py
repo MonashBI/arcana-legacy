@@ -15,7 +15,7 @@ from arcana.processor import SingleProc
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.data import FilesetInput
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
 from arcana.study import Study, StudyMetaClass
@@ -57,7 +57,7 @@ class TestXnatSourceAndSinkBase(TestOnXnatMixin, BaseTestCase):
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
 
-    INPUT_DATASETS = {'source1': 'foo', 'source2': 'bar',
+    INPUT_FILESETS = {'source1': 'foo', 'source2': 'bar',
                       'source3': 'wee', 'source4': 'wa'}
     INPUT_FIELDS = {'field1': 1, 'field2': 0.5, 'field3': 'boo'}
 

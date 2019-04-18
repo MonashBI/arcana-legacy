@@ -47,12 +47,19 @@ class FilesetFormatsDicts(object):
         elif self.by_name:
             fileset = self.by_name[format.name]
         else:
-            fileset = self.by_ext[format.ext]
+            try:
+                fileset = self.by_ext[format.ext]
+            except:
+                raise
         return fileset
 
     @property
     def keys(self):
         return chain(self.by_ext.keys(), self.by_name.keys())
+
+    @property
+    def values(self):
+        return chain(self.by_ext.values(), self.by_name.values())
 
 
 class TreeNode(object):
@@ -126,7 +133,8 @@ class TreeNode(object):
 
     @property
     def filesets(self):
-        return chain(*(d.values() for d in self._filesets.values()))
+        return chain(*(chain(d.by_name.values(), d.by_ext.values())
+                       for d in self._filesets.values()))
 
     @property
     def fields(self):
@@ -195,7 +203,7 @@ class TreeNode(object):
                            "', '".join(available), msg)))
         else:
             if format is None:
-                all_formats = list(chain(*format_dcts))
+                all_formats = list(format_dcts.values)
                 if len(all_formats) > 1:
                     raise ArcanaNameError(
                         "Multiple filesets found for '{}'{} in {} with formats"

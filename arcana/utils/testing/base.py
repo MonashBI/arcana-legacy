@@ -107,7 +107,7 @@ class BaseTestCase(TestCase):
                                                     fname))
                 filesets[fileset.name] = fileset
         else:
-            filesets = getattr(self, 'INPUT_DATASETS', None)
+            filesets = getattr(self, 'INPUT_FILESETS', None)
         self.add_session(filesets=filesets,
                          fields=getattr(self, 'INPUT_FIELDS', None))
 
@@ -125,6 +125,10 @@ class BaseTestCase(TestCase):
         os.makedirs(session_dir)
         for name, fileset in list(filesets.items()):
             if isinstance(fileset, Fileset):
+                if fileset.format is None:
+                    raise ArcanaError(
+                        "Need to provide format for fileset to add to test "
+                        "dataset ({}) in {}".format(fileset, self))
                 dst_path = op.join(session_dir,
                                    name + fileset.format.ext_str)
                 if fileset.format.directory:
@@ -486,11 +490,12 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 contents = self.DATASET_CONTENTS[fileset.name]
                 if fileset.format.aux_files:
                     fileset._aux_files = {}
-                    for sc_name, sc_path in fileset.format.aux_file_paths(
-                            fileset._path):
-                        fileset._aux_files[sc_name] = sc_path
-                        with open(sc_path, 'w') as f:
-                            f.write(str(contents[sc_name]))
+                    for (aux_name,
+                         aux_path) in fileset.format.default_aux_file_paths(
+                            fileset._path).items():
+                        fileset._aux_files[aux_name] = aux_path
+                        with open(aux_path, 'w') as f:
+                            f.write(str(contents[aux_name]))
                     contents = contents['.']
                 with open(fileset.path, 'w') as f:
                     f.write(str(contents))

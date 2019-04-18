@@ -15,7 +15,7 @@ from arcana.repository.basic import BasicRepo
 from arcana.study import Study, StudyMetaClass
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
 from arcana.exceptions import ArcanaError
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 import logging
 from future.utils import with_metaclass
 
