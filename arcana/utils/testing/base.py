@@ -105,6 +105,7 @@ class BaseTestCase(TestCase):
                     continue
                 fileset = Fileset.from_path(op.join(self.ref_dir,
                                                     fname))
+                fileset.format = fileset.detect_format(self.REF_FORMATS)
                 filesets[fileset.name] = fileset
         else:
             filesets = getattr(self, 'INPUT_FILESETS', None)

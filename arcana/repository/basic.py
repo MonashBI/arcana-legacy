@@ -13,7 +13,7 @@ from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaRepositoryError,
-    ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
+    ArcanaMissingDataException)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
@@ -247,8 +247,8 @@ class BasicRepo(Repository):
                 frequency = 'per_subject'
             else:
                 frequency = 'per_session'
-            files = self._filter_files(files, session_path)
-            for fname in files:
+            filtered_files = self._filter_files(files, session_path)
+            for fname in filtered_files:
                 basename = split_extension(fname)[0]
                 all_filesets.append(
                     Fileset.from_path(
@@ -258,7 +258,7 @@ class BasicRepo(Repository):
                         repository=self,
                         from_study=from_study,
                         potential_aux_files=[
-                            f for f in files
+                            f for f in filtered_files
                             if (split_extension(f)[0] == basename and
                                 f != fname)],
                         **kwargs))

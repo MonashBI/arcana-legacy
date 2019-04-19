@@ -434,13 +434,23 @@ class FilesetInput(BaseInput, BaseFileset):
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
             matches = filtered
+        if self.format is not None:
+            format_matches = [f for f in matches if self.format.matches(f)]
+            if not format_matches:
+                for f in matches:
+                    self.format.matches(f)
+                raise ArcanaInputMissingMatchError(
+                    "Did not find any filesets that match the file format "
+                    "specified by {} in {}, found:\n{}"
+                    .format(self, node, '\n'.join(str(f) for f in matches)))
+            matches = format_matches
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
             filtered = []
             for fileset in matches:
-                values = fileset.dicom_values(
-                    list(self.dicom_tags.keys()))
-                if self.dicom_tags == values:
+                keys, ref_values = zip(*self.dicom_tags.items())
+                values = tuple(self.format.dicom_values(fileset, keys))
+                if ref_values == values:
                     filtered.append(fileset)
             if not filtered:
                 raise ArcanaInputMissingMatchError(
@@ -449,17 +459,6 @@ class FilesetInput(BaseInput, BaseFileset):
                     .format(self.pattern, self.dicom_tags,
                             ', '.join(str(m) for m in matches), node))
             matches = filtered
-        if self.format is not None:
-            format_matches = [f for f in matches
-                              if f.matches_format(self.format)]
-            if not format_matches:
-                for f in matches:
-                    f.matches_format(self.format)
-                raise ArcanaInputMissingMatchError(
-                    "Did not find any filesets that match the file format "
-                    "specified by {} in {}, found:\n{}"
-                    .format(self, node, '\n'.join(str(f) for f in matches)))
-            matches = format_matches
         return matches
 
 

@@ -1,9 +1,9 @@
 from builtins import object
+import os
+import os.path as op
 from collections import defaultdict
-from past.builtins import basestring
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaFileFormatClashError, ArcanaNoConverterError,
-    ArcanaFileFormatNotRegisteredError, ArcanaFileFormatError)
+    ArcanaUsageError, ArcanaNoConverterError, ArcanaFileFormatError)
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils.interfaces import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
@@ -48,11 +48,6 @@ class FileFormat(object):
         (when the format is saved by format name, e.g. XNAT, instead
         of a file with an extension)
     """
-
-    # To hold registered data formats
-    by_names = {}
-    by_exts = {}
-    by_within_exts = {}
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
@@ -205,94 +200,6 @@ class FileFormat(object):
                             for k, v in self._converters.items())))
         return converter_cls(file_format, self, **kwargs)
 
-    @classmethod
-    def register(cls, file_format):
-        """
-        Registers a data format so they can be recognised by extension
-        and by resource type on XNAT
-
-        Parameters
-        ----------
-        file_format : FileFormat
-            The data format to register
-        """
-        try:
-            saved_format = cls.by_names[file_format.name]
-            if saved_format != file_format:
-                raise ArcanaFileFormatClashError(
-                    "Cannot register {} due to name clash with previously "
-                    "registered {}".format(file_format, saved_format))
-        except KeyError:
-            if file_format.directory and file_format.extension is None:
-                if file_format.within_dir_exts in cls.by_within_exts:
-                    raise ArcanaFileFormatClashError(
-                        "Cannot register {} due to within-directory "
-                        "extension clash with previously registered {}"
-                        .format(file_format,
-                                cls.by_within_exts[
-                                    file_format.within_dir_exts]))
-            else:
-                if file_format.extensions in cls.by_exts:
-                    raise ArcanaFileFormatClashError(
-                        "Cannot register {} due to extension(s) clash with "
-                        "previously registered {}".format(
-                            file_format,
-                            cls.by_exts[file_format.extensions]))
-            for alt_name in file_format.alternate_names:
-                if alt_name in cls.by_names:
-                    raise ArcanaFileFormatClashError(
-                        "Cannot register {} due to alternate name clash"
-                        "('{}') with previously registered {}".format(
-                            file_format, alt_name,
-                            cls.by_names[alt_name]))
-            cls.by_names[file_format.name] = file_format
-            for alt_name in file_format.alternate_names:
-                cls.by_names[alt_name] = file_format
-            if file_format.extension is not None:
-                cls.by_exts[file_format.extensions] = file_format
-            if file_format.within_dir_exts is not None:
-                cls.by_within_exts[
-                    file_format.within_dir_exts] = file_format
-
-    @classmethod
-    def by_name(cls, name):
-        try:
-            return cls.by_names[name.lower()]
-        except KeyError:
-            raise ArcanaFileFormatNotRegisteredError(
-                "No data format named '{}' has been registered"
-                .format(name,
-                        ', '.format(repr(f)
-                                    for f in list(cls.by_names.values()))))
-
-    @classmethod
-    def by_ext(cls, ext):
-        # Convert to tuple
-        if isinstance(ext, basestring):
-            ext = (ext,)
-        elif not isinstance(ext, tuple):
-            ext = tuple(ext)
-        try:
-            return cls.by_exts[ext]
-        except KeyError:
-            raise ArcanaFileFormatNotRegisteredError(
-                "No data format with extension '{}' has been registered"
-                .format(
-                    ext, ', '.format(repr(f)
-                                     for f in list(cls.by_exts.values()))))
-
-    @classmethod
-    def by_within_dir_exts(cls, within_exts):
-        try:
-            return cls.by_within_exts[within_exts]
-        except KeyError:
-            raise ArcanaFileFormatNotRegisteredError(
-                "No data format with within-directory extension '{}' "
-                "has been registered ({})".format(
-                    within_exts,
-                    ', '.format(repr(f)
-                                for f in list(cls.by_within_exts.values()))))
-
     def select_files(self, candidates):
         """
         Selects primary and auxiliary files that match the format by their file
@@ -345,6 +252,40 @@ class FileFormat(object):
                                         self))
             aux_files[aux_name] = aux[0]
         return primary_file, aux_files
+
+    def matches(self, fileset):
+        """
+        Checks to see whether the format matches the given fileset
+
+        Parameters
+        ----------
+        fileset : Fileset
+            The fileset to check
+        """
+        if fileset._format_name is not None:
+            return self.name == fileset._format_name
+        elif self.directory:
+            if op.isdir(fileset.path):
+                if self.within_dir_exts is None:
+                    return True
+                else:
+                    # Get set of all extensions in the directory
+                    return self.within_dir_exts == frozenset(
+                        split_extension(f)[1] for f in os.listdir(fileset.path)
+                        if not f.startswith('.'))
+            else:
+                return False
+        else:
+            if op.isfile(fileset.path):
+                all_paths = [fileset.path] + fileset._potential_aux_files
+                try:
+                    primary_path = self.select_files(all_paths)[0]
+                except ArcanaFileFormatError:
+                    return False
+                else:
+                    return primary_path == fileset.path
+            else:
+                return False
 
 
 class Converter(object):
@@ -461,3 +402,6 @@ zip_format = FileFormat(name='zip', extension='.zip',
                         converters={'directory': ZipConverter})
 targz_format = FileFormat(name='targz', extension='.tar.gz',
                           converters={'directory': TarGzConverter})
+
+standard_formats = [text_format, json_format, directory_format,
+                    zip_format, targz_format]

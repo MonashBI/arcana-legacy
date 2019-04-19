@@ -445,10 +445,6 @@ test2_format = FileFormat('test2', extension='.t2',
                           converters={'test1': IdentityConverter})
 test3_format = FileFormat('test3', extension='.t3')
 
-FileFormat.register(test1_format)
-FileFormat.register(test2_format)
-FileFormat.register(test3_format)
-
 
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
 

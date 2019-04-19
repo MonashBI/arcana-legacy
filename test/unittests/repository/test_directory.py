@@ -16,7 +16,6 @@ from arcana.data.file_format import FileFormat  # @IgnorePep8
 # A dummy format that contains a header
 with_header_format = FileFormat(name='with_header', extension='.whf',
                                 aux_files={'header': '.hdr'})
-FileFormat.register(with_header_format)
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -66,7 +65,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                         'thousands': 1000, 'with_header': {'.': 'main',
                                                            'header': 'header'}}
 
-    def get_tree(self, repo, sync_with_repo=False):
+    def get_tree(self, repo, sync_with_repo=False):  # @ReservedAssignment @IgnorePep8
         filesets = [
             # Subject1
             Fileset('ones', text_format,
@@ -87,7 +86,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit1',
                     repository=repo),
-            Fileset('with_header', with_header_format,
+            Fileset('with_header', text_format,
                     frequency='per_session',
                     subject_id='subject1', visit_id='visit1',
                     repository=repo),
@@ -201,9 +200,11 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
         a_subj_dir = os.listdir(self.project_dir)[0]
         open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
-        open(op.join(op.join(self.project_dir, a_subj_dir,
-                                       '.DS_Store')), 'w').close()
+        open(op.join(self.project_dir, a_subj_dir, '.DS_Store'), 'w').close()
         tree = self.repository.tree()
+        for node in tree.nodes():
+            for fileset in node.filesets:
+                fileset.format = text_format
         self.assertEqual(
             tree, self.local_tree,
             "Generated project doesn't match reference:{}"

@@ -148,10 +148,6 @@ class ArcanaConverterNotAvailableError(ArcanaError):
     "available"
 
 
-class ArcanaFileFormatNotRegisteredError(ArcanaError):
-    pass
-
-
 class ArcanaReprocessException(ArcanaException):
     pass
 

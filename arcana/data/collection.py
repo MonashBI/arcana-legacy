@@ -260,7 +260,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
             formatted_collection = []
             for fileset in collection:
                 fileset = copy(fileset)
-                fileset.format = (fileset.select_format(candidate_formats)
+                fileset.format = (fileset.detect_format(candidate_formats)
                                   if format is None else format)
                 formatted_collection.append(fileset)
             collection = formatted_collection

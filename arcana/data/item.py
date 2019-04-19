@@ -206,7 +206,7 @@ class Fileset(BaseItem, BaseFileset):
                     .format("', '".join(aux_files.keys()),
                             "', '".join(self.format.aux_files.keys())))
         self._path = path
-        self._aux_files = aux_files
+        self._aux_files = aux_files if aux_files is not None else {}
         self._uri = uri
         self._id = id
         self._checksums = checksums
@@ -250,10 +250,10 @@ class Fileset(BaseItem, BaseFileset):
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
-              self.aux_files == other.aux_files and
-              self.id == other.id and
-              self.checksums == other.checksums and
-              self.format_name == other.format_name)
+              self._aux_files == other._aux_files and
+              self._id == other._id and
+              self._checksums == other._checksums and
+              self._format_name == other._format_name)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -266,10 +266,10 @@ class Fileset(BaseItem, BaseFileset):
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
-                hash(self.id) ^
-                hash(tuple(sorted(self.aux_files.items()))) ^
-                hash(self.checksums) ^
-                hash(self.format_name))
+                hash(self._id) ^
+                hash(tuple(sorted(self._aux_files.items()))) ^
+                hash(self._checksums) ^
+                hash(self._format_name))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -399,11 +399,11 @@ class Fileset(BaseItem, BaseFileset):
 
     @property
     def fname(self):
-        if not self.name.endswith(self.format.ext_str):
-            fname = self.name + self.format.ext_str
-        else:
-            fname = self.name
-        return fname
+        if self.format is None:
+            raise ArcanaFileFormatError(
+                "Need to provide format before accessing the filename of {}"
+                .format(self))
+        return self.name + self.format.ext_str
 
     @property
     def basename(self):
@@ -437,11 +437,11 @@ class Fileset(BaseItem, BaseFileset):
                                    "to {}".format(self, self._uri, uri))
 
     def aux_file(self, name):
-        return self.aux_files[name]
+        return self._aux_files[name]
 
     @property
     def aux_files(self):
-        return self._aux_files if self._aux_files is not None else {}
+        return self._aux_files
 
     @property
     def aux_file_fnames_and_paths(self):
@@ -490,9 +490,9 @@ class Fileset(BaseItem, BaseFileset):
             name = split_extension(op.basename(path))[0]
         return cls(name, path=path, **kwargs)
 
-    def select_format(self, candidates):
+    def detect_format(self, candidates):
         """
-        Selects a single matching format of the fileset from a list of possible
+        Detects the format of the fileset from a list of possible
         candidates. If multiple candidates match the potential files, e.g.
         NiFTI-X (see dcm2niix) and NiFTI, then the first matching candidate is
         selected.
@@ -508,67 +508,15 @@ class Fileset(BaseItem, BaseFileset):
         candidates : FileFormat
             A list of file-formats to select from.
         """
-        if self._format_name is not None:
-            matches = [c for c in candidates if c.name == self._format_name]
-            if not matches:
-                raise ArcanaFileFormatError(
-                    "None of the candidate file formats ({}) match the "
-                    "saved format name '{}' of {}"
-                    .format(', '.join(str(c) for c in candidates),
-                            self._format_name, {}))
-            elif len(matches) > 1:
-                raise ArcanaFileFormatError(
-                    "Multiple candidate file formats ({}) match saved format "
-                    "name {}".format(', '.join(str(m) for m in matches), self))
-        else:
-            if op.isdir(self.path):
-                # Get set of all extensions in the directory
-                within_exts = frozenset(
-                    split_extension(f)[1] for f in os.listdir(self.path)
-                    if not f.startswith('.'))
-                matches = [c for c in candidates
-                           if c.within_dir_exts == within_exts]
-                if not matches:
-                    raise ArcanaFileFormatError(
-                        "None of the candidate file formats ({}) match the "
-                        "file extensions within {} ({})"
-                        .format(', '.join(str(c) for c in candidates),
-                                self, within_exts))
-            else:
-                matches = []
-                all_paths = [self.path] + self._potential_aux_files
-                for candidate in candidates:
-                    try:
-                        primary_path = candidate.select_files(all_paths)[0]
-                    except ArcanaFileFormatError:
-                        continue
-                    else:
-                        if primary_path == self.path:
-                            matches.append(candidate)
-                if not matches:
-                    raise ArcanaFileFormatError(
-                        "None of the candidate file formats ({}) match the "
-                        "extensions of the primary ('{}') and auxiliary files"
-                        "('{}') in {}"
-                        .format(', '.join(str(c) for c in candidates),
-                                self.path, self._potential_aux_files, self))
+        if self._format is not None:
+            raise ArcanaFileFormatError(
+                "Format has already been set for {}".format(self))
+        matches = [c for c in candidates if c.matches(self)]
+        if not matches:
+            raise ArcanaFileFormatError(
+                "None of the candidate file formats ({}) match {}"
+                .format(', '.join(str(c) for c in candidates), self))
         return matches[0]
-
-    def matches_format(self, file_format):
-        """
-        Checks whether the provided file format matches the given fileset
-
-        Parameters
-        ----------
-        file_format : FileFormat
-            The file format to check.
-        """
-        try:
-            self.select_format([file_format])
-        except ArcanaFileFormatError:
-            return False
-        else:
-            return True
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
