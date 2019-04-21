@@ -435,6 +435,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
                                           from_study=self.STUDY_NAME)
+                fileset.format = text_format
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))

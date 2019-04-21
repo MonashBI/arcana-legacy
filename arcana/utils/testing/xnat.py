@@ -8,6 +8,7 @@ import os.path as op
 import shutil
 import re
 from copy import copy
+import pydicom
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
@@ -114,7 +115,12 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 parent=xsubject)
             for fileset in self.session.filesets:
                 fileset.format = fileset.detect_format(self.REF_FORMATS)
-                xfileset = login.classes.MrScanData(id=fileset.id,
+                if fileset.format.name == 'dicom':
+                    dcm_files = [f for f in os.listdir(fileset.path)
+                                 if f.endswith('.dcm')]
+                    hdr = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
+                    id_ = int(hdr.SeriesNumber)
+                xfileset = login.classes.MrScanData(id=id_,
                                                     type=fileset.basename,
                                                     parent=xsession)
                 resource = xfileset.create_resource(fileset.format.name)

@@ -50,7 +50,7 @@ class DicomFormat(FileFormat):
         try:
             if (fileset._path is None and fileset._repository is not None and
                     hasattr(fileset.repository, 'dicom_header')):
-                hdr = fileset.repository.dicom_header(self)
+                hdr = fileset.repository.dicom_header(fileset)
                 values = [hdr[t] for t in tags]
             else:
                 # Get the DICOM object for the first file in the fileset
