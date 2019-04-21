@@ -53,6 +53,9 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
         tree = self.repository.tree()
+        for node in tree.nodes():
+            for fileset in node.filesets:
+                fileset.format = text_format
         ref_tree = self.get_tree(self.repository, sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,

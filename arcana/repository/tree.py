@@ -45,12 +45,12 @@ class FilesetFormatsDicts(object):
         if isinstance(format, basestring):
             fileset = self.by_name[format]
         elif self.by_name:
-            fileset = self.by_name[format.name]
-        else:
             try:
-                fileset = self.by_ext[format.ext]
+                fileset = self.by_name[format.name]
             except:
                 raise
+        else:
+            fileset = self.by_ext[format.ext]
         return fileset
 
     @property

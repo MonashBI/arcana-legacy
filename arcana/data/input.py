@@ -530,7 +530,7 @@ class FieldInput(BaseInput, BaseField):
         return (BaseField.__eq__(self, other) and
                 BaseInput.__eq__(self, other))
 
-    def match(self, tree, **kwargs):
+    def match(self, tree, spec=None, **kwargs):  # @UnusedVariable
         # Run the match against the tree
         return FieldCollection(self.name,
                                self._match(tree, Field, **kwargs),

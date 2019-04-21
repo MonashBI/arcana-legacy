@@ -8,6 +8,7 @@ import xnat
 from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetInput
+from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
@@ -71,6 +72,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                                    test_data.TestDicomTagMatch):
 
     BASE_CLASS = test_data.TestDicomTagMatch
+    REF_FORMATS = [dicom_format]
 
     @property
     def ref_dir(self):
@@ -142,6 +144,7 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
             visit_ids=[self.VISIT])
         # Get a fileset
         fileset = list(list(list(tree.subjects)[0].sessions)[0].filesets)[0]
+        fileset.format = text_format
         self.assertEqual(fileset._path, None)
         target_path = op.join(
             tmp_dir, self.project,

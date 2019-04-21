@@ -33,10 +33,6 @@ class FileFormat(object):
         A list of extensions that are found within the top level of
         the directory (for directory formats). Used to identify
         formats from paths.
-    converters : Dict[str, Converter]
-        A dictionary mapping names of alternative data formats
-        to Converter objects that can convert from the alternative
-        format to this format.
     aux_files : dict[str, str]
         A dictionary of side cars (e.g. header or NIfTI json side cars) aside
         from the primary file, along with their expected extension.
@@ -184,7 +180,7 @@ class FileFormat(object):
     @property
     def xnat_resource_names(self):
         "Lists acceptable XNAT resource names in order of preference"
-        return (self.name.upper(),) + self.alternate_names
+        return (self.name,) + self.alternate_names
 
     def converter_from(self, file_format, **kwargs):
         if file_format == self:
@@ -203,7 +199,7 @@ class FileFormat(object):
     def select_files(self, candidates):
         """
         Selects primary and auxiliary files that match the format by their file
-        extensionsfrom a list of candidate file paths
+        extensions from a list of candidate file paths
 
         Parameters
         ----------
@@ -286,6 +282,19 @@ class FileFormat(object):
                     return primary_path == fileset.path
             else:
                 return False
+
+    def set_converter(self, converter, file_format):
+        """
+        Register a Converter and the FileFormat that it is able to convert from
+
+        Parameters
+        ----------
+        converter : Converter
+            The converter to register
+        file_format : FileFormat
+            The file format that can be converted into this format
+        """
+        self._converters[file_format] = converter
 
 
 class Converter(object):
