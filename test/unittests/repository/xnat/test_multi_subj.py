@@ -56,7 +56,11 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format
-        ref_tree = self.get_tree(self.repository, sync_with_repo=True)
+                # Clear id and format name from regenerated tree
+                fileset._id = None
+                fileset._format_name = None
+#                 fileset.get()
+        ref_tree = self.get_tree(self.repository)  #, sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

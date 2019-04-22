@@ -10,7 +10,7 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec, FilesetInput  # @IgnorePep8
 from arcana.data.file_format import text_format, FileFormat  # @IgnorePep8
-from arcana.exceptions import ArcanaDesignError # @IgnorePep8
+from arcana.exceptions import ArcanaDesignError, ArcanaError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 import pydicom  # @IgnorePep8
@@ -59,9 +59,9 @@ class DicomFormat(FileFormat):
                 dcm = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
                 values = [dcm[t].value for t in tags]
         except KeyError as e:
-            e.msg = ("{} does not have dicom tag {}".format(
-                     self, e.msg))
-            raise e
+            fileset.repository.dicom_header(fileset)
+            raise ArcanaError("{} does not have dicom tag {}".format(
+                              self, str(e)))
         return values
 
 
