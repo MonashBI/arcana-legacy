@@ -196,15 +196,17 @@ class FileFormat(object):
                             for k, v in self._converters.items())))
         return converter_cls(file_format, self, **kwargs)
 
-    def select_files(self, candidates):
+    def assort_files(self, candidates):
         """
-        Selects primary and auxiliary files that match the format by their file
-        extensions from a list of candidate file paths
+        Assorts candidate files into primary and auxiliary (and ignored) files
+        corresponding to the format by their file extensions. Can be overridden
+        in specialised subclasses to assort files based on other
+        characteristics
 
         Parameters
         ----------
         candidates : list[str]
-            The list of filenames to select from
+            The list of filenames to assort
 
         Returns
         -------
@@ -275,7 +277,7 @@ class FileFormat(object):
             if op.isfile(fileset.path):
                 all_paths = [fileset.path] + fileset._potential_aux_files
                 try:
-                    primary_path = self.select_files(all_paths)[0]
+                    primary_path = self.assort_files(all_paths)[0]
                 except ArcanaFileFormatError:
                     return False
                 else:

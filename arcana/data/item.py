@@ -389,7 +389,7 @@ class Fileset(BaseItem, BaseFileset):
         assert isinstance(format, FileFormat)
         self._format = format
         if format.aux_files and self._path is not None:
-            self._aux_files = format.select_files(
+            self._aux_files = format.assort_files(
                 [self._path] + list(self._potential_aux_files))[1]
         if self._id is None and hasattr(format, 'extract_id'):
             self._id = format.extract_id(self)

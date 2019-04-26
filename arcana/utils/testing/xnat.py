@@ -122,9 +122,17 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                     id_ = int(hdr.SeriesNumber)
                 else:
                     id_ = fileset.basename
-                xfileset = login.classes.MrScanData(id=id_,
-                                                    type=fileset.basename,
-                                                    parent=xsession)
+                query = {'xsiType': 'xnat:mrScanData',
+                         'req_format': 'qa',
+                         'type': fileset.basename}
+                uri = '{}/scans/{}'.format(xsession.fulluri, id_)
+                login.put(uri, query=query)
+                # Get XnatPy object for newly created fileset
+                xfileset = login.classes.MrScanData(uri,
+                                                    xnat_session=login)
+#                 xfileset = login.classes.MrScanData(id=id_,
+#                                                     type=fileset.basename,
+#                                                     parent=xsession)
                 resource = xfileset.create_resource(fileset.format.name)
                 if fileset.format.directory:
                     for fname in os.listdir(fileset.path):

@@ -265,7 +265,7 @@ class XnatRepo(Repository):
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
         if not fileset.format.directory:
-            (primary_path, aux_paths) = fileset.format.select_files(
+            (primary_path, aux_paths) = fileset.format.assort_files(
                 op.join(cache_path, f) for f in os.listdir(cache_path))
         else:
             primary_path = cache_path
@@ -399,7 +399,7 @@ class XnatRepo(Repository):
         if not fileset.format.directory:
             # Replace the key corresponding to the primary file with '.' to
             # match the way that checksums are created by Arcana
-            primary = fileset.format.select_files(checksums.keys())[0]
+            primary = fileset.format.assort_files(checksums.keys())[0]
             checksums['.'] = checksums.pop(primary)
         return checksums
 
