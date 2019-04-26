@@ -302,8 +302,8 @@ class Fileset(BaseItem, BaseFileset):
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
-                    (", resource_name='{}'" if self._resource_name is not None
-                     else ''),
+                    (", resource_name='{}'".format(self._resource_name)
+                     if self._resource_name is not None else ''),
                     self.exists,
                     (", path='{}'".format(self.path)
                      if self._path is not None else '')))

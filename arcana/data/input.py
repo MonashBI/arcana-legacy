@@ -188,13 +188,6 @@ class BaseInput(object):
     def prefixed_name(self):
         return self.name
 
-#     def basename(self):
-#         if not self.is_regex:
-#             basename = self.pattern
-#         else:
-#             basename = self.match(**kwargs).name
-#         return basename
-
     def nodes(self, tree):
         # Run the match against the tree
         if self.frequency == 'per_session':

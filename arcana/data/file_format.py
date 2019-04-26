@@ -97,7 +97,8 @@ class FileFormat(object):
             hash(self._desc) ^
             hash(self._directory) ^
             hash(self._within_dir_exts) ^
-            hash(self._xnat_resource_names) ^
+            hash(tuple(self._xnat_resource_names)
+                 if self._xnat_resource_names is not None else None) ^
             hash(tuple(sorted(self.aux_files.items()))))
 
     def __ne__(self, other):
@@ -152,7 +153,10 @@ class FileFormat(object):
         the name of the name of the format in upper case
         """
         if self._xnat_resource_names is None:
-            return [self.name.upper()]
+            names = [self.name]
+        else:
+            names = self._xnat_resource_names
+        return names
 
     def default_aux_file_paths(self, primary_path):
         """

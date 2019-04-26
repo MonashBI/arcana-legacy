@@ -5,7 +5,6 @@ import unittest
 import sys
 from unittest import TestCase
 import xnat
-from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetInput
 from arcana.data.file_format import text_format
@@ -17,16 +16,13 @@ from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
 import test_data  # @UnresolvedImport @IgnorePep8
+from test_data import dicom_format  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'processor'))
 import test_to_process  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
-
-
-dicom_format = FileFormat(name='dicom', extension=None,
-                          directory=True, within_dir_exts=['.dcm'])
 
 
 class TestConnectDisconnect(TestCase):

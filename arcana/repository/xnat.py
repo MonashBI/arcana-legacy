@@ -231,8 +231,8 @@ class XnatRepo(Repository):
                                     r.label
                                     for r in list(xscan.resources.values()))))
                     elif len(xresources) > 1:
-                        raise ArcanaError(
-                            "Found multiple acceptable resources for {}:{}"
+                        logger.warning(
+                            "Found multiple acceptable resources for {}: {}"
                             .format(fileset,
                                     ', '.join(str(r) for r in xresources)))
                     xresource = xresources[0]
@@ -315,7 +315,7 @@ class XnatRepo(Repository):
                 id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
             # Select the first xnat_resource name to use to upload the data to
-            resource_name = fileset.xnat_resource_names[0]
+            resource_name = fileset.format.xnat_resource_names[0]
             try:
                 xresource = xscan.resources[resource_name]
             except KeyError:
