@@ -442,9 +442,10 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
 
 
 test1_format = FileFormat('test1', extension='.t1')
-test2_format = FileFormat('test2', extension='.t2',
-                          converters={'test1': IdentityConverter})
+test2_format = FileFormat('test2', extension='.t2')
 test3_format = FileFormat('test3', extension='.t3')
+
+test2_format.set_converter(test1_format, IdentityConverter)
 
 
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):

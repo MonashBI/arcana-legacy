@@ -475,8 +475,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
         if self._valid_formats is not None:
             valid_formats = self._valid_formats
         else:
-            valid_formats = [self.format]
-            # TODO: Should add in formats that can be converted to
+            valid_formats = [self.format] + list(self.format.convertable_from)
         return valid_formats
 
 

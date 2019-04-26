@@ -47,7 +47,7 @@ class FileFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None, aux_files=None, xnat_resource_names=None):
+                 aux_files=None, xnat_resource_names=None):
         if not name.islower():
             raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
@@ -67,7 +67,7 @@ class FileFormat(object):
                     "for directory data formats, not '{}'".format(name))
             within_dir_exts = frozenset(within_dir_exts)
         self._within_dir_exts = within_dir_exts
-        self._converters = converters if converters is not None else {}
+        self._converters = {}
         self._xnat_resource_names = xnat_resource_names
         self._aux_files = aux_files if aux_files is not None else {}
         for sc_name, sc_ext in self.aux_files.items():
@@ -85,7 +85,7 @@ class FileFormat(object):
                 self._directory == other._directory and
                 self._within_dir_exts ==
                 other._within_dir_exts and
-                self.xnat_resource_names == other.xnat_resource_names and
+                self._xnat_resource_names == other._xnat_resource_names and
                 self.aux_files == other.aux_files)
         except AttributeError:
             return False
@@ -189,7 +189,7 @@ class FileFormat(object):
         if file_format == self:
             return IdentityConverter(file_format, self)
         try:
-            converter_cls = self._converters[file_format.name]
+            matching_format, converter_cls = self._converters[file_format.name]
         except KeyError:
             raise ArcanaNoConverterError(
                 "There is no converter to convert {} to {}, available:\n{}"
@@ -197,7 +197,19 @@ class FileFormat(object):
                         '\n'.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
+        if file_format != matching_format:
+            raise ArcanaNoConverterError(
+                "{} matches the name of a format that {} can be converted from"
+                " but is not the identical".format(file_format,
+                                                   matching_format))
         return converter_cls(file_format, self, **kwargs)
+
+    @property
+    def convertable_from(self):
+        """
+        A list of formats that the current format can be converted from
+        """
+        return (f for f, _ in self._converters.values())
 
     def assort_files(self, candidates):
         """
@@ -288,7 +300,7 @@ class FileFormat(object):
             else:
                 return False
 
-    def set_converter(self, converter, file_format):
+    def set_converter(self, file_format, converter):
         """
         Register a Converter and the FileFormat that it is able to convert from
 
@@ -299,7 +311,7 @@ class FileFormat(object):
         file_format : FileFormat
             The file format that can be converted into this format
         """
-        self._converters[file_format] = converter
+        self._converters[file_format.name] = (file_format, converter)
 
 
 class Converter(object):
@@ -404,18 +416,19 @@ class UnTarGzConverter(Converter):
 
 
 # General formats
-directory_format = FileFormat(name='directory', extension=None,
-                              directory=True,
-                              converters={'zip': UnzipConverter,
-                                          'targz': UnTarGzConverter})
+directory_format = FileFormat(name='directory', extension=None, directory=True)
 text_format = FileFormat(name='text', extension='.txt')
 json_format = FileFormat(name='json', extension='.json')
 
 # Compressed formats
-zip_format = FileFormat(name='zip', extension='.zip',
-                        converters={'directory': ZipConverter})
-targz_format = FileFormat(name='targz', extension='.tar.gz',
-                          converters={'directory': TarGzConverter})
+zip_format = FileFormat(name='zip', extension='.zip')
+targz_format = FileFormat(name='targz', extension='.tar.gz')
 
-standard_formats = [text_format, json_format, directory_format,
-                    zip_format, targz_format]
+standard_formats = [text_format, json_format, directory_format, zip_format,
+                    targz_format]
+
+# Set Converters
+directory_format.set_converter(zip_format, UnzipConverter)
+directory_format.set_converter(targz_format, UnTarGzConverter)
+targz_format.set_converter(directory_format, TarGzConverter)
+zip_format.set_converter(directory_format, ZipConverter)
