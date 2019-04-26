@@ -93,7 +93,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
         TestOnXnatMixin.tearDown(self)
         test_data.TestDicomTagMatch.tearDown(self)
 
-    @unittest.skip  # @unittest.skipIf(*SKIP_ARGS)  Problem with downloading DICOM headers from XNAT @IgnorePep8
+    @unittest.skipIf(*SKIP_ARGS)
     def test_dicom_match(self):
         study = test_data.TestMatchStudy(
             name='test_dicom',

@@ -121,7 +121,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                     hdr = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
                     id_ = int(hdr.SeriesNumber)
                 else:
-                    id_ = type
+                    id_ = fileset.basename
                 xfileset = login.classes.MrScanData(id=id_,
                                                     type=fileset.basename,
                                                     parent=xsession)
