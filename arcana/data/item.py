@@ -166,10 +166,10 @@ class Fileset(BaseItem, BaseFileset):
     record : arcana.pipeline.provenance.Record | None
         The provenance record for the pipeline that generated the file set,
         if applicable
-    format_name : str | None
+    resource_name : str | None
         For repositories where the name of the file format is saved with the
-        data (i.e. XNAT) the format name can be recorded to aid format
-        identification
+        data (i.e. XNAT) the name of the resource is to enable straightforward
+        format identification
     potential_aux_files : list[str]
         A list of paths to potential files to include in the fileset as
         "side-cars" or headers or in a directory format. Used when the
@@ -181,7 +181,7 @@ class Fileset(BaseItem, BaseFileset):
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, aux_files=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, checksums=None, record=None, format_name=None,
+                 exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
@@ -210,7 +210,7 @@ class Fileset(BaseItem, BaseFileset):
         self._uri = uri
         self._id = id
         self._checksums = checksums
-        self._format_name = format_name
+        self._resource_name = resource_name
         if potential_aux_files is not None and format is not None:
             raise ArcanaUsageError(
                 "Potential paths should only be provided to Fileset.__init__ "
@@ -253,7 +253,7 @@ class Fileset(BaseItem, BaseFileset):
               self._aux_files == other._aux_files and
               self._id == other._id and
               self._checksums == other._checksums and
-              self._format_name == other._format_name)
+              self._resource_name == other._resource_name)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -269,7 +269,7 @@ class Fileset(BaseItem, BaseFileset):
                 hash(self._id) ^
                 hash(tuple(sorted(self._aux_files.items()))) ^
                 hash(self._checksums) ^
-                hash(self._format_name))
+                hash(self._resource_name))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -302,7 +302,7 @@ class Fileset(BaseItem, BaseFileset):
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
-                    (", format_name='{}'" if self._format_name is not None
+                    (", resource_name='{}'" if self._resource_name is not None
                      else ''),
                     self.exists,
                     (", path='{}'".format(self.path)
@@ -324,10 +324,10 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}checksum: self={} v other={}'
                          .format(sub_indent, self.checksums,
                                  other.checksums))
-        if self._format_name != other._format_name:
+        if self._resource_name != other._resource_name:
             mismatch += ('\n{}format_name: self={} v other={}'
-                         .format(sub_indent, self._format_name,
-                                 other._format_name))
+                         .format(sub_indent, self._resource_name,
+                                 other._resource_name))
         return mismatch
 
     @property
@@ -451,7 +451,7 @@ class Fileset(BaseItem, BaseFileset):
     @property
     def format_name(self):
         if self.format is None:
-            name = self._format_name
+            name = self._resource_name
         else:
             name = self.format.name
         return name
@@ -526,7 +526,7 @@ class Fileset(BaseItem, BaseFileset):
         dct['uri'] = self.uri
         dct['bids_attr'] = self.bids_attr
         dct['checksums'] = self.checksums
-        dct['format_name'] = self._format_name
+        dct['resource_name'] = self._resource_name
         dct['potential_aux_files'] = self._potential_aux_files
         return dct
 

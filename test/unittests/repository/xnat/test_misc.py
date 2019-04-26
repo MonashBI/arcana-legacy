@@ -34,8 +34,8 @@ class TestConnectDisconnect(TestCase):
     @unittest.skipIf(*SKIP_ARGS)
     def test_connect_disconnect(self):
         repository = XnatRepo(project_id='dummy',
-                                    server=SERVER,
-                                    cache_dir=tempfile.mkdtemp())
+                              server=SERVER,
+                              cache_dir=tempfile.mkdtemp())
         with repository:
             self._test_open(repository)
         self._test_closed(repository)

@@ -39,7 +39,7 @@ class FileFormat(object):
         Automatically they will be assumed to be located adjancent to the
         primary file, with the same base name and this extension. However, in
         the initialisation of the fileset, alternate locations can be specified
-    alternate_names : List[str]
+    xnat_resource_names : List[str]
         A list of alternate names to use to load the file format with
         (when the format is saved by format name, e.g. XNAT, instead
         of a file with an extension)
@@ -47,7 +47,7 @@ class FileFormat(object):
 
     def __init__(self, name, extension=None, desc='',
                  directory=False, within_dir_exts=None,
-                 converters=None, aux_files=None, alternate_names=None):
+                 converters=None, aux_files=None, xnat_resource_names=None):
         if not name.islower():
             raise ArcanaUsageError(
                 "All data format names must be lower case ('{}')"
@@ -68,8 +68,7 @@ class FileFormat(object):
             within_dir_exts = frozenset(within_dir_exts)
         self._within_dir_exts = within_dir_exts
         self._converters = converters if converters is not None else {}
-        self._alternate_names = (tuple(alternate_names)
-                                 if alternate_names is not None else ())
+        self._xnat_resource_names = xnat_resource_names
         self._aux_files = aux_files if aux_files is not None else {}
         for sc_name, sc_ext in self.aux_files.items():
             if sc_ext == self.ext:
@@ -86,7 +85,7 @@ class FileFormat(object):
                 self._directory == other._directory and
                 self._within_dir_exts ==
                 other._within_dir_exts and
-                self.alternate_names == other.alternate_names and
+                self.xnat_resource_names == other.xnat_resource_names and
                 self.aux_files == other.aux_files)
         except AttributeError:
             return False
@@ -98,7 +97,7 @@ class FileFormat(object):
             hash(self._desc) ^
             hash(self._directory) ^
             hash(self._within_dir_exts) ^
-            hash(self._alternate_names) ^
+            hash(self._xnat_resource_names) ^
             hash(tuple(sorted(self.aux_files.items()))))
 
     def __ne__(self, other):
@@ -143,12 +142,17 @@ class FileFormat(object):
         return self._directory
 
     @property
-    def alternate_names(self):
-        return self._alternate_names
-
-    @property
     def aux_files(self):
         return self._aux_files
+
+    @property
+    def xnat_resource_names(self):
+        """
+        Names of resources used to store the format in on XNAT. Defaults to
+        the name of the name of the format in upper case
+        """
+        if self._xnat_resource_names is None:
+            return [self.name.upper()]
 
     def default_aux_file_paths(self, primary_path):
         """
@@ -176,11 +180,6 @@ class FileFormat(object):
     @property
     def within_dir_exts(self):
         return self._within_dir_exts
-
-    @property
-    def xnat_resource_names(self):
-        "Lists acceptable XNAT resource names in order of preference"
-        return (self.name,) + self.alternate_names
 
     def converter_from(self, file_format, **kwargs):
         if file_format == self:
@@ -260,8 +259,8 @@ class FileFormat(object):
         fileset : Fileset
             The fileset to check
         """
-        if fileset._format_name is not None:
-            return self.name == fileset._format_name
+        if fileset._resource_name is not None:
+            return fileset._resource_name in self.xnat_resource_names
         elif self.directory:
             if op.isdir(fileset.path):
                 if self.within_dir_exts is None:

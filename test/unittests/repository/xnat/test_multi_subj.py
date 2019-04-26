@@ -58,7 +58,7 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
                 fileset.format = text_format
                 # Clear id and format name from regenerated tree
                 fileset._id = None
-                fileset._format_name = None
+                fileset._resource_name = None
 #                 fileset.get()
         ref_tree = self.get_tree(self.repository)  #, sync_with_repo=True)
         self.assertEqual(

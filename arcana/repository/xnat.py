@@ -209,8 +209,8 @@ class XnatRepo(Repository):
                 else:
                     need_to_download = False
             if need_to_download:
-                if fileset._format_name is not None:
-                    xresource = xscan.resources[fileset._format_name]
+                if fileset._resource_name is not None:
+                    xresource = xscan.resources[fileset._resource_name]
                 else:
                     xresources = []
                     for resource_name in fileset.format.xnat_resource_names:
@@ -314,16 +314,18 @@ class XnatRepo(Repository):
             xscan = self._login.classes.MrScanData(
                 id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
-            # Delete existing resource
-            # TODO: probably should have check to see if we want to
-            #       override it
+            # Select the first xnat_resource name to use to upload the data to
+            resource_name = fileset.xnat_resource_names[0]
             try:
-                xresource = xscan.resources[fileset.format.name]
+                xresource = xscan.resources[resource_name]
             except KeyError:
                 pass
             else:
+                # Delete existing resource
+                # TODO: probably should have check to see if we want to
+                #       override it
                 xresource.delete()
-            xresource = xscan.create_resource(fileset.format_name)
+            xresource = xscan.create_resource(resource_name)
             if fileset.format.directory:
                 for fname in os.listdir(fileset.path):
                     xresource.upload(op.join(fileset.path, fname), fname)
@@ -572,7 +574,7 @@ class XnatRepo(Repository):
                                 repository=self, frequency=frequency,
                                 subject_id=subject_id, visit_id=visit_id,
                                 from_study=from_study,
-                                format_name=resource, **kwargs))
+                                resource_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))
         return all_filesets, all_fields, all_records

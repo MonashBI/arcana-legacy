@@ -182,8 +182,8 @@ class TreeNode(object):
             format_dcts = self._filesets[(name, from_study)]
         except KeyError:
             available = [
-                ('{}(format={})'.format(f.name, f._format_name)
-                 if f._format_name is not None else f.name)
+                ('{}(format={})'.format(f.name, f._resource_name)
+                 if f._resource_name is not None else f.name)
                 for f in self.filesets if f.from_study == from_study]
             other_studies = [
                 (f.from_study if f.from_study is not None else '<root>')
