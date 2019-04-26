@@ -427,6 +427,11 @@ targz_format = FileFormat(name='targz', extension='.tar.gz')
 standard_formats = [text_format, json_format, directory_format, zip_format,
                     targz_format]
 
+# General image formats
+gif_format = FileFormat(name='gif', extension='.gif')
+png_format = FileFormat(name='png', extension='.png')
+jpg_format = FileFormat(name='jpg', extension='.jpg')
+
 # Set Converters
 directory_format.set_converter(zip_format, UnzipConverter)
 directory_format.set_converter(targz_format, UnTarGzConverter)
