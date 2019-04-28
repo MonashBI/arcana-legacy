@@ -14,7 +14,7 @@ from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.repository.basic import BasicRepo
 from arcana.study import Study, StudyMetaClass
-from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
+from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec
 from arcana.exceptions import ArcanaError, ArcanaFileFormatError
 from arcana.data.file_format import text_format
 import logging

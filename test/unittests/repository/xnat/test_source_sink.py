@@ -13,23 +13,23 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepo
 from arcana.processor import SingleProc
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.data import FilesetInput
+from arcana.data import InputFileset
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format import text_format
 from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
 from arcana.study import Study, StudyMetaClass
-from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
+from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec
 from future.utils import with_metaclass
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('source1', text_format),
-        FilesetInputSpec('source2', text_format, optional=True),
-        FilesetInputSpec('source3', text_format, optional=True),
-        FilesetInputSpec('source4', text_format, optional=True),
+        InputFilesetSpec('source1', text_format),
+        InputFilesetSpec('source2', text_format, optional=True),
+        InputFilesetSpec('source3', text_format, optional=True),
+        InputFilesetSpec('source4', text_format, optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),
@@ -96,10 +96,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
-            inputs=[FilesetInput('source1', 'source1', text_format),
-                    FilesetInput('source2', 'source2', text_format),
-                    FilesetInput('source3', 'source3', text_format),
-                    FilesetInput('source4', 'source4', text_format)])
+            inputs=[InputFileset('source1', 'source1', text_format),
+                    InputFileset('source2', 'source2', text_format),
+                    InputFileset('source3', 'source3', text_format),
+                    InputFileset('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -157,7 +157,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
-            inputs=[FilesetInput('source1', 'source1', text_format)])
+            inputs=[InputFileset('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = study.dummy_pipeline()
         dummy_pipeline.cap()
@@ -207,7 +207,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                                     project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, SingleProc('ad'),
-            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format)])
+            inputs=[InputFileset(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
                 [study.bound_spec(DATASET_NAME).collection]),
@@ -291,7 +291,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         study = DummyStudy(
             STUDY_NAME, sink_repository, SingleProc('ad'),
-            inputs=[FilesetInput(DATASET_NAME, DATASET_NAME, text_format,
+            inputs=[InputFileset(DATASET_NAME, DATASET_NAME, text_format,
                                     repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
@@ -376,9 +376,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
             inputs=[
-                FilesetInput('source1', 'source1', text_format),
-                FilesetInput('source2', 'source2', text_format),
-                FilesetInput('source3', 'source3', text_format)])
+                InputFileset('source1', 'source1', text_format),
+                InputFileset('source2', 'source2', text_format),
+                InputFileset('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),

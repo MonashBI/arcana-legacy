@@ -278,7 +278,7 @@ class BaseSpec(object):
         return node
 
 
-class FilesetInputSpec(BaseFileset, BaseInputSpec):
+class InputFilesetSpec(BaseFileset, BaseInputSpec):
     """
     A specification for an "acquired" fileset (e.g from the scanner or
     standard atlas)
@@ -335,7 +335,7 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
             return self.default.format
         except AttributeError:
             raise ArcanaUsageError(
-                "File format is not defined for FilesetInputSpec objects "
+                "File format is not defined for InputFilesetSpec objects "
                 "without a default")
 
     def __eq__(self, other):
@@ -479,7 +479,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return valid_formats
 
 
-class FieldInputSpec(BaseField, BaseInputSpec):
+class InputFieldSpec(BaseField, BaseInputSpec):
     """
     An abstract base class representing an acquired field
 

@@ -255,7 +255,7 @@ class BaseInput(object):
         return match
 
 
-class FilesetInput(BaseInput, BaseFileset):
+class InputFileset(BaseInput, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -354,7 +354,7 @@ class FilesetInput(BaseInput, BaseFileset):
         if self._pattern is None and self._id is None:
             raise ArcanaUsageError(
                 "Either 'pattern' or 'id' need to be provided to "
-                "FilesetInput constructor")
+                "InputFileset constructor")
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
@@ -455,7 +455,7 @@ class FilesetInput(BaseInput, BaseFileset):
         return matches
 
 
-class FieldInput(BaseInput, BaseField):
+class InputField(BaseInput, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.

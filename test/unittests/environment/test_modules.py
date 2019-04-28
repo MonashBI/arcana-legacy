@@ -1,7 +1,7 @@
 import os
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
-    FilesetInputSpec, FilesetSpec, FilesetInput, FieldSpec)
+    InputFilesetSpec, FilesetSpec, InputFileset, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exceptions import ArcanaModulesNotInstalledException, ArcanaError
 import unittest
@@ -57,7 +57,7 @@ class TestMathWithReq(TestMath):
 class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('ones', text_format),
+        InputFilesetSpec('ones', text_format),
         FilesetSpec('twos', text_format, 'pipeline1'),
         FieldSpec('threes', float, 'pipeline2'),
         FieldSpec('fours', float, 'pipeline2')]
@@ -125,7 +125,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [FilesetInput('ones', 'ones', text_format)],
+            [InputFileset('ones', 'ones', text_format)],
             environment=ModulesEnv())
         threes = study.data('threes')
         fours = study.data('fours')
