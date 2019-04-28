@@ -209,33 +209,33 @@ class XnatRepo(Repository):
                 else:
                     need_to_download = False
             if need_to_download:
-                if fileset._resource_name is not None:
-                    xresource = xscan.resources[fileset._resource_name]
-                else:
-                    xresources = []
-                    for resource_name in fileset.format.xnat_resource_names:
-                        try:
-                            xresources.append(xscan.resources[resource_name])
-                        except KeyError:
-                            pass
-                    if not xresources:
-                        raise ArcanaError(
-                            "Could not find matching resource for {} ('{}') "
-                            "in {}, available resources are '{}'"
-                            .format(
-                                self.format,
-                                "', '".join(
-                                    fileset.format.xnat_resource_names),
-                                xscan.uri,
-                                "', '".join(
-                                    r.label
-                                    for r in list(xscan.resources.values()))))
-                    elif len(xresources) > 1:
-                        logger.warning(
-                            "Found multiple acceptable resources for {}: {}"
-                            .format(fileset,
-                                    ', '.join(str(r) for r in xresources)))
-                    xresource = xresources[0]
+#                 if fileset._resource_name is not None:
+                xresource = xscan.resources[fileset._resource_name]
+#                 else:
+#                     xresources = []
+#                     for resource_name in fileset.format.xnat_resource_names:
+#                         try:
+#                             xresources.append(xscan.resources[resource_name])
+#                         except KeyError:
+#                             pass
+#                     if not xresources:
+#                         raise ArcanaError(
+#                             "Could not find matching resource for {} ('{}') "
+#                             "in {}, available resources are '{}'"
+#                             .format(
+#                                 self.format,
+#                                 "', '".join(
+#                                     fileset.format.xnat_resource_names),
+#                                 xscan.uri,
+#                                 "', '".join(
+#                                     r.label
+#                                     for r in list(xscan.resources.values()))))
+#                     elif len(xresources) > 1:
+#                         logger.warning(
+#                             "Found multiple acceptable resources for {}: {}"
+#                             .format(fileset,
+#                                     ', '.join(str(r) for r in xresources)))
+#                     xresource = xresources[0]
                 # The path to the directory which the files will be
                 # downloaded to.
                 tmp_dir = cache_path + '.download'
@@ -315,7 +315,7 @@ class XnatRepo(Repository):
                 id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
             # Select the first xnat_resource name to use to upload the data to
-            resource_name = fileset.format.xnat_resource_names[0]
+            resource_name = fileset.format.resource_names(self.type)[0]
             try:
                 xresource = xscan.resources[resource_name]
             except KeyError:

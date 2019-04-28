@@ -71,63 +71,79 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
+                    resource_name='text',
                     repository=repo),
             # subject1/visit1
             Fileset('hundreds', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('with_header', text_format,
                     frequency='per_session',
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # subject1/visit2
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             # Subject 2
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
+                    resource_name='text',
                     repository=repo),
             # subject2/visit1
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # subject2/visit2
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             # Visit 1
             Fileset('ones', text_format,
                     frequency='per_visit',
                     visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # Study
             Fileset('ones', text_format,
                     frequency='per_study',
+                    resource_name='text',
                     repository=repo)]
         fields = [
             # Subject 2
@@ -187,7 +203,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                 fileset.get()
             for field in fields:
                 field.get()
-        tree = Tree.construct(filesets, fields)
+        tree = Tree.construct(self.repository, filesets, fields)
         return tree
 
     @property
@@ -205,6 +221,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format
+                fileset._resource_name = 'text'
         self.assertEqual(
             tree, self.local_tree,
             "Generated project doesn't match reference:{}"

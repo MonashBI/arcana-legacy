@@ -562,7 +562,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                     Field(name='acquired_field1', value=visit_i + subj_i * 10,
                           dtype=int, frequency='per_session',
                           subject_id=str(subj_i), visit_id=str(visit_i)))
-        return Tree.construct(fields=fields)
+        return Tree.construct(self.repository, fields=fields)
 
     def test_filter_dialation1(self):
         study_name = 'process_dialation'
@@ -777,7 +777,7 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
                   value=30,
                   dtype=int, frequency='per_session',
                   subject_id='1', visit_id='0')]
-        return Tree.construct(fields=fields)
+        return Tree.construct(self.repository, fields=fields)
 
     def test_skip_missing(self):
         study_name = 'skip_missing'

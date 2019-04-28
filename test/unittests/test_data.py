@@ -70,7 +70,7 @@ class DicomFormat(FileFormat):
 
 
 dicom_format = DicomFormat(name='dicom', extension=None,
-                           xnat_resource_names=['DICOM'],
+                           resource_names={'xnat': ['DICOM']},
                            directory=True, within_dir_exts=['.dcm'])
 
 

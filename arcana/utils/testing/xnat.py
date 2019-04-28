@@ -126,7 +126,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                                                     type=fileset.basename,
                                                     parent=xsession)
                 resource = xfileset.create_resource(
-                    fileset.format.xnat_resource_names[0])
+                    fileset.format.resource_names(XnatRepo.type)[0])
                 if fileset.format.directory:
                     for fname in os.listdir(fileset.path):
                         resource.upload(

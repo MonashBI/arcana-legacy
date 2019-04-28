@@ -263,7 +263,7 @@ class TestStudy(BaseMultiSubjectTestCase):
                     Fileset('ten_input', text_format,
                             subject_id=subj_id,
                             visit_id=visit_id))
-        return Tree.construct(filesets=filesets)
+        return Tree.construct(self.repository, filesets=filesets)
 
     def make_study(self):
         return self.create_study(
@@ -389,7 +389,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study))
-        return Tree.construct(filesets=filesets)
+        return Tree.construct(self.repository, filesets=filesets)
 
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)

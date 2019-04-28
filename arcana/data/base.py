@@ -106,10 +106,7 @@ class BaseFileset(with_metaclass(ABCMeta, BaseData)):
 
     def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
         super(BaseFileset, self).__init__(name=name, frequency=frequency)
-        try:
-            assert format is None or isinstance(format, FileFormat)
-        except:
-            raise
+        assert format is None or isinstance(format, FileFormat)
         self._format = format
 
     def __eq__(self, other):
