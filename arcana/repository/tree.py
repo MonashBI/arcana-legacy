@@ -1,13 +1,15 @@
 from builtins import zip
 from builtins import object
+from past.builtins import basestring
 from itertools import chain, groupby
 from collections import defaultdict
 from operator import attrgetter, itemgetter
 from collections import OrderedDict
 import logging
 from arcana.data import BaseFileset, BaseField
+from arcana.utils import split_extension
 from arcana.exceptions import (
-    ArcanaNameError)
+    ArcanaNameError, ArcanaRepositoryError)
 
 id_getter = attrgetter('id')
 
@@ -25,8 +27,22 @@ class TreeNode(object):
             records = []
         # Save filesets and fields in ordered dictionary by name and
         # name of study that generated them (if applicable)
-        self._filesets = OrderedDict(((d.name, d.from_study), d)
-                                     for d in sorted(filesets))
+        self._filesets = OrderedDict()
+        for fileset in sorted(filesets):
+            name_key = (fileset.name, fileset.from_study)
+            try:
+                dct = self._filesets[name_key]
+            except KeyError:
+                dct = self._filesets[name_key] = OrderedDict()
+            if fileset.format_name is not None:
+                format_key = fileset.format_name
+            else:
+                format_key = split_extension(fileset.path)[1]
+            if format_key in dct:
+                raise ArcanaRepositoryError(
+                    "Attempting to add duplicate filesets to tree ({} and {})"
+                    .formaat(fileset, dct[format_key]))
+            dct[format_key] = fileset
         self._fields = OrderedDict(((f.name, f.from_study), f)
                                    for f in sorted(fields))
         self._records = OrderedDict(
@@ -54,31 +70,32 @@ class TreeNode(object):
         if not (isinstance(other, type(self)) or
                 isinstance(self, type(other))):
             return False
-        return (list(self.filesets) == list(other.filesets) and
-                list(self.fields) == list(other.fields))
+        return (tuple(self.filesets) == tuple(other.filesets) and
+                tuple(self.fields) == tuple(other.fields) and
+                tuple(self.records) == tuple(other.records))
 
     def __hash__(self):
-        return hash(tuple(self.filesets)) ^ hash(tuple(self._fields))
+        return (hash(tuple(self.filesets)) ^ hash(tuple(self.fields)) ^
+                hash(tuple(self.fields)))
 
-    def __contains__(self, item):
-        if item.is_fileset:
-            return (item.name, item.from_study) in self._filesets
+#     def __contains__(self, item):
+#         if item.is_fileset:
+#             try:
+#                 self._filesets[(item.name, item.from_study)][item]
+#             except KeyError:
+#                 return False
+#             else:
+#                 return True
+#         else:
+#             return (item.name, item.from_study) in self._fields
 
     @property
     def filesets(self):
-        return self._filesets.values()
+        return chain(*(d.values() for d in self._filesets.values()))
 
     @property
     def fields(self):
         return self._fields.values()
-
-    @property
-    def fileset_keys(self):
-        return self._filesets.keys()
-
-    @property
-    def field_keys(self):
-        return self._fields.keys()
 
     @property
     def records(self):
@@ -94,7 +111,7 @@ class TreeNode(object):
         "To be overridden by subclasses where appropriate"
         return None
 
-    def fileset(self, name, from_study=None):
+    def fileset(self, name, from_study=None, format=None):  # @ReservedAssignment @IgnorePep8
         """
         Gets the fileset named 'name' produced by the Study named 'study' if
         provided. If a spec is passed instead of a str to the name argument,
@@ -108,20 +125,26 @@ class TreeNode(object):
             Name of the study that produced the fileset if derived. If None
             and a spec is passed instaed of string to the name argument then
             the study name will be taken from the spec instead.
+        format : FileFormat | str | None
+            Either the format of the fileset to return or the name of the
+            format. If None and only a single fileset is found for the given
+            name and study then that is returned otherwise an exception is
+            raised
         """
         if isinstance(name, BaseFileset):
             if from_study is None and name.derived:
                 from_study = name.study.name
             name = name.name
         try:
-            return self._filesets[(name, from_study)]
+            format_dct = self._filesets[(name, from_study)]
         except KeyError:
-            available = [d.name for d in self.filesets
-                         if d.from_study == from_study]
-            other_studies = [(d.from_study if d.from_study is not None
-                              else '<root>')
-                             for d in self.filesets
-                             if d.name == name]
+            available = [
+                ('{}(format={})'.format(f.name, f._resource_name)
+                 if f._resource_name is not None else f.name)
+                for f in self.filesets if f.from_study == from_study]
+            other_studies = [
+                (f.from_study if f.from_study is not None else '<root>')
+                for f in self.filesets if f.name == name]
             if other_studies:
                 msg = (". NB: matching fileset(s) found for '{}' study(ies) "
                        "('{}')".format(name, "', '".join(other_studies)))
@@ -135,6 +158,45 @@ class TreeNode(object):
                            (" from study '{}'".format(from_study)
                             if from_study is not None else ''),
                            "', '".join(available), msg)))
+        else:
+            if format is None:
+                all_formats = list(format_dct.values())
+                if len(all_formats) > 1:
+                    raise ArcanaNameError(
+                        "Multiple filesets found for '{}'{} in {} with formats"
+                        " {}. Need to specify a format"
+                        .format(name, ("in '{}'".format(from_study)
+                                       if from_study is not None else ''),
+                                self, "', '".join(format_dct.keys())))
+                fileset = all_formats[0]
+            else:
+                try:
+                    if isinstance(format, str):
+                        fileset = format_dct[format]
+                    else:
+                        try:
+                            fileset = format_dct[format.ext]
+                        except KeyError:
+                            fileset = None
+                            for rname, rfileset in format_dct.items():
+                                if rname in format.resource_names(
+                                        self.tree.repository.type):
+                                    fileset = rfileset
+                                    break
+                            if fileset is None:
+                                raise
+                except KeyError:
+                    raise ArcanaNameError(
+                        format,
+                        ("{} doesn't have a fileset named '{}'{} with "
+                         "format '{}' (available '{}'){}"
+                           .format(self, name,
+                                   (" from study '{}'".format(from_study)
+                                    if from_study is not None else ''),
+                                   format,
+                                   "', '".join(format_dct.keys()), msg)))
+
+        return fileset
 
     def field(self, name, from_study=None):
         """
@@ -277,6 +339,8 @@ class Tree(TreeNode):
     visits : List[Visits]
         List of visits in the project across subjects
         (i.e. timepoint 1, 2, 3)
+    repository : Repository
+        The repository that the tree comes from
     filesets : List[Fileset]
         The filesets that belong to the project, i.e. of 'per_study'
         frequency
@@ -297,8 +361,9 @@ class Tree(TreeNode):
 
     frequency = 'per_study'
 
-    def __init__(self, subjects, visits, filesets=None, fields=None,
-                 records=None, fill_subjects=None, fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
+    def __init__(self, subjects, visits, repository, filesets=None,
+                 fields=None, records=None, fill_subjects=None,
+                 fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
         TreeNode.__init__(self, filesets, fields, records)
         self._subjects = OrderedDict(sorted(
             ((s.id, s) for s in subjects), key=itemgetter(0)))
@@ -312,6 +377,7 @@ class Tree(TreeNode):
             visit.tree = self
         for session in self.sessions:
             session.tree = self
+        self._repository = repository
         # Collate missing and duplicates provenance records for single warnings
         missing_records = defaultdict(lambda: defaultdict(list))
         duplicate_records = defaultdict(lambda: defaultdict(list))
@@ -346,6 +412,10 @@ class Tree(TreeNode):
                 hash(tuple(self._visits)))
 
     @property
+    def repository(self):
+        return self._repository
+
+    @property
     def subjects(self):
         return self._subjects.values()
 
@@ -358,6 +428,10 @@ class Tree(TreeNode):
         return chain(*(s.sessions for s in self.subjects))
 
     @property
+    def tree(self):
+        return self
+
+    @property
     def subject_ids(self):
         return self._subjects.keys()
 
@@ -367,7 +441,7 @@ class Tree(TreeNode):
 
     @property
     def session_ids(self):
-        return ((s.subject_id, s.visit_id) for s in sessions)
+        return ((s.subject_id, s.visit_id) for s in self.sessions)
 
     @property
     def complete_subjects(self):
@@ -515,13 +589,16 @@ class Tree(TreeNode):
                     visit._sessions[subject_id] = session
 
     @classmethod
-    def construct(cls, filesets=(), fields=(), records=(), **kwargs):
+    def construct(cls, repository, filesets=(), fields=(), records=(),
+                  file_formats=(), **kwargs):
         """
         Return the hierarchical tree of the filesets and fields stored in a
         repository
 
         Parameters
         ----------
+        respository : Repository
+            The repository that the tree comes from
         filesets : list[Fileset]
             List of all filesets in the tree
         fields : list[Field]
@@ -538,6 +615,8 @@ class Tree(TreeNode):
         # Sort the data by subject and visit ID
         filesets_dict = defaultdict(list)
         for fset in filesets:
+            if file_formats:
+                fset.set_format(file_formats)
             filesets_dict[(fset.subject_id, fset.visit_id)].append(fset)
         fields_dict = defaultdict(list)
         for field in fields:
@@ -578,6 +657,7 @@ class Tree(TreeNode):
                 records_dict[(None, visit_id)]))
         return Tree(sorted(subjects),
                     sorted(visits),
+                    repository,
                     filesets_dict[(None, None)],
                     fields_dict[(None, None)],
                     records_dict[(None, None)],

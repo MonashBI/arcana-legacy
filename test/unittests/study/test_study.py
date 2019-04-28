@@ -4,7 +4,7 @@ from builtins import str  # @IgnorePep8
 import os.path  # @IgnorePep8
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.utils.testing import (  # @IgnorePep8
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
@@ -263,7 +263,7 @@ class TestStudy(BaseMultiSubjectTestCase):
                     Fileset('ten_input', text_format,
                             subject_id=subj_id,
                             visit_id=visit_id))
-        return Tree.construct(filesets=filesets)
+        return Tree.construct(self.repository, filesets=filesets)
 
     def make_study(self):
         return self.create_study(
@@ -389,7 +389,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_study=from_study))
-        return Tree.construct(filesets=filesets)
+        return Tree.construct(self.repository, filesets=filesets)
 
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)
@@ -435,19 +435,17 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
                                           from_study=self.STUDY_NAME)
+                fileset.format = text_format
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],
                     "{}:{}".format(subj_id, visit_id))
 
 
 test1_format = FileFormat('test1', extension='.t1')
-test2_format = FileFormat('test2', extension='.t2',
-                          converters={'test1': IdentityConverter})
+test2_format = FileFormat('test2', extension='.t2')
 test3_format = FileFormat('test3', extension='.t3')
 
-FileFormat.register(test1_format)
-FileFormat.register(test2_format)
-FileFormat.register(test3_format)
+test2_format.set_converter(test1_format, IdentityConverter)
 
 
 class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
@@ -611,7 +609,7 @@ class BasicTestStudy(with_metaclass(StudyMetaClass, Study)):
 
 class TestInterfaceErrorHandling(BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': 'foo'}
+    INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_raised_error(self):
         study = self.create_study(
@@ -632,7 +630,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
 
 class TestGeneratedPickle(BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': 'foo'}
+    INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_generated_cls_pickle(self):
         GeneratedClass = StudyMetaClass(

@@ -190,6 +190,11 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
         return (super(BaseField, self).__hash__() ^ hash(self.dtype) ^
                 hash(self.array))
 
+    def __repr__(self):
+        return ("{}(name='{}', dtype={}, frequency='{}')"
+                .format(self.__class__.__name__, self.name, self.dtype,
+                        self.frequency))
+
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseField, self).find_mismatch(other, indent)
         sub_indent = indent + '  '

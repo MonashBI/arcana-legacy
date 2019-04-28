@@ -2,7 +2,7 @@ from future import standard_library
 standard_library.install_aliases()
 import os  # @IgnorePep8
 import os.path as op  # @IgnorePep8
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     Fileset, FilesetInputSpec, FilesetSpec, Field)  # @IgnorePep8
@@ -15,8 +15,7 @@ from arcana.data.file_format import FileFormat  # @IgnorePep8
 
 # A dummy format that contains a header
 with_header_format = FileFormat(name='with_header', extension='.whf',
-                                side_cars={'header': '.hdr'})
-FileFormat.register(with_header_format)
+                                aux_files={'header': '.hdr'})
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
@@ -47,7 +46,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 class TestBasicRepo(BaseTestCase):
 
     STUDY_NAME = 'local_repo'
-    INPUT_DATASETS = {'source1': '1',
+    INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
                       'source3': '3',
                       'source4': '4'}
@@ -66,69 +65,85 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                         'thousands': 1000, 'with_header': {'.': 'main',
                                                            'header': 'header'}}
 
-    def get_tree(self, repo, sync_with_repo=False):
+    def get_tree(self, repo, sync_with_repo=False):  # @ReservedAssignment @IgnorePep8
         filesets = [
             # Subject1
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
+                    resource_name='text',
                     repository=repo),
             # subject1/visit1
             Fileset('hundreds', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
-            Fileset('with_header', with_header_format,
+            Fileset('with_header', text_format,
                     frequency='per_session',
                     subject_id='subject1', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # subject1/visit2
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             # Subject 2
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
+                    resource_name='text',
                     repository=repo),
             # subject2/visit1
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # subject2/visit2
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit2',
+                    resource_name='text',
                     repository=repo),
             # Visit 1
             Fileset('ones', text_format,
                     frequency='per_visit',
                     visit_id='visit1',
+                    resource_name='text',
                     repository=repo),
             # Study
             Fileset('ones', text_format,
                     frequency='per_study',
+                    resource_name='text',
                     repository=repo)]
         fields = [
             # Subject 2
@@ -188,7 +203,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                 fileset.get()
             for field in fields:
                 field.get()
-        tree = Tree.construct(filesets, fields)
+        tree = Tree.construct(self.repository, filesets, fields)
         return tree
 
     @property
@@ -201,9 +216,12 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
         a_subj_dir = os.listdir(self.project_dir)[0]
         open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
-        open(op.join(op.join(self.project_dir, a_subj_dir,
-                                       '.DS_Store')), 'w').close()
+        open(op.join(self.project_dir, a_subj_dir, '.DS_Store'), 'w').close()
         tree = self.repository.tree()
+        for node in tree.nodes():
+            for fileset in node.filesets:
+                fileset.format = text_format
+                fileset._resource_name = 'text'
         self.assertEqual(
             tree, self.local_tree,
             "Generated project doesn't match reference:{}"

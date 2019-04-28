@@ -17,12 +17,14 @@ class Repository(with_metaclass(ABCMeta, object)):
     classes should implement.
     """
 
-    def __init__(self, subject_id_map=None, visit_id_map=None):
+    def __init__(self, subject_id_map=None, visit_id_map=None,
+                 file_formats=()):
         self._connection_depth = 0
         self._subject_id_map = subject_id_map
         self._visit_id_map = visit_id_map
         self._inv_subject_id_map = {}
         self._inv_visit_id_map = {}
+        self._file_formats = file_formats
         self.clear_cache()
 
     def __enter__(self):
@@ -183,9 +185,9 @@ class Repository(with_metaclass(ABCMeta, object)):
             information for the repository
         """
         # Find all data present in the repository (filtered by the passed IDs)
-        return Tree.construct(*self.find_data(subject_ids=subject_ids,
-                                              visit_ids=visit_ids),
-                                              **kwargs)
+        return Tree.construct(
+            self, *self.find_data(subject_ids=subject_ids,
+                                  visit_ids=visit_ids), **kwargs)
 
     def cached_tree(self, subject_ids=None, visit_ids=None, fill=False):
         """

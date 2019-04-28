@@ -6,7 +6,7 @@ from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaOutputNotProducedException,
     ArcanaMissingDataException, ArcanaNameError)
-from .base import BaseFileset, BaseField
+from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
@@ -209,7 +209,10 @@ class BaseSpec(object):
                 "the corresponding collection".format(self))
         return self._collection
 
-    def _bind_tree(self, tree, **kwargs):
+    def nodes(self, tree):
+        """
+        Returns the relevant nodes for the spec's frequency
+        """
         # Run the match against the tree
         if self.frequency == 'per_session':
             nodes = []
@@ -225,10 +228,7 @@ class BaseSpec(object):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 self.frequency)
-        self._collection = self.CollectionClass(
-            self.name, (self._bind_node(n, **kwargs) for n in nodes),
-            frequency=self.frequency,
-            **self._specific_collection_kwargs)
+        return nodes
 
     @property
     def derivable(self):
@@ -323,11 +323,20 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
         self._valid_formats = tuple(valid_formats)
         BaseFileset.__init__(self, name, None, frequency)
         BaseInputSpec.__init__(self, name, desc, optional=optional,
-                                  default=default)
+                               default=default)
 
     @property
     def valid_formats(self):
         return self._valid_formats
+
+    @property
+    def format(self):
+        try:
+            return self.default.format
+        except AttributeError:
+            raise ArcanaUsageError(
+                "File format is not defined for FilesetInputSpec objects "
+                "without a default")
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -340,8 +349,7 @@ class FilesetInputSpec(BaseFileset, BaseInputSpec):
                 hash(self.valid_formats))
 
     def initkwargs(self):
-        dct = BaseFileset.initkwargs(self)
-        del dct['format']
+        dct = BaseData.initkwargs(self)
         dct.update(BaseInputSpec.initkwargs(self))
         dct['valid_formats'] = self._valid_formats
         return dct
@@ -385,27 +393,42 @@ class FilesetSpec(BaseFileset, BaseSpec):
         visit or project.
     desc : str
         Description of what the field represents
+    valid_formats : list[FileFormat]
+        A list of valid file formats that can be supplied to the spec if
+        overridden as an input. Typically not required, but useful for some
+        specs that are typically provided as inputs (e.g. magnitude MRI)
+        but can be derived from other inputs (e.g. coil-wise MRI images)
     """
 
     is_spec = True
     CollectionClass = FilesetCollection
 
     def __init__(self, name, format, pipeline_getter, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
-                 desc=None):
+                 desc=None, valid_formats=None):
         BaseFileset.__init__(self, name, format, frequency)
         BaseSpec.__init__(self, name, pipeline_getter, desc)
+        if valid_formats is not None:
+            # Ensure allowed formats is a list
+            try:
+                valid_formats = sorted(valid_formats, key=attrgetter('name'))
+            except TypeError:
+                valid_formats = [valid_formats]
+        self._valid_formats = valid_formats
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseSpec.__eq__(self, other))
+                BaseSpec.__eq__(self, other) and
+                self.valid_formats == other.valid_formats)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseSpec.__hash__(self))
+                BaseSpec.__hash__(self) ^
+                hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
         dct.update(BaseSpec.initkwargs(self))
+        dct['valid_formats'] = self._valid_formats
         return dct
 
     def __repr__(self):
@@ -415,13 +438,19 @@ class FilesetSpec(BaseFileset, BaseSpec):
                     self.frequency))
 
     def find_mismatch(self, other, indent=''):
+        sub_indent = indent + '  '
         mismatch = BaseFileset.find_mismatch(self, other, indent)
         mismatch += BaseSpec.find_mismatch(self, other, indent)
+        if self.valid_formats != other.valid_formats:
+            mismatch += ('\n{}pipeline: self={} v other={}'
+                         .format(sub_indent, list(self.valid_formats),
+                                 list(other.valid_formats)))
         return mismatch
 
     def _bind_node(self, node, **kwargs):
         try:
-            fileset = node.fileset(self.name, from_study=self.study.name)
+            fileset = node.fileset(self.name, from_study=self.study.name,
+                                   format=self.format)
         except ArcanaNameError:
             # For filesets that can be generated by the analysis
             fileset = Fileset(self.name, format=self.format,
@@ -434,9 +463,20 @@ class FilesetSpec(BaseFileset, BaseSpec):
                               **kwargs)
         return fileset
 
+    def _bind_tree(self, tree, **kwargs):
+        self._collection = FilesetCollection(
+            self.name,
+            (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
+            frequency=self.frequency,
+            format=self.format)
+
     @property
-    def _specific_collection_kwargs(self):
-        return {'format': self.format}
+    def valid_formats(self):
+        if self._valid_formats is not None:
+            valid_formats = self._valid_formats
+        else:
+            valid_formats = [self.format] + list(self.format.convertable_from)
+        return valid_formats
 
 
 class FieldInputSpec(BaseField, BaseInputSpec):
@@ -565,7 +605,10 @@ class FieldSpec(BaseField, BaseSpec):
                           exists=False, **kwargs)
         return field
 
-    @property
-    def _specific_collection_kwargs(self):
-        return {'dtype': self.dtype,
-                'array': self.array}
+    def _bind_tree(self, tree, **kwargs):
+        self._collection = FieldCollection(
+            self.name,
+            (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
+            frequency=self.frequency,
+            dtype=self.dtype,
+            array=self.array)

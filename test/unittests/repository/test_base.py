@@ -3,7 +3,7 @@ standard_library.install_aliases()
 import os  # @IgnorePep8
 from nipype.pipeline import engine as pe  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.data.file_format.standard import text_format  # @IgnorePep8
+from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.processor import SingleProc  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
     FilesetInput, FieldSpec)  # @IgnorePep8
@@ -47,7 +47,7 @@ class TestSinkAndSource(BaseTestCase):
 
     STUDY_NAME = 'astudy'
     SUMMARY_STUDY_NAME = 'asummary'
-    INPUT_DATASETS = {'source1': '1',
+    INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
                       'source3': '3',
                       'source4': '4'}

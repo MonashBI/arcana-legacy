@@ -1,8 +1,7 @@
-from future import standard_library
-standard_library.install_aliases()
 import tempfile  # @IgnorePep8
 import shutil  # @IgnorePep8
-import os.path  # @IgnorePep8
+import os
+import os.path as op # @IgnorePep8
 import unittest  # @IgnorePep8
 from unittest import TestCase  # @IgnorePep8
 from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
@@ -10,19 +9,69 @@ from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @Igno
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec, FilesetInput  # @IgnorePep8
-from arcana.data.file_format.standard import text_format, FileFormat  # @IgnorePep8
-from arcana.exceptions import ArcanaDesignError # @IgnorePep8
+from arcana.data.file_format import text_format, FileFormat  # @IgnorePep8
+from arcana.exceptions import ArcanaDesignError, ArcanaError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
+import pydicom  # @IgnorePep8
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
     import pickle as pkl  # @Reimport
 
 # For testing DICOM tag matching
-dicom_format = FileFormat(name='dicom', extension=None,
-                          directory=True, within_dir_exts=['.dcm'])
-FileFormat.register(dicom_format)
+
+
+class DicomFormat(FileFormat):
+
+    SERIES_NUMBER_TAG = ('0020', '0011')
+
+    def extract_id(self, fileset):
+        return int(fileset.dicom_values([self.SERIES_NUMBER_TAG])[0])
+
+    def dicom_values(self, fileset, tags):
+        """
+        Returns a dictionary with the DICOM header fields corresponding
+        to the given tag names
+
+        Parameters
+        ----------
+        tags : List[Tuple[str, str]]
+            List of DICOM tag values as 2-tuple of strings, e.g.
+            [('0080', '0020')]
+        repository_login : <repository-login-object>
+            A login object for the repository to avoid having to relogin
+            for every dicom_header call.
+
+        Returns
+        -------
+        dct : Dict[Tuple[str, str], str|int|float]
+        """
+        try:
+            if (fileset._path is None and fileset._repository is not None and
+                    hasattr(fileset.repository, 'dicom_header')):
+                hdr = fileset.repository.dicom_header(fileset)
+                if not hdr:
+                    raise ArcanaError(
+                        "No DICOM tags retrieved from {} by {}".format(
+                            fileset.repository, fileset))
+                values = [hdr[t] for t in tags]
+            else:
+                # Get the DICOM object for the first file in the fileset
+                dcm_files = [f for f in os.listdir(fileset.path)
+                             if f.endswith('.dcm')]
+                dcm = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
+                values = [dcm[t].value for t in tags]
+        except KeyError as e:
+            fileset.repository.dicom_header(fileset)
+            raise ArcanaError("{} does not have dicom tag {}".format(
+                              self, str(e)))
+        return values
+
+
+dicom_format = DicomFormat(name='dicom', extension=None,
+                           resource_names={'xnat': ['DICOM']},
+                           directory=True, within_dir_exts=['.dcm'])
 
 
 class TestFilesetSpecPickle(TestCase):
@@ -43,7 +92,7 @@ class TestFilesetSpecPickle(TestCase):
                             'dummy_pipeline1'),
                 FieldSpec('b', int, 'dummy_pipeline2')]
         for i, obj in enumerate(objs):
-            fname = os.path.join(self.pkl_dir, '{}.pkl'.format(i))
+            fname = op.join(self.pkl_dir, '{}.pkl'.format(i))
             with open(fname, 'wb') as f:
                 pkl.dump(obj, f)
             with open(fname, 'rb') as f:
@@ -79,13 +128,14 @@ class TestDicomTagMatch(BaseTestCase):
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
         FilesetInput('gre_phase', GRE_PATTERN, dicom_format,
-                        dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
-                        is_regex=True),
+                     dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
+                     is_regex=True),
         FilesetInput('gre_mag', GRE_PATTERN, dicom_format,
                         dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
                         is_regex=True)]
 
     INPUTS_FROM_REF_DIR = True
+    REF_FORMATS = [dicom_format]
 
     def test_dicom_match(self):
         study = self.create_study(
@@ -101,9 +151,9 @@ class TestDicomTagMatch(BaseTestCase):
             TestMatchStudy, 'test_dicom',
             inputs=[
                 FilesetInput('gre_phase', pattern=self.GRE_PATTERN,
-                                format=dicom_format, order=1, is_regex=True),
+                             format=dicom_format, order=1, is_regex=True),
                 FilesetInput('gre_mag', pattern=self.GRE_PATTERN,
-                                format=dicom_format, order=0, is_regex=True)])
+                             format=dicom_format, order=0, is_regex=True)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -194,7 +244,7 @@ class TestDerivableStudy(with_metaclass(StudyMetaClass, Study)):
 
 class TestDerivable(BaseTestCase):
 
-    INPUT_DATASETS = {'required': 'blah'}
+    INPUT_FILESETS = {'required': 'blah'}
 
     def test_derivable(self):
         # Test vanilla study

@@ -105,9 +105,10 @@ class BaseTestCase(TestCase):
                     continue
                 fileset = Fileset.from_path(op.join(self.ref_dir,
                                                     fname))
+                fileset.format = fileset.detect_format(self.REF_FORMATS)
                 filesets[fileset.name] = fileset
         else:
-            filesets = getattr(self, 'INPUT_DATASETS', None)
+            filesets = getattr(self, 'INPUT_FILESETS', None)
         self.add_session(filesets=filesets,
                          fields=getattr(self, 'INPUT_FIELDS', None))
 
@@ -125,6 +126,10 @@ class BaseTestCase(TestCase):
         os.makedirs(session_dir)
         for name, fileset in list(filesets.items()):
             if isinstance(fileset, Fileset):
+                if fileset.format is None:
+                    raise ArcanaError(
+                        "Need to provide format for fileset to add to test "
+                        "dataset ({}) in {}".format(fileset, self))
                 dst_path = op.join(session_dir,
                                    name + fileset.format.ext_str)
                 if fileset.format.directory:
@@ -484,13 +489,14 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                 session_path = op.dirname(fileset.path)
                 self._make_dir(session_path)
                 contents = self.DATASET_CONTENTS[fileset.name]
-                if fileset.format.side_cars:
-                    fileset._side_cars = {}
-                    for sc_name, sc_path in fileset.format.side_car_paths(
-                            fileset._path):
-                        fileset._side_cars[sc_name] = sc_path
-                        with open(sc_path, 'w') as f:
-                            f.write(str(contents[sc_name]))
+                if fileset.format.aux_files:
+                    fileset._aux_files = {}
+                    for (aux_name,
+                         aux_path) in fileset.format.default_aux_file_paths(
+                            fileset._path).items():
+                        fileset._aux_files[aux_name] = aux_path
+                        with open(aux_path, 'w') as f:
+                            f.write(str(contents[aux_name]))
                     contents = contents['.']
                 with open(fileset.path, 'w') as f:
                     f.write(str(contents))

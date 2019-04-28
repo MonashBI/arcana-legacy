@@ -3,11 +3,10 @@ from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
     FilesetInputSpec, FilesetSpec, FilesetInput, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.exceptions import (ArcanaModulesNotInstalledException,
-                              ArcanaError)
+from arcana.exceptions import ArcanaModulesNotInstalledException, ArcanaError
 import unittest
 from arcana.utils.testing import BaseTestCase, TestMath
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 from arcana.environment import ModulesEnv
 from arcana.processor import SingleProc
 from future.utils import with_metaclass
@@ -106,7 +105,7 @@ class RequirementsStudy(with_metaclass(StudyMetaClass, Study)):
 
 class TestModuleLoad(BaseTestCase):
 
-    INPUT_DATASETS = {'ones': '1'}
+    INPUT_FILESETS = {'ones': '1'}
 
     @property
     def processor(self):

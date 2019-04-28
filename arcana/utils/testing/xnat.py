@@ -8,14 +8,15 @@ import os.path as op
 import shutil
 import re
 from copy import copy
+import pydicom
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.repository.basic import BasicRepo
 from arcana.study import Study, StudyMetaClass
 from arcana.data import FilesetInputSpec, FilesetSpec, FieldSpec
-from arcana.exceptions import ArcanaError
-from arcana.data.file_format.standard import text_format
+from arcana.exceptions import ArcanaError, ArcanaFileFormatError
+from arcana.data.file_format import text_format
 import logging
 from future.utils import with_metaclass
 
@@ -33,6 +34,7 @@ SKIP_ARGS = (SERVER is None, "Skipping as ARCANA_TEST_XNAT env var not set")
 class CreateXnatProjectMixin(object):
 
     PROJECT_NAME_LEN = 12
+    REF_FORMATS = [text_format]
 
     @property
     def project(self):
@@ -112,18 +114,19 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
                 label=self.session_label(),
                 parent=xsubject)
             for fileset in self.session.filesets:
-                # Create fileset with an integer ID instead of the
-                # label
-                query = {'xsiType': 'xnat:mrScanData',
-                         'req_format': 'qa',
-                         'type': fileset.basename}
-                uri = '{}/scans/{}'.format(xsession.fulluri, fileset.id)
-                login.put(uri, query=query)
-                # Get XnatPy object for newly created fileset
-                xfileset = login.classes.MrScanData(uri,
-                                                    xnat_session=login)
+                fileset.format = fileset.detect_format(self.REF_FORMATS)
+                if fileset.format.name == 'dicom':
+                    dcm_files = [f for f in os.listdir(fileset.path)
+                                 if f.endswith('.dcm')]
+                    hdr = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
+                    id_ = int(hdr.SeriesNumber)
+                else:
+                    id_ = fileset.basename
+                xfileset = login.classes.MrScanData(id=id_,
+                                                    type=fileset.basename,
+                                                    parent=xsession)
                 resource = xfileset.create_resource(
-                    fileset.format.name.upper())
+                    fileset.format.resource_names(XnatRepo.type)[0])
                 if fileset.format.directory:
                     for fname in os.listdir(fileset.path):
                         resource.upload(
@@ -167,6 +170,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                 for fileset in node.filesets:
                     # Need to forcibly change the repository to be XNAT
                     fileset = copy(fileset)
+                    fileset.format = fileset.detect_format(self.REF_FORMATS)
                     fileset._repository = repo
                     fileset.put()
                 for field in node.fields:

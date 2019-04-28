@@ -1,19 +1,16 @@
 from past.builtins import basestring
 import os
 from itertools import chain
+from collections.abc import Iterable
+from copy import copy
 import os.path as op
 import hashlib
-import pydicom
-from arcana.data.file_format import FileFormat
-from arcana.data.file_format.standard import directory_format
 from arcana.utils import split_extension, parse_value
 from arcana.exceptions import (
-    ArcanaError, ArcanaFileFormatError, ArcanaUsageError,
-    ArcanaFileFormatNotRegisteredError, ArcanaNameError,
+    ArcanaError, ArcanaFileFormatError, ArcanaUsageError, ArcanaNameError,
     ArcanaDataNotDerivedYetError)
+from .file_format import FileFormat
 from .base import BaseFileset, BaseField
-
-DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
 class BaseItem(object):
@@ -145,9 +142,9 @@ class Fileset(BaseItem, BaseFileset):
         fileset.
     path : str | None
         The path to the fileset (for repositories on the local system)
-    side_cars : dict[str, str] | None
+    aux_files : dict[str, str] | None
         Additional files in the fileset. Keys should match corresponding
-        side_cars dictionary in format.
+        aux_files dictionary in format.
     id : int | None
         The ID of the fileset in the session. To be used to
         distinguish multiple filesets with the same scan type in the
@@ -169,47 +166,94 @@ class Fileset(BaseItem, BaseFileset):
     record : arcana.pipeline.provenance.Record | None
         The provenance record for the pipeline that generated the file set,
         if applicable
+    resource_name : str | None
+        For repositories where the name of the file format is saved with the
+        data (i.e. XNAT) the name of the resource is to enable straightforward
+        format identification
+    potential_aux_files : list[str]
+        A list of paths to potential files to include in the fileset as
+        "side-cars" or headers or in a directory format. Used when the
+        format of the fileset is not set when it is detected in the repository
+        but determined later from a list of candidates in the specification it
+        is matched to.
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
-                 path=None, side_cars=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+                 path=None, aux_files=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
-                 exists=True, checksums=None, record=None):
+                 exists=True, checksums=None, record=None, resource_name=None,
+                 potential_aux_files=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
-        if path is None:
-            if side_cars is not None:
+        if aux_files is not None:
+            if path is None:
                 raise ArcanaUsageError(
-                    "Side cars provided to {} fileset ({}) but not primary "
-                    "path".format(self.name, side_cars))
-        else:
+                    "Side cars provided to '{}' fileset ({}) but not primary "
+                    "path".format(self.name, aux_files))
+            if format is None:
+                raise ArcanaUsageError(
+                    "Side cars provided to '{}' fileset ({}) but format is "
+                    "not specified".format(self.name, aux_files))
+        if path is not None:
             path = op.abspath(op.realpath(path))
-            if side_cars is None:
-                side_cars = {}
-            if set(side_cars.keys()) != set(self.format.side_cars.keys()):
+            if aux_files is None:
+                aux_files = {}
+            elif set(aux_files.keys()) != set(self.format.aux_files.keys()):
                 raise ArcanaUsageError(
                     "Provided side cars for '{}' but expected '{}'"
-                    .format("', '".join(side_cars.keys()),
-                            "', '".join(self.format.side_cars.keys())))
+                    .format("', '".join(aux_files.keys()),
+                            "', '".join(self.format.aux_files.keys())))
         self._path = path
-        self._side_cars = side_cars
+        self._aux_files = aux_files if aux_files is not None else {}
         self._uri = uri
-        if id is None and path is not None and format.name == 'dicom':
-            self._id = int(self.dicom_values([DICOM_SERIES_NUMBER_TAG])
-                           [DICOM_SERIES_NUMBER_TAG])
-        else:
-            self._id = id
-
+        self._id = id
         self._checksums = checksums
+        self._resource_name = resource_name
+        if potential_aux_files is not None and format is not None:
+            raise ArcanaUsageError(
+                "Potential paths should only be provided to Fileset.__init__ "
+                "({}) when the format of the fileset ({}) is not determined"
+                .format(self.name, format))
+        if potential_aux_files is not None:
+            potential_aux_files = list(potential_aux_files)
+        self._potential_aux_files = potential_aux_files
+
+    def __getattr__(self, attr):
+        """
+        For the convenience of being able to make calls on a fileset that are
+        dependent on its format, e.g.
+
+            >>> fileset = Fileset('a_name', format=AnImageFormat())
+            >>> fileset.get_header()
+
+        we capture missing attributes and attempt to redirect them to methods
+        of the format class that take the fileset as the first argument
+        """
+        try:
+            frmt = self.__dict__['_format']
+        except KeyError:
+            frmt = None
+        else:
+            try:
+                format_attr = getattr(frmt, attr)
+            except AttributeError:
+                pass
+            else:
+                if callable(format_attr):
+                    return lambda *args, **kwargs: format_attr(self, *args,
+                                                               **kwargs)
+        raise AttributeError("Filesets of '{}' format don't have a '{}' "
+                             "attribute".format(frmt, attr))
 
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
               BaseItem.__eq__(self, other) and
-              self.side_cars == other.side_cars and
-              self.id == other.id and
-              self.checksums == other.checksums)
+              self._aux_files == other._aux_files and
+              self._id == other._id and
+              self._checksums == other._checksums and
+              self._resource_name == other._resource_name)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -222,9 +266,10 @@ class Fileset(BaseItem, BaseFileset):
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseItem.__hash__(self) ^
-                hash(self.id) ^
-                hash(tuple(sorted(self.side_cars.items()))) ^
-                hash(self.checksums))
+                hash(self._id) ^
+                hash(tuple(sorted(self._aux_files.items()))) ^
+                hash(self._checksums) ^
+                hash(self._resource_name))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -236,21 +281,32 @@ class Fileset(BaseItem, BaseFileset):
                 # If ids are equal order depending on study name
                 # with acquired (from_study==None) coming first
                 if self.from_study is None:
-                    return other.from_study is None
+                    return other.from_study is not None
                 elif other.from_study is None:
                     return False
+                elif self.from_study == other.from_study:
+                    if self.format_name is None:
+                        return other.format_name is not None
+                    elif other.format_name is None:
+                        return False
+                    else:
+                        return self.format_name < other.format_name
                 else:
                     return self.from_study < other.from_study
             else:
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}, exists={})"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={}{})"
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
-                    self.exists))
+                    (", resource_name='{}'".format(self._resource_name)
+                     if self._resource_name is not None else ''),
+                    self.exists,
+                    (", path='{}'".format(self.path)
+                     if self._path is not None else '')))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseFileset.find_mismatch(self, other, indent)
@@ -264,10 +320,14 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}id: self={} v other={}'
                          .format(sub_indent, self._id,
                                  other._id))
-        if self.checksums != other.checksums:
+        if self._checksums != other._checksums:
             mismatch += ('\n{}checksum: self={} v other={}'
                          .format(sub_indent, self.checksums,
                                  other.checksums))
+        if self._resource_name != other._resource_name:
+            mismatch += ('\n{}format_name: self={} v other={}'
+                         .format(sub_indent, self._resource_name,
+                                 other._resource_name))
         return mismatch
 
     @property
@@ -286,51 +346,68 @@ class Fileset(BaseItem, BaseFileset):
                     "'{}')".format(self.name))
         return self._path
 
-    def set_path(self, path, side_cars=None):
+    def set_path(self, path, aux_files=None):
         if path is not None:
             path = op.abspath(op.realpath(path))
             self._exists = True
         self._path = path
-        if side_cars is None:
-            self._side_cars = dict(self.format.side_car_paths(path))
+        if aux_files is None:
+            self._aux_files = dict(self.format.default_aux_file_paths(path))
         else:
-            if set(self.format.side_cars.keys()) != set(side_cars.keys()):
+            if set(self.format.aux_files.keys()) != set(aux_files.keys()):
                 raise ArcanaUsageError(
                     "Keys of provided side cars ('{}') don't match format "
-                    "('{}')".format("', '".join(side_cars.keys()),
-                                    "', '".join(self.format.side_cars.keys())))
-            self._side_cars = side_cars
+                    "('{}')".format("', '".join(aux_files.keys()),
+                                    "', '".join(self.format.aux_files.keys())))
+            self._aux_files = aux_files
         self._checksums = self.calculate_checksums()
         self.put()  # Push to repository
 
     @path.setter
     def path(self, path):
-        self.set_path(path, side_cars=None)
+        self.set_path(path, aux_files=None)
 
     @property
     def paths(self):
         """Iterates through all files in the set"""
+        if self.format is None:
+            raise ArcanaFileFormatError(
+                "Cannot get paths of fileset ({}) that hasn't had its format "
+                "set".format(self))
         if self.format.directory:
             return chain(*((op.join(root, f) for f in files)
                            for root, _, files in os.walk(self.path)))
         else:
-            return chain([self.path], self.side_cars.values())
+            return chain([self.path], self.aux_files.values())
+
+    @property
+    def format(self):
+        return self._format
+
+    @format.setter
+    def format(self, format):  # @ReservedAssignment
+        assert isinstance(format, FileFormat)
+        self._format = format
+        if format.aux_files and self._path is not None:
+            self._aux_files = format.assort_files(
+                [self._path] + list(self._potential_aux_files))[1]
+        if self._id is None and hasattr(format, 'extract_id'):
+            self._id = format.extract_id(self)
+        # No longer need to retain potentials after we have assigned the real
+        # auxiliaries
+        self._potential_aux_files = None
 
     @property
     def fname(self):
-        if not self.name.endswith(self.format.ext_str):
-            fname = self.name + self.format.ext_str
-        else:
-            fname = self.name
-        return fname
+        if self.format is None:
+            raise ArcanaFileFormatError(
+                "Need to provide format before accessing the filename of {}"
+                .format(self))
+        return self.name + self.format.ext_str
 
     @property
     def basename(self):
-        if self.format.ext_str and self.name.endswith(self.format.ext_str):
-            basename = self.name[:-len(self.format.ext_str)]
-        else:
-            basename = self.name
-        return basename
+        return self.name
 
     @property
     def id(self):
@@ -359,14 +436,25 @@ class Fileset(BaseItem, BaseFileset):
             raise ArcanaUsageError("Can't change value of URI for {} from {} "
                                    "to {}".format(self, self._uri, uri))
 
-    @property
-    def side_cars(self):
-        return self._side_cars if self._side_cars is not None else {}
+    def aux_file(self, name):
+        return self._aux_files[name]
 
     @property
-    def side_car_fnames_and_paths(self):
-        return ((self.basename + self.format.side_cars[sc_name], sc_path)
-                for sc_name, sc_path in self.side_cars.items())
+    def aux_files(self):
+        return self._aux_files
+
+    @property
+    def aux_file_fnames_and_paths(self):
+        return ((self.basename + self.format.aux_files[sc_name], sc_path)
+                for sc_name, sc_path in self.aux_files.items())
+
+    @property
+    def format_name(self):
+        if self.format is None:
+            name = self._resource_name
+        else:
+            name = self.format.name
+        return name
 
     @property
     def checksums(self):
@@ -391,116 +479,44 @@ class Fileset(BaseItem, BaseFileset):
         return checksums
 
     @classmethod
-    def from_path(cls, path, frequency='per_session', format=None,  # @ReservedAssignment @IgnorePep8
-                  from_study=None, side_cars=None, **kwargs):
+    def from_path(cls, path, **kwargs):
         if not op.exists(path):
             raise ArcanaUsageError(
                 "Attempting to read Fileset from path '{}' but it "
                 "does not exist".format(path))
         if op.isdir(path):
-            within_exts = frozenset(
-                split_extension(f)[1] for f in os.listdir(path)
-                if not f.startswith('.'))
-            if format is None:
-                # Try to guess format
-                try:
-                    format = FileFormat.by_within_dir_exts(within_exts)  # @ReservedAssignment @IgnorePep8
-                except ArcanaFileFormatNotRegisteredError:
-                    # Fall back to general directory format
-                    format = directory_format  # @ReservedAssignment
             name = op.basename(path)
         else:
-            filename = op.basename(path)
-            basename, ext = split_extension(filename)
-            if format is None:
-                possible_side_car_exts = [
-                    split_extension(f)[1] for f in os.listdir(op.dirname(path))
-                    if (f.startswith(basename) and f != filename and
-                        split_extension(f)[1] is not None)]
-                extensions = [ext] + sorted(possible_side_car_exts)
-                try:
-                    format = FileFormat.by_ext(extensions)  # @ReservedAssignment @IgnorePep8
-                except ArcanaFileFormatNotRegisteredError:
-                    try:
-                        format = FileFormat.by_ext(ext)  # @ReservedAssignment
-                    except ArcanaFileFormatNotRegisteredError as e:
-                        e.msg += (", which is required to identify the "
-                                  "format of the fileset at '{}'".format(path))
-                        raise e
-            if from_study is None:
-                # For acquired datasets we can't be sure that the name is
-                # unique within the directory if we strip the extension so we
-                # need to keep it in
-                name = filename
-            else:
-                name = basename
-            # Create side cars dictionary from default extensions
-            if side_cars is None:
-                side_cars = {}
-                for sc_name, sc_ext in format.side_cars.items():
-                    side_cars[sc_name] = op.join(op.dirname(path),
-                                                 basename + sc_ext)
-        return cls(name, format, frequency=frequency, path=path,
-                   from_study=from_study, side_cars=side_cars, **kwargs)
+            name = split_extension(op.basename(path))[0]
+        return cls(name, path=path, **kwargs)
 
-    def dicom(self, index):
+    def detect_format(self, candidates):
         """
-        Returns a PyDicom object for the DICOM file at index 'index'
+        Detects the format of the fileset from a list of possible
+        candidates. If multiple candidates match the potential files, e.g.
+        NiFTI-X (see dcm2niix) and NiFTI, then the first matching candidate is
+        selected.
+
+        If a 'format_name' was specified when the fileset was
+        created then that is used to select between the candidates. Otherwise
+        the file extensions of the primary path and potential auxiliary files,
+        or extensions of the files within the directory for directories are
+        matched against those specified for the file formats
 
         Parameters
         ----------
-        fileset : Fileset
-            The fileset to read a DICOM file from
-        index : int
-            The index of the DICOM file in the fileset to read
-
-        Returns
-        -------
-        dcm : pydicom.DICOM
-            A PyDicom file object
+        candidates : FileFormat
+            A list of file-formats to select from.
         """
-        if self.format.name != 'dicom':
+        if self._format is not None:
             raise ArcanaFileFormatError(
-                "Can not read DICOM header as {} is not in DICOM format"
-                .format(self))
-        fnames = sorted([f for f in os.listdir(self.path)
-                         if not f.startswith('.')])
-        with open(op.join(self.path, fnames[index]), 'rb') as f:
-            dcm = pydicom.dcmread(f)
-        return dcm
-
-    def dicom_values(self, tags):
-        """
-        Returns a dictionary with the DICOM header fields corresponding
-        to the given tag names
-
-        Parameters
-        ----------
-        tags : List[Tuple[str, str]]
-            List of DICOM tag values as 2-tuple of strings, e.g.
-            [('0080', '0020')]
-        repository_login : <repository-login-object>
-            A login object for the repository to avoid having to relogin
-            for every dicom_header call.
-
-        Returns
-        -------
-        dct : Dict[Tuple[str, str], str|int|float]
-        """
-        try:
-            if (self._path is None and self._repository is not None and
-                    hasattr(self.repository, 'dicom_header')):
-                hdr = self.repository.dicom_header(self)
-                dct = {t: hdr[t] for t in tags}
-            else:
-                # Get the DICOM object for the first file in the fileset
-                dcm = self.dicom(0)
-                dct = {t: dcm[t].value for t in tags}
-        except KeyError as e:
-            e.msg = ("{} does not have dicom tag {}".format(
-                     self, e.msg))
-            raise e
-        return dct
+                "Format has already been set for {}".format(self))
+        matches = [c for c in candidates if c.matches(self)]
+        if not matches:
+            raise ArcanaFileFormatError(
+                "None of the candidate file formats ({}) match {}"
+                .format(', '.join(str(c) for c in candidates), self))
+        return matches[0]
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
@@ -510,22 +526,36 @@ class Fileset(BaseItem, BaseFileset):
         dct['uri'] = self.uri
         dct['bids_attr'] = self.bids_attr
         dct['checksums'] = self.checksums
+        dct['resource_name'] = self._resource_name
+        dct['potential_aux_files'] = self._potential_aux_files
         return dct
 
     def get(self):
         if self.repository is not None:
             self._exists = True
-            self._path = self.repository.get_fileset(self)
+            self._path, self._aux_files = self.repository.get_fileset(self)
 
     def put(self):
         if self.repository is not None and self._path is not None:
             self.repository.put_fileset(self)
 
-    def get_array(self):
-        return self.format.get_array(self.path)
+    def contents_equal(self, other, **kwargs):
+        """
+        Test the equality of the fileset contents with another fileset. If the
+        fileset's format implements a 'contents_equal' method than that is used
+        to determine the equality, otherwise a straight comparison of the
+        checksums is used.
 
-    def get_header(self):
-        return self.format.get_header(self.path)
+        Parameters
+        ----------
+        other : Fileset
+            The other fileset to compare to
+        """
+        if hasattr(self.format, 'contents_equal'):
+            equal = self.format.contents_equal(self, other, **kwargs)
+        else:
+            equal = (self.checksums == other.checksums)
+        return equal
 
 
 class Field(BaseItem, BaseField):

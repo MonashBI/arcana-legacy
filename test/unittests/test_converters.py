@@ -2,7 +2,7 @@ import os
 import tempfile
 import os.path as op
 from arcana.data import FilesetInputSpec, FilesetSpec, FilesetInput, Fileset
-from arcana.data.file_format.standard import (
+from arcana.data.file_format import (
     text_format, directory_format, zip_format)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.utils.testing import BaseTestCase
@@ -92,7 +92,7 @@ class TestFormatConversions(BaseTestCase):
         super(TestFormatConversions, self).setUp()
 
     @property
-    def INPUT_DATASETS(self):
+    def INPUT_FILESETS(self):
         return {
             'text': 'text',
             'directory': self.input_directory,
@@ -106,7 +106,7 @@ class TestFormatConversions(BaseTestCase):
             os.makedirs(path)
             with open(op.join(path, 'dummy.txt'), 'w') as f:
                 f.write('blah')
-        return Fileset.from_path(path)
+        return Fileset.from_path(path, format=directory_format)
 
     @property
     def input_zip(self):
@@ -117,7 +117,7 @@ class TestFormatConversions(BaseTestCase):
             zipper.inputs.dirname = self.input_directory.path
             zipper.inputs.zipped = path
             zipper.run()
-        return Fileset.from_path(path)
+        return Fileset.from_path(path, format=zip_format)
 
     def test_format_conversions(self):
         study = self.create_study(

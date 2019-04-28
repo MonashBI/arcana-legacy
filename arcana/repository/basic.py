@@ -12,8 +12,8 @@ from arcana.data import Fileset, Field
 from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
-    ArcanaBadlyFormattedBasicRepoError,
-    ArcanaMissingDataException, ArcanaFileFormatNotRegisteredError)
+    ArcanaRepositoryError,
+    ArcanaMissingDataException)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
@@ -98,19 +98,21 @@ class BasicRepo(Repository):
         # Don't need to cache fileset as it is already local as long
         # as the path is set
         if fileset._path is None:
-            path = self.fileset_path(fileset)
-            if not op.exists(path):
+            primary_path = self.fileset_path(fileset)
+            aux_files = fileset.format.default_aux_file_paths(primary_path)
+            if not op.exists(primary_path):
                 raise ArcanaMissingDataException(
                     "{} does not exist in {}"
                     .format(fileset, self))
-            for sc_name, sc_path in fileset.format.side_car_paths(path):
-                if not op.exists(sc_path):
+            for aux_name, aux_path in aux_files.items():
+                if not op.exists(aux_path):
                     raise ArcanaMissingDataException(
                         "{} is missing '{}' side car in {}"
-                        .format(fileset, sc_name, self))
+                        .format(fileset, aux_name, self))
         else:
-            path = fileset.path
-        return path
+            primary_path = fileset.path
+            aux_files = fileset.aux_files
+        return primary_path, aux_files
 
     def get_field(self, field):
         """
@@ -151,8 +153,9 @@ class BasicRepo(Repository):
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
             # Copy side car files into repository
-            for sc_name, sc_path in fileset.format.side_car_paths(target_path):
-                shutil.copyfile(self.side_car[sc_name], sc_path)
+            for aux_name, aux_path in fileset.format.default_aux_file_paths(
+                    target_path).items():
+                shutil.copyfile(self.aux_file[aux_name], aux_path)
         elif op.isdir(fileset.path):
             if op.exists(target_path):
                 shutil.rmtree(target_path)
@@ -244,21 +247,30 @@ class BasicRepo(Repository):
                 frequency = 'per_subject'
             else:
                 frequency = 'per_session'
-            for fname in chain(self._filter_files(files, session_path),
-                               self._filter_dirs(dirs, session_path)):
-                try:
-                    all_filesets.append(
-                        Fileset.from_path(
-                            op.join(session_path, fname),
-                            frequency=frequency,
-                            subject_id=subj_id, visit_id=visit_id,
-                            repository=self,
-                            from_study=from_study,
-                            **kwargs))
-                except ArcanaFileFormatNotRegisteredError:
-                    logger.info("Skipping '{}' as its extension is not "
-                                "recognised".format(op.join(session_path,
-                                                            fname)))
+            filtered_files = self._filter_files(files, session_path)
+            for fname in filtered_files:
+                basename = split_extension(fname)[0]
+                all_filesets.append(
+                    Fileset.from_path(
+                        op.join(session_path, fname),
+                        frequency=frequency,
+                        subject_id=subj_id, visit_id=visit_id,
+                        repository=self,
+                        from_study=from_study,
+                        potential_aux_files=[
+                            f for f in filtered_files
+                            if (split_extension(f)[0] == basename and
+                                f != fname)],
+                        **kwargs))
+            for fname in self._filter_dirs(dirs, session_path):
+                all_filesets.append(
+                    Fileset.from_path(
+                        op.join(session_path, fname),
+                        frequency=frequency,
+                        subject_id=subj_id, visit_id=visit_id,
+                        repository=self,
+                        from_study=from_study,
+                        **kwargs))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
                                   self.FIELDS_FNAME), 'r') as f:
@@ -271,7 +283,7 @@ class BasicRepo(Repository):
                     for k, v in list(dct.items()))
             if self.PROV_DIR in dirs:
                 if from_study is None:
-                    raise ArcanaBadlyFormattedBasicRepoError(
+                    raise ArcanaRepositoryError(
                         "Found provenance directory in session directory (i.e."
                         " not in study-specific sub-directory)")
                 base_prov_dir = op.join(session_path, self.PROV_DIR)
@@ -296,7 +308,7 @@ class BasicRepo(Repository):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
             # "hidden" files that start with '.')
-            raise ArcanaBadlyFormattedBasicRepoError(
+            raise ArcanaRepositoryError(
                 "Files ('{}') not permitted at {} level in local "
                 "repository".format("', '".join(files),
                                     ('subject'
@@ -404,7 +416,7 @@ class BasicRepo(Repository):
                 if depth > deepest:
                     deepest = depth
         if deepest == -1:
-            raise ArcanaBadlyFormattedBasicRepoError(
+            raise ArcanaRepositoryError(
                 "Could not guess depth of '{}' repository as did not find "
                 "a valid session directory within sub-directories."
                 .format(root_dir))

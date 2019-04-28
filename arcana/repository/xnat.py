@@ -40,13 +40,13 @@ class XnatRepo(Repository):
     server : str (URI)
         URI of XNAT server to connect to
     project_id : str
-        The ID of the project on XNAT
+        The ID of the project in the XNAT repository
     cache_dir : str (path)
-        Path to local directory to cache XNAT data in
+        Path to local directory to cache remote data in
     user : str
         Username with which to connect to XNAT with
     password : str
-        Password to connect to XNAt with
+        Password to connect to the XNAT repository with
     check_md5 : bool
         Whether to check the MD5 digest of cached files before using. This
         checks for updates on the server since the file was cached
@@ -174,7 +174,19 @@ class XnatRepo(Repository):
         prev_login : xnat.XNATSession
             An XNATSession object to use for the connection. A new
             one is created if one isn't provided
+
+        Returns
+        -------
+        primary_path : str
+            The path of the primary file once it has been cached
+        aux_paths : dict[str, str]
+            A dictionary containing a mapping of auxiliary file names to
+            paths
         """
+        if fileset.format is None:
+            raise ArcanaUsageError(
+                "Attempting to download {}, which has not been assigned a "
+                "file format (see Fileset.formatted)".format(fileset))
         self._check_repository(fileset)
         with self:  # Connect to the XNAT repository if haven't already
             xsession = self.get_xsession(fileset)
@@ -197,7 +209,33 @@ class XnatRepo(Repository):
                 else:
                     need_to_download = False
             if need_to_download:
-                xresource = self.get_resource(xscan, fileset.format)
+#                 if fileset._resource_name is not None:
+                xresource = xscan.resources[fileset._resource_name]
+#                 else:
+#                     xresources = []
+#                     for resource_name in fileset.format.xnat_resource_names:
+#                         try:
+#                             xresources.append(xscan.resources[resource_name])
+#                         except KeyError:
+#                             pass
+#                     if not xresources:
+#                         raise ArcanaError(
+#                             "Could not find matching resource for {} ('{}') "
+#                             "in {}, available resources are '{}'"
+#                             .format(
+#                                 self.format,
+#                                 "', '".join(
+#                                     fileset.format.xnat_resource_names),
+#                                 xscan.uri,
+#                                 "', '".join(
+#                                     r.label
+#                                     for r in list(xscan.resources.values()))))
+#                     elif len(xresources) > 1:
+#                         logger.warning(
+#                             "Found multiple acceptable resources for {}: {}"
+#                             .format(fileset,
+#                                     ', '.join(str(r) for r in xresources)))
+#                     xresource = xresources[0]
                 # The path to the directory which the files will be
                 # downloaded to.
                 tmp_dir = cache_path + '.download'
@@ -227,11 +265,12 @@ class XnatRepo(Repository):
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
         if not fileset.format.directory:
-            path = op.join(cache_path,
-                           fileset.format.primary_file(os.listdir(cache_path)))
+            (primary_path, aux_paths) = fileset.format.assort_files(
+                op.join(cache_path, f) for f in os.listdir(cache_path))
         else:
-            path = cache_path
-        return path
+            primary_path = cache_path
+            aux_paths = None
+        return primary_path, aux_paths
 
     def get_field(self, field):
         self._check_repository(field)
@@ -243,6 +282,10 @@ class XnatRepo(Repository):
         return val
 
     def put_fileset(self, fileset):
+        if fileset.format is None:
+            raise ArcanaFileFormatError(
+                "Format of {} needs to be set before it is uploaded to {}"
+                .format(fileset, self))
         self._check_repository(fileset)
         # Open XNAT session
         with self:
@@ -261,32 +304,35 @@ class XnatRepo(Repository):
                 # Copy primary file
                 shutil.copyfile(fileset.path,
                                 op.join(cache_path, fileset.fname))
-                # Copy side-cars
-                for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
+                # Copy auxiliaries
+                for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
                     shutil.copyfile(sc_path, op.join(cache_path, sc_fname))
             with open(cache_path + XnatRepo.MD5_SUFFIX, 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
             xscan = self._login.classes.MrScanData(
-                id=fileset.basename, type=fileset.basename, parent=xsession)
+                id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
-            fileset.id = xscan.id
-            # Delete existing resource
-            # TODO: probably should have check to see if we want to
-            #       override it
+            # Select the first xnat_resource name to use to upload the data to
+            resource_name = fileset.format.resource_names(self.type)[0]
             try:
-                xresource = xscan.resources[
-                    fileset.format.name.upper()]
+                xresource = xscan.resources[resource_name]
             except KeyError:
                 pass
             else:
+                # Delete existing resource
+                # TODO: probably should have check to see if we want to
+                #       override it
                 xresource.delete()
-            xresource = xscan.create_resource(
-                fileset.format.name.upper())
-            xresource.upload(fileset.path, fileset.fname)
-            for sc_fname, sc_path in fileset.side_car_fnames_and_paths:
-                xresource.upload(sc_path, sc_fname)
+            xresource = xscan.create_resource(resource_name)
+            if fileset.format.directory:
+                for fname in os.listdir(fileset.path):
+                    xresource.upload(op.join(fileset.path, fname), fname)
+            else:
+                xresource.upload(fileset.path, fileset.fname)
+                for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
+                    xresource.upload(sc_path, sc_fname)
 
     def put_field(self, field):
         self._check_repository(field)
@@ -294,7 +340,7 @@ class XnatRepo(Repository):
         if field.array:
             if field.dtype is str:
                 val = ['"{}"'.format(v) for v in val]
-            val = ','.join(val)
+            val = '[' + ','.join(str(v) for v in val) + ']'
         if field.dtype is str:
             val = '"{}"'.format(val)
         with self:
@@ -355,7 +401,7 @@ class XnatRepo(Repository):
         if not fileset.format.directory:
             # Replace the key corresponding to the primary file with '.' to
             # match the way that checksums are created by Arcana
-            primary = fileset.format.primary_file(checksums.keys())
+            primary = fileset.format.assort_files(checksums.keys())[0]
             checksums['.'] = checksums.pop(primary)
         return checksums
 
@@ -522,18 +568,13 @@ class XnatRepo(Repository):
                         finally:
                             shutil.rmtree(temp_dir, ignore_errors=True)
                     else:
-                        try:
-                            file_format = self._guess_file_format(resources,
-                                                                  scan_uri)
-                        except ArcanaFileFormatError as e:
-                            logger.warning(
-                                "Ignoring '{}' as couldn't guess its file "
-                                "format:\n{}".format(scan_type, e))
-                        all_filesets.append(Fileset(
-                            scan_type, format=file_format, id=scan_id,
-                            uri=scan_uri, repository=self, frequency=frequency,
-                            subject_id=subject_id, visit_id=visit_id,
-                            from_study=from_study, **kwargs))
+                        for resource in resources:
+                            all_filesets.append(Fileset(
+                                scan_type, id=scan_id, uri=scan_uri,
+                                repository=self, frequency=frequency,
+                                subject_id=subject_id, visit_id=visit_id,
+                                from_study=from_study,
+                                resource_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))
         return all_filesets, all_fields, all_records
@@ -582,23 +623,6 @@ class XnatRepo(Repository):
                for t in response if (tag_parse_re.match(t['tag1']) and
                                      t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
         return hdr
-
-    @classmethod
-    def get_resource(cls, xscan, file_format):
-        for resource_name in file_format.xnat_resource_names:
-            try:
-                return xscan.resources[resource_name]
-            except KeyError:
-                continue
-        raise ArcanaError(
-            "Could not find matching resource for {} ('{}') in {}, "
-            "available resources are '{}'"
-            .format(
-                file_format,
-                "', '".join(file_format.xnat_resource_names),
-                xscan.uri,
-                "', '".join(
-                    r.label for r in list(xscan.resources.values()))))
 
     def download_fileset(self, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path):
@@ -739,31 +763,6 @@ class XnatRepo(Repository):
                             subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
         return op.join(cache_dir, fileset.name if name is None else name)
-
-    @classmethod
-    def _guess_file_format(cls, resources, uri):
-        # Use a set here as in some cases there are multiple resources
-        # the same format (e.g. DICOM + secondary)
-        fileset_formats = {}
-        for label, frmt in resources.items():
-            if frmt is None:
-                frmt = label
-            try:
-                fileset_formats[label] = FileFormat.by_names[frmt.lower()]
-            except KeyError:
-                logger.debug("Ignoring resource '{}' in {}".format(frmt, uri))
-        if not fileset_formats:
-            raise ArcanaFileFormatError(
-                "No recognised data formats for '{}' (available "
-                "resources are '{}')".format(
-                    uri, "', '".join(r.label for r in resources)))
-        elif len(fileset_formats) > 1:
-            raise ArcanaFileFormatError(
-                "Multiple valid data-formats '{}' for '{}', please "
-                "pass 'file_format' to 'download_fileset' method to speficy"
-                " resource to download".format("', '".join(fileset_formats),
-                                               uri))
-        return next(iter(fileset_formats.values()))
 
     def _check_repository(self, item):
         if item.repository is not self:

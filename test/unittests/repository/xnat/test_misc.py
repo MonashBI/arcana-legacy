@@ -5,9 +5,9 @@ import unittest
 import sys
 from unittest import TestCase
 import xnat
-from arcana.data.file_format import FileFormat
 from arcana.utils.testing import BaseTestCase
 from arcana.data import FilesetInput
+from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
@@ -16,6 +16,7 @@ from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
 import test_data  # @UnresolvedImport @IgnorePep8
+from test_data import dicom_format  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
@@ -24,17 +25,13 @@ import test_to_process  # @UnresolvedImport @IgnorePep8
 sys.path.pop(0)
 
 
-dicom_format = FileFormat(name='dicom', extension=None,
-                          directory=True, within_dir_exts=['.dcm'])
-
-
 class TestConnectDisconnect(TestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_connect_disconnect(self):
         repository = XnatRepo(project_id='dummy',
-                                    server=SERVER,
-                                    cache_dir=tempfile.mkdtemp())
+                              server=SERVER,
+                              cache_dir=tempfile.mkdtemp())
         with repository:
             self._test_open(repository)
         self._test_closed(repository)
@@ -71,6 +68,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                                    test_data.TestDicomTagMatch):
 
     BASE_CLASS = test_data.TestDicomTagMatch
+    REF_FORMATS = [dicom_format]
 
     @property
     def ref_dir(self):
@@ -129,7 +127,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
                                    BaseTestCase):
 
-    INPUT_DATASETS = {'fileset': '1'}
+    INPUT_FILESETS = {'fileset': '1'}
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_on_path_access(self):
@@ -142,6 +140,7 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
             visit_ids=[self.VISIT])
         # Get a fileset
         fileset = list(list(list(tree.subjects)[0].sessions)[0].filesets)[0]
+        fileset.format = text_format
         self.assertEqual(fileset._path, None)
         target_path = op.join(
             tmp_dir, self.project,
@@ -152,4 +151,4 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
         self.assertEqual(fileset.path, target_path)
         with open(target_path) as f:
             self.assertEqual(f.read(),
-                             self.INPUT_DATASETS[fileset.basename])
+                             self.INPUT_FILESETS[fileset.basename])

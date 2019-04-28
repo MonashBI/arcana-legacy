@@ -45,7 +45,7 @@ class ArcanaCantPickleStudyError(ArcanaError):
     pass
 
 
-class ArcanaBadlyFormattedBasicRepoError(ArcanaError):
+class ArcanaRepositoryError(ArcanaError):
     pass
 
 
@@ -146,10 +146,6 @@ class ArcanaNoConverterError(ArcanaError):
 class ArcanaConverterNotAvailableError(ArcanaError):
     "The converter required to convert between formats is not "
     "available"
-
-
-class ArcanaFileFormatNotRegisteredError(ArcanaError):
-    pass
 
 
 class ArcanaReprocessException(ArcanaException):

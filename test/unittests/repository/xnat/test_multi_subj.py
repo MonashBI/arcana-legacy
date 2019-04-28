@@ -8,7 +8,7 @@ from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     FilesetInput, FilesetInputSpec)
 from arcana.study import Study, StudyMetaClass
-from arcana.data.file_format.standard import text_format
+from arcana.data.file_format import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
 import sys
@@ -53,7 +53,13 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
         tree = self.repository.tree()
-        ref_tree = self.get_tree(self.repository, sync_with_repo=True)
+        for node in tree.nodes():
+            for fileset in node.filesets:
+                fileset.format = text_format
+                # Clear id and format name from regenerated tree
+                fileset._id = None
+#                 fileset.get()
+        ref_tree = self.get_tree(self.repository)  #, sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
@@ -84,7 +90,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                 filesets.extend(
                     Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in fileset_names)
-        return Tree.construct(filesets=filesets)
+        return Tree.construct(self.repository, filesets=filesets)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):
