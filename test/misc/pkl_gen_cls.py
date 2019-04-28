@@ -5,7 +5,7 @@ import os
 import shutil
 from arcana import (
     StudyMetaClass, Study, BasicRepo, SingleProc, FilesetSpec,
-    FilesetInput)
+    InputFileset)
 from arcana.data.file_format import text_format
 import pickle as pkl
 import os.path as op
@@ -83,13 +83,13 @@ GeneratedClass = StudyMetaClass(
 
 norm = NormalClass('norm', BasicRepo(ARCHIVE_DIR),
                    SingleProc(WORK_DIR),
-                   inputs=[FilesetInput('fileset', text_format,
+                   inputs=[InputFileset('fileset', text_format,
                                            'fileset')])
 
 
 gen = GeneratedClass('gen', BasicRepo(ARCHIVE_DIR),
                      SingleProc(WORK_DIR),
-                     inputs=[FilesetInput('fileset', text_format,
+                     inputs=[InputFileset('fileset', text_format,
                                           'fileset')])
 
 print(norm)

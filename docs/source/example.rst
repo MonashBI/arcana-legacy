@@ -6,9 +6,9 @@ A basic toy example
 .. code-block:: python
 
     from arcana import (
-        Study, StudyMetaClass, FilesetInputSpec, FilesetSpec,
-        FieldInputSpec, FieldSpec, ParamSpec, SwitchSpec,
-        FilesetInput, FieldInput)
+        Study, StudyMetaClass, InputFilesetSpec, FilesetSpec,
+        InputFieldSpec, FieldSpec, ParamSpec, SwitchSpec,
+        InputFileset, InputField)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
         software_req2, matlab_req, toolbox_req)
@@ -21,15 +21,15 @@ A basic toy example
         # and generating pipeline (for derived filesets/fields)
         add_data_specs = [
             # Acquired file sets
-            FilesetInputSpec('acquired_file1', text_format),
-            FilesetInputSpec('acquired_file2', STD_IMAGE_FORMATS),
+            InputFilesetSpec('acquired_file1', text_format),
+            InputFilesetSpec('acquired_file2', STD_IMAGE_FORMATS),
             # Acquired fields
-            FieldInputSpec('acquired_field1', int, array=True,
+            InputFieldSpec('acquired_field1', int, array=True,
                               frequency='per_subject'),
-            FieldInputSpec('acquired_field2', float, optional=True),
+            InputFieldSpec('acquired_field2', float, optional=True),
             # "Acquired" file set with default value. Useful for
             # standard templates
-            FilesetInputSpec('template1', STD_IMAGE_FORMATS,
+            InputFilesetSpec('template1', STD_IMAGE_FORMATS,
                                 frequency='per_study',
                                 default=template_collectn),
             # Derived file sets
@@ -143,9 +143,9 @@ which can then be instantiated and used to generate 'derived2' with
         processor=SingleProc('/my/work/dir'),
         environment=StaticEnv(),
         inputs=[
-            FilesetInput('acquired_file1', 'your-name-for-file1'),
-            FilesetInput('acquired_file2', 'your-name-for-file2'),
-            FieldInput('acquired_field1', 'your-name-for-field1')],
+            InputFileset('acquired_file1', 'your-name-for-file1'),
+            InputFileset('acquired_file2', 'your-name-for-file2'),
+            InputField('acquired_field1', 'your-name-for-field1')],
         parameters={'parameter2': 50.0,
                     'node1_option': True})
 

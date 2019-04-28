@@ -5,8 +5,8 @@ from arcana.processor import SingleProc
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
-    FilesetInputSpec, FilesetSpec, FieldSpec,
-    FieldInputSpec, FieldInput)  # @IgnorePep8
+    InputFilesetSpec, FilesetSpec, FieldSpec,
+    InputFieldSpec, InputField)  # @IgnorePep8
 from arcana.data.file_format import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
@@ -35,10 +35,10 @@ d_req = DummyRequirement('d', detected_version='0.9.dev10')
 class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('acquired_fileset1', text_format),
-        FilesetInputSpec('acquired_fileset2', text_format),
-        FilesetInputSpec('acquired_fileset3', text_format),
-        FieldInputSpec('acquired_field1', float),
+        InputFilesetSpec('acquired_fileset1', text_format),
+        InputFilesetSpec('acquired_fileset2', text_format),
+        InputFilesetSpec('acquired_fileset3', text_format),
+        InputFieldSpec('acquired_field1', float),
         FilesetSpec('derived_fileset1', text_format, 'pipeline2'),
         FieldSpec('derived_field1', float, 'pipeline1', array=True),
         FieldSpec('derived_field2', float, 'pipeline3'),
@@ -402,8 +402,8 @@ class TestProvInputChange(BaseTestCase):
 class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FieldInputSpec('acquired_field1', int),
-        FieldInputSpec('acquired_field2', int, optional=True),
+        InputFieldSpec('acquired_field1', int),
+        InputFieldSpec('acquired_field2', int, optional=True),
         FieldSpec('derived_field1', int, 'pipeline1'),
         FieldSpec('derived_field2', int, 'pipeline2',
                   frequency='per_subject'),
@@ -545,7 +545,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [FieldInput('acquired_field1', 'acquired_field1', int)]
+    STUDY_INPUTS = [InputField('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -785,8 +785,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=[
-                FieldInput('acquired_field1', 'acquired_field1', int),
-                FieldInput('acquired_field2', 'acquired_field2', int,
+                InputField('acquired_field1', 'acquired_field1', int),
+                InputField('acquired_field2', 'acquired_field2', int,
                               skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],

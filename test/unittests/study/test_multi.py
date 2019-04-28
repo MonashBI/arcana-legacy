@@ -1,6 +1,6 @@
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
-from arcana.data import FilesetInput, FilesetSpec, FilesetInputSpec
+from arcana.data import InputFileset, FilesetSpec, InputFilesetSpec
 from arcana.data.file_format import text_format
 from arcana.study.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
@@ -19,8 +19,8 @@ class NotSpecifiedRequiredParameter(Exception):
 class StudyA(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('x', text_format),
-        FilesetInputSpec('y', text_format),
+        InputFilesetSpec('x', text_format),
+        InputFilesetSpec('y', text_format),
         FilesetSpec('z', text_format, 'pipeline_alpha')]
 
     add_param_specs = [
@@ -48,8 +48,8 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
 class StudyB(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('w', text_format),
-        FilesetInputSpec('x', text_format),
+        InputFilesetSpec('w', text_format),
+        InputFilesetSpec('x', text_format),
         FilesetSpec('y', text_format, 'pipeline_beta'),
         FilesetSpec('z', text_format, 'pipeline_beta')]
 
@@ -111,9 +111,9 @@ class FullMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                       'product_op': 'required_op'})]
 
     add_data_specs = [
-        FilesetInputSpec('a', text_format),
-        FilesetInputSpec('b', text_format),
-        FilesetInputSpec('c', text_format),
+        InputFilesetSpec('a', text_format),
+        InputFilesetSpec('b', text_format),
+        InputFilesetSpec('c', text_format),
         FilesetSpec('d', text_format, 'pipeline_alpha_trans'),
         FilesetSpec('e', text_format, 'pipeline_beta_trans'),
         FilesetSpec('f', text_format, 'pipeline_beta_trans')]
@@ -141,9 +141,9 @@ class PartialMultiStudy(with_metaclass(MultiStudyMetaClass, MultiStudy)):
                      {'w': 'b', 'x': 'c', 'o1': 'p1'})]
 
     add_data_specs = [
-        FilesetInputSpec('a', text_format),
-        FilesetInputSpec('b', text_format),
-        FilesetInputSpec('c', text_format)]
+        InputFilesetSpec('a', text_format),
+        InputFilesetSpec('b', text_format),
+        InputFilesetSpec('c', text_format)]
 
     pipeline_alpha_trans = MultiStudy.translate(
         'ss1', 'pipeline_alpha')
@@ -194,9 +194,9 @@ class TestMulti(BaseTestCase):
     def test_full_multi_study(self):
         study = self.create_study(
             FullMultiStudy, 'full',
-            [FilesetInput('a', 'ones', text_format),
-             FilesetInput('b', 'ones', text_format),
-             FilesetInput('c', 'ones', text_format)],
+            [InputFileset('a', 'ones', text_format),
+             InputFileset('b', 'ones', text_format),
+             InputFileset('c', 'ones', text_format)],
             parameters=[Parameter('required_op', 'mul')])
         d, e, f = study.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
@@ -224,9 +224,9 @@ class TestMulti(BaseTestCase):
     def test_partial_multi_study(self):
         study = self.create_study(
             PartialMultiStudy, 'partial',
-            [FilesetInput('a', 'ones', text_format),
-             FilesetInput('b', 'ones', text_format),
-             FilesetInput('c', 'ones', text_format)],
+            [InputFileset('a', 'ones', text_format),
+             InputFileset('b', 'ones', text_format),
+             InputFileset('c', 'ones', text_format)],
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = study.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
@@ -255,14 +255,14 @@ class TestMulti(BaseTestCase):
     def test_multi_multi_study(self):
         study = self.create_study(
             MultiMultiStudy, 'multi_multi',
-            [FilesetInput('ss1_x', 'ones', text_format),
-             FilesetInput('ss1_y', 'ones', text_format),
-             FilesetInput('full_a', 'ones', text_format),
-             FilesetInput('full_b', 'ones', text_format),
-             FilesetInput('full_c', 'ones', text_format),
-             FilesetInput('partial_a', 'ones', text_format),
-             FilesetInput('partial_b', 'ones', text_format),
-             FilesetInput('partial_c', 'ones', text_format)],
+            [InputFileset('ss1_x', 'ones', text_format),
+             InputFileset('ss1_y', 'ones', text_format),
+             InputFileset('full_a', 'ones', text_format),
+             InputFileset('full_b', 'ones', text_format),
+             InputFileset('full_c', 'ones', text_format),
+             InputFileset('partial_a', 'ones', text_format),
+             InputFileset('partial_b', 'ones', text_format),
+             InputFileset('partial_c', 'ones', text_format)],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
         self.assertContentsEqual(study.data('g'), 11.0)
@@ -307,14 +307,14 @@ class TestMulti(BaseTestCase):
         # Misses the required 'full_required_op' parameter, which sets
         # the operation of the second node in StudyB's pipeline to
         # 'product'
-        inputs = [FilesetInput('ss1_x', 'ones', text_format),
-                  FilesetInput('ss1_y', 'ones', text_format),
-                  FilesetInput('full_a', 'ones', text_format),
-                  FilesetInput('full_b', 'ones', text_format),
-                  FilesetInput('full_c', 'ones', text_format),
-                  FilesetInput('partial_a', 'ones', text_format),
-                  FilesetInput('partial_b', 'ones', text_format),
-                  FilesetInput('partial_c', 'ones', text_format)]
+        inputs = [InputFileset('ss1_x', 'ones', text_format),
+                  InputFileset('ss1_y', 'ones', text_format),
+                  InputFileset('full_a', 'ones', text_format),
+                  InputFileset('full_b', 'ones', text_format),
+                  InputFileset('full_c', 'ones', text_format),
+                  InputFileset('partial_a', 'ones', text_format),
+                  InputFileset('partial_b', 'ones', text_format),
+                  InputFileset('partial_c', 'ones', text_format)]
         missing_parameter_study = self.create_study(
             MultiMultiStudy, 'multi_multi',
             inputs,

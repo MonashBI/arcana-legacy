@@ -5,7 +5,7 @@ import os.path as op  # @IgnorePep8
 from arcana.data.file_format import text_format  # @IgnorePep8
 from arcana.study import Study, StudyMetaClass  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, FilesetInputSpec, FilesetSpec, Field)  # @IgnorePep8
+    Fileset, InputFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
 from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.repository import Tree  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
@@ -21,10 +21,10 @@ with_header_format = FileFormat(name='with_header', extension='.whf',
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):
 
     add_data_specs = [
-        FilesetInputSpec('source1', text_format),
-        FilesetInputSpec('source2', text_format),
-        FilesetInputSpec('source3', text_format),
-        FilesetInputSpec('source4', text_format,
+        InputFilesetSpec('source1', text_format),
+        InputFilesetSpec('source2', text_format),
+        InputFilesetSpec('source3', text_format),
+        InputFilesetSpec('source4', text_format,
                             optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),

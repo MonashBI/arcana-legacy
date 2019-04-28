@@ -6,7 +6,7 @@ import sys
 from unittest import TestCase
 import xnat
 from arcana.utils.testing import BaseTestCase
-from arcana.data import FilesetInput
+from arcana.data import InputFileset
 from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
@@ -112,8 +112,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=SingleProc(self.work_dir),
             inputs=[
-                FilesetInput('gre_phase', format=dicom_format, id=7),
-                FilesetInput('gre_mag', format=dicom_format, id=6)])
+                InputFileset('gre_phase', format=dicom_format, id=7),
+                InputFileset('gre_mag', format=dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
