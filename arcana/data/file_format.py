@@ -155,7 +155,7 @@ class FileFormat(object):
         try:
             names = self._resource_names[repo_type]
         except KeyError:
-            names = [self.name]
+            names = [self.name, self.name.upper()]
         return names
 
     def default_aux_file_paths(self, primary_path):
