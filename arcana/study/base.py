@@ -242,7 +242,7 @@ class Study(object):
                                 "run")
 
     def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
-             **kwargs):
+             generate=True, **kwargs):
         """
         Returns the Fileset(s) or Field(s) associated with the provided spec
         name(s), generating derived filesets as required. Multiple names in a
@@ -269,6 +269,8 @@ class Study(object):
         session_ids : list[str]
             The session IDs (i.e. 2-tuples of the form
             (<subject-id>, <visit-id>) to include in the returned collection
+        generate : bool
+            Whether to generate data that hasn't been generated yet or not
 
         Returns
         -------
@@ -286,7 +288,7 @@ class Study(object):
             single_name = False
         single_item = 'subject_id' in kwargs or 'visit_id' in kwargs
         filter_items = (subject_ids, visit_ids, session_ids) != (None, None,
-                                                                   None)
+                                                                 None)
         specs = [self.spec(n) for n in names]
         if single_item:
             if filter_items:
@@ -319,30 +321,45 @@ class Study(object):
                     "Non-None values for subject and/or visit IDs need to be "
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
-        # Work out which pipelines need to be run
-        pipeline_getters = defaultdict(set)
-        for spec in specs:
-            if spec.derived or spec.derivable:  # Filter out Study inputs
-                # Add name of spec to set of required outputs
-                pipeline_getters[spec.pipeline_getter].add(spec.name)
-        # Run required pipelines
-        if pipeline_getters:
-            kwargs = copy(kwargs)
-            kwargs.update({'subject_ids': subject_ids,
-                           'visit_ids': visit_ids,
-                           'session_ids': session_ids})
-            pipelines, required_outputs = zip(*(
-                (self.pipeline(k), v) for k, v in pipeline_getters.items()))
-            kwargs['required_outputs'] = required_outputs
-            self.processor.run(*pipelines, **kwargs)
-        # Find and return Item/Collection corresponding to requested spec
-        # names
+        # Get Item/Collection corresponding to requested spec names
+        all_data = self._get_items(names, single_item, filter_items,
+                                   subject_ids, visit_ids, session_ids)
+        if generate and any(any(not i.exists for i in collection)
+                            for collection in all_data):
+            # Work out which pipelines need to be run
+            pipeline_getters = defaultdict(set)
+            for spec in specs:
+                if spec.derived or spec.derivable:  # Filter out Study inputs
+                    # Add name of spec to set of required outputs
+                    pipeline_getters[spec.pipeline_getter].add(spec.name)
+            # Run required pipelines
+            if pipeline_getters:
+                kwargs = copy(kwargs)
+                kwargs.update({'subject_ids': subject_ids,
+                               'visit_ids': visit_ids,
+                               'session_ids': session_ids})
+                pipelines, required_outputs = zip(*(
+                    (self.pipeline(k), v)
+                    for k, v in pipeline_getters.items()))
+                kwargs['required_outputs'] = required_outputs
+                self.processor.run(*pipelines, **kwargs)
+            # Find and return Item/Collection corresponding to requested spec
+            # names
+            all_data = self._get_items(names, single_item, filter_items,
+                                       subject_ids, visit_ids, session_ids)
+        if single_name:
+            all_data = all_data[0]
+        return all_data
+
+    def _get_items(self, names, single_item, filter_items, subject_ids,
+                   visit_ids, session_ids):
         all_data = []
         for name in names:
             spec = self.bound_spec(name)
             data = spec.collection
             if single_item:
-                data = data.item(subject_id=subject_id, visit_id=visit_id)
+                data = data.item(subject_id=subject_ids[0],
+                                 visit_id=visit_ids[0])
             elif filter_items and spec.frequency != 'per_study':
                 if subject_ids is None:
                     subject_ids = []
@@ -369,10 +386,7 @@ class Study(object):
                         ", session_ids={})"
                         .format(subject_ids, visit_ids, session_ids))
                 data = spec.CollectionClass(spec.name, data)
-            if single_name:
-                return data
-            else:
-                all_data.append(data)
+            all_data.append(data)
         return all_data
 
     def pipeline(self, getter_name, required_outputs=None):
@@ -971,6 +985,8 @@ class StudyMetaClass(type):
             combined_attrs.update(
                 a for a in dir(base) if (not issubclass(base, Study) or
                                          a not in base.spec_names()))
+            # TODO: need to check that fields are not overridden by filesets
+            #       and vice-versa
             try:
                 combined_data_specs.update(
                     (d.name, d) for d in base.data_specs())
