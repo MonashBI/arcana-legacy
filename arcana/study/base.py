@@ -121,8 +121,9 @@ class Study(object):
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
-        self._subject_ids = subject_ids
-        self._visit_ids = visit_ids
+        self._subject_ids = (tuple(subject_ids)
+                             if subject_ids is not None else None)
+        self._visit_ids = tuple(visit_ids) if visit_ids is not None else None
         self._fill_tree = fill_tree
         # Initialise caches for data collection and pipeline objects
         if clear_caches:
