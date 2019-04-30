@@ -341,21 +341,12 @@ class Study(object):
                 self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
         # names
-        all_data = self._get_items(names, single_item, filter_items,
-                                   subject_ids, visit_ids, session_ids)
-        if single_name:
-            all_data = all_data[0]
-        return all_data
-
-    def _get_items(self, names, single_item, filter_items, subject_ids,
-                   visit_ids, session_ids):
         all_data = []
         for name in names:
             spec = self.bound_spec(name)
             data = spec.collection
             if single_item:
-                data = data.item(subject_id=subject_ids[0],
-                                 visit_id=visit_ids[0])
+                data = data.item(subject_id=subject_id, visit_id=visit_id)
             elif filter_items and spec.frequency != 'per_study':
                 if subject_ids is None:
                     subject_ids = []
@@ -383,6 +374,8 @@ class Study(object):
                         .format(subject_ids, visit_ids, session_ids))
                 data = spec.CollectionClass(spec.name, data)
             all_data.append(data)
+        if single_name:
+            all_data = all_data[0]
         return all_data
 
     def pipeline(self, getter_name, required_outputs=None):
