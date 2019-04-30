@@ -321,11 +321,7 @@ class Study(object):
                     "Non-None values for subject and/or visit IDs need to be "
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
-        # Get Item/Collection corresponding to requested spec names
-        all_data = self._get_items(names, single_item, filter_items,
-                                   subject_ids, visit_ids, session_ids)
-        if generate and any(any(not i.exists for i in collection)
-                            for collection in all_data):
+        if generate:
             # Work out which pipelines need to be run
             pipeline_getters = defaultdict(set)
             for spec in specs:
@@ -343,10 +339,10 @@ class Study(object):
                     for k, v in pipeline_getters.items()))
                 kwargs['required_outputs'] = required_outputs
                 self.processor.run(*pipelines, **kwargs)
-            # Find and return Item/Collection corresponding to requested spec
-            # names
-            all_data = self._get_items(names, single_item, filter_items,
-                                       subject_ids, visit_ids, session_ids)
+        # Find and return Item/Collection corresponding to requested spec
+        # names
+        all_data = self._get_items(names, single_item, filter_items,
+                                   subject_ids, visit_ids, session_ids)
         if single_name:
             all_data = all_data[0]
         return all_data
