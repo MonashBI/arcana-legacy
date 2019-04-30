@@ -938,8 +938,8 @@ class Study(object):
             'environment': self.environment.prov,
             'repositories': [r.prov for r in input_repos],
             'processor': self.processor.prov,
-            'subject_ids': self.subject_ids,
-            'visit_ids': self.visit_ids}
+            'subject_ids': tuple(self.subject_ids),
+            'visit_ids': tuple(self.visit_ids)}
 
 
 class StudyMetaClass(type):
