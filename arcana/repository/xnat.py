@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from past.builtins import basestring
 import os
 import tempfile
 from arcana.utils import makedirs
@@ -74,6 +75,9 @@ class XnatRepo(Repository):
                  password=None, check_md5=True, race_cond_delay=30,
                  session_filter=None, **kwargs):
         super(XnatRepo, self).__init__(**kwargs)
+        if not isinstance(server, basestring):
+            raise ArcanaUsageError(
+                "Invalid server url {}".format(server))
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
