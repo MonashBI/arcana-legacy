@@ -760,7 +760,7 @@ class Study(object):
         except KeyError:
             if not spec.derived and spec.default is None:
                 raise ArcanaMissingDataException(
-                    "Input (i.e. non-generated) fileset '{}' "
+                    "Input (i.e. non-generated) data '{}' "
                     "was not supplied when the study '{}' was "
                     "initiated".format(name, self.name))
             else:
