@@ -320,7 +320,7 @@ class BasicRepo(Repository):
             subj_id, visit_id = path_parts
         elif len(path_parts) == 1:
             subj_id = path_parts[0]
-            visit_id = self.DEFAULT_SUBJECT_ID
+            visit_id = self.DEFAULT_VISIT_ID
         else:
             subj_id = self.DEFAULT_SUBJECT_ID
             visit_id = self.DEFAULT_VISIT_ID

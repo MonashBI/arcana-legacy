@@ -569,24 +569,7 @@ class SelectOneOutputSpec(TraitedSpec):
 
 
 class SelectOne(IOBase):
-    """Basic interface class to select specific elements from a list
-
-    Examples
-    --------
-
-    >>> from nipype.interfaces.utility import Select
-    >>> sl = Select()
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    4
-
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    [4, 5]
-
-    """
+    """Basic interface class to select an element from a list"""
 
     input_spec = SelectOneInputSpec
     output_spec = SelectOneOutputSpec
@@ -616,24 +599,7 @@ class SelectSessionOutputSpec(TraitedSpec):
 
 
 class SelectSession(IOBase):
-    """Basic interface class to select specific elements from a list
-
-    Examples
-    --------
-
-    >>> from nipype.interfaces.utility import Select
-    >>> sl = Select()
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    4
-
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    [4, 5]
-
-    """
+    """Basic interface class to select session from a list"""
 
     input_spec = SelectSessionInputSpec
     output_spec = SelectSessionOutputSpec

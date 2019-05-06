@@ -23,7 +23,6 @@ from arcana.exceptions import (
 logger = getLogger('arcana')
 
 
-
 class Processor(object):
     """
     A thin wrapper around the NiPype LinearPlugin used to connect
@@ -321,7 +320,10 @@ class Processor(object):
 #         workflow.write_graph(graph2use='flat', format='svg')
 #         print('Graph saved in {} directory'.format(os.getcwd()))
         # Actually run the generated workflow
-        result = workflow.run(plugin=self._plugin)
+        if workflow._get_all_nodes():  # Check if workflow has any nodes to run
+            result = workflow.run(plugin=self._plugin)
+        else:
+            result = None
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.clear_caches()
