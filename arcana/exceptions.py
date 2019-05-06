@@ -106,10 +106,6 @@ class ArcanaFilesetNotCachedException(ArcanaException):
     pass
 
 
-class AcquiredComponentException(ArcanaException):
-    pass
-
-
 class NoMatchingPipelineException(ArcanaException):
     pass
 

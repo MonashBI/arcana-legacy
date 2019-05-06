@@ -20,14 +20,14 @@ A basic toy example
         # class, including their format (for filesets) or data type (for fields)
         # and generating pipeline (for derived filesets/fields)
         add_data_specs = [
-            # Acquired file sets
+            # Input file sets
             InputFilesetSpec('acquired_file1', text_format),
             InputFilesetSpec('acquired_file2', STD_IMAGE_FORMATS),
-            # Acquired fields
+            # Input fields
             InputFieldSpec('acquired_field1', int, array=True,
                               frequency='per_subject'),
             InputFieldSpec('acquired_field2', float, optional=True),
-            # "Acquired" file set with default value. Useful for
+            # "Input" file set with default value. Useful for
             # standard templates
             InputFilesetSpec('template1', STD_IMAGE_FORMATS,
                                 frequency='per_study',

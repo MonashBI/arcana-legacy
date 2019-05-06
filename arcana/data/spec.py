@@ -72,7 +72,7 @@ class BaseInputSpec(object):
 
     def bind(self, study, **kwargs):  # @UnusedVariable
         """
-        Returns a copy of the AcquiredSpec bound to the given study
+        Returns a copy of the InputSpec bound to the given study
 
         Parameters
         ----------
