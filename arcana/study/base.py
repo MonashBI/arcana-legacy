@@ -327,7 +327,8 @@ class Study(object):
             for spec in specs:
                 if spec.derived or spec.derivable:  # Filter out Study inputs
                     # Add name of spec to set of required outputs
-                    pipeline_getters[spec.pipeline_getter].add(spec.name)
+                    pipeline_getters[(spec.pipeline_getter,
+                                      spec.pipeline_args)].add(spec.name)
             # Run required pipelines
             if pipeline_getters:
                 kwargs = copy(kwargs)
@@ -335,8 +336,8 @@ class Study(object):
                                'visit_ids': visit_ids,
                                'session_ids': session_ids})
                 pipelines, required_outputs = zip(*(
-                    (self.pipeline(k), v)
-                    for k, v in pipeline_getters.items()))
+                    (self.pipeline(getter, pipeline_args=args), req_outs)
+                    for (getter, args), req_outs in pipeline_getters.items()))
                 kwargs['required_outputs'] = required_outputs
                 self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
@@ -378,7 +379,25 @@ class Study(object):
             all_data = all_data[0]
         return all_data
 
-    def pipeline(self, getter_name, required_outputs=None):
+    def pipeline(self, getter_name, required_outputs=None,
+                 pipeline_args=None):
+        """
+        Returns a pipeline from a study by getting the method corresponding to
+        the given name and checking that the required outputs are generated
+        given the parameters of the study
+
+        Parameters
+        ----------
+        getter_name : str
+            Name of the method that constructs the pipeline
+        required_outputs : list[str] | None
+            The list of outputs that are expected of the pipeline
+        pipeline_args : dict[str, *] | None
+            Any arguments that should be passed to the method to produce the
+            pipeline.
+        """
+        if pipeline_args is None:
+            pipeline_args = ()
         try:
             pipeline = self._pipelines_cache[getter_name]
         except KeyError:
@@ -390,7 +409,7 @@ class Study(object):
                     "present in '{}' study".format(getter_name, self))
             self._pipeline_to_generate = getter_name
             try:
-                pipeline = getter()
+                pipeline = getter(**dict(pipeline_args))
             except ArcanaMissingDataException as e:
                 e.msg += ("{}, which is required as an input when calling the "
                           "pipeline constructor method '{}' to create a "

@@ -20,7 +20,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
 from arcana.repository import Tree  # @IgnorePep8
 from arcana.data import (  # @IgnorePep8
-    Fileset, InputFilesetSpec, InputFileset, FilesetSpec)
+    Fileset, FieldSpec, InputFilesetSpec, InputFileset, FilesetSpec)
 from future.utils import PY2  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 import logging  # @IgnorePep8
@@ -40,6 +40,10 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('derived2', text_format, 'pipeline2'),
         FilesetSpec('derived3', text_format, 'pipeline3'),
         FilesetSpec('derived4', text_format, 'pipeline4'),
+        FieldSpec('derived5a', str, 'pipeline5',
+                  pipeline_args={'arg': 'a'}),
+        FieldSpec('derived5b', str, 'pipeline5',
+                  pipeline_args={'arg': 'b'}),
         FilesetSpec('subject_summary', text_format,
                     'subject_summary_pipeline',
                     frequency='per_subject'),
@@ -123,6 +127,26 @@ class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_input('derived3', math, 'y')
         # Connect outputs
         pipeline.connect_output('derived4', math, 'z')
+        return pipeline
+
+    def pipeline5(self, arg, **name_maps):
+
+        pipeline = self.new_pipeline(
+            name='pipeline5{}'.format(arg),
+            desc="A dummy pipeline used to test constructor arguments",
+            citations=[],
+            name_maps=name_maps)
+
+        pipeline.add(
+            "ident",
+            IdentityInterface(
+                fields=['value', 'dummy'],
+                value=arg),
+            inputs={
+                'dummy': ('one', text_format)},
+            outputs={
+                'derived5{}'.format(arg): ('value', str)})
+
         return pipeline
 
     def visit_ids_access_pipeline(self, **name_maps):
@@ -276,6 +300,13 @@ class TestStudy(BaseMultiSubjectTestCase):
         study = self.make_study()
         self.assertContentsEqual(study.data('derived4'),
                                  [2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
+
+    def test_pipeline_args(self):
+        study = self.make_study()
+        a = next(iter(study.data('derived5a'))).value
+        b = next(iter(study.data('derived5b'))).value
+        self.assertEqual(a, 'a')
+        self.assertEqual(b, 'b')
 
     def test_subject_summary(self):
         study = self.make_study()
