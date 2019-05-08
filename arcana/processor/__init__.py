@@ -1,3 +1,3 @@
-from .linear import SingleProc
+from .single import SingleProc
 from .slurm import SlurmProc
-from .multiproc import MultiProc
+from .multi import MultiProc

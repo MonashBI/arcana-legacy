@@ -299,9 +299,9 @@ class XnatRepo(Repository):
             # Make session cache dir
             cache_path_dir = (op.dirname(cache_path)
                               if fileset.format.directory else cache_path)
-            if not os.path.exists(cache_path_dir):
-                os.makedirs(cache_path_dir,
-                            stat.S_IRWXU | stat.S_IRWXG)
+            if os.path.exists(cache_path_dir):
+                shutil.rmtree(cache_path_dir)
+            os.makedirs(cache_path_dir, stat.S_IRWXU | stat.S_IRWXG)
             if fileset.format.directory:
                 shutil.copytree(fileset.path, cache_path)
             else:
