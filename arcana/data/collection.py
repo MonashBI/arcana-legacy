@@ -74,13 +74,18 @@ class BaseCollection(object):
         return ln
 
     @classmethod
-    def _common_attr(self, collection, attr_name):
+    def _common_attr(self, collection, attr_name, ignore_none=True):
         attr_set = set(getattr(c, attr_name) for c in collection)
-        if len(attr_set) != 1:
+        if ignore_none:
+            attr_set -= set([None])
+        if len(attr_set) > 1:
             raise ArcanaUsageError(
                 "Heterogeneous attributes for '{}' within {}".format(
                     attr_name, self))
-        return next(iter(attr_set))
+        try:
+            return next(iter(attr_set))
+        except StopIteration:
+            return None
 
     def item(self, subject_id=None, visit_id=None):
         """
@@ -260,8 +265,9 @@ class FilesetCollection(BaseCollection, BaseFileset):
             formatted_collection = []
             for fileset in collection:
                 fileset = copy(fileset)
-                fileset.format = (fileset.detect_format(candidate_formats)
-                                  if format is None else format)
+                if fileset.exists:
+                    fileset.format = (fileset.detect_format(candidate_formats)
+                                      if format is None else format)
                 formatted_collection.append(fileset)
             collection = formatted_collection
             format = self._common_attr(collection, 'format')  # @ReservedAssignment @IgnorePep8

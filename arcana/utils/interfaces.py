@@ -369,7 +369,7 @@ class CopyToDirInputSpec(TraitedSpec):
     in_files = traits.List(
         traits.Either(File(exists=True), Directory(exists=True)),
         mandatory=True, desc='input dicom files')
-    out_dir = File(desc='the output dicom file')
+    out_dir = Directory(desc='the output dicom file')
     extension = traits.Str(desc='specify the extention for the copied file.',
                            default='', usedefault=True)
     file_names = traits.List(
@@ -379,6 +379,8 @@ class CopyToDirInputSpec(TraitedSpec):
 
 class CopyToDirOutputSpec(TraitedSpec):
     out_dir = Directory(exists=True, desc='the output dicom directory')
+    file_names = traits.List(
+        traits.Str, desc="the files/directories copied to the new directory")
 
 
 class CopyToDir(BaseInterface):
@@ -390,6 +392,10 @@ class CopyToDir(BaseInterface):
     output_spec = CopyToDirOutputSpec
 
     def _run_interface(self, runtime):
+        return runtime
+
+    def _list_outputs(self):
+        outputs = self._outputs().get()
         dirname = self.out_dir
         os.makedirs(dirname)
         ext = self.inputs.extension
@@ -400,10 +406,11 @@ class CopyToDir(BaseInterface):
                     "of provided files ({})".format(
                         len(self.inputs.file_names),
                         len(self.inputs.in_files)))
+        file_names = []
         for i, f in enumerate(self.inputs.in_files):
             if isdefined(self.inputs.file_names):
-                path = op.join(self.out_dir,
-                               op.basename(self.inputs.file_names[i]))
+                out_name = op.basename(self.inputs.file_names[i])
+                path = op.join(self.out_dir, out_name)
                 if op.isdir(f):
                     shutil.copytree(f, path)
                 else:
@@ -414,20 +421,18 @@ class CopyToDir(BaseInterface):
                 if op.isdir(f):
                     out_name = f.split('/')[-1]
                     if ext:
-                        out_name = '{0}_{1}'.format(
-                            out_name, ext + str(i).zfill(3))
-                    shutil.copytree(f, dirname + '/{}'.format(out_name))
+                        out_name = '{0}_{1}'.format(out_name,
+                                                    ext + str(i).zfill(3))
+                    shutil.copytree(f, op.join(dirname, out_name))
                 elif op.isfile(f):
                     if ext == '.dcm':
-                        fname = op.join(dirname, str(i).zfill(4)) + ext
+                        out_name = op.join(dirname, str(i).zfill(4)) + ext
                     else:
-                        fname = dirname
-                    shutil.copy(f, fname)
-        return runtime
-
-    def _list_outputs(self):
-        outputs = self._outputs().get()
-        outputs['out_dir'] = self.out_dir
+                        out_name = dirname
+                    shutil.copy(f, out_name)
+            file_names.append(out_name)
+        outputs['out_dir'] = dirname
+        outputs['file_names'] = file_names
         return outputs
 
     @property
@@ -569,24 +574,7 @@ class SelectOneOutputSpec(TraitedSpec):
 
 
 class SelectOne(IOBase):
-    """Basic interface class to select specific elements from a list
-
-    Examples
-    --------
-
-    >>> from nipype.interfaces.utility import Select
-    >>> sl = Select()
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    4
-
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    [4, 5]
-
-    """
+    """Basic interface class to select an element from a list"""
 
     input_spec = SelectOneInputSpec
     output_spec = SelectOneOutputSpec
@@ -616,24 +604,7 @@ class SelectSessionOutputSpec(TraitedSpec):
 
 
 class SelectSession(IOBase):
-    """Basic interface class to select specific elements from a list
-
-    Examples
-    --------
-
-    >>> from nipype.interfaces.utility import Select
-    >>> sl = Select()
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    4
-
-    >>> _ = sl.inputs.trait_set(inlist=[1, 2, 3, 4, 5], index=[3, 4])
-    >>> out = sl.run()
-    >>> out.outputs.out
-    [4, 5]
-
-    """
+    """Basic interface class to select session from a list"""
 
     input_spec = SelectSessionInputSpec
     output_spec = SelectSessionOutputSpec

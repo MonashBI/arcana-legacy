@@ -28,8 +28,7 @@ from .data import (
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection
 from .processor import (
-    SingleProc, MultiProc, SlurmProc, DEFAULT_PROV_CHECK,
-    DEFAULT_PROV_IGNORE)
+    SingleProc, MultiProc, SlurmProc)
 from .environment import StaticEnv, ModulesEnv
 from .repository import BasicRepo, XnatRepo
 # Should be set explicitly in all FSL interfaces, but this squashes the warning

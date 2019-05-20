@@ -1,4 +1,5 @@
 from __future__ import absolute_import
+from past.builtins import basestring
 import os
 import tempfile
 from arcana.utils import makedirs
@@ -13,7 +14,6 @@ import json
 from zipfile import ZipFile, BadZipfile
 from arcana.data import Fileset, Field
 from arcana.repository.base import Repository
-from arcana.data.file_format import FileFormat
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError, ArcanaFileFormatError,
     ArcanaWrongRepositoryError)
@@ -57,9 +57,10 @@ class XnatRepo(Repository):
     session_filter : str
         A regular expression that is used to prefilter the discovered sessions
         to avoid having to retrieve metadata for them, and potentially speeding
-        up the initialisation of the Study. Note that if the processing
-        relies on summary derivatives then the filter should match all sessions
-        in the Study's subject_ids and visit_ids.
+        up the initialisation of the Study. Note that if the processing relies
+        on summary derivatives (i.e. of 'per_visit/subject/study' frequency)
+        then the filter should match all sessions in the Study's subject_ids
+        and visit_ids.
     """
 
     type = 'xnat'
@@ -74,6 +75,9 @@ class XnatRepo(Repository):
                  password=None, check_md5=True, race_cond_delay=30,
                  session_filter=None, **kwargs):
         super(XnatRepo, self).__init__(**kwargs)
+        if not isinstance(server, basestring):
+            raise ArcanaUsageError(
+                "Invalid server url {}".format(server))
         self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
@@ -209,33 +213,7 @@ class XnatRepo(Repository):
                 else:
                     need_to_download = False
             if need_to_download:
-#                 if fileset._resource_name is not None:
                 xresource = xscan.resources[fileset._resource_name]
-#                 else:
-#                     xresources = []
-#                     for resource_name in fileset.format.xnat_resource_names:
-#                         try:
-#                             xresources.append(xscan.resources[resource_name])
-#                         except KeyError:
-#                             pass
-#                     if not xresources:
-#                         raise ArcanaError(
-#                             "Could not find matching resource for {} ('{}') "
-#                             "in {}, available resources are '{}'"
-#                             .format(
-#                                 self.format,
-#                                 "', '".join(
-#                                     fileset.format.xnat_resource_names),
-#                                 xscan.uri,
-#                                 "', '".join(
-#                                     r.label
-#                                     for r in list(xscan.resources.values()))))
-#                     elif len(xresources) > 1:
-#                         logger.warning(
-#                             "Found multiple acceptable resources for {}: {}"
-#                             .format(fileset,
-#                                     ', '.join(str(r) for r in xresources)))
-#                     xresource = xresources[0]
                 # The path to the directory which the files will be
                 # downloaded to.
                 tmp_dir = cache_path + '.download'
@@ -295,9 +273,9 @@ class XnatRepo(Repository):
             # Make session cache dir
             cache_path_dir = (op.dirname(cache_path)
                               if fileset.format.directory else cache_path)
-            if not os.path.exists(cache_path_dir):
-                os.makedirs(cache_path_dir,
-                            stat.S_IRWXU | stat.S_IRWXG)
+            if os.path.exists(cache_path_dir):
+                shutil.rmtree(cache_path_dir)
+            os.makedirs(cache_path_dir, stat.S_IRWXU | stat.S_IRWXG)
             if fileset.format.directory:
                 shutil.copytree(fileset.path, cache_path)
             else:

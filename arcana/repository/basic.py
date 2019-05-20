@@ -13,7 +13,8 @@ from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaRepositoryError,
-    ArcanaMissingDataException)
+    ArcanaMissingDataException,
+    ArcanaInsufficientRepoDepthError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
 
 
@@ -320,7 +321,7 @@ class BasicRepo(Repository):
             subj_id, visit_id = path_parts
         elif len(path_parts) == 1:
             subj_id = path_parts[0]
-            visit_id = self.DEFAULT_SUBJECT_ID
+            visit_id = self.DEFAULT_VISIT_ID
         else:
             subj_id = self.DEFAULT_SUBJECT_ID
             visit_id = self.DEFAULT_VISIT_ID
@@ -335,9 +336,17 @@ class BasicRepo(Repository):
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_subject'):
+            if self.depth < 2:
+                raise ArcanaInsufficientRepoDepthError(
+                    "Basic repo needs to have depth of 2 (i.e. sub-directories"
+                    " for subjects and visits) to hold 'per_subject' data")
             subj_dir = str(subject_id)
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_visit'):
+            if self.depth < 1:
+                raise ArcanaInsufficientRepoDepthError(
+                    "Basic repo needs to have depth of at least 1 (i.e. "
+                    "sub-directories for subjects) to hold 'per_visit' data")
             subj_dir = self.SUMMARY_NAME
             visit_dir = str(visit_id)
         elif item.frequency.startswith('per_session'):

@@ -242,7 +242,7 @@ class Study(object):
                                 "run")
 
     def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
-             **kwargs):
+             generate=True, **kwargs):
         """
         Returns the Fileset(s) or Field(s) associated with the provided spec
         name(s), generating derived filesets as required. Multiple names in a
@@ -269,6 +269,8 @@ class Study(object):
         session_ids : list[str]
             The session IDs (i.e. 2-tuples of the form
             (<subject-id>, <visit-id>) to include in the returned collection
+        generate : bool
+            Whether to generate data that hasn't been generated yet or not
 
         Returns
         -------
@@ -286,7 +288,7 @@ class Study(object):
             single_name = False
         single_item = 'subject_id' in kwargs or 'visit_id' in kwargs
         filter_items = (subject_ids, visit_ids, session_ids) != (None, None,
-                                                                   None)
+                                                                 None)
         specs = [self.spec(n) for n in names]
         if single_item:
             if filter_items:
@@ -319,22 +321,25 @@ class Study(object):
                     "Non-None values for subject and/or visit IDs need to be "
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
-        # Work out which pipelines need to be run
-        pipeline_getters = defaultdict(set)
-        for spec in specs:
-            if spec.derived or spec.derivable:  # Filter out Study inputs
-                # Add name of spec to set of required outputs
-                pipeline_getters[spec.pipeline_getter].add(spec.name)
-        # Run required pipelines
-        if pipeline_getters:
-            kwargs = copy(kwargs)
-            kwargs.update({'subject_ids': subject_ids,
-                           'visit_ids': visit_ids,
-                           'session_ids': session_ids})
-            pipelines, required_outputs = zip(*(
-                (self.pipeline(k), v) for k, v in pipeline_getters.items()))
-            kwargs['required_outputs'] = required_outputs
-            self.processor.run(*pipelines, **kwargs)
+        if generate:
+            # Work out which pipelines need to be run
+            pipeline_getters = defaultdict(set)
+            for spec in specs:
+                if spec.derived or spec.derivable:  # Filter out Study inputs
+                    # Add name of spec to set of required outputs
+                    pipeline_getters[(spec.pipeline_getter,
+                                      spec.pipeline_args)].add(spec.name)
+            # Run required pipelines
+            if pipeline_getters:
+                kwargs = copy(kwargs)
+                kwargs.update({'subject_ids': subject_ids,
+                               'visit_ids': visit_ids,
+                               'session_ids': session_ids})
+                pipelines, required_outputs = zip(*(
+                    (self.pipeline(getter, pipeline_args=args), req_outs)
+                    for (getter, args), req_outs in pipeline_getters.items()))
+                kwargs['required_outputs'] = required_outputs
+                self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
         # names
         all_data = []
@@ -369,15 +374,31 @@ class Study(object):
                         ", session_ids={})"
                         .format(subject_ids, visit_ids, session_ids))
                 data = spec.CollectionClass(spec.name, data)
-            if single_name:
-                return data
-            else:
-                all_data.append(data)
+            all_data.append(data)
+        if single_name:
+            all_data = all_data[0]
         return all_data
 
-    def pipeline(self, getter_name, required_outputs=None):
+    def pipeline(self, getter_name, required_outputs=None, pipeline_args=None):
+        """
+        Returns a pipeline from a study by getting the method corresponding to
+        the given name and checking that the required outputs are generated
+        given the parameters of the study
+
+        Parameters
+        ----------
+        getter_name : str
+            Name of the method that constructs the pipeline
+        required_outputs : list[str] | None
+            The list of outputs that are expected of the pipeline
+        pipeline_args : dict[str, *] | None
+            Any arguments that should be passed to the method to produce the
+            pipeline.
+        """
+        if pipeline_args is None:
+            pipeline_args = ()
         try:
-            pipeline = self._pipelines_cache[getter_name]
+            pipeline = self._pipelines_cache[(getter_name, pipeline_args)]
         except KeyError:
             try:
                 getter = getattr(self, getter_name)
@@ -387,7 +408,7 @@ class Study(object):
                     "present in '{}' study".format(getter_name, self))
             self._pipeline_to_generate = getter_name
             try:
-                pipeline = getter()
+                pipeline = getter(**dict(pipeline_args))
             except ArcanaMissingDataException as e:
                 e.msg += ("{}, which is required as an input when calling the "
                           "pipeline constructor method '{}' to create a "
@@ -407,7 +428,7 @@ class Study(object):
                     "'{}' pipeline constructor in {} doesn't return a Pipeline"
                     " object ({})".format(
                         getter_name, self, pipeline))
-            self._pipelines_cache[getter_name] = pipeline
+            self._pipelines_cache[(getter_name, pipeline_args)] = pipeline
         if required_outputs is not None:
             # Check that the required outputs are created with the given
             # parameters
@@ -738,7 +759,7 @@ class Study(object):
         except KeyError:
             if not spec.derived and spec.default is None:
                 raise ArcanaMissingDataException(
-                    "Acquired (i.e. non-generated) fileset '{}' "
+                    "Input (i.e. non-generated) data '{}' "
                     "was not supplied when the study '{}' was "
                     "initiated".format(name, self.name))
             else:
@@ -935,8 +956,8 @@ class Study(object):
             'environment': self.environment.prov,
             'repositories': [r.prov for r in input_repos],
             'processor': self.processor.prov,
-            'subject_ids': self.subject_ids,
-            'visit_ids': self.visit_ids}
+            'subject_ids': tuple(self.subject_ids),
+            'visit_ids': tuple(self.visit_ids)}
 
 
 class StudyMetaClass(type):
@@ -971,6 +992,8 @@ class StudyMetaClass(type):
             combined_attrs.update(
                 a for a in dir(base) if (not issubclass(base, Study) or
                                          a not in base.spec_names()))
+            # TODO: need to check that fields are not overridden by filesets
+            #       and vice-versa
             try:
                 combined_data_specs.update(
                     (d.name, d) for d in base.data_specs())
@@ -986,7 +1009,10 @@ class StudyMetaClass(type):
         combined_param_specs.update(
             (p.name, p) for p in add_param_specs)
         # Check that the pipeline names in data specs correspond to a
-        # pipeline method in the class
+        # pipeline method in the class and that if a pipeline is called with
+        # arguments (for parameterizing a range of metrics for example) then
+        # the same argument names are consistent across every call.
+        pipeline_arg_names = {}
         for spec in add_data_specs:
             if spec.derived:
                 if spec.pipeline_getter in ('pipeline', 'new_pipeline'):
@@ -1001,6 +1027,18 @@ class StudyMetaClass(type):
                         "Pipeline to generate '{}', '{}', is not present"
                         " in '{}' class".format(
                             spec.name, spec.pipeline_getter, name))
+                try:
+                    if pipeline_arg_names[
+                            spec.pipeline_getter] != spec.pipeline_arg_names:
+                        raise ArcanaDesignError(
+                            "Inconsistent pipeline argument names used for "
+                            "'{}' pipeline getter {} and {}".format(
+                                spec.pipeline_getter,
+                                pipeline_arg_names[spec.pipeline_getter],
+                                spec.pipeline_arg_names))
+                except KeyError:
+                    pipeline_arg_names[
+                        spec.pipeline_getter] = spec.pipeline_arg_names
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_param_specs))

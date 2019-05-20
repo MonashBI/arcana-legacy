@@ -221,7 +221,8 @@ class BaseInput(object):
                         visit_id=node.visit_id,
                         repository=self.study.repository,
                         from_study=self.from_study,
-                        exists=False))
+                        exists=False,
+                        **self._specific_kwargs))
                 else:
                     raise e
         return matches
@@ -454,6 +455,20 @@ class InputFileset(BaseInput, BaseFileset):
             matches = filtered
         return matches
 
+    def cache(self):
+        """
+        Forces the cache of the input fileset. Can be useful for before running
+        a workflow that will use many concurrent jobs/processes to source data
+        from remote repository, to force the download to be done linearly and
+        avoid DOSing the host
+        """
+        for item in self.collection:
+            item.get()
+
+    @property
+    def _specific_kwargs(self):
+        return {'format': self.format}
+
 
 class InputField(BaseInput, BaseField):
     """
@@ -572,3 +587,7 @@ class InputField(BaseInput, BaseField):
                 .format(self.__class__.__name__, self.name, self._dtype,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self._from_study))
+
+    @property
+    def _specific_kwargs(self):
+        return {'dtype': self.dtype}

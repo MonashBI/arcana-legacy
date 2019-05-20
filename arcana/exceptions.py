@@ -98,15 +98,15 @@ class ArcanaOutputNotProducedException(ArcanaException):
     """
 
 
+class ArcanaInsufficientRepoDepthError(ArcanaError):
+    pass
+
+
 class ArcanaFileFormatError(ArcanaError):
     pass
 
 
 class ArcanaFilesetNotCachedException(ArcanaException):
-    pass
-
-
-class AcquiredComponentException(ArcanaException):
     pass
 
 

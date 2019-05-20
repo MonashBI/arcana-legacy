@@ -4,7 +4,7 @@ from pprint import pformat
 import os.path as op
 from collections import defaultdict, OrderedDict
 import shutil
-from itertools import zip_longest, repeat
+from itertools import repeat
 from copy import copy, deepcopy
 from logging import getLogger
 import numpy as np
@@ -21,18 +21,6 @@ from arcana.exceptions import (
 
 
 logger = getLogger('arcana')
-
-
-WORKFLOW_MAX_NAME_LEN = 100
-
-# The default paths in the provenance JSON to check for mismatches that would
-# require the derivative to be reprocessed
-DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs', 'joined_ids']
-# The default paths in the provenance JSON to ignore mismatches that would
-# otherwise require the derivative to be reprocessed
-DEFAULT_PROV_IGNORE = ['.*/pkg_version',
-                       'workflow/nodes/.*/requirements/.*/local_version',
-                       'workflow/nodes/.*/requirements/.*/local_name']
 
 
 class Processor(object):
@@ -75,6 +63,17 @@ class Processor(object):
 
     DEFAULT_WALL_TIME = 20
     DEFAULT_MEM_GB = 4
+
+    WORKFLOW_MAX_NAME_LEN = 100
+
+    # The default paths in the provenance JSON to check for mismatches that
+    # would require the derivative to be reprocessed
+    DEFAULT_PROV_CHECK = ['workflow', 'inputs', 'outputs', 'joined_ids']
+    # The default paths in the provenance JSON to ignore mismatches that would
+    # otherwise require the derivative to be reprocessed
+    DEFAULT_PROV_IGNORE = ['.*/pkg_version',
+                           'workflow/nodes/.*/requirements/.*/local_version',
+                           'workflow/nodes/.*/requirements/.*/local_name']
 
     default_plugin_args = {}
 
@@ -203,7 +202,7 @@ class Processor(object):
                 shutil.rmtree(workflow_work_dir)
         # Trim the end of very large names to avoid problems with
         # workflow names exceeding system limits.
-        name = name[:WORKFLOW_MAX_NAME_LEN]
+        name = name[:self.WORKFLOW_MAX_NAME_LEN]
         workflow = pe.Workflow(name=name, base_dir=self.work_dir)
 
         # Generate filter array to optionally restrict the run to certain
@@ -321,7 +320,10 @@ class Processor(object):
 #         workflow.write_graph(graph2use='flat', format='svg')
 #         print('Graph saved in {} directory'.format(os.getcwd()))
         # Actually run the generated workflow
-        result = workflow.run(plugin=self._plugin)
+        if workflow._get_all_nodes():  # Check if workflow has any nodes to run
+            result = workflow.run(plugin=self._plugin)
+        else:
+            result = None
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
         self.study.clear_caches()

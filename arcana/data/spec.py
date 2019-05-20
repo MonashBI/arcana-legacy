@@ -72,7 +72,7 @@ class BaseInputSpec(object):
 
     def bind(self, study, **kwargs):  # @UnusedVariable
         """
-        Returns a copy of the AcquiredSpec bound to the given study
+        Returns a copy of the InputSpec bound to the given study
 
         Parameters
         ----------
@@ -140,7 +140,8 @@ class BaseSpec(object):
     drop_if_missing = False
     derivable = True
 
-    def __init__(self, name, pipeline_getter, desc=None):
+    def __init__(self, name, pipeline_getter, desc=None,
+                 pipeline_args=None, group=None):
         if pipeline_getter is not None:
             if not isinstance(pipeline_getter, basestring):
                 raise ArcanaUsageError(
@@ -150,18 +151,31 @@ class BaseSpec(object):
         self._desc = desc
         self._study = None
         self._collection = None
+        if isinstance(pipeline_args, dict):
+            pipeline_args = tuple(sorted(pipeline_args.items()))
+        elif pipeline_args is not None:
+            pipeline_args = tuple(pipeline_args)
+        else:
+            pipeline_args = ()
+        self._pipeline_args = pipeline_args
+        self._group = group
 
     def __eq__(self, other):
         return (self.pipeline_getter == other.pipeline_getter and
-                self.desc == other.desc)
+                self.desc == other.desc and
+                self.pipeline_args == other.pipeline_args and
+                self.group == other.group)
 
     def __hash__(self):
-        return (hash(self.pipeline_getter) ^ hash(self.desc))
+        return (hash(self.pipeline_getter) ^ hash(self.desc) ^
+                hash(self.pipeline_args.items()) ^ hash(self.group))
 
     def initkwargs(self):
         dct = {}
         dct['pipeline_getter'] = self.pipeline_getter
         dct['desc'] = self.desc
+        dct['pipeline_args'] = copy(self.pipeline_args)
+        dct['group'] = self.group
         return dct
 
     def find_mismatch(self, other, indent=''):
@@ -174,6 +188,13 @@ class BaseSpec(object):
         if self.desc != other.desc:
             mismatch += ('\n{}desc: self={} v other={}'
                          .format(sub_indent, self.desc, other.desc))
+        if self.group != other.group:
+            mismatch += ('\n{}group: self={} v other={}'
+                         .format(sub_indent, self.group, other.group))
+        if self.pipeline_args != other.pipeline_args:
+            mismatch += ('\n{}pipeline_args: self={} v other={}'
+                         .format(sub_indent, self.pipeline_args,
+                                 other.pipeline_args))
         return mismatch
 
     def bind(self, study, **kwargs):  # @UnusedVariable
@@ -250,8 +271,21 @@ class BaseSpec(object):
         return self._pipeline_getter
 
     @property
+    def group(self):
+        return self._group
+
+    @property
+    def pipeline_args(self):
+        return self._pipeline_args
+
+    @property
+    def pipeline_arg_names(self):
+        return tuple(n for n, _ in self._pipeline_args)
+
+    @property
     def pipeline(self):
-        return self.study.pipeline(self.pipeline_getter, [self.name])
+        return self.study.pipeline(self.pipeline_getter, [self.name],
+                                   pipeline_args=self.pipeline_args)
 
     @property
     def study(self):
@@ -304,6 +338,10 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
         with a 'collection' property that will return a default collection.
         This object should also implement a 'bind(self, study)' method to
         allow the study to be bound to it.
+    pipeline_args : dct[str, *] | None
+        Arguments to pass to the pipeline constructor method. Avoids having to
+        create separate methods for each spec, where the only difference
+        between the specs
     """
 
     is_spec = True
@@ -398,15 +436,24 @@ class FilesetSpec(BaseFileset, BaseSpec):
         overridden as an input. Typically not required, but useful for some
         specs that are typically provided as inputs (e.g. magnitude MRI)
         but can be derived from other inputs (e.g. coil-wise MRI images)
+    pipeline_args : dct[str, *] | None
+        Arguments to pass to the pipeline constructor method. Avoids having to
+        create separate methods for each spec, where the only difference
+        between the specs are interface parameterisations
+    group : str | None
+        A name for a group of fileset specs. Used improve human searching of
+        available options
     """
 
     is_spec = True
     CollectionClass = FilesetCollection
 
     def __init__(self, name, format, pipeline_getter, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
-                 desc=None, valid_formats=None):
+                 desc=None, valid_formats=None, pipeline_args=None,
+                 group=None):
         BaseFileset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_getter, desc)
+        BaseSpec.__init__(self, name, pipeline_getter, desc,
+                          pipeline_args, group)
         if valid_formats is not None:
             # Ensure allowed formats is a list
             try:
@@ -557,15 +604,24 @@ class FieldSpec(BaseField, BaseSpec):
         visit or project.
     desc : str
         Description of what the field represents
+    pipeline_args : dct[str, *] | None
+        Arguments to pass to the pipeline constructor method. Avoids having to
+        create separate methods for each spec, where the only difference
+        between the specs are interface parameterisations
+    group : str
+        A name for a group of fileset specs. Used improve human searching of
+        available options
     """
 
     is_spec = True
     CollectionClass = FieldCollection
 
     def __init__(self, name, dtype, pipeline_getter=None,
-                 frequency='per_session', desc=None, array=False):
+                 frequency='per_session', desc=None, array=False,
+                 pipeline_args=None, group=None):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseSpec.__init__(self, name, pipeline_getter, desc)
+        BaseSpec.__init__(self, name, pipeline_getter, desc,
+                          pipeline_args=pipeline_args, group=group)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
