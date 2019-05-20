@@ -166,7 +166,7 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name)
 
     @classmethod
-    def translate(cls, substudy_name, pipeline_getter, pipeline_arg_names=None,
+    def translate(cls, substudy_name, pipeline_getter, pipeline_arg_names=(),
                   auto_added=False):
         """
         A method for translating pipeline constructors from a sub-study to the
