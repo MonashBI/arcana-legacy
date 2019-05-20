@@ -1,5 +1,5 @@
 
-__version__ = '0.4.3'
+__version__ = '0.4.4'
 
 __authors__ = [
     ("Thomas G. Close", "tom.g.close@gmail.com"),

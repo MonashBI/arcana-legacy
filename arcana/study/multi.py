@@ -166,7 +166,8 @@ class MultiStudy(Study):
             self.__class__.__name__, self.name)
 
     @classmethod
-    def translate(cls, substudy_name, pipeline_getter, auto_added=False):
+    def translate(cls, substudy_name, pipeline_getter, pipeline_arg_names=None,
+                  auto_added=False):
         """
         A method for translating pipeline constructors from a sub-study to the
         namespace of a multi-study. Returns a new method that calls the
@@ -178,6 +179,8 @@ class MultiStudy(Study):
             Name of the sub-study
         pipeline_getter : str
             Name of method used to construct the pipeline in the sub-study
+        pipeline_arg_names : tuple[str]
+            Names of pipeline arguments passed to the method
         auto_added : bool
             Signify that a method was automatically added by the
             MultiStudyMetaClass. Used in checks when pickling Study
@@ -186,14 +189,16 @@ class MultiStudy(Study):
         assert isinstance(substudy_name, basestring)
         assert isinstance(pipeline_getter, basestring)
 
-        def translated_getter(self, **name_maps):
+        def translated_getter(self, **kwargs):
             substudy_spec = self.substudy_spec(substudy_name)
+            pipeline_args = {n: kwargs.pop(n) for n in pipeline_arg_names}
             # Combine mapping of names of sub-study specs with
             return getattr(self.substudy(substudy_name), pipeline_getter)(
                 prefix=substudy_name + '_',
                 input_map=substudy_spec.name_map,
                 output_map=substudy_spec.name_map,
-                study=self, name_maps=name_maps)
+                study=self, name_maps=kwargs,
+                **pipeline_args)
         # Add reduce method to allow it to be pickled
         translated_getter.auto_added = auto_added
         return translated_getter
@@ -331,6 +336,8 @@ class MultiStudyMetaClass(StudyMetaClass):
                                     MultiStudy.translate(
                                         substudy_spec.name,
                                         data_spec.pipeline_getter,
+                                        pipeline_arg_names=
+                                        data_spec.pipeline_arg_names,
                                         auto_added=True))
                     trans_data_spec = type(data_spec)(**initkwargs)
                     # Allow the default input (e.g. an atlas) to translate

@@ -379,8 +379,7 @@ class Study(object):
             all_data = all_data[0]
         return all_data
 
-    def pipeline(self, getter_name, required_outputs=None,
-                 pipeline_args=None):
+    def pipeline(self, getter_name, required_outputs=None, pipeline_args=None):
         """
         Returns a pipeline from a study by getting the method corresponding to
         the given name and checking that the required outputs are generated
@@ -399,7 +398,7 @@ class Study(object):
         if pipeline_args is None:
             pipeline_args = ()
         try:
-            pipeline = self._pipelines_cache[getter_name]
+            pipeline = self._pipelines_cache[(getter_name, pipeline_args)]
         except KeyError:
             try:
                 getter = getattr(self, getter_name)
@@ -429,7 +428,7 @@ class Study(object):
                     "'{}' pipeline constructor in {} doesn't return a Pipeline"
                     " object ({})".format(
                         getter_name, self, pipeline))
-            self._pipelines_cache[getter_name] = pipeline
+            self._pipelines_cache[(getter_name, pipeline_args)] = pipeline
         if required_outputs is not None:
             # Check that the required outputs are created with the given
             # parameters
@@ -1010,7 +1009,10 @@ class StudyMetaClass(type):
         combined_param_specs.update(
             (p.name, p) for p in add_param_specs)
         # Check that the pipeline names in data specs correspond to a
-        # pipeline method in the class
+        # pipeline method in the class and that if a pipeline is called with
+        # arguments (for parameterizing a range of metrics for example) then
+        # the same argument names are consistent across every call.
+        pipeline_arg_names = {}
         for spec in add_data_specs:
             if spec.derived:
                 if spec.pipeline_getter in ('pipeline', 'new_pipeline'):
@@ -1025,6 +1027,18 @@ class StudyMetaClass(type):
                         "Pipeline to generate '{}', '{}', is not present"
                         " in '{}' class".format(
                             spec.name, spec.pipeline_getter, name))
+                try:
+                    if pipeline_arg_names[
+                            spec.pipeline_getter] != spec.pipeline_arg_names:
+                        raise ArcanaDesignError(
+                            "Inconsistent pipeline argument names used for "
+                            "'{}' pipeline getter {} and {}".format(
+                                spec.pipeline_getter,
+                                pipeline_arg_names[spec.pipeline_getter],
+                                spec.pipeline_arg_names))
+                except KeyError:
+                    pipeline_arg_names[
+                        spec.pipeline_getter] = spec.pipeline_arg_names
         # Check for name clashes between data and parameter specs
         spec_name_clashes = (set(combined_data_specs) &
                              set(combined_param_specs))

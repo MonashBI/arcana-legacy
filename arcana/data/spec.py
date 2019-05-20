@@ -155,6 +155,8 @@ class BaseSpec(object):
             pipeline_args = tuple(sorted(pipeline_args.items()))
         elif pipeline_args is not None:
             pipeline_args = tuple(pipeline_args)
+        else:
+            pipeline_args = ()
         self._pipeline_args = pipeline_args
         self._group = group
 
@@ -275,6 +277,10 @@ class BaseSpec(object):
     @property
     def pipeline_args(self):
         return self._pipeline_args
+
+    @property
+    def pipeline_arg_names(self):
+        return tuple(n for n, _ in self._pipeline_args)
 
     @property
     def pipeline(self):
