@@ -127,14 +127,14 @@ class Pipeline(object):
             set(self._input_conns.keys()) == set(other._input_conns.keys()) and
             (set(self._output_conns.keys()) ==
              set(other._output_conns.keys())) and
-            self._references == other._references)
+            self._citations == other._citations)
 
     def __hash__(self):
         return (hash(self._name) ^
                 hash(self._desc) ^
                 hash(tuple(self._input_conns.keys())) ^
                 hash(tuple(self._output_conns.keys())) ^
-                hash(tuple(self._references)))
+                hash(tuple(self._citations)))
 
     def __ne__(self, other):
         return not (self == other)

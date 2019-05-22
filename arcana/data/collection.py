@@ -4,7 +4,6 @@ from arcana.exceptions import (
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field
 from collections import OrderedDict
-from collections.abc import Iterable
 from operator import itemgetter
 from itertools import chain
 
@@ -73,7 +72,6 @@ class BaseCollection(object):
             ln = len(self._collection)
         return ln
 
-    @classmethod
     def _common_attr(self, collection, attr_name, ignore_none=True):
         attr_set = set(getattr(c, attr_name) for c in collection)
         if ignore_none:
