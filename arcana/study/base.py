@@ -147,7 +147,7 @@ class Study(object):
                     "allowable parameters for {} classes ('{}')"
                     .format(param_name, type(self).__name__,
                             "', '".join(self.parameter_spec_names())))
-            param_spec.check_valid(param, context='{}(name={})'.format(
+            param_spec.check_valid(param, context=' {}(name={})'.format(
                 type(self).__name__, name))
             self._parameters[param_name] = param
         # Convert inputs to a dictionary if passed in as a list/tuple

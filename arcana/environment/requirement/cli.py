@@ -39,6 +39,10 @@ class CliRequirement(BaseRequirement):
                 self._test_cmd == other._test_cmd and
                 self._version_switch == other._version_switch)
 
+    def __hash__(self):
+        return (super().__hash__() ^ hash(self._test_cmd) ^
+                hash(self._version_switch))
+
     @property
     def test_cmd(self):
         return self._test_cmd

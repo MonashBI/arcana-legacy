@@ -68,6 +68,9 @@ class MatlabPackageRequirement(BaseRequirement):
         return (super(MatlabPackageRequirement, self).__eq__(other) and
                 self._test_func == other._test_func)
 
+    def __hash__(self):
+        return super().__hash__() ^ hash(self._test_func)
+
     @property
     def test_func(self):
         return self._test_func

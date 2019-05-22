@@ -18,6 +18,10 @@ class PythonPackageRequirement(BaseRequirement):
                 self._package_name == other._package_name and
                 self._version_attr == other._version_attr)
 
+    def __hash__(self):
+        return (super().__hash__() ^ hash(self._package_name) ^
+                hash(self._version_attr))
+
     @property
     def package_name(self):
         return self._package_name
