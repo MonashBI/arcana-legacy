@@ -20,8 +20,8 @@ logger = logging.getLogger('arcana')
 class ModulesNodeMixin(NodeMixin):
 
     def _run_command(self, *args, **kwargs):
+        self.environment.load(*self.versions)
         try:
-            self.environment.load(*self.versions)
             result = self.base_cls._run_command(self, *args, **kwargs)
         finally:
             self.environment.unload(*self.versions)
@@ -29,8 +29,10 @@ class ModulesNodeMixin(NodeMixin):
 
     def _load_results(self, *args, **kwargs):
         self.environment.load(*self.versions)
-        result = self.base_cls._load_results(self, *args, **kwargs)
-        self.environment.unload(*self.versions)
+        try:
+            result = self.base_cls._load_results(self, *args, **kwargs)
+        finally:
+            self.environment.unload(*self.versions)
         return result
 
 
