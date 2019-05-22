@@ -428,6 +428,13 @@ class Study(object):
                     "'{}' pipeline constructor in {} doesn't return a Pipeline"
                     " object ({})".format(
                         getter_name, self, pipeline))
+            # Check to see if the pipeline is equivalent to previously
+            # generated pipelines (if two getter methods return equivalent
+            # pipelines)
+            for prev_pipeline in self._pipelines_cache.values():
+                if pipeline == prev_pipeline:
+                    pipeline = prev_pipeline
+                    break
             self._pipelines_cache[(getter_name, pipeline_args)] = pipeline
         if required_outputs is not None:
             # Check that the required outputs are created with the given
