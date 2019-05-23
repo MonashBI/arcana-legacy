@@ -17,8 +17,8 @@ class BaseInput(object):
 
     def __init__(self, pattern, is_regex, order, from_study,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False,
-                 repository=None, study_=None, collection_=None):
+                 fallback_to_default=False, repository=None,
+                 study_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
@@ -312,6 +312,9 @@ class InputFileset(BaseInput, BaseFileset):
     repository : Repository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
+    acceptable_quality : list[str]
+        A list of acceptable quality labels to accept, i.e. if a fileset's
+        quality label is not in the list it will be ignored.
     """
 
     is_spec = False
@@ -320,8 +323,9 @@ class InputFileset(BaseInput, BaseFileset):
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None, study_=None,
-                 collection_=None):
+                 fallback_to_default=False, repository=None,
+                 acceptable_quality=('usable', 'questionable', None),
+                 study_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
         BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
@@ -337,19 +341,22 @@ class InputFileset(BaseInput, BaseFileset):
                 "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
         self._id = str(id) if id is not None else id
+        self._acceptable_quality = tuple(acceptable_quality)
         self._check_args()
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
                 BaseInput.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
-                self.id == other.id)
+                self.id == other.id and
+                self._acceptable_quality == other._acceptable_quality)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseInput.__hash__(self) ^
                 hash(self.dicom_tags) ^
-                hash(self.id))
+                hash(self.id) ^
+                hash(self._acceptable_quality))
 
     def _check_args(self):
         if self._pattern is None and self._id is None:
@@ -362,16 +369,17 @@ class InputFileset(BaseInput, BaseFileset):
         dct.update(BaseInput.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
+        dct['acceptable_quality'] = self.acceptable_quality
         return dct
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, id={}, dicom_tags={}, "
-                "from_study={})"
+                "from_study={}, acceptable_quality={})"
                 .format(self.__class__.__name__, self.name, self._format,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self.id, self.dicom_tags,
-                        self._from_study))
+                        self._from_study, self._acceptable_quality))
 
     def match(self, tree, spec, **kwargs):
         if self.format is not None:
@@ -387,6 +395,10 @@ class InputFileset(BaseInput, BaseFileset):
     @property
     def id(self):
         return self._id
+
+    @property
+    def acceptable_quality(self):
+        return self._acceptable_quality
 
     @property
     def format(self):
@@ -419,6 +431,14 @@ class InputFileset(BaseInput, BaseFileset):
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
+        filtered = [f for f in matches if f.quality in self.acceptable_quality]
+        if not filtered:
+            raise ArcanaInputMissingMatchError(
+                "Did not find filesets names matching pattern {} "
+                "with an acceptable quality {} (found {}) in {}".format(
+                    self.pattern, self.acceptable_quality,
+                    ', '.join(str(m) for m in matches), node))
+        matches = filtered
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
