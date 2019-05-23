@@ -12,7 +12,8 @@ from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaUsageError,
     ArcanaMissingDataException, ArcanaNameError,
-    ArcanaOutputNotProducedException, ArcanaInputMissingMatchError)
+    ArcanaOutputNotProducedException, ArcanaInputMissingMatchError,
+    ArcanaInputError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseInputSpec, InputFileset, InputField)
@@ -165,26 +166,33 @@ class Study(object):
                                              dtype=spec.dtype)
                     inputs[inpt_name] = inpt
         # Check validity of study inputs
+        input_errors = []
         for inpt_name, inpt in inputs.items():
             try:
-                spec = self.data_spec(inpt_name)
-            except ArcanaNameError:
-                raise ArcanaNameError(
-                    inpt.name,
-                    "Input name '{}' isn't in data specs of {} ('{}')"
-                    .format(
-                        inpt.name, self.__class__.__name__,
-                        "', '".join(self._data_specs)))
-            else:
-                if spec.is_fileset:
-                    if inpt.is_field:
+                try:
+                    spec = self.data_spec(inpt_name)
+                except ArcanaNameError:
+                    raise ArcanaNameError(
+                        inpt.name,
+                        "Input name '{}' isn't in data specs of {} ('{}')"
+                        .format(
+                            inpt.name, self.__class__.__name__,
+                            "', '".join(self._data_specs)))
+                else:
+                    if spec.is_fileset:
+                        if inpt.is_field:
+                            raise ArcanaUsageError(
+                                "Passed field ({}) as input to fileset spec"
+                                " {}".format(inpt, spec))
+                    elif not inpt.is_field:
                         raise ArcanaUsageError(
-                            "Passed field ({}) as input to fileset spec"
-                            " {}".format(inpt, spec))
-                elif not inpt.is_field:
-                    raise ArcanaUsageError(
-                        "Passed fileset ({}) as input to field spec {}"
-                        .format(inpt, spec))
+                            "Passed fileset ({}) as input to field spec {}"
+                            .format(inpt, spec))
+            except ArcanaInputError as e:
+                # Collate errors across all inputs into a single error message
+                input_errors.append(e)
+        if input_errors:
+            raise ArcanaInputError('\n'.join(str(e) for e in input_errors))
         # "Bind" input selectors to the current study object, and attempt to
         # match with data in the repository
         with self.repository:

@@ -168,7 +168,7 @@ class ModulesEnv(Environment):
         finally:
             # Unload detected versions
             if self._detect_exact_versions:
-                self.unload(versions)
+                self.unload(*versions)
         return versions
 
     def load(self, *versions):

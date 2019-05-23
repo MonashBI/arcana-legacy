@@ -207,27 +207,34 @@ class BaseInput(object):
 
     def _match(self, tree, item_cls, **kwargs):
         matches = []
+        errors = []
         for node in self.nodes(tree):
             try:
-                matches.append(self.match_node(node, **kwargs))
-            except ArcanaInputMissingMatchError as e:
-                if self._fallback is not None:
-                    matches.append(self._fallback.collection.item(
-                        subject_id=node.subject_id, visit_id=node.visit_id))
-                elif self.skip_missing:
-                    # Insert a non-existant item placeholder in-place of the
-                    # the missing item
-                    matches.append(item_cls(
-                        self.name,
-                        frequency=self.frequency,
-                        subject_id=node.subject_id,
-                        visit_id=node.visit_id,
-                        repository=self.study.repository,
-                        from_study=self.from_study,
-                        exists=False,
-                        **self._specific_kwargs))
-                else:
-                    raise e
+                try:
+                    matches.append(self.match_node(node, **kwargs))
+                except ArcanaInputMissingMatchError as e:
+                    if self._fallback is not None:
+                        matches.append(self._fallback.collection.item(
+                            subject_id=node.subject_id,
+                            visit_id=node.visit_id))
+                    elif self.skip_missing:
+                        # Insert a non-existant item placeholder in-place of
+                        # the the missing item
+                        matches.append(item_cls(
+                            self.name,
+                            frequency=self.frequency,
+                            subject_id=node.subject_id,
+                            visit_id=node.visit_id,
+                            repository=self.study.repository,
+                            from_study=self.from_study,
+                            exists=False,
+                            **self._specific_kwargs))
+                    else:
+                        raise e
+            except ArcanaInputError as e:
+                errors.append(e)
+        if errors:
+            raise ArcanaInputError('\n'.join(str(e) for e in errors))
         return matches
 
     def match_node(self, node, **kwargs):  # @UnusedVariable
