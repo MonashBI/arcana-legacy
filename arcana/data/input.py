@@ -1,4 +1,5 @@
 from builtins import object
+from past.builtins import basestring
 import re
 from copy import copy
 from itertools import chain
@@ -181,7 +182,9 @@ class BaseInput(object):
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-                bound._collection = bound.match(tree, spec=spec, **kwargs)
+                bound._collection = bound.match(
+                    tree, valid_formats=getattr(spec, 'valid_formats', None),
+                    **kwargs)
         return bound
 
     @property
@@ -227,9 +230,9 @@ class BaseInput(object):
                     raise e
         return matches
 
-    def match_node(self, node, **kwargs):
+    def match_node(self, node, **kwargs):  # @UnusedVariable
         # Get names matching pattern
-        matches = self._filtered_matches(node, **kwargs)
+        matches = self._filtered_matches(node)
         # Filter matches by study name
         study_matches = [d for d in matches
                          if d.from_study == self.from_study]
@@ -312,9 +315,10 @@ class InputFileset(BaseInput, BaseFileset):
     repository : Repository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
-    acceptable_quality : list[str]
-        A list of acceptable quality labels to accept, i.e. if a fileset's
-        quality label is not in the list it will be ignored.
+    acceptable_quality : str | list[str] | None
+        An acceptable quality label, or list thereof, to accept, i.e. if a
+        fileset's quality label is not in the list it will be ignored. If a
+        scan wasn't labelled the value of its qualtiy will be None.
     """
 
     is_spec = False
@@ -324,7 +328,7 @@ class InputFileset(BaseInput, BaseFileset):
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
-                 acceptable_quality=('usable', 'questionable', None),
+                 acceptable_quality=None,
                  study_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
         BaseInput.__init__(self, pattern, is_regex, order,
@@ -341,8 +345,11 @@ class InputFileset(BaseInput, BaseFileset):
                 "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
         self._id = str(id) if id is not None else id
-        self._acceptable_quality = tuple(acceptable_quality)
-        self._check_args()
+        if isinstance(acceptable_quality, basestring):
+            acceptable_quality = (acceptable_quality,)
+        elif acceptable_quality is not None:
+            acceptable_quality = tuple(acceptable_quality)
+        self._acceptable_quality = acceptable_quality
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
@@ -357,12 +364,6 @@ class InputFileset(BaseInput, BaseFileset):
                 hash(self.dicom_tags) ^
                 hash(self.id) ^
                 hash(self._acceptable_quality))
-
-    def _check_args(self):
-        if self._pattern is None and self._id is None:
-            raise ArcanaUsageError(
-                "Either 'pattern' or 'id' need to be provided to "
-                "InputFileset constructor")
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
@@ -381,11 +382,16 @@ class InputFileset(BaseInput, BaseFileset):
                         self.order, self.id, self.dicom_tags,
                         self._from_study, self._acceptable_quality))
 
-    def match(self, tree, spec, **kwargs):
+    def match(self, tree, valid_formats=None, **kwargs):
         if self.format is not None:
             candidate_formats = [self.format]
         else:
-            candidate_formats = spec.valid_formats
+            if valid_formats is None:
+                raise ArcanaUsageError(
+                    "'valid_formats' need to be provided to the 'match' "
+                    "method if the InputFileset ({}) doesn't specify a format"
+                    .format(self))
+            candidate_formats = valid_formats
         # Run the match against the tree
         return FilesetCollection(self.name,
                                  self._match(tree, Fileset, **kwargs),
@@ -431,14 +437,16 @@ class InputFileset(BaseInput, BaseFileset):
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
-        filtered = [f for f in matches if f.quality in self.acceptable_quality]
-        if not filtered:
-            raise ArcanaInputMissingMatchError(
-                "Did not find filesets names matching pattern {} "
-                "with an acceptable quality {} (found {}) in {}".format(
-                    self.pattern, self.acceptable_quality,
-                    ', '.join(str(m) for m in matches), node))
-        matches = filtered
+        if self.acceptable_quality is not None:
+            filtered = [f for f in matches
+                        if f.quality in self.acceptable_quality]
+            if not filtered:
+                raise ArcanaInputMissingMatchError(
+                    "Did not find filesets names matching pattern {} "
+                    "with an acceptable quality {} (found {}) in {}".format(
+                        self.pattern, self.acceptable_quality,
+                        ', '.join(str(m) for m in matches), node))
+            matches = filtered
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
@@ -558,7 +566,7 @@ class InputField(BaseInput, BaseField):
         return (BaseField.__eq__(self, other) and
                 BaseInput.__eq__(self, other))
 
-    def match(self, tree, spec=None, **kwargs):  # @UnusedVariable
+    def match(self, tree, **kwargs):
         # Run the match against the tree
         return FieldCollection(self.name,
                                self._match(tree, Field, **kwargs),

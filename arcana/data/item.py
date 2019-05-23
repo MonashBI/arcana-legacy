@@ -300,7 +300,7 @@ class Fileset(BaseItem, BaseFileset):
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={},"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={}, "
                 "quality={}{})"
                 .format(
                     type(self).__name__, self.name, self.format,
