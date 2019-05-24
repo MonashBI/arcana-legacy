@@ -405,6 +405,8 @@ class Study(object):
         """
         if pipeline_args is None:
             pipeline_args = ()
+        elif isinstance(pipeline_args, dict):
+            pipeline_args = tuple(pipeline_args.items())
         try:
             pipeline = self._pipelines_cache[(getter_name, pipeline_args)]
         except KeyError:
@@ -438,11 +440,19 @@ class Study(object):
                         getter_name, self, pipeline))
             # Check to see if the pipeline is equivalent to previously
             # generated pipelines (if two getter methods return equivalent
-            # pipelines)
+            # pipelines) and whether any outputs are to be generated twice
+            # by different pipelines within the same workflow
             for prev_pipeline in self._pipelines_cache.values():
                 if pipeline == prev_pipeline:
                     pipeline = prev_pipeline
                     break
+                elif any(o in prev_pipeline.outputs for o in pipeline.outputs):
+                    raise ArcanaDesignError(
+                        "'{}' outputs are produced by more than one pipeline "
+                        "({} and {})".format(
+                            set(pipeline.output_names).intersection(
+                                prev_pipeline.output_names),
+                            prev_pipeline, pipeline))
             self._pipelines_cache[(getter_name, pipeline_args)] = pipeline
         if required_outputs is not None:
             # Check that the required outputs are created with the given

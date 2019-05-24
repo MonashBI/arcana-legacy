@@ -233,8 +233,14 @@ class BaseInput(object):
                         raise e
             except ArcanaInputError as e:
                 errors.append(e)
+        # Collate potentially multiple errors into a single error message
         if errors:
-            raise ArcanaInputError('\n'.join(str(e) for e in errors))
+            if all(isinstance(e, ArcanaInputMissingMatchError)
+                   for e in errors):
+                ErrorClass = ArcanaInputMissingMatchError
+            else:
+                ErrorClass = ArcanaInputError
+            raise ErrorClass('\n'.join(str(e) for e in errors))
         return matches
 
     def match_node(self, node, **kwargs):  # @UnusedVariable

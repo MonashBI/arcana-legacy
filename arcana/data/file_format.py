@@ -251,19 +251,19 @@ class FileFormat(object):
             primary_file = primary_file[0]
         aux_files = {}
         for aux_name, aux_ext in self.aux_files.items():
-            try:
-                aux = by_ext[aux_ext]
-            except KeyError:
+            aux = by_ext[aux_ext]
+            if not aux:
                 raise ArcanaFileFormatError(
                     "No files match auxiliary file extension '{}' of {} out of"
                     " potential candidates of {}"
                     .format(aux_ext, self, "', '".join(candidates)))
-            if len(aux) > 1:
+            elif len(aux) > 1:
                 raise ArcanaFileFormatError(
                     "Multiple potential files for '{}' auxiliary file ext. "
                     "({}) of {}".format("', '".join(aux),
                                         self))
-            aux_files[aux_name] = aux[0]
+            else:
+                aux_files[aux_name] = aux[0]
         return primary_file, aux_files
 
     def matches(self, fileset):
