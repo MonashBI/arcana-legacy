@@ -731,7 +731,7 @@ class Processor(object):
                     "or more visits ({}). Please restrict the subject/visit "
                     "IDs in the study __init__ to continue the analysis"
                     .format(
-                        self.name,
+                        pipeline.name,
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))

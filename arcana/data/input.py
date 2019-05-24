@@ -504,7 +504,8 @@ class InputFileset(BaseInput, BaseFileset):
         avoid DOSing the host
         """
         for item in self.collection:
-            item.get()
+            if item.exists:
+                item.get()
 
     @property
     def _specific_kwargs(self):
