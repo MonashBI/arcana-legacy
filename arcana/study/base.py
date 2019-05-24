@@ -166,35 +166,29 @@ class Study(object):
                                              dtype=spec.dtype)
                     inputs[inpt_name] = inpt
         # Check validity of study inputs
-        input_errors = []
         for inpt_name, inpt in inputs.items():
             try:
-                try:
-                    spec = self.data_spec(inpt_name)
-                except ArcanaNameError:
-                    raise ArcanaNameError(
-                        inpt.name,
-                        "Input name '{}' isn't in data specs of {} ('{}')"
-                        .format(
-                            inpt.name, self.__class__.__name__,
-                            "', '".join(self._data_specs)))
-                else:
-                    if spec.is_fileset:
-                        if inpt.is_field:
-                            raise ArcanaUsageError(
-                                "Passed field ({}) as input to fileset spec"
-                                " {}".format(inpt, spec))
-                    elif not inpt.is_field:
+                spec = self.data_spec(inpt_name)
+            except ArcanaNameError:
+                raise ArcanaNameError(
+                    inpt.name,
+                    "Input name '{}' isn't in data specs of {} ('{}')"
+                    .format(
+                        inpt.name, self.__class__.__name__,
+                        "', '".join(self._data_specs)))
+            else:
+                if spec.is_fileset:
+                    if inpt.is_field:
                         raise ArcanaUsageError(
-                            "Passed fileset ({}) as input to field spec {}"
-                            .format(inpt, spec))
-            except ArcanaInputError as e:
-                # Collate errors across all inputs into a single error message
-                input_errors.append(e)
-        if input_errors:
-            raise ArcanaInputError('\n'.join(str(e) for e in input_errors))
+                            "Passed field ({}) as input to fileset spec"
+                            " {}".format(inpt, spec))
+                elif not inpt.is_field:
+                    raise ArcanaUsageError(
+                        "Passed fileset ({}) as input to field spec {}"
+                        .format(inpt, spec))
         # "Bind" input selectors to the current study object, and attempt to
         # match with data in the repository
+        input_errors = []
         with self.repository:
             if not self.subject_ids:
                 raise ArcanaUsageError(
@@ -206,32 +200,38 @@ class Study(object):
                     "is empty")
             for inpt_name, inpt in list(inputs.items()):
                 try:
-                    self._inputs[inpt_name] = bound_inpt = inpt.bind(
-                        self, spec_name=inpt_name)
-                except ArcanaInputMissingMatchError as e:
-                    if not inpt.drop_if_missing:
-                        raise e
-                else:
-                    spec = self.data_spec(inpt_name)
-                    if spec.is_fileset:
-                        if spec.derived:
-                            try:
-                                spec.format.converter_from(bound_inpt.format)
-                            except ArcanaNoConverterError as e:
-                                e.msg += (
-                                    ", which is requried to convert:\n{} "
-                                    "to\n{}.".format(e, bound_inpt, spec))
-                                raise e
-                        else:
-                            if bound_inpt.format not in spec.valid_formats:
-                                raise ArcanaUsageError(
-                                    "Cannot pass {} as an input to {} as it is"
-                                    " not in one of the valid formats ('{}')"
-                                    .format(
-                                        bound_inpt, spec,
-                                        "', '".join(
-                                            f.name
-                                            for f in spec.valid_formats)))
+                    try:
+                        self._inputs[inpt_name] = bound_inpt = inpt.bind(
+                            self, spec_name=inpt_name)
+                    except ArcanaInputMissingMatchError as e:
+                        if not inpt.drop_if_missing:
+                            raise e
+                    else:
+                        spec = self.data_spec(inpt_name)
+                        if spec.is_fileset:
+                            if spec.derived:
+                                try:
+                                    spec.format.converter_from(bound_inpt.format)
+                                except ArcanaNoConverterError as e:
+                                    e.msg += (
+                                        ", which is requried to convert:\n{} "
+                                        "to\n{}.".format(e, bound_inpt, spec))
+                                    raise e
+                            else:
+                                if bound_inpt.format not in spec.valid_formats:
+                                    raise ArcanaUsageError(
+                                        "Cannot pass {} as an input to {} as it is"
+                                        " not in one of the valid formats ('{}')"
+                                        .format(
+                                            bound_inpt, spec,
+                                            "', '".join(
+                                                f.name
+                                                for f in spec.valid_formats)))
+                except ArcanaInputError as e:
+                    # Collate errors across all inputs into a single error message
+                    input_errors.append(e)
+        if input_errors:
+            raise ArcanaInputError('\n'.join(str(e) for e in input_errors))
         # Check remaining specs are optional or have default values
         for spec in self.data_specs():
             if spec.name not in self.input_names:
