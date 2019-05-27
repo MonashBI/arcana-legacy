@@ -211,7 +211,8 @@ class Study(object):
                         if spec.is_fileset:
                             if spec.derived:
                                 try:
-                                    spec.format.converter_from(bound_inpt.format)
+                                    spec.format.converter_from(
+                                        bound_inpt.format)
                                 except ArcanaNoConverterError as e:
                                     e.msg += (
                                         ", which is requried to convert:\n{} "
@@ -220,15 +221,16 @@ class Study(object):
                             else:
                                 if bound_inpt.format not in spec.valid_formats:
                                     raise ArcanaUsageError(
-                                        "Cannot pass {} as an input to {} as it is"
-                                        " not in one of the valid formats ('{}')"
-                                        .format(
+                                        "Cannot pass {} as an input to {} as "
+                                        "it is not in one of the valid formats"
+                                        " ('{}')".format(
                                             bound_inpt, spec,
                                             "', '".join(
                                                 f.name
                                                 for f in spec.valid_formats)))
                 except ArcanaInputError as e:
-                    # Collate errors across all inputs into a single error message
+                    # Collate errors across all inputs into a single error
+                    # message
                     input_errors.append(e)
         if input_errors:
             raise ArcanaInputError('\n'.join(str(e) for e in input_errors))

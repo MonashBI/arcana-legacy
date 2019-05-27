@@ -6,7 +6,7 @@ from itertools import chain
 from copy import copy
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
 from arcana.pipeline.provenance import Record
-from arcana.exceptions import ArcanaError
+from arcana.exceptions import ArcanaError, ArcanaDesignError
 import logging
 
 logger = logging.getLogger('arcana')
@@ -288,12 +288,9 @@ class RepositorySink(RepositoryInterface):
             for repository in self.repositories:
                 repository.put_record(record)
         if missing_inputs:
-            # FIXME: Not sure if this should be an exception or not,
-            #        indicates a problem but stopping now would throw
-            #        away the filesets that were created
-            logger.warning(
-                "Missing inputs '{}' in RepositorySink".format(
-                    "', '".join(missing_inputs)))
+            raise ArcanaDesignError(
+                "Inputs '{}' to {} were not created by upstream nodes".format(
+                    "', '".join(missing_inputs), self))
         # Return cache file paths
         outputs['checksums'] = output_checksums
         return outputs
