@@ -147,7 +147,7 @@ class Study(object):
                     "Provided parameter '{}' is not present in the "
                     "allowable parameters for {} classes ('{}')"
                     .format(param_name, type(self).__name__,
-                            "', '".join(self.parameter_spec_names())))
+                            "', '".join(self.param_spec_names())))
             param_spec.check_valid(param, context=' {}(name={})'.format(
                 type(self).__name__, name))
             self._parameters[param_name] = param
@@ -623,7 +623,7 @@ class Study(object):
                     "Invalid parameter, '{}', in {} (valid '{}')"
                     .format(
                         name, self._param_error_location,
-                        "', '".join(self.parameter_spec_names())))
+                        "', '".join(self.param_spec_names())))
         return parameter
 
     def parameter(self, name):
@@ -651,7 +651,7 @@ class Study(object):
         """
         if isinstance(values, basestring):
             values = [values]
-        spec = self.parameter_spec(name)
+        spec = self.param_spec(name)
         if not isinstance(spec, SwitchSpec):
             raise ArcanaUsageError(
                 "{} is standard parameter not a switch".format(spec))
@@ -821,7 +821,7 @@ class Study(object):
                         "\n".join(list(cls._data_specs.keys()))))
 
     @classmethod
-    def parameter_spec(cls, name):
+    def param_spec(cls, name):
         try:
             return cls._param_specs[name]
         except KeyError:
@@ -837,7 +837,7 @@ class Study(object):
         return iter(cls._data_specs.values())
 
     @classmethod
-    def parameter_specs(cls):
+    def param_specs(cls):
         return iter(cls._param_specs.values())
 
     @classmethod
@@ -846,14 +846,14 @@ class Study(object):
         return iter(cls._data_specs.keys())
 
     @classmethod
-    def parameter_spec_names(cls):
-        """Lists the names of all parameter_specs defined in the study"""
+    def param_spec_names(cls):
+        """Lists the names of all param_specs defined in the study"""
         return iter(cls._param_specs.keys())
 
     @classmethod
     def spec_names(cls):
         return chain(cls.data_spec_names(),
-                     cls.parameter_spec_names())
+                     cls.param_spec_names())
 
     @classmethod
     def acquired_data_specs(cls):
@@ -911,7 +911,7 @@ class Study(object):
         for spec in cls.data_specs():
             print(spec)
         print('\nAvailable parameters:')
-        for spec in cls.parameter_specs():
+        for spec in cls.param_specs():
             print(spec)
 
     def provided(self, spec_name, default_okay=True):
@@ -1028,7 +1028,7 @@ class StudyMetaClass(type):
                 pass  # Not a Study class
             try:
                 combined_param_specs.update(
-                    (p.name, p) for p in base.parameter_specs())
+                    (p.name, p) for p in base.param_specs())
             except AttributeError:
                 pass  # Not a Study class
         combined_attrs.update(list(dct.keys()))
