@@ -430,7 +430,7 @@ class CopyToDir(BaseInterface):
                     shutil.copytree(in_file, out_path)
                 else:
                     shutil.copy(in_file, out_path)
-            file_names.append(out_path)
+            file_names.append(op.basename(out_path))
         outputs['out_dir'] = dirname
         outputs['file_names'] = file_names
         return outputs
