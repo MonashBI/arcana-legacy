@@ -18,7 +18,8 @@ from logging import getLogger
 from arcana.utils import extract_package_version
 from arcana.__about__ import __version__
 from arcana.exceptions import (
-    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError)
+    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError,
+    ArcanaDataNotDerivedYetError)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -919,9 +920,13 @@ class Pipeline(object):
                         for s in subj.sessions])
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
-        exp_outputs = {
-            o.name: o.collection.item(node.subject_id, node.visit_id).checksums
-            for o in self.outputs}
+        exp_outputs = {}
+        for output in self.outputs:
+            try:
+                exp_outputs[output.name] = output.collection.item(
+                    node.subject_id, node.visit_id).checksums
+            except ArcanaDataNotDerivedYetError:
+                pass
         exp_prov = copy(self.prov)
         if PY2:
             # Need to convert to unicode strings for Python 2

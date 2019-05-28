@@ -505,7 +505,8 @@ class Processor(object):
             sink = pipeline.add(
                 '{}_sink'.format(freq),
                 RepositorySink(
-                    (o.collection for o in outputs), pipeline),
+                    (o.collection for o in outputs), pipeline,
+                    required_outputs),
                 inputs=to_connect)
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
