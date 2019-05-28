@@ -2,7 +2,7 @@ import os
 from unittest import TestCase
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
-    InputFilesetSpec, FilesetSpec, InputFileset, FieldSpec)
+    InputFilesetSpec, FilesetSpec, InputFilesets, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
 from arcana.exceptions import (
     ArcanaModulesNotInstalledException, ArcanaError, ArcanaModulesError)
@@ -127,7 +127,7 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [InputFileset('ones', 'ones', text_format)],
+            [InputFilesets('ones', 'ones', text_format)],
             environment=ModulesEnv())
         threes = study.data('threes')
         fours = study.data('fours')

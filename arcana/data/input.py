@@ -272,7 +272,7 @@ class BaseInput(object):
         return match
 
 
-class InputFileset(BaseInput, BaseFileset):
+class InputFilesets(BaseInput, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -402,7 +402,7 @@ class InputFileset(BaseInput, BaseFileset):
             if valid_formats is None:
                 raise ArcanaUsageError(
                     "'valid_formats' need to be provided to the 'match' "
-                    "method if the InputFileset ({}) doesn't specify a format"
+                    "method if the InputFilesets ({}) doesn't specify a format"
                     .format(self))
             candidate_formats = valid_formats
         # Run the match against the tree
@@ -512,7 +512,7 @@ class InputFileset(BaseInput, BaseFileset):
         return {'format': self.format}
 
 
-class InputField(BaseInput, BaseField):
+class InputFields(BaseInput, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.

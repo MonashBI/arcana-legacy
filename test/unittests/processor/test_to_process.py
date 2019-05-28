@@ -6,7 +6,7 @@ from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
-    InputFieldSpec, InputField)  # @IgnorePep8
+    InputFieldSpec, InputFields)  # @IgnorePep8
 from arcana.data.file_format import text_format  # @IgnorePep8
 from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
@@ -545,7 +545,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [InputField('acquired_field1', 'acquired_field1', int)]
+    STUDY_INPUTS = [InputFields('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -785,8 +785,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationStudy,
             study_name,
             inputs=[
-                InputField('acquired_field1', 'acquired_field1', int),
-                InputField('acquired_field2', 'acquired_field2', int,
+                InputFields('acquired_field1', 'acquired_field1', int),
+                InputFields('acquired_field2', 'acquired_field2', int,
                               skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],

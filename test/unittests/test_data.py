@@ -8,7 +8,7 @@ from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
 from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
 from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
 from arcana.study.parameter import SwitchSpec  # @IgnorePep8
-from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec, InputFileset  # @IgnorePep8
+from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec, InputFilesets  # @IgnorePep8
 from arcana.data.file_format import text_format, FileFormat  # @IgnorePep8
 from arcana.exceptions import ArcanaDesignError, ArcanaError # @IgnorePep8
 from future.utils import PY2  # @IgnorePep8
@@ -127,10 +127,10 @@ class TestDicomTagMatch(BaseTestCase):
     PHASE_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'P', 'ND']
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
-        InputFileset('gre_phase', GRE_PATTERN, dicom_format,
+        InputFilesets('gre_phase', GRE_PATTERN, dicom_format,
                      dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
                      is_regex=True),
-        InputFileset('gre_mag', GRE_PATTERN, dicom_format,
+        InputFilesets('gre_mag', GRE_PATTERN, dicom_format,
                         dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
                         is_regex=True)]
 
@@ -150,9 +150,9 @@ class TestDicomTagMatch(BaseTestCase):
         study = self.create_study(
             TestMatchStudy, 'test_dicom',
             inputs=[
-                InputFileset('gre_phase', pattern=self.GRE_PATTERN,
+                InputFilesets('gre_phase', pattern=self.GRE_PATTERN,
                              format=dicom_format, order=1, is_regex=True),
-                InputFileset('gre_mag', pattern=self.GRE_PATTERN,
+                InputFilesets('gre_mag', pattern=self.GRE_PATTERN,
                              format=dicom_format, order=0, is_regex=True)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
@@ -267,7 +267,7 @@ class TestDerivable(BaseTestCase):
         study_with_switch = self.create_study(
             TestDerivableStudy,
             'study_with_switch',
-            inputs=[InputFileset('required', 'required', text_format)],
+            inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'switch': True})
         self.assertTrue(
             study_with_switch.spec('requires_switch').derivable)
@@ -277,7 +277,7 @@ class TestDerivable(BaseTestCase):
         study_bar_branch = self.create_study(
             TestDerivableStudy,
             'study_bar_branch',
-            inputs=[InputFileset('required', 'required', text_format)],
+            inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'branch': 'bar'})
         self.assertFalse(study_bar_branch.spec('requires_foo').derivable)
         self.assertTrue(study_bar_branch.spec('requires_bar').derivable)
@@ -285,14 +285,14 @@ class TestDerivable(BaseTestCase):
         study_with_input = self.create_study(
             TestDerivableStudy,
             'study_with_inputs',
-            inputs=[InputFileset('required', 'required', text_format),
-                    InputFileset('optional', 'required', text_format)])
+            inputs=[InputFilesets('required', 'required', text_format),
+                    InputFilesets('optional', 'required', text_format)])
         self.assertTrue(
             study_with_input.spec('missing_input').derivable)
         study_unhandled = self.create_study(
             TestDerivableStudy,
             'study_unhandled',
-            inputs=[InputFileset('required', 'required', text_format)],
+            inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'branch': 'wee'})
         self.assertRaises(
             ArcanaDesignError,
