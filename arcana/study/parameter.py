@@ -188,12 +188,12 @@ class SwitchSpec(ParamSpec):
                     "Value provided to switch '{}'{} should be a "
                     "boolean (not {})".format(
                         self.name, context, switch.value))
-        elif switch.value not in self.choices:
+        elif switch.value != self.default and switch.value not in self.choices:
             raise ArcanaUsageError(
                 "Value provided to switch '{}'{} ({}) is not a valid "
                 "choice ('{}')".format(
                     self.name, context, switch.value,
-                    "', '".join(self.choices)))
+                    "', '".join(str(c) for c in self.choices)))
 
     @property
     def desc(self):

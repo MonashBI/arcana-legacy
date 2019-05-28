@@ -2,13 +2,15 @@ from __future__ import absolute_import
 from builtins import next
 from builtins import range
 import os
+import math
 import os.path as op
 import re
 import shutil
+from collections import Counter
 from nipype.interfaces.base import (
-    TraitedSpec, traits, BaseInterface, File, isdefined,
+    TraitedSpec, traits, BaseInterface, File,
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
-    BaseInterfaceInputSpec)
+    BaseInterfaceInputSpec, isdefined)
 from arcana.exceptions import ArcanaUsageError
 from itertools import chain, groupby
 from nipype.interfaces.utility.base import Merge, MergeInputSpec
@@ -18,6 +20,7 @@ from nipype.utils.filemanip import filename_to_list
 from nipype.interfaces.base import OutputMultiPath, InputMultiPath
 import numpy as np
 from arcana.exceptions import ArcanaError, ArcanaDesignError
+from .base import split_extension
 
 
 bash_resources = op.abspath(op.join(op.dirname(__file__), 'resources', 'bash'))
@@ -370,8 +373,11 @@ class CopyToDirInputSpec(TraitedSpec):
         traits.Either(File(exists=True), Directory(exists=True)),
         mandatory=True, desc='input dicom files')
     out_dir = Directory(desc='the output dicom file')
-    extension = traits.Str(desc='specify the extention for the copied file.',
-                           default='', usedefault=True)
+    use_symlinks = traits.Bool(
+        default=True,
+        desc=("Whether it is okay to symlink the inputs into the directory "
+              "instead of copying them"), usedefault=True)
+#     extension = traits.Str(desc='specify the extention for the copied file.')
     file_names = traits.List(
         traits.Str, desc=("The filenames to use to save the files with within "
                           "the directory"))
@@ -385,7 +391,9 @@ class CopyToDirOutputSpec(TraitedSpec):
 
 class CopyToDir(BaseInterface):
     """
-    Copies a list of files of directories into a directory
+    Copies a list of files of directories into a directory. By default the
+    input files/directories will only be symlinked into the output directory
+    for performance reasons.
     """
 
     input_spec = CopyToDirInputSpec
@@ -398,39 +406,31 @@ class CopyToDir(BaseInterface):
         outputs = self._outputs().get()
         dirname = self.out_dir
         os.makedirs(dirname)
-        ext = self.inputs.extension
+        num_files = len(self.inputs.in_files)
         if isdefined(self.inputs.file_names):
-            if len(self.inputs.file_names) != len(self.inputs.in_files):
+            if len(self.inputs.file_names) != num_files:
                 raise ArcanaError(
                     "Number of provided filenames ({}) does not match number "
                     "of provided files ({})".format(
-                        len(self.inputs.file_names),
-                        len(self.inputs.in_files)))
+                        len(self.inputs.file_names), num_files))
+            out_files = self.inputs.file_names
+        else:
+            # Create filenames that will sort ascendingly with the order the
+            # file is inputed to the interface
+            ndigits = int(math.ceil(math.log10(num_files)))
+            out_files = (str(i).zfill(ndigits) + split_extension(f)[1]
+                         for i, f in enumerate(self.inputs.in_files))
         file_names = []
-        for i, f in enumerate(self.inputs.in_files):
-            if isdefined(self.inputs.file_names):
-                out_name = op.basename(self.inputs.file_names[i])
-                path = op.join(self.out_dir, out_name)
-                if op.isdir(f):
-                    shutil.copytree(f, path)
-                else:
-                    shutil.copy(f, path)
+        for in_file, out_file in zip(self.inputs.in_files, out_files):
+            out_path = op.join(self.out_dir, out_file)
+            if self.inputs.use_symlinks:
+                os.symlink(in_file, out_path)
             else:
-                # Not quite sure what is going on here, probably should
-                # ask Francesco what this logic is for
-                if op.isdir(f):
-                    out_name = f.split('/')[-1]
-                    if ext:
-                        out_name = '{0}_{1}'.format(out_name,
-                                                    ext + str(i).zfill(3))
-                    shutil.copytree(f, op.join(dirname, out_name))
-                elif op.isfile(f):
-                    if ext == '.dcm':
-                        out_name = op.join(dirname, str(i).zfill(4)) + ext
-                    else:
-                        out_name = dirname
-                    shutil.copy(f, out_name)
-            file_names.append(out_name)
+                if op.isdir(in_file):
+                    shutil.copytree(in_file, out_path)
+                else:
+                    shutil.copy(in_file, out_path)
+            file_names.append(out_path)
         outputs['out_dir'] = dirname
         outputs['file_names'] = file_names
         return outputs
