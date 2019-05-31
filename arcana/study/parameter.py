@@ -148,6 +148,22 @@ class ParamSpec(Parameter):
                     "one of {}".format(param_name, type(value), context_str,
                                        self.choices))
 
+    def with_new_default(self, new_default):
+        """
+        Returns a copy of the switch spec with an additional choice(s)
+        added, which are set as the default by default. Useful when adding
+        a new switch value that is specific to a derived subclass.
+
+        Parameters
+        ----------
+        new_default : bool
+            Whether to make the (first) new choice the new default or stick
+            whith the inherited one
+        """
+        return ParamSpec(self.name, new_default,
+                         desc=self.desc, choices=self.choices,
+                         dtype=self.dtype, array=self.array)
+
 
 class SwitchSpec(ParamSpec):
     """
