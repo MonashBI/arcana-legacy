@@ -271,7 +271,10 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections
         if inputs is not None:
-            assert isinstance(inputs, dict)
+            if not isinstance(inputs, dict):
+                raise ArcanaDesignError(
+                    "inputs of {} node in {} needs to be a dictionary "
+                    "(not {})".format(name, self, inputs))
             for node_input, connect_from in inputs.items():
                 if isinstance(connect_from[0], basestring):
                     input_spec, input_format = connect_from
@@ -281,7 +284,10 @@ class Pipeline(object):
                     conn_node, conn_field = connect_from
                     self.connect(conn_node, conn_field, node, node_input)
         if outputs is not None:
-            assert isinstance(outputs, dict)
+            if not isinstance(outputs, dict):
+                raise ArcanaDesignError(
+                    "outputs of {} node in {} needs to be a dictionary "
+                    "(not {})".format(name, self, outputs))
             for output_spec, (node_output, output_format) in outputs.items():
                 self.connect_output(output_spec, node, node_output,
                                     output_format)

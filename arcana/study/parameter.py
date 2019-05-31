@@ -183,12 +183,15 @@ class SwitchSpec(ParamSpec):
         The valid values for the switch
     desc : str
         A description of the parameter
+    fallbacks : dict[str, str]
+        A map between a switch choice and the value it can be assumed to be
+        if it isn't handled explicitly. Note that this relies on tests for the
+        more specific choice to peformed first.
     """
 
     def __init__(self, name, default, choices=None, desc=None,
-                 dtype=None):
-        super(SwitchSpec, self).__init__(name, default, desc=desc,
-                                         dtype=dtype)
+                 fallbacks=None):
+        super(SwitchSpec, self).__init__(name, default, desc=desc)
         if self.is_boolean:
             if choices is not None:
                 raise ArcanaUsageError(
@@ -201,6 +204,7 @@ class SwitchSpec(ParamSpec):
                 "switches ('{}')".format(name))
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
+        self._fallbacks = fallbacks if fallbacks is not None else {}
 
     @property
     def name(self):
@@ -209,6 +213,10 @@ class SwitchSpec(ParamSpec):
     @property
     def default(self):
         return self._value
+
+    @property
+    def fallbacks(self):
+        return self._fallbacks
 
     @property
     def is_boolean(self):
@@ -238,7 +246,7 @@ class SwitchSpec(ParamSpec):
                 "desc='{}')".format(self.name, self.default,
                                     self.choices, self.desc))
 
-    def with_new_choices(self, *new_choices, default=True):
+    def with_new_choices(self, *new_choices, default=True, fallbacks=None):
         """
         Returns a copy of the switch spec with an additional choice(s)
         added, which are set as the default by default. Useful when adding
@@ -251,6 +259,10 @@ class SwitchSpec(ParamSpec):
         default : bool
             Whether to make the (first) new choice the new default or stick
             whith the inherited one
+        fallbacks : dict[str, str]
+            A map between a switch choice and the value it can be assumed to be
+            if it isn't handled explicitly. Note that this relies on tests for
+            the more specific choice to peformed first.
         """
         if isinstance(default, basestring):
             new_default = default
@@ -262,6 +274,9 @@ class SwitchSpec(ParamSpec):
                     "No new choices or default specified for {}".format(self))
         else:
             new_default = self.default
+        new_fallbacks = copy(self.fallbacks)
+        if fallbacks is not None:
+            new_fallbacks.update(fallbacks)
         return SwitchSpec(self.name, new_default,
                           self.choices + tuple(new_choices),
-                          desc=self.desc, dtype=self.dtype)
+                          desc=self.desc, fallbacks=new_fallbacks)

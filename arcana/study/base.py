@@ -465,11 +465,12 @@ class Study(object):
                 raise ArcanaOutputNotProducedException(
                     "Required output(s) '{}', will not be created by the '{}' "
                     "pipeline constructed by '{}' method in {} given the "
-                    "missing study inputs '{}' and the provided switches:\n{}"
+                    "missing study inputs:\n{}\n"
+                    "and the provided switches:\n{}"
                     .format(
                         "', '".join(missing_outputs),
                         pipeline.name, getter_name, self,
-                        "', '".join(self.missing_inputs),
+                        "\n".join(self.missing_inputs),
                         '\n'.join('{}={}'.format(s.name, s.value)
                                   for s in self.switches)))
         return pipeline
@@ -669,8 +670,9 @@ class Study(object):
                     "Value(s) need(s) to be provided non-boolean switch"
                     " '{}' in {}".format(
                         name, self._param_error_location))
+            values = set(values)
             # Register parameter as being used by the pipeline
-            unrecognised_values = set(values) - set(spec.choices)
+            unrecognised_values = values - set(spec.choices)
             if unrecognised_values:
                 raise ArcanaDesignError(
                     "Provided value(s) ('{}') for switch '{}' in {} "
@@ -679,6 +681,11 @@ class Study(object):
                         self._param_error_location,
                         "', '".join(spec.choices)))
             in_branch = switch.value in values
+            if not in_branch:
+                try:
+                    in_branch = switch.fallbacks[switch.value] in values
+                except KeyError:
+                    pass
         return in_branch
 
     def unhandled_branch(self, name):
@@ -695,7 +702,7 @@ class Study(object):
         """
         raise ArcanaDesignError(
             "'{}' value of '{}' switch in {} is not handled"
-            .format(self._get_parameter(name), name,
+            .format(self.parameter(name), name,
                     self._param_error_location))
 
     @property

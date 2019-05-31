@@ -269,13 +269,17 @@ class Processor(object):
             """
             if req_outputs is None:
                 req_outputs = pipeline.output_names
-            # Keep track of downstream piplines to detect circular dependencies
-            if pipeline in downstream:
+            # Check downstream piplines for circular dependencies
+            downstream_pipelines = [p for p, _ in downstream]
+            if pipeline in downstream_pipelines:
+                recur_index = downstream_pipelines.index(pipeline)
                 raise ArcanaDesignError(
                     "{} cannot be a dependency of itself. Call-stack:\n{}"
                     .format(pipeline,
-                            '\n'.join(str(p) for p in downstream[
-                                downstream.index(pipeline):])))
+                            '\n'.join('{} ({})'.format(p, ', '.join(ro))
+                                      for p, ro in (
+                                          ((pipeline, req_outputs),) +
+                                          downstream[:(recur_index + 1)]))))
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
@@ -320,10 +324,10 @@ class Processor(object):
                     prereq = pipeline.study.pipeline(
                         prq_getter, prq_req_outputs)
                     push_on_stack(prereq, filt_array, prq_req_outputs,
-                                  downstream + (pipeline,))
+                                  ((pipeline, req_outputs),) + downstream)
                 except (ArcanaMissingDataException,
                         ArcanaOutputNotProducedException) as e:
-                    e.msg += (", which are required as inputs to the '{}' "
+                    e.msg += ("\nwhich are required as inputs to the '{}' "
                               "pipeline to produce '{}'".format(
                                   pipeline.name, "', '".join(req_outputs)))
                     raise e
