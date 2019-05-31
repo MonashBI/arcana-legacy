@@ -6,7 +6,6 @@ import math
 import os.path as op
 import re
 import shutil
-from collections import Counter
 from nipype.interfaces.base import (
     TraitedSpec, traits, BaseInterface, File,
     Directory, CommandLineInputSpec, CommandLine, DynamicTraitedSpec,
@@ -377,7 +376,6 @@ class CopyToDirInputSpec(TraitedSpec):
         default=True,
         desc=("Whether it is okay to symlink the inputs into the directory "
               "instead of copying them"), usedefault=True)
-#     extension = traits.Str(desc='specify the extention for the copied file.')
     file_names = traits.List(
         traits.Str, desc=("The filenames to use to save the files with within "
                           "the directory"))
@@ -413,7 +411,7 @@ class CopyToDir(BaseInterface):
                     "Number of provided filenames ({}) does not match number "
                     "of provided files ({})".format(
                         len(self.inputs.file_names), num_files))
-            out_files = self.inputs.file_names
+            out_files = (op.basename(f) for f in self.inputs.file_names)
         else:
             # Create filenames that will sort ascendingly with the order the
             # file is inputed to the interface

@@ -247,9 +247,35 @@ class Processor(object):
         # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
 
-        def push_on_stack(pipeline, filt_array, req_outputs):
+        def push_on_stack(pipeline, filt_array, req_outputs, downstream=()):
+            """
+            Push a pipeline onto the stack of pipelines to be processed,
+            detecting common upstream pipelines and resolving them to a single
+            pipeline
+
+            Parameters
+            ----------
+            pipeline : Pipeline
+                The pipeline to add to the stack
+            filt_array : 2-D numpy.ndarray
+                An array of sessions that are to be processed for the given
+                pipeline
+            req_outputs : list[str]
+                The outputs of the pipeline that are actually required (non-
+                required outputs can be ignored if they are not generated)
+            downstream : tuple[Pipeline]
+                The pipelines directly downstream of the pipeline to be added.
+                Used to detect circular dependencies
+            """
             if req_outputs is None:
                 req_outputs = pipeline.output_names
+            # Keep track of downstream piplines to detect circular dependencies
+            if pipeline in downstream:
+                raise ArcanaDesignError(
+                    "{} cannot be a dependency of itself. Call-stack:\n{}"
+                    .format(pipeline,
+                            '\n'.join(str(p) for p in downstream[
+                                downstream.index(pipeline):])))
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
@@ -293,7 +319,8 @@ class Processor(object):
                 try:
                     prereq = pipeline.study.pipeline(
                         prq_getter, prq_req_outputs)
-                    push_on_stack(prereq, filt_array, prq_req_outputs)
+                    push_on_stack(prereq, filt_array, prq_req_outputs,
+                                  downstream + (pipeline,))
                 except (ArcanaMissingDataException,
                         ArcanaOutputNotProducedException) as e:
                     e.msg += (", which are required as inputs to the '{}' "

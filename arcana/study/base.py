@@ -16,7 +16,7 @@ from arcana.exceptions import (
     ArcanaInputError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseInputSpec, InputFilesets, InputFields)
+    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -923,15 +923,24 @@ class Study(object):
         ----------
         spec_name : str
             Name of a data spec
+        default_okay : bool
+            Whether or not the default value is okay, or whether it needs to
+            be explicitly provided as an input. For derivatives the default is
+            the derived value
         """
         try:
             spec = self.bound_spec(spec_name)
         except ArcanaMissingDataException:
             return False
-        if isinstance(spec, BaseInputSpec):
-            return spec.default is not None and default_okay
-        else:
+        if isinstance(spec, BaseInput):
             return True
+        elif default_okay:
+            if isinstance(spec, BaseInputSpec):
+                return spec.default is not None
+            else:
+                return True
+        else:
+            return False
 
     @classmethod
     def freq_from_iterators(cls, iterators):

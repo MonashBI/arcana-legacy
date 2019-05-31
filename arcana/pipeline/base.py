@@ -19,7 +19,7 @@ from arcana.utils import extract_package_version
 from arcana.__about__ import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError,
-    ArcanaDataNotDerivedYetError)
+    ArcanaDataNotDerivedYetError, ArcanaNameError)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -170,6 +170,12 @@ class Pipeline(object):
             (i for i in self.inputs if not i.derived),
             *(self.study.pipeline(p, required_outputs=r).study_inputs
               for p, r in self.prerequisites.items())))
+
+    def map_input(self, spec_name):
+        return self._map_name(spec_name, self._input_map)
+
+    def map_output(self, spec_name):
+        return self._map_name(spec_name, self._output_map)
 
     def add(self, name, interface, inputs=None, outputs=None,
             requirements=None, wall_time=None, annotations=None, **kwargs):
@@ -459,7 +465,11 @@ class Pipeline(object):
             return (file_format != filset_format)
 
     def node(self, name):
-        return self.workflow.get_node('{}_{}'.format(self.name, name))
+        node = self.workflow.get_node('{}_{}'.format(self.name, name))
+        if node is None:
+            raise ArcanaNameError(
+                name, "{} doesn't have node named '{}'".format(self, name))
+        return node
 
     @property
     def nodes(self):

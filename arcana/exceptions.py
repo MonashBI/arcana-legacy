@@ -158,3 +158,7 @@ class ArcanaReprocessException(ArcanaException):
 
 class ArcanaWrongRepositoryError(ArcanaError):
     pass
+
+
+class ArcanaIvalidParameterError(ArcanaError):
+    pass
