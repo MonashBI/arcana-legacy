@@ -683,7 +683,7 @@ class Study(object):
             in_branch = switch.value in values
             if not in_branch:
                 try:
-                    in_branch = switch.fallbacks[switch.value] in values
+                    in_branch = spec.fallbacks[switch.value] in values
                 except KeyError:
                     pass
         return in_branch
