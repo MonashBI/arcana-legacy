@@ -768,9 +768,10 @@ class Pipeline(object):
                     except ArcanaNoConverterError as e:
                         e.msg += (
                             "which is required to convert '{}' from {} to {} "
-                            "for '{}' input of '{}' node".format(
+                            "for '{}' input of '{}' node in '{}' pipeline"
+                            .format(
                                 input.name, input.format, format, node_in,
-                                node.name))
+                                node.name, self.name))
                         raise e
                     try:
                         in_node = prev_conv_nodes[format.name]
@@ -829,7 +830,13 @@ class Pipeline(object):
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
             if self.requires_conversion(output, format):
-                conv = output.format.converter_from(format, **conv_kwargs)
+                try:
+                    conv = output.format.converter_from(format, **conv_kwargs)
+                except ArcanaNoConverterError as e:
+                    e.msg += (", which is required to convert '{}' output of "
+                              "'{}' node in '{}' pipeline".format(
+                                  output.name, node.name, self.name))
+                    raise e
                 node = self.add(
                     'conv_{}_from_{}_format'.format(output.name, format.name),
                     conv.interface,

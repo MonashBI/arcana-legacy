@@ -192,9 +192,9 @@ class FileFormat(object):
             matching_format, converter_cls = self._converters[file_format.name]
         except KeyError:
             raise ArcanaNoConverterError(
-                "There is no converter to convert {} to {}, available:\n{}"
+                "There is no converter to convert {} to {} (available: {})"
                 .format(file_format, self,
-                        '\n'.join(
+                        ', '.join(
                             '{} <- {}'.format(k, v)
                             for k, v in self._converters.items())))
         if file_format != matching_format:

@@ -139,7 +139,7 @@ class ParamSpec(Parameter):
         if value != self.default:
             if not isinstance(value, self.dtype):
                 raise ArcanaIvalidParameterError(
-                    "Incorrect datatype for '{}' parameter provided ({}){}. "
+                    "Incorrect datatype for '{}' parameter provided ({}) {}. "
                     "Should be {}"
                     .format(param_name, type(value), context_str, self.dtype))
             if self.choices is not None and value not in self.choices:
