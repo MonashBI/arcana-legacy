@@ -153,14 +153,10 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
-        try:
-            for input in self.inputs:  # @ReservedAssignment
-                # Could be an input to the study or optional acquired spec
-                if input.is_spec and input.derived:
-                    prereqs[input.pipeline_getter].add(input.name)
-        except ArcanaMissingDataException as e:
-            e.msg += ", required for input to '{}' pipeline".format(self.name)
-            raise e
+        for input in self.inputs:  # @ReservedAssignment
+            # Could be an input to the study or optional acquired spec
+            if input.is_spec and input.derived:
+                prereqs[input.pipeline_getter].add(input.name)
         return prereqs
 
     @property
