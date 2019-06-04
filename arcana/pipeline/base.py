@@ -147,8 +147,8 @@ class Pipeline(object):
     @property
     def prerequisites(self):
         """
-        Iterates through the inputs of the pipelinen and determines the
-        all prerequisite pipelines
+        Iterates through the inputs of the pipeline and determines the
+        prerequisite pipelines
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs

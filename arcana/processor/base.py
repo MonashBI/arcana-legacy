@@ -319,18 +319,19 @@ class Processor(object):
 
             stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
-            for prq_getter, prq_req_outputs in pipeline.prerequisites.items():
-                try:
+            try:
+                for (prq_getter,
+                     prq_req_outputs) in pipeline.prerequisites.items():
                     prereq = pipeline.study.pipeline(
                         prq_getter, prq_req_outputs)
                     push_on_stack(prereq, filt_array, prq_req_outputs,
                                   ((pipeline, req_outputs),) + downstream)
-                except (ArcanaMissingDataException,
-                        ArcanaOutputNotProducedException) as e:
-                    e.msg += ("\nwhich are required as inputs to the '{}' "
-                              "pipeline to produce '{}'".format(
-                                  pipeline.name, "', '".join(req_outputs)))
-                    raise e
+            except (ArcanaMissingDataException,
+                    ArcanaOutputNotProducedException) as e:
+                e.msg += ("\nwhich are required as inputs to the '{}' "
+                          "pipeline to produce '{}'".format(
+                              pipeline.name, "', '".join(req_outputs)))
+                raise e
 
         # Add all primary pipelines to the stack along with their prereqs
         for pipeline, req_outputs in zip(pipelines, required_outputs):
