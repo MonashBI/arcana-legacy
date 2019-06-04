@@ -19,7 +19,7 @@ from arcana.utils import extract_package_version
 from arcana.__about__ import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError,
-    ArcanaDataNotDerivedYetError, ArcanaNameError)
+    ArcanaDataNotDerivedYetError, ArcanaNameError, ArcanaMissingDataException)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -153,11 +153,14 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
-        for input in self.inputs:  # @ReservedAssignment
-            spec = self._study.spec(input)
-            # Could be an input to the study or optional acquired spec
-            if spec.is_spec and spec.derived:
-                prereqs[spec.pipeline_getter].add(input.name)
+        try:
+            for input in self.inputs:  # @ReservedAssignment
+                # Could be an input to the study or optional acquired spec
+                if input.is_spec and input.derived:
+                    prereqs[input.pipeline_getter].add(input.name)
+        except ArcanaMissingDataException as e:
+            e.msg += ", required for input to '{}' pipeline".format(self.name)
+            raise e
         return prereqs
 
     @property
