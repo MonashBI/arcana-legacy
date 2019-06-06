@@ -1,8 +1,6 @@
 from past.builtins import basestring
 import os
 from itertools import chain
-from collections.abc import Iterable
-from copy import copy
 import os.path as op
 import hashlib
 from arcana.utils import split_extension, parse_value
@@ -176,13 +174,15 @@ class Fileset(BaseItem, BaseFileset):
         format of the fileset is not set when it is detected in the repository
         but determined later from a list of candidates in the specification it
         is matched to.
+    quality : str
+        The quality label assigned to the fileset (e.g. as is saved on XNAT)
     """
 
     def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
                  path=None, aux_files=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None, resource_name=None,
-                 potential_aux_files=None):
+                 potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItem.__init__(self, subject_id, visit_id, repository,
@@ -211,6 +211,7 @@ class Fileset(BaseItem, BaseFileset):
         self._id = id
         self._checksums = checksums
         self._resource_name = resource_name
+        self._quality = quality
         if potential_aux_files is not None and format is not None:
             raise ArcanaUsageError(
                 "Potential paths should only be provided to Fileset.__init__ "
@@ -253,7 +254,8 @@ class Fileset(BaseItem, BaseFileset):
               self._aux_files == other._aux_files and
               self._id == other._id and
               self._checksums == other._checksums and
-              self._resource_name == other._resource_name)
+              self._resource_name == other._resource_name and
+              self._quality == other._quality)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -269,7 +271,8 @@ class Fileset(BaseItem, BaseFileset):
                 hash(self._id) ^
                 hash(tuple(sorted(self._aux_files.items()))) ^
                 hash(self._checksums) ^
-                hash(self._resource_name))
+                hash(self._resource_name) ^
+                hash(self._quality))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -297,14 +300,15 @@ class Fileset(BaseItem, BaseFileset):
                 return self.id < other.id
 
     def __repr__(self):
-        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={}{})"
+        return ("{}('{}', {}, '{}', subj={}, vis={}, stdy={}{}, exists={}, "
+                "quality={}{})"
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
                     self.visit_id, self.from_study,
                     (", resource_name='{}'".format(self._resource_name)
                      if self._resource_name is not None else ''),
-                    self.exists,
+                    self.exists, self.quality,
                     (", path='{}'".format(self.path)
                      if self._path is not None else '')))
 
@@ -328,6 +332,10 @@ class Fileset(BaseItem, BaseFileset):
             mismatch += ('\n{}format_name: self={} v other={}'
                          .format(sub_indent, self._resource_name,
                                  other._resource_name))
+        if self._quality != other._quality:
+            mismatch += ('\n{}format_name: self={} v other={}'
+                         .format(sub_indent, self._quality,
+                                 other._quality))
         return mismatch
 
     @property
@@ -383,6 +391,10 @@ class Fileset(BaseItem, BaseFileset):
     @property
     def format(self):
         return self._format
+
+    @property
+    def quality(self):
+        return self._quality
 
     @format.setter
     def format(self, format):  # @ReservedAssignment
@@ -528,6 +540,7 @@ class Fileset(BaseItem, BaseFileset):
         dct['checksums'] = self.checksums
         dct['resource_name'] = self._resource_name
         dct['potential_aux_files'] = self._potential_aux_files
+        dct['quality'] = self._quality
         return dct
 
     def get(self):

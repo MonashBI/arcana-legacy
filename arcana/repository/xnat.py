@@ -509,6 +509,8 @@ class XnatRepo(Repository):
                 for scan_json in scans_json:
                     scan_id = scan_json['data_fields']['ID']
                     scan_type = scan_json['data_fields'].get('type', '')
+                    scan_quality = scan_json['data_fields'].get('quality',
+                                                                None)
                     scan_uri = '{}/scans/{}'.format(session_uri, scan_id)
                     try:
                         resources_json = next(
@@ -551,7 +553,7 @@ class XnatRepo(Repository):
                                 scan_type, id=scan_id, uri=scan_uri,
                                 repository=self, frequency=frequency,
                                 subject_id=subject_id, visit_id=visit_id,
-                                from_study=from_study,
+                                from_study=from_study, quality=scan_quality,
                                 resource_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))

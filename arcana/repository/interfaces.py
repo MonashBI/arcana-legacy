@@ -6,7 +6,7 @@ from itertools import chain
 from copy import copy
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
 from arcana.pipeline.provenance import Record
-from arcana.exceptions import ArcanaError
+from arcana.exceptions import ArcanaError, ArcanaDesignError
 import logging
 
 logger = logging.getLogger('arcana')
@@ -200,12 +200,15 @@ class RepositorySink(RepositoryInterface):
         outputs repositor(y|ies)
     pipeline : arcana.pipeline.Pipeline
         The pipeline that has produced the outputs to sink
+    required : list[str]
+        Names of derivatives that are required by downstream nodes. Any
+        undefined required derivatives that are undefined will raise an error.
     """
 
     input_spec = RepositorySpec
     output_spec = RepositorySinkOutputSpec
 
-    def __init__(self, collections, pipeline):
+    def __init__(self, collections, pipeline, required=()):
         super(RepositorySink, self).__init__(collections)
         # Add traits for filesets to sink
         for fileset_collection in self.fileset_collections:
@@ -237,6 +240,7 @@ class RepositorySink(RepositoryInterface):
         self._prov = pipeline.prov
         self._pipeline_name = pipeline.name
         self._from_study = pipeline.study.name
+        self._required = required
 
     def _list_outputs(self):
         outputs = self.output_spec().get()
@@ -263,8 +267,9 @@ class RepositorySink(RepositoryInterface):
                 path = getattr(self.inputs,
                                fileset_collection.name + PATH_SUFFIX)
                 if not isdefined(path):
-                    missing_inputs.append(fileset.name)
-                    continue  # skip the upload for this file
+                    if fileset.name in self._required:
+                        missing_inputs.append(fileset.name)
+                    continue  # skip the upload for this fileset
                 fileset.path = path  # Push to repository
                 output_checksums[fileset.name] = fileset.checksums
             for field_collection in self.field_collections:
@@ -274,8 +279,9 @@ class RepositorySink(RepositoryInterface):
                 value = getattr(self.inputs,
                                 field_collection.name + FIELD_SUFFIX)
                 if not isdefined(value):
-                    missing_inputs.append(field.name)
-                    continue  # skip the upload for this file
+                    if field.name in self._required:
+                        missing_inputs.append(field.name)
+                    continue  # skip the upload for this field
                 field.value = value  # Push to repository
                 output_checksums[field.name] = field.value
             # Add input and output checksums to provenance record and sink to
@@ -288,12 +294,10 @@ class RepositorySink(RepositoryInterface):
             for repository in self.repositories:
                 repository.put_record(record)
         if missing_inputs:
-            # FIXME: Not sure if this should be an exception or not,
-            #        indicates a problem but stopping now would throw
-            #        away the filesets that were created
-            logger.warning(
-                "Missing inputs '{}' in RepositorySink".format(
-                    "', '".join(missing_inputs)))
+            raise ArcanaDesignError(
+                "Required derivatives '{}' to were not created by upstream "
+                "nodes connected to sink {}".format(
+                    "', '".join(missing_inputs), self))
         # Return cache file paths
         outputs['checksums'] = output_checksums
         return outputs

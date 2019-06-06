@@ -1,9 +1,11 @@
 import os
+from unittest import TestCase
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
-    InputFilesetSpec, FilesetSpec, InputFileset, FieldSpec)
+    InputFilesetSpec, FilesetSpec, InputFilesets, FieldSpec)
 from arcana.study.base import Study, StudyMetaClass
-from arcana.exceptions import ArcanaModulesNotInstalledException, ArcanaError
+from arcana.exceptions import (
+    ArcanaModulesNotInstalledException, ArcanaError, ArcanaModulesError)
 import unittest
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.data.file_format import text_format
@@ -125,10 +127,25 @@ class TestModuleLoad(BaseTestCase):
     def test_module_load_in_map(self):
         study = self.create_study(
             RequirementsStudy, 'requirements',
-            [InputFileset('ones', 'ones', text_format)],
+            [InputFilesets('ones', 'ones', text_format)],
             environment=ModulesEnv())
         threes = study.data('threes')
         fours = study.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
         self.assertEqual(ModulesEnv.loaded(), {})
+
+
+class TestModulesRun(TestCase):
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_run_cmd(self):
+        ModulesEnv._run_module_cmd('avail')
+        self.assertRaises(
+            ArcanaModulesError,
+            ModulesEnv._run_module_cmd,
+            'badcmd')
+        self.assertRaises(
+            ArcanaModulesError,
+            ModulesEnv._run_module_cmd,
+            'load', 'somereallyunlikelymodulename')

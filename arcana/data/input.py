@@ -1,4 +1,5 @@
 from builtins import object
+from past.builtins import basestring
 import re
 from copy import copy
 from itertools import chain
@@ -17,8 +18,8 @@ class BaseInput(object):
 
     def __init__(self, pattern, is_regex, order, from_study,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False,
-                 repository=None, study_=None, collection_=None):
+                 fallback_to_default=False, repository=None,
+                 study_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
@@ -181,7 +182,9 @@ class BaseInput(object):
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids)
-                bound._collection = bound.match(tree, spec=spec, **kwargs)
+                bound._collection = bound.match(
+                    tree, valid_formats=getattr(spec, 'valid_formats', None),
+                    **kwargs)
         return bound
 
     @property
@@ -204,32 +207,45 @@ class BaseInput(object):
 
     def _match(self, tree, item_cls, **kwargs):
         matches = []
+        errors = []
         for node in self.nodes(tree):
             try:
-                matches.append(self.match_node(node, **kwargs))
-            except ArcanaInputMissingMatchError as e:
-                if self._fallback is not None:
-                    matches.append(self._fallback.collection.item(
-                        subject_id=node.subject_id, visit_id=node.visit_id))
-                elif self.skip_missing:
-                    # Insert a non-existant item placeholder in-place of the
-                    # the missing item
-                    matches.append(item_cls(
-                        self.name,
-                        frequency=self.frequency,
-                        subject_id=node.subject_id,
-                        visit_id=node.visit_id,
-                        repository=self.study.repository,
-                        from_study=self.from_study,
-                        exists=False,
-                        **self._specific_kwargs))
-                else:
-                    raise e
+                try:
+                    matches.append(self.match_node(node, **kwargs))
+                except ArcanaInputMissingMatchError as e:
+                    if self._fallback is not None:
+                        matches.append(self._fallback.collection.item(
+                            subject_id=node.subject_id,
+                            visit_id=node.visit_id))
+                    elif self.skip_missing:
+                        # Insert a non-existant item placeholder in-place of
+                        # the the missing item
+                        matches.append(item_cls(
+                            self.name,
+                            frequency=self.frequency,
+                            subject_id=node.subject_id,
+                            visit_id=node.visit_id,
+                            repository=self.study.repository,
+                            from_study=self.from_study,
+                            exists=False,
+                            **self._specific_kwargs))
+                    else:
+                        raise e
+            except ArcanaInputError as e:
+                errors.append(e)
+        # Collate potentially multiple errors into a single error message
+        if errors:
+            if all(isinstance(e, ArcanaInputMissingMatchError)
+                   for e in errors):
+                ErrorClass = ArcanaInputMissingMatchError
+            else:
+                ErrorClass = ArcanaInputError
+            raise ErrorClass('\n'.join(str(e) for e in errors))
         return matches
 
-    def match_node(self, node, **kwargs):
+    def match_node(self, node, **kwargs):  # @UnusedVariable
         # Get names matching pattern
-        matches = self._filtered_matches(node, **kwargs)
+        matches = self._filtered_matches(node)
         # Filter matches by study name
         study_matches = [d for d in matches
                          if d.from_study == self.from_study]
@@ -256,7 +272,7 @@ class BaseInput(object):
         return match
 
 
-class InputFileset(BaseInput, BaseFileset):
+class InputFilesets(BaseInput, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -312,6 +328,10 @@ class InputFileset(BaseInput, BaseFileset):
     repository : Repository | None
         The repository to draw the matches from, if not the main repository
         that is used to store the products of the current study.
+    acceptable_quality : str | list[str] | None
+        An acceptable quality label, or list thereof, to accept, i.e. if a
+        fileset's quality label is not in the list it will be ignored. If a
+        scan wasn't labelled the value of its qualtiy will be None.
     """
 
     is_spec = False
@@ -320,8 +340,9 @@ class InputFileset(BaseInput, BaseFileset):
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None, study_=None,
-                 collection_=None):
+                 fallback_to_default=False, repository=None,
+                 acceptable_quality=None,
+                 study_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, format, frequency)
         BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
@@ -337,47 +358,53 @@ class InputFileset(BaseInput, BaseFileset):
                 "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
         self._id = str(id) if id is not None else id
-        self._check_args()
+        if isinstance(acceptable_quality, basestring):
+            acceptable_quality = (acceptable_quality,)
+        elif acceptable_quality is not None:
+            acceptable_quality = tuple(acceptable_quality)
+        self._acceptable_quality = acceptable_quality
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
                 BaseInput.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
-                self.id == other.id)
+                self.id == other.id and
+                self._acceptable_quality == other._acceptable_quality)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
                 BaseInput.__hash__(self) ^
                 hash(self.dicom_tags) ^
-                hash(self.id))
-
-    def _check_args(self):
-        if self._pattern is None and self._id is None:
-            raise ArcanaUsageError(
-                "Either 'pattern' or 'id' need to be provided to "
-                "InputFileset constructor")
+                hash(self.id) ^
+                hash(self._acceptable_quality))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
         dct.update(BaseInput.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
+        dct['acceptable_quality'] = self.acceptable_quality
         return dct
 
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, id={}, dicom_tags={}, "
-                "from_study={})"
+                "from_study={}, acceptable_quality={})"
                 .format(self.__class__.__name__, self.name, self._format,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self.id, self.dicom_tags,
-                        self._from_study))
+                        self._from_study, self._acceptable_quality))
 
-    def match(self, tree, spec, **kwargs):
+    def match(self, tree, valid_formats=None, **kwargs):
         if self.format is not None:
             candidate_formats = [self.format]
         else:
-            candidate_formats = spec.valid_formats
+            if valid_formats is None:
+                raise ArcanaUsageError(
+                    "'valid_formats' need to be provided to the 'match' "
+                    "method if the InputFilesets ({}) doesn't specify a format"
+                    .format(self))
+            candidate_formats = valid_formats
         # Run the match against the tree
         return FilesetCollection(self.name,
                                  self._match(tree, Fileset, **kwargs),
@@ -387,6 +414,10 @@ class InputFileset(BaseInput, BaseFileset):
     @property
     def id(self):
         return self._id
+
+    @property
+    def acceptable_quality(self):
+        return self._acceptable_quality
 
     @property
     def format(self):
@@ -419,6 +450,16 @@ class InputFileset(BaseInput, BaseFileset):
                 "Did not find any matches for {} in {}, found:\n{}"
                 .format(self, node,
                         '\n'.join(str(f) for f in node.filesets)))
+        if self.acceptable_quality is not None:
+            filtered = [f for f in matches
+                        if f.quality in self.acceptable_quality]
+            if not filtered:
+                raise ArcanaInputMissingMatchError(
+                    "Did not find filesets names matching pattern {} "
+                    "with an acceptable quality {} (found {}) in {}".format(
+                        self.pattern, self.acceptable_quality,
+                        ', '.join(str(m) for m in matches), node))
+            matches = filtered
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
@@ -463,14 +504,15 @@ class InputFileset(BaseInput, BaseFileset):
         avoid DOSing the host
         """
         for item in self.collection:
-            item.get()
+            if item.exists:
+                item.get()
 
     @property
     def _specific_kwargs(self):
         return {'format': self.format}
 
 
-class InputField(BaseInput, BaseField):
+class InputFields(BaseInput, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -538,7 +580,7 @@ class InputField(BaseInput, BaseField):
         return (BaseField.__eq__(self, other) and
                 BaseInput.__eq__(self, other))
 
-    def match(self, tree, spec=None, **kwargs):  # @UnusedVariable
+    def match(self, tree, **kwargs):
         # Run the match against the tree
         return FieldCollection(self.name,
                                self._match(tree, Field, **kwargs),

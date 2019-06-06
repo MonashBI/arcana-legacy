@@ -114,6 +114,10 @@ class NoMatchingPipelineException(ArcanaException):
     pass
 
 
+class ArcanaModulesError(ArcanaError):
+    pass
+
+
 class ArcanaModulesNotInstalledException(ArcanaException):
     pass
 
@@ -153,4 +157,8 @@ class ArcanaReprocessException(ArcanaException):
 
 
 class ArcanaWrongRepositoryError(ArcanaError):
+    pass
+
+
+class ArcanaIvalidParameterError(ArcanaError):
     pass

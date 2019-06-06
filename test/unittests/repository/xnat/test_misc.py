@@ -3,10 +3,11 @@ import os.path as op
 import tempfile
 import unittest
 import sys
+from collections import OrderedDict
 from unittest import TestCase
 import xnat
 from arcana.utils.testing import BaseTestCase
-from arcana.data import InputFileset
+from arcana.data import InputFilesets
 from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
@@ -112,8 +113,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=SingleProc(self.work_dir),
             inputs=[
-                InputFileset('gre_phase', format=dicom_format, id=7),
-                InputFileset('gre_mag', format=dicom_format, id=6)])
+                InputFilesets('gre_phase', format=dicom_format, id=7),
+                InputFilesets('gre_mag', format=dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -124,8 +125,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
         test_data.TestDicomTagMatch.test_order_match(self)
 
 
-class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
-                                   BaseTestCase):
+class TestFilesetCacheOnPathAccess(TestOnXnatMixin, BaseTestCase):
 
     INPUT_FILESETS = {'fileset': '1'}
 
@@ -152,3 +152,47 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin,
         with open(target_path) as f:
             self.assertEqual(f.read(),
                              self.INPUT_FILESETS[fileset.basename])
+
+
+class TestScanQualityLabelMatching(TestOnXnatMixin, BaseTestCase):
+
+    # The labels are prefixed with the order that they should be uploaded
+    # to XNAT with
+    INPUT_FILESETS = {'1unusable': '1',
+                      '2unlabelled': '1',
+                      '3questionable': '1',
+                      '4usable': '1'}
+
+    def setUp(self):
+        super(TestScanQualityLabelMatching, self).setUp()
+        with self._connect() as login:
+            xproject = login.projects[self.project]
+            xsubject = login.classes.SubjectData(
+                label='{}_{}'.format(self.project, self.SUBJECT),
+                parent=xproject)
+            xsession = login.classes.MrSessionData(
+                label=self.session_label(),
+                parent=xsubject)
+            for scan in xsession.scans.values():
+                if not scan.type.endswith('unlabelled'):
+                    scan.quality = scan.type[1:]
+
+    @unittest.skipIf(*SKIP_ARGS)
+    def test_scan_label_quality(self):
+        tmp_dir = tempfile.mkdtemp()
+        repository = XnatRepo(
+            project_id=self.project,
+            server=SERVER, cache_dir=tmp_dir)
+        tree = repository.tree(
+            subject_ids=[self.SUBJECT],
+            visit_ids=[self.VISIT])
+        for accepted, expected in (
+                (None, '1unusable'),
+                ((None, 'questionable', 'usable'), '2unlabelled'),
+                (('questionable', 'usable'), '3questionable'),
+                ('usable', '4usable')):
+            inpt = InputFilesets('dummy', order=0, format=text_format,
+                                acceptable_quality=accepted)
+            matched = inpt.match(tree).item(subject_id=self.SUBJECT,
+                                            visit_id=self.VISIT)
+            self.assertEqual(matched.name, expected)

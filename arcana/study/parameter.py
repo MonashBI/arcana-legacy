@@ -1,7 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 from copy import copy
-from arcana.exceptions import ArcanaUsageError
+from arcana.exceptions import ArcanaUsageError, ArcanaIvalidParameterError
 
 
 class Parameter(object):
@@ -68,7 +68,7 @@ class ParamSpec(Parameter):
         Name of the parameter
     default : float | int | str | list | tuple
         Default value of the parameter
-    choices : List(float | int | str | list | tuple)
+    choices : List(float | int | str | list | tuple) | None
         Restrict valid inputs to the following choices
     desc : str
         A description of the parameter
@@ -77,11 +77,12 @@ class ParamSpec(Parameter):
         default value
     """
 
-    def __init__(self, name, default, desc=None, dtype=None,
+    def __init__(self, name, default, desc=None, choices=None, dtype=None,
                  array=False):
         super(ParamSpec, self).__init__(name, default)
         self._desc = desc
         self._array = array
+        self._choices = choices
         if dtype is not None:
             if self.default is not None and (
                 not array and not isinstance(self.default, dtype) or
@@ -108,23 +109,60 @@ class ParamSpec(Parameter):
     def desc(self):
         return self._desc
 
+    @property
+    def choices(self):
+        return self._choices
+
     def __repr__(self):
         return "ParamSpec(name='{}', default={}, desc='{}')".format(
             self.name, self.default, self.desc)
 
     def check_valid(self, parameter, context=None):
+        context_str = 'in ' + context if context is not None else ''
         if parameter.value is not None:
-            error_msg = (
-                "Incorrect datatype for '{}' parameter provided "
-                "({}){}, Should be {}"
-                .format(parameter.name, type(parameter.value),
-                        'in ' + context if context is not None else '',
-                        self.dtype))
             if self.array:
-                if any(not isinstance(v, self.dtype) for v in parameter.value):
-                    raise ArcanaUsageError(error_msg + ' array')
-            elif not isinstance(parameter.value, self.dtype):
-                raise ArcanaUsageError(error_msg)
+                errors = []
+                for value in parameter.value:
+                    try:
+                        self._check_valid_value(value, parameter.name,
+                                                context_str)
+                    except ArcanaIvalidParameterError as e:
+                        errors.append(e)
+                if errors:
+                    raise ArcanaIvalidParameterError(
+                        '\n'.join(e.msg for e in errors))
+            else:
+                self._check_valid_value(parameter.value, parameter.name,
+                                        context_str)
+
+    def _check_valid_value(self, value, param_name, context_str):
+        if value != self.default:
+            if not isinstance(value, self.dtype):
+                raise ArcanaIvalidParameterError(
+                    "Incorrect datatype for '{}' parameter provided ({}) {}. "
+                    "Should be {}"
+                    .format(param_name, type(value), context_str, self.dtype))
+            if self.choices is not None and value not in self.choices:
+                raise ArcanaIvalidParameterError(
+                    "Ivalid value for '{}' parameter provided ({}){}. Can be "
+                    "one of {}".format(param_name, type(value), context_str,
+                                       self.choices))
+
+    def with_new_default(self, new_default):
+        """
+        Returns a copy of the switch spec with an additional choice(s)
+        added, which are set as the default by default. Useful when adding
+        a new switch value that is specific to a derived subclass.
+
+        Parameters
+        ----------
+        new_default : bool
+            Whether to make the (first) new choice the new default or stick
+            whith the inherited one
+        """
+        return ParamSpec(self.name, new_default,
+                         desc=self.desc, choices=self.choices,
+                         dtype=self.dtype, array=self.array)
 
 
 class SwitchSpec(ParamSpec):
@@ -145,12 +183,15 @@ class SwitchSpec(ParamSpec):
         The valid values for the switch
     desc : str
         A description of the parameter
+    fallbacks : dict[str, str]
+        A map between a switch choice and the value it can be assumed to be
+        if it isn't handled explicitly. Note that this relies on tests for the
+        more specific choice to peformed first.
     """
 
     def __init__(self, name, default, choices=None, desc=None,
-                 dtype=None):
-        super(SwitchSpec, self).__init__(name, default, desc=desc,
-                                         dtype=dtype)
+                 fallbacks=None):
+        super(SwitchSpec, self).__init__(name, default, desc=desc)
         if self.is_boolean:
             if choices is not None:
                 raise ArcanaUsageError(
@@ -163,6 +204,7 @@ class SwitchSpec(ParamSpec):
                 "switches ('{}')".format(name))
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
+        self._fallbacks = fallbacks if fallbacks is not None else {}
 
     @property
     def name(self):
@@ -173,12 +215,12 @@ class SwitchSpec(ParamSpec):
         return self._value
 
     @property
-    def is_boolean(self):
-        return isinstance(self.default, bool)
+    def fallbacks(self):
+        return self._fallbacks
 
     @property
-    def choices(self):
-        return self._choices
+    def is_boolean(self):
+        return isinstance(self.default, bool)
 
     def check_valid(self, switch, context=''):
         super(SwitchSpec, self).check_valid(switch, context=context)
@@ -188,12 +230,12 @@ class SwitchSpec(ParamSpec):
                     "Value provided to switch '{}'{} should be a "
                     "boolean (not {})".format(
                         self.name, context, switch.value))
-        elif switch.value not in self.choices:
+        elif switch.value != self.default and switch.value not in self.choices:
             raise ArcanaUsageError(
                 "Value provided to switch '{}'{} ({}) is not a valid "
                 "choice ('{}')".format(
                     self.name, context, switch.value,
-                    "', '".join(self.choices)))
+                    "', '".join(str(c) for c in self.choices)))
 
     @property
     def desc(self):
@@ -203,3 +245,38 @@ class SwitchSpec(ParamSpec):
         return ("SwitchSpec(name='{}', default={}, choices={}, "
                 "desc='{}')".format(self.name, self.default,
                                     self.choices, self.desc))
+
+    def with_new_choices(self, *new_choices, default=True, fallbacks=None):
+        """
+        Returns a copy of the switch spec with an additional choice(s)
+        added, which are set as the default by default. Useful when adding
+        a new switch value that is specific to a derived subclass.
+
+        Parameters
+        ----------
+        choices : list[str]
+            New choices to add
+        default : bool
+            Whether to make the (first) new choice the new default or stick
+            whith the inherited one
+        fallbacks : dict[str, str]
+            A map between a switch choice and the value it can be assumed to be
+            if it isn't handled explicitly. Note that this relies on tests for
+            the more specific choice to peformed first.
+        """
+        if isinstance(default, basestring):
+            new_default = default
+        elif default:
+            try:
+                new_default = new_choices[0]
+            except IndexError:
+                raise ArcanaUsageError(
+                    "No new choices or default specified for {}".format(self))
+        else:
+            new_default = self.default
+        new_fallbacks = copy(self.fallbacks)
+        if fallbacks is not None:
+            new_fallbacks.update(fallbacks)
+        return SwitchSpec(self.name, new_default,
+                          self.choices + tuple(new_choices),
+                          desc=self.desc, fallbacks=new_fallbacks)

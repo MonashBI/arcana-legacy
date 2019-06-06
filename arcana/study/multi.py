@@ -107,7 +107,7 @@ class MultiStudy(Study):
                             mapped_inputs[data_name] = inpt
             # Map parameters to the substudy
             mapped_parameters = {}
-            for param_name in substudy_cls.parameter_spec_names():
+            for param_name in substudy_cls.param_spec_names():
                 mapped_name = substudy_spec.map(param_name)
                 parameter = self._get_parameter(mapped_name)
                 mapped_parameters[param_name] = parameter
@@ -281,7 +281,7 @@ class SubStudySpec(object):
         Parameter pecs in the sub-study class that are not explicitly provided
         in the name map
         """
-        for spec in self.study_class.parameter_specs():
+        for spec in self.study_class.param_specs():
             if spec.name not in self._name_map:
                 yield spec
 
@@ -352,7 +352,7 @@ class MultiStudyMetaClass(StudyMetaClass):
             for param_spec in substudy_spec.auto_param_specs:
                 trans_sname = substudy_spec.apply_prefix(
                     param_spec.name)
-                if trans_sname not in cls.parameter_spec_names():
+                if trans_sname not in cls.param_spec_names():
                     renamed_spec = param_spec.renamed(trans_sname)
                     cls._param_specs[
                         renamed_spec.name] = renamed_spec

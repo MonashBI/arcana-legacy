@@ -18,7 +18,8 @@ from logging import getLogger
 from arcana.utils import extract_package_version
 from arcana.__about__ import __version__
 from arcana.exceptions import (
-    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError)
+    ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError,
+    ArcanaDataNotDerivedYetError, ArcanaNameError, ArcanaMissingDataException)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 
@@ -146,17 +147,16 @@ class Pipeline(object):
     @property
     def prerequisites(self):
         """
-        Iterates through the inputs of the pipelinen and determines the
-        all prerequisite pipelines
+        Iterates through the inputs of the pipeline and determines the
+        prerequisite pipelines
         """
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
         for input in self.inputs:  # @ReservedAssignment
-            spec = self._study.spec(input)
             # Could be an input to the study or optional acquired spec
-            if spec.is_spec and spec.derived:
-                prereqs[spec.pipeline_getter].add(input.name)
+            if input.is_spec and input.derived:
+                prereqs[input.pipeline_getter].add(input.name)
         return prereqs
 
     @property
@@ -169,6 +169,12 @@ class Pipeline(object):
             (i for i in self.inputs if not i.derived),
             *(self.study.pipeline(p, required_outputs=r).study_inputs
               for p, r in self.prerequisites.items())))
+
+    def map_input(self, spec_name):
+        return self._map_name(spec_name, self._input_map)
+
+    def map_output(self, spec_name):
+        return self._map_name(spec_name, self._output_map)
 
     def add(self, name, interface, inputs=None, outputs=None,
             requirements=None, wall_time=None, annotations=None, **kwargs):
@@ -264,7 +270,10 @@ class Pipeline(object):
         self._workflow.add_nodes([node])
         # Connect inputs, outputs and internal connections
         if inputs is not None:
-            assert isinstance(inputs, dict)
+            if not isinstance(inputs, dict):
+                raise ArcanaDesignError(
+                    "inputs of {} node in {} needs to be a dictionary "
+                    "(not {})".format(name, self, inputs))
             for node_input, connect_from in inputs.items():
                 if isinstance(connect_from[0], basestring):
                     input_spec, input_format = connect_from
@@ -274,7 +283,10 @@ class Pipeline(object):
                     conn_node, conn_field = connect_from
                     self.connect(conn_node, conn_field, node, node_input)
         if outputs is not None:
-            assert isinstance(outputs, dict)
+            if not isinstance(outputs, dict):
+                raise ArcanaDesignError(
+                    "outputs of {} node in {} needs to be a dictionary "
+                    "(not {})".format(name, self, outputs))
             for output_spec, (node_output, output_format) in outputs.items():
                 self.connect_output(output_spec, node, node_output,
                                     output_format)
@@ -458,7 +470,11 @@ class Pipeline(object):
             return (file_format != filset_format)
 
     def node(self, name):
-        return self.workflow.get_node('{}_{}'.format(self.name, name))
+        node = self.workflow.get_node('{}_{}'.format(self.name, name))
+        if node is None:
+            raise ArcanaNameError(
+                name, "{} doesn't have node named '{}'".format(self, name))
+        return node
 
     @property
     def nodes(self):
@@ -751,9 +767,10 @@ class Pipeline(object):
                     except ArcanaNoConverterError as e:
                         e.msg += (
                             "which is required to convert '{}' from {} to {} "
-                            "for '{}' input of '{}' node".format(
+                            "for '{}' input of '{}' node in '{}' pipeline"
+                            .format(
                                 input.name, input.format, format, node_in,
-                                node.name))
+                                node.name, self.name))
                         raise e
                     try:
                         in_node = prev_conv_nodes[format.name]
@@ -812,7 +829,13 @@ class Pipeline(object):
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
             if self.requires_conversion(output, format):
-                conv = output.format.converter_from(format, **conv_kwargs)
+                try:
+                    conv = output.format.converter_from(format, **conv_kwargs)
+                except ArcanaNoConverterError as e:
+                    e.msg += (", which is required to convert '{}' output of "
+                              "'{}' node in '{}' pipeline".format(
+                                  output.name, node.name, self.name))
+                    raise e
                 node = self.add(
                     'conv_{}_from_{}_format'.format(output.name, format.name),
                     conv.interface,
@@ -919,9 +942,13 @@ class Pipeline(object):
                         for s in subj.sessions])
         # Get checksums/value for all outputs of the pipeline. We are assuming
         # that they exist here (otherwise they will be None)
-        exp_outputs = {
-            o.name: o.collection.item(node.subject_id, node.visit_id).checksums
-            for o in self.outputs}
+        exp_outputs = {}
+        for output in self.outputs:
+            try:
+                exp_outputs[output.name] = output.collection.item(
+                    node.subject_id, node.visit_id).checksums
+            except ArcanaDataNotDerivedYetError:
+                pass
         exp_prov = copy(self.prov)
         if PY2:
             # Need to convert to unicode strings for Python 2

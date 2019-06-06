@@ -247,9 +247,39 @@ class Processor(object):
         # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
 
-        def push_on_stack(pipeline, filt_array, req_outputs):
+        def push_on_stack(pipeline, filt_array, req_outputs, downstream=()):
+            """
+            Push a pipeline onto the stack of pipelines to be processed,
+            detecting common upstream pipelines and resolving them to a single
+            pipeline
+
+            Parameters
+            ----------
+            pipeline : Pipeline
+                The pipeline to add to the stack
+            filt_array : 2-D numpy.ndarray
+                An array of sessions that are to be processed for the given
+                pipeline
+            req_outputs : list[str]
+                The outputs of the pipeline that are actually required (non-
+                required outputs can be ignored if they are not generated)
+            downstream : tuple[Pipeline]
+                The pipelines directly downstream of the pipeline to be added.
+                Used to detect circular dependencies
+            """
             if req_outputs is None:
                 req_outputs = pipeline.output_names
+            # Check downstream piplines for circular dependencies
+            downstream_pipelines = [p for p, _ in downstream]
+            if pipeline in downstream_pipelines:
+                recur_index = downstream_pipelines.index(pipeline)
+                raise ArcanaDesignError(
+                    "{} cannot be a dependency of itself. Call-stack:\n{}"
+                    .format(pipeline,
+                            '\n'.join('{} ({})'.format(p, ', '.join(ro))
+                                      for p, ro in (
+                                          ((pipeline, req_outputs),) +
+                                          downstream[:(recur_index + 1)]))))
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
@@ -289,17 +319,19 @@ class Processor(object):
 
             stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
-            for prq_getter, prq_req_outputs in pipeline.prerequisites.items():
-                try:
+            try:
+                for (prq_getter,
+                     prq_req_outputs) in pipeline.prerequisites.items():
                     prereq = pipeline.study.pipeline(
                         prq_getter, prq_req_outputs)
-                    push_on_stack(prereq, filt_array, prq_req_outputs)
-                except (ArcanaMissingDataException,
-                        ArcanaOutputNotProducedException) as e:
-                    e.msg += (", which are required as inputs to the '{}' "
-                              "pipeline to produce '{}'".format(
-                                  pipeline.name, "', '".join(req_outputs)))
-                    raise e
+                    push_on_stack(prereq, filt_array, prq_req_outputs,
+                                  ((pipeline, req_outputs),) + downstream)
+            except (ArcanaMissingDataException,
+                    ArcanaOutputNotProducedException) as e:
+                e.msg += ("\nwhich are required as inputs to the '{}' "
+                          "pipeline to produce '{}'".format(
+                              pipeline.name, "', '".join(req_outputs)))
+                raise e
 
         # Add all primary pipelines to the stack along with their prereqs
         for pipeline, req_outputs in zip(pipelines, required_outputs):
@@ -505,7 +537,8 @@ class Processor(object):
             sink = pipeline.add(
                 '{}_sink'.format(freq),
                 RepositorySink(
-                    (o.collection for o in outputs), pipeline),
+                    (o.collection for o in outputs), pipeline,
+                    required_outputs),
                 inputs=to_connect)
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
@@ -731,7 +764,7 @@ class Processor(object):
                     "or more visits ({}). Please restrict the subject/visit "
                     "IDs in the study __init__ to continue the analysis"
                     .format(
-                        self.name,
+                        pipeline.name,
                         ', '.join(summary_outputs),
                         ', '.join(s.id for s in tree.incomplete_subjects),
                         ', '.join(v.id for v in tree.incomplete_visits)))

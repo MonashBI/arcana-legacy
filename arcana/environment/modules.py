@@ -10,7 +10,7 @@ from collections import defaultdict
 from arcana.exceptions import (
     ArcanaError, ArcanaModulesNotInstalledException,
     ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
-    ArcanaVersionError)
+    ArcanaVersionError, ArcanaModulesError)
 from .base import Environment, NodeMixin, Node, JoinNode, MapNode
 
 
@@ -20,8 +20,8 @@ logger = logging.getLogger('arcana')
 class ModulesNodeMixin(NodeMixin):
 
     def _run_command(self, *args, **kwargs):
+        self.environment.load(*self.versions)
         try:
-            self.environment.load(*self.versions)
             result = self.base_cls._run_command(self, *args, **kwargs)
         finally:
             self.environment.unload(*self.versions)
@@ -29,8 +29,10 @@ class ModulesNodeMixin(NodeMixin):
 
     def _load_results(self, *args, **kwargs):
         self.environment.load(*self.versions)
-        result = self.base_cls._load_results(self, *args, **kwargs)
-        self.environment.unload(*self.versions)
+        try:
+            result = self.base_cls._load_results(self, *args, **kwargs)
+        finally:
+            self.environment.unload(*self.versions)
         return result
 
 
@@ -101,57 +103,72 @@ class ModulesEnv(Environment):
 
     def satisfy(self, *requirements):
         versions = []
-        for req_range in requirements:
-            req = req_range.requirement
-            local_name = self.map_req(req)
-            try:
-                version_names = self._available[local_name]
-            except KeyError:
-                if self._fail_on_missing:
-                    raise ArcanaRequirementNotFoundError(
-                        "Could not find module for {} ({})".format(req.name,
-                                                                   local_name))
-                else:
-                    logger.warning("Did not find module for {} ({})"
-                                   .format(req.name, local_name))
-            avail_versions = []
-            for local_ver_name in version_names:
-                ver_name = self.map_version(req, local_ver_name)
+        try:
+            for req_range in requirements:
+                req = req_range.requirement
+                local_name = self.map_req(req)
                 try:
-                    avail_versions.append(
-                        req.v(ver_name, local_name=local_name,
-                              local_version=local_ver_name))
-                except ArcanaVersionNotDetectableError:
-                    if self._ignore_unrecog:
-                        logger.warning(
-                            "Ignoring unrecognised available version '{}' of "
-                            "{}".format(ver_name, req_range.name))
-                        continue
+                    version_names = self._available[local_name]
+                except KeyError:
+                    if self._fail_on_missing:
+                        raise ArcanaRequirementNotFoundError(
+                            "Could not find module for {} ({})".format(
+                                req.name, local_name))
                     else:
-                        raise
-            version = req_range.latest_within(avail_versions)
-            # To get the exact version (i.e. not just what the
-            # modules administrator has called it) we load the module
-            # detect the version and unload it again
+                        logger.warning("Did not find module for {} ({})"
+                                       .format(req.name, local_name))
+                avail_versions = []
+                for local_ver_name in version_names:
+                    ver_name = self.map_version(req, local_ver_name)
+                    try:
+                        avail_versions.append(
+                            req.v(ver_name, local_name=local_name,
+                                  local_version=local_ver_name))
+                    except ArcanaVersionNotDetectableError:
+                        if self._ignore_unrecog:
+                            logger.warning(
+                                "Ignoring unrecognised available version '{}' "
+                                "of {}".format(ver_name, req_range.name))
+                            continue
+                        else:
+                            raise
+                version = req_range.latest_within(avail_versions)
+                # To get the exact version (i.e. not just what the
+                # modules administrator has called it) we load the module
+                # detect the version and unload it again
+                if self._detect_exact_versions:
+                    # Note that the versions are unloaded after the outer loop
+                    # so that subsequent requirements can use previously loaded
+                    # requirements to detect their version (matlab packages in
+                    # particular)
+                    self.load(version)
+                    exact_version = req.detect_version(
+                        local_name=local_name, local_version=local_ver_name)
+                    try:
+                        if not req_range.within(exact_version):
+                            raise ArcanaVersionError(
+                                "Version of {} specified by module {} does "
+                                "not match expected {} and is outside the "
+                                "acceptable range [{}]"
+                                .format(req.name, local_ver_name,
+                                        str(version), str(req_range)))
+                        if exact_version < version:
+                            raise ArcanaVersionError(
+                                "Version of {} specified by module {} is less "
+                                "than the expected {}".format(
+                                    req.name, local_ver_name, str(version)))
+                    finally:
+                        # Append the loaded version to the list of versions to
+                        # ensure that it is unloaded again before the exception
+                        # is raised out of this method
+                        versions.append(exact_version)
+                    version = exact_version
+                # Get latest requirement from list of possible options
+                versions.append(version)
+        finally:
+            # Unload detected versions
             if self._detect_exact_versions:
-                self.load(version)
-                exact_version = req.detect_version(
-                    local_name=local_name, local_version=local_ver_name)
-                self.unload(version)
-                if not req_range.within(exact_version):
-                    raise ArcanaVersionError(
-                        "Version of {} specified by module {} does not match "
-                        "expected {} and is outside the acceptable range [{}]"
-                        .format(req.name, local_ver_name, str(version),
-                                str(req_range)))
-                if exact_version < version:
-                    raise ArcanaVersionError(
-                        "Version of {} specified by module {} is less than "
-                        "the expected {}"
-                        .format(req.name, local_ver_name, str(version)))
-                version = exact_version
-            # Get latest requirement from list of possible options
-            versions.append(version)
+                self.unload(*versions)
         return versions
 
     def load(self, *versions):
@@ -159,7 +176,9 @@ class ModulesEnv(Environment):
             self._run_module_cmd('load', self._module_id(version))
 
     def unload(self, *versions):
-        for version in versions:
+        # The modules are unloaded in reverse order to account for prerequisite
+        # modules
+        for version in reversed(versions):
             self._run_module_cmd('unload', self._module_id(version))
 
     @classmethod
@@ -240,7 +259,7 @@ class ModulesEnv(Environment):
                 modulecmd = '{}/bin/modulecmd'.format(
                     os.environ['MODULESHOME'])
                 if not os.path.exists(modulecmd):
-                    raise ArcanaError(
+                    raise ArcanaModulesError(
                         "Cannot find 'modulecmd' on path or in MODULESHOME.")
             logger.debug("Running modules command '{}'".format(' '.join(args)))
             try:
@@ -248,12 +267,18 @@ class ModulesEnv(Environment):
                     [modulecmd, 'python'] + list(args),
                     stdout=sp.PIPE, stderr=sp.PIPE).communicate()
             except (sp.CalledProcessError, OSError) as e:
-                raise ArcanaError(
+                raise ArcanaModulesError(
                     "Call to subprocess `{}` threw an error: {}".format(
                         ' '.join([modulecmd, 'python'] + list(args)), e))
-            exec(output)
             if PY3:
+                output = output.decode('utf-8')
                 error = error.decode('utf-8')
+            if output == '_mlstatus = False\n':
+                raise ArcanaModulesError(
+                    "Error running module cmd '{}':\n{}".format(
+                        ' '.join(args), error))
+            # Run python code generated by module load
+            exec(output)
             return error
         else:
             raise ArcanaModulesNotInstalledException('MODULESHOME')
