@@ -161,10 +161,12 @@ class Study(object):
                 if isinstance(inpt, basestring):
                     spec = self.data_spec(inpt_name)
                     if spec.is_fileset:
-                        inpt = InputFilesets(inpt_name, pattern=inpt)
+                        inpt = InputFilesets(inpt_name, pattern=inpt,
+                                             is_regex=True)
                     else:
                         inpt = InputFields(inpt_name, pattern=inpt,
-                                             dtype=spec.dtype)
+                                             dtype=spec.dtype,
+                                             is_regex=True)
                     inputs[inpt_name] = inpt
         # Check validity of study inputs
         for inpt_name, inpt in inputs.items():
