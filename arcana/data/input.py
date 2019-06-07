@@ -407,7 +407,10 @@ class InputFilesets(BaseInput, BaseFileset):
             candidate_formats = valid_formats
         # Run the match against the tree
         return FilesetCollection(self.name,
-                                 self._match(tree, Fileset, **kwargs),
+                                 self._match(
+                                     tree, Fileset,
+                                     valid_formats=candidate_formats,
+                                     **kwargs),
                                  frequency=self.frequency,
                                  candidate_formats=candidate_formats)
 
