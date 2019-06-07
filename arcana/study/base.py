@@ -16,7 +16,8 @@ from arcana.exceptions import (
     ArcanaInputError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields)
+    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields,
+    BaseFileset, BaseField)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
@@ -514,6 +515,42 @@ class Study(object):
             # Use standard pickling if not a generated class
             pkld = object.__reduce__(self)
         return pkld
+
+    @classmethod
+    def static_menu(cls):
+        cls_name = '.'.join([cls.__module__, cls.__name__])
+        menu = ("\n{} Menu \n".format(cls_name) +
+                '-' * len(cls_name) + "------------")
+        menu += '\n\nInputs:'
+        for spec in cls.acquired_data_specs():
+            if isinstance(spec, BaseFileset):
+                menu += '\n\t{} ({}){}:\n\t\t{}'.format(
+                    spec.name, ', '.join(f.name for f in spec.valid_formats),
+                    (' - optional' if spec.optional else ''),
+                    spec.desc)
+            else:
+                menu += '\n\t{} ({}{}){}: {}'.format(
+                    spec.name, spec.dtype.__name__,
+                    (' array' if spec.array else ''),
+                    (' - optional' if spec.optional else ''),
+                    spec.desc)
+        menu += '\n\nDerivatives:'
+        for spec in cls.derived_data_specs():
+            if isinstance(spec, BaseFileset):
+                menu += '\n\t{} ({}):\n\t\t{}'.format(
+                    spec.name, spec.format.name, spec.desc)
+            else:
+                menu += '\n\t{} ({}{}): {}'.format(
+                    spec.name, spec.dtype.__name__,
+                    (' array' if spec.array else ''),
+                    spec.desc)
+        menu += '\n\nParameters:'
+        for spec in cls.param_specs():
+            menu += '\n\t{} ({}){}:\n\t\t{}'.format(
+                spec.name, spec.dtype.__name__,
+                (' [{}]'.format(", ".join(str(c) for c in spec.choices))
+                 if spec.choices else ''), spec.desc)
+        return menu
 
     @property
     def tree(self):
