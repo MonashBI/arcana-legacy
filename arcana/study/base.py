@@ -518,6 +518,12 @@ class Study(object):
 
     @classmethod
     def static_menu(cls):
+        def wrap_desc(desc, nchars, indent='\t\t'):
+            lines = []
+            while desc:
+                lines.append(desc[:nchars])
+                desc = desc[nchars:]
+            return '\n{}'.format(indent).join(lines)
         cls_name = '.'.join([cls.__module__, cls.__name__])
         menu = ("\n{} Menu \n".format(cls_name) +
                 '-' * len(cls_name) + "------------")
@@ -527,29 +533,31 @@ class Study(object):
                 menu += '\n\t{} ({}){}:\n\t\t{}'.format(
                     spec.name, ', '.join(f.name for f in spec.valid_formats),
                     (' - optional' if spec.optional else ''),
-                    spec.desc)
+                    wrap_desc(spec.desc, 80))
             else:
                 menu += '\n\t{} ({}{}){}: {}'.format(
                     spec.name, spec.dtype.__name__,
                     (' array' if spec.array else ''),
                     (' - optional' if spec.optional else ''),
-                    spec.desc)
+                    wrap_desc(spec.desc, 80))
         menu += '\n\nDerivatives:'
         for spec in cls.derived_data_specs():
             if isinstance(spec, BaseFileset):
                 menu += '\n\t{} ({}):\n\t\t{}'.format(
-                    spec.name, spec.format.name, spec.desc)
+                    spec.name, spec.format.name,
+                    wrap_desc(spec.desc, 80))
             else:
                 menu += '\n\t{} ({}{}): {}'.format(
                     spec.name, spec.dtype.__name__,
                     (' array' if spec.array else ''),
-                    spec.desc)
+                    wrap_desc(spec.desc, 80))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
             menu += '\n\t{} ({}){}:\n\t\t{}'.format(
                 spec.name, spec.dtype.__name__,
                 (' [{}]'.format(", ".join(str(c) for c in spec.choices))
-                 if spec.choices else ''), spec.desc)
+                 if spec.choices else ''),
+                wrap_desc(spec.desc, 80))
         return menu
 
     @property
