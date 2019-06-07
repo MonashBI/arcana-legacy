@@ -122,7 +122,7 @@ def parse_single_value(value):
     return value
 
 
-def parse_value(value):
+def parse_value(value, dtype=None):
     # Split strings with commas into lists
     if isinstance(value, basestring):
         if value.startswith('[') and value.endswith(']'):
@@ -134,13 +134,18 @@ def parse_value(value):
         except TypeError:
             pass
     if isinstance(value, list):
-        value = [parse_single_value(v) for v in value]
+        if dtype is not None:
+            value = [dtype(v) for v in value]
+        else:
+            value = [parse_single_value(v) for v in value]
         # Check to see if datatypes are consistent
         dtypes = set(type(v) for v in value)
         if len(dtypes) > 1:
             raise ArcanaUsageError(
                 "Inconsistent datatypes in values array ({})"
                 .format(value))
+    elif dtype is not None:
+        value = dtype(value)
     else:
         value = parse_single_value(value)
     return value
