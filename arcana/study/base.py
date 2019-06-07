@@ -17,7 +17,7 @@ from arcana.exceptions import (
 from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields,
-    BaseFileset, BaseField)
+    BaseFileset)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource

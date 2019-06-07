@@ -19,7 +19,7 @@ from arcana.utils import extract_package_version
 from arcana.__about__ import __version__
 from arcana.exceptions import (
     ArcanaDesignError, ArcanaError, ArcanaUsageError, ArcanaNoConverterError,
-    ArcanaDataNotDerivedYetError, ArcanaNameError, ArcanaMissingDataException)
+    ArcanaDataNotDerivedYetError, ArcanaNameError)
 from .provenance import (
     Record, ARCANA_DEPENDENCIES, PROVENANCE_VERSION)
 

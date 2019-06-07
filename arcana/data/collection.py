@@ -263,7 +263,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
             formatted_collection = []
             for fileset in collection:
                 fileset = copy(fileset)
-                if fileset.exists:
+                if fileset.exists and fileset.format is None:
                     fileset.format = (fileset.detect_format(candidate_formats)
                                       if format is None else format)
                 formatted_collection.append(fileset)
