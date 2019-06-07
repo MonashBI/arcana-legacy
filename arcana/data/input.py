@@ -243,9 +243,9 @@ class BaseInput(object):
             raise ErrorClass('\n'.join(str(e) for e in errors))
         return matches
 
-    def match_node(self, node, **kwargs):  # @UnusedVariable
+    def match_node(self, node, **kwargs):
         # Get names matching pattern
-        matches = self._filtered_matches(node)
+        matches = self._filtered_matches(node, **kwargs)
         # Filter matches by study name
         study_matches = [d for d in matches
                          if d.from_study == self.from_study]
@@ -434,7 +434,9 @@ class InputFilesets(BaseInput, BaseFileset):
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _filtered_matches(self, node):
+    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # @UnusedVariable @IgnorePep8
+        if self.format is not None:
+            valid_formats = [self.format]
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -469,8 +471,9 @@ class InputFilesets(BaseInput, BaseFileset):
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
             matches = filtered
-        if self.format is not None:
-            format_matches = [f for f in matches if self.format.matches(f)]
+        if valid_formats is not None:
+            format_matches = [
+                m for m in matches if any(f.matches(m) for f in valid_formats)]
             if not format_matches:
                 for f in matches:
                     self.format.matches(f)
@@ -606,7 +609,7 @@ class InputFields(BaseInput, BaseField):
         dct.update(BaseInput.initkwargs(self))
         return dct
 
-    def _filtered_matches(self, node):
+    def _filtered_matches(self, node, **kwargs):  # @UnusedVariable
         if self.is_regex:
             pattern_re = re.compile(self.pattern)
             matches = [f for f in node.fields
