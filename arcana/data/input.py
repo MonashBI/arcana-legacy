@@ -183,8 +183,12 @@ class BaseInput(object):
                     subject_ids=study.subject_ids,
                     visit_ids=study.visit_ids,
                     fill=study.fill_tree)
+                try:
+                    valid_formats = spec.valid_formats
+                except AttributeError:
+                    valid_formats = [spec.format]
                 bound._collection = bound.match(
-                    tree, valid_formats=getattr(spec, 'valid_formats', None),
+                    tree, valid_formats=valid_formats,
                     **kwargs)
         return bound
 
@@ -441,8 +445,6 @@ class InputFilesets(BaseInput, BaseFileset):
         return self._dicom_tags
 
     def _filtered_matches(self, node, valid_formats=None, **kwargs):  # @UnusedVariable @IgnorePep8
-        if self.format is not None:
-            valid_formats = [self.format]
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
