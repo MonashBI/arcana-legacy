@@ -10,6 +10,10 @@ from arcana.exceptions import ArcanaUsageError
 logger = logging.getLogger('arcana')
 
 
+def defaultdict_of_dict():
+    return defaultdict(dict)
+
+
 class Repository(with_metaclass(ABCMeta, object)):
     """
     Abstract base class for all Repository systems, DaRIS, XNAT and
@@ -237,7 +241,7 @@ class Repository(with_metaclass(ABCMeta, object)):
         return tree
 
     def clear_cache(self):
-        self._cache = defaultdict(lambda: defaultdict(dict))
+        self._cache = defaultdict(defaultdict_of_dict)
 
     def __ne__(self, other):
         return not (self == other)
