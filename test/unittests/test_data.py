@@ -151,9 +151,11 @@ class TestDicomTagMatch(BaseTestCase):
             TestMatchStudy, 'test_dicom',
             inputs=[
                 InputFilesets('gre_phase', pattern=self.GRE_PATTERN,
-                             format=dicom_format, order=1, is_regex=True),
+                              valid_formats=dicom_format, order=1,
+                              is_regex=True),
                 InputFilesets('gre_mag', pattern=self.GRE_PATTERN,
-                             format=dicom_format, order=0, is_regex=True)])
+                              valid_formats=dicom_format, order=0,
+                              is_regex=True)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')

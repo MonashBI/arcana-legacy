@@ -349,10 +349,6 @@ class InputFilesets(BaseInput, BaseFileset):
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
-        if dicom_tags is not None and format.name != 'dicom':
-            raise ArcanaUsageError(
-                "Cannot use 'dicom_tags' kwarg with non-DICOM "
-                "format ({})".format(format))
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
@@ -362,7 +358,7 @@ class InputFilesets(BaseInput, BaseFileset):
             try:
                 valid_formats = tuple(valid_formats)
             except TypeError:
-                valid_formats = tuple(valid_formats,)
+                valid_formats = (valid_formats,)
         self._valid_formats = valid_formats
         self._id = str(id) if id is not None else id
         if isinstance(acceptable_quality, basestring):
@@ -494,10 +490,15 @@ class InputFilesets(BaseInput, BaseFileset):
             matches = format_matches
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
+            if self.valid_formats is None or len(self.valid_formats) != 1:
+                raise ArcanaUsageError(
+                    "Can only match header tags if exactly one valid format "
+                    "is specified ({})".format(self.valid_formats))
+            format = self.valid_formats[0]  # @ReservedAssignment
             filtered = []
             for fileset in matches:
                 keys, ref_values = zip(*self.dicom_tags.items())
-                values = tuple(self.format.dicom_values(fileset, keys))
+                values = tuple(format.dicom_values(fileset, keys))
                 if ref_values == values:
                     filtered.append(fileset)
             if not filtered:
