@@ -523,8 +523,12 @@ class Study(object):
         def wrap_desc(desc, nchars, indent='\t\t'):
             lines = []
             while desc:
-                lines.append(desc[:nchars])
-                desc = desc[nchars:]
+                if len(desc) > nchars:
+                    n = desc[:nchars].rfind(' ')
+                else:
+                    n = nchars
+                lines.append(desc[:n])
+                desc = desc[(n + 1):]
             return '\n{}'.format(indent).join(lines)
         cls_name = '.'.join([cls.__module__, cls.__name__])
         menu = ("\n{} Menu \n".format(cls_name) +
