@@ -186,7 +186,10 @@ class BaseInput(object):
                 try:
                     valid_formats = spec.valid_formats
                 except AttributeError:
-                    valid_formats = [spec.format]
+                    try:
+                        valid_formats = [spec.format]
+                    except AttributeError:
+                        valid_formats = None
                 bound._collection = bound.match(
                     tree, valid_formats=valid_formats,
                     **kwargs)
