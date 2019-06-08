@@ -100,7 +100,7 @@ else:
                 raise
 
 
-def parse_single_value(value):
+def parse_single_value(value, dtype=None):
     """
     Tries to convert to int, float and then gives up and assumes the value
     is of type string. Useful when excepting values that may be string
@@ -116,9 +116,11 @@ def parse_single_value(value):
                 value = int(value)
         except ValueError:
             value = str(value)
-    elif not isinstance(value, (int, float)):
+    elif not isinstance(value, (int, float, bool)):
         raise ArcanaUsageError(
             "Unrecognised type for single value {}".format(value))
+    if dtype is not None:
+        value = dtype(value)
     return value
 
 
@@ -134,20 +136,15 @@ def parse_value(value, dtype=None):
         except TypeError:
             pass
     if isinstance(value, list):
-        if dtype is not None:
-            value = [dtype(v) for v in value]
-        else:
-            value = [parse_single_value(v) for v in value]
+        value = [parse_single_value(v, dtype=dtype) for v in value]
         # Check to see if datatypes are consistent
         dtypes = set(type(v) for v in value)
         if len(dtypes) > 1:
             raise ArcanaUsageError(
                 "Inconsistent datatypes in values array ({})"
                 .format(value))
-    elif dtype is not None:
-        value = dtype(value)
     else:
-        value = parse_single_value(value)
+        value = parse_single_value(value, dtype=dtype)
     return value
 
 
