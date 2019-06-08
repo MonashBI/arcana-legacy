@@ -528,7 +528,7 @@ class Study(object):
             return '\n{}'.format(indent).join(lines)
         cls_name = '.'.join([cls.__module__, cls.__name__])
         menu = ("\n{} Menu \n".format(cls_name) +
-                '-' * len(cls_name) + "------------")
+                '-' * len(cls_name) + "------")
         menu += '\n\nInputs:'
         for spec in cls.acquired_data_specs():
             if isinstance(spec, BaseFileset):

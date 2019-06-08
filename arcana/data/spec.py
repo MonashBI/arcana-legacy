@@ -616,7 +616,7 @@ class FieldSpec(BaseField, BaseSpec):
     is_spec = True
     CollectionClass = FieldCollection
 
-    def __init__(self, name, dtype, pipeline_getter=None,
+    def __init__(self, name, dtype, pipeline_getter,
                  frequency='per_session', desc=None, array=False,
                  pipeline_args=None, group=None):
         BaseField.__init__(self, name, dtype, frequency, array=array)
