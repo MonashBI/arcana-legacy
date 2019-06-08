@@ -219,7 +219,7 @@ class Repository(with_metaclass(ABCMeta, object)):
         if visit_ids is not None:
             visit_ids = frozenset(visit_ids)
         try:
-            tree = self._cache[subject_ids][visit_ids]
+            tree = self._cache[subject_ids][visit_ids][fill]
         except KeyError:
             if fill:
                 fill_subjects = subject_ids
@@ -231,12 +231,13 @@ class Repository(with_metaclass(ABCMeta, object)):
                 fill_visits=fill_visits, fill_subjects=fill_subjects)
             # Save the tree within the cache under the given subject/
             # visit ID filters and the IDs that were actually returned
-            self._cache[subject_ids][visit_ids] = self._cache[
-                frozenset(tree.subject_ids)][frozenset(tree.visit_ids)] = tree
+            self._cache[subject_ids][visit_ids][fill] = self._cache[
+                frozenset(tree.subject_ids)][frozenset(tree.visit_ids)][
+                    fill] = tree
         return tree
 
     def clear_cache(self):
-        self._cache = defaultdict(dict)
+        self._cache = defaultdict(lambda: defaultdict(dict))
 
     def __ne__(self, other):
         return not (self == other)

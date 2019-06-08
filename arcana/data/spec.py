@@ -351,14 +351,14 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
                  desc=None, optional=False, default=None):
         # Ensure allowed formats is a list
         try:
-            valid_formats = sorted(valid_formats, key=attrgetter('name'))
+            valid_formats = tuple(valid_formats)
         except TypeError:
-            valid_formats = [valid_formats]
+            valid_formats = (valid_formats,)
         else:
             if not valid_formats:
                 raise ArcanaError(
                     "'{}' spec doesn't have any allowed formats".format(name))
-        self._valid_formats = tuple(valid_formats)
+        self._valid_formats = valid_formats
         BaseFileset.__init__(self, name, None, frequency)
         BaseInputSpec.__init__(self, name, desc, optional=optional,
                                default=default)

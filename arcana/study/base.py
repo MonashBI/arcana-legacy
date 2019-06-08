@@ -584,6 +584,10 @@ class Study(object):
         return self._processor
 
     @property
+    def fill_tree(self):
+        return self._fill_tree
+
+    @property
     def environment(self):
         return self._environment
 
