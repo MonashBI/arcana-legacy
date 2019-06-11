@@ -737,10 +737,14 @@ class Pipeline(object):
             'per_study') of the input node to retrieve
         """
         # Check to see whether there are any outputs for the given frequency
-        inputs = list(self.frequency_inputs(frequency))
+        inputs = {}
+        for input_name in self.input_names:
+            input = self.study.bound_spec(input_name)  # @ReservedAssignment
+            if input.frequency == frequency:
+                inputs[input_name] = input
         # Get list of input names for the requested frequency, addding fields
         # to hold iterator IDs
-        input_names = [i.name for i in inputs]
+        input_names = list(inputs.keys())
         input_names.extend(self.study.FREQUENCIES[frequency])
         if not input_names:
             raise ArcanaError(
@@ -751,12 +755,12 @@ class Pipeline(object):
                              IdentityInterface(fields=input_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created input node
-        for input in inputs:  # @ReservedAssignment
+        for input_name, input in inputs.items():  # @ReservedAssignment
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
             for (node, node_in, format,  # @ReservedAssignment @IgnorePep8
-                 conv_kwargs) in self._input_conns[input.name]:
+                 conv_kwargs) in self._input_conns[input_name]:
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
@@ -808,23 +812,26 @@ class Pipeline(object):
             The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
             'per_study') of the output node to retrieve
         """
-        # Check to see whether there are any outputs for the given frequency
-        outputs = list(self.frequency_outputs(frequency))
+        outputs = {}
+        for output_name in self.output_names:
+            output = self.study.bound_spec(output_name)  # @ReservedAssignment
+            if output.frequency == frequency:
+                outputs[output_name] = output
         if not outputs:
             raise ArcanaError(
                 "No outputs to '{}' pipeline for requested freqency '{}'"
                 .format(self.name, frequency))
         # Get list of output names for the requested frequency, addding fields
         # to hold iterator IDs
-        output_names = [o.name for o in outputs]
+        output_names = list(outputs.keys())
         # Generate output node and connect it to appropriate nodes
         outputnode = self.add('{}_outputnode'.format(frequency),
                               IdentityInterface(fields=output_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
-        for output in outputs:  # @ReservedAssignment
+        for output_name, output in outputs.items():  # @ReservedAssignment
             (node, node_out, format,  # @ReservedAssignment @IgnorePep8
-             conv_kwargs) = self._output_conns[output.name]
+             conv_kwargs) = self._output_conns[output_name]
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
