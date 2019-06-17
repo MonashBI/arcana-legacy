@@ -5,7 +5,8 @@ from copy import copy, deepcopy
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaOutputNotProducedException,
-    ArcanaMissingDataException, ArcanaNameError)
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaDesignError)
 from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
@@ -32,7 +33,7 @@ class BaseInputSpec(object):
         # the name of the spec
         if default is not None:
             if default.frequency != self.frequency:
-                raise ArcanaUsageError(
+                raise ArcanaDesignError(
                     "Frequency of default collection-like object passed to "
                     "'{}' spec ('{}'), does not match spec ('{}')".format(
                         name, default.frequency, self.frequency))

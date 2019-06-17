@@ -24,7 +24,7 @@ from arcana.repository.interfaces import RepositorySource
 from arcana.repository import BasicRepo
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
-from arcana.utils import get_class_info
+from arcana.utils import get_class_info, wrap_text
 
 logger = getLogger('arcana')
 
@@ -520,50 +520,64 @@ class Study(object):
 
     @classmethod
     def static_menu(cls):
-        def wrap_desc(desc, nchars, indent='\t\t'):
-            lines = []
-            while desc:
-                if len(desc) > nchars:
-                    n = desc[:nchars].rfind(' ')
-                else:
-                    n = nchars
-                lines.append(desc[:n])
-                desc = desc[(n + 1):]
-            return '\n{}'.format(indent).join(lines)
+        ITEM_INDENT = 4
+        LINE_LENGTH = 79
+        DESC_INDENT = 8
+        MIN_WRAP = 30
         cls_name = '.'.join([cls.__module__, cls.__name__])
         menu = ("\n{} Menu \n".format(cls_name) +
                 '-' * len(cls_name) + "------")
         menu += '\n\nInputs:'
         for spec in cls.acquired_data_specs():
-            if isinstance(spec, BaseFileset):
-                menu += '\n\t{} ({}){}:\n\t\t{}'.format(
-                    spec.name, ', '.join(f.name for f in spec.valid_formats),
-                    (' - optional' if spec.optional else ''),
-                    wrap_desc(spec.desc, 80))
+            if spec.default is not None:
+                qual_str = ' (default={})'.format(spec.default)
+            elif spec.optional:
+                qual_str = ' (optional)'
             else:
-                menu += '\n\t{} ({}{}){}: {}'.format(
-                    spec.name, spec.dtype.__name__,
-                    (' array' if spec.array else ''),
-                    (' - optional' if spec.optional else ''),
-                    wrap_desc(spec.desc, 80))
+                qual_str = ''
+            if isinstance(spec, BaseFileset):
+                format_wrap_ind = (ITEM_INDENT + len(spec.name) + 3 +
+                                   len(qual_str))
+                if format_wrap_ind > LINE_LENGTH - MIN_WRAP:
+                    format_wrap_ind = LINE_LENGTH - MIN_WRAP
+                    indent_frmt_wrap = True
+                else:
+                    indent_frmt_wrap = False
+                menu += '\n{}{}{} :{}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, qual_str,
+                    ('\n' if indent_frmt_wrap else ' '),
+                    wrap_text(', '.join(f.name for f in spec.valid_formats),
+                              LINE_LENGTH, format_wrap_ind,
+                              prefix_indent=indent_frmt_wrap),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+            else:
+                menu += '\n{}{}{} : {}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, qual_str,
+                    spec.dtype.__name__, (' array' if spec.array else ''),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
         menu += '\n\nDerivatives:'
         for spec in cls.derived_data_specs():
             if isinstance(spec, BaseFileset):
-                menu += '\n\t{} ({}):\n\t\t{}'.format(
-                    spec.name, spec.format.name,
-                    wrap_desc(spec.desc, 80))
+                menu += '\n{}{} : {}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.format.name,
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
             else:
-                menu += '\n\t{} ({}{}): {}'.format(
-                    spec.name, spec.dtype.__name__,
+                menu += '\n{}{} : {}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
                     (' array' if spec.array else ''),
-                    wrap_desc(spec.desc, 80))
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
-            menu += '\n\t{} ({}){}:\n\t\t{}'.format(
-                spec.name, spec.dtype.__name__,
+            menu += '\n{}{}{} : {}\n{}'.format(
+                ' ' * ITEM_INDENT, spec.name,
                 (' [{}]'.format(", ".join(str(c) for c in spec.choices))
-                 if spec.choices else ''),
-                wrap_desc(spec.desc, 80))
+                 if spec.choices else ''), spec.dtype.__name__,
+                wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                          prefix_indent=True))
         return menu
 
     @property
