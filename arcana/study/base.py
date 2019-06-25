@@ -8,12 +8,6 @@ import types
 from copy import copy
 from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
-from arcana.exceptions import (
-    ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
-    ArcanaCantPickleStudyError, ArcanaUsageError,
-    ArcanaMissingDataException, ArcanaNameError,
-    ArcanaOutputNotProducedException, ArcanaInputMissingMatchError,
-    ArcanaInputError)
 from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields)
@@ -24,6 +18,12 @@ from arcana.repository import BasicRepo
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
 from arcana.utils import get_class_info
+from arcana.exceptions import (
+    ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
+    ArcanaCantPickleStudyError, ArcanaUsageError, ArcanaError,
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaOutputNotProducedException, ArcanaInputMissingMatchError,
+    ArcanaInputError)
 
 logger = getLogger('arcana')
 
@@ -345,9 +345,14 @@ class Study(object):
                 kwargs.update({'subject_ids': subject_ids,
                                'visit_ids': visit_ids,
                                'session_ids': session_ids})
-                pipelines, required_outputs = zip(*(
-                    (self.pipeline(getter, pipeline_args=args), req_outs)
-                    for (getter, args), req_outs in pipeline_getters.items()))
+                try:
+                    pipelines, required_outputs = zip(*(
+                        (self.pipeline(getter, pipeline_args=args), req_outs)
+                        for (getter, args), req_outs in pipeline_getters.items()))
+                except ArcanaError as e:
+                    e.msg += ", in order to derive '{}'".format(
+                        "', '".join(names))
+                    raise e
                 kwargs['required_outputs'] = required_outputs
                 self.processor.run(*pipelines, **kwargs)
         # Find and return Item/Collection corresponding to requested spec
