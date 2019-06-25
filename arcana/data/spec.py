@@ -5,7 +5,8 @@ from copy import copy, deepcopy
 from arcana.exceptions import (
     ArcanaError, ArcanaUsageError,
     ArcanaOutputNotProducedException,
-    ArcanaMissingDataException, ArcanaNameError)
+    ArcanaMissingDataException, ArcanaNameError,
+    ArcanaDesignError)
 from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
@@ -32,7 +33,7 @@ class BaseInputSpec(object):
         # the name of the spec
         if default is not None:
             if default.frequency != self.frequency:
-                raise ArcanaUsageError(
+                raise ArcanaDesignError(
                     "Frequency of default collection-like object passed to "
                     "'{}' spec ('{}'), does not match spec ('{}')".format(
                         name, default.frequency, self.frequency))
@@ -351,14 +352,14 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
                  desc=None, optional=False, default=None):
         # Ensure allowed formats is a list
         try:
-            valid_formats = sorted(valid_formats, key=attrgetter('name'))
+            valid_formats = tuple(valid_formats)
         except TypeError:
-            valid_formats = [valid_formats]
+            valid_formats = (valid_formats,)
         else:
             if not valid_formats:
                 raise ArcanaError(
                     "'{}' spec doesn't have any allowed formats".format(name))
-        self._valid_formats = tuple(valid_formats)
+        self._valid_formats = valid_formats
         BaseFileset.__init__(self, name, None, frequency)
         BaseInputSpec.__init__(self, name, desc, optional=optional,
                                default=default)
@@ -616,7 +617,7 @@ class FieldSpec(BaseField, BaseSpec):
     is_spec = True
     CollectionClass = FieldCollection
 
-    def __init__(self, name, dtype, pipeline_getter=None,
+    def __init__(self, name, dtype, pipeline_getter,
                  frequency='per_session', desc=None, array=False,
                  pipeline_args=None, group=None):
         BaseField.__init__(self, name, dtype, frequency, array=array)

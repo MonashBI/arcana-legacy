@@ -367,12 +367,14 @@ class MultiStudyMetaClass(StudyMetaClass):
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
                         "MultiStudy class does not name a spec in {} "
-                        "class"
+                        "class:\n{}"
                         .format(local_name, substudy_spec.name,
-                                name, substudy_spec.study_class))
+                                name, substudy_spec.study_class,
+                                '\n'.join(local_spec_names)))
                 if global_name not in cls.spec_names():
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name a spec"
-                        .format(global_name, substudy_spec.name, name))
+                        "MultiStudy class does not name a spec:\n{}"
+                        .format(global_name, substudy_spec.name, name,
+                                '\n'.join(cls.spec_names())))
         return cls

@@ -100,7 +100,7 @@ else:
                 raise
 
 
-def parse_single_value(value):
+def parse_single_value(value, dtype=None):
     """
     Tries to convert to int, float and then gives up and assumes the value
     is of type string. Useful when excepting values that may be string
@@ -116,13 +116,15 @@ def parse_single_value(value):
                 value = int(value)
         except ValueError:
             value = str(value)
-    elif not isinstance(value, (int, float)):
+    elif not isinstance(value, (int, float, bool)):
         raise ArcanaUsageError(
             "Unrecognised type for single value {}".format(value))
+    if dtype is not None:
+        value = dtype(value)
     return value
 
 
-def parse_value(value):
+def parse_value(value, dtype=None):
     # Split strings with commas into lists
     if isinstance(value, basestring):
         if value.startswith('[') and value.endswith(']'):
@@ -134,7 +136,7 @@ def parse_value(value):
         except TypeError:
             pass
     if isinstance(value, list):
-        value = [parse_single_value(v) for v in value]
+        value = [parse_single_value(v, dtype=dtype) for v in value]
         # Check to see if datatypes are consistent
         dtypes = set(type(v) for v in value)
         if len(dtypes) > 1:
@@ -142,7 +144,7 @@ def parse_value(value):
                 "Inconsistent datatypes in values array ({})"
                 .format(value))
     else:
-        value = parse_single_value(value)
+        value = parse_single_value(value, dtype=dtype)
     return value
 
 
@@ -249,3 +251,50 @@ def get_class_info(cls):
     if version is not None:
         info['pkg_version'] = version
     return info
+
+
+def wrap_text(text, line_length, indent, prefix_indent=False):
+    """
+    Wraps a text block to the specified line-length, without breaking across
+    words, using the specified indent to join the lines
+
+    Parameters
+    ----------
+    text : str
+        The text to wrap
+    line_length : int
+        The desired line-length for the wrapped text (including indent)
+    indent : int
+        The number of spaces to use as an indent for the wrapped lines
+    prefix_indent : bool
+        Whether to prefix the indent to the wrapped text
+
+    Returns
+    -------
+    wrapped : str
+        The wrapped text
+    """
+    lines = []
+    nchars = line_length - indent
+    if nchars <= 0:
+        raise ArcanaUsageError(
+            "In order to wrap text, the indent cannot be larger than the "
+            "line-length")
+    while text:
+        if len(text) > nchars:
+            n = text[:nchars].rfind(' ')
+            if n < 1:
+                next_space = text[nchars:].find(' ')
+                if next_space < 0:
+                    # No spaces found
+                    n = len(text)
+                else:
+                    n = nchars + next_space
+        else:
+            n = nchars
+        lines.append(text[:n])
+        text = text[(n + 1):]
+    wrapped = '\n{}'.format(' ' * indent).join(lines)
+    if prefix_indent:
+        wrapped = ' ' * indent + wrapped
+    return wrapped

@@ -10,14 +10,15 @@ from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields)
+    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields,
+    BaseFileset)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
 from arcana.repository import BasicRepo
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
-from arcana.utils import get_class_info
+from arcana.utils import get_class_info, wrap_text
 from arcana.exceptions import (
     ArcanaMissingInputError, ArcanaNoConverterError, ArcanaDesignError,
     ArcanaCantPickleStudyError, ArcanaUsageError, ArcanaError,
@@ -160,10 +161,12 @@ class Study(object):
                 if isinstance(inpt, basestring):
                     spec = self.data_spec(inpt_name)
                     if spec.is_fileset:
-                        inpt = InputFilesets(inpt_name, pattern=inpt)
+                        inpt = InputFilesets(inpt_name, pattern=inpt,
+                                             is_regex=True)
                     else:
                         inpt = InputFields(inpt_name, pattern=inpt,
-                                             dtype=spec.dtype)
+                                             dtype=spec.dtype,
+                                             is_regex=True)
                     inputs[inpt_name] = inpt
         # Check validity of study inputs
         for inpt_name, inpt in inputs.items():
@@ -240,16 +243,15 @@ class Study(object):
                 if not spec.derived and spec.default is None:
                     # Emit a warning if an acquired fileset has not been
                     # provided for an "acquired fileset"
-                    msg = (" acquired fileset '{}' was not given as"
-                           " an input of {}.".format(spec.name, self))
+                    msg = (" input fileset '{}' was not provided to {}."
+                           .format(spec.name, self))
                     if spec.optional:
                         logger.info('Optional' + msg)
                     else:
                         if enforce_inputs:
                             raise ArcanaMissingInputError(
-                                'Non-optional' + msg + " Pipelines "
-                                "depending on this fileset will not "
-                                "run")
+                                'Non-optional' + msg + " Pipelines depending "
+                                "on this fileset will not run")
 
     def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
              generate=True, **kwargs):
@@ -520,6 +522,68 @@ class Study(object):
             pkld = object.__reduce__(self)
         return pkld
 
+    @classmethod
+    def static_menu(cls):
+        ITEM_INDENT = 4
+        LINE_LENGTH = 79
+        DESC_INDENT = 8
+        MIN_WRAP = 30
+        cls_name = '.'.join([cls.__module__, cls.__name__])
+        menu = ("\n{} Menu \n".format(cls_name) +
+                '-' * len(cls_name) + "------")
+        menu += '\n\nInputs:'
+        for spec in cls.acquired_data_specs():
+            if spec.default is not None:
+                qual_str = ' (default={})'.format(spec.default)
+            elif spec.optional:
+                qual_str = ' (optional)'
+            else:
+                qual_str = ''
+            if isinstance(spec, BaseFileset):
+                format_wrap_ind = (ITEM_INDENT + len(spec.name) + 3 +
+                                   len(qual_str))
+                if format_wrap_ind > LINE_LENGTH - MIN_WRAP:
+                    format_wrap_ind = LINE_LENGTH - MIN_WRAP
+                    indent_frmt_wrap = True
+                else:
+                    indent_frmt_wrap = False
+                menu += '\n{}{}{} :{}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, qual_str,
+                    ('\n' if indent_frmt_wrap else ' '),
+                    wrap_text(', '.join(f.name for f in spec.valid_formats),
+                              LINE_LENGTH, format_wrap_ind,
+                              prefix_indent=indent_frmt_wrap),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+            else:
+                menu += '\n{}{}{} : {}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, qual_str,
+                    spec.dtype.__name__, (' array' if spec.array else ''),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+        menu += '\n\nDerivatives:'
+        for spec in cls.derived_data_specs():
+            if isinstance(spec, BaseFileset):
+                menu += '\n{}{} : {}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.format.name,
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+            else:
+                menu += '\n{}{} : {}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
+                    (' array' if spec.array else ''),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+        menu += '\n\nParameters:'
+        for spec in cls.param_specs():
+            menu += '\n{}{}{} : {}\n{}'.format(
+                ' ' * ITEM_INDENT, spec.name,
+                (' [{}]'.format(", ".join(str(c) for c in spec.choices))
+                 if spec.choices else ''), spec.dtype.__name__,
+                wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                          prefix_indent=True))
+        return menu
+
     @property
     def tree(self):
         return self.repository.cached_tree(
@@ -540,6 +604,10 @@ class Study(object):
     @property
     def processor(self):
         return self._processor
+
+    @property
+    def fill_tree(self):
+        return self._fill_tree
 
     @property
     def environment(self):
@@ -791,11 +859,11 @@ class Study(object):
         # replace it with its name.
         if isinstance(name, BaseData):
             name = name.name
-        # Get the spec from the class
-        spec = self.data_spec(name)
         try:
             bound = self._inputs[name]
         except KeyError:
+            # Get the spec from the class
+            spec = self.data_spec(name)
             if not spec.derived and spec.default is None:
                 raise ArcanaMissingDataException(
                     "Input (i.e. non-generated) data '{}' "

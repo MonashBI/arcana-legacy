@@ -181,9 +181,17 @@ class BaseInput(object):
             with repository:
                 tree = repository.cached_tree(
                     subject_ids=study.subject_ids,
-                    visit_ids=study.visit_ids)
+                    visit_ids=study.visit_ids,
+                    fill=study.fill_tree)
+                try:
+                    valid_formats = spec.valid_formats
+                except AttributeError:
+                    try:
+                        valid_formats = [spec.format]
+                    except AttributeError:
+                        valid_formats = None
                 bound._collection = bound.match(
-                    tree, valid_formats=getattr(spec, 'valid_formats', None),
+                    tree, valid_formats=valid_formats,
                     **kwargs)
         return bound
 
@@ -243,9 +251,9 @@ class BaseInput(object):
             raise ErrorClass('\n'.join(str(e) for e in errors))
         return matches
 
-    def match_node(self, node, **kwargs):  # @UnusedVariable
+    def match_node(self, node, **kwargs):
         # Get names matching pattern
-        matches = self._filtered_matches(node)
+        matches = self._filtered_matches(node, **kwargs)
         # Filter matches by study name
         study_matches = [d for d in matches
                          if d.from_study == self.from_study]
@@ -281,8 +289,8 @@ class InputFilesets(BaseInput, BaseFileset):
     ----------
     spec_name : str
         The name of the fileset spec to match against
-    format : FileFormat
-        The file format used to store the fileset.
+    valid_formats : list[FileFormat] | FileFormat
+        File formats that data will be accepted in
     pattern : str
         A regex pattern to match the fileset names with. Must match
         one and only one fileset per <frequency>. If None, the name
@@ -336,27 +344,29 @@ class InputFilesets(BaseInput, BaseFileset):
 
     is_spec = False
 
-    def __init__(self, spec_name, pattern=None, format=None, # @ReservedAssignment @IgnorePep8
+    def __init__(self, spec_name, pattern=None, valid_formats=None, # @ReservedAssignment @IgnorePep8
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
                  acceptable_quality=None,
                  study_=None, collection_=None):
-        BaseFileset.__init__(self, spec_name, format, frequency)
+        BaseFileset.__init__(self, spec_name, None, frequency)
         BaseInput.__init__(self, pattern, is_regex, order,
                               from_study, skip_missing, drop_if_missing,
                               fallback_to_default, repository, study_,
                               collection_)
-        if dicom_tags is not None and format.name != 'dicom':
-            raise ArcanaUsageError(
-                "Cannot use 'dicom_tags' kwarg with non-DICOM "
-                "format ({})".format(format))
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
                 "Cannot provide both 'order' and 'id' to a fileset"
                 "match")
+        if valid_formats is not None:
+            try:
+                valid_formats = tuple(valid_formats)
+            except TypeError:
+                valid_formats = (valid_formats,)
+        self._valid_formats = valid_formats
         self._id = str(id) if id is not None else id
         if isinstance(acceptable_quality, basestring):
             acceptable_quality = (acceptable_quality,)
@@ -396,20 +406,22 @@ class InputFilesets(BaseInput, BaseFileset):
                         self._from_study, self._acceptable_quality))
 
     def match(self, tree, valid_formats=None, **kwargs):
-        if self.format is not None:
-            candidate_formats = [self.format]
+        if self.valid_formats is not None:
+            valid_formats = self.valid_formats
         else:
             if valid_formats is None:
                 raise ArcanaUsageError(
                     "'valid_formats' need to be provided to the 'match' "
                     "method if the InputFilesets ({}) doesn't specify a format"
                     .format(self))
-            candidate_formats = valid_formats
         # Run the match against the tree
         return FilesetCollection(self.name,
-                                 self._match(tree, Fileset, **kwargs),
+                                 self._match(
+                                     tree, Fileset,
+                                     valid_formats=valid_formats,
+                                     **kwargs),
                                  frequency=self.frequency,
-                                 candidate_formats=candidate_formats)
+                                 candidate_formats=valid_formats)
 
     @property
     def id(self):
@@ -421,20 +433,21 @@ class InputFilesets(BaseInput, BaseFileset):
 
     @property
     def format(self):
-        if self._format is None:
-            try:
-                format = self.collection.format  # @ReservedAssignment
-            except ArcanaNotBoundToStudyError:
-                format = None  # @ReservedAssignment
-        else:
-            format = self._format  # @ReservedAssignment
+        try:
+            format = self.collection.format  # @ReservedAssignment
+        except ArcanaNotBoundToStudyError:
+            format = None  # @ReservedAssignment
         return format
+
+    @property
+    def valid_formats(self):
+        return self._valid_formats
 
     @property
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _filtered_matches(self, node):
+    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # @UnusedVariable @IgnorePep8
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)
@@ -469,8 +482,9 @@ class InputFilesets(BaseInput, BaseFileset):
                         self.pattern, self.id,
                         ', '.join(str(m) for m in matches), node))
             matches = filtered
-        if self.format is not None:
-            format_matches = [f for f in matches if self.format.matches(f)]
+        if valid_formats is not None:
+            format_matches = [
+                m for m in matches if any(f.matches(m) for f in valid_formats)]
             if not format_matches:
                 for f in matches:
                     self.format.matches(f)
@@ -481,10 +495,15 @@ class InputFilesets(BaseInput, BaseFileset):
             matches = format_matches
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
+            if self.valid_formats is None or len(self.valid_formats) != 1:
+                raise ArcanaUsageError(
+                    "Can only match header tags if exactly one valid format "
+                    "is specified ({})".format(self.valid_formats))
+            format = self.valid_formats[0]  # @ReservedAssignment
             filtered = []
             for fileset in matches:
                 keys, ref_values = zip(*self.dicom_tags.items())
-                values = tuple(self.format.dicom_values(fileset, keys))
+                values = tuple(format.dicom_values(fileset, keys))
                 if ref_values == values:
                     filtered.append(fileset)
             if not filtered:
@@ -606,7 +625,7 @@ class InputFields(BaseInput, BaseField):
         dct.update(BaseInput.initkwargs(self))
         return dct
 
-    def _filtered_matches(self, node):
+    def _filtered_matches(self, node, **kwargs):  # @UnusedVariable
         if self.is_regex:
             pattern_re = re.compile(self.pattern)
             matches = [f for f in node.fields

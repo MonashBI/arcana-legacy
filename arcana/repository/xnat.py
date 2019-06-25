@@ -70,6 +70,7 @@ class XnatRepo(Repository):
     DERIVED_FROM_FIELD = '__derived_from__'
     PROV_SCAN = '__prov__'
     PROV_RESOURCE = 'PROV'
+    depth = 2
 
     def __init__(self, server, project_id, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30,

@@ -113,8 +113,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=SingleProc(self.work_dir),
             inputs=[
-                InputFilesets('gre_phase', format=dicom_format, id=7),
-                InputFilesets('gre_mag', format=dicom_format, id=6)])
+                InputFilesets('gre_phase', valid_formats=dicom_format, id=7),
+                InputFilesets('gre_mag', valid_formats=dicom_format, id=6)])
         phase = list(study.data('gre_phase'))[0]
         mag = list(study.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -191,8 +191,8 @@ class TestScanQualityLabelMatching(TestOnXnatMixin, BaseTestCase):
                 ((None, 'questionable', 'usable'), '2unlabelled'),
                 (('questionable', 'usable'), '3questionable'),
                 ('usable', '4usable')):
-            inpt = InputFilesets('dummy', order=0, format=text_format,
-                                acceptable_quality=accepted)
+            inpt = InputFilesets('dummy', order=0, valid_formats=text_format,
+                                 acceptable_quality=accepted)
             matched = inpt.match(tree).item(subject_id=self.SUBJECT,
                                             visit_id=self.VISIT)
             self.assertEqual(matched.name, expected)

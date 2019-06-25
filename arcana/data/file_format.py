@@ -291,7 +291,9 @@ class FileFormat(object):
                 return False
         else:
             if op.isfile(fileset.path):
-                all_paths = [fileset.path] + fileset._potential_aux_files
+                all_paths = [fileset.path]
+                if fileset._potential_aux_files is not None:
+                    all_paths += fileset._potential_aux_files
                 try:
                     primary_path = self.assort_files(all_paths)[0]
                 except ArcanaFileFormatError:
