@@ -243,16 +243,15 @@ class Study(object):
                 if not spec.derived and spec.default is None:
                     # Emit a warning if an acquired fileset has not been
                     # provided for an "acquired fileset"
-                    msg = (" acquired fileset '{}' was not given as"
-                           " an input of {}.".format(spec.name, self))
+                    msg = (" input fileset '{}' was not provided to {}."
+                           .format(spec.name, self))
                     if spec.optional:
                         logger.info('Optional' + msg)
                     else:
                         if enforce_inputs:
                             raise ArcanaMissingInputError(
-                                'Non-optional' + msg + " Pipelines "
-                                "depending on this fileset will not "
-                                "run")
+                                'Non-optional' + msg + " Pipelines depending "
+                                "on this fileset will not run")
 
     def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
              generate=True, **kwargs):
@@ -855,11 +854,11 @@ class Study(object):
         # replace it with its name.
         if isinstance(name, BaseData):
             name = name.name
-        # Get the spec from the class
-        spec = self.data_spec(name)
         try:
             bound = self._inputs[name]
         except KeyError:
+            # Get the spec from the class
+            spec = self.data_spec(name)
             if not spec.derived and spec.default is None:
                 raise ArcanaMissingDataException(
                     "Input (i.e. non-generated) data '{}' "
