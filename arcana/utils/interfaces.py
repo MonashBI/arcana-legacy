@@ -416,8 +416,14 @@ class CopyToDir(BaseInterface):
             # Create filenames that will sort ascendingly with the order the
             # file is inputed to the interface
             ndigits = int(math.ceil(math.log10(num_files)))
-            out_files = (str(i).zfill(ndigits) + split_extension(f)[1]
-                         for i, f in enumerate(self.inputs.in_files))
+            out_files = []
+            for i, fname in enumerate(self.inputs.in_files):
+                ext = split_extension(fname)[1]
+                if ext is None:
+                    ext_str = ''
+                else:
+                    ext_str = ext
+                out_files.append(str(i).zfill(ndigits) + ext_str)
         file_names = []
         for in_file, out_file in zip(self.inputs.in_files, out_files):
             out_path = op.join(self.out_dir, out_file)
