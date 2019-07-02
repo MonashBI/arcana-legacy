@@ -41,7 +41,7 @@ Pipeline
 --------
 
 .. autoclass:: arcana.pipeline.Pipeline
-    :members: add, provided, parameter, connect, connect_input, connect_output 
+    :members: add, provided, connect, connect_input, connect_output 
 
 
 Requirements

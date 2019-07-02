@@ -33,9 +33,9 @@ Environments
 Inputs
 ------
 
-.. autoclass:: arcana.data.InputFileset
+.. autoclass:: arcana.data.InputFilesets
 
-.. autoclass:: arcana.data.InputField
+.. autoclass:: arcana.data.InputFields
 
 .. autoclass:: arcana.study.Parameter
 
