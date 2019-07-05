@@ -9,7 +9,7 @@ Study
 -----
 
 .. autoclass:: arcana.study.Study
-    :members: data, new_pipeline, pipeline, inputs, branch, parameter, unhandled_branch, data_spec, parameter_spec
+    :members: data, new_pipeline, pipeline, provided, branch, parameter, unhandled_branch, data_spec, param_spec
 
 .. autoclass:: arcana.study.MultiStudy
     :members: substudy, translate

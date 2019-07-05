@@ -4,7 +4,10 @@ __version__ = '0.5.0'
 __authors__ = [
     ("Thomas G. Close", "tom.g.close@gmail.com"),
     ("Francesco Sforazzini", "francesco.sforazzini@gmail.com"),
-    ("Phillip G. D. Ward", "phillipgdward@gmail.com")]
+    ("Phillip G. D. Ward", "phillipgdward@gmail.com"),
+    ("Zhaolin Chen", "zhaolin.chen@monash.edu"),
+    ("Wojtek Goscinski", "wojtek.goscinski@monash.edu"),
+    ("Gary F. Egan", "gary.egan@monash.edu")]
 
 install_requires = [
     'xnat>=0.3.17',

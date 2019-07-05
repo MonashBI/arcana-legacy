@@ -15,18 +15,20 @@ from __future__ import print_function
 import sys
 import os
 import os.path as op
+import datetime
 import sphinx_rtd_theme
 
 package_path = op.abspath(
     op.join(op.dirname(op.abspath(__file__)), '..', '..'))
 
 sys.path.insert(0, package_path)
-from arcana.__about__ import __version__  # @UnresolvedImport @IgnorePep8
+from arcana.__about__ import __version__, __authors__  # @UnresolvedImport @IgnorePep8
 import arcana.repository  # @UnusedImport @IgnorePep8
 import arcana.processor  # @UnusedImport @IgnorePep8
 import arcana.environment  # @UnusedImport @IgnorePep8
 import arcana.data  # @UnusedImport @IgnorePep8
 import arcana.study  # @UnusedImport @IgnorePep8
+from arcana import *
 
 
 # If extensions (or modules to document with autodoc) are in another directory,
@@ -72,8 +74,9 @@ master_doc = 'index'
 
 # General information about the project.
 project = u'Arcana'
-copyright = u'2018, Thomas G. Close, Francesco Sforazzini, Phillip G. D. Ward'
-author = u'Thomas G. Close, Francesco Sforazzini, Phillip G. D. Ward'
+author = u', '.join(a for a, _ in __authors__)
+copyright = u'{}, {}'.format(datetime.datetime.now().year, author)
+
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
