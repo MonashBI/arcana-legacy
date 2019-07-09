@@ -259,9 +259,9 @@ class FileFormat(object):
                     .format(aux_ext, self, "', '".join(candidates)))
             elif len(aux) > 1:
                 raise ArcanaFileFormatError(
-                    "Multiple potential files for '{}' auxiliary file ext. "
-                    "({}) of {}".format("', '".join(aux),
-                                        self))
+                    ("Multiple potential files for '{}' auxiliary file ext. " +
+                     "({}) of {}".format("', '".join(aux),
+                                         self)))
             else:
                 aux_files[aux_name] = aux[0]
         return primary_file, aux_files

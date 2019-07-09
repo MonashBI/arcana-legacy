@@ -11,7 +11,7 @@ from itertools import chain
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class BaseCollection(object):
+class BaseCollectionMixin(object):
     """
     Base class for collection of filesets and field items
     """
@@ -157,8 +157,8 @@ class BaseCollection(object):
                 fileset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
-                    "'{}' Collection is empty so doesn't have a "
-                    "per_study node".format(self.name))
+                    0, ("'{}' Collection is empty so doesn't have a " +
+                        "per_study node").format(self.name))
         return fileset
 
     @property
@@ -201,11 +201,12 @@ class BaseCollection(object):
                 for session in subject.sessions:
                     if session.visit_id not in self._collection[subject.id]:
                         raise ArcanaUsageError(
-                            "Study visit ID '{}' for subject '{}' was not "
-                            "found in colleciton provided to '{}' (found '{}')"
-                            .format(subject.id, self.name,
-                                    "', '".join(
-                                        self._collection[subject.id].keys())))
+                            ("Study visit ID '{}' for subject '{}' was not " +
+                             "found in colleciton provided to '{}' " +
+                             "(found '{}')").format(
+                                 subject.id, self.name,
+                                 "', '".join(
+                                     self._collection[subject.id].keys())))
 
     @property
     def name(self):
@@ -216,7 +217,7 @@ class BaseCollection(object):
         self._name = name
 
 
-class FilesetCollection(BaseCollection, BaseFileset):
+class FilesetCollection(BaseCollectionMixin, BaseFileset):
     """
     A collection of filesets across a study (typically within a repository)
 
@@ -270,14 +271,14 @@ class FilesetCollection(BaseCollection, BaseFileset):
             collection = formatted_collection
             format = self._common_attr(collection, 'format')  # noqa: E501 @ReservedAssignment
         BaseFileset.__init__(self, name, format, frequency=frequency)
-        BaseCollection.__init__(self, collection, frequency)
+        BaseCollectionMixin.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):
         return self.item(
             subject_id=subject_id, visit_id=visit_id).path
 
 
-class FieldCollection(BaseCollection, BaseField):
+class FieldCollection(BaseCollectionMixin, BaseField):
     """
     A collection of equivalent filesets (either within a repository)
 
@@ -330,7 +331,7 @@ class FieldCollection(BaseCollection, BaseField):
                 "FieldCollection")
         BaseField.__init__(self, name, dtype=dtype, frequency=frequency,
                            array=array)
-        BaseCollection.__init__(self, collection, frequency)
+        BaseCollectionMixin.__init__(self, collection, frequency)
 
     def value(self, subject_id=None, visit_id=None):
         return self.item(subject_id=subject_id, visit_id=visit_id).value

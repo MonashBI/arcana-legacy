@@ -100,8 +100,8 @@ class BaseItemMixin(object):
         if self.name not in record.outputs:
             raise ArcanaNameError(
                 self.name,
-                "{} was not found in outputs {} of provenance record".format(
-                    self.name, record.outputs.keys(), record))
+                "{} was not found in outputs {} of provenance record {}"
+                .format(self.name, record.outputs.keys(), record))
         self._record = record
 
     @property
@@ -112,7 +112,7 @@ class BaseItemMixin(object):
             return self._record.outputs[self.name]
 
     def initkwargs(self):
-        dct = super(Fileset, self).initkwargs()
+        dct = super().initkwargs()
         dct['repository'] = self.repository
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
@@ -178,15 +178,15 @@ class Fileset(BaseItemMixin, BaseFileset):
         The quality label assigned to the fileset (e.g. as is saved on XNAT)
     """
 
-    def __init__(self, name, format=None, frequency='per_session', # noqa: E501 @ReservedAssignment
-                 path=None, aux_files=None, id=None, uri=None, subject_id=None, # noqa: E501 @ReservedAssignment
+    def __init__(self, name, format=None, frequency='per_session',  # noqa: E501 @ReservedAssignment
+                 path=None, aux_files=None, id=None, uri=None, subject_id=None,  # noqa: E501 @ReservedAssignment
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItemMixin.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists, record)
+                               from_study, exists, record)
         if aux_files is not None:
             if path is None:
                 raise ArcanaUsageError(
@@ -643,7 +643,7 @@ class Field(BaseItemMixin, BaseField):
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
         BaseItemMixin.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists, record)
+                               from_study, exists, record)
         self._value = value
 
     def __eq__(self, other):

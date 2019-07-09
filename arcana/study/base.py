@@ -10,7 +10,7 @@ from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseInputMixin, BaseInputSpec, InputFilesets, InputFields,
+    BaseData, BaseInputMixin, BaseInputSpecMixin, InputFilesets, InputFields,
     BaseFileset)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
@@ -288,8 +288,8 @@ class Study(object):
 
         Returns
         -------
-        data : BaseItemMixin | BaseCollection |
-               list[BaseItemMixin | BaseCollection]
+        data : BaseItemMixin | BaseCollectionMixin |
+               list[BaseItemMixin | BaseCollectionMixin]
             If 'subject_id' or 'visit_id' is provided then the data returned is
             a single Fileset or Field. Otherwise a collection of Filesets or
             Fields are returned. If muliple spec names are provided then a
@@ -1019,7 +1019,7 @@ class Study(object):
         if isinstance(spec, BaseInputMixin):
             return True
         elif default_okay:
-            if isinstance(spec, BaseInputSpec):
+            if isinstance(spec, BaseInputSpecMixin):
                 return spec.default is not None
             else:
                 return True

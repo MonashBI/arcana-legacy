@@ -42,6 +42,9 @@ class BaseTestCase(TestCase):
     SUBJECT = 'SUBJECT'
     VISIT = 'VISIT'
     SESSION = (SUBJECT, VISIT)
+    REF_FORMATS = None
+    XNAT_TEST_PROJECT = None
+    STUDY_NAME = None
 
     # Whether to copy reference filesets from reference directory
     INPUTS_FROM_REF_DIR = False
@@ -271,7 +274,7 @@ class BaseTestCase(TestCase):
             The class to initialise
         name : str
             Name of the study
-        inputs : List[BaseSpec]
+        inputs : List[BaseSpecMixin]
             List of inputs to the study
         repository : Repository | None
             The repository to use (a default local repository is used if one
