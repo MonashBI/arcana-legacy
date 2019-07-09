@@ -609,24 +609,24 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         subj1 = study.tree.subject('1')
         vis0 = study.tree.visit('0')
         vis1 = study.tree.visit('1')
-        self.assertEqual(list(tree.field_keys),
+        self.assertEqual(list(tree._fields.keys()),
                          [('derived_field4', study_name)])
-        self.assertFalse(list(subj0.field_keys))
-        self.assertEqual(list(subj1.field_keys),
+        self.assertFalse(list(subj0._fields.keys()))
+        self.assertEqual(list(subj1._fields.keys()),
                          [('derived_field2', study_name)])
-        self.assertFalse(list(vis0.field_keys))
-        self.assertEqual(list(vis1.field_keys),
+        self.assertFalse(list(vis0._fields.keys()))
+        self.assertEqual(list(vis1._fields.keys()),
                          [('derived_field3', study_name)])
-        self.assertEqual(sorted(sess00.field_keys),
+        self.assertEqual(sorted(sess00._fields.keys()),
                          [('acquired_field1', None),
                           ('derived_field1', study_name)])
-        self.assertEqual(sorted(sess01.field_keys),
+        self.assertEqual(sorted(sess01._fields.keys()),
                          [('acquired_field1', None),
                           ('derived_field1', study_name)])
-        self.assertEqual(sorted(sess10.field_keys),
+        self.assertEqual(sorted(sess10._fields.keys()),
                          [('acquired_field1', None),
                           ('derived_field1', study_name)])
-        self.assertEqual(sorted(sess11.field_keys),
+        self.assertEqual(sorted(sess11._fields.keys()),
                          [('acquired_field1', None),
                           ('derived_field1', study_name),
                           ('derived_field5', study_name)])
