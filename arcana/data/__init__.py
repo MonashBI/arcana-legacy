@@ -4,5 +4,5 @@ from .spec import (
     FilesetSpec, FieldSpec, InputFilesetSpec, InputFieldSpec, BaseSpec,
     BaseInputSpec)
 from .base import BaseField, BaseFileset, BaseData
-from .input import InputFilesets, InputFields, BaseInput
+from .input import InputFilesets, InputFields, BaseInputMixin
 from .file_format import FileFormat, Converter, IdentityConverter

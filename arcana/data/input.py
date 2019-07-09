@@ -11,7 +11,7 @@ from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseInput(object):
+class BaseInputMixin(object):
     """
     Base class for Fileset and Field Input classes
     """
@@ -280,7 +280,7 @@ class BaseInput(object):
         return match
 
 
-class InputFilesets(BaseInput, BaseFileset):
+class InputFilesets(BaseInputMixin, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -344,7 +344,7 @@ class InputFilesets(BaseInput, BaseFileset):
 
     is_spec = False
 
-    def __init__(self, spec_name, pattern=None, valid_formats=None, # noqa: E501 @ReservedAssignment
+    def __init__(self, spec_name, pattern=None, valid_formats=None,  # noqa: E501 @ReservedAssignment
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
@@ -352,10 +352,10 @@ class InputFilesets(BaseInput, BaseFileset):
                  acceptable_quality=None,
                  study_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, None, frequency)
-        BaseInput.__init__(self, pattern, is_regex, order,
-                           from_study, skip_missing, drop_if_missing,
-                           fallback_to_default, repository, study_,
-                           collection_)
+        BaseInputMixin.__init__(self, pattern, is_regex, order,
+                                from_study, skip_missing, drop_if_missing,
+                                fallback_to_default, repository, study_,
+                                collection_)
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
@@ -376,21 +376,21 @@ class InputFilesets(BaseInput, BaseFileset):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseInput.__eq__(self, other) and
+                BaseInputMixin.__eq__(self, other) and
                 self.dicom_tags == other.dicom_tags and
                 self.id == other.id and
                 self._acceptable_quality == other._acceptable_quality)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseInput.__hash__(self) ^
+                BaseInputMixin.__hash__(self) ^
                 hash(self.dicom_tags) ^
                 hash(self.id) ^
                 hash(self._acceptable_quality))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseInput.initkwargs(self))
+        dct.update(BaseInputMixin.initkwargs(self))
         dct['dicom_tags'] = self.dicom_tags
         dct['id'] = self.id
         dct['acceptable_quality'] = self.acceptable_quality
@@ -531,7 +531,7 @@ class InputFilesets(BaseInput, BaseFileset):
         return {'format': self.format}
 
 
-class InputFields(BaseInput, BaseField):
+class InputFields(BaseInputMixin, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.
@@ -590,14 +590,14 @@ class InputFields(BaseInput, BaseField):
                  fallback_to_default=False, repository=None, study_=None,
                  collection_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
-        BaseInput.__init__(self, pattern, is_regex, order,
-                              from_study, skip_missing, drop_if_missing,
-                              fallback_to_default, repository, study_,
-                              collection_)
+        BaseInputMixin.__init__(self, pattern, is_regex, order,
+                                from_study, skip_missing, drop_if_missing,
+                                fallback_to_default, repository, study_,
+                                collection_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseInput.__eq__(self, other))
+                BaseInputMixin.__eq__(self, other))
 
     def match(self, tree, **kwargs):
         # Run the match against the tree
@@ -618,11 +618,11 @@ class InputFields(BaseInput, BaseField):
         return dtype
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseInput.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseInputMixin.__hash__(self))
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseInput.initkwargs(self))
+        dct.update(BaseInputMixin.initkwargs(self))
         return dct
 
     def _filtered_matches(self, node, **kwargs):  # @UnusedVariable

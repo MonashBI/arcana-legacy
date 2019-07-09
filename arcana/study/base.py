@@ -10,7 +10,7 @@ from logging import getLogger
 from nipype.interfaces.utility import IdentityInterface
 from arcana.pipeline import Pipeline
 from arcana.data import (
-    BaseData, BaseInput, BaseInputSpec, InputFilesets, InputFields,
+    BaseData, BaseInputMixin, BaseInputSpec, InputFilesets, InputFields,
     BaseFileset)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
@@ -37,12 +37,13 @@ class Study(object):
     name : str
         The name of the study.
     repository : Repository
-        An Repository object that provides access to a DaRIS, XNAT or local file
-        system
+        An Repository object that provides access to a DaRIS, XNAT or local
+        file system
     processor : Processor
         A Processor to process the pipelines required to generate the
         requested derived filesets.
-    inputs : Dict[str, InputFilesets | FilesetSpec | InputFields | FieldSpec] | List[InputFilesets | FilesetSpec | InputFields | FieldSpec]
+    inputs : Dict[str, InputFilesets | FilesetSpec | InputFields | FieldSpec] |
+             List[InputFilesets | FilesetSpec | InputFields | FieldSpec]
         Either a list or a dictionary containing InputFilesets,
         InputFields, FilesetSpec, or FieldSpec objects, which specify the
         names of input filesets to the study, i.e. those that won't
@@ -165,8 +166,8 @@ class Study(object):
                                              is_regex=True)
                     else:
                         inpt = InputFields(inpt_name, pattern=inpt,
-                                             dtype=spec.dtype,
-                                             is_regex=True)
+                                           dtype=spec.dtype,
+                                           is_regex=True)
                     inputs[inpt_name] = inpt
         # Check validity of study inputs
         for inpt_name, inpt in inputs.items():
@@ -218,8 +219,9 @@ class Study(object):
                                         bound_inpt.format)
                                 except ArcanaNoConverterError as e:
                                     e.msg += (
-                                        ", which is requried to convert:\n{} "
-                                        "to\n{}.".format(e, bound_inpt, spec))
+                                        ", which is requried to convert:\n" +
+                                        "{} to\n{}.").format(e, bound_inpt,
+                                                             spec)
                                     raise e
                             else:
                                 if bound_inpt.format not in spec.valid_formats:
@@ -286,7 +288,8 @@ class Study(object):
 
         Returns
         -------
-        data : BaseItem | BaseCollection | list[BaseItem | BaseCollection]
+        data : BaseItemMixin | BaseCollection |
+               list[BaseItemMixin | BaseCollection]
             If 'subject_id' or 'visit_id' is provided then the data returned is
             a single Fileset or Field. Otherwise a collection of Filesets or
             Fields are returned. If muliple spec names are provided then a
@@ -350,7 +353,8 @@ class Study(object):
                 try:
                     pipelines, required_outputs = zip(*(
                         (self.pipeline(getter, pipeline_args=args), req_outs)
-                        for (getter, args), req_outs in pipeline_getters.items()))
+                        for (getter,
+                             args), req_outs in pipeline_getters.items()))
                 except ArcanaError as e:
                     e.msg += ", in order to derive '{}'".format(
                         "', '".join(names))
@@ -515,7 +519,7 @@ class Study(object):
                 elif name not in self.implicit_cls_attrs:
                     cls_dct[name] = attr
             pkld = (pickle_reconstructor,
-                    (cls.__metaclass__, cls.__name__, cls.__bases__,
+                    (cls.__metaclass__, cls.__name__, cls.__bases__,  # noqa pylint: disable=no-member
                      cls_dct), self.__dict__)
         else:
             # Use standard pickling if not a generated class
@@ -1012,7 +1016,7 @@ class Study(object):
             spec = self.bound_spec(spec_name)
         except ArcanaMissingDataException:
             return False
-        if isinstance(spec, BaseInput):
+        if isinstance(spec, BaseInputMixin):
             return True
         elif default_okay:
             if isinstance(spec, BaseInputSpec):
@@ -1166,7 +1170,7 @@ class StudyMetaClass(type):
                             if n in Study.ITERFIELDS]
         if reserved_clashes:
             raise ArcanaDesignError(
-                "'{}' data spec names clash with reserved names"
+                "'{}' data spec names clash with reserved names in {}"
                 .format("', '".join(reserved_clashes), name))
         dct['_data_specs'] = combined_data_specs
         dct['_param_specs'] = combined_param_specs

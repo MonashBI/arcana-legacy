@@ -449,7 +449,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format, pipeline_getter, frequency='per_session',  # noqa: E501 @ReservedAssignment 
+    def __init__(self, name, format, pipeline_getter, frequency='per_session',  # noqa: E501 @ReservedAssignment
                  desc=None, valid_formats=None, pipeline_args=None,
                  group=None):
         BaseFileset.__init__(self, name, format, frequency)

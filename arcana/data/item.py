@@ -11,7 +11,7 @@ from .file_format import FileFormat
 from .base import BaseFileset, BaseField
 
 
-class BaseItem(object):
+class BaseItemMixin(object):
 
     is_spec = False
 
@@ -120,7 +120,7 @@ class BaseItem(object):
         return dct
 
 
-class Fileset(BaseItem, BaseFileset):
+class Fileset(BaseItemMixin, BaseFileset):
     """
     A representation of a fileset within the repository.
 
@@ -185,7 +185,7 @@ class Fileset(BaseItem, BaseFileset):
                  potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
-        BaseItem.__init__(self, subject_id, visit_id, repository,
+        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
         if aux_files is not None:
             if path is None:
@@ -250,7 +250,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
-              BaseItem.__eq__(self, other) and
+              BaseItemMixin.__eq__(self, other) and
               self._aux_files == other._aux_files and
               self._id == other._id and
               self._checksums == other._checksums and
@@ -267,7 +267,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseItem.__hash__(self) ^
+                BaseItemMixin.__hash__(self) ^
                 hash(self._id) ^
                 hash(tuple(sorted(self._aux_files.items()))) ^
                 hash(self._checksums) ^
@@ -314,7 +314,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseFileset.find_mismatch(self, other, indent)
-        mismatch += BaseItem.find_mismatch(self, other, indent)
+        mismatch += BaseItemMixin.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
@@ -532,7 +532,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseItem.initkwargs(self))
+        dct.update(BaseItemMixin.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
@@ -571,7 +571,7 @@ class Fileset(BaseItem, BaseFileset):
         return equal
 
 
-class Field(BaseItem, BaseField):
+class Field(BaseItemMixin, BaseField):
     """
     A representation of a value field in the repository.
 
@@ -642,23 +642,23 @@ class Field(BaseItem, BaseField):
                 else:
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
-        BaseItem.__init__(self, subject_id, visit_id, repository,
+        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
                           from_study, exists, record)
         self._value = value
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseItem.__eq__(self, other) and
+                BaseItemMixin.__eq__(self, other) and
                 self.value == other.value)
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^
-                BaseItem.__hash__(self) ^
+                BaseItemMixin.__hash__(self) ^
                 hash(self.value))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseItem.find_mismatch(self, other, indent)
+        mismatch += BaseItemMixin.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
@@ -744,7 +744,7 @@ class Field(BaseItem, BaseField):
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseItem.initkwargs(self))
+        dct.update(BaseItemMixin.initkwargs(self))
         dct['value'] = self.value
         return dct
 
