@@ -712,7 +712,7 @@ class Study(object):
         """
         return self._get_parameter(name).value
 
-    def branch(self, name, values=None):  # @UnusedVariable @IgnorePep8
+    def branch(self, name, values=None):  # noqa: E501 @UnusedVariable
         """
         Checks whether the given switch matches the value provided
 

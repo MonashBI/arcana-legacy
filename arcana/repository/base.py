@@ -1,7 +1,6 @@
 from builtins import object
 from collections import defaultdict
 from abc import ABCMeta, abstractmethod
-from future.utils import with_metaclass
 import logging
 from .tree import Tree
 from arcana.exceptions import ArcanaUsageError
@@ -14,7 +13,7 @@ def defaultdict_of_dict():
     return defaultdict(dict)
 
 
-class Repository(with_metaclass(ABCMeta, object)):
+class Repository(object, metaclass=ABCMeta):
     """
     Abstract base class for all Repository systems, DaRIS, XNAT and
     local file system. Sets out the interface that all Repository
@@ -42,7 +41,7 @@ class Repository(with_metaclass(ABCMeta, object)):
         self._connection_depth += 1
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):  # @UnusedVariable @IgnorePep8
+    def __exit__(self, exception_type, exception_value, traceback):  # noqa: E501 noqa @UnusedVariable
         self._connection_depth -= 1
         if self._connection_depth == 0:
             self.disconnect()

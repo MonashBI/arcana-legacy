@@ -344,7 +344,7 @@ class InputFilesets(BaseInput, BaseFileset):
 
     is_spec = False
 
-    def __init__(self, spec_name, pattern=None, valid_formats=None, # @ReservedAssignment @IgnorePep8
+    def __init__(self, spec_name, pattern=None, valid_formats=None, # noqa: E501 @ReservedAssignment
                  frequency='per_session', id=None,  # @ReservedAssignment
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
@@ -353,9 +353,9 @@ class InputFilesets(BaseInput, BaseFileset):
                  study_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, None, frequency)
         BaseInput.__init__(self, pattern, is_regex, order,
-                              from_study, skip_missing, drop_if_missing,
-                              fallback_to_default, repository, study_,
-                              collection_)
+                           from_study, skip_missing, drop_if_missing,
+                           fallback_to_default, repository, study_,
+                           collection_)
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
@@ -447,7 +447,7 @@ class InputFilesets(BaseInput, BaseFileset):
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # @UnusedVariable @IgnorePep8
+    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # noqa: E501 @UnusedVariable
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)

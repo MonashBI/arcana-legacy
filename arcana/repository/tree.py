@@ -99,7 +99,7 @@ class TreeNode(object):
         "To be overridden by subclasses where appropriate"
         return None
 
-    def fileset(self, id, from_study=None, format=None):  # @ReservedAssignment @IgnorePep8
+    def fileset(self, id, from_study=None, format=None):  # noqa: E501 @ReservedAssignment
         """
         Gets the fileset with the ID 'id' produced by the Study named 'study'
         if provided. If a spec is passed instead of a str to the name argument,
@@ -351,7 +351,7 @@ class Tree(TreeNode):
 
     def __init__(self, subjects, visits, repository, filesets=None,
                  fields=None, records=None, fill_subjects=None,
-                 fill_visits=None, **kwargs):  # @UnusedVariable @IgnorePep8
+                 fill_visits=None, **kwargs):  # noqa: E501 @UnusedVariable
         TreeNode.__init__(self, filesets, fields, records)
         self._subjects = OrderedDict(sorted(
             ((s.id, s) for s in subjects), key=itemgetter(0)))

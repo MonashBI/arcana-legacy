@@ -8,7 +8,6 @@ from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
     InputFieldSpec, InputFields)  # @IgnorePep8
 from arcana.data.file_format import text_format  # @IgnorePep8
-from future.utils import with_metaclass  # @IgnorePep8
 from arcana.data import Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement
@@ -32,7 +31,7 @@ c_req = DummyRequirement('c', detected_version='0.2a2')
 d_req = DummyRequirement('d', detected_version='0.9.dev10')
 
 
-class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
+class TestProvStudy(Study, metaclass=StudyMetaClass):
 
     add_data_specs = [
         InputFilesetSpec('acquired_fileset1', text_format),
@@ -181,7 +180,7 @@ class TestProvStudy(with_metaclass(StudyMetaClass, Study)):
         return pipeline
 
 
-class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
+class TestProvStudyAddNode(TestProvStudy, metaclass=StudyMetaClass):
 
     add_param_specs = [
         ParamSpec('a', 50.0),
@@ -201,7 +200,7 @@ class TestProvStudyAddNode(with_metaclass(StudyMetaClass, TestProvStudy)):
         return pipeline
 
 
-class TestProvStudyAddConnect(with_metaclass(StudyMetaClass, TestProvStudy)):
+class TestProvStudyAddConnect(TestProvStudy, metaclass=StudyMetaClass):
 
     def pipeline1(self, **name_maps):
         pipeline = super(TestProvStudyAddConnect, self).pipeline1(**name_maps)
@@ -399,7 +398,7 @@ class TestProvInputChange(BaseTestCase):
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
 
 
-class TestDialationStudy(with_metaclass(StudyMetaClass, Study)):
+class TestDialationStudy(Study, metaclass=StudyMetaClass):
 
     add_data_specs = [
         InputFieldSpec('acquired_field1', int),
@@ -787,7 +786,7 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             inputs=[
                 InputFields('acquired_field1', 'acquired_field1', int),
                 InputFields('acquired_field2', 'acquired_field2', int,
-                              skip_missing=True)])
+                            skip_missing=True)])
         derived_field1 = study.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],
                          [True, True, True, False])

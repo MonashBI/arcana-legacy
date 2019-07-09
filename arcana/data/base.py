@@ -5,13 +5,12 @@ from .file_format import FileFormat
 from copy import copy
 from logging import getLogger
 from arcana.exceptions import ArcanaError
-from future.utils import with_metaclass
 from future.types import newstr
 from arcana.utils import PATH_SUFFIX, FIELD_SUFFIX, CHECKSUM_SUFFIX
 logger = getLogger('arcana')
 
 
-class BaseData(with_metaclass(ABCMeta, object)):
+class BaseData(object, metaclass=ABCMeta):
 
     VALID_FREQUENCIES = ('per_session', 'per_subject', 'per_visit',
                          'per_study')
@@ -19,7 +18,7 @@ class BaseData(with_metaclass(ABCMeta, object)):
     is_fileset = False
     is_field = False
 
-    def __init__(self, name, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, frequency='per_session'):  # noqa: E501 @ReservedAssignment
         assert name is None or isinstance(name, basestring)
         if frequency not in self.VALID_FREQUENCIES:
             raise ArcanaError(
@@ -82,7 +81,7 @@ class BaseData(with_metaclass(ABCMeta, object)):
                 'frequency': self.frequency}
 
 
-class BaseFileset(with_metaclass(ABCMeta, BaseData)):
+class BaseFileset(BaseData, metaclass=ABCMeta):
     """
     An abstract base class representing either an acquired fileset or the
     specification for a derived fileset.
@@ -104,7 +103,7 @@ class BaseFileset(with_metaclass(ABCMeta, BaseData)):
 
     is_fileset = True
 
-    def __init__(self, name, format=None, frequency='per_session'):  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, frequency='per_session'):  # noqa: E501 @ReservedAssignment
         super(BaseFileset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format
@@ -149,7 +148,7 @@ class BaseFileset(with_metaclass(ABCMeta, BaseData)):
         return self._name + CHECKSUM_SUFFIX
 
 
-class BaseField(with_metaclass(ABCMeta, BaseData)):
+class BaseField(BaseData, metaclass=ABCMeta):
     """
     An abstract base class representing either an acquired value or the
     specification for a derived value.
@@ -191,9 +190,9 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
                 hash(self.array))
 
     def __repr__(self):
-        return ("{}(name='{}', dtype={}, frequency='{}')"
+        return ("{}(name='{}', dtype={}, frequency='{}', array={})"
                 .format(self.__class__.__name__, self.name, self.dtype,
-                        self.frequency))
+                        self.frequency, self.array))
 
     def find_mismatch(self, other, indent=''):
         mismatch = super(BaseField, self).find_mismatch(other, indent)
@@ -225,11 +224,6 @@ class BaseField(with_metaclass(ABCMeta, BaseData)):
         dct['dtype'] = self.dtype
         dct['array'] = self.array
         return dct
-
-    def __repr__(self):
-        return ("{}(name='{}', dtype={}, frequency='{}', array={})"
-                .format(self.__class__.__name__, self.name, self.dtype,
-                        self.frequency, self.array))
 
     @property
     def suffixed_name(self):

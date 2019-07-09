@@ -235,7 +235,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
 
     CollectedClass = Fileset
 
-    def __init__(self, name, collection, format=None, frequency=None,  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, collection, format=None, frequency=None,  # noqa: E501 @ReservedAssignment
                  candidate_formats=None):
         if format is None and candidate_formats is None:
             raise ArcanaUsageError(
@@ -268,7 +268,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
                                       if format is None else format)
                 formatted_collection.append(fileset)
             collection = formatted_collection
-            format = self._common_attr(collection, 'format')  # @ReservedAssignment @IgnorePep8
+            format = self._common_attr(collection, 'format')  # noqa: E501 @ReservedAssignment
         BaseFileset.__init__(self, name, format, frequency=frequency)
         BaseCollection.__init__(self, collection, frequency)
 
