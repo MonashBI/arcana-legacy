@@ -28,7 +28,7 @@ class StudyA(with_metaclass(StudyMetaClass, Study)):
         ParamSpec('o2', '2'),
         ParamSpec('o3', 3.0)]
 
-    def pipeline_alpha(self, **name_maps):  # @UnusedVariable
+    def pipeline_alpha(self, **name_maps):
         pipeline = self.new_pipeline(
             name='pipeline_alpha',
             desc="A dummy pipeline used to test MultiStudy class",
@@ -57,9 +57,9 @@ class StudyB(with_metaclass(StudyMetaClass, Study)):
         ParamSpec('o1', 10),
         ParamSpec('o2', '20'),
         ParamSpec('o3', 30.0),
-        ParamSpec('product_op', None, dtype=str)]  # Needs to be set to 'product' @IgnorePep8
+        ParamSpec('product_op', None, dtype=str)]  # To be set to 'product'
 
-    def pipeline_beta(self, **name_maps):  # @UnusedVariable
+    def pipeline_beta(self, **name_maps):
         pipeline = self.new_pipeline(
             name='pipeline_beta',
             desc="A dummy pipeline used to test MultiStudy class",

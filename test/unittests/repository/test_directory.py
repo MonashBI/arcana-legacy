@@ -63,7 +63,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                         'thousands': 1000, 'with_header': {'.': 'main',
                                                            'header': 'header'}}
 
-    def get_tree(self, repo, sync_with_repo=False):  # @ReservedAssignment @IgnorePep8
+    def get_tree(self, repo, sync_with_repo=False):
         filesets = [
             # Subject1
             Fileset('ones', text_format,

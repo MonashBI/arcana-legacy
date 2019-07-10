@@ -153,7 +153,7 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
-        for input in self.inputs:  # @ReservedAssignment
+        for input in self.inputs:
             # Could be an input to the study or optional acquired spec
             if input.is_spec and input.derived:
                 prereqs[input.pipeline_getter].add(input.name)
@@ -729,7 +729,7 @@ class Pipeline(object):
         # Check to see whether there are any outputs for the given frequency
         inputs = {}
         for input_name in self.input_names:
-            input = self.study.bound_spec(input_name)  # @ReservedAssignment
+            input = self.study.bound_spec(input_name)
             if input.frequency == frequency:
                 inputs[input_name] = input
         # Get list of input names for the requested frequency, addding fields
@@ -745,7 +745,7 @@ class Pipeline(object):
                              IdentityInterface(fields=input_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created input node
-        for input_name, input in inputs.items():  # @ReservedAssignment
+        for input_name, input in inputs.items():
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
@@ -787,7 +787,7 @@ class Pipeline(object):
             # Check to see if this is the right frequency for the iterator
             # input, i.e. if it is the only iterator for this frequency
             if self.study.FREQUENCIES[frequency] == (iterator,):
-                for (node, node_in, format) in conns:  # @ReservedAssignment
+                for (node, node_in, format) in conns:
                     self.connect(inputnode, iterator, node, node_in)
         return inputnode
 
@@ -804,7 +804,7 @@ class Pipeline(object):
         """
         outputs = {}
         for output_name in self.output_names:
-            output = self.study.bound_spec(output_name)  # @ReservedAssignment
+            output = self.study.bound_spec(output_name)
             if output.frequency == frequency:
                 outputs[output_name] = output
         if not outputs:
@@ -819,7 +819,7 @@ class Pipeline(object):
                               IdentityInterface(fields=output_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
-        for output_name, output in outputs.items():  # @ReservedAssignment
+        for output_name, output in outputs.items():
             (node, node_out, format,  # noqa: E501 @ReservedAssignment
              conv_kwargs) = self._output_conns[output_name]
             # If fileset formats differ between study and pipeline
@@ -911,7 +911,7 @@ class Pipeline(object):
         # Get checksums/values of all inputs that would have been used in
         # previous runs of an equivalent pipeline to compare with that saved
         # in provenance to see if any have been updated.
-        for inpt in self.inputs:  # @ReservedAssignment
+        for inpt in self.inputs:
             # Get iterators present in the input that aren't in this node
             # and need to be joined
             iterators_to_join = (self.iterators(inpt.frequency) -

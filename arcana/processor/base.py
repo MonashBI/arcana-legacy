@@ -472,7 +472,7 @@ class Processor(object):
                                  iterator)
                 pipeline.connect(source, iterator, inputnode,
                                  iterator)
-            for input in inputs:  # @ReservedAssignment
+            for input in inputs:
                 pipeline.connect(source, input.suffixed_name,
                                  inputnode, input.name)
         deiter_nodes = {}
@@ -794,7 +794,7 @@ class Processor(object):
         to_protect = defaultdict(list)
         to_skip = defaultdict(list)
         # Check data tree for missing inputs
-        for input in pipeline.inputs:  # @ReservedAssignment
+        for input in pipeline.inputs:
             # NB: Study inputs that don't have skip_missing set and have
             # missing data should raise an error before this point
             if input.skip_missing:

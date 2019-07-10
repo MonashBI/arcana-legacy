@@ -70,7 +70,7 @@ class BaseInputSpecMixin(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Returns a copy of the InputSpec bound to the given study
 
@@ -196,7 +196,7 @@ class BaseSpecMixin(object):
                                  other.pipeline_args))
         return mismatch
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Returns a copy of the Spec bound to the given study
 

@@ -124,7 +124,7 @@ class TreeNode(object):
         if isinstance(id, BaseFileset):
             if from_study is None and id.derived:
                 from_study = id.study.name
-            id = id.name  # @ReservedAssignment
+            id = id.name
         try:
             format_dct = self._filesets[(id, from_study)]
         except KeyError:
@@ -480,7 +480,7 @@ class Tree(TreeNode):
         max_num_sessions = max(len(v) for v in self.visits)
         return (v for v in self.visits if len(v) != max_num_sessions)
 
-    def subject(self, id):  # @ReservedAssignment
+    def subject(self, id):
         try:
             return self._subjects[str(id)]
         except KeyError:
@@ -488,7 +488,7 @@ class Tree(TreeNode):
                 id, ("{} doesn't have a subject named '{}' ('{}')"
                      .format(self, id, "', '".join(self._subjects))))
 
-    def visit(self, id):  # @ReservedAssignment
+    def visit(self, id):
         try:
             return self._visits[str(id)]
         except KeyError:

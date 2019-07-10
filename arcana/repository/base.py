@@ -116,7 +116,7 @@ class Repository(object, metaclass=ABCMeta):
             The value of the Field
         """
 
-    def get_checksums(self, fileset):  # @UnusedVariable
+    def get_checksums(self, fileset):
         """
         Returns the checksums for the files in the fileset that are stored in
         the repository. If no checksums are stored in the repository then this
@@ -265,7 +265,7 @@ class Repository(object, metaclass=ABCMeta):
         except KeyError:
             return visit_id
 
-    def _map_id(self, id, map, inv_map):  # @ReservedAssignment
+    def _map_id(self, id, map, inv_map):
         if id is None:
             return None
         mapped = id

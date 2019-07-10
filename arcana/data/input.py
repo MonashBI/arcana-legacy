@@ -345,7 +345,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
     is_spec = False
 
     def __init__(self, spec_name, pattern=None, valid_formats=None,  # noqa: E501 @ReservedAssignment
-                 frequency='per_session', id=None,  # @ReservedAssignment
+                 frequency='per_session', id=None,
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
@@ -434,9 +434,9 @@ class InputFilesets(BaseInputMixin, BaseFileset):
     @property
     def format(self):
         try:
-            format = self.collection.format  # @ReservedAssignment
+            format = self.collection.format
         except ArcanaNotBoundToStudyError:
-            format = None  # @ReservedAssignment
+            format = None
         return format
 
     @property
@@ -499,7 +499,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
                 raise ArcanaUsageError(
                     "Can only match header tags if exactly one valid format "
                     "is specified ({})".format(self.valid_formats))
-            format = self.valid_formats[0]  # @ReservedAssignment
+            format = self.valid_formats[0]
             filtered = []
             for fileset in matches:
                 keys, ref_values = zip(*self.dicom_tags.items())
@@ -625,7 +625,7 @@ class InputFields(BaseInputMixin, BaseField):
         dct.update(BaseInputMixin.initkwargs(self))
         return dct
 
-    def _filtered_matches(self, node, **kwargs):  # @UnusedVariable
+    def _filtered_matches(self, node, **kwargs):
         if self.is_regex:
             pattern_re = re.compile(self.pattern)
             matches = [f for f in node.fields

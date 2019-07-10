@@ -167,7 +167,7 @@ class BaseCollectionMixin(object):
         "in source and sink initiation"
         return self
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Used for duck typing Collection objects with Spec and Match
         in source and sink initiation. Checks IDs match sessions in study.
@@ -246,7 +246,7 @@ class FilesetCollection(BaseCollectionMixin, BaseFileset):
         collection = list(collection)
         if not collection:
             if format is None:
-                format = candidate_formats[0]  # @ReservedAssignment
+                format = candidate_formats[0]
             if frequency is None:
                 raise ArcanaUsageError(
                     "Need to provide explicit frequency for empty "
@@ -307,7 +307,7 @@ class FieldCollection(BaseCollectionMixin, BaseField):
                     .format(implicit_frequency, frequency, name))
             implicit_dtype = self._common_attr(collection, 'dtype')
             if dtype is None:
-                dtype = implicit_dtype  # @ReservedAssignment
+                dtype = implicit_dtype
             elif dtype != implicit_dtype:
                 raise ArcanaUsageError(
                     "Implicit dtype '{}' does not match explicit "

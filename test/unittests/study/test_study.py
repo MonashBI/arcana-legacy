@@ -377,11 +377,11 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
     def ten_pipeline(self, **name_maps):
         return self.pipeline_factory(10, 'one', 'ten', name_maps=name_maps)
 
-    def hundred_pipeline(self, **name_maps):  # @UnusedVariable
+    def hundred_pipeline(self, **name_maps):
         return self.pipeline_factory(100, 'ten', 'hundred',
                                      name_maps=name_maps)
 
-    def thousand_pipeline(self, **name_maps):  # @UnusedVariable
+    def thousand_pipeline(self, **name_maps):
         return self.pipeline_factory(1000, 'hundred', 'thousand',
                                      name_maps=name_maps)
 

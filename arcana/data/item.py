@@ -397,7 +397,7 @@ class Fileset(BaseItemMixin, BaseFileset):
         return self._quality
 
     @format.setter
-    def format(self, format):  # @ReservedAssignment
+    def format(self, format):
         assert isinstance(format, FileFormat)
         self._format = format
         if format.aux_files and self._path is not None:
@@ -429,7 +429,7 @@ class Fileset(BaseItemMixin, BaseFileset):
             return self._id
 
     @id.setter
-    def id(self, id):  # @ReservedAssignment
+    def id(self, id):
         if self._id is None:
             self._id = id
         elif id != self._id:

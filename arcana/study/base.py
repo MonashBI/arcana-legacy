@@ -1051,7 +1051,7 @@ class Study(object):
         # Get list of repositories where inputs to the study are stored
         input_repos = list(set((i.repository for i in self.inputs)))
         inputs = {}
-        for input in self.inputs:  # @ReservedAssignment
+        for input in self.inputs:
             inputs[input.name] = {
                 'repository_index': input_repos.index(input.repository)}
             if input.frequency == 'per_study':
