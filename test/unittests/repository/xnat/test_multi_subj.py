@@ -17,12 +17,12 @@ from arcana.utils.testing.xnat import (
 
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'study'))
-import test_study  # @UnresolvedImport @IgnorePep8
+import test_study  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__), '..'))
-import test_directory  # @UnresolvedImport @IgnorePep8
+import test_directory  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 
@@ -59,7 +59,7 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
                 # Clear id and format name from regenerated tree
                 fileset._id = None
 #                 fileset.get()
-        ref_tree = self.get_tree(self.repository)  #, sync_with_repo=True)
+        ref_tree = self.get_tree(self.repository)  # , sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

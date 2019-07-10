@@ -16,13 +16,13 @@ from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
 # Import TestExistingPrereqs study to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
-import test_data  # @UnresolvedImport @IgnorePep8
-from test_data import dicom_format  # @UnresolvedImport @IgnorePep8
+import test_data  # noqa pylint: disable=import-error
+from test_data import dicom_format  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'processor'))
-import test_to_process  # @UnresolvedImport @IgnorePep8
+import test_to_process  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 

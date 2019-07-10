@@ -1,13 +1,13 @@
-from nipype.interfaces.utility import Merge, Split  # @IgnorePep8
+from nipype.interfaces.utility import Merge, Split
 from arcana.utils.testing import (
-    BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
+    BaseTestCase, BaseMultiSubjectTestCase, TestMath)
 from arcana.processor import SingleProc
-from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.study.parameter import ParamSpec, SwitchSpec  # @IgnorePep8
+from arcana.study.base import Study, StudyMetaClass
+from arcana.study.parameter import ParamSpec, SwitchSpec
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
-    InputFieldSpec, InputFields)  # @IgnorePep8
-from arcana.data.file_format import text_format  # @IgnorePep8
+    InputFieldSpec, InputFields)
+from arcana.data.file_format import text_format
 from arcana.data import Field
 from arcana.repository import Tree
 from arcana.environment import BaseRequirement

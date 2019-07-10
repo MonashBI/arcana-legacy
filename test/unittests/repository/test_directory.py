@@ -1,16 +1,14 @@
-from future import standard_library
-standard_library.install_aliases()
-import os  # @IgnorePep8
-import os.path as op  # @IgnorePep8
-from arcana.data.file_format import text_format  # @IgnorePep8
-from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.data import (  # @IgnorePep8
-    Fileset, InputFilesetSpec, FilesetSpec, Field)  # @IgnorePep8
-from arcana.utils.testing import BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.repository import Tree  # @IgnorePep8
-from future.utils import with_metaclass  # @IgnorePep8
-from arcana.utils.testing import BaseTestCase  # @IgnorePep8
-from arcana.data.file_format import FileFormat  # @IgnorePep8
+import os
+import os.path as op
+from arcana.data.file_format import text_format
+from arcana.study import Study, StudyMetaClass
+from arcana.data import (
+    Fileset, InputFilesetSpec, FilesetSpec, Field)
+from arcana.utils.testing import BaseMultiSubjectTestCase
+from arcana.repository import Tree
+from future.utils import with_metaclass
+from arcana.utils.testing import BaseTestCase
+from arcana.data.file_format import FileFormat
 
 
 # A dummy format that contains a header
@@ -25,7 +23,7 @@ class DummyStudy(with_metaclass(StudyMetaClass, Study)):
         InputFilesetSpec('source2', text_format),
         InputFilesetSpec('source3', text_format),
         InputFilesetSpec('source4', text_format,
-                            optional=True),
+                         optional=True),
         FilesetSpec('sink1', text_format, 'dummy_pipeline'),
         FilesetSpec('sink3', text_format, 'dummy_pipeline'),
         FilesetSpec('sink4', text_format, 'dummy_pipeline'),

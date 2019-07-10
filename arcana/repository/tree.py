@@ -331,6 +331,19 @@ class TreeNode(object):
                                    .format(self, self._tree()))
         self._tree = weakref.ref(tree)
 
+    def __getstate__(self):
+        if self._tree is not None:
+            dct = self.__dict__.copy()
+            dct['_tree'] = dct['_tree']()
+        else:
+            dct = self.__dict__
+        return dct
+
+    def __setstate__(self, state):
+        self.__dict__ = state.copy()
+        if self._tree is not None:
+            self._tree = weakref.ref(self._tree)
+
 
 class Tree(TreeNode):
     """

@@ -586,7 +586,7 @@ class XnatRepo(Repository):
         return '_'.join(xsession_label.split('_')[2:])
 
     def dicom_header(self, fileset):
-        def convert(val, code):  # @IgnorePep8
+        def convert(val, code):
             if code == 'TM':
                 try:
                     val = float(val)
