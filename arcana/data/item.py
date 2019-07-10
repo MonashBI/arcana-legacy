@@ -178,8 +178,8 @@ class Fileset(BaseItemMixin, BaseFileset):
         The quality label assigned to the fileset (e.g. as is saved on XNAT)
     """
 
-    def __init__(self, name, format=None, frequency='per_session',  # noqa: E501 @ReservedAssignment
-                 path=None, aux_files=None, id=None, uri=None, subject_id=None,  # noqa: E501 @ReservedAssignment
+    def __init__(self, name, format=None, frequency='per_session',
+                 path=None, aux_files=None, id=None, uri=None, subject_id=None,
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None, quality=None):

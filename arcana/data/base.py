@@ -18,7 +18,7 @@ class BaseData(object, metaclass=ABCMeta):
     is_fileset = False
     is_field = False
 
-    def __init__(self, name, frequency='per_session'):  # noqa: E501 @ReservedAssignment
+    def __init__(self, name, frequency='per_session'):
         assert name is None or isinstance(name, basestring)
         if frequency not in self.VALID_FREQUENCIES:
             raise ArcanaError(
@@ -103,7 +103,7 @@ class BaseFileset(BaseData, metaclass=ABCMeta):
 
     is_fileset = True
 
-    def __init__(self, name, format=None, frequency='per_session'):  # noqa: E501 @ReservedAssignment
+    def __init__(self, name, format=None, frequency='per_session'):
         super(BaseFileset, self).__init__(name=name, frequency=frequency)
         assert format is None or isinstance(format, FileFormat)
         self._format = format

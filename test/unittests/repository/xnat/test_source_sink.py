@@ -195,7 +195,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         cache the same fileset
         """
         cache_dir = op.join(self.work_dir,
-                                 'cache-delayed-download')
+                            'cache-delayed-download')
         DATASET_NAME = 'source1'
         target_path = op.join(self.session_cache(cache_dir),
                               DATASET_NAME,
@@ -204,7 +204,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         repository = XnatRepo(server=SERVER, cache_dir=cache_dir,
-                                    project_id=self.project)
+                              project_id=self.project)
         study = DummyStudy(
             self.STUDY_NAME, repository, SingleProc('ad'),
             inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format)])
@@ -292,7 +292,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         study = DummyStudy(
             STUDY_NAME, sink_repository, SingleProc('ad'),
             inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format,
-                                    repository=source_repository)],
+                                  repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
         source = pe.Node(

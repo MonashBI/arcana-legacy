@@ -292,7 +292,8 @@ class Pipeline(object):
                                     output_format)
         return node
 
-    def connect_input(self, spec_name, node, node_input, format=None, **kwargs):  # noqa: E501 @ReservedAssignment
+    def connect_input(self, spec_name, node, node_input, format=None,
+                      **kwargs):
         """
         Connects a study fileset_spec as an input to the provided node
 
@@ -322,7 +323,7 @@ class Pipeline(object):
                             "', '".join(self.study.data_spec_names())))
             self._input_conns[name].append((node, node_input, format, kwargs))
 
-    def connect_output(self, spec_name, node, node_output, format=None,   # noqa: E501 @ReservedAssignment
+    def connect_output(self, spec_name, node, node_output, format=None,
                        **kwargs):
         """
         Connects an output to a study fileset spec
@@ -476,7 +477,7 @@ class Pipeline(object):
         return (n[len(self.name) + 1:]
                 for n in self.workflow.list_node_names())
 
-    def save_graph(self, fname, style='flat', format='png', **kwargs):  # noqa: E501 @ReservedAssignment
+    def save_graph(self, fname, style='flat', format='png', **kwargs):
         """
         Saves a graph of the pipeline to file
 
@@ -749,7 +750,7 @@ class Pipeline(object):
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
-            for (node, node_in, format,  # noqa: E501 @ReservedAssignment
+            for (node, node_in, format,
                  conv_kwargs) in self._input_conns[input_name]:
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
@@ -820,7 +821,7 @@ class Pipeline(object):
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
         for output_name, output in outputs.items():
-            (node, node_out, format,  # noqa: E501 @ReservedAssignment
+            (node, node_out, format,
              conv_kwargs) = self._output_conns[output_name]
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)

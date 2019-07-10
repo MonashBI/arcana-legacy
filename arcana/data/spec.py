@@ -346,7 +346,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, valid_formats, frequency='per_session',  # noqa: E501 @ReservedAssignment
+    def __init__(self, name, valid_formats, frequency='per_session',
                  desc=None, optional=False, default=None):
         # Ensure allowed formats is a list
         try:
@@ -447,7 +447,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format, pipeline_getter, frequency='per_session',  # noqa: E501 @ReservedAssignment
+    def __init__(self, name, format, pipeline_getter, frequency='per_session',
                  desc=None, valid_formats=None, pipeline_args=None,
                  group=None):
         BaseFileset.__init__(self, name, format, frequency)

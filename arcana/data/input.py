@@ -344,7 +344,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
 
     is_spec = False
 
-    def __init__(self, spec_name, pattern=None, valid_formats=None,  # noqa: E501 @ReservedAssignment
+    def __init__(self, spec_name, pattern=None, valid_formats=None,
                  frequency='per_session', id=None,
                  order=None, dicom_tags=None, is_regex=False, from_study=None,
                  skip_missing=False, drop_if_missing=False,

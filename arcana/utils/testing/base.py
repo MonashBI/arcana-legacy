@@ -14,7 +14,7 @@ import filecmp
 from copy import deepcopy
 import logging
 import arcana
-from arcana.data import Fileset
+from arcana.data import Fileset, FilesetCollection
 from arcana.utils import classproperty
 from arcana.repository.basic import BasicRepo
 from arcana.processor import SingleProc
@@ -298,9 +298,19 @@ class BaseTestCase(TestCase):
             **kwargs)
 
     def assertFilesetCreated(self, fileset):
+        if isinstance(fileset, FilesetCollection):
+            filesets = list(fileset)
+        else:
+            filesets = [fileset]
+        not_created = []
+        for f in filesets:
+            if op.exists(f.path):
+                not_created.append(f)
         self.assertTrue(
-            op.exists(fileset.path),
-            ("{} was not created by unittest".format(fileset)))
+            not not_created,
+            ("{} {} not created by unittest".format(
+                ', '.join(str(f) for f in not_created),
+                'were' if len(not_created) > 1 else 'was')))
 
     def assertContentsEqual(self, collection, reference, context=None):
         if isinstance(collection, Fileset):
