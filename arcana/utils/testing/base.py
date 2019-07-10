@@ -209,7 +209,7 @@ class BaseTestCase(TestCase):
             return self._local_repository
         except AttributeError:
             self._local_repository = BasicRepo(self.project_dir,
-                                                         depth=2)
+                                               depth=2)
             return self._local_repository
 
     @property
@@ -316,7 +316,7 @@ class BaseTestCase(TestCase):
         elif isinstance(reference, dict):
             references = []
             filesets = []
-            for subj_id, subj_dct in references.items():
+            for subj_id, subj_dct in reference.items():
                 for visit_id, ref_value in subj_dct.items():
                     references.append(str(ref_value))
                     filesets.append(collection.item(subject_id=subj_id,
@@ -355,7 +355,7 @@ class BaseTestCase(TestCase):
         try:
             with open(op.join(output_dir,
                               BasicRepo.FIELDS_FNAME)) as f:
-                fields = json.load(f, 'rb')
+                fields = json.load(f)
         except IOError as e:
             if e.errno == errno.ENOENT:
                 raise ArcanaError(
@@ -388,20 +388,20 @@ class BaseTestCase(TestCase):
     def assertStatEqual(self, stat, fileset_name, target, from_study,
                         subject=None, visit=None,
                         frequency='per_session'):
-            val = float(sp.check_output(
-                'mrstats {} -output {}'.format(
-                    self.output_file_path(
-                        fileset_name, from_study,
-                        subject=subject, visit=visit,
-                        frequency=frequency),
-                    stat),
-                shell=True))
-            self.assertEqual(
-                val, target, (
-                    "{} value of '{}' ({}) does not equal target ({}) "
-                    "for subject {} visit {}"
-                    .format(stat, fileset_name, val, target,
-                            subject, visit)))
+        val = float(sp.check_output(
+            'mrstats {} -output {}'.format(
+                self.output_file_path(
+                    fileset_name, from_study,
+                    subject=subject, visit=visit,
+                    frequency=frequency),
+                stat),
+            shell=True))
+        self.assertEqual(
+            val, target, (
+                "{} value of '{}' ({}) does not equal target ({}) "
+                "for subject {} visit {}"
+                .format(stat, fileset_name, val, target,
+                        subject, visit)))
 
     def assertImagesAlmostMatch(self, out, ref, mean_threshold,
                                 stdev_threshold, from_study):
@@ -454,12 +454,11 @@ class BaseTestCase(TestCase):
             path = op.join(path, from_study)
         return op.abspath(path)
 
-    @classmethod
-    def remove_generated_files(cls, study=None):
+    def remove_generated_files(self, study=None):
         # Remove derived filesets
-        for fname in os.listdir(cls.get_session_dir()):
+        for fname in os.listdir(self.get_session_dir()):
             if study is None or fname.startswith(study + '_'):
-                os.remove(op.join(cls.get_session_dir(), fname))
+                os.remove(op.join(self.get_session_dir(), fname))
 
     def output_file_path(self, fname, from_study, subject=None, visit=None,
                          frequency='per_session', **kwargs):
@@ -470,13 +469,14 @@ class BaseTestCase(TestCase):
             fname)
 
     def ref_file_path(self, fname, subject=None, session=None):
-        return op.join(self.session_dir, fname,
-                            subject=subject, session=session)
+        return op.join(self.session_dir, fname)
 
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
     SUMMARY_NAME = BasicRepo.SUMMARY_NAME
+    DATASET_CONTENTS = None
+    input_tree = None
 
     def setUp(self):
         self.reset_dirs()

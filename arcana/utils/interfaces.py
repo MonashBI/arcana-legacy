@@ -34,75 +34,75 @@ mkdir_path = op.join(bash_resources, 'make_dir.sh')
 special_char_re = re.compile(r'[^\w]')
 
 
-class MergeInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
-    axis = traits.Enum(
-        'vstack', 'hstack', usedefault=True,
-        desc=('direction in which to merge, hstack requires same number '
-              'of elements in each input'))
-    no_flatten = traits.Bool(
-        False, usedefault=True,
-        desc='append to outlist instead of extending in vstack mode')
+# class MergeInputSpec(DynamicTraitedSpec, BaseInterfaceInputSpec):
+#     axis = traits.Enum(
+#         'vstack', 'hstack', usedefault=True,
+#         desc=('direction in which to merge, hstack requires same number '
+#               'of elements in each input'))
+#     no_flatten = traits.Bool(
+#         False, usedefault=True,
+#         desc='append to outlist instead of extending in vstack mode')
 
 
-class MergeOutputSpec(TraitedSpec):
-    out = traits.List(desc='Merged output')
+# class MergeOutputSpec(TraitedSpec):
+#     out = traits.List(desc='Merged output')
 
 
-class Merge(IOBase):
-    """Basic interface class to merge inputs into a single list
+# class Merge(IOBase):
+#     """Basic interface class to merge inputs into a single list
 
-    Examples
-    --------
+#     Examples
+#     --------
 
-    >>> from nipype.interfaces.utility import Merge
-    >>> mi = Merge(3)
-    >>> mi.inputs.in1 = 1
-    >>> mi.inputs.in2 = [2, 5]
-    >>> mi.inputs.in3 = 3
-    >>> out = mi.run()
-    >>> out.outputs.out
-    [1, 2, 5, 3]
+#     >>> from nipype.interfaces.utility import Merge
+#     >>> mi = Merge(3)
+#     >>> mi.inputs.in1 = 1
+#     >>> mi.inputs.in2 = [2, 5]
+#     >>> mi.inputs.in3 = 3
+#     >>> out = mi.run()
+#     >>> out.outputs.out
+#     [1, 2, 5, 3]
 
-    """
-    input_spec = MergeInputSpec
-    output_spec = MergeOutputSpec
+#     """
+#     input_spec = MergeInputSpec
+#     output_spec = MergeOutputSpec
 
-    def __init__(self, numinputs=0, **inputs):
-        super(Merge, self).__init__(**inputs)
-        self._numinputs = numinputs
-        if numinputs > 0:
-            input_names = ['in%d' % (i + 1) for i in range(numinputs)]
-        elif numinputs == 0:
-            input_names = ['in_lists']
-        else:
-            input_names = []
-        add_traits(self.inputs, input_names)
+#     def __init__(self, numinputs=0, **inputs):
+#         super(Merge, self).__init__(**inputs)
+#         self._numinputs = numinputs
+#         if numinputs > 0:
+#             input_names = ['in%d' % (i + 1) for i in range(numinputs)]
+#         elif numinputs == 0:
+#             input_names = ['in_lists']
+#         else:
+#             input_names = []
+#         add_traits(self.inputs, input_names)
 
-    def _list_outputs(self):
-        outputs = self._outputs().get()
-        out = []
+#     def _list_outputs(self):
+#         outputs = self._outputs().get()
+#         out = []
 
-        if self._numinputs == 0:
-            values = getattr(self.inputs, 'in_lists')
-            if not isdefined(values):
-                return outputs
-        else:
-            getval = lambda idx: getattr(self.inputs, 'in%d' % (idx + 1))  # @IgnorePep8
-            values = [getval(idx) for idx in range(self._numinputs)
-                      if isdefined(getval(idx))]
+#         if self._numinputs == 0:
+#             values = getattr(self.inputs, 'in_lists')
+#             if not isdefined(values):
+#                 return outputs
+#         else:
+#             getval = lambda idx: getattr(self.inputs, 'in%d' % (idx + 1))
+#             values = [getval(idx) for idx in range(self._numinputs)
+#                       if isdefined(getval(idx))]
 
-        if self.inputs.axis == 'vstack':
-            for value in values:
-                if isinstance(value, list) and not self.inputs.no_flatten:
-                    out.extend(value)
-                else:
-                    out.append(value)
-        else:
-            lists = [filename_to_list(val) for val in values]
-            out = [[val[i] for val in lists] for i in range(len(lists[0]))]
-        if out:
-            outputs['out'] = out
-        return outputs
+#         if self.inputs.axis == 'vstack':
+#             for value in values:
+#                 if isinstance(value, list) and not self.inputs.no_flatten:
+#                     out.extend(value)
+#                 else:
+#                     out.append(value)
+#         else:
+#             lists = [filename_to_list(val) for val in values]
+#             out = [[val[i] for val in lists] for i in range(len(lists[0]))]
+#         if out:
+#             outputs['out'] = out
+#         return outputs
 
 
 class MergeTupleOutputSpec(TraitedSpec):
@@ -174,7 +174,7 @@ class JoinPath(BaseInterface):
     def _list_outputs(self):
         outputs = self._outputs().get()
         outputs['path'] = op.join(self.inputs.dirname,
-                                       self.inputs.filename)
+                                  self.inputs.filename)
         return outputs
 
     def _run_interface(self, runtime):
@@ -246,7 +246,7 @@ class CopyDir(CommandLine):
             outputs['basedir'] = op.join(self.inputs.base_dir)
         elif self.inputs.method == 2:
             outputs['copied'] = op.join(self.inputs.base_dir,
-                                             self._gen_filename('copied'))
+                                        self._gen_filename('copied'))
             outputs['basedir'] = op.join(self.inputs.base_dir)
         return outputs
 

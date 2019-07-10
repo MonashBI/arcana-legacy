@@ -112,7 +112,7 @@ class Processor(object):
             return False
 
     def _init_plugin(self):
-        self._plugin = self.nipype_plugin_cls(**self._plugin_args)
+        self._plugin = self.nipype_plugin_cls(**self._plugin_args)  # noqa pylint: disable=no-member
 
     @property
     def study(self):
@@ -464,8 +464,8 @@ class Processor(object):
                 '{}_source'.format(freq),
                 RepositorySource(
                     i.collection for i in inputs),
-                inputs=({'prereqs': (prereqs, 'out')} if prereqs is not None
-                         else {}))
+                inputs=({'prereqs': (prereqs, 'out')}
+                        if prereqs is not None else {}))
             # Connect iter_nodes to source and input nodes
             for iterator in pipeline.iterators(freq):
                 pipeline.connect(iter_nodes[iterator], iterator, source,
@@ -520,7 +520,7 @@ class Processor(object):
                 # and create join nodes
                 source = sources[input_freq]
                 for iterator in (pipeline.iterators(input_freq) -
-                                  pipeline.iterators(freq)):
+                                 pipeline.iterators(freq)):
                     join = pipeline.add(
                         '{}_to_{}_{}_checksum_join'.format(
                             input_freq, freq, iterator),
@@ -547,7 +547,7 @@ class Processor(object):
             # connect the first deiterator for every frequency
             deiter_nodes[freq] = sink  # for per_study the "deiterator" == sink
             for iterator in sorted(pipeline.iterators(freq),
-                                    key=deiter_node_sort_key):
+                                   key=deiter_node_sort_key):
                 # Connect to previous deiterator or sink
                 # NB: we only need to keep a reference to the last one in the
                 # chain in order to connect with the "final" node, so we can
@@ -913,9 +913,9 @@ class Processor(object):
                 subject_id, visit_id = inds_to_ids(sess_inds)
                 if sess_inds in to_skip:
                     missing_inputs_msg += (
-                        "\n(subject={}, visit={}): [{}]".format(
+                        "\n(subject={}, visit={}(: [{}]".format(
                             subject_id, visit_id,
-                            ', '.join(i.name for i in to_skip[sess_inds])))
+                            ', '.join(i.name for i in to_skip[sess_inds])))  # noqa pylint: disable=no-member
                 else:
                     missing_prq_inputs_msg += (
                         "\n(subject={}, visit={})".format(subject_id,
@@ -951,8 +951,8 @@ class Processor(object):
                     "\n({}, {}): protected=[{}], missing=[{}]"
                     .format(
                         subject_id, visit_id,
-                        ', '.join(i.name for i in to_protect[sess_inds]),
-                        ', '.join(i.name for i in missing)))
+                        ', '.join(i.name for i in to_protect[sess_inds]),  # noqa pylint: disable=no-member
+                        ', '.join(i.name for i in missing)))  # noqa pylint: disable=no-member
             raise ArcanaProtectedOutputConflictError(
                 "Cannot process {} as there are nodes with both protected "
                 "outputs (ones modified externally to Arcana) and missing "
