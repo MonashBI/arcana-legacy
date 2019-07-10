@@ -1,5 +1,6 @@
 from builtins import zip
 from builtins import object
+import weakref
 from itertools import chain, groupby
 from collections import defaultdict
 from operator import attrgetter, itemgetter
@@ -8,7 +9,7 @@ import logging
 from arcana.data import BaseFileset, BaseField
 from arcana.utils import split_extension
 from arcana.exceptions import (
-    ArcanaNameError, ArcanaRepositoryError)
+    ArcanaNameError, ArcanaRepositoryError, ArcanaUsageError)
 
 id_getter = attrgetter('id')
 
@@ -50,6 +51,7 @@ class TreeNode(object):
                                                     r.from_study)))
         self._missing_records = []
         self._duplicate_records = []
+        self._tree = None
         # Match up provenance records with items in the node
         for item in chain(self.filesets, self.fields):
             if not item.derived:
@@ -99,7 +101,7 @@ class TreeNode(object):
         "To be overridden by subclasses where appropriate"
         return None
 
-    def fileset(self, id, from_study=None, format=None):  # noqa: E501 @ReservedAssignment
+    def fileset(self, id, from_study=None, format=None):
         """
         Gets the fileset with the ID 'id' produced by the Study named 'study'
         if provided. If a spec is passed instead of a str to the name argument,
@@ -141,20 +143,21 @@ class TreeNode(object):
             raise ArcanaNameError(
                 id,
                 ("{} doesn't have a fileset named '{}'{} "
-                   "(available '{}'){}"
-                   .format(self, id,
-                           (" from study '{}'".format(from_study)
-                            if from_study is not None else ''),
-                           "', '".join(available), msg)))
+                 "(available '{}'){}"
+                 .format(self, id,
+                         (" from study '{}'".format(from_study)
+                          if from_study is not None else ''),
+                         "', '".join(available), msg)))
         else:
             if format is None:
                 all_formats = list(format_dct.values())
                 if len(all_formats) > 1:
                     raise ArcanaNameError(
+                        id,
                         "Multiple filesets found for '{}'{} in {} with formats"
                         " {}. Need to specify a format"
                         .format(id, ("in '{}'".format(from_study)
-                                       if from_study is not None else ''),
+                                     if from_study is not None else ''),
                                 self, "', '".join(format_dct.keys())))
                 fileset = all_formats[0]
             else:
@@ -168,7 +171,7 @@ class TreeNode(object):
                             fileset = None
                             for rname, rfileset in format_dct.items():
                                 if rname in format.resource_names(
-                                        self.tree.repository.type):
+                                        self.tree.repository.type):  # noqa pylint: disable=no-member
                                     fileset = rfileset
                                     break
                             if fileset is None:
@@ -178,11 +181,11 @@ class TreeNode(object):
                         format,
                         ("{} doesn't have a fileset named '{}'{} with "
                          "format '{}' (available '{}'){}"
-                           .format(self, id,
-                                   (" from study '{}'".format(from_study)
-                                    if from_study is not None else ''),
-                                   format,
-                                   "', '".join(format_dct.keys()), msg)))
+                         .format(self, id,
+                                 (" from study '{}'".format(from_study)
+                                  if from_study is not None else ''),
+                                 format,
+                                 "', '".join(format_dct.keys()), msg)))
 
         return fileset
 
@@ -220,13 +223,12 @@ class TreeNode(object):
             else:
                 msg = ''
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}'{} "
-                       "(available '{}')"
-                       .format(
+                name, ("{} doesn't have a field named '{}'{} " +
+                       "(available '{}')").format(
                            self, name,
                            (" from study '{}'".format(from_study)
                             if from_study is not None else ''),
-                           "', '".join(available), msg)))
+                           "', '".join(available), msg))
 
     def record(self, pipeline_name, from_study):
         """
@@ -315,6 +317,20 @@ class TreeNode(object):
                 mismatch += s.find_mismatch(o, indent=sub_indent)
         return mismatch
 
+    @property
+    def tree(self):
+        if self._tree is None:
+            raise ArcanaUsageError("{} has not been added to a tree"
+                                   .format(self))
+        return self._tree()  # tree will be a weakref if present
+
+    @tree.setter
+    def tree(self, tree):
+        if self._tree is not None:
+            raise ArcanaUsageError("{} already has a tree {}"
+                                   .format(self, self._tree()))
+        self._tree = weakref.ref(tree)
+
 
 class Tree(TreeNode):
     """
@@ -395,7 +411,7 @@ class Tree(TreeNode):
                 self._visits == other._visits)
 
     def __hash__(self):
-        return (TreeNode.__hash_(self) ^
+        return (TreeNode.__hash__(self) ^
                 hash(tuple(self.subjects)) ^
                 hash(tuple(self._visits)))
 
@@ -457,7 +473,7 @@ class Tree(TreeNode):
         except KeyError:
             raise ArcanaNameError(
                 id, ("{} doesn't have a subject named '{}' ('{}')"
-                       .format(self, id, "', '".join(self._subjects))))
+                     .format(self, id, "', '".join(self._subjects))))
 
     def visit(self, id):  # @ReservedAssignment
         try:
@@ -465,7 +481,7 @@ class Tree(TreeNode):
         except KeyError:
             raise ArcanaNameError(
                 id, ("{} doesn't have a visit named '{}' ('{}')"
-                       .format(self, id, "', '".join(self._visits))))
+                     .format(self, id, "', '".join(self._visits))))
 
     def session(self, subject_id, visit_id):
         return self.subject(subject_id).session(visit_id)
@@ -690,14 +706,6 @@ class Subject(TreeNode):
     def subject_id(self):
         return self.id
 
-    @property
-    def tree(self):
-        return self._tree
-
-    @tree.setter
-    def tree(self, tree):
-        self._tree = tree
-
     def __lt__(self, other):
         return self._id < other._id
 
@@ -743,11 +751,11 @@ class Subject(TreeNode):
         if frequency in (None, 'per_session'):
             return self.sessions
         elif frequency == 'per_visit':
-            return self.parent.nodes(frequency)
+            return self.tree.nodes(frequency)
         elif frequency == 'per_subject':
             return [self]
         elif frequency == 'per_study':
-            return [self.parent]
+            return [self.tree]
 
     @property
     def visit_ids(self):
@@ -819,7 +827,6 @@ class Visit(TreeNode):
             ((s.subject_id, s) for s in sessions), key=itemgetter(0)))
         for session in sessions:
             session.visit = self
-        self._tree = None
 
     @property
     def id(self):
@@ -828,14 +835,6 @@ class Visit(TreeNode):
     @property
     def visit_id(self):
         return self.id
-
-    @property
-    def tree(self):
-        return self._tree
-
-    @tree.setter
-    def tree(self, tree):
-        self._tree = tree
 
     def __eq__(self, other):
         return (TreeNode.__eq__(self, other) and
@@ -882,11 +881,11 @@ class Visit(TreeNode):
         if frequency in (None, 'per_session'):
             return self.sessions
         elif frequency == 'per_subject':
-            return self.parent.nodes(frequency)
+            return self.tree.nodes(frequency)
         elif frequency == 'per_visit':
             return [self]
         elif frequency == 'per_study':
-            return [self.parent]
+            return [self.tree]
 
     def session(self, subject_id):
         try:
@@ -950,7 +949,6 @@ class Session(TreeNode):
         self._visit_id = visit_id
         self._subject = None
         self._visit = None
-        self._tree = None
 
     @property
     def visit_id(self):
@@ -992,14 +990,6 @@ class Session(TreeNode):
     def visit(self, visit):
         self._visit = visit
 
-    @property
-    def tree(self):
-        return self._tree
-
-    @tree.setter
-    def tree(self, tree):
-        self._tree = tree
-
     def nodes(self, frequency=None):
         """
         Returns all nodes of the specified frequency that are related to
@@ -1020,9 +1010,9 @@ class Session(TreeNode):
         elif frequency == 'per_session':
             return [self]
         elif frequency in ('per_visit', 'per_subject'):
-            return [self.parent]
+            return [self.tree.nodes(self.frequency)]
         elif frequency == 'per_study':
-            return [self.parent.parent]
+            return [self.tree]
 
     def find_mismatch(self, other, indent=''):
         mismatch = TreeNode.find_mismatch(self, other, indent)

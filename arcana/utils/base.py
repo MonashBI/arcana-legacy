@@ -9,12 +9,8 @@ from nipype.interfaces.matlab import MatlabCommand
 import shutil
 import tempfile
 from arcana.exceptions import ArcanaUsageError
-if PY2:
-    from contextlib2 import ExitStack  # @UnusedImport @UnresolvedImport
-    from collections import Iterable  # @UnusedImport @UnresolvedImport
-else:
-    from contextlib import ExitStack  # @UnusedImport @Reimport
-    from collections.abc import Iterable  # @Reimport
+from contextlib import ExitStack
+from collections.abc import Iterable
 
 
 PATH_SUFFIX = '_path'
@@ -76,7 +72,7 @@ def split_extension(path):
 
 class classproperty(property):
     def __get__(self, cls, owner):
-        return self.fget.__get__(None, owner)()
+        return self.fget.__get__(None, owner)()  # pylint: disable=no-member
 
 
 def lower(s):

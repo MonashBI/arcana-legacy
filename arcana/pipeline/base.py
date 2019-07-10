@@ -242,14 +242,14 @@ class Pipeline(object):
                 raise ArcanaDesignError(
                     "Cannot provide both joinsource and iterfield to when "
                     "attempting to add '{}' node to {}"
-                    .foramt(name, self._error_msg_loc))
+                    .format(name, self._error_msg_loc))
             node_cls = self.study.environment.node_types['map']
         elif 'joinsource' in kwargs or 'joinfield' in kwargs:
             if not ('joinfield' in kwargs and 'joinsource' in kwargs):
                 raise ArcanaDesignError(
-                    "Both joinsource and joinfield kwargs are required to "
-                    "create a JoinNode (see {})".format(name,
-                                                        self._error_msg_loc))
+                    ("Both joinsource and joinfield kwargs are required to " +
+                     "create a JoinNode (see {})").format(name,
+                                                          self._error_msg_loc))
             joinsource = kwargs['joinsource']
             if joinsource in self.study.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
@@ -438,16 +438,6 @@ class Pipeline(object):
 
     def frequency_outputs(self, frequency):
         return (o for o in self.outputs if o.frequency == frequency)
-
-    @property
-    def all_parameters(self):
-        """Return all parameters, including parameters of prerequisites"""
-        return chain(self.parameters, iter(self._prereq_parameters.items()))
-
-    @property
-    def non_default_parameters(self):
-        return ((k, v) for k, v in self.parameters.items()
-                if v != self.default_parameters[k])
 
     @property
     def required_outputs(self):

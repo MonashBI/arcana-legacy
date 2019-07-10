@@ -196,8 +196,7 @@ class SwitchSpec(ParamSpec):
             if choices is not None:
                 raise ArcanaUsageError(
                     "Choices ({}) are only valid for non-boolean "
-                    "switches ('{}')".format("', '".join(choices),
-                                               name))
+                    "switches ('{}')".format("', '".join(choices), name))
         elif choices is None:
             raise ArcanaUsageError(
                 "Choices must be provided for non-boolean "

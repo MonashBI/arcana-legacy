@@ -3,7 +3,7 @@ from past.builtins import basestring
 import os
 import tempfile
 from arcana.utils import makedirs
-import os.path as op # @IgnorePep8
+import os.path as op
 import shutil
 from arcana.utils import JSON_ENCODING
 import stat
@@ -606,7 +606,7 @@ class XnatRepo(Repository):
         return hdr
 
     def download_fileset(self, tmp_dir, xresource, xscan, fileset,
-                          session_label, cache_path):
+                         session_label, cache_path):
         # Download resource to zip file
         zip_path = op.join(tmp_dir, 'download.zip')
         with open(zip_path, 'wb') as f:

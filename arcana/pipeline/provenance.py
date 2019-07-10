@@ -107,7 +107,7 @@ class Record(object):
 
     @property
     def provenance_version(self):
-        return self._provenance_version
+        return self._prov[PROVENANCE_VERSION]
 
     def save(self, path):
         """
