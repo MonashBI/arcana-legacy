@@ -1,6 +1,7 @@
 from __future__ import division
 import logging
 from .base import Environment
+from .requirement.base import VersionRange
 from arcana.exceptions import (
     ArcanaRequirementNotFoundError, ArcanaVersionNotDetectableError,
     ArcanaVersionError)
@@ -54,6 +55,10 @@ class StaticEnv(Environment):
                         raise
                     else:
                         logger.warning(e)
+                        # Assume that it is the minimum acceptable version
+                        version = (req_range.minimum
+                                   if isinstance(req_range, VersionRange) else
+                                   req_range)
                 else:
                     self._detected_versions[req_range.name] = version
             if not req_range.within(version):
