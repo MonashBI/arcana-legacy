@@ -12,13 +12,12 @@ from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
 
 
-class BaseInputSpec(object):
+class BaseInputSpecMixin(object):
 
     derived = False
     # For duck-typing with *Input objects
     skip_missing = False
     drop_if_missing = False
-    derivable = False
 
     def __init__(self, name, desc=None, optional=False, default=None):
         if optional and default is not None:
@@ -71,7 +70,7 @@ class BaseInputSpec(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Returns a copy of the InputSpec bound to the given study
 
@@ -83,8 +82,8 @@ class BaseInputSpec(object):
         """
         if self.default is None:
             raise ArcanaError(
-                "Attempted to bind '{}' to {} but only acquired specs with "
-                "a default value should be bound to studies{})".format(
+                ("Attempted to bind '{}' to {} but only acquired specs with " +
+                 "a default value should be bound to studies").format(
                     self.name, study))
         if self._study is not None:
             # This avoids rebinding specs to sub-studies that have already
@@ -133,21 +132,20 @@ class BaseInputSpec(object):
         return self.default.collection
 
 
-class BaseSpec(object):
+class BaseSpecMixin(object):
 
     derived = True
     # For duck-typing with *Input objects
     skip_missing = False
     drop_if_missing = False
-    derivable = True
 
     def __init__(self, name, pipeline_getter, desc=None,
                  pipeline_args=None, group=None):
         if pipeline_getter is not None:
             if not isinstance(pipeline_getter, basestring):
                 raise ArcanaUsageError(
-                    "Pipeline name for {} '{}' is not a string "
-                    "'{}'".format(name, pipeline_getter))
+                    ("Pipeline name for {} '{}' is not a string " +
+                     "'{}'").format(name, pipeline_getter))
         self._pipeline_getter = pipeline_getter
         self._desc = desc
         self._study = None
@@ -198,7 +196,7 @@ class BaseSpec(object):
                                  other.pipeline_args))
         return mismatch
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Returns a copy of the Spec bound to the given study
 
@@ -313,7 +311,7 @@ class BaseSpec(object):
         return node
 
 
-class InputFilesetSpec(BaseFileset, BaseInputSpec):
+class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     """
     A specification for an "acquired" fileset (e.g from the scanner or
     standard atlas)
@@ -348,7 +346,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, valid_formats, frequency='per_session', # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, valid_formats, frequency='per_session',
                  desc=None, optional=False, default=None):
         # Ensure allowed formats is a list
         try:
@@ -361,8 +359,8 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
                     "'{}' spec doesn't have any allowed formats".format(name))
         self._valid_formats = valid_formats
         BaseFileset.__init__(self, name, None, frequency)
-        BaseInputSpec.__init__(self, name, desc, optional=optional,
-                               default=default)
+        BaseInputSpecMixin.__init__(self, name, desc, optional=optional,
+                                    default=default)
 
     @property
     def valid_formats(self):
@@ -379,17 +377,17 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseInputSpec.__eq__(self, other) and
+                BaseInputSpecMixin.__eq__(self, other) and
                 self._valid_formats == other._valid_formats)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseInputSpec.__hash__(self) and
+                BaseInputSpecMixin.__hash__(self) and
                 hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseData.initkwargs(self)
-        dct.update(BaseInputSpec.initkwargs(self))
+        dct.update(BaseInputSpecMixin.initkwargs(self))
         dct['valid_formats'] = self._valid_formats
         return dct
 
@@ -403,7 +401,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
         mismatch = BaseFileset.find_mismatch(self, other, indent)
-        mismatch += BaseInputSpec.find_mismatch(self, other, indent)
+        mismatch += BaseInputSpecMixin.find_mismatch(self, other, indent)
         if self.valid_formats != other.valid_formats:
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, list(self.valid_formats),
@@ -411,7 +409,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpec):
         return mismatch
 
 
-class FilesetSpec(BaseFileset, BaseSpec):
+class FilesetSpec(BaseFileset, BaseSpecMixin):
     """
     A specification for a fileset within a study to be derived from a
     processing pipeline.
@@ -449,12 +447,12 @@ class FilesetSpec(BaseFileset, BaseSpec):
     is_spec = True
     CollectionClass = FilesetCollection
 
-    def __init__(self, name, format, pipeline_getter, frequency='per_session',  # @ReservedAssignment @IgnorePep8 
+    def __init__(self, name, format, pipeline_getter, frequency='per_session',
                  desc=None, valid_formats=None, pipeline_args=None,
                  group=None):
         BaseFileset.__init__(self, name, format, frequency)
-        BaseSpec.__init__(self, name, pipeline_getter, desc,
-                          pipeline_args, group)
+        BaseSpecMixin.__init__(self, name, pipeline_getter, desc,
+                               pipeline_args, group)
         if valid_formats is not None:
             # Ensure allowed formats is a list
             try:
@@ -465,17 +463,17 @@ class FilesetSpec(BaseFileset, BaseSpec):
 
     def __eq__(self, other):
         return (BaseFileset.__eq__(self, other) and
-                BaseSpec.__eq__(self, other) and
+                BaseSpecMixin.__eq__(self, other) and
                 self.valid_formats == other.valid_formats)
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseSpec.__hash__(self) ^
+                BaseSpecMixin.__hash__(self) ^
                 hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseSpec.initkwargs(self))
+        dct.update(BaseSpecMixin.initkwargs(self))
         dct['valid_formats'] = self._valid_formats
         return dct
 
@@ -488,7 +486,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
         mismatch = BaseFileset.find_mismatch(self, other, indent)
-        mismatch += BaseSpec.find_mismatch(self, other, indent)
+        mismatch += BaseSpecMixin.find_mismatch(self, other, indent)
         if self.valid_formats != other.valid_formats:
             mismatch += ('\n{}pipeline: self={} v other={}'
                          .format(sub_indent, list(self.valid_formats),
@@ -527,7 +525,7 @@ class FilesetSpec(BaseFileset, BaseSpec):
         return valid_formats
 
 
-class InputFieldSpec(BaseField, BaseInputSpec):
+class InputFieldSpec(BaseField, BaseInputSpecMixin):
     """
     An abstract base class representing an acquired field
 
@@ -560,19 +558,19 @@ class InputFieldSpec(BaseField, BaseInputSpec):
     def __init__(self, name, dtype, frequency='per_session', desc=None,
                  optional=False, default=None, array=False):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseInputSpec.__init__(self, name, desc, optional=optional,
-                                  default=default)
+        BaseInputSpecMixin.__init__(self, name, desc, optional=optional,
+                                    default=default)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseInputSpec.__eq__(self, other))
+                BaseInputSpecMixin.__eq__(self, other))
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseInputSpec.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseInputSpecMixin.__hash__(self))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseInputSpec.find_mismatch(self, other, indent)
+        mismatch += BaseInputSpecMixin.find_mismatch(self, other, indent)
         return mismatch
 
     def __repr__(self):
@@ -582,11 +580,11 @@ class InputFieldSpec(BaseField, BaseInputSpec):
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseInputSpec.initkwargs(self))
+        dct.update(BaseInputSpecMixin.initkwargs(self))
         return dct
 
 
-class FieldSpec(BaseField, BaseSpec):
+class FieldSpec(BaseField, BaseSpecMixin):
     """
     An abstract base class representing the specification for a derived
     fileset.
@@ -621,19 +619,19 @@ class FieldSpec(BaseField, BaseSpec):
                  frequency='per_session', desc=None, array=False,
                  pipeline_args=None, group=None):
         BaseField.__init__(self, name, dtype, frequency, array=array)
-        BaseSpec.__init__(self, name, pipeline_getter, desc,
-                          pipeline_args=pipeline_args, group=group)
+        BaseSpecMixin.__init__(self, name, pipeline_getter, desc,
+                               pipeline_args=pipeline_args, group=group)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseSpec.__eq__(self, other))
+                BaseSpecMixin.__eq__(self, other))
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^ BaseSpec.__hash__(self))
+        return (BaseField.__hash__(self) ^ BaseSpecMixin.__hash__(self))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseSpec.find_mismatch(self, other, indent)
+        mismatch += BaseSpecMixin.find_mismatch(self, other, indent)
         return mismatch
 
     def __repr__(self):
@@ -644,7 +642,7 @@ class FieldSpec(BaseField, BaseSpec):
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseSpec.initkwargs(self))
+        dct.update(BaseSpecMixin.initkwargs(self))
         return dct
 
     def _bind_node(self, node, **kwargs):

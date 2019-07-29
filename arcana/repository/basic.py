@@ -156,7 +156,7 @@ class BasicRepo(Repository):
             # Copy side car files into repository
             for aux_name, aux_path in fileset.format.default_aux_file_paths(
                     target_path).items():
-                shutil.copyfile(self.aux_file[aux_name], aux_path)
+                shutil.copyfile(fileset.format.aux_files[aux_name], aux_path)
         elif op.isdir(fileset.path):
             if op.exists(target_path):
                 shutil.rmtree(target_path)
@@ -435,8 +435,8 @@ class BasicRepo(Repository):
     def _filter_files(cls, files, base_dir):
         # Filter out hidden files (i.e. starting with '.')
         return [op.join(base_dir, f) for f in files
-                 if not (f.startswith('.') or
-                         f.startswith(cls.FIELDS_FNAME))]
+                if not (f.startswith('.') or
+                        f.startswith(cls.FIELDS_FNAME))]
 
     @classmethod
     def _filter_dirs(cls, dirs, base_dir):

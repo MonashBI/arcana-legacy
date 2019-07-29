@@ -1,19 +1,20 @@
-import tempfile  # @IgnorePep8
-import shutil  # @IgnorePep8
+import tempfile
+import shutil
 import os
-import os.path as op # @IgnorePep8
-import unittest  # @IgnorePep8
-from unittest import TestCase  # @IgnorePep8
-from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase  # @IgnorePep8
-from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.study.parameter import SwitchSpec  # @IgnorePep8
-from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec, InputFilesets  # @IgnorePep8
-from arcana.data.file_format import text_format, FileFormat  # @IgnorePep8
-from arcana.exceptions import ArcanaDesignError, ArcanaError # @IgnorePep8
-from future.utils import PY2  # @IgnorePep8
-from future.utils import with_metaclass  # @IgnorePep8
-import pydicom  # @IgnorePep8
+import os.path as op
+import unittest
+from unittest import TestCase
+from nipype.interfaces.utility import IdentityInterface
+from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase
+from arcana.study.base import Study, StudyMetaClass
+from arcana.study.parameter import SwitchSpec
+from arcana.data import (
+    InputFilesetSpec, FilesetSpec, FieldSpec, InputFilesets)
+from arcana.data.file_format import text_format, FileFormat
+from arcana.exceptions import ArcanaDesignError, ArcanaError
+from future.utils import PY2
+from future.utils import with_metaclass
+import pydicom
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -128,11 +129,11 @@ class TestDicomTagMatch(BaseTestCase):
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
         InputFilesets('gre_phase', GRE_PATTERN, dicom_format,
-                     dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
-                     is_regex=True),
+                      dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
+                      is_regex=True),
         InputFilesets('gre_mag', GRE_PATTERN, dicom_format,
-                        dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
-                        is_regex=True)]
+                      dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
+                      is_regex=True)]
 
     INPUTS_FROM_REF_DIR = True
     REF_FORMATS = [dicom_format]

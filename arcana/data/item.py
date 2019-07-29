@@ -11,7 +11,7 @@ from .file_format import FileFormat
 from .base import BaseFileset, BaseField
 
 
-class BaseItem(object):
+class BaseItemMixin(object):
 
     is_spec = False
 
@@ -100,8 +100,8 @@ class BaseItem(object):
         if self.name not in record.outputs:
             raise ArcanaNameError(
                 self.name,
-                "{} was not found in outputs {} of provenance record".format(
-                    self.name, record.outputs.keys(), record))
+                "{} was not found in outputs {} of provenance record {}"
+                .format(self.name, record.outputs.keys(), record))
         self._record = record
 
     @property
@@ -112,7 +112,7 @@ class BaseItem(object):
             return self._record.outputs[self.name]
 
     def initkwargs(self):
-        dct = super(Fileset, self).initkwargs()
+        dct = super().initkwargs()
         dct['repository'] = self.repository
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
@@ -120,7 +120,7 @@ class BaseItem(object):
         return dct
 
 
-class Fileset(BaseItem, BaseFileset):
+class Fileset(BaseItemMixin, BaseFileset):
     """
     A representation of a fileset within the repository.
 
@@ -178,15 +178,15 @@ class Fileset(BaseItem, BaseFileset):
         The quality label assigned to the fileset (e.g. as is saved on XNAT)
     """
 
-    def __init__(self, name, format=None, frequency='per_session', # @ReservedAssignment @IgnorePep8
-                 path=None, aux_files=None, id=None, uri=None, subject_id=None, # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, format=None, frequency='per_session',
+                 path=None, aux_files=None, id=None, uri=None, subject_id=None,
                  visit_id=None, repository=None, from_study=None,
                  exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
-        BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists, record)
+        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
+                               from_study, exists, record)
         if aux_files is not None:
             if path is None:
                 raise ArcanaUsageError(
@@ -250,7 +250,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __eq__(self, other):
         eq = (BaseFileset.__eq__(self, other) and
-              BaseItem.__eq__(self, other) and
+              BaseItemMixin.__eq__(self, other) and
               self._aux_files == other._aux_files and
               self._id == other._id and
               self._checksums == other._checksums and
@@ -267,7 +267,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def __hash__(self):
         return (BaseFileset.__hash__(self) ^
-                BaseItem.__hash__(self) ^
+                BaseItemMixin.__hash__(self) ^
                 hash(self._id) ^
                 hash(tuple(sorted(self._aux_files.items()))) ^
                 hash(self._checksums) ^
@@ -314,7 +314,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseFileset.find_mismatch(self, other, indent)
-        mismatch += BaseItem.find_mismatch(self, other, indent)
+        mismatch += BaseItemMixin.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self._path != other._path:
             mismatch += ('\n{}path: self={} v other={}'
@@ -397,7 +397,7 @@ class Fileset(BaseItem, BaseFileset):
         return self._quality
 
     @format.setter
-    def format(self, format):  # @ReservedAssignment
+    def format(self, format):
         assert isinstance(format, FileFormat)
         self._format = format
         if format.aux_files and self._path is not None:
@@ -429,7 +429,7 @@ class Fileset(BaseItem, BaseFileset):
             return self._id
 
     @id.setter
-    def id(self, id):  # @ReservedAssignment
+    def id(self, id):
         if self._id is None:
             self._id = id
         elif id != self._id:
@@ -532,7 +532,7 @@ class Fileset(BaseItem, BaseFileset):
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
-        dct.update(BaseItem.initkwargs(self))
+        dct.update(BaseItemMixin.initkwargs(self))
         dct['path'] = self.path
         dct['id'] = self.id
         dct['uri'] = self.uri
@@ -571,7 +571,7 @@ class Fileset(BaseItem, BaseFileset):
         return equal
 
 
-class Field(BaseItem, BaseField):
+class Field(BaseItemMixin, BaseField):
     """
     A representation of a value field in the repository.
 
@@ -642,23 +642,23 @@ class Field(BaseItem, BaseField):
                 else:
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
-        BaseItem.__init__(self, subject_id, visit_id, repository,
-                          from_study, exists, record)
+        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
+                               from_study, exists, record)
         self._value = value
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and
-                BaseItem.__eq__(self, other) and
+                BaseItemMixin.__eq__(self, other) and
                 self.value == other.value)
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^
-                BaseItem.__hash__(self) ^
+                BaseItemMixin.__hash__(self) ^
                 hash(self.value))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)
-        mismatch += BaseItem.find_mismatch(self, other, indent)
+        mismatch += BaseItemMixin.find_mismatch(self, other, indent)
         sub_indent = indent + '  '
         if self.value != other.value:
             mismatch += ('\n{}value: self={} v other={}'
@@ -744,7 +744,7 @@ class Field(BaseItem, BaseField):
 
     def initkwargs(self):
         dct = BaseField.initkwargs(self)
-        dct.update(BaseItem.initkwargs(self))
+        dct.update(BaseItemMixin.initkwargs(self))
         dct['value'] = self.value
         return dct
 

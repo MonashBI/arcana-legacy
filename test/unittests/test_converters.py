@@ -40,7 +40,7 @@ class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
             name='conv_pipeline',
             name_maps=name_maps,
             desc=("A pipeline that tests out various data format "
-                         "conversions"))
+                  "conversions"))
         # No conversion from text to text format
         pipeline.add(
             'text_from_text',

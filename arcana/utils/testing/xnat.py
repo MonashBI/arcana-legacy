@@ -155,8 +155,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
     def setUp(self):
         self._clean_up()
         self._repository = XnatRepo(project_id=self.project,
-                                          server=SERVER,
-                                          cache_dir=self.cache_dir)
+                                    server=SERVER,
+                                    cache_dir=self.cache_dir)
         self._create_project()
         self.BASE_CLASS.setUp(self)
         local_repository = BasicRepo(self.project_dir)

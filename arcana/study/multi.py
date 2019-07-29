@@ -255,8 +255,8 @@ class SubStudySpec(object):
             if name not in self.study_class.spec_names():
                 raise ArcanaNameError(
                     name,
-                    "'{}' doesn't match any filesets, fields, parameters "
-                    "in the study class {} ('{}')"
+                    ("'{}' doesn't match any filesets, fields, parameters " +
+                     "in the study class {} ('{}')")
                     .format(name, self.name,
                             self.study_class.__name__,
                             "', '".join(self.study_class.spec_names())))
@@ -336,8 +336,8 @@ class MultiStudyMetaClass(StudyMetaClass):
                                     MultiStudy.translate(
                                         substudy_spec.name,
                                         data_spec.pipeline_getter,
-                                        pipeline_arg_names=
-                                        data_spec.pipeline_arg_names,
+                                        pipeline_arg_names=(
+                                            data_spec.pipeline_arg_names),
                                         auto_added=True))
                     trans_data_spec = type(data_spec)(**initkwargs)
                     # Allow the default input (e.g. an atlas) to translate

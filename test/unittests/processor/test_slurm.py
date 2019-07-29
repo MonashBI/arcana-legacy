@@ -4,7 +4,7 @@ import shutil
 from arcana.processor import SlurmProc
 from nipype.interfaces.utility import IdentityInterface
 from unittest import TestCase
-from arcana.node import Node
+from arcana.environment.base import Node
 from arcana.environment import StaticEnv
 
 
@@ -26,9 +26,9 @@ class TestSlurmTemplate(TestCase):
         shutil.rmtree(self.work_dir)
 
     def test_template(self):
-        n = Node(IdentityInterface('x'), name='x', wall_time=150,
-                 n_procs=10, mem_gb=2, gpu=True,
-                 environment=StaticEnv())
+        n = Node(environment=StaticEnv(), interface=IdentityInterface('x'),
+                 name='x', wall_time=150,
+                 n_procs=10, mem_gb=2, gpu=True)
         generated = self.processor.slurm_template(n).strip()
         self.assertEqual(
             generated, ref_template.strip(),

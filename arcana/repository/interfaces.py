@@ -74,7 +74,7 @@ class RepositoryInterface(BaseInterface):
     def __ne__(self, other):
         return not self == other
 
-    def _run_interface(self, runtime, *args, **kwargs):  # @UnusedVariable
+    def _run_interface(self, runtime, *args, **kwargs):
         return runtime
 
     @property

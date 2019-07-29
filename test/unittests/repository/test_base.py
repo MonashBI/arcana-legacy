@@ -1,19 +1,17 @@
-from future import standard_library
-standard_library.install_aliases()
-import os  # @IgnorePep8
-from nipype.pipeline import engine as pe  # @IgnorePep8
-from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.data.file_format import text_format  # @IgnorePep8
-from arcana.processor import SingleProc  # @IgnorePep8
-from arcana.data import (  # @IgnorePep8
-    InputFilesets, FieldSpec)  # @IgnorePep8
-from arcana.utils import PATH_SUFFIX  # @IgnorePep8
-from future.utils import with_metaclass  # @IgnorePep8
-from arcana.utils.testing import BaseTestCase  # @IgnorePep8
-from arcana.data import InputFilesetSpec, FilesetSpec  # @IgnorePep8
-from arcana.study import Study, StudyMetaClass  # @IgnorePep8
-from arcana.repository.interfaces import RepositorySource, RepositorySink  # @IgnorePep8
-from arcana.repository.basic import BasicRepo  # @IgnorePep8
+import os
+from nipype.pipeline import engine as pe
+from nipype.interfaces.utility import IdentityInterface
+from arcana.data.file_format import text_format
+from arcana.processor import SingleProc
+from arcana.data import (
+    InputFilesets, FieldSpec)
+from arcana.utils import PATH_SUFFIX
+from future.utils import with_metaclass
+from arcana.utils.testing import BaseTestCase
+from arcana.data import InputFilesetSpec, FilesetSpec
+from arcana.study import Study, StudyMetaClass
+from arcana.repository.interfaces import RepositorySource, RepositorySink
+from arcana.repository.basic import BasicRepo
 
 
 class DummyStudy(with_metaclass(StudyMetaClass, Study)):

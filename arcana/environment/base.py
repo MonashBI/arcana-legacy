@@ -65,6 +65,10 @@ class NodeMixin(object):
         return self._annotations
 
     @property
+    def wall_time(self):
+        return self._wall_time
+
+    @property
     def versions(self):
         return self._versions
 

@@ -153,7 +153,7 @@ class Pipeline(object):
         # Loop through the inputs to the pipeline and add the instancemethods
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
-        for input in self.inputs:  # @ReservedAssignment
+        for input in self.inputs:
             # Could be an input to the study or optional acquired spec
             if input.is_spec and input.derived:
                 prereqs[input.pipeline_getter].add(input.name)
@@ -242,14 +242,14 @@ class Pipeline(object):
                 raise ArcanaDesignError(
                     "Cannot provide both joinsource and iterfield to when "
                     "attempting to add '{}' node to {}"
-                    .foramt(name, self._error_msg_loc))
+                    .format(name, self._error_msg_loc))
             node_cls = self.study.environment.node_types['map']
         elif 'joinsource' in kwargs or 'joinfield' in kwargs:
             if not ('joinfield' in kwargs and 'joinsource' in kwargs):
                 raise ArcanaDesignError(
-                    "Both joinsource and joinfield kwargs are required to "
-                    "create a JoinNode (see {})".format(name,
-                                                        self._error_msg_loc))
+                    ("Both joinsource and joinfield kwargs are required to " +
+                     "create a JoinNode (see {})").format(name,
+                                                          self._error_msg_loc))
             joinsource = kwargs['joinsource']
             if joinsource in self.study.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
@@ -292,7 +292,8 @@ class Pipeline(object):
                                     output_format)
         return node
 
-    def connect_input(self, spec_name, node, node_input, format=None, **kwargs):  # @ReservedAssignment @IgnorePep8
+    def connect_input(self, spec_name, node, node_input, format=None,
+                      **kwargs):
         """
         Connects a study fileset_spec as an input to the provided node
 
@@ -322,7 +323,7 @@ class Pipeline(object):
                             "', '".join(self.study.data_spec_names())))
             self._input_conns[name].append((node, node_input, format, kwargs))
 
-    def connect_output(self, spec_name, node, node_output, format=None,   # @ReservedAssignment @IgnorePep8
+    def connect_output(self, spec_name, node, node_output, format=None,
                        **kwargs):
         """
         Connects an output to a study fileset spec
@@ -387,8 +388,8 @@ class Pipeline(object):
         return self._workflow
 
     @property
-    def references(self):
-        return self._references
+    def citations(self):
+        return self._citations
 
     @property
     def inputs(self):
@@ -440,16 +441,6 @@ class Pipeline(object):
         return (o for o in self.outputs if o.frequency == frequency)
 
     @property
-    def all_parameters(self):
-        """Return all parameters, including parameters of prerequisites"""
-        return chain(self.parameters, iter(self._prereq_parameters.items()))
-
-    @property
-    def non_default_parameters(self):
-        return ((k, v) for k, v in self.parameters.items()
-                if v != self.default_parameters[k])
-
-    @property
     def required_outputs(self):
         return (self.study.bound_spec(o) for o in self._required_outputs)
 
@@ -486,7 +477,7 @@ class Pipeline(object):
         return (n[len(self.name) + 1:]
                 for n in self.workflow.list_node_names())
 
-    def save_graph(self, fname, style='flat', format='png', **kwargs):  # @ReservedAssignment @IgnorePep8
+    def save_graph(self, fname, style='flat', format='png', **kwargs):
         """
         Saves a graph of the pipeline to file
 
@@ -739,7 +730,7 @@ class Pipeline(object):
         # Check to see whether there are any outputs for the given frequency
         inputs = {}
         for input_name in self.input_names:
-            input = self.study.bound_spec(input_name)  # @ReservedAssignment
+            input = self.study.bound_spec(input_name)
             if input.frequency == frequency:
                 inputs[input_name] = input
         # Get list of input names for the requested frequency, addding fields
@@ -755,11 +746,11 @@ class Pipeline(object):
                              IdentityInterface(fields=input_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created input node
-        for input_name, input in inputs.items():  # @ReservedAssignment
+        for input_name, input in inputs.items():
             # Keep track of previous conversion nodes to avoid replicating the
             # conversion for inputs that are used in multiple places
             prev_conv_nodes = {}
-            for (node, node_in, format,  # @ReservedAssignment @IgnorePep8
+            for (node, node_in, format,
                  conv_kwargs) in self._input_conns[input_name]:
                 # If fileset formats differ between study and pipeline
                 # inputs create converter node (if one hasn't been already)
@@ -797,7 +788,7 @@ class Pipeline(object):
             # Check to see if this is the right frequency for the iterator
             # input, i.e. if it is the only iterator for this frequency
             if self.study.FREQUENCIES[frequency] == (iterator,):
-                for (node, node_in, format) in conns:  # @ReservedAssignment
+                for (node, node_in, format) in conns:
                     self.connect(inputnode, iterator, node, node_in)
         return inputnode
 
@@ -814,7 +805,7 @@ class Pipeline(object):
         """
         outputs = {}
         for output_name in self.output_names:
-            output = self.study.bound_spec(output_name)  # @ReservedAssignment
+            output = self.study.bound_spec(output_name)
             if output.frequency == frequency:
                 outputs[output_name] = output
         if not outputs:
@@ -829,8 +820,8 @@ class Pipeline(object):
                               IdentityInterface(fields=output_names))
         # Loop through list of nodes connected to study data specs and
         # connect them to the newly created output node
-        for output_name, output in outputs.items():  # @ReservedAssignment
-            (node, node_out, format,  # @ReservedAssignment @IgnorePep8
+        for output_name, output in outputs.items():
+            (node, node_out, format,
              conv_kwargs) = self._output_conns[output_name]
             # If fileset formats differ between study and pipeline
             # outputs create converter node (if one hasn't been already)
@@ -921,7 +912,7 @@ class Pipeline(object):
         # Get checksums/values of all inputs that would have been used in
         # previous runs of an equivalent pipeline to compare with that saved
         # in provenance to see if any have been updated.
-        for inpt in self.inputs:  # @ReservedAssignment
+        for inpt in self.inputs:
             # Get iterators present in the input that aren't in this node
             # and need to be joined
             iterators_to_join = (self.iterators(inpt.frequency) -

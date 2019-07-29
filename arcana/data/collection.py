@@ -11,7 +11,7 @@ from itertools import chain
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class BaseCollection(object):
+class BaseCollectionMixin(object):
     """
     Base class for collection of filesets and field items
     """
@@ -157,8 +157,8 @@ class BaseCollection(object):
                 fileset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
-                    "'{}' Collection is empty so doesn't have a "
-                    "per_study node".format(self.name))
+                    0, ("'{}' Collection is empty so doesn't have a " +
+                        "per_study node").format(self.name))
         return fileset
 
     @property
@@ -167,7 +167,7 @@ class BaseCollection(object):
         "in source and sink initiation"
         return self
 
-    def bind(self, study, **kwargs):  # @UnusedVariable
+    def bind(self, study, **kwargs):
         """
         Used for duck typing Collection objects with Spec and Match
         in source and sink initiation. Checks IDs match sessions in study.
@@ -201,11 +201,12 @@ class BaseCollection(object):
                 for session in subject.sessions:
                     if session.visit_id not in self._collection[subject.id]:
                         raise ArcanaUsageError(
-                            "Study visit ID '{}' for subject '{}' was not "
-                            "found in colleciton provided to '{}' (found '{}')"
-                            .format(subject.id, self.name,
-                                    "', '".join(
-                                        self._collection[subject.id].keys())))
+                            ("Study visit ID '{}' for subject '{}' was not " +
+                             "found in colleciton provided to '{}' " +
+                             "(found '{}')").format(
+                                 subject.id, self.name,
+                                 "', '".join(
+                                     self._collection[subject.id].keys())))
 
     @property
     def name(self):
@@ -216,7 +217,7 @@ class BaseCollection(object):
         self._name = name
 
 
-class FilesetCollection(BaseCollection, BaseFileset):
+class FilesetCollection(BaseCollectionMixin, BaseFileset):
     """
     A collection of filesets across a study (typically within a repository)
 
@@ -235,7 +236,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
 
     CollectedClass = Fileset
 
-    def __init__(self, name, collection, format=None, frequency=None,  # @ReservedAssignment @IgnorePep8
+    def __init__(self, name, collection, format=None, frequency=None,
                  candidate_formats=None):
         if format is None and candidate_formats is None:
             raise ArcanaUsageError(
@@ -245,7 +246,7 @@ class FilesetCollection(BaseCollection, BaseFileset):
         collection = list(collection)
         if not collection:
             if format is None:
-                format = candidate_formats[0]  # @ReservedAssignment
+                format = candidate_formats[0]
             if frequency is None:
                 raise ArcanaUsageError(
                     "Need to provide explicit frequency for empty "
@@ -268,16 +269,16 @@ class FilesetCollection(BaseCollection, BaseFileset):
                                       if format is None else format)
                 formatted_collection.append(fileset)
             collection = formatted_collection
-            format = self._common_attr(collection, 'format')  # @ReservedAssignment @IgnorePep8
+            format = self._common_attr(collection, 'format')
         BaseFileset.__init__(self, name, format, frequency=frequency)
-        BaseCollection.__init__(self, collection, frequency)
+        BaseCollectionMixin.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):
         return self.item(
             subject_id=subject_id, visit_id=visit_id).path
 
 
-class FieldCollection(BaseCollection, BaseField):
+class FieldCollection(BaseCollectionMixin, BaseField):
     """
     A collection of equivalent filesets (either within a repository)
 
@@ -306,7 +307,7 @@ class FieldCollection(BaseCollection, BaseField):
                     .format(implicit_frequency, frequency, name))
             implicit_dtype = self._common_attr(collection, 'dtype')
             if dtype is None:
-                dtype = implicit_dtype  # @ReservedAssignment
+                dtype = implicit_dtype
             elif dtype != implicit_dtype:
                 raise ArcanaUsageError(
                     "Implicit dtype '{}' does not match explicit "
@@ -330,7 +331,7 @@ class FieldCollection(BaseCollection, BaseField):
                 "FieldCollection")
         BaseField.__init__(self, name, dtype=dtype, frequency=frequency,
                            array=array)
-        BaseCollection.__init__(self, collection, frequency)
+        BaseCollectionMixin.__init__(self, collection, frequency)
 
     def value(self, subject_id=None, visit_id=None):
         return self.item(subject_id=subject_id, visit_id=visit_id).value

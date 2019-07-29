@@ -228,7 +228,7 @@ class Version(object):
             else:
                 # Split on non-numeric parts of the version string so that we
                 # can detect prerelease
-                sub_parts = re.split('([^\d]+)', part)
+                sub_parts = re.split(r'([^\d]+)', part)
                 if sub_parts[0]:
                     try:
                         seq_part = int(sub_parts[0])
@@ -270,7 +270,7 @@ class Version(object):
         maximum version)
         """
         if not isinstance(version, Version):
-            version = type(self._min_ver)(self._req, version)
+            version = type(self)(self._req, version)
         return version >= self
 
     def latest_within(self, *args, **kwargs):

@@ -1,29 +1,27 @@
-from future import standard_library
-standard_library.install_aliases()
-from builtins import str  # @IgnorePep8
-import os.path  # @IgnorePep8
+from builtins import str
+import os.path
 # from nipype import config
 # config.enable_debug_mode()
-from arcana.data.file_format import text_format  # @IgnorePep8
-from arcana.study.base import Study, StudyMetaClass  # @IgnorePep8
-from arcana.utils.testing import (  # @IgnorePep8
-    BaseTestCase, BaseMultiSubjectTestCase, TestMath)  # @IgnorePep8
-from arcana.exceptions import (  # @IgnorePep8
-    ArcanaCantPickleStudyError, ArcanaUsageError)  # @IgnorePep8
-from arcana.study.multi import (  # @IgnorePep8
+from arcana.data.file_format import text_format
+from arcana.study.base import Study, StudyMetaClass
+from arcana.utils.testing import (
+    BaseTestCase, BaseMultiSubjectTestCase, TestMath)
+from arcana.exceptions import (
+    ArcanaCantPickleStudyError, ArcanaUsageError)
+from arcana.study.multi import (
     MultiStudy, MultiStudyMetaClass, SubStudySpec)
-from nipype.interfaces.base import (  # @IgnorePep8
+from nipype.interfaces.base import (
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.study.parameter import ParamSpec  # @IgnorePep8
-from arcana.data.file_format import FileFormat, IdentityConverter  # @IgnorePep8
-from nipype.interfaces.utility import IdentityInterface  # @IgnorePep8
-from arcana.exceptions import ArcanaNoConverterError  # @IgnorePep8
-from arcana.repository import Tree  # @IgnorePep8
-from arcana.data import (  # @IgnorePep8
+from arcana.study.parameter import ParamSpec
+from arcana.data.file_format import FileFormat, IdentityConverter
+from nipype.interfaces.utility import IdentityInterface
+from arcana.exceptions import ArcanaNoConverterError
+from arcana.repository import Tree
+from arcana.data import (
     Fileset, FieldSpec, InputFilesetSpec, InputFilesets, FilesetSpec)
-from future.utils import PY2  # @IgnorePep8
-from future.utils import with_metaclass  # @IgnorePep8
-import logging  # @IgnorePep8
+from future.utils import PY2
+from future.utils import with_metaclass
+import logging
 if PY2:
     import pickle as pkl  # @UnusedImport
 else:
@@ -360,7 +358,7 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         FilesetSpec('hundred', text_format, 'hundred_pipeline'),
         FilesetSpec('thousand', text_format, 'thousand_pipeline')]
 
-    def pipeline_factory(self, incr, input, output, name_maps):  # @ReservedAssignment @IgnorePep8
+    def pipeline_factory(self, incr, input, output, name_maps):
         pipeline = self.new_pipeline(
             name=output + '_pipeline',
             desc="A dummy pipeline used to test 'partial-complete' method",
@@ -376,14 +374,14 @@ class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
         pipeline.connect_output(output, math, 'z')
         return pipeline
 
-    def ten_pipeline(self, **name_maps):  # @UnusedVariable
+    def ten_pipeline(self, **name_maps):
         return self.pipeline_factory(10, 'one', 'ten', name_maps=name_maps)
 
-    def hundred_pipeline(self, **name_maps):  # @UnusedVariable
+    def hundred_pipeline(self, **name_maps):
         return self.pipeline_factory(100, 'ten', 'hundred',
                                      name_maps=name_maps)
 
-    def thousand_pipeline(self, **name_maps):  # @UnusedVariable
+    def thousand_pipeline(self, **name_maps):
         return self.pipeline_factory(1000, 'hundred', 'thousand',
                                      name_maps=name_maps)
 

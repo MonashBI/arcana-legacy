@@ -99,7 +99,7 @@ class ModulesEnv(Environment):
                 self._versions_map == other._versions_map and
                 self._fail_on_missing == other._fail_on_missing and
                 self._ignore_unrecog == other._ignore_unrecog and
-                self._detect_exact_version == other._detect_exact_version)
+                self._detect_exact_versions == other._detect_exact_versions)
 
     def satisfy(self, *requirements):
         versions = []
