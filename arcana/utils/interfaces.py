@@ -379,6 +379,8 @@ class CopyToDirInputSpec(TraitedSpec):
     file_names = traits.List(
         traits.Str, desc=("The filenames to use to save the files with within "
                           "the directory"))
+    use_original_names = traits.Bool(
+        False, desc="Use the original filenames instead of replacing with indices")
 
 
 class CopyToDirOutputSpec(TraitedSpec):
@@ -406,12 +408,24 @@ class CopyToDir(BaseInterface):
         os.makedirs(dirname)
         num_files = len(self.inputs.in_files)
         if isdefined(self.inputs.file_names):
+            if self.inputs.use_original_names:
+                raise ArcanaUsageError(
+                    "Doesn't make sense to set 'use_original_names' to True and "
+                    "provide both explicit file names ({})"
+                    .format(self.inputs.file_names))
             if len(self.inputs.file_names) != num_files:
                 raise ArcanaError(
                     "Number of provided filenames ({}) does not match number "
                     "of provided files ({})".format(
                         len(self.inputs.file_names), num_files))
             out_files = (op.basename(f) for f in self.inputs.file_names)
+        elif self.inputs.use_original_names:
+            out_files = [op.basename(f) for f in self.inputs.in_files]
+            if len(set(out_files)) != len(out_files):
+                raise ArcanaUsageError(
+                    "Name conflict in list of files to copy to {}, consider unsetting "
+                    "'use_original_names' flag:\n{}".format(
+                        self.inputs.out_dir, '\n'.join(out_files)))
         else:
             # Create filenames that will sort ascendingly with the order the
             # file is inputed to the interface
@@ -434,7 +448,7 @@ class CopyToDir(BaseInterface):
                     shutil.copytree(in_file, out_path)
                 else:
                     shutil.copy(in_file, out_path)
-            file_names.append(op.basename(out_path))
+            file_names.append(out_file)
         outputs['out_dir'] = dirname
         outputs['file_names'] = file_names
         return outputs

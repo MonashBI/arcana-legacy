@@ -18,3 +18,4 @@
 /.vscode
 /docs/source/_build
 /.pytest_cache/
+__pycache__
