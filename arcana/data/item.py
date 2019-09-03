@@ -385,9 +385,11 @@ class Fileset(BaseItemMixin, BaseFileset):
         if self.format.directory:
             for root, _, files in os.walk(self.path):
                 for fname in files:
-                    yield op.join(root, fname)                           
+                    yield op.join(root, fname)
         else:
-            return chain([self.path], self.aux_files.values())
+            yield self.path
+            for aux_path in self.aux_files.values():
+                yield aux_path
 
     @property
     def format(self):

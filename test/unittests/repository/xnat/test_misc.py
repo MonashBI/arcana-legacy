@@ -3,7 +3,6 @@ import os.path as op
 import tempfile
 import unittest
 import sys
-from collections import OrderedDict
 from unittest import TestCase
 import xnat
 from arcana.utils.testing import BaseTestCase

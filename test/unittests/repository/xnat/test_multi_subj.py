@@ -9,7 +9,7 @@ from arcana.data import (
     InputFilesets, InputFilesetSpec)
 from arcana.study import Study, StudyMetaClass
 from arcana.data.file_format import text_format
-from arcana.repository.tree import Tree, Subject, Session, Visit
+from arcana.repository.tree import Tree
 from arcana.data import Fileset
 import sys
 from arcana.utils.testing.xnat import (
