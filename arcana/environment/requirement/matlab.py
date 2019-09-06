@@ -10,6 +10,8 @@ class MatlabVersion(Version):
     A representation of the Matlab release, e.g. R2017b
     """
 
+    base = 'R0000a'
+
     @classmethod
     def parse(cls, version_str):
         regex = r'R?(\d+)(a|b)'

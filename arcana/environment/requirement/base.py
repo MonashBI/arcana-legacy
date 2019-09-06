@@ -30,6 +30,7 @@ class Version(object):
     """
 
     delimeter = '.'
+    base = '0.0'
 
     def __init__(self, requirement, version, local_name=None,
                  local_version=None):
@@ -100,10 +101,10 @@ class Version(object):
         return "{}[{}]".format(self._req, str(self))
 
     def __eq__(self, other):
-        return (self._req == other._req and
-                self._seq == other._seq and
-                self._prerelease == other._prerelease and
-                self._dev == other._dev)
+        return (self._req == other._req
+                and self._seq == other._seq
+                and self._prerelease == other._prerelease
+                and self._dev == other._dev)
 
     def compare(self, other):
         """
@@ -328,8 +329,8 @@ class VersionRange(object):
         return self._max_ver
 
     def __eq__(self, other):
-        return (self._min_ver == other._min_ver and
-                self._max_ver == other._max_ver)
+        return (self._min_ver == other._min_ver
+                and self._max_ver == other._max_ver)
 
     def __str__(self):
         return '{} <= v <= {}'.format(self.minimum, self.maximum)
@@ -455,8 +456,8 @@ class BaseRequirement(object):
         """
         latest_ver = None
         for ver in available:
-            if version_range.within(ver) and (latest_ver is None or
-                                              ver > latest_ver):
+            if version_range.within(ver) and (latest_ver is None
+                                              or ver > latest_ver):
                 latest_ver = ver
         if latest_ver is None:
             if isinstance(version_range, VersionRange):
@@ -464,7 +465,11 @@ class BaseRequirement(object):
             else:
                 msg_part = 'greater than'
             raise ArcanaVersionError(
-                "Could not find version {} {} from available: {}"
-                .format(msg_part, version_range,
+                "Could not find version of '{}' {} {} from available: {}"
+                .format(self.name, msg_part, version_range,
                         ', '.join(str(v) for v in available)))
         return latest_ver
+
+    @property
+    def base_version(self):
+        return self.v(self.version_cls.base)
