@@ -82,7 +82,14 @@ class MatlabPackageRequirement(BaseRequirement):
         Try to detect version of package from command help text. Bit of a long
         shot as they are typically included
         """
-        help_text = run_matlab_cmd("help('{}')".format(self.test_func))
+        try:
+            help_text = run_matlab_cmd("help('{}')".format(self.test_func))
+        except IOError as e:
+            if str(e).startswith('No command "matlab"'):
+                raise ArcanaVersionNotDetectableError(
+                    "Could not detect version of MatlabRequirement '{}' as "
+                    "matlab was not found in the environment (or was not "
+                    "loaded)".format(self.name))
         if not help_text:
             raise ArcanaRequirementNotFoundError(
                 "Did not find test function '{}' for {}"

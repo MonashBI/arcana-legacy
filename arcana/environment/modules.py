@@ -71,16 +71,22 @@ class ModulesEnv(Environment):
         which in turn maps the local name of a version of a module installed in
         the environment to the standard versioning system recognised by the
         requirement.
+    fallback_to_static : bool
+        Instead of failing if a module is not found, attempt to load it from
+        the static environment
     ignore_unrecognised : bool
         If True, then unrecognisable versions are ignored instead of
         throwing an error
+    detect_exact_versions : bool
+        Actively detect the version of the software the version of the module
+        loads
     """
 
     node_types = {'base': ModulesNode, 'map': ModulesMapNode,
                   'join': ModulesJoinNode}
 
     def __init__(self, packages_map=None, versions_map=None,
-                 fail_on_missing=True, ignore_unrecognised=True,
+                 fallback_to_static=True, ignore_unrecognised=True,
                  detect_exact_versions=True):
         if packages_map is None:
             packages_map = {}
@@ -88,87 +94,88 @@ class ModulesEnv(Environment):
             versions_map = {}
         self._packages_map = packages_map
         self._versions_map = versions_map
+        self._fallback_to_static = fallback_to_static
         self._ignore_unrecog = ignore_unrecognised
-        self._fail_on_missing = fail_on_missing
         self._detect_exact_versions = detect_exact_versions
         self._detected_cache = None
         self._available = self.available()
 
     def __eq__(self, other):
-        return (self._packages_map == other._packages_map and
-                self._versions_map == other._versions_map and
-                self._fail_on_missing == other._fail_on_missing and
-                self._ignore_unrecog == other._ignore_unrecog and
-                self._detect_exact_versions == other._detect_exact_versions)
+        return (
+            self._packages_map == other._packages_map
+            and self._versions_map == other._versions_map
+            and self._fallback_to_static == other._fallback_to_static
+            and self._ignore_unrecog == other._ignore_unrecog
+            and self._detect_exact_versions == other._detect_exact_versions)
 
     def satisfy(self, *requirements):
         versions = []
+        loaded_versions = []
         try:
             for req_range in requirements:
                 req = req_range.requirement
                 local_name = self.map_req(req)
-                try:
-                    version_names = self._available[local_name]
-                except KeyError:
-                    if self._fail_on_missing:
+                version_names = self._available.get(local_name, None)
+                if version_names is None:
+                    if self._fallback_to_static:
+                        logger.warning(
+                            "Did not find module for {} ({}), falling back to "
+                            "static installation"
+                            .format(req.name, local_name))
+                        version = req.detect_version()
+                    else:
                         raise ArcanaRequirementNotFoundError(
                             "Could not find module for {} ({})".format(
                                 req.name, local_name))
-                    else:
-                        logger.warning("Did not find module for {} ({})"
-                                       .format(req.name, local_name))
-                avail_versions = []
-                for local_ver_name in version_names:
-                    ver_name = self.map_version(req, local_ver_name)
-                    try:
-                        avail_versions.append(
-                            req.v(ver_name, local_name=local_name,
-                                  local_version=local_ver_name))
-                    except ArcanaVersionNotDetectableError:
-                        if self._ignore_unrecog:
-                            logger.warning(
-                                "Ignoring unrecognised available version '{}' "
-                                "of {}".format(ver_name, req_range.name))
-                            continue
-                        else:
-                            raise
-                version = req_range.latest_within(avail_versions)
-                # To get the exact version (i.e. not just what the
-                # modules administrator has called it) we load the module
-                # detect the version and unload it again
-                if self._detect_exact_versions:
-                    # Note that the versions are unloaded after the outer loop
-                    # so that subsequent requirements can use previously loaded
-                    # requirements to detect their version (matlab packages in
-                    # particular)
-                    self.load(version)
-                    exact_version = req.detect_version(
-                        local_name=local_name, local_version=local_ver_name)
-                    try:
+                else:
+                    avail_versions = []
+                    for local_ver_name in version_names:
+                        ver_name = self.map_version(req, local_ver_name)
+                        try:
+                            avail_versions.append(
+                                req.v(ver_name, local_name=local_name,
+                                      local_version=local_ver_name))
+                        except ArcanaVersionNotDetectableError:
+                            if self._ignore_unrecog:
+                                logger.warning(
+                                    "Ignoring unrecognised available version "
+                                    " '{}' of {}".format(ver_name,
+                                                         req_range.name))
+                                continue
+                            else:
+                                raise
+                    version = req_range.latest_within(avail_versions)
+                    # To get the exact version (i.e. not just what the
+                    # modules administrator has called it) we load the module
+                    # detect the version and unload it again
+                    if self._detect_exact_versions:
+                        # Note that the versions are unloaded after the outer
+                        # loop so that subsequent requirements can use
+                        # previously loaded requirements to detect their
+                        # version (matlab packages in particular)
+                        self.load(version)
+                        loaded_versions.append(version)
+                        exact_version = req.detect_version(
+                            local_name=local_name,
+                            local_version=local_ver_name)
                         if not req_range.within(exact_version):
                             raise ArcanaVersionError(
-                                "Version of {} specified by module {} does "
-                                "not match expected {} and is outside the "
-                                "acceptable range [{}]"
+                                "Version of {} specified by module {} does"
+                                " not match expected {} and is outside the"
+                                " acceptable range [{}]"
                                 .format(req.name, local_ver_name,
                                         str(version), str(req_range)))
                         if exact_version < version:
                             raise ArcanaVersionError(
-                                "Version of {} specified by module {} is less "
-                                "than the expected {}".format(
-                                    req.name, local_ver_name, str(version)))
-                    finally:
-                        # Append the loaded version to the list of versions to
-                        # ensure that it is unloaded again before the exception
-                        # is raised out of this method
-                        versions.append(exact_version)
-                    version = exact_version
-                # Get latest requirement from list of possible options
+                                "Version of {} specified by module {} is "
+                                "less than the expected {}".format(
+                                    req.name, local_ver_name,
+                                    str(version)))
+                        version = exact_version
                 versions.append(version)
         finally:
             # Unload detected versions
-            if self._detect_exact_versions:
-                self.unload(*versions)
+            self.unload(*loaded_versions)
         return versions
 
     def load(self, *versions):
