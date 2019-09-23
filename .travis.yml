@@ -44,7 +44,7 @@ install:
   - pushd $XNAT_DIR; docker-compose up -d; popd
   - ci/modules.sh
   - ci/netrc.sh
-  - pip install .
+  - pip install .[test]
   - mkdir -p $HOME/data
   - pip install nose
   - pip install codecov
