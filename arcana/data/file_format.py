@@ -339,8 +339,8 @@ class Converter(object):
         self._mem_gb = mem_gb
 
     def __eq__(self, other):
-        return (self.input_format == self.input_format and
-                self._output_format == other.output_format)
+        return (self.input_format == self.input_format
+                and self._output_format == other.output_format)
 
     @property
     def input_format(self):

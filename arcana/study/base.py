@@ -219,9 +219,9 @@ class Study(object):
                                         bound_inpt.format)
                                 except ArcanaNoConverterError as e:
                                     e.msg += (
-                                        ", which is requried to convert:\n" +
-                                        "{} to\n{}.").format(e, bound_inpt,
-                                                             spec)
+                                        ", which is requried to convert:\n"
+                                        + "{} to\n{}.").format(e, bound_inpt,
+                                                               spec)
                                     raise e
                             else:
                                 if bound_inpt.format not in spec.valid_formats:
@@ -470,8 +470,8 @@ class Study(object):
         if required_outputs is not None:
             # Check that the required outputs are created with the given
             # parameters
-            missing_outputs = (set(required_outputs) -
-                               set(pipeline.output_names))
+            missing_outputs = (set(required_outputs)
+                               - set(pipeline.output_names))
             if missing_outputs:
                 raise ArcanaOutputNotProducedException(
                     "Required output(s) '{}', will not be created by the '{}' "

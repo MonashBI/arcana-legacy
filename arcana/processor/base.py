@@ -875,7 +875,7 @@ class Processor(object):
                                .format(
                                    pformat(mismatches)))
                         requires_reprocess = True
-                except ArcanaNameError as e:
+                except ArcanaNameError:
                     msg = "missing provenance record"
                     requires_reprocess = False
                     to_protect_array[array_inds(node)] = True
