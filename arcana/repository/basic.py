@@ -260,8 +260,8 @@ class BasicRepo(Repository):
                         from_study=from_study,
                         potential_aux_files=[
                             f for f in filtered_files
-                            if (split_extension(f)[0] == basename and
-                                f != fname)],
+                            if (split_extension(f)[0] == basename
+                                and f != fname)],
                         **kwargs))
             for fname in self._filter_dirs(dirs, session_path):
                 all_filesets.append(
@@ -300,12 +300,12 @@ class BasicRepo(Repository):
         if depth == self._depth:
             # Load input data
             from_study = None
-        elif (depth == (self._depth + 1) and
-              self.PROV_DIR in dirs):
+        elif (depth == (self._depth + 1)
+              and self.PROV_DIR in dirs):
             # Load study output
             from_study = path_parts.pop()
-        elif (depth < self._depth and
-              any(not f.startswith('.') for f in files)):
+        elif (depth < self._depth
+              and any(not f.startswith('.') for f in files)):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
             # "hidden" files that start with '.')
@@ -435,8 +435,8 @@ class BasicRepo(Repository):
     def _filter_files(cls, files, base_dir):
         # Filter out hidden files (i.e. starting with '.')
         return [op.join(base_dir, f) for f in files
-                if not (f.startswith('.') or
-                        f.startswith(cls.FIELDS_FNAME))]
+                if not (f.startswith('.')
+                        or f.startswith(cls.FIELDS_FNAME))]
 
     @classmethod
     def _filter_dirs(cls, dirs, base_dir):

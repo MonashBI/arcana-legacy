@@ -61,8 +61,8 @@ class RepositoryInterface(BaseInterface):
     def __eq__(self, other):
         try:
             return (
-                self.fileset_collections == other.fileset_collections and
-                self.field_collections == other.field_collections)
+                self.fileset_collections == other.fileset_collections
+                and self.field_collections == other.field_collections)
         except AttributeError:
             return False
 
@@ -170,8 +170,8 @@ class RepositorySource(RepositoryInterface):
                 fileset = fileset_collection.item(subject_id, visit_id)
                 fileset.get()
                 outputs[fileset_collection.name + PATH_SUFFIX] = fileset.path
-                outputs[fileset_collection.name +
-                        CHECKSUM_SUFFIX] = fileset.checksums
+                outputs[fileset_collection.name
+                        + CHECKSUM_SUFFIX] = fileset.checksums
             for field_collection in self.field_collections:
                 field = field_collection.item(subject_id, visit_id)
                 field.get()

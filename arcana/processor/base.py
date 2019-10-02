@@ -104,10 +104,10 @@ class Processor(object):
     def __eq__(self, other):
         try:
             return (
-                self._work_dir == other._work_dir and
-                self._max_process_time == other._max_process_time and
-                self._reprocess == other._reprocess and
-                self._plugin_args == other._plugin_args)
+                self._work_dir == other._work_dir
+                and self._max_process_time == other._max_process_time
+                and self._reprocess == other._reprocess
+                and self._plugin_args == other._plugin_args)
         except AttributeError:
             return False
 
@@ -233,16 +233,16 @@ class Processor(object):
                                  visit_inds[visit_id]] = True
             if not filter_array.any():
                 raise ArcanaUsageError(
-                    "Provided filters:\n" +
-                    ("  subject_ids: {}\n".format(', '.join(subject_ids))
-                     if subject_ids is not None else '') +
-                    ("  visit_ids: {}\n".format(', '.join(visit_ids))
-                     if visit_ids is not None else '') +
-                    ("  session_ids: {}\n".format(', '.join(session_ids))
-                     if session_ids is not None else '') +
-                    "Did not match any sessions in the project:\n" +
-                    "  subject_ids: {}\n".format(', '.join(subject_inds)) +
-                    "  visit_ids: {}\n".format(', '.join(visit_inds)))
+                    "Provided filters:\n"
+                    + ("  subject_ids: {}\n".format(', '.join(subject_ids))
+                       if subject_ids is not None else '')
+                    + ("  visit_ids: {}\n".format(', '.join(visit_ids))
+                       if visit_ids is not None else '')
+                    + ("  session_ids: {}\n".format(', '.join(session_ids))
+                       if session_ids is not None else '')
+                    + "Did not match any sessions in the project:\n"
+                    + "  subject_ids: {}\n".format(', '.join(subject_inds))
+                    + "  visit_ids: {}\n".format(', '.join(visit_inds)))
 
         # Stack of pipelines to process in reverse order of required execution
         stack = OrderedDict()
@@ -278,8 +278,8 @@ class Processor(object):
                     .format(pipeline,
                             '\n'.join('{} ({})'.format(p, ', '.join(ro))
                                       for p, ro in (
-                                          ((pipeline, req_outputs),) +
-                                          downstream[:(recur_index + 1)]))))
+                                          ((pipeline, req_outputs),)
+                                          + downstream[:(recur_index + 1)]))))
             if pipeline.name in stack:
                 # Pop pipeline from stack in order to add it to the end of the
                 # stack and ensure it is run before all downstream pipelines
@@ -519,8 +519,8 @@ class Processor(object):
                 # present in the input frequency but not the output frequency
                 # and create join nodes
                 source = sources[input_freq]
-                for iterator in (pipeline.iterators(input_freq) -
-                                 pipeline.iterators(freq)):
+                for iterator in (pipeline.iterators(input_freq)
+                                 - pipeline.iterators(freq)):
                     join = pipeline.add(
                         '{}_to_{}_{}_checksum_join'.format(
                             input_freq, freq, iterator),
@@ -807,8 +807,8 @@ class Processor(object):
         # Check data tree for missing required outputs
         for output in pipeline.outputs:
             # Check to see if output is required by downstream processing
-            required = (required_outputs is None or
-                        output.name in required_outputs)
+            required = (required_outputs is None
+                        or output.name in required_outputs)
             for item in output.collection:
                 if item.exists:
                     # Check to see if checksums recorded when derivative
@@ -960,9 +960,9 @@ class Processor(object):
                 "missing required outputs to continue:{}".format(pipeline,
                                                                  error_msg))
         # Add in any prerequisites to process that aren't explicitly protected
-        to_process_array |= (prqs_to_process_array *
-                             filter_array *
-                             np.invert(to_protect_array))
+        to_process_array |= (prqs_to_process_array
+                             * filter_array
+                             * np.invert(to_protect_array))
         to_process_array = self._dialate_array(to_process_array,
                                                pipeline.joins)
         return to_process_array, to_protect_array, to_skip_array

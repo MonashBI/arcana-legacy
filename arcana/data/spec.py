@@ -40,9 +40,9 @@ class BaseInputSpecMixin(object):
         self._default = default
 
     def __eq__(self, other):
-        return (self.desc == other.desc and
-                self.optional == other.optional and
-                self.default == other.default)
+        return (self.desc == other.desc
+                and self.optional == other.optional
+                and self.default == other.default)
 
     def __hash__(self):
         return (hash(self.desc) ^ hash(self.optional) ^ hash(self.default))
@@ -82,8 +82,8 @@ class BaseInputSpecMixin(object):
         """
         if self.default is None:
             raise ArcanaError(
-                ("Attempted to bind '{}' to {} but only acquired specs with " +
-                 "a default value should be bound to studies").format(
+                ("Attempted to bind '{}' to {} but only acquired specs with "
+                 + "a default value should be bound to studies").format(
                     self.name, study))
         if self._study is not None:
             # This avoids rebinding specs to sub-studies that have already
@@ -144,8 +144,8 @@ class BaseSpecMixin(object):
         if pipeline_getter is not None:
             if not isinstance(pipeline_getter, basestring):
                 raise ArcanaUsageError(
-                    ("Pipeline name for {} '{}' is not a string " +
-                     "'{}'").format(name, pipeline_getter))
+                    ("Pipeline name for {} '{}' is not a string "
+                     + "'{}'").format(name, pipeline_getter))
         self._pipeline_getter = pipeline_getter
         self._desc = desc
         self._study = None
@@ -160,14 +160,14 @@ class BaseSpecMixin(object):
         self._group = group
 
     def __eq__(self, other):
-        return (self.pipeline_getter == other.pipeline_getter and
-                self.desc == other.desc and
-                self.pipeline_args == other.pipeline_args and
-                self.group == other.group)
+        return (self.pipeline_getter == other.pipeline_getter
+                and self.desc == other.desc
+                and self.pipeline_args == other.pipeline_args
+                and self.group == other.group)
 
     def __hash__(self):
-        return (hash(self.pipeline_getter) ^ hash(self.desc) ^
-                hash(self.pipeline_args.items()) ^ hash(self.group))
+        return (hash(self.pipeline_getter) ^ hash(self.desc)
+                ^ hash(self.pipeline_args.items()) ^ hash(self.group))
 
     def initkwargs(self):
         dct = {}
@@ -376,14 +376,14 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
                 "without a default")
 
     def __eq__(self, other):
-        return (BaseFileset.__eq__(self, other) and
-                BaseInputSpecMixin.__eq__(self, other) and
-                self._valid_formats == other._valid_formats)
+        return (BaseFileset.__eq__(self, other)
+                and BaseInputSpecMixin.__eq__(self, other)
+                and self._valid_formats == other._valid_formats)
 
     def __hash__(self):
-        return (BaseFileset.__hash__(self) ^
-                BaseInputSpecMixin.__hash__(self) and
-                hash(self.valid_formats))
+        return (BaseFileset.__hash__(self)
+                ^ BaseInputSpecMixin.__hash__(self)
+                and hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseData.initkwargs(self)
@@ -462,14 +462,14 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
         self._valid_formats = valid_formats
 
     def __eq__(self, other):
-        return (BaseFileset.__eq__(self, other) and
-                BaseSpecMixin.__eq__(self, other) and
-                self.valid_formats == other.valid_formats)
+        return (BaseFileset.__eq__(self, other)
+                and BaseSpecMixin.__eq__(self, other)
+                and self.valid_formats == other.valid_formats)
 
     def __hash__(self):
-        return (BaseFileset.__hash__(self) ^
-                BaseSpecMixin.__hash__(self) ^
-                hash(self.valid_formats))
+        return (BaseFileset.__hash__(self)
+                ^ BaseSpecMixin.__hash__(self)
+                ^ hash(self.valid_formats))
 
     def initkwargs(self):
         dct = BaseFileset.initkwargs(self)
@@ -562,8 +562,8 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
                                     default=default)
 
     def __eq__(self, other):
-        return (BaseField.__eq__(self, other) and
-                BaseInputSpecMixin.__eq__(self, other))
+        return (BaseField.__eq__(self, other)
+                and BaseInputSpecMixin.__eq__(self, other))
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^ BaseInputSpecMixin.__hash__(self))
@@ -623,8 +623,8 @@ class FieldSpec(BaseField, BaseSpecMixin):
                                pipeline_args=pipeline_args, group=group)
 
     def __eq__(self, other):
-        return (BaseField.__eq__(self, other) and
-                BaseSpecMixin.__eq__(self, other))
+        return (BaseField.__eq__(self, other)
+                and BaseSpecMixin.__eq__(self, other))
 
     def __hash__(self):
         return (BaseField.__hash__(self) ^ BaseSpecMixin.__hash__(self))
