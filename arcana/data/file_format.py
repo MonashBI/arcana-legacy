@@ -3,7 +3,8 @@ import os
 import os.path as op
 from collections import defaultdict
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaNoConverterError, ArcanaFileFormatError)
+    ArcanaUsageError, ArcanaNoConverterError, ArcanaFileFormatError,
+    ArcanaNameError)
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils.interfaces import (
     ZipDir, UnzipDir, TarGzDir, UnTarGzDir)
@@ -80,27 +81,27 @@ class FileFormat(object):
     def __eq__(self, other):
         try:
             return (
-                self._name == other._name and
-                self._extension == other._extension and
-                self._desc == other._desc and
-                self._directory == other._directory and
-                self._within_dir_exts ==
-                other._within_dir_exts and
-                self._resource_names == other._resource_names and
-                self.aux_files == other.aux_files)
+                self._name == other._name
+                and self._extension == other._extension
+                and self._desc == other._desc
+                and self._directory == other._directory
+                and self._within_dir_exts ==
+                other._within_dir_exts
+                and self._resource_names == other._resource_names
+                and self.aux_files == other.aux_files)
         except AttributeError:
             return False
 
     def __hash__(self):
         return (
-            hash(self._name) ^
-            hash(self._extension) ^
-            hash(self._desc) ^
-            hash(self._directory) ^
-            hash(self._within_dir_exts) ^
-            hash(tuple((repo_type, tuple(self._resource_names[repo_type]))
-                       for repo_type in sorted(self._resource_names))) ^
-            hash(tuple(sorted(self.aux_files.items()))))
+            hash(self._name)
+            ^ hash(self._extension)
+            ^ hash(self._desc)
+            ^ hash(self._directory)
+            ^ hash(self._within_dir_exts)
+            ^ hash(tuple((repo_type, tuple(self._resource_names[repo_type]))
+                         for repo_type in sorted(self._resource_names)))
+            ^ hash(tuple(sorted(self.aux_files.items()))))
 
     def __ne__(self, other):
         return not self == other
@@ -129,7 +130,7 @@ class FileFormat(object):
 
     @property
     def ext(self):
-        return self._extension
+        return self.extension
 
     @property
     def ext_str(self):
@@ -259,9 +260,8 @@ class FileFormat(object):
                     .format(aux_ext, self, "', '".join(candidates)))
             elif len(aux) > 1:
                 raise ArcanaFileFormatError(
-                    ("Multiple potential files for '{}' auxiliary file ext. " +
-                     "({}) of {}".format("', '".join(aux),
-                                         self)))
+                    ("Multiple potential files for '{}' auxiliary file ext. "
+                     + "({}) of {}".format("', '".join(aux), self)))
             else:
                 aux_files[aux_name] = aux[0]
         return primary_file, aux_files
@@ -316,6 +316,46 @@ class FileFormat(object):
         """
         self._converters[file_format.name] = (file_format, converter)
 
+    def aux(self, aux_name):
+        """
+        Returns a FileFormatAuxFile that points directly to the auxiliary file
+        """
+        return FileFormatAuxFile(self, aux_name)
+
+
+class FileFormatAuxFile(object):
+    """
+    A thin wrapper around a FileFormat to point to a specific auxiliary file
+    that sets the extension to be that of the auxiliary file but passes all
+    other calls to the wrapped format.
+
+    Parameters
+    ----------
+    file_format : FileFormat
+        The file format to wrap
+    aux_name : str
+        The name of the auxiliary file to point to
+    """
+
+    def __init__(self, file_format, aux_name):
+        self._file_format = file_format
+        self._aux_name = aux_name
+
+    @property
+    def extension(self):
+        self._file_format.aux_file_exts(self._aux_name)
+
+    @property
+    def aux_name(self):
+        return self._aux_name
+
+    def __repr__(self):
+        return ("FileFormatAuxFile(aux_name='{}', format={})"
+                .format(self.aux_name, self._file_format))
+
+    def __getattr__(self, attr):
+        return getattr(self._file_format, attr)
+
 
 class Converter(object):
     """
@@ -364,6 +404,19 @@ class Converter(object):
     def output(self):
         # To be overridden by subclasses
         return NotImplementedError
+
+    @property
+    def output_aux_files(self):
+        return {}
+
+    def output_aux(self, aux_name):
+        try:
+            return self.output_aux_files[aux_name]
+        except KeyError:
+            raise ArcanaNameError(
+                aux_name,
+                "No auxiliary file in output format {} named '{}".format(
+                    self.output_format, aux_name))
 
     @property
     def mem_gb(self):

@@ -778,7 +778,10 @@ class Pipeline(object):
                             requirements=conv.requirements,
                             mem_gb=conv.mem_gb,
                             wall_time=conv.wall_time)
-                    in_node_out = conv.output
+                    try:
+                        in_node_out = conv.output_aux(format.aux_name)
+                    except AttributeError:  # Not an auxiliary pointer
+                        in_node_out = conv.output
                 else:
                     in_node = inputnode
                     in_node_out = input.name
