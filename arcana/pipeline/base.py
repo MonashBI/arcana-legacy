@@ -321,6 +321,7 @@ class Pipeline(object):
                     "Proposed input '{}' to {} is not a valid spec name ('{}')"
                     .format(name, self._error_msg_loc,
                             "', '".join(self.study.data_spec_names())))
+            self._check_valid_trait_name(node, node_input, 'input')
             self._input_conns[name].append((node, node_input, format, kwargs))
 
     def connect_output(self, spec_name, node, node_output, format=None,
@@ -354,7 +355,24 @@ class Pipeline(object):
                 "Reassigning '{}' output from {}:{} to {}:{} in {}"
                 .format(name, prev_node.name, prev_node_output,
                         node.name, node_output, self._error_msg_loc))
+
+        self._check_valid_trait_name(node, node_output, 'output')
         self._output_conns[name] = (node, node_output, format, kwargs)
+
+    def _check_valid_trait_name(self, node, trait_name, conn_type):
+        if conn_type == 'output':
+            trait_spec = node.interface._outputs()
+        elif conn_type == 'input':
+            trait_spec = node.interface.inputs
+        else:
+            assert False, "unknown conn_type {}".format(conn_type)
+        valid_trait_names = trait_spec.trait_names()
+        if trait_name not in valid_trait_names:
+            raise ArcanaDesignError(
+                ("Node {} '{}' is not a valid trait of {} used for '{}' "
+                    "node of '{}' pipeline. Valid traits are '{}'").format(
+                        conn_type, trait_name, node.interface, node.name,
+                        self.name, "', '".join(valid_trait_names)))
 
     def _map_name(self, name, mapper):
         """
@@ -369,11 +387,25 @@ class Pipeline(object):
                 pass
         return name
 
-    def connect(self, *args, **kwargs):
+    def connect(self, from_node, node_output, to_node, node_input, **kwargs):
         """
-        Performs the connection in the wrapped NiPype workflow
+        Makes a connection between two traits from separate nodes
+
+        Parameters
+        ----------
+        from_node : Node
+            The node to connect from
+        node_output : str
+            The name of the trait in from_node's output spec to connect from
+        to_node : Node
+            The node to connect to
+        node_input : str
+            The name of the trait in to_node's input spec to connect to
         """
-        self._workflow.connect(*args, **kwargs)
+        self._check_valid_trait_name(from_node, node_output, 'output')
+        self._check_valid_trait_name(to_node, node_input, 'input')
+        self._workflow.connect(from_node, node_output, to_node, node_input,
+                               **kwargs)
 
     @property
     def name(self):

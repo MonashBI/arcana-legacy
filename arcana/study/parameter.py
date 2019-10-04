@@ -160,9 +160,9 @@ class ParamSpec(Parameter):
             Whether to make the (first) new choice the new default or stick
             whith the inherited one
         """
-        return ParamSpec(self.name, new_default,
-                         desc=self.desc, choices=self.choices,
-                         dtype=self.dtype, array=self.array)
+        return type(self)(self.name, new_default,
+                          desc=self.desc, choices=self.choices,
+                          dtype=self.dtype, array=self.array)
 
 
 class SwitchSpec(ParamSpec):
@@ -204,6 +204,21 @@ class SwitchSpec(ParamSpec):
         self._choices = tuple(choices) if choices is not None else None
         self._desc = desc
         self._fallbacks = fallbacks if fallbacks is not None else {}
+
+    def with_new_default(self, new_default):
+        """
+        Returns a copy of the switch spec with an additional choice(s)
+        added, which are set as the default by default. Useful when adding
+        a new switch value that is specific to a derived subclass.
+
+        Parameters
+        ----------
+        new_default : bool
+            Whether to make the (first) new choice the new default or stick
+            whith the inherited one
+        """
+        return type(self)(self.name, new_default, desc=self.desc,
+                          choices=self.choices, fallbacks=self.fallbacks)
 
     @property
     def name(self):

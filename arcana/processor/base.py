@@ -59,6 +59,10 @@ class Processor(object):
     default_mem_gb : float
         The default memory assumed to be required for nodes where it isn't
         specified
+
+    NB: Other keyword wargs are passed to the wrapped Nipype plugin. Some
+    useful ones for debugging are 'remove_unnecessary_outputs=False' and
+    'keep_inputs=True'.
     """
 
     DEFAULT_WALL_TIME = 20
