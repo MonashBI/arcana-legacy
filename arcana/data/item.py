@@ -15,26 +15,26 @@ class BaseItemMixin(object):
 
     is_spec = False
 
-    def __init__(self, subject_id, visit_id, repository, from_study,
+    def __init__(self, subject_id, visit_id, repository, from_analysis,
                  exists, record):
         self._subject_id = subject_id
         self._visit_id = visit_id
         self._repository = repository
-        self._from_study = from_study
+        self._from_analysis = from_analysis
         self._exists = exists
         self._record = record
 
     def __eq__(self, other):
         return (self.subject_id == other.subject_id and
                 self.visit_id == other.visit_id and
-                self.from_study == other.from_study and
+                self.from_analysis == other.from_analysis and
                 self.exists == other.exists and
                 self._record == other._record)
 
     def __hash__(self):
         return (hash(self.subject_id) ^
                 hash(self.visit_id) ^
-                hash(self.from_study) ^
+                hash(self.from_analysis) ^
                 hash(self.exists) ^
                 hash(self._record))
 
@@ -49,10 +49,10 @@ class BaseItemMixin(object):
             mismatch += ('\n{}visit_id: self={} v other={}'
                          .format(sub_indent, self.visit_id,
                                  other.visit_id))
-        if self.from_study != other.from_study:
-            mismatch += ('\n{}from_study: self={} v other={}'
-                         .format(sub_indent, self.from_study,
-                                 other.from_study))
+        if self.from_analysis != other.from_analysis:
+            mismatch += ('\n{}from_analysis: self={} v other={}'
+                         .format(sub_indent, self.from_analysis,
+                                 other.from_analysis))
         if self.exists != other.exists:
             mismatch += ('\n{}exists: self={} v other={}'
                          .format(sub_indent, self.exists,
@@ -65,7 +65,7 @@ class BaseItemMixin(object):
 
     @property
     def derived(self):
-        return self.from_study is not None
+        return self.from_analysis is not None
 
     @property
     def repository(self):
@@ -88,8 +88,8 @@ class BaseItemMixin(object):
         return (self.subject_id, self.visit_id)
 
     @property
-    def from_study(self):
-        return self._from_study
+    def from_analysis(self):
+        return self._from_analysis
 
     @property
     def record(self):
@@ -116,7 +116,7 @@ class BaseItemMixin(object):
         dct['repository'] = self.repository
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
-        dct['from_study'] = self._from_study
+        dct['from_analysis'] = self._from_analysis
         return dct
 
 
@@ -131,7 +131,7 @@ class Fileset(BaseItemMixin, BaseFileset):
     format : FileFormat
         The file format used to store the fileset.
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     derived : bool
@@ -154,8 +154,8 @@ class Fileset(BaseItemMixin, BaseFileset):
         The id of the visit which the fileset belongs to
     repository : Repository
         The repository which the fileset is stored
-    from_study : str
-        Name of the Arcana study that that generated the field
+    from_analysis : str
+        Name of the Arcana analysis that that generated the field
     exists : bool
         Whether the fileset exists or is just a placeholder for a derivative
     checksums : dict[str, str]
@@ -180,13 +180,13 @@ class Fileset(BaseItemMixin, BaseFileset):
 
     def __init__(self, name, format=None, frequency='per_session',
                  path=None, aux_files=None, id=None, uri=None, subject_id=None,
-                 visit_id=None, repository=None, from_study=None,
+                 visit_id=None, repository=None, from_analysis=None,
                  exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
         BaseItemMixin.__init__(self, subject_id, visit_id, repository,
-                               from_study, exists, record)
+                               from_analysis, exists, record)
         if aux_files is not None:
             if path is None:
                 raise ArcanaUsageError(
@@ -281,13 +281,13 @@ class Fileset(BaseItemMixin, BaseFileset):
             return False
         else:
             if self.id == other.id:
-                # If ids are equal order depending on study name
-                # with acquired (from_study==None) coming first
-                if self.from_study is None:
-                    return other.from_study is not None
-                elif other.from_study is None:
+                # If ids are equal order depending on analysis name
+                # with acquired (from_analysis==None) coming first
+                if self.from_analysis is None:
+                    return other.from_analysis is not None
+                elif other.from_analysis is None:
                     return False
-                elif self.from_study == other.from_study:
+                elif self.from_analysis == other.from_analysis:
                     if self.format_name is None:
                         return other.format_name is not None
                     elif other.format_name is None:
@@ -295,7 +295,7 @@ class Fileset(BaseItemMixin, BaseFileset):
                     else:
                         return self.format_name < other.format_name
                 else:
-                    return self.from_study < other.from_study
+                    return self.from_analysis < other.from_analysis
             else:
                 return self.id < other.id
 
@@ -305,7 +305,7 @@ class Fileset(BaseItemMixin, BaseFileset):
                 .format(
                     type(self).__name__, self.name, self.format,
                     self.frequency, self.subject_id,
-                    self.visit_id, self.from_study,
+                    self.visit_id, self.from_analysis,
                     (", resource_name='{}'".format(self._resource_name)
                      if self._resource_name is not None else ''),
                     self.exists, self.quality,
@@ -582,7 +582,7 @@ class Field(BaseItemMixin, BaseField):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     derived : bool
@@ -593,8 +593,8 @@ class Field(BaseItemMixin, BaseField):
         The id of the visit which the field belongs to
     repository : Repository
         The repository which the field is stored
-    from_study : str
-        Name of the Arcana study that that generated the field
+    from_analysis : str
+        Name of the Arcana analysis that that generated the field
     exists : bool
         Whether the field exists or is just a placeholder for a derivative
     record : arcana.pipeline.provenance.Record | None
@@ -604,7 +604,7 @@ class Field(BaseItemMixin, BaseField):
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', array=None, subject_id=None,
-                 visit_id=None, repository=None, from_study=None,
+                 visit_id=None, repository=None, from_analysis=None,
                  exists=True, record=None):
         # Try to determine dtype and array from value if they haven't
         # been provided.
@@ -643,7 +643,7 @@ class Field(BaseItemMixin, BaseField):
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
         BaseItemMixin.__init__(self, subject_id, visit_id, repository,
-                               from_study, exists, record)
+                               from_analysis, exists, record)
         self._value = value
 
     def __eq__(self, other):
@@ -688,14 +688,14 @@ class Field(BaseItemMixin, BaseField):
 
     def __lt__(self, other):
         if self.name == other.name:
-            # If ids are equal order depending on study name
-            # with acquired (from_study==None) coming first
-            if self.from_study is None:
-                return other.from_study is None
-            elif other.from_study is None:
+            # If ids are equal order depending on analysis name
+            # with acquired (from_analysis==None) coming first
+            if self.from_analysis is None:
+                return other.from_analysis is None
+            elif other.from_analysis is None:
                 return False
             else:
-                return self.from_study < other.from_study
+                return self.from_analysis < other.from_analysis
         else:
             return self.name < other.name
 
@@ -706,7 +706,7 @@ class Field(BaseItemMixin, BaseField):
                     (" {},".format(self._value)
                      if self._value is not None else ''),
                     self.frequency, self.subject_id,
-                    self.visit_id, self.from_study,
+                    self.visit_id, self.from_analysis,
                     self.exists))
 
     @property

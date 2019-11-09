@@ -16,14 +16,14 @@ class BaseInputMixin(object):
     Base class for Fileset and Field Input classes
     """
 
-    def __init__(self, pattern, is_regex, order, from_study,
+    def __init__(self, pattern, is_regex, order, from_analysis,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
-                 study_=None, collection_=None):
+                 analysis_=None, collection_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
-        self._from_study = from_study
+        self._from_analysis = from_analysis
         self._repository = repository
         self._skip_missing = skip_missing
         self._drop_if_missing = drop_if_missing
@@ -35,13 +35,13 @@ class BaseInputMixin(object):
         # Set when fallback_to_default is True and there are missing matches
         self._derivable = False
         self._fallback = None
-        # study_ and collection_ are not intended to be provided to __init__
+        # analysis_ and collection_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
-        self._study = study_
+        self._analysis = analysis_
         self._collection = collection_
 
     def __eq__(self, other):
-        return (self.from_study == other.from_study and
+        return (self.from_analysis == other.from_analysis and
                 self.pattern == other.pattern and
                 self.is_regex == other.is_regex and
                 self.order == other.order and
@@ -51,7 +51,7 @@ class BaseInputMixin(object):
                 self._fallback_to_default == other._fallback_to_default)
 
     def __hash__(self):
-        return (hash(self.from_study) ^
+        return (hash(self.from_analysis) ^
                 hash(self.pattern) ^
                 hash(self.is_regex) ^
                 hash(self.order) ^
@@ -62,11 +62,11 @@ class BaseInputMixin(object):
 
     def initkwargs(self):
         dct = {}
-        dct['from_study'] = self.from_study
+        dct['from_analysis'] = self.from_analysis
         dct['pattern'] = self.pattern
         dct['order'] = self.order
         dct['is_regex'] = self.is_regex
-        dct['study_'] = self._study
+        dct['analysis_'] = self._analysis
         dct['collection_'] = self._collection
         dct['skip_missing'] = self._skip_missing
         dct['drop_if_missing'] = self._drop_if_missing
@@ -83,15 +83,15 @@ class BaseInputMixin(object):
 
     @property
     def derived(self):
-        return self._from_study is not None
+        return self._from_analysis is not None
 
     @property
     def derivable(self):
         return self._derivable
 
     @property
-    def from_study(self):
-        return self._from_study
+    def from_analysis(self):
+        return self._from_analysis
 
     @property
     def skip_missing(self):
@@ -106,21 +106,21 @@ class BaseInputMixin(object):
         return self._fallback_to_default
 
     @property
-    def study(self):
-        if self._study is None:
+    def analysis(self):
+        if self._analysis is None:
             raise ArcanaNotBoundToAnalysisError(
-                "{} is not bound to a study".format(self))
-        return self._study
+                "{} is not bound to a analysis".format(self))
+        return self._analysis
 
     @property
     def repository(self):
         if self._repository is None:
-            if self._study is None:
+            if self._analysis is None:
                 raise ArcanaUsageError(
                     "Cannot access repository of {} as it wasn't explicitly "
-                    "provided and Input hasn't been bound to a study"
+                    "provided and Input hasn't been bound to a analysis"
                     .format(self))
-            repo = self._study.repository
+            repo = self._analysis.repository
         else:
             repo = self._repository
         return repo
@@ -129,7 +129,7 @@ class BaseInputMixin(object):
     def collection(self):
         if self._collection is None:
             raise ArcanaNotBoundToAnalysisError(
-                "{} has not been bound to a study".format(self))
+                "{} has not been bound to a analysis".format(self))
         return self._collection
 
     @property
@@ -149,17 +149,17 @@ class BaseInputMixin(object):
     def order(self):
         return self._order
 
-    def bind(self, study, spec_name=None, **kwargs):
+    def bind(self, analysis, spec_name=None, **kwargs):
         if spec_name is None:
             spec_name = self.spec_name
-        if self._study == study:
+        if self._analysis == analysis:
             bound = self
         else:
-            # Create copy and set study
+            # Create copy and set analysis
             bound = copy(self)
-            bound._study = study
-            spec = study.data_spec(spec_name)
-            # Use the default study repository if not explicitly
+            bound._analysis = analysis
+            spec = analysis.data_spec(spec_name)
+            # Use the default analysis repository if not explicitly
             # provided to match
             if self.fallback_to_default:
                 if spec.derived:
@@ -168,21 +168,21 @@ class BaseInputMixin(object):
                     raise ArcanaUsageError(
                         "Cannot fallback to default for '{}' spec in {} as it "
                         " is not derived and doesn't have a default"
-                        .format(self.name, study))
-                # We don't want to add the bound copy to the study as that will
-                # override the selector so we bind the fallback to the study
+                        .format(self.name, analysis))
+                # We don't want to add the bound copy to the analysis as that will
+                # override the selector so we bind the fallback to the analysis
                 # from the spec explicitly
-                bound._fallback = spec.bind(study)
+                bound._fallback = spec.bind(analysis)
             # Match against tree
             if self._repository is None:
-                repository = study.repository
+                repository = analysis.repository
             else:
                 repository = self._repository
             with repository:
                 tree = repository.cached_tree(
-                    subject_ids=study.subject_ids,
-                    visit_ids=study.visit_ids,
-                    fill=study.fill_tree)
+                    subject_ids=analysis.subject_ids,
+                    visit_ids=analysis.visit_ids,
+                    fill=analysis.fill_tree)
                 try:
                     valid_formats = spec.valid_formats
                 except AttributeError:
@@ -207,7 +207,7 @@ class BaseInputMixin(object):
             nodes = tree.subjects
         elif self.frequency == 'per_visit':
             nodes = tree.visits
-        elif self.frequency == 'per_study':
+        elif self.frequency == 'per_dataset':
             nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(self.frequency)
@@ -233,8 +233,8 @@ class BaseInputMixin(object):
                             frequency=self.frequency,
                             subject_id=node.subject_id,
                             visit_id=node.visit_id,
-                            repository=self.study.repository,
-                            from_study=self.from_study,
+                            repository=self.analysis.repository,
+                            from_analysis=self.from_analysis,
                             exists=False,
                             **self._specific_kwargs))
                     else:
@@ -254,29 +254,29 @@ class BaseInputMixin(object):
     def match_node(self, node, **kwargs):
         # Get names matching pattern
         matches = self._filtered_matches(node, **kwargs)
-        # Filter matches by study name
-        study_matches = [d for d in matches
-                         if d.from_study == self.from_study]
+        # Filter matches by analysis name
+        analysis_matches = [d for d in matches
+                         if d.from_analysis == self.from_analysis]
         # Select the fileset from the matches
-        if not study_matches:
+        if not analysis_matches:
             raise ArcanaInputMissingMatchError(
-                "No matches found for {} in {} for study {}, however, found {}"
-                .format(self, node, self.from_study,
+                "No matches found for {} in {} for analysis {}, however, found {}"
+                .format(self, node, self.from_analysis,
                         ', '.join(str(m) for m in matches)))
         elif self.order is not None:
             try:
-                match = study_matches[self.order]
+                match = analysis_matches[self.order]
             except IndexError:
                 raise ArcanaInputMissingMatchError(
                     "Did not find {} named data matching pattern {}"
                     " (found {}) in {}".format(self.order, self.pattern,
                                                len(matches), node))
-        elif len(study_matches) == 1:
-            match = study_matches[0]
+        elif len(analysis_matches) == 1:
+            match = analysis_matches[0]
         else:
             raise ArcanaInputError(
                 "Found multiple matches for {} in {} ({})"
-                .format(self, node, ', '.join(str(m) for m in study_matches)))
+                .format(self, node, ', '.join(str(m) for m in analysis_matches)))
         return match
 
 
@@ -298,7 +298,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     id : int | None
@@ -315,17 +315,17 @@ class InputFilesets(BaseInputMixin, BaseFileset):
         To be used to distinguish multiple filesets that match the
         pattern in the same session. The provided DICOM values dicom
         header values must match exactly.
-    from_study : str
-        The name of the study that generated the derived fileset to match.
+    from_analysis : str
+        The name of the analysis that generated the derived fileset to match.
         Is used to determine the location of the filesets in the
         repository as the derived filesets and fields are grouped by
-        the name of the study that generated them.
+        the name of the analysis that generated them.
     skip_missing : bool
         If there is no fileset matching the selector for a node then pipelines
         that use it as an input, including downstream pipelines, will not be
         run for that node
     drop_if_missing : bool
-        If there are missing filesets then drop the selector from the study
+        If there are missing filesets then drop the selector from the analysis
         input. Useful in the case where you want to provide selectors for the
         a list of inputs which may or may not be acquired for a range of
         studies
@@ -335,7 +335,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
         then fallback to the default or generate the derivative.
     repository : Repository | None
         The repository to draw the matches from, if not the main repository
-        that is used to store the products of the current study.
+        that is used to store the products of the current analysis.
     acceptable_quality : str | list[str] | None
         An acceptable quality label, or list thereof, to accept, i.e. if a
         fileset's quality label is not in the list it will be ignored. If a
@@ -346,15 +346,15 @@ class InputFilesets(BaseInputMixin, BaseFileset):
 
     def __init__(self, spec_name, pattern=None, valid_formats=None,
                  frequency='per_session', id=None,
-                 order=None, dicom_tags=None, is_regex=False, from_study=None,
+                 order=None, dicom_tags=None, is_regex=False, from_analysis=None,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
                  acceptable_quality=None,
-                 study_=None, collection_=None):
+                 analysis_=None, collection_=None):
         BaseFileset.__init__(self, spec_name, None, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
-                                from_study, skip_missing, drop_if_missing,
-                                fallback_to_default, repository, study_,
+                                from_analysis, skip_missing, drop_if_missing,
+                                fallback_to_default, repository, analysis_,
                                 collection_)
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
@@ -399,11 +399,11 @@ class InputFilesets(BaseInputMixin, BaseFileset):
     def __repr__(self):
         return ("{}(name='{}', format={}, frequency={}, pattern={}, "
                 "is_regex={}, order={}, id={}, dicom_tags={}, "
-                "from_study={}, acceptable_quality={})"
+                "from_analysis={}, acceptable_quality={})"
                 .format(self.__class__.__name__, self.name, self._format,
                         self.frequency, self._pattern, self.is_regex,
                         self.order, self.id, self.dicom_tags,
-                        self._from_study, self._acceptable_quality))
+                        self._from_analysis, self._acceptable_quality))
 
     def match(self, tree, valid_formats=None, **kwargs):
         if self.valid_formats is not None:
@@ -550,7 +550,7 @@ class InputFields(BaseInputMixin, BaseField):
     is_regex : bool
         Flags whether the pattern is a regular expression or not
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     order : int | None
@@ -559,17 +559,17 @@ class InputFields(BaseInputMixin, BaseField):
         session. Based on the scan ID but is more robust to small
         changes to the IDs within the session if for example there are
         two scans of the same type taken before and after a task.
-    from_study : str
-        The name of the study that generated the derived field to match.
+    from_analysis : str
+        The name of the analysis that generated the derived field to match.
         Is used to determine the location of the fields in the
         repository as the derived filesets and fields are grouped by
-        the name of the study that generated them.
+        the name of the analysis that generated them.
     skip_missing : bool
         If there is no field matching the selector for a node then pipelines
         that use it as an input, including downstream pipelines, will not be
         run for that node
     drop_if_missing : bool
-        If there are missing filesets then drop the selector from the study
+        If there are missing filesets then drop the selector from the analysis
         input. Useful in the case where you want to provide selectors for the
         a list of inputs which may or may not be acquired for a range of
         studies
@@ -579,20 +579,20 @@ class InputFields(BaseInputMixin, BaseField):
         then fallback to the default or generate the derivative.
     repository : Repository | None
         The repository to draw the matches from, if not the main repository
-        that is used to store the products of the current study.
+        that is used to store the products of the current analysis.
     """
 
     is_spec = False
 
     def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
-                 order=None, is_regex=False, from_study=None,
+                 order=None, is_regex=False, from_analysis=None,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None, study_=None,
+                 fallback_to_default=False, repository=None, analysis_=None,
                  collection_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
-                                from_study, skip_missing, drop_if_missing,
-                                fallback_to_default, repository, study_,
+                                from_analysis, skip_missing, drop_if_missing,
+                                fallback_to_default, repository, analysis_,
                                 collection_)
 
     def __eq__(self, other):
@@ -610,7 +610,7 @@ class InputFields(BaseInputMixin, BaseField):
     def dtype(self):
         if self._dtype is None:
             try:
-                dtype = self.study.data_spec(self.name).dtype
+                dtype = self.analysis.data_spec(self.name).dtype
             except ArcanaNotBoundToAnalysisError:
                 dtype = None
         else:
@@ -633,9 +633,9 @@ class InputFields(BaseInputMixin, BaseField):
         else:
             matches = [f for f in node.fields
                        if f.name == self.pattern]
-        if self.from_study is not None:
+        if self.from_analysis is not None:
             matches = [f for f in matches
-                       if f.from_study == self.from_study]
+                       if f.from_analysis == self.from_analysis]
         if not matches:
             raise ArcanaInputMissingMatchError(
                 "Did not find any matches for {} in {}, found:\n{}"
@@ -644,10 +644,10 @@ class InputFields(BaseInputMixin, BaseField):
 
     def __repr__(self):
         return ("{}(name='{}', dtype={}, frequency={}, pattern={}, "
-                "is_regex={}, order={}, from_study={})"
+                "is_regex={}, order={}, from_analysis={})"
                 .format(self.__class__.__name__, self.name, self._dtype,
                         self.frequency, self._pattern, self.is_regex,
-                        self.order, self._from_study))
+                        self.order, self._from_analysis))
 
     @property
     def _specific_kwargs(self):

@@ -37,7 +37,7 @@ Inputs
 
 .. autoclass:: arcana.data.InputFields
 
-.. autoclass:: arcana.study.Parameter
+.. autoclass:: arcana.analysis.Parameter
 
 
 Data

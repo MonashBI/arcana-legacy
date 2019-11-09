@@ -30,7 +30,7 @@ A basic toy example
             # "Input" file set with default value. Useful for
             # standard templates
             InputFilesetSpec('template1', STD_IMAGE_FORMATS,
-                                frequency='per_study',
+                                frequency='per_dataset',
                                 default=template_collectn),
             # Derived file sets
             FilesetSpec('derived_file1', text_format, 'pipeline1'),
@@ -44,7 +44,7 @@ A basic toy example
             # Derived fields
             FieldSpec('derived_field1', float, 'pipeline2'),
             FieldSpec('derived_field2', int, 'pipeline4',
-                      frequency='per_study')]
+                      frequency='per_dataset')]
 
         # Specify free parameters of the analysis, including quantitative
         # (Parameter) and qualitative (Switches) options.
@@ -91,7 +91,7 @@ A basic toy example
                 # the workflow is run in
                 requirements=[software_req1])
 
-            # If 'node1_option' is set to True when the study is initialised
+            # If 'node1_option' is set to True when the analysis is initialised
             # then this option is set here using tradition Nipype syntax
             if self.branch('node1_option'):
                 node1.inputs.an_option = 'set-extra-option'
@@ -134,11 +134,11 @@ which can then be instantiated and used to generate 'derived2' with
 
 .. code-block:: python
 
-    # Initialise study, selecting data corresponding to the data
+    # Initialise analysis, selecting data corresponding to the data
     # specified in the local directory repository and parameters
     # used in the processing
-    your_study = ExampleAnalysis(
-        name='your_study',
+    your_analysis = ExampleAnalysis(
+        name='your_analysis',
         repository=BasicRepo('/path/to/local/archive'),
         processor=SingleProc('/my/work/dir'),
         environment=StaticEnv(),
@@ -151,6 +151,6 @@ which can then be instantiated and used to generate 'derived2' with
 
     # Execute the pipelines required to generate file 5 and field 2
     # and return handle to generated data
-    file5, field2 = study.data(['derived_file5', 'derived_field2'])
+    file5, field2 = analysis.data(['derived_file5', 'derived_field2'])
     print("Generated derived file 5 at '{}'.format(file5.path))
     print("Value of generated field 2 = {}'.format(field2))

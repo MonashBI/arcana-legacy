@@ -4,7 +4,7 @@ import os.path as op
 from arcana.data import InputFilesetSpec, FilesetSpec, InputFilesets, Fileset
 from arcana.data.file_format import (
     text_format, directory_format, zip_format)
-from arcana.study.base import Analysis, AnalysisMetaClass
+from arcana.analysis.base import Analysis, AnalysisMetaClass
 from arcana.utils.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils.interfaces import ZipDir
@@ -120,13 +120,13 @@ class TestFormatConversions(BaseTestCase):
         return Fileset.from_path(path, format=zip_format)
 
     def test_format_conversions(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             ConversionAnalysis, 'conversion', [
                 InputFilesets('text', 'text', text_format),
                 InputFilesets('directory', 'directory', directory_format),
                 InputFilesets('zip', 'zip', zip_format)])
-        self.assertCreated(list(study.data('text_from_text'))[0])
-        self.assertCreated(list(study.data('directory_from_zip_on_input'))[0])
-        self.assertCreated(list(study.data('zip_from_directory_on_input'))[0])
-        self.assertCreated(list(study.data('directory_from_zip_on_output'))[0])
-        self.assertCreated(list(study.data('zip_from_directory_on_output'))[0])
+        self.assertCreated(list(analysis.data('text_from_text'))[0])
+        self.assertCreated(list(analysis.data('directory_from_zip_on_input'))[0])
+        self.assertCreated(list(analysis.data('zip_from_directory_on_input'))[0])
+        self.assertCreated(list(analysis.data('directory_from_zip_on_output'))[0])
+        self.assertCreated(list(analysis.data('zip_from_directory_on_output'))[0])

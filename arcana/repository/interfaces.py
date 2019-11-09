@@ -239,7 +239,7 @@ class RepositorySink(RepositoryInterface):
                 assert False
         self._prov = pipeline.prov
         self._pipeline_name = pipeline.name
-        self._from_study = pipeline.study.name
+        self._from_analysis = pipeline.analysis.name
         self._required = required
 
     def _list_outputs(self):
@@ -290,7 +290,7 @@ class RepositorySink(RepositoryInterface):
             prov['inputs'] = input_checksums
             prov['outputs'] = output_checksums
             record = Record(self._pipeline_name, self.frequency, subject_id,
-                            visit_id, self._from_study, prov)
+                            visit_id, self._from_analysis, prov)
             for repository in self.repositories:
                 repository.put_record(record)
         if missing_inputs:

@@ -3,7 +3,7 @@ from unittest import TestCase
 from nipype.interfaces.utility import Merge, Split
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, InputFilesets, FieldSpec)
-from arcana.study.base import Analysis, AnalysisMetaClass
+from arcana.analysis.base import Analysis, AnalysisMetaClass
 from arcana.exceptions import (
     ArcanaModulesNotInstalledException, ArcanaError, ArcanaModulesError)
 import unittest
@@ -116,21 +116,21 @@ class TestModuleLoad(BaseTestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_module_load(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             RequirementsAnalysis, 'requirements',
             {'ones': 'ones'},
             environment=ModulesEnv())
-        self.assertContentsEqual(study.data('twos'), 2.0)
+        self.assertContentsEqual(analysis.data('twos'), 2.0)
         self.assertEqual(ModulesEnv.loaded(), {})
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_module_load_in_map(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             RequirementsAnalysis, 'requirements',
             [InputFilesets('ones', 'ones', text_format)],
             environment=ModulesEnv())
-        threes = study.data('threes')
-        fours = study.data('fours')
+        threes = analysis.data('threes')
+        fours = analysis.data('fours')
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
         self.assertEqual(ModulesEnv.loaded(), {})

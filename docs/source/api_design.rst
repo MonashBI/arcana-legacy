@@ -8,23 +8,23 @@ be sub-classed to implement workflows.
 Analysis
 -----
 
-.. autoclass:: arcana.study.Analysis
+.. autoclass:: arcana.analysis.Analysis
     :members: data, new_pipeline, pipeline, provided, branch, parameter, unhandled_branch, data_spec, param_spec
 
-.. autoclass:: arcana.study.MultiAnalysis
-    :members: substudy, translate
+.. autoclass:: arcana.analysis.MultiAnalysis
+    :members: subcomp, translate
 
-.. autoclass:: arcana.study.ParamSpec
+.. autoclass:: arcana.analysis.ParamSpec
 
-.. autoclass:: arcana.study.SubAnalysisSpec
+.. autoclass:: arcana.analysis.SubCompSpec
 
 
 Meta-classes
 ------------
 
-.. autoclass:: arcana.study.AnalysisMetaClass
+.. autoclass:: arcana.analysis.AnalysisMetaClass
 
-.. autoclass:: arcana.study.MultiAnalysisMetaClass
+.. autoclass:: arcana.analysis.MultiAnalysisMetaClass
 
 
 Data Specs

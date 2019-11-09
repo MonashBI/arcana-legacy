@@ -60,7 +60,7 @@ class Parameter(object):
 
 class ParamSpec(Parameter):
     """
-    Specifies a parameter that can be passed to the study
+    Specifies a parameter that can be passed to the analysis
 
     Parameters
     ----------

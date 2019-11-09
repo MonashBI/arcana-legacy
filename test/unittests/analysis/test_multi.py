@@ -2,12 +2,12 @@ from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
 from arcana.data import InputFilesets, FilesetSpec, InputFilesetSpec
 from arcana.data.file_format import text_format
-from arcana.study.parameter import ParamSpec
+from arcana.analysis.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
-from arcana.study.base import Analysis
-from arcana.study.multi import (
-    MultiAnalysis, SubAnalysisSpec, MultiAnalysisMetaClass, AnalysisMetaClass)
-from arcana.study.parameter import Parameter
+from arcana.analysis.base import Analysis
+from arcana.analysis.multi import (
+    MultiAnalysis, SubCompSpec, MultiAnalysisMetaClass, AnalysisMetaClass)
+from arcana.analysis.parameter import Parameter
 from future.utils import with_metaclass
 import unittest
 
@@ -92,15 +92,15 @@ class AnalysisB(with_metaclass(AnalysisMetaClass, Analysis)):
 
 class FullMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
 
-    add_substudy_specs = [
-        SubAnalysisSpec('ss1', AnalysisA,
+    add_subcomp_specs = [
+        SubCompSpec('ss1', AnalysisA,
                      {'x': 'a',
                       'y': 'b',
                       'z': 'd',
                       'o1': 'p1',
                       'o2': 'p2',
                       'o3': 'p3'}),
-        SubAnalysisSpec('ss2', AnalysisB,
+        SubCompSpec('ss2', AnalysisB,
                      {'w': 'b',
                       'x': 'c',
                       'y': 'e',
@@ -134,10 +134,10 @@ class FullMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
 
 class PartialMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
 
-    add_substudy_specs = [
-        SubAnalysisSpec('ss1', AnalysisA,
+    add_subcomp_specs = [
+        SubCompSpec('ss1', AnalysisA,
                      {'x': 'a', 'y': 'b', 'o1': 'p1'}),
-        SubAnalysisSpec('ss2', AnalysisB,
+        SubCompSpec('ss2', AnalysisB,
                      {'w': 'b', 'x': 'c', 'o1': 'p1'})]
 
     add_data_specs = [
@@ -154,10 +154,10 @@ class PartialMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)
 
 class MultiMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
 
-    add_substudy_specs = [
-        SubAnalysisSpec('ss1', AnalysisA),
-        SubAnalysisSpec('full', FullMultiAnalysis),
-        SubAnalysisSpec('partial', PartialMultiAnalysis)]
+    add_subcomp_specs = [
+        SubCompSpec('ss1', AnalysisA),
+        SubCompSpec('full', FullMultiAnalysis),
+        SubCompSpec('partial', PartialMultiAnalysis)]
 
     add_data_specs = [
         FilesetSpec('g', text_format, 'combined_pipeline')]
@@ -191,69 +191,69 @@ class TestMulti(BaseTestCase):
 
     INPUT_FILESETS = {'ones': '1'}
 
-    def test_full_multi_study(self):
-        study = self.create_study(
+    def test_full_multi_analysis(self):
+        analysis = self.create_analysis(
             FullMultiAnalysis, 'full',
             [InputFilesets('a', 'ones', text_format),
              InputFilesets('b', 'ones', text_format),
              InputFilesets('c', 'ones', text_format)],
             parameters=[Parameter('required_op', 'mul')])
-        d, e, f = study.data(('d', 'e', 'f'),
+        d, e, f = analysis.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
         self.assertContentsEqual(e, 3.0)
         self.assertContentsEqual(f, 6.0)
         # Test parameter values in MultiAnalysis
-        self.assertEqual(study._get_parameter('p1').value, 100)
-        self.assertEqual(study._get_parameter('p2').value, '200')
-        self.assertEqual(study._get_parameter('p3').value, 300.0)
-        self.assertEqual(study._get_parameter('q1').value, 150)
-        self.assertEqual(study._get_parameter('q2').value, '250')
-        self.assertEqual(study._get_parameter('required_op').value, 'mul')
-        # Test parameter values in SubAnalysis
-        ss1 = study.substudy('ss1')
+        self.assertEqual(analysis._get_parameter('p1').value, 100)
+        self.assertEqual(analysis._get_parameter('p2').value, '200')
+        self.assertEqual(analysis._get_parameter('p3').value, 300.0)
+        self.assertEqual(analysis._get_parameter('q1').value, 150)
+        self.assertEqual(analysis._get_parameter('q2').value, '250')
+        self.assertEqual(analysis._get_parameter('required_op').value, 'mul')
+        # Test parameter values in SubComp
+        ss1 = analysis.subcomp('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 100)
         self.assertEqual(ss1._get_parameter('o2').value, '200')
         self.assertEqual(ss1._get_parameter('o3').value, 300.0)
-        ss2 = study.substudy('ss2')
+        ss2 = analysis.subcomp('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 150)
         self.assertEqual(ss2._get_parameter('o2').value, '250')
         self.assertEqual(ss2._get_parameter('o3').value, 300.0)
         self.assertEqual(ss2._get_parameter('product_op').value, 'mul')
 
-    def test_partial_multi_study(self):
-        study = self.create_study(
+    def test_partial_multi_analysis(self):
+        analysis = self.create_analysis(
             PartialMultiAnalysis, 'partial',
             [InputFilesets('a', 'ones', text_format),
              InputFilesets('b', 'ones', text_format),
              InputFilesets('c', 'ones', text_format)],
             parameters=[Parameter('ss2_product_op', 'mul')])
-        ss1_z = study.data('ss1_z',
+        ss1_z = analysis.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
-        ss2_z = list(study.data('ss2_z'))[0]
+        ss2_z = list(analysis.data('ss2_z'))[0]
         self.assertContentsEqual(ss1_z, 2.0)
-        self.assertContentsEqual(study.data('ss2_y'), 3.0)
+        self.assertContentsEqual(analysis.data('ss2_y'), 3.0)
         self.assertContentsEqual(ss2_z, 6.0)
         # Test parameter values in MultiAnalysis
-        self.assertEqual(study._get_parameter('p1').value, 1000)
-        self.assertEqual(study._get_parameter('ss1_o2').value, '2')
-        self.assertEqual(study._get_parameter('ss1_o3').value, 3.0)
-        self.assertEqual(study._get_parameter('ss2_o2').value, '20')
-        self.assertEqual(study._get_parameter('ss2_o3').value, 30.0)
-        self.assertEqual(study._get_parameter('ss2_product_op').value, 'mul')
-        # Test parameter values in SubAnalysis
-        ss1 = study.substudy('ss1')
+        self.assertEqual(analysis._get_parameter('p1').value, 1000)
+        self.assertEqual(analysis._get_parameter('ss1_o2').value, '2')
+        self.assertEqual(analysis._get_parameter('ss1_o3').value, 3.0)
+        self.assertEqual(analysis._get_parameter('ss2_o2').value, '20')
+        self.assertEqual(analysis._get_parameter('ss2_o3').value, 30.0)
+        self.assertEqual(analysis._get_parameter('ss2_product_op').value, 'mul')
+        # Test parameter values in SubComp
+        ss1 = analysis.subcomp('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 1000)
         self.assertEqual(ss1._get_parameter('o2').value, '2')
         self.assertEqual(ss1._get_parameter('o3').value, 3.0)
-        ss2 = study.substudy('ss2')
+        ss2 = analysis.subcomp('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 1000)
         self.assertEqual(ss2._get_parameter('o2').value, '20')
         self.assertEqual(ss2._get_parameter('o3').value, 30.0)
         self.assertEqual(ss2._get_parameter('product_op').value, 'mul')
 
-    def test_multi_multi_study(self):
-        study = self.create_study(
+    def test_multi_multi_analysis(self):
+        analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
             [InputFilesets('ss1_x', 'ones', text_format),
              InputFilesets('ss1_y', 'ones', text_format),
@@ -265,39 +265,39 @@ class TestMulti(BaseTestCase):
              InputFilesets('partial_c', 'ones', text_format)],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
-        self.assertContentsEqual(study.data('g'), 11.0)
+        self.assertContentsEqual(analysis.data('g'), 11.0)
         # Test parameter values in MultiAnalysis
-        self.assertEqual(study._get_parameter('full_p1').value, 100)
-        self.assertEqual(study._get_parameter('full_p2').value, '200')
-        self.assertEqual(study._get_parameter('full_p3').value, 300.0)
-        self.assertEqual(study._get_parameter('full_q1').value, 150)
-        self.assertEqual(study._get_parameter('full_q2').value, '250')
-        self.assertEqual(study._get_parameter('full_required_op').value,
+        self.assertEqual(analysis._get_parameter('full_p1').value, 100)
+        self.assertEqual(analysis._get_parameter('full_p2').value, '200')
+        self.assertEqual(analysis._get_parameter('full_p3').value, 300.0)
+        self.assertEqual(analysis._get_parameter('full_q1').value, 150)
+        self.assertEqual(analysis._get_parameter('full_q2').value, '250')
+        self.assertEqual(analysis._get_parameter('full_required_op').value,
                          'mul')
-        # Test parameter values in SubAnalysis
-        ss1 = study.substudy('full').substudy('ss1')
+        # Test parameter values in SubComp
+        ss1 = analysis.subcomp('full').subcomp('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 100)
         self.assertEqual(ss1._get_parameter('o2').value, '200')
         self.assertEqual(ss1._get_parameter('o3').value, 300.0)
-        ss2 = study.substudy('full').substudy('ss2')
+        ss2 = analysis.subcomp('full').subcomp('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 150)
         self.assertEqual(ss2._get_parameter('o2').value, '250')
         self.assertEqual(ss2._get_parameter('o3').value, 300.0)
         self.assertEqual(ss2._get_parameter('product_op').value, 'mul')
         # Test parameter values in MultiAnalysis
-        self.assertEqual(study._get_parameter('partial_p1').value, 1000)
-        self.assertEqual(study._get_parameter('partial_ss1_o2').value, '2')
-        self.assertEqual(study._get_parameter('partial_ss1_o3').value, 3.0)
-        self.assertEqual(study._get_parameter('partial_ss2_o2').value, '20')
-        self.assertEqual(study._get_parameter('partial_ss2_o3').value, 30.0)
+        self.assertEqual(analysis._get_parameter('partial_p1').value, 1000)
+        self.assertEqual(analysis._get_parameter('partial_ss1_o2').value, '2')
+        self.assertEqual(analysis._get_parameter('partial_ss1_o3').value, 3.0)
+        self.assertEqual(analysis._get_parameter('partial_ss2_o2').value, '20')
+        self.assertEqual(analysis._get_parameter('partial_ss2_o3').value, 30.0)
         self.assertEqual(
-            study._get_parameter('partial_ss2_product_op').value, 'mul')
-        # Test parameter values in SubAnalysis
-        ss1 = study.substudy('partial').substudy('ss1')
+            analysis._get_parameter('partial_ss2_product_op').value, 'mul')
+        # Test parameter values in SubComp
+        ss1 = analysis.subcomp('partial').subcomp('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 1000)
         self.assertEqual(ss1._get_parameter('o2').value, '2')
         self.assertEqual(ss1._get_parameter('o3').value, 3.0)
-        ss2 = study.substudy('partial').substudy('ss2')
+        ss2 = analysis.subcomp('partial').subcomp('ss2')
         self.assertEqual(ss2._get_parameter('o1').value, 1000)
         self.assertEqual(ss2._get_parameter('o2').value, '20')
         self.assertEqual(ss2._get_parameter('o3').value, 30.0)
@@ -315,28 +315,28 @@ class TestMulti(BaseTestCase):
                   InputFilesets('partial_a', 'ones', text_format),
                   InputFilesets('partial_b', 'ones', text_format),
                   InputFilesets('partial_c', 'ones', text_format)]
-        missing_parameter_study = self.create_study(
+        missing_parameter_analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
             inputs,
             parameters=[
                 Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
             NotSpecifiedRequiredParameter,
-            missing_parameter_study.data,
+            missing_parameter_analysis.data,
             'g')
-        missing_parameter_study2 = self.create_study(
+        missing_parameter_analysis2 = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
             inputs,
             parameters=[Parameter('full_required_op', 'mul')])
         self.assertRaises(
             NotSpecifiedRequiredParameter,
-            missing_parameter_study2.data,
+            missing_parameter_analysis2.data,
             'g')
-        provided_parameters_study = self.create_study(
+        provided_parameters_analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
             inputs,
             parameters=[
                 Parameter('partial_ss2_product_op', 'mul'),
                 Parameter('full_required_op', 'mul')])
-        g = list(provided_parameters_study.data('g'))[0]
+        g = list(provided_parameters_analysis.data('g'))[0]
         self.assertContentsEqual(g, 11.0)

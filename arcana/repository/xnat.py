@@ -58,7 +58,7 @@ class XnatRepo(Repository):
         A regular expression that is used to prefilter the discovered sessions
         to avoid having to retrieve metadata for them, and potentially speeding
         up the initialisation of the Analysis. Note that if the processing relies
-        on summary derivatives (i.e. of 'per_visit/subject/study' frequency)
+        on summary derivatives (i.e. of 'per_visit/subject/analysis' frequency)
         then the filter should match all sessions in the Analysis's subject_ids
         and visit_ids.
     """
@@ -438,7 +438,7 @@ class XnatRepo(Repository):
                     .format(self.project_id, subject_xid, session_xid))
                 # Get field values. We do this first so we can check for the
                 # DERIVED_FROM_FIELD to determine the correct session label and
-                # study name
+                # analysis name
                 field_values = {}
                 try:
                     fields_json = next(
@@ -454,13 +454,13 @@ class XnatRepo(Repository):
                             pass
                         else:
                             field_values[js['data_fields']['name']] = value
-                # Extract study name and derived-from session
+                # Extract analysis name and derived-from session
                 if self.DERIVED_FROM_FIELD in field_values:
                     df_sess_label = field_values.pop(self.DERIVED_FROM_FIELD)
-                    from_study = session_label[len(df_sess_label) + 1:]
+                    from_analysis = session_label[len(df_sess_label) + 1:]
                     session_label = df_sess_label
                 else:
-                    from_study = None
+                    from_analysis = None
                 # Strip subject ID from session label if required
                 if session_label.startswith(subject_id + '_'):
                     visit_id = session_label[len(subject_id) + 1:]
@@ -483,7 +483,7 @@ class XnatRepo(Repository):
                     continue
                 # Determine frequency
                 if (subject_id, visit_id) == (None, None):
-                    frequency = 'per_study'
+                    frequency = 'per_dataset'
                 elif visit_id is None:
                     frequency = 'per_subject'
                 elif subject_id is None:
@@ -498,7 +498,7 @@ class XnatRepo(Repository):
                         frequency=frequency,
                         subject_id=subject_id,
                         visit_id=visit_id,
-                        from_study=from_study,
+                        from_analysis=from_analysis,
                         **kwargs))
                 # Extract part of JSON relating to files
                 try:
@@ -545,7 +545,7 @@ class XnatRepo(Repository):
                                             Record.load(
                                                 pipeline_name, frequency,
                                                 subject_id, visit_id,
-                                                from_study, json_path))
+                                                from_analysis, json_path))
                         finally:
                             shutil.rmtree(temp_dir, ignore_errors=True)
                     else:
@@ -554,7 +554,7 @@ class XnatRepo(Repository):
                                 scan_type, id=scan_id, uri=scan_uri,
                                 repository=self, frequency=frequency,
                                 subject_id=subject_id, visit_id=visit_id,
-                                from_study=from_study, quality=scan_quality,
+                                from_analysis=from_analysis, quality=scan_quality,
                                 resource_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
                     subject_id, visit_id, self.server, self.project_id))
@@ -689,10 +689,10 @@ class XnatRepo(Repository):
                 if item.derived:
                     xsession.fields[
                         self.DERIVED_FROM_FIELD] = self._get_item_labels(
-                            item, no_from_study=True)[1]
+                            item, no_from_analysis=True)[1]
         return xsession
 
-    def _get_item_labels(self, item, no_from_study=False):
+    def _get_item_labels(self, item, no_from_analysis=False):
         """
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
@@ -701,8 +701,8 @@ class XnatRepo(Repository):
         visit_id = self.inv_map_visit_id(item.visit_id)
         subj_label, sess_label = self._get_labels(
             item.frequency, subject_id, visit_id)
-        if not no_from_study and item.from_study is not None:
-            sess_label += '_' + item.from_study
+        if not no_from_analysis and item.from_analysis is not None:
+            sess_label += '_' + item.from_analysis
         return (subj_label, sess_label)
 
     def _get_labels(self, frequency, subject_id=None, visit_id=None):
@@ -728,7 +728,7 @@ class XnatRepo(Repository):
             sess_label = '{}_{}_{}'.format(self.project_id,
                                            self.SUMMARY_NAME,
                                            visit_id)
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             subj_label = '{}_{}'.format(self.project_id,
                                         self.SUMMARY_NAME)
             sess_label = '{}_{}_{}'.format(self.project_id,

@@ -72,7 +72,7 @@ class CreateXnatProjectMixin(object):
 class TestOnXnatMixin(CreateXnatProjectMixin):
 
     def session_label(self, project=None, subject=None, visit=None,
-                      from_study=None):
+                      from_analysis=None):
         if project is None:
             project = self.project
         if subject is None:
@@ -80,12 +80,12 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         if visit is None:
             visit = self.VISIT
         label = '_'.join((project, subject, visit))
-        if from_study is not None:
-            label += '_' + from_study
+        if from_analysis is not None:
+            label += '_' + from_analysis
         return label
 
     def session_cache(self, base_dir=None, project=None, subject=None,
-                      visit=None, from_study=None):
+                      visit=None, from_analysis=None):
         if base_dir is None:
             base_dir = self.cache_dir
         if project is None:
@@ -95,7 +95,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         return op.join(
             base_dir, project, '{}_{}'.format(project, subject),
             self.session_label(project=project, subject=subject,
-                               visit=visit, from_study=from_study))
+                               visit=visit, from_analysis=from_analysis))
 
     def setUp(self):
         BaseTestCase.setUp(self)
@@ -227,7 +227,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             assert visit is not None
             assert subject is None
             parts = [self.project, XnatRepo.SUMMARY_NAME, visit]
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             assert subject is None
             assert visit is None
             parts = [self.project, XnatRepo.SUMMARY_NAME,
@@ -241,17 +241,17 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                 "Session path '{}' does not exist".format(session_path))
         return session_path
 
-    def output_file_path(self, fname, from_study, subject=None, visit=None,
+    def output_file_path(self, fname, from_analysis, subject=None, visit=None,
                          frequency='per_session'):
         try:
             acq_path = self.BASE_CLASS.output_file_path(
-                self, fname, from_study, subject=subject, visit=visit,
+                self, fname, from_analysis, subject=subject, visit=visit,
                 frequency=frequency, derived=False)
         except KeyError:
             acq_path = None
         try:
             proc_path = self.BASE_CLASS.output_file_path(
-                self, fname, from_study, subject=subject, visit=visit,
+                self, fname, from_analysis, subject=subject, visit=visit,
                 frequency=frequency, derived=True)
         except KeyError:
             proc_path = None
@@ -259,7 +259,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             if op.exists(proc_path):
                 raise ArcanaError(
                     "Both acquired and derived paths were found for "
-                    "'{}_{}' ({} and {})".format(from_study, fname, acq_path,
+                    "'{}_{}' ({} and {})".format(from_analysis, fname, acq_path,
                                                  proc_path))
             path = acq_path
         else:

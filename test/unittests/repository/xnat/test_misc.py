@@ -14,7 +14,7 @@ from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
 
 
-# Import TestExistingPrereqs study to test it on XNAT
+# Import TestExistingPrereqs analysis to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
 import test_data  # noqa pylint: disable=import-error
 from test_data import dicom_format  # noqa pylint: disable=import-error
@@ -92,21 +92,21 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_dicom_match(self):
-        study = test_data.TestMatchAnalysis(
+        analysis = test_data.TestMatchAnalysis(
             name='test_dicom',
             repository=XnatRepo(
                 project_id=self.project,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=SingleProc(self.work_dir),
             inputs=test_data.TestDicomTagMatch.DICOM_MATCH)
-        phase = list(study.data('gre_phase'))[0]
-        mag = list(study.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase'))[0]
+        mag = list(analysis.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_id_match(self):
-        study = test_data.TestMatchAnalysis(
+        analysis = test_data.TestMatchAnalysis(
             name='test_dicom',
             repository=XnatRepo(
                 project_id=self.project,
@@ -115,8 +115,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
             inputs=[
                 InputFilesets('gre_phase', valid_formats=dicom_format, id=7),
                 InputFilesets('gre_mag', valid_formats=dicom_format, id=6)])
-        phase = list(study.data('gre_phase'))[0]
-        mag = list(study.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase'))[0]
+        mag = list(analysis.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 

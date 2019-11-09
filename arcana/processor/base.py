@@ -98,7 +98,7 @@ class Processor(object):
         self._deffault_mem_gb = default_mem_gb
         self._plugin_args.update(kwargs)
         self._init_plugin()
-        self._study = None
+        self._analysis = None
         self._clean_work_dir_between_runs = clean_work_dir_between_runs
 
     def __repr__(self):
@@ -119,8 +119,8 @@ class Processor(object):
         self._plugin = self.nipype_plugin_cls(**self._plugin_args)  # noqa pylint: disable=no-member
 
     @property
-    def study(self):
-        return self._study
+    def analysis(self):
+        return self._analysis
 
     @property
     def reprocess(self):
@@ -142,14 +142,14 @@ class Processor(object):
     def default_wall_time(self):
         return self._default_wall_time
 
-    def bind(self, study):
+    def bind(self, analysis):
         cpy = deepcopy(self)
-        cpy._study = study
+        cpy._analysis = analysis
         return cpy
 
     def run(self, *pipelines, **kwargs):
         """
-        Connects all pipelines to that study's repository and runs them
+        Connects all pipelines to that analysis's repository and runs them
         in the same NiPype workflow
 
         Parameters
@@ -161,7 +161,7 @@ class Processor(object):
             outputs are assumed to be required
         subject_ids : list[str]
             The subset of subject IDs to process. If None all available will be
-            processed. Note this is not a duplication of the study
+            processed. Note this is not a duplication of the analysis
             and visit IDs passed to the Analysis __init__, as they define the
             scope of the analysis and these simply limit the scope of the
             current run (e.g. to break the analysis into smaller chunks and
@@ -211,7 +211,7 @@ class Processor(object):
 
         # Generate filter array to optionally restrict the run to certain
         # subject and visit IDs.
-        tree = self.study.tree
+        tree = self.analysis.tree
         # Create maps from the subject|visit IDs to an index used to represent
         # them in the filter array
         subject_inds = {s.id: i for i, s in enumerate(tree.subjects)}
@@ -299,8 +299,8 @@ class Processor(object):
                 req_outputs.update(prev_req_outputs)
                 filt_array = filt_array | prev_filt_array
             # If the pipeline to process contains summary outputs (i.e. 'per-
-            # subject|visit|study' frequency), then we need to "dialate" the
-            # filter array to include IDs across the scope of the study, e.g.
+            # subject|visit|analysis' frequency), then we need to "dialate" the
+            # filter array to include IDs across the scope of the analysis, e.g.
             # all subjects for per-vist, or all visits for per-subject.
             output_freqs = set(pipeline.output_frequencies)
             dialated_filt_array = self._dialate_array(filt_array,
@@ -326,7 +326,7 @@ class Processor(object):
             try:
                 for (prq_getter,
                      prq_req_outputs) in pipeline.prerequisites.items():
-                    prereq = pipeline.study.pipeline(
+                    prereq = pipeline.analysis.pipeline(
                         prq_getter, prq_req_outputs)
                     push_on_stack(prereq, filt_array, prq_req_outputs,
                                   ((pipeline, req_outputs),) + downstream)
@@ -362,7 +362,7 @@ class Processor(object):
             result = None
         # Reset the cached tree of filesets in the repository as it will
         # change after the pipeline has run.
-        self.study.clear_caches()
+        self.analysis.clear_caches()
         return result
 
     def _connect_pipeline(self, pipeline, required_outputs, workflow,
@@ -417,7 +417,7 @@ class Processor(object):
         prqs_to_skip_array = np.zeros((len(subject_inds), len(visit_inds)),
                                       dtype=bool)
         for getter_name in pipeline.prerequisites:
-            prereq = pipeline.study.pipeline(getter_name)
+            prereq = pipeline.analysis.pipeline(getter_name)
             if prereq.to_process_array.any():
                 final_nodes.append(prereq.node('final'))
                 prqs_to_process_array |= prereq.to_process_array
@@ -492,7 +492,7 @@ class Processor(object):
 
         # Connect all outputs to the repository sink, creating a new sink for
         # each frequency level (i.e 'per_session', 'per_subject', 'per_visit',
-        # or 'per_study')
+        # or 'per_dataset')
         for freq in pipeline.output_frequencies:
             outputs = list(pipeline.frequency_outputs(freq))
             if pipeline.iterators(freq) - pipeline.iterators():
@@ -503,7 +503,7 @@ class Processor(object):
                             "', '".join(pipeline.iterators())))
             outputnode = pipeline.outputnode(freq)
             # Connect filesets/fields to sink to sink node, skipping outputs
-            # that are study inputs
+            # that are analysis inputs
             to_connect = {o.suffixed_name: (outputnode, o.name)
                           for o in outputs if o.is_spec}
             # Connect iterators to sink node
@@ -547,9 +547,9 @@ class Processor(object):
             # "De-iterate" (join) over iterators to get back to single child
             # node by the time we connect to the final node of the pipeline Set
             # the sink and subject_id as the default deiterator if there are no
-            # deiterates (i.e. per_study) or to use as the upstream node to
+            # deiterates (i.e. per_dataset) or to use as the upstream node to
             # connect the first deiterator for every frequency
-            deiter_nodes[freq] = sink  # for per_study the "deiterator" == sink
+            deiter_nodes[freq] = sink  # for per_dataset the "deiterator" == sink
             for iterator in sorted(pipeline.iterators(freq),
                                    key=deiter_node_sort_key):
                 # Connect to previous deiterator or sink
@@ -576,7 +576,7 @@ class Processor(object):
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
         """
-        Generate nodes that iterate over subjects and visits in the study that
+        Generate nodes that iterate over subjects and visits in the analysis that
         need to be processed by the pipeline
 
         Parameters
@@ -621,9 +621,9 @@ class Processor(object):
             # required
             num_subjs, num_visits = nz_rows[:, nz_rows.any(axis=0)].shape
             if num_subjs > num_visits:
-                dependent = self.study.SUBJECT_ID
+                dependent = self.analysis.SUBJECT_ID
             else:
-                dependent = self.study.VISIT_ID
+                dependent = self.analysis.VISIT_ID
             if 'per_visit' in input_freqs:
                 if 'per_subject' in input_freqs:
                     logger.warning(
@@ -633,67 +633,67 @@ class Processor(object):
                         " per_{} inputs may be cached twice".format(
                             dependent[:-3]))
                 else:
-                    dependent = self.study.SUBJECT_ID
+                    dependent = self.analysis.SUBJECT_ID
             elif 'per_subject' in input_freqs:
-                dependent = self.study.VISIT_ID
+                dependent = self.analysis.VISIT_ID
         # Invert the index dictionaries to get index-to-ID maps
         inv_subj_inds = {v: k for k, v in subject_inds.items()}
         inv_visit_inds = {v: k for k, v in visit_inds.items()}
         # Create iterator for subjects
         iter_nodes = {}
-        if self.study.SUBJECT_ID in pipeline.iterators():
-            fields = [self.study.SUBJECT_ID]
-            if dependent == self.study.SUBJECT_ID:
-                fields.append(self.study.VISIT_ID)
+        if self.analysis.SUBJECT_ID in pipeline.iterators():
+            fields = [self.analysis.SUBJECT_ID]
+            if dependent == self.analysis.SUBJECT_ID:
+                fields.append(self.analysis.VISIT_ID)
             # Add iterator node named after subject iterator
-            subj_it = pipeline.add(self.study.SUBJECT_ID,
+            subj_it = pipeline.add(self.analysis.SUBJECT_ID,
                                    IdentityInterface(fields))
-            if dependent == self.study.SUBJECT_ID:
+            if dependent == self.analysis.SUBJECT_ID:
                 # Subjects iterator is dependent on visit iterator (because of
                 # non-factorizable IDs)
                 subj_it.itersource = ('{}_{}'.format(pipeline.name,
-                                                     self.study.VISIT_ID),
-                                      self.study.VISIT_ID)
+                                                     self.analysis.VISIT_ID),
+                                      self.analysis.VISIT_ID)
                 subj_it.iterables = [(
-                    self.study.SUBJECT_ID,
+                    self.analysis.SUBJECT_ID,
                     {inv_visit_inds[n]: [inv_subj_inds[m]
                                          for m in col.nonzero()[0]]
                      for n, col in enumerate(to_process_array.T)})]
             else:
                 subj_it.iterables = (
-                    self.study.SUBJECT_ID,
+                    self.analysis.SUBJECT_ID,
                     [inv_subj_inds[n]
                      for n in to_process_array.any(axis=1).nonzero()[0]])
-            iter_nodes[self.study.SUBJECT_ID] = subj_it
+            iter_nodes[self.analysis.SUBJECT_ID] = subj_it
         # Create iterator for visits
-        if self.study.VISIT_ID in pipeline.iterators():
-            fields = [self.study.VISIT_ID]
-            if dependent == self.study.VISIT_ID:
-                fields.append(self.study.SUBJECT_ID)
+        if self.analysis.VISIT_ID in pipeline.iterators():
+            fields = [self.analysis.VISIT_ID]
+            if dependent == self.analysis.VISIT_ID:
+                fields.append(self.analysis.SUBJECT_ID)
             # Add iterator node named after visit iterator
-            visit_it = pipeline.add(self.study.VISIT_ID,
+            visit_it = pipeline.add(self.analysis.VISIT_ID,
                                     IdentityInterface(fields))
-            if dependent == self.study.VISIT_ID:
+            if dependent == self.analysis.VISIT_ID:
                 visit_it.itersource = ('{}_{}'.format(pipeline.name,
-                                                      self.study.SUBJECT_ID),
-                                       self.study.SUBJECT_ID)
+                                                      self.analysis.SUBJECT_ID),
+                                       self.analysis.SUBJECT_ID)
                 visit_it.iterables = [(
-                    self.study.VISIT_ID,
+                    self.analysis.VISIT_ID,
                     {inv_subj_inds[m]:[inv_visit_inds[n]
                                        for n in row.nonzero()[0]]
                      for m, row in enumerate(to_process_array)})]
             else:
                 visit_it.iterables = (
-                    self.study.VISIT_ID,
+                    self.analysis.VISIT_ID,
                     [inv_visit_inds[n]
                      for n in to_process_array.any(axis=0).nonzero()[0]])
-            iter_nodes[self.study.VISIT_ID] = visit_it
-        if dependent == self.study.SUBJECT_ID:
-            pipeline.connect(visit_it, self.study.VISIT_ID,
-                             subj_it, self.study.VISIT_ID)
-        if dependent == self.study.VISIT_ID:
-            pipeline.connect(subj_it, self.study.SUBJECT_ID,
-                             visit_it, self.study.SUBJECT_ID)
+            iter_nodes[self.analysis.VISIT_ID] = visit_it
+        if dependent == self.analysis.SUBJECT_ID:
+            pipeline.connect(visit_it, self.analysis.VISIT_ID,
+                             subj_it, self.analysis.VISIT_ID)
+        if dependent == self.analysis.VISIT_ID:
+            pipeline.connect(subj_it, self.analysis.SUBJECT_ID,
+                             visit_it, self.analysis.SUBJECT_ID)
         return iter_nodes
 
     def _to_process(self, pipeline, required_outputs, prqs_to_process_array,
@@ -737,7 +737,7 @@ class Processor(object):
             Whether to force reprocessing of all (filtered) sessions or not.
             Note that if 'force' is true we can't just return the filter array
             as it might be dilated by summary outputs (i.e. of frequency
-            'per_visit', 'per_subject' or 'per_study'). So we still loop
+            'per_visit', 'per_subject' or 'per_dataset'). So we still loop
             through all outputs and treat them like they don't exist
 
         Returns
@@ -747,8 +747,8 @@ class Processor(object):
             subjects and columns correspond to visits in the repository. True
             values represent subject/visit ID pairs to run the pipeline for
         """
-        # Reference the study tree in local variable for convenience
-        tree = self.study.tree
+        # Reference the analysis tree in local variable for convenience
+        tree = self.analysis.tree
         # Check to see if the pipeline has any low frequency outputs, because
         # if not then each session can be processed indepdently. Otherwise,
         # the "session matrix" (as defined by subject_ids and visit_ids
@@ -766,7 +766,7 @@ class Processor(object):
                     " outputs (i.e. outputs that aren't of 'per_session' "
                     "frequency) ({}) and subjects ({}) that are missing one "
                     "or more visits ({}). Please restrict the subject/visit "
-                    "IDs in the study __init__ to continue the analysis"
+                    "IDs in the analysis __init__ to continue the analysis"
                     .format(
                         pipeline.name,
                         ', '.join(summary_outputs),
@@ -857,7 +857,7 @@ class Processor(object):
                 # should be either all True or all False
                 to_check.extend(v for v in tree.visits
                                 if to_check_array[0, visit_inds[v.id]])
-            if 'per_study' in output_freqs:
+            if 'per_dataset' in output_freqs:
                 to_check.append(tree)
             for node in to_check:
                 # Generated expected record from current pipeline/repository-
@@ -865,7 +865,7 @@ class Processor(object):
                 requires_reprocess = False
                 try:
                     # Retrieve record stored in tree node
-                    record = node.record(pipeline.name, pipeline.study.name)
+                    record = node.record(pipeline.name, pipeline.analysis.name)
                     expected_record = pipeline.expected_record(node)
 
                     # Compare record with expected
@@ -945,7 +945,7 @@ class Processor(object):
                 if required_outputs is None:
                     conflict_outputs = pipeline.outputs
                 else:
-                    conflict_outputs = [pipeline.study.bound_spec(r)
+                    conflict_outputs = [pipeline.analysis.bound_spec(r)
                                         for r in required_outputs]
                 items = [
                     o.collection.item(subject_id=subject_id, visit_id=visit_id)
@@ -992,11 +992,11 @@ class Processor(object):
         if not iterators:
             return array
         dialated = np.copy(array)
-        if self.study.SUBJECT_ID in iterators:
+        if self.analysis.SUBJECT_ID in iterators:
             # If we join over subjects we should include all subjects for every
             # visit we want to process
             dialated[:, dialated.any(axis=0)] = True
-        if self.study.VISIT_ID in iterators:
+        if self.analysis.VISIT_ID in iterators:
             # If we join over visits we should include all visits for every
             # subject we want to process
             dialated[dialated.any(axis=1), :] = True

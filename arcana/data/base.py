@@ -13,7 +13,7 @@ logger = getLogger('arcana')
 class BaseData(object, metaclass=ABCMeta):
 
     VALID_FREQUENCIES = ('per_session', 'per_subject', 'per_visit',
-                         'per_study')
+                         'per_dataset')
 
     is_fileset = False
     is_field = False
@@ -94,7 +94,7 @@ class BaseFileset(BaseData, metaclass=ABCMeta):
         The file format used to store the fileset. Can be one of the
         recognised formats
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     bids_attr : BidsAttr
@@ -160,7 +160,7 @@ class BaseField(BaseData, metaclass=ABCMeta):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     array : bool

@@ -35,8 +35,8 @@ class Pipeline(object):
 
     Parameters
     ----------
-    study : Analysis
-        The study from which the pipeline was created
+    analysis : Analysis
+        The analysis from which the pipeline was created
     name : str
         The name of the pipeline
     name_maps : dict
@@ -69,7 +69,7 @@ class Pipeline(object):
         input_map : str | dict[str,str]
             Applied to the input names used by the pipeline to map them to new
             entries of the data specification in modified pipeline
-            constructors. Typically used in sub-class or multi-study. If a
+            constructors. Typically used in sub-class or multi-analysis. If a
             string, the map is interpreted as a prefix applied to the names
             given in the original pipeline, if it is a dictionary the names are
             mapped explicitly.
@@ -78,8 +78,8 @@ class Pipeline(object):
             the pipeline.
         name_maps : dict
             Modifications from nested pipeline constructors
-        study : Analysis
-            A different study to bind the pipeline to from the one containing
+        analysis : Analysis
+            A different analysis to bind the pipeline to from the one containing
             the inner pipeline constructor. Intended to be used with
             multi-studies.
     desc : str
@@ -89,12 +89,12 @@ class Pipeline(object):
         cited in publications that use it
     """
 
-    def __init__(self, study, name, name_maps, desc=None, citations=None):
-        name, study, maps = self._unwrap_maps(name_maps, name, study=study)
+    def __init__(self, analysis, name, name_maps, desc=None, citations=None):
+        name, analysis, maps = self._unwrap_maps(name_maps, name, analysis=analysis)
         self._name = name
         self._input_map = maps.get('input_map', None)
         self._output_map = maps.get('output_map', None)
-        self._study = study
+        self._analysis = analysis
         self._workflow = pe.Workflow(name=self.name)
         self._desc = desc
         self._input_conns = defaultdict(list)
@@ -142,7 +142,7 @@ class Pipeline(object):
 
     @property
     def has_prerequisites(self):
-        return any(self._study.spec(i).is_spec for i in self.inputs)
+        return any(self._analysis.spec(i).is_spec for i in self.inputs)
 
     @property
     def prerequisites(self):
@@ -154,20 +154,20 @@ class Pipeline(object):
         # for the pipelines to generate each of the processed inputs
         prereqs = defaultdict(set)
         for input in self.inputs:
-            # Could be an input to the study or optional acquired spec
+            # Could be an input to the analysis or optional acquired spec
             if input.is_spec and input.derived:
                 prereqs[input.pipeline_getter].add(input.name)
         return prereqs
 
     @property
-    def study_inputs(self):
+    def analysis_inputs(self):
         """
-        Returns all inputs of the study used by the pipeline, including inputs
+        Returns all inputs of the analysis used by the pipeline, including inputs
         of prerequisites (and their prerequisites recursively)
         """
         return set(chain(
             (i for i in self.inputs if not i.derived),
-            *(self.study.pipeline(p, required_outputs=r).study_inputs
+            *(self.analysis.pipeline(p, required_outputs=r).analysis_inputs
               for p, r in self.prerequisites.items())))
 
     def map_input(self, spec_name):
@@ -234,16 +234,16 @@ class Pipeline(object):
         if requirements is None:
             requirements = []
         if wall_time is None:
-            wall_time = self.study.processor.default_wall_time
+            wall_time = self.analysis.processor.default_wall_time
         if 'mem_gb' not in kwargs or kwargs['mem_gb'] is None:
-            kwargs['mem_gb'] = self.study.processor.default_mem_gb
+            kwargs['mem_gb'] = self.analysis.processor.default_mem_gb
         if 'iterfield' in kwargs:
             if 'joinfield' in kwargs or 'joinsource' in kwargs:
                 raise ArcanaDesignError(
                     "Cannot provide both joinsource and iterfield to when "
                     "attempting to add '{}' node to {}"
                     .format(name, self._error_msg_loc))
-            node_cls = self.study.environment.node_types['map']
+            node_cls = self.analysis.environment.node_types['map']
         elif 'joinsource' in kwargs or 'joinfield' in kwargs:
             if not ('joinfield' in kwargs and 'joinsource' in kwargs):
                 raise ArcanaDesignError(
@@ -251,15 +251,15 @@ class Pipeline(object):
                      "create a JoinNode (see {})").format(name,
                                                           self._error_msg_loc))
             joinsource = kwargs['joinsource']
-            if joinsource in self.study.ITERFIELDS:
+            if joinsource in self.analysis.ITERFIELDS:
                 self._iterator_joins.add(joinsource)
-            node_cls = self.study.environment.node_types['join']
+            node_cls = self.analysis.environment.node_types['join']
             # Prepend name of pipeline of joinsource to match name of nodes
             kwargs['joinsource'] = '{}_{}'.format(self.name, joinsource)
         else:
-            node_cls = self.study.environment.node_types['base']
+            node_cls = self.analysis.environment.node_types['base']
         # Create node
-        node = node_cls(self.study.environment,
+        node = node_cls(self.analysis.environment,
                         interface,
                         name="{}_{}".format(self._name, name),
                         requirements=requirements,
@@ -295,12 +295,12 @@ class Pipeline(object):
     def connect_input(self, spec_name, node, node_input, format=None,
                       **kwargs):
         """
-        Connects a study fileset_spec as an input to the provided node
+        Connects a analysis fileset_spec as an input to the provided node
 
         Parameters
         ----------
         spec_name : str
-            Name of the study data spec (or one of the IDs from the iterator
+            Name of the analysis data spec (or one of the IDs from the iterator
             nodes, 'subject_id' or 'visit_id') to connect to the node
         node : arcana.Node
             The node to connect the input to
@@ -308,31 +308,31 @@ class Pipeline(object):
             Name of the input on the node to connect the fileset spec to
         format : FileFormat | None
             The file format the input is expected in. If it differs
-            from the format in data spec or of study input then an implicit
+            from the format in data spec or of analysis input then an implicit
             conversion is performed. If None the file format in the data spec
             is assumed
         """
-        if spec_name in self.study.ITERFIELDS:
+        if spec_name in self.analysis.ITERFIELDS:
             self._iterator_conns[spec_name].append((node, node_input, format))
         else:
             name = self._map_name(spec_name, self._input_map)
-            if name not in self.study.data_spec_names():
+            if name not in self.analysis.data_spec_names():
                 raise ArcanaDesignError(
                     "Proposed input '{}' to {} is not a valid spec name ('{}')"
                     .format(name, self._error_msg_loc,
-                            "', '".join(self.study.data_spec_names())))
+                            "', '".join(self.analysis.data_spec_names())))
             self._check_valid_trait_name(node, node_input, 'input')
             self._input_conns[name].append((node, node_input, format, kwargs))
 
     def connect_output(self, spec_name, node, node_output, format=None,
                        **kwargs):
         """
-        Connects an output to a study fileset spec
+        Connects an output to a analysis fileset spec
 
         Parameters
         ----------
         spec_name : str
-            Name of the study fileset spec to connect to
+            Name of the analysis fileset spec to connect to
         node : arcana.Node
             The node to connect the output from
         node_output : str
@@ -344,11 +344,11 @@ class Pipeline(object):
             format of the entry the data spec
         """
         name = self._map_name(spec_name, self._output_map)
-        if name not in self.study.data_spec_names():
+        if name not in self.analysis.data_spec_names():
             raise ArcanaDesignError(
                 "Proposed output '{}' to {} is not a valid spec name ('{}')"
                 .format(name, self._error_msg_loc,
-                        "', '".join(self.study.data_spec_names())))
+                        "', '".join(self.analysis.data_spec_names())))
         if name in self._output_conns:
             prev_node, prev_node_output, _, _ = self._output_conns[name]
             logger.info(
@@ -412,8 +412,8 @@ class Pipeline(object):
         return self._name
 
     @property
-    def study(self):
-        return self._study
+    def analysis(self):
+        return self._analysis
 
     @property
     def workflow(self):
@@ -425,11 +425,11 @@ class Pipeline(object):
 
     @property
     def inputs(self):
-        return (self.study.bound_spec(i) for i in self._input_conns)
+        return (self.analysis.bound_spec(i) for i in self._input_conns)
 
     @property
     def outputs(self):
-        return (self.study.bound_spec(o) for o in self._output_conns)
+        return (self.analysis.bound_spec(o) for o in self._output_conns)
 
     @property
     def input_names(self):
@@ -446,19 +446,19 @@ class Pipeline(object):
     @property
     def joins_subjects(self):
         "Iterators that are joined within the pipeline"
-        return self.study.SUBJECT_ID in self._iterator_joins
+        return self.analysis.SUBJECT_ID in self._iterator_joins
 
     @property
     def joins_visits(self):
         "Iterators that are joined within the pipeline"
-        return self.study.VISIT_ID in self._iterator_joins
+        return self.analysis.VISIT_ID in self._iterator_joins
 
     @property
     def input_frequencies(self):
         freqs = set(i.frequency for i in self.inputs)
-        if self.study.SUBJECT_ID in self._iterator_conns:
+        if self.analysis.SUBJECT_ID in self._iterator_conns:
             freqs.add('per_subject')
-        if self.study.VISIT_ID in self._iterator_conns:
+        if self.analysis.VISIT_ID in self._iterator_conns:
             freqs.add('per_visit')
         return freqs
 
@@ -474,7 +474,7 @@ class Pipeline(object):
 
     @property
     def required_outputs(self):
-        return (self.study.bound_spec(o) for o in self._required_outputs)
+        return (self.analysis.bound_spec(o) for o in self._required_outputs)
 
     @property
     def desc(self):
@@ -561,7 +561,7 @@ class Pipeline(object):
         else:
             input_freqs = [frequency]
         for freq in input_freqs:
-            iterators.update(self.study.FREQUENCIES[freq])
+            iterators.update(self.analysis.FREQUENCIES[freq])
         return iterators
 
     def iterates_over(self, iterator, freq):
@@ -576,12 +576,12 @@ class Pipeline(object):
         freq : str
             The frequency to check
         """
-        return iterator in self.study.FREQUENCIES[freq]
+        return iterator in self.analysis.FREQUENCIES[freq]
 
-    def _unwrap_maps(self, name_maps, name, study=None, **inner_maps):
+    def _unwrap_maps(self, name_maps, name, analysis=None, **inner_maps):
         """
         Unwraps potentially nested name-mapping dictionaries to get values
-        for name, input_map, output_map and study. Unsed in __init__.
+        for name, input_map, output_map and analysis. Unsed in __init__.
 
         Parameters
         ----------
@@ -589,8 +589,8 @@ class Pipeline(object):
             A dictionary containing the name_maps to apply to the values
         name : str
             Name passed from inner pipeline constructor
-        study : Analysis
-            The study to bind the pipeline to. Will be overridden by any values
+        analysis : Analysis
+            The analysis to bind the pipeline to. Will be overridden by any values
             in the mods dict
         inner_maps : dict[str, dict[str,str]]
             input and output maps from inner pipeline constructors
@@ -599,15 +599,15 @@ class Pipeline(object):
         -------
         name : str
             Potentially modified name of the pipeline
-        study : Analysis
-            Potentially modified study
+        analysis : Analysis
+            Potentially modified analysis
         maps : dict[str, dict[str,str]]
             Potentially modifed input and output maps
         """
-        # Set values of name and study
+        # Set values of name and analysis
         name = name_maps.get('name', name)
         name = name_maps.get('prefix', '') + name
-        study = name_maps.get('study', study)
+        analysis = name_maps.get('analysis', analysis)
         # Flatten input and output maps, combining maps from inner nests with
         # those in the "mods" dictionary
         maps = {}
@@ -671,14 +671,14 @@ class Pipeline(object):
         except KeyError:
             pass
         else:
-            name, study, maps = self._unwrap_maps(
-                outer_maps, name=name, study=study, **maps)
-        return name, study, maps
+            name, analysis, maps = self._unwrap_maps(
+                outer_maps, name=name, analysis=analysis, **maps)
+        return name, analysis, maps
 
     @property
     def _error_msg_loc(self):
         return "'{}' pipeline in {} class".format(self.name,
-                                                  type(self.study).__name__)
+                                                  type(self.analysis).__name__)
 
     def inputnode(self, frequency):
         """
@@ -688,7 +688,7 @@ class Pipeline(object):
         ----------
         frequency : str
             The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the input node to retrieve
+            'per_dataset') of the input node to retrieve
 
         Returns
         -------
@@ -709,7 +709,7 @@ class Pipeline(object):
         ----------
         frequency : str
             The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the output node to retrieve
+            'per_dataset') of the output node to retrieve
 
         Returns
         -------
@@ -757,18 +757,18 @@ class Pipeline(object):
         ----------
         frequency : str
             The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the input node to retrieve
+            'per_dataset') of the input node to retrieve
         """
         # Check to see whether there are any outputs for the given frequency
         inputs = {}
         for input_name in self.input_names:
-            input = self.study.bound_spec(input_name)
+            input = self.analysis.bound_spec(input_name)
             if input.frequency == frequency:
                 inputs[input_name] = input
         # Get list of input names for the requested frequency, addding fields
         # to hold iterator IDs
         input_names = list(inputs.keys())
-        input_names.extend(self.study.FREQUENCIES[frequency])
+        input_names.extend(self.analysis.FREQUENCIES[frequency])
         if not input_names:
             raise ArcanaError(
                 "No inputs to '{}' pipeline for requested freqency '{}'"
@@ -776,7 +776,7 @@ class Pipeline(object):
         # Generate input node and connect it to appropriate nodes
         inputnode = self.add('{}_inputnode'.format(frequency),
                              IdentityInterface(fields=input_names))
-        # Loop through list of nodes connected to study data specs and
+        # Loop through list of nodes connected to analysis data specs and
         # connect them to the newly created input node
         for input_name, input in inputs.items():
             # Keep track of previous conversion nodes to avoid replicating the
@@ -784,7 +784,7 @@ class Pipeline(object):
             prev_conv_nodes = {}
             for (node, node_in, format,
                  conv_kwargs) in self._input_conns[input_name]:
-                # If fileset formats differ between study and pipeline
+                # If fileset formats differ between analysis and pipeline
                 # inputs create converter node (if one hasn't been already)
                 # and connect input to that before connecting to inputnode
                 if self.requires_conversion(input, format):
@@ -822,7 +822,7 @@ class Pipeline(object):
         for iterator, conns in self._iterator_conns.items():
             # Check to see if this is the right frequency for the iterator
             # input, i.e. if it is the only iterator for this frequency
-            if self.study.FREQUENCIES[frequency] == (iterator,):
+            if self.analysis.FREQUENCIES[frequency] == (iterator,):
                 for (node, node_in, format) in conns:
                     self.connect(inputnode, iterator, node, node_in)
         return inputnode
@@ -836,11 +836,11 @@ class Pipeline(object):
         ----------
         frequency : str
             The frequency (i.e. 'per_session', 'per_visit', 'per_subject' or
-            'per_study') of the output node to retrieve
+            'per_dataset') of the output node to retrieve
         """
         outputs = {}
         for output_name in self.output_names:
-            output = self.study.bound_spec(output_name)
+            output = self.analysis.bound_spec(output_name)
             if output.frequency == frequency:
                 outputs[output_name] = output
         if not outputs:
@@ -853,12 +853,12 @@ class Pipeline(object):
         # Generate output node and connect it to appropriate nodes
         outputnode = self.add('{}_outputnode'.format(frequency),
                               IdentityInterface(fields=output_names))
-        # Loop through list of nodes connected to study data specs and
+        # Loop through list of nodes connected to analysis data specs and
         # connect them to the newly created output node
         for output_name, output in outputs.items():
             (node, node_out, format,
              conv_kwargs) = self._output_conns[output_name]
-            # If fileset formats differ between study and pipeline
+            # If fileset formats differ between analysis and pipeline
             # outputs create converter node (if one hasn't been already)
             # and connect output to that before connecting to outputnode
             if self.requires_conversion(output, format):
@@ -920,7 +920,7 @@ class Pipeline(object):
             '__prov_version__': PROVENANCE_VERSION,
             'name': self.name,
             'workflow': wf_dict,
-            'study': self.study.prov,
+            'analysis': self.analysis.prov,
             'pkg_versions': pkg_versions,
             'python_version': sys.version,
             'joined_ids': self._joined_ids()}
@@ -934,14 +934,14 @@ class Pipeline(object):
         Parameters
         ----------
         node : arcana.repository.tree.TreeNode
-            A node of the Tree representation of the study data stored in the
+            A node of the Tree representation of the analysis data stored in the
             repository (i.e. a Session, Visit, Subject or Tree node)
 
         Returns
         -------
         expected_record : arcana.provenance.Record
             The record that would be produced if the pipeline is run over the
-            study tree.
+            analysis tree.
         """
         exp_inputs = {}
         # Get checksums/values of all inputs that would have been used in
@@ -992,7 +992,7 @@ class Pipeline(object):
         exp_prov['joined_ids'] = self._joined_ids()
         return Record(
             self.name, node.frequency, node.subject_id, node.visit_id,
-            self.study.name, exp_prov)
+            self.analysis.name, exp_prov)
 
     def _joined_ids(self):
         """
@@ -1001,7 +1001,7 @@ class Pipeline(object):
         """
         joined_prov = {}
         if self.joins_subjects:
-            joined_prov['subject_ids'] = list(self.study.subject_ids)
+            joined_prov['subject_ids'] = list(self.analysis.subject_ids)
         if self.joins_visits:
-            joined_prov['visit_ids'] = list(self.study.visit_ids)
+            joined_prov['visit_ids'] = list(self.analysis.visit_ids)
         return joined_prov

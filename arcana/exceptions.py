@@ -94,7 +94,7 @@ class ArcanaInputMissingMatchError(ArcanaInputError):
 class ArcanaOutputNotProducedException(ArcanaException):
     """
     Raised when a given spec is not produced due to switches and inputs
-    provided to the study
+    provided to the analysis
     """
 
 

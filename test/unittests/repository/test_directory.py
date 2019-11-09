@@ -1,7 +1,7 @@
 import os
 import os.path as op
 from arcana.data.file_format import text_format
-from arcana.study import Analysis, AnalysisMetaClass
+from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.data import (
     Fileset, InputFilesetSpec, FilesetSpec, Field)
 from arcana.utils.testing import BaseMultiSubjectTestCase
@@ -32,7 +32,7 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
         FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
         FilesetSpec('project_sink', text_format, 'dummy_pipeline',
-                    frequency='per_study'),
+                    frequency='per_dataset'),
         FilesetSpec('resink1', text_format, 'dummy_pipeline'),
         FilesetSpec('resink2', text_format, 'dummy_pipeline'),
         FilesetSpec('resink3', text_format, 'dummy_pipeline')]
@@ -140,7 +140,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                     repository=repo),
             # Analysis
             Fileset('ones', text_format,
-                    frequency='per_study',
+                    frequency='per_dataset',
                     resource_name='text',
                     repository=repo)]
         fields = [
@@ -193,7 +193,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                   repository=repo),
             # Analysis
             Field('g', value=100,
-                  frequency='per_study',
+                  frequency='per_dataset',
                   repository=repo)]
         # Set URI and IDs if necessary for repository type
         if sync_with_repo:

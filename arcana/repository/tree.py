@@ -26,10 +26,10 @@ class TreeNode(object):
         if records is None:
             records = []
         # Save filesets and fields in ordered dictionary by name and
-        # name of study that generated them (if applicable)
+        # name of analysis that generated them (if applicable)
         self._filesets = OrderedDict()
         for fileset in sorted(filesets):
-            id_key = (fileset.id, fileset.from_study)
+            id_key = (fileset.id, fileset.from_analysis)
             try:
                 dct = self._filesets[id_key]
             except KeyError:
@@ -43,12 +43,12 @@ class TreeNode(object):
                     "Attempting to add duplicate filesets to tree ({} and {})"
                     .format(fileset, dct[format_key]))
             dct[format_key] = fileset
-        self._fields = OrderedDict(((f.name, f.from_study), f)
+        self._fields = OrderedDict(((f.name, f.from_analysis), f)
                                    for f in sorted(fields))
         self._records = OrderedDict(
-            ((r.pipeline_name, r.from_study), r)
+            ((r.pipeline_name, r.from_analysis), r)
             for r in sorted(records, key=lambda r: (r.subject_id, r.visit_id,
-                                                    r.from_study)))
+                                                    r.from_analysis)))
         self._missing_records = []
         self._duplicate_records = []
         self._tree = None
@@ -57,7 +57,7 @@ class TreeNode(object):
             if not item.derived:
                 continue  # Skip acquired items
             records = [r for r in self.records
-                       if (item.from_study == r.from_study and
+                       if (item.from_analysis == r.from_analysis and
                            item.name in r.outputs)]
             if not records:
                 self._missing_records.append(item.name)
@@ -101,42 +101,42 @@ class TreeNode(object):
         "To be overridden by subclasses where appropriate"
         return None
 
-    def fileset(self, id, from_study=None, format=None):
+    def fileset(self, id, from_analysis=None, format=None):
         """
-        Gets the fileset with the ID 'id' produced by the Analysis named 'study'
+        Gets the fileset with the ID 'id' produced by the Analysis named 'analysis'
         if provided. If a spec is passed instead of a str to the name argument,
-        then the study will be set from the spec iff it is derived
+        then the analysis will be set from the spec iff it is derived
 
         Parameters
         ----------
         id : str | FilesetSpec
             The name of the fileset or a spec matching the given name
-        from_study : str | None
-            Name of the study that produced the fileset if derived. If None
+        from_analysis : str | None
+            Name of the analysis that produced the fileset if derived. If None
             and a spec is passed instaed of string to the name argument then
-            the study name will be taken from the spec instead.
+            the analysis name will be taken from the spec instead.
         format : FileFormat | str | None
             Either the format of the fileset to return or the name of the
             format. If None and only a single fileset is found for the given
-            name and study then that is returned otherwise an exception is
+            name and analysis then that is returned otherwise an exception is
             raised
         """
         if isinstance(id, BaseFileset):
-            if from_study is None and id.derived:
-                from_study = id.study.name
+            if from_analysis is None and id.derived:
+                from_analysis = id.analysis.name
             id = id.name
         try:
-            format_dct = self._filesets[(id, from_study)]
+            format_dct = self._filesets[(id, from_analysis)]
         except KeyError:
             available = [
                 ('{}(format={})'.format(f.id, f._resource_name)
                  if f._resource_name is not None else f.id)
-                for f in self.filesets if f.from_study == from_study]
+                for f in self.filesets if f.from_analysis == from_analysis]
             other_studies = [
-                (f.from_study if f.from_study is not None else '<root>')
+                (f.from_analysis if f.from_analysis is not None else '<root>')
                 for f in self.filesets if f.id == id]
             if other_studies:
-                msg = (". NB: matching fileset(s) found for '{}' study(ies) "
+                msg = (". NB: matching fileset(s) found for '{}' analysis(ies) "
                        "('{}')".format(id, "', '".join(other_studies)))
             else:
                 msg = ''
@@ -145,8 +145,8 @@ class TreeNode(object):
                 ("{} doesn't have a fileset named '{}'{} "
                  "(available '{}'){}"
                  .format(self, id,
-                         (" from study '{}'".format(from_study)
-                          if from_study is not None else ''),
+                         (" from analysis '{}'".format(from_analysis)
+                          if from_analysis is not None else ''),
                          "', '".join(available), msg)))
         else:
             if format is None:
@@ -156,8 +156,8 @@ class TreeNode(object):
                         id,
                         "Multiple filesets found for '{}'{} in {} with formats"
                         " {}. Need to specify a format"
-                        .format(id, ("in '{}'".format(from_study)
-                                     if from_study is not None else ''),
+                        .format(id, ("in '{}'".format(from_analysis)
+                                     if from_analysis is not None else ''),
                                 self, "', '".join(format_dct.keys())))
                 fileset = all_formats[0]
             else:
@@ -182,43 +182,43 @@ class TreeNode(object):
                         ("{} doesn't have a fileset named '{}'{} with "
                          "format '{}' (available '{}'){}"
                          .format(self, id,
-                                 (" from study '{}'".format(from_study)
-                                  if from_study is not None else ''),
+                                 (" from analysis '{}'".format(from_analysis)
+                                  if from_analysis is not None else ''),
                                  format,
                                  "', '".join(format_dct.keys()), msg)))
 
         return fileset
 
-    def field(self, name, from_study=None):
+    def field(self, name, from_analysis=None):
         """
-        Gets the field named 'name' produced by the Analysis named 'study' if
+        Gets the field named 'name' produced by the Analysis named 'analysis' if
         provided. If a spec is passed instead of a str to the name argument,
-        then the study will be set from the spec iff it is derived
+        then the analysis will be set from the spec iff it is derived
 
         Parameters
         ----------
         name : str | BaseField
             The name of the field or a spec matching the given name
-        study : str | None
-            Name of the study that produced the field if derived. If None
+        analysis : str | None
+            Name of the analysis that produced the field if derived. If None
             and a spec is passed instaed of string to the name argument then
-            the study name will be taken from the spec instead.
+            the analysis name will be taken from the spec instead.
         """
         if isinstance(name, BaseField):
-            if from_study is None and name.derived:
-                from_study = name.study.name
+            if from_analysis is None and name.derived:
+                from_analysis = name.analysis.name
             name = name.name
         try:
-            return self._fields[(name, from_study)]
+            return self._fields[(name, from_analysis)]
         except KeyError:
             available = [d.name for d in self.fields
-                         if d.from_study == from_study]
-            other_studies = [(d.from_study if d.from_study is not None
+                         if d.from_analysis == from_analysis]
+            other_studies = [(d.from_analysis if d.from_analysis is not None
                               else '<root>')
                              for d in self.fields
                              if d.name == name]
             if other_studies:
-                msg = (". NB: matching field(s) found for '{}' study(ies) "
+                msg = (". NB: matching field(s) found for '{}' analysis(ies) "
                        "('{}')".format(name, "', '".join(other_studies)))
             else:
                 msg = ''
@@ -226,11 +226,11 @@ class TreeNode(object):
                 name, ("{} doesn't have a field named '{}'{} " +
                        "(available '{}')").format(
                            self, name,
-                           (" from study '{}'".format(from_study)
-                            if from_study is not None else ''),
+                           (" from analysis '{}'".format(from_analysis)
+                            if from_analysis is not None else ''),
                            "', '".join(available), msg))
 
-    def record(self, pipeline_name, from_study):
+    def record(self, pipeline_name, from_analysis):
         """
         Returns the provenance record for a given pipeline
 
@@ -238,8 +238,8 @@ class TreeNode(object):
         ----------
         pipeline_name : str
             The name of the pipeline that generated the record
-        from_study : str
-            The name of the study that the pipeline was generated from
+        from_analysis : str
+            The name of the analysis that the pipeline was generated from
 
         Returns
         -------
@@ -247,7 +247,7 @@ class TreeNode(object):
             The provenance record generated by the specified pipeline
         """
         try:
-            return self._records[(pipeline_name, from_study)]
+            return self._records[(pipeline_name, from_analysis)]
         except KeyError:
             found = []
             for sname, pnames in groupby(sorted(self._records,
@@ -257,10 +257,10 @@ class TreeNode(object):
                     "'{}' for '{}'".format("', '".join(p for p, _ in pnames),
                                            sname))
             raise ArcanaNameError(
-                (pipeline_name, from_study),
+                (pipeline_name, from_analysis),
                 ("{} doesn't have a provenance record for pipeline '{}' "
-                 "for '{}' study (found {})".format(
-                     self, pipeline_name, from_study,
+                 "for '{}' analysis (found {})".format(
+                     self, pipeline_name, from_analysis,
                      '; '.join(found))))
 
     @property
@@ -359,24 +359,24 @@ class Tree(TreeNode):
     repository : Repository
         The repository that the tree comes from
     filesets : List[Fileset]
-        The filesets that belong to the project, i.e. of 'per_study'
+        The filesets that belong to the project, i.e. of 'per_dataset'
         frequency
     fields : List[Field]
-        The fields that belong to the project, i.e. of 'per_study'
+        The fields that belong to the project, i.e. of 'per_dataset'
         frequency
     fill_subjects : list[int] | None
         Create empty sessions for any subjects that are missing
         from the provided list. Typically only used if all
-        the inputs to the study are coming from different repositories
+        the inputs to the analysis are coming from different repositories
         to the one that the derived products are stored in
     fill_visits : list[int] | None
         Create empty sessions for any visits that are missing
         from the provided list. Typically only used if all
-        the inputs to the study are coming from different repositories
+        the inputs to the analysis are coming from different repositories
         to the one that the derived products are stored in
     """
 
-    frequency = 'per_study'
+    frequency = 'per_dataset'
 
     def __init__(self, subjects, visits, repository, filesets=None,
                  fields=None, records=None, fill_subjects=None,
@@ -519,7 +519,7 @@ class Tree(TreeNode):
         """
         if frequency is None:
             nodes = chain(*(self._nodes(f)
-                            for f in ('per_study', 'per_subject',
+                            for f in ('per_dataset', 'per_subject',
                                       'per_visit', 'per_session')))
         else:
             nodes = self._nodes(frequency=frequency)
@@ -532,7 +532,7 @@ class Tree(TreeNode):
             nodes = self.subjects
         elif frequency == 'per_visit':
             nodes = self.visits
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             nodes = [self]
         else:
             assert False
@@ -580,7 +580,7 @@ class Tree(TreeNode):
     def _fill_empty_sessions(self, fill_subjects, fill_visits):
         """
         Fill in tree with additional empty subjects and/or visits to
-        allow the study to pull its inputs from external repositories
+        allow the analysis to pull its inputs from external repositories
         """
         if fill_subjects is None:
             fill_subjects = [s.id for s in self.subjects]
@@ -767,7 +767,7 @@ class Subject(TreeNode):
             return self.tree.nodes(frequency)
         elif frequency == 'per_subject':
             return [self]
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             return [self.tree]
 
     @property
@@ -897,7 +897,7 @@ class Visit(TreeNode):
             return self.tree.nodes(frequency)
         elif frequency == 'per_visit':
             return [self]
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             return [self.tree]
 
     def session(self, subject_id):
@@ -1024,7 +1024,7 @@ class Session(TreeNode):
             return [self]
         elif frequency in ('per_visit', 'per_subject'):
             return [self.tree.nodes(self.frequency)]
-        elif frequency == 'per_study':
+        elif frequency == 'per_dataset':
             return [self.tree]
 
     def find_mismatch(self, other, indent=''):

@@ -163,7 +163,7 @@ class Repository(object, metaclass=ABCMeta):
     @abstractmethod
     def put_record(self, record):
         """
-        Inserts a provenance record into a session or subject|visit|study
+        Inserts a provenance record into a session or subject|visit|analysis
         summary
         """
 
@@ -208,7 +208,7 @@ class Repository(object, metaclass=ABCMeta):
         fill : bool
             Create empty sessions for any that are missing in the
             subject_id x visit_id block. Typically only used if all
-            the inputs to the study are coming from different repositories
+            the inputs to the analysis are coming from different repositories
             to the one that the derived products are stored in
 
         Returns

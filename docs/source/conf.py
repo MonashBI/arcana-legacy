@@ -27,7 +27,7 @@ import arcana.repository  # @UnusedImport @IgnorePep8
 import arcana.processor  # @UnusedImport @IgnorePep8
 import arcana.environment  # @UnusedImport @IgnorePep8
 import arcana.data  # @UnusedImport @IgnorePep8
-import arcana.study  # @UnusedImport @IgnorePep8
+import arcana.analysis  # @UnusedImport @IgnorePep8
 from arcana import *
 
 

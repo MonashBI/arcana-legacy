@@ -27,7 +27,7 @@ environments. Given a large enough pool of contributors, such code-bases should
 mature and become valuable repositories for the arcana of the scientific field.
 
 Central to Arcana's architecture is the implementation of analyses within
-subclasses of :class:`arcana.study.Analysis`. Arcana interacts closely with a
+subclasses of :class:`arcana.analysis.Analysis`. Arcana interacts closely with a
 repository, storing intermediate outputs, along with the parameters used to
 derive them, for reuse by subsequent analyses. Repositories can either be XNAT
 repositories or (http://xnat.org) local directories organised by subject and

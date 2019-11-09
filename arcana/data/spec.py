@@ -26,7 +26,7 @@ class BaseInputSpecMixin(object):
                 "values"
                 .format(name))
         self._desc = desc
-        self._study = None
+        self._analysis = None
         self._optional = optional
         # Set the name of the default collection-like object so it matches
         # the name of the spec
@@ -70,29 +70,29 @@ class BaseInputSpecMixin(object):
                          .format(sub_indent, self.desc, other.desc))
         return mismatch
 
-    def bind(self, study, **kwargs):
+    def bind(self, analysis, **kwargs):
         """
-        Returns a copy of the InputSpec bound to the given study
+        Returns a copy of the InputSpec bound to the given analysis
 
         Parameters
         ----------
-        study : Analysis
-            A study to bind the fileset spec to (should happen in the
-            study __init__)
+        analysis : Analysis
+            A analysis to bind the fileset spec to (should happen in the
+            analysis __init__)
         """
         if self.default is None:
             raise ArcanaError(
                 ("Attempted to bind '{}' to {} but only acquired specs with "
                  + "a default value should be bound to studies").format(
-                    self.name, study))
-        if self._study is not None:
+                    self.name, analysis))
+        if self._analysis is not None:
             # This avoids rebinding specs to sub-studies that have already
-            # been bound to the multi-study
+            # been bound to the multi-analysis
             bound = self
         else:
             bound = copy(self)
-            bound._study = study
-            bound._default = bound.default.bind(study)
+            bound._analysis = analysis
+            bound._default = bound.default.bind(analysis)
         return bound
 
     @property
@@ -100,11 +100,11 @@ class BaseInputSpecMixin(object):
         return self._optional
 
     @property
-    def study(self):
-        if self._study is None:
+    def analysis(self):
+        if self._analysis is None:
             raise ArcanaError(
-                "{} is not bound to a study".format(self))
-        return self._study
+                "{} is not bound to a analysis".format(self))
+        return self._analysis
 
     @property
     def default(self):
@@ -121,9 +121,9 @@ class BaseInputSpecMixin(object):
 
     @property
     def collection(self):
-        if self._study is None:
+        if self._analysis is None:
             raise ArcanaUsageError(
-                "{} needs to be bound to a study before accessing "
+                "{} needs to be bound to a analysis before accessing "
                 "the corresponding collection".format(self))
         if self.default is None:
             raise ArcanaUsageError(
@@ -148,7 +148,7 @@ class BaseSpecMixin(object):
                      + "'{}'").format(name, pipeline_getter))
         self._pipeline_getter = pipeline_getter
         self._desc = desc
-        self._study = None
+        self._analysis = None
         self._collection = None
         if isinstance(pipeline_args, dict):
             pipeline_args = tuple(sorted(pipeline_args.items()))
@@ -196,36 +196,36 @@ class BaseSpecMixin(object):
                                  other.pipeline_args))
         return mismatch
 
-    def bind(self, study, **kwargs):
+    def bind(self, analysis, **kwargs):
         """
-        Returns a copy of the Spec bound to the given study
+        Returns a copy of the Spec bound to the given analysis
 
         Parameters
         ----------
-        study : Analysis
-            A study to bind the fileset spec to (should happen in the
-            study __init__)
+        analysis : Analysis
+            A analysis to bind the fileset spec to (should happen in the
+            analysis __init__)
         """
-        if self._study is not None:
+        if self._analysis is not None:
             # Avoid rebinding specs in sub-studies that have already
             # been bound to MultiAnalysis
             bound = self
         else:
             bound = copy(self)
-            bound._study = study
-            if not hasattr(study, self.pipeline_getter):
+            bound._analysis = analysis
+            if not hasattr(analysis, self.pipeline_getter):
                 raise ArcanaError(
                     "{} does not have a method named '{}' required to "
-                    "derive {}".format(study, self.pipeline_getter,
+                    "derive {}".format(analysis, self.pipeline_getter,
                                        self))
-            bound._bind_tree(study.tree)
+            bound._bind_tree(analysis.tree)
         return bound
 
     @property
     def collection(self):
         if self._collection is None:
             raise ArcanaUsageError(
-                "{} needs to be bound to a study before accessing "
+                "{} needs to be bound to a analysis before accessing "
                 "the corresponding collection".format(self))
         return self._collection
 
@@ -243,7 +243,7 @@ class BaseSpecMixin(object):
             nodes = tree.subjects
         elif self.frequency == 'per_visit':
             nodes = tree.visits
-        elif self.frequency == 'per_study':
+        elif self.frequency == 'per_dataset':
             nodes = [tree]
         else:
             assert False, "Unrecognised frequency '{}'".format(
@@ -254,12 +254,12 @@ class BaseSpecMixin(object):
     def derivable(self):
         """
         Whether the spec (only valid for derived specs) can be derived
-        given the inputs and switches provided to the study
+        given the inputs and switches provided to the analysis
         """
         try:
-            # Just need to iterate all study inputs and catch relevant
+            # Just need to iterate all analysis inputs and catch relevant
             # exceptions
-            list(self.pipeline.study_inputs)
+            list(self.pipeline.analysis_inputs)
         except (ArcanaOutputNotProducedException,
                 ArcanaMissingDataException):
             return False
@@ -283,15 +283,15 @@ class BaseSpecMixin(object):
 
     @property
     def pipeline(self):
-        return self.study.pipeline(self.pipeline_getter, [self.name],
+        return self.analysis.pipeline(self.pipeline_getter, [self.name],
                                    pipeline_args=self.pipeline_args)
 
     @property
-    def study(self):
-        if self._study is None:
+    def analysis(self):
+        if self._analysis is None:
             raise ArcanaError(
-                "{} is not bound to a study".format(self))
-        return self._study
+                "{} is not bound to a analysis".format(self))
+        return self._analysis
 
     @property
     def desc(self):
@@ -299,13 +299,13 @@ class BaseSpecMixin(object):
 
     def _tree_node(self, subject_id=None, visit_id=None):
         if self.frequency == 'per_session':
-            node = self.study.tree.subject(subject_id).session(visit_id)
+            node = self.analysis.tree.subject(subject_id).session(visit_id)
         elif self.frequency == 'per_subject':
-            node = self.study.tree.subject(subject_id)
+            node = self.analysis.tree.subject(subject_id)
         elif self.frequency == 'per_visit':
-            node = self.study.tree.visit(visit_id)
-        elif self.frequency == 'per_study':
-            node = self.study.tree
+            node = self.analysis.tree.visit(visit_id)
+        elif self.frequency == 'per_dataset':
+            node = self.analysis.tree
         else:
             assert False
         return node
@@ -323,7 +323,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     valid_formats : FileFormat | list[FileFormat]
         The acceptable file formats for input filesets to match this spec
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     desc : str
@@ -335,8 +335,8 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
         The default value to be passed as an input to this spec if none are
         provided. Can either be an explicit FilesetCollection or any object
         with a 'collection' property that will return a default collection.
-        This object should also implement a 'bind(self, study)' method to
-        allow the study to be bound to it.
+        This object should also implement a 'bind(self, analysis)' method to
+        allow the analysis to be bound to it.
     pipeline_args : dct[str, *] | None
         Arguments to pass to the pipeline constructor method. Avoids having to
         create separate methods for each spec, where the only difference
@@ -411,7 +411,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
 
 class FilesetSpec(BaseFileset, BaseSpecMixin):
     """
-    A specification for a fileset within a study to be derived from a
+    A specification for a fileset within a analysis to be derived from a
     processing pipeline.
 
     Parameters
@@ -422,10 +422,10 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
         The file format used to store the fileset. Can be one of the
         recognised formats
     pipeline_getter : str
-        Name of the method in the study that constructs a pipeline to derive
+        Name of the method in the analysis that constructs a pipeline to derive
         the fileset
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     desc : str
@@ -495,7 +495,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
 
     def _bind_node(self, node, **kwargs):
         try:
-            fileset = node.fileset(self.name, from_study=self.study.name,
+            fileset = node.fileset(self.name, from_analysis=self.analysis.name,
                                    format=self.format)
         except ArcanaNameError:
             # For filesets that can be generated by the analysis
@@ -503,8 +503,8 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
                               frequency=self.frequency, path=None,
                               subject_id=node.subject_id,
                               visit_id=node.visit_id,
-                              repository=self.study.repository,
-                              from_study=self.study.name,
+                              repository=self.analysis.repository,
+                              from_analysis=self.analysis.name,
                               exists=False,
                               **kwargs)
         return fileset
@@ -536,7 +536,7 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     desc : str
@@ -548,8 +548,8 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
         The default value to be passed as an input to this spec if none are
         provided. Can either be an explicit FieldCollection or any object
         with a 'collection' property that will return a default collection.
-        This object should also implement a 'bind(self, study)' method to
-        allow the study to be bound to it.
+        This object should also implement a 'bind(self, analysis)' method to
+        allow the analysis to be bound to it.
     """
 
     is_spec = True
@@ -598,7 +598,7 @@ class FieldSpec(BaseField, BaseSpecMixin):
     pipeline_getter : str
         Name of the method that constructs pipelines to derive the field
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_study',
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
         specifying whether the fileset is present for each session, subject,
         visit or project.
     desc : str
@@ -647,15 +647,15 @@ class FieldSpec(BaseField, BaseSpecMixin):
 
     def _bind_node(self, node, **kwargs):
         try:
-            field = node.field(self.name, from_study=self.study.name)
+            field = node.field(self.name, from_analysis=self.analysis.name)
         except ArcanaNameError:
             # For fields to be generated by the analysis
             field = Field(self.name, dtype=self.dtype,
                           frequency=self.frequency,
                           subject_id=node.subject_id,
                           visit_id=node.visit_id,
-                          repository=self.study.repository,
-                          from_study=self.study.name,
+                          repository=self.analysis.repository,
+                          from_analysis=self.analysis.name,
                           array=self.array,
                           exists=False, **kwargs)
         return field

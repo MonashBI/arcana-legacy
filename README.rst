@@ -17,7 +17,7 @@ Arcana
 
 
 Abstraction of Repository-Centric ANAlysis (Arcana_) is Python framework
-for "repository-centric" analyses of study groups (e.g. NeuroImaging
+for "repository-centric" analyses of analysis groups (e.g. NeuroImaging
 studies) built on Nipype_.
 
 Arcana_ interacts closely with a repository, storing intermediate
@@ -47,7 +47,7 @@ The Arcana_ package itself only provides the abstract *Analysis* and
 provide specialised classes representing the analysis that can be performed
 on specific types of data (e.g. FmriAnalysis, PetAnalysis). These specific classes
 can then be sub-classed further into classes that are specific to a particular
-study, and integrate complete analysis workflows from preprocessing
+analysis, and integrate complete analysis workflows from preprocessing
 to statistics.
 
 Installation

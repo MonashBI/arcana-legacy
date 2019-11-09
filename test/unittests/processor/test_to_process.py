@@ -2,8 +2,8 @@ from nipype.interfaces.utility import Merge, Split
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)
 from arcana.processor import SingleProc
-from arcana.study.base import Analysis, AnalysisMetaClass
-from arcana.study.parameter import ParamSpec, SwitchSpec
+from arcana.analysis.base import Analysis, AnalysisMetaClass
+from arcana.analysis.parameter import ParamSpec, SwitchSpec
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
     InputFieldSpec, InputFields)
@@ -247,37 +247,37 @@ class TestProvBasic(BaseTestCase):
         """
         Tests whether data is regenerated if the pipeline workflows are altered
         """
-        study_name = 'add_node'
-        # Test vanilla study
-        study = self.create_study(
+        analysis_name = 'add_node'
+        # Test vanilla analysis
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(study.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
                          156.0)
-        # Rerun results of altered study
-        study = self.create_study(
+        # Rerun results of altered analysis
+        analysis = self.create_analysis(
             TestProvAnalysisAddNode,
-            study_name,
+            analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
-        self.assertEqual(study.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
                          1252.0)
-        study_name = 'add_connect'
-        # Test vanilla study
-        study = self.create_study(
+        analysis_name = 'add_connect'
+        # Test vanilla analysis
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(study.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
                          156.0)
-        # Rerun results of altered study
-        study = self.create_study(
+        # Rerun results of altered analysis
+        analysis = self.create_analysis(
             TestProvAnalysisAddConnect,
-            study_name,
+            analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
-        self.assertEqual(study.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
                          170.0)
 
     def test_unchanged_workflow(self):
@@ -285,25 +285,25 @@ class TestProvBasic(BaseTestCase):
         Tests that when a parameter is changed that doesn't effect the
         workflows that generated a value, then the data isn't regenerated
         """
-        study_name = 'changed_parameter'
+        analysis_name = 'changed_parameter'
         new_value = -99.0
-        # Test vanilla study
-        study = self.create_study(
+        # Test vanilla analysis
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS)
-        derived_field4 = study.data('derived_field4').item(*self.SESSION)
+        derived_field4 = analysis.data('derived_field4').item(*self.SESSION)
         self.assertEqual(derived_field4.value, 155.0)
         # Change value to a new value to see if it gets overwritten even
         # it shouldn't as the parameter that is changed doesn't impact on
         # derived field 4.
         change_value_w_prov(derived_field4, new_value)
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS,
             parameters={'subtract': 100})
-        new_derived_field4 = study.data('derived_field4').item(*self.SESSION)
+        new_derived_field4 = analysis.data('derived_field4').item(*self.SESSION)
         self.assertEqual(new_derived_field4.value, new_value)
         self.assertEqual(
             new_derived_field4.record.prov['outputs']['derived_field4'],
@@ -311,26 +311,26 @@ class TestProvBasic(BaseTestCase):
 
     def test_protect_manually(self):
         """Protect manually altered files and fields from overwrite"""
-        study_name = 'manual_protect'
+        analysis_name = 'manual_protect'
         protected_derived_field4_value = -99.0
         protected_derived_fileset1_value = -999.0
-        # Test vanilla study
-        study = self.create_study(
+        # Test vanilla analysis
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS)
-        derived_fileset1_collection, derived_field4_collection = study.data(
+        derived_fileset1_collection, derived_field4_collection = analysis.data(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_collection, 154.0)
         self.assertEqual(derived_field4_collection.value(*self.SESSION), 155.0)
         # Rerun with new parameters
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={'multiplier': 100.0})
-        derived_fileset1_collection, derived_field4_collection = study.data(
+        derived_fileset1_collection, derived_field4_collection = analysis.data(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_collection, 1414.0)
         derived_field4 = derived_field4_collection.item(*self.SESSION)
@@ -341,9 +341,9 @@ class TestProvBasic(BaseTestCase):
         # need to be deleted in order to be regenerated
         derived_field4.value = protected_derived_field4_value
         # Since derived_fileset1 needs to be reprocessed but
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS,
             parameters={'multiplier': 1000.0})
@@ -351,14 +351,14 @@ class TestProvBasic(BaseTestCase):
         # derived field4/fileset1 is protected
         self.assertRaises(
             ArcanaProtectedOutputConflictError,
-            study.data,
+            analysis.data,
             ('derived_fileset1', 'derived_field4'))
         with open(derived_fileset1_collection.path(*self.SESSION), 'w') as f:
             f.write(str(protected_derived_fileset1_value))
-        study.clear_caches()
+        analysis.clear_caches()
         # Protect the output of derived_fileset1 as well and it should return
         # the protected values
-        derived_fileset1_collection, derived_field4_collection = study.data(
+        derived_fileset1_collection, derived_field4_collection = analysis.data(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_collection,
                                  protected_derived_fileset1_value)
@@ -372,30 +372,30 @@ class TestProvInputChange(BaseTestCase):
     INPUT_FIELDS = INPUT_FIELDS
 
     def test_input_change(self):
-        study_name = 'input_change_study'
-        study = self.create_study(
+        analysis_name = 'input_change_analysis'
+        analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(study.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
                          156.0)
         # Change acquired file contents, which should cause the checksum check
         # to fail
-        with open(study.data('acquired_fileset1').path(*self.SESSION),
+        with open(analysis.data('acquired_fileset1').path(*self.SESSION),
                   'w') as f:
             f.write('99.9')
         # Should detect that the input has changed and throw an error
         self.assertRaises(
             ArcanaReprocessException,
-            study.data,
+            analysis.data,
             'derived_field2')
-        new_study = self.create_study(
+        new_analysis = self.create_analysis(
             TestProvAnalysis,
-            study_name,
+            analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(
-            new_study.data('derived_field2').value(*self.SESSION), 1145.0)
+            new_analysis.data('derived_field2').value(*self.SESSION), 1145.0)
 
 
 class TestDialationAnalysis(Analysis, metaclass=AnalysisMetaClass):
@@ -409,7 +409,7 @@ class TestDialationAnalysis(Analysis, metaclass=AnalysisMetaClass):
         FieldSpec('derived_field3', int, 'pipeline3',
                   frequency='per_visit'),
         FieldSpec('derived_field4', int, 'pipeline4',
-                  frequency='per_study'),
+                  frequency='per_dataset'),
         FieldSpec('derived_field5', int, 'pipeline5')]
 
     add_param_specs = [
@@ -564,35 +564,35 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         return Tree.construct(self.repository, fields=fields)
 
     def test_filter_dialation1(self):
-        study_name = 'process_dialation'
-        study = self.create_study(
+        analysis_name = 'process_dialation'
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS)
-        field2 = study.data(
+        field2 = analysis.data(
             'derived_field2',
             session_ids=[('0', '0'),
                          ('1', '1')])
         self.assertEqual(field2.value(subject_id='0'), 3)
         self.assertEqual(field2.value(subject_id='1'), 23)
-        field3 = study.data(
+        field3 = analysis.data(
             'derived_field3',
             session_ids=[('0', '0'),
                          ('1', '1')])
         self.assertEqual(field3.value(visit_id='0'), 12)
         self.assertEqual(field3.value(visit_id='1'), 14)
-        field4 = study.data(
+        field4 = analysis.data(
             'derived_field4',
             session_ids=[('1', '1')])
         self.assertEqual(field4.value(), 26)
 
     def test_filter_dialation2(self):
-        study_name = 'filter_dialation2'
-        study = self.create_study(
+        analysis_name = 'filter_dialation2'
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS)
-        field5 = study.data(
+        field5 = analysis.data(
             'derived_field5',
             session_ids=[('1', '1')])
         self.assertEqual(len(field5), 1)
@@ -600,51 +600,51 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                          self.DEFAULT_FIELD5_VALUES[('1', '1')])
 
         # Check that no more fields were generated than necessary
-        tree = study.tree
-        sess00 = study.tree.session(subject_id='0', visit_id='0')
-        sess01 = study.tree.session(subject_id='0', visit_id='1')
-        sess10 = study.tree.session(subject_id='1', visit_id='0')
-        sess11 = study.tree.session(subject_id='1', visit_id='1')
-        subj0 = study.tree.subject('0')
-        subj1 = study.tree.subject('1')
-        vis0 = study.tree.visit('0')
-        vis1 = study.tree.visit('1')
+        tree = analysis.tree
+        sess00 = analysis.tree.session(subject_id='0', visit_id='0')
+        sess01 = analysis.tree.session(subject_id='0', visit_id='1')
+        sess10 = analysis.tree.session(subject_id='1', visit_id='0')
+        sess11 = analysis.tree.session(subject_id='1', visit_id='1')
+        subj0 = analysis.tree.subject('0')
+        subj1 = analysis.tree.subject('1')
+        vis0 = analysis.tree.visit('0')
+        vis1 = analysis.tree.visit('1')
         self.assertEqual(list(tree._fields.keys()),
-                         [('derived_field4', study_name)])
+                         [('derived_field4', analysis_name)])
         self.assertFalse(list(subj0._fields.keys()))
         self.assertEqual(list(subj1._fields.keys()),
-                         [('derived_field2', study_name)])
+                         [('derived_field2', analysis_name)])
         self.assertFalse(list(vis0._fields.keys()))
         self.assertEqual(list(vis1._fields.keys()),
-                         [('derived_field3', study_name)])
+                         [('derived_field3', analysis_name)])
         self.assertEqual(sorted(sess00._fields.keys()),
                          [('acquired_field1', None),
-                          ('derived_field1', study_name)])
+                          ('derived_field1', analysis_name)])
         self.assertEqual(sorted(sess01._fields.keys()),
                          [('acquired_field1', None),
-                          ('derived_field1', study_name)])
+                          ('derived_field1', analysis_name)])
         self.assertEqual(sorted(sess10._fields.keys()),
                          [('acquired_field1', None),
-                          ('derived_field1', study_name)])
+                          ('derived_field1', analysis_name)])
         self.assertEqual(sorted(sess11._fields.keys()),
                          [('acquired_field1', None),
-                          ('derived_field1', study_name),
-                          ('derived_field5', study_name)])
+                          ('derived_field1', analysis_name),
+                          ('derived_field5', analysis_name)])
 
     def test_process_dialation(self):
-        study_name = 'process_dialation'
+        analysis_name = 'process_dialation'
         new_value = -101
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS)
-        study.data('derived_field5')
+        analysis.data('derived_field5')
 
         def values_equal(field_name, values):
             for subj_i in range(self.NUM_SUBJECTS):
                 for vis_i in range(self.NUM_VISITS):
-                    sess = study.tree.session(subj_i, vis_i)
-                    field = sess.field(field_name, from_study=study_name)
+                    sess = analysis.tree.session(subj_i, vis_i)
+                    field = sess.field(field_name, from_analysis=analysis_name)
                     self.assertEqual(field.value,
                                      values[(str(subj_i), str(vis_i))])
         # Test generated values
@@ -654,70 +654,70 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         orig_field3_values = {}
         for vis_i in range(self.NUM_VISITS):
             for subj_i in range(self.NUM_SUBJECTS):
-                sess = study.tree.session(subj_i, vis_i)
-                field1 = sess.field('derived_field1', from_study=study_name)
+                sess = analysis.tree.session(subj_i, vis_i)
+                field1 = sess.field('derived_field1', from_analysis=analysis_name)
                 orig_field1_values[(str(subj_i),
                                     str(vis_i))] = field1.value
                 change_value_w_prov(field1, new_value)
-            field3 = study.tree.visit(vis_i).field('derived_field3',
-                                                   from_study=study_name)
+            field3 = analysis.tree.visit(vis_i).field('derived_field3',
+                                                   from_analysis=analysis_name)
             orig_field3_values[str(vis_i)] = field3.value
         # Rerun analysis with new parameters
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'pipeline3_op': 'mul'})
-        study.data('derived_field3', subject_id='0', visit_id='0')
+        analysis.data('derived_field3', subject_id='0', visit_id='0')
         values_equal('derived_field1',
                      {k: new_value for k in orig_field1_values})
         self.assertEqual(
-            study.tree.visit('0').field('derived_field3',
-                                        from_study=study_name).value,
+            analysis.tree.visit('0').field('derived_field3',
+                                        from_analysis=analysis_name).value,
             10201)
         self.assertEqual(
-            study.tree.visit('1').field('derived_field3',
-                                        from_study=study_name).value,
+            analysis.tree.visit('1').field('derived_field3',
+                                        from_analysis=analysis_name).value,
             orig_field3_values['1'])
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'increment': 2})
-        study.data('derived_field5', subject_id='0', visit_id='0')
+        analysis.data('derived_field5', subject_id='0', visit_id='0')
         values_equal('derived_field1',
                      {k: v + 1 for k, v in orig_field1_values.items()})
 
     def test_dialation_protection(self):
-        study_name = 'dialation_protection'
-        study = self.create_study(
+        analysis_name = 'dialation_protection'
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=self.STUDY_INPUTS)
-        field5 = study.data('derived_field5')
+        field5 = analysis.data('derived_field5')
         for item in field5:
             self.assertEqual(item.value,
                              self.DEFAULT_FIELD5_VALUES[(item.subject_id,
                                                          item.visit_id)])
-        field1 = study.data('derived_field1')
-        field2 = study.data('derived_field2')
+        field1 = analysis.data('derived_field1')
+        field2 = analysis.data('derived_field2')
         field1.item(subject_id='0', visit_id='1').value = 1000000
         field1.item(subject_id='1', visit_id='1').value = 2000000
         # Manually change value of field 2
         field2.item(subject_id='0').value = -1000
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=self.STUDY_INPUTS,
             parameters={
                 'increment': 2})
         # Recalculate value of field5 with new field2 value
-        field1, field2, field3, field4, field5 = study.data(
+        field1, field2, field3, field4, field5 = analysis.data(
             ['derived_field1', 'derived_field2', 'derived_field3',
              'derived_field4', 'derived_field5'])
         self.assertEqual(field1.value(subject_id='0', visit_id='0'), 2)
@@ -779,28 +779,28 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
         return Tree.construct(self.repository, fields=fields)
 
     def test_skip_missing(self):
-        study_name = 'skip_missing'
-        study = self.create_study(
+        analysis_name = 'skip_missing'
+        analysis = self.create_analysis(
             TestDialationAnalysis,
-            study_name,
+            analysis_name,
             inputs=[
                 InputFields('acquired_field1', 'acquired_field1', int),
                 InputFields('acquired_field2', 'acquired_field2', int,
                             skip_missing=True)])
-        derived_field1 = study.data('derived_field1')
+        derived_field1 = analysis.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],
                          [True, True, True, False])
-        derived_field2 = study.data('derived_field2')
+        derived_field2 = analysis.data('derived_field2')
         self.assertEqual([f.exists for f in derived_field2], [True, False])
-        derived_field3 = study.data('derived_field3')
+        derived_field3 = analysis.data('derived_field3')
         self.assertEqual([f.exists for f in derived_field3], [True, False])
-        derived_field4 = study.data('derived_field4')
+        derived_field4 = analysis.data('derived_field4')
         self.assertEqual([f.exists for f in derived_field4], [False])
-        derived_field5 = study.data('derived_field5')
+        derived_field5 = analysis.data('derived_field5')
         self.assertEqual([f.exists for f in derived_field5],
                          [False, False, False, False])
         # Provide missing data
-        missing_field = study.data('acquired_field2').item('1', '1')
+        missing_field = analysis.data('acquired_field2').item('1', '1')
         missing_field.value = 40
-        derived_field5 = study.data('derived_field5')
+        derived_field5 = analysis.data('derived_field5')
         self.assertTrue(all(f.exists for f in derived_field5))

@@ -9,7 +9,7 @@ from arcana.utils import PATH_SUFFIX
 from future.utils import with_metaclass
 from arcana.utils.testing import BaseTestCase
 from arcana.data import InputFilesetSpec, FilesetSpec
-from arcana.study import Analysis, AnalysisMetaClass
+from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.repository.basic import BasicRepo
 
@@ -28,8 +28,8 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
                     frequency='per_subject'),
         FilesetSpec('visit_sink', text_format, 'dummy_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('study_sink', text_format, 'dummy_pipeline',
-                    frequency='per_study'),
+        FilesetSpec('analysis_sink', text_format, 'dummy_pipeline',
+                    frequency='per_dataset'),
         FilesetSpec('resink1', text_format, 'dummy_pipeline'),
         FilesetSpec('resink2', text_format, 'dummy_pipeline'),
         FilesetSpec('resink3', text_format, 'dummy_pipeline'),
@@ -43,7 +43,7 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
 class TestSinkAndSource(BaseTestCase):
 
-    STUDY_NAME = 'astudy'
+    STUDY_NAME = 'aanalysis'
     SUMMARY_STUDY_NAME = 'asummary'
     INPUT_FILESETS = {'source1': '1',
                       'source2': '2',
@@ -51,7 +51,7 @@ class TestSinkAndSource(BaseTestCase):
                       'source4': '4'}
 
     def test_repository_roundtrip(self):
-        study = DummyAnalysis(
+        analysis = DummyAnalysis(
             self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
             inputs=[InputFilesets('source1', 'source1', text_format),
                     InputFilesets('source2', 'source2', text_format),
@@ -66,14 +66,14 @@ class TestSinkAndSource(BaseTestCase):
         inputnode.inputs.visit_id = self.VISIT
         source = pe.Node(
             RepositorySource(
-                study.bound_spec(f).collection
+                analysis.bound_spec(f).collection
                 for f in source_files),
             name='source')
-        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
         sink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection for f in sink_files),
+                (analysis.bound_spec(f).collection for f in sink_files),
                 dummy_pipeline),
             name='sink')
         sink.inputs.name = 'repository_sink'
@@ -96,22 +96,22 @@ class TestSinkAndSource(BaseTestCase):
         # Check local directory was created properly
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(from_study=self.STUDY_NAME)))
+                self.get_session_dir(from_analysis=self.STUDY_NAME)))
             if f not in (BasicRepo.FIELDS_FNAME,
                          BasicRepo.PROV_DIR)]
         self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
-        study = DummyAnalysis(
+        analysis = DummyAnalysis(
             STUDY_NAME, self.repository,
             processor=SingleProc('a_dir'),
             inputs=[])
-        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
         sink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection
+                (analysis.bound_spec(f).collection
                  for f in ['field1', 'field2', 'field3']), dummy_pipeline),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
@@ -124,7 +124,7 @@ class TestSinkAndSource(BaseTestCase):
         sink.run()
         source = pe.Node(
             RepositorySource(
-                study.bound_spec(f).collection
+                analysis.bound_spec(f).collection
                 for f in ['field1', 'field2', 'field3']),
             name='fields_source')
         source.inputs.visit_id = self.VISIT
@@ -137,7 +137,7 @@ class TestSinkAndSource(BaseTestCase):
         self.assertEqual(results.outputs.field3_field, field3)
 
     def test_summary(self):
-        study = DummyAnalysis(
+        analysis = DummyAnalysis(
             self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
             inputs=[InputFilesets('source1', 'source1', text_format),
                     InputFilesets('source2', 'source2', text_format),
@@ -149,15 +149,15 @@ class TestSinkAndSource(BaseTestCase):
         inputnode.inputs.subject_id = self.SUBJECT
         inputnode.inputs.visit_id = self.VISIT
         source = pe.Node(
-            RepositorySource(study.bound_spec(f).collection
+            RepositorySource(analysis.bound_spec(f).collection
                              for f in source_files), name='source')
         # Test subject sink
         subject_sink_files = ['subject_sink']
-        dummy_pipeline = study.dummy_pipeline()
+        dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
         subject_sink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection for f in subject_sink_files),
+                (analysis.bound_spec(f).collection for f in subject_sink_files),
                 dummy_pipeline),
             name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
@@ -167,7 +167,7 @@ class TestSinkAndSource(BaseTestCase):
         visit_sink_files = ['visit_sink']
         visit_sink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection
+                (analysis.bound_spec(f).collection
                  for f in visit_sink_files),
                 dummy_pipeline),
             name='visit_sink')
@@ -175,20 +175,20 @@ class TestSinkAndSource(BaseTestCase):
         visit_sink.inputs.desc = (
             "Tests the sinking of visit-wide filesets")
         # Test project sink
-        study_sink_files = ['study_sink']
-        study_sink = pe.Node(
+        analysis_sink_files = ['analysis_sink']
+        analysis_sink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection for f in study_sink_files),
+                (analysis.bound_spec(f).collection for f in analysis_sink_files),
                 dummy_pipeline),
-            name='study_sink')
+            name='analysis_sink')
 
-        study_sink.inputs.name = 'project_summary'
-        study_sink.inputs.desc = (
+        analysis_sink.inputs.name = 'project_summary'
+        analysis_sink.inputs.desc = (
             "Tests the sinking of project-wide filesets")
         # Create workflow connecting them together
         workflow = pe.Workflow('summary_unittest', base_dir=self.work_dir)
         workflow.add_nodes((source, subject_sink, visit_sink,
-                            study_sink))
+                            analysis_sink))
         workflow.connect(inputnode, 'subject_id', source, 'subject_id')
         workflow.connect(inputnode, 'visit_id', source, 'visit_id')
         workflow.connect(inputnode, 'subject_id', subject_sink, 'subject_id')
@@ -201,24 +201,24 @@ class TestSinkAndSource(BaseTestCase):
             visit_sink, 'visit_sink' + PATH_SUFFIX)
         workflow.connect(
             source, 'source3' + PATH_SUFFIX,
-            study_sink, 'study_sink' + PATH_SUFFIX)
+            analysis_sink, 'analysis_sink' + PATH_SUFFIX)
         workflow.run()
         # Check local summary directories were created properly
         subject_dir = self.get_session_dir(
             frequency='per_subject',
-            from_study=self.SUMMARY_STUDY_NAME)
+            from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
                          [BasicRepo.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
-            from_study=self.SUMMARY_STUDY_NAME)
+            from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
                          [BasicRepo.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
-            frequency='per_study',
-            from_study=self.SUMMARY_STUDY_NAME)
+            frequency='per_dataset',
+            from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [BasicRepo.PROV_DIR, 'study_sink.txt'])
+                         [BasicRepo.PROV_DIR, 'analysis_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']),
@@ -227,19 +227,19 @@ class TestSinkAndSource(BaseTestCase):
         reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource_per_subject = pe.Node(
             RepositorySource(
-                study.bound_spec(f).collection for f in subject_sink_files),
+                analysis.bound_spec(f).collection for f in subject_sink_files),
             name='reload_source_per_subject')
         reloadsource_per_visit = pe.Node(
             RepositorySource(
-                study.bound_spec(f).collection for f in visit_sink_files),
+                analysis.bound_spec(f).collection for f in visit_sink_files),
             name='reload_source_per_visit')
-        reloadsource_per_study = pe.Node(
+        reloadsource_per_dataset = pe.Node(
             RepositorySource(
-                study.bound_spec(f).collection for f in study_sink_files),
-            name='reload_source_per_study')
+                analysis.bound_spec(f).collection for f in analysis_sink_files),
+            name='reload_source_per_dataset')
         reloadsink = pe.Node(
             RepositorySink(
-                (study.bound_spec(f).collection
+                (analysis.bound_spec(f).collection
                  for f in ['resink1', 'resink2', 'resink3']),
                 dummy_pipeline),
             name='reload_sink')
@@ -249,7 +249,7 @@ class TestSinkAndSource(BaseTestCase):
         reloadworkflow = pe.Workflow('reload_summary_unittest',
                                      base_dir=self.work_dir)
         for node in (reloadsource_per_subject, reloadsource_per_visit,
-                     reloadsource_per_study, reloadsink):
+                     reloadsource_per_dataset, reloadsink):
             for iterator in ('subject_id', 'visit_id'):
                 reloadworkflow.connect(reloadinputnode, iterator,
                                        node, iterator)
@@ -261,14 +261,14 @@ class TestSinkAndSource(BaseTestCase):
                                'visit_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink2' + PATH_SUFFIX)
-        reloadworkflow.connect(reloadsource_per_study,
-                               'study_sink' + PATH_SUFFIX,
+        reloadworkflow.connect(reloadsource_per_dataset,
+                               'analysis_sink' + PATH_SUFFIX,
                                reloadsink,
                                'resink3' + PATH_SUFFIX)
         reloadworkflow.run()
         outputs = [
             f for f in sorted(os.listdir(
-                self.get_session_dir(from_study=self.SUMMARY_STUDY_NAME)))
+                self.get_session_dir(from_analysis=self.SUMMARY_STUDY_NAME)))
             if f not in (BasicRepo.FIELDS_FNAME,
                          BasicRepo.PROV_DIR)]
         self.assertEqual(outputs,

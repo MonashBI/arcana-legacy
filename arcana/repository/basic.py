@@ -226,7 +226,7 @@ class BasicRepo(Repository):
             ids = self._extract_ids_from_path(path_parts, dirs, files)
             if ids is None:
                 continue
-            subj_id, visit_id, from_study = ids
+            subj_id, visit_id, from_analysis = ids
             # Check for summaries and filtered IDs
             if subj_id == self.SUMMARY_NAME:
                 subj_id = None
@@ -236,12 +236,12 @@ class BasicRepo(Repository):
                 visit_id = None
             elif visit_ids is not None and visit_id not in visit_ids:
                 continue
-            # Map IDs into ID space of study
+            # Map IDs into ID space of analysis
             subj_id = self.map_subject_id(subj_id)
             visit_id = self.map_visit_id(visit_id)
             # Determine frequency of session|summary
             if (subj_id, visit_id) == (None, None):
-                frequency = 'per_study'
+                frequency = 'per_dataset'
             elif subj_id is None:
                 frequency = 'per_visit'
             elif visit_id is None:
@@ -257,7 +257,7 @@ class BasicRepo(Repository):
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
-                        from_study=from_study,
+                        from_analysis=from_analysis,
                         potential_aux_files=[
                             f for f in filtered_files
                             if (split_extension(f)[0] == basename
@@ -270,7 +270,7 @@ class BasicRepo(Repository):
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
                         repository=self,
-                        from_study=from_study,
+                        from_analysis=from_analysis,
                         **kwargs))
             if self.FIELDS_FNAME in files:
                 with open(op.join(session_path,
@@ -279,19 +279,19 @@ class BasicRepo(Repository):
                 all_fields.extend(
                     Field(name=k, value=v, frequency=frequency,
                           subject_id=subj_id, visit_id=visit_id,
-                          repository=self, from_study=from_study,
+                          repository=self, from_analysis=from_analysis,
                           **kwargs)
                     for k, v in list(dct.items()))
             if self.PROV_DIR in dirs:
-                if from_study is None:
+                if from_analysis is None:
                     raise ArcanaRepositoryError(
                         "Found provenance directory in session directory (i.e."
-                        " not in study-specific sub-directory)")
+                        " not in analysis-specific sub-directory)")
                 base_prov_dir = op.join(session_path, self.PROV_DIR)
                 for fname in os.listdir(base_prov_dir):
                     all_records.append(Record.load(
                         split_extension(fname)[0],
-                        frequency, subj_id, visit_id, from_study,
+                        frequency, subj_id, visit_id, from_analysis,
                         op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
 
@@ -299,11 +299,11 @@ class BasicRepo(Repository):
         depth = len(path_parts)
         if depth == self._depth:
             # Load input data
-            from_study = None
+            from_analysis = None
         elif (depth == (self._depth + 1)
               and self.PROV_DIR in dirs):
-            # Load study output
-            from_study = path_parts.pop()
+            # Load analysis output
+            from_analysis = path_parts.pop()
         elif (depth < self._depth
               and any(not f.startswith('.') for f in files)):
             # Check to see if there are files in upper level
@@ -325,14 +325,14 @@ class BasicRepo(Repository):
         else:
             subj_id = self.DEFAULT_SUBJECT_ID
             visit_id = self.DEFAULT_VISIT_ID
-        return subj_id, visit_id, from_study
+        return subj_id, visit_id, from_analysis
 
     def fileset_path(self, item, fname=None):
         if fname is None:
             fname = item.fname
         subject_id = self.inv_map_subject_id(item.subject_id)
         visit_id = self.inv_map_visit_id(item.visit_id)
-        if item.frequency == 'per_study':
+        if item.frequency == 'per_dataset':
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_subject'):
@@ -363,12 +363,12 @@ class BasicRepo(Repository):
             acq_dir = self.root_dir
         else:
             assert False
-        if item.from_study is None:
+        if item.from_analysis is None:
             sess_dir = acq_dir
         else:
-            # Append study-name to path (i.e. make a sub-directory to
+            # Append analysis-name to path (i.e. make a sub-directory to
             # hold derived products)
-            sess_dir = op.join(acq_dir, item.from_study)
+            sess_dir = op.join(acq_dir, item.from_analysis)
         # Make session dir if required
         if item.derived and not op.exists(sess_dir):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
@@ -441,7 +441,7 @@ class BasicRepo(Repository):
     @classmethod
     def _filter_dirs(cls, dirs, base_dir):
         # Filter out hidden directories (i.e. starting with '.')
-        # and derived study directories from fileset names
+        # and derived analysis directories from fileset names
         filtered = [
             op.join(base_dir, d) for d in dirs
             if not (d.startswith('.') or d == cls.PROV_DIR or (

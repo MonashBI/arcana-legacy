@@ -7,7 +7,7 @@ from arcana.utils.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     InputFilesets, InputFilesetSpec)
-from arcana.study import Analysis, AnalysisMetaClass
+from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.data.file_format import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
@@ -15,9 +15,9 @@ import sys
 from arcana.utils.testing.xnat import (
     TestMultiSubjectOnXnatMixin, SKIP_ARGS, SERVER)
 
-# Import TestExistingPrereqs study to test it on XNAT
-sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'study'))
-import test_study  # noqa pylint: disable=import-error
+# Import TestExistingPrereqs analysis to test it on XNAT
+sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'analysis'))
+import test_analysis  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
@@ -36,9 +36,9 @@ class TestAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
 
 class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,
-                                test_study.TestExistingPrereqs):
+                                test_analysis.TestExistingPrereqs):
 
-    BASE_CLASS = test_study.TestExistingPrereqs
+    BASE_CLASS = test_analysis.TestExistingPrereqs
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_per_session_prereqs(self):
@@ -98,13 +98,13 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
             project_id=self.project,
             server=SERVER,
             cache_dir=tempfile.mkdtemp())
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestAnalysis, 'cache_download',
             inputs=[
                 InputFilesets('fileset1', 'fileset1', text_format),
                 InputFilesets('fileset3', 'fileset3', text_format)],
             repository=repository)
-        study.cache_inputs()
+        analysis.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):
             subj_dir = op.join(
                 repository.cache_dir, self.project,
@@ -114,7 +114,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                     subj_dir,
                     '{}_{}_{}'.format(self.project, subject_id,
                                       visit_id))
-                for inpt in study.inputs:
+                for inpt in analysis.inputs:
                     self.assertTrue(op.exists(op.join(sess_dir, inpt.name)))
 
     @property

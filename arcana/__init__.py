@@ -19,9 +19,9 @@ limitations under the License.
 
 from .__about__ import __version__, __authors__
 import os
-from .study import (
+from .analysis import (
     Analysis, AnalysisMetaClass, MultiAnalysis, MultiAnalysisMetaClass,
-    SubAnalysisSpec, Parameter, ParamSpec, SwitchSpec)
+    SubCompSpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
     FilesetSpec, InputFilesets, FieldSpec, InputFields,
     InputFilesetSpec, InputFieldSpec)

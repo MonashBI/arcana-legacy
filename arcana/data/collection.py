@@ -24,7 +24,7 @@ class BaseCollectionMixin(object):
 
     def __init__(self, collection, frequency):
         self._frequency = frequency
-        if frequency == 'per_study':
+        if frequency == 'per_dataset':
             # If wrapped in an iterable
             if not isinstance(collection, self.CollectedClass):
                 if len(collection) > 1:
@@ -57,7 +57,7 @@ class BaseCollectionMixin(object):
                     "Invalid class {} in {}".format(datum, self))
 
     def __iter__(self):
-        if self._frequency == 'per_study':
+        if self._frequency == 'per_dataset':
             return iter(self._collection)
         elif self._frequency == 'per_session':
             return chain(*(c.values()
@@ -152,13 +152,13 @@ class BaseCollectionMixin(object):
                     "{} not a visit ID in '{}' collection ({})"
                     .format(visit_id, self.name,
                             ', '.join(self._collection.keys())))
-        elif self.frequency == 'per_study':
+        elif self.frequency == 'per_dataset':
             try:
                 fileset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
                     0, ("'{}' Collection is empty so doesn't have a " +
-                        "per_study node").format(self.name))
+                        "per_dataset node").format(self.name))
         return fileset
 
     @property
@@ -167,13 +167,13 @@ class BaseCollectionMixin(object):
         "in source and sink initiation"
         return self
 
-    def bind(self, study, **kwargs):
+    def bind(self, analysis, **kwargs):
         """
         Used for duck typing Collection objects with Spec and Match
-        in source and sink initiation. Checks IDs match sessions in study.
+        in source and sink initiation. Checks IDs match sessions in analysis.
         """
         if self.frequency == 'per_subject':
-            tree_subject_ids = list(study.tree.subject_ids)
+            tree_subject_ids = list(analysis.tree.subject_ids)
             subject_ids = list(self._collection.keys())
             if tree_subject_ids != subject_ids:
                 raise ArcanaUsageError(
@@ -182,7 +182,7 @@ class BaseCollectionMixin(object):
                         self.name, "', '".join(subject_ids),
                         "', '".join(tree_subject_ids)))
         elif self.frequency == 'per_visit':
-            tree_visit_ids = list(study.tree.visit_ids)
+            tree_visit_ids = list(analysis.tree.visit_ids)
             visit_ids = list(self._collection.keys())
             if tree_visit_ids != visit_ids:
                 raise ArcanaUsageError(
@@ -191,7 +191,7 @@ class BaseCollectionMixin(object):
                         self.name, "', '".join(visit_ids),
                         "', '".join(tree_visit_ids)))
         elif self.frequency == 'per_session':
-            for subject in study.tree.subjects:
+            for subject in analysis.tree.subjects:
                 if subject.id not in self._collection:
                     raise ArcanaUsageError(
                         "Analysis subject ID '{}' was not found in colleciton "
@@ -219,7 +219,7 @@ class BaseCollectionMixin(object):
 
 class FilesetCollection(BaseCollectionMixin, BaseFileset):
     """
-    A collection of filesets across a study (typically within a repository)
+    A collection of filesets across a analysis (typically within a repository)
 
     Parameters
     ----------

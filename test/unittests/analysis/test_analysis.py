@@ -3,16 +3,16 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.data.file_format import text_format
-from arcana.study.base import Analysis, AnalysisMetaClass
+from arcana.analysis.base import Analysis, AnalysisMetaClass
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)
 from arcana.exceptions import (
     ArcanaCantPickleAnalysisError, ArcanaUsageError)
-from arcana.study.multi import (
-    MultiAnalysis, MultiAnalysisMetaClass, SubAnalysisSpec)
+from arcana.analysis.multi import (
+    MultiAnalysis, MultiAnalysisMetaClass, SubCompSpec)
 from nipype.interfaces.base import (
     BaseInterface, File, TraitedSpec, traits, isdefined)
-from arcana.study.parameter import ParamSpec
+from arcana.analysis.parameter import ParamSpec
 from arcana.data.file_format import FileFormat, IdentityConverter
 from nipype.interfaces.utility import IdentityInterface
 from arcana.exceptions import ArcanaNoConverterError
@@ -48,9 +48,9 @@ class ExampleAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
         FilesetSpec('visit_summary', text_format,
                     'visit_summary_pipeline',
                     frequency='per_visit'),
-        FilesetSpec('study_summary', text_format,
-                    'study_summary_pipeline',
-                    frequency='per_study'),
+        FilesetSpec('analysis_summary', text_format,
+                    'analysis_summary_pipeline',
+                    frequency='per_dataset'),
         FilesetSpec('subject_ids', text_format,
                     'subject_ids_access_pipeline',
                     frequency='per_visit'),
@@ -209,9 +209,9 @@ class ExampleAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
         pipeline.connect_output('visit_summary', math, 'z')
         return pipeline
 
-    def study_summary_pipeline(self, **name_maps):
+    def analysis_summary_pipeline(self, **name_maps):
         pipeline = self.new_pipeline(
-            name="study_summary",
+            name="analysis_summary",
             desc=("Test of project summary variables"),
             citations=[],
             name_maps=name_maps)
@@ -227,7 +227,7 @@ class ExampleAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
         pipeline.connect_input('one', math1, 'x')
         pipeline.connect(math1, 'z', math2, 'x')
         # Connect outputs
-        pipeline.connect_output('study_summary', math2, 'z')
+        pipeline.connect_output('analysis_summary', math2, 'z')
         return pipeline
 
 
@@ -287,63 +287,63 @@ class TestAnalysis(BaseMultiSubjectTestCase):
                             visit_id=visit_id))
         return Tree.construct(self.repository, filesets=filesets)
 
-    def make_study(self):
-        return self.create_study(
+    def make_analysis(self):
+        return self.create_analysis(
             ExampleAnalysis, 'dummy', inputs=[
                 InputFilesets('one', 'one_input', text_format),
                 InputFilesets('ten', 'ten_input', text_format)],
             parameters={'pipeline_parameter': True})
 
     def test_run_pipeline_with_prereqs(self):
-        study = self.make_study()
-        self.assertContentsEqual(study.data('derived4'),
+        analysis = self.make_analysis()
+        self.assertContentsEqual(analysis.data('derived4'),
                                  [2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
 
     def test_pipeline_args(self):
-        study = self.make_study()
-        a = next(iter(study.data('derived5a'))).value
-        b = next(iter(study.data('derived5b'))).value
+        analysis = self.make_analysis()
+        a = next(iter(analysis.data('derived5a'))).value
+        b = next(iter(analysis.data('derived5b'))).value
         self.assertEqual(a, 'a')
         self.assertEqual(b, 'b')
 
     def test_subject_summary(self):
-        study = self.make_study()
-        summaries = study.data('subject_summary')
+        analysis = self.make_analysis()
+        summaries = analysis.data('subject_summary')
         ref = float(len(self.VISIT_IDS))
         for fileset in summaries:
             self.assertContentsEqual(fileset, ref,
                                      str(fileset.visit_id))
 
     def test_visit_summary(self):
-        study = self.make_study()
-        summaries = study.data('visit_summary')
+        analysis = self.make_analysis()
+        summaries = analysis.data('visit_summary')
         ref = float(len(self.SUBJECT_IDS))
         for fileset in summaries:
             self.assertContentsEqual(fileset, ref,
                                      str(fileset.visit_id))
 
-    def test_study_summary(self):
-        study = self.make_study()
+    def test_analysis_summary(self):
+        analysis = self.make_analysis()
         ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        self.assertContentsEqual(study.data('study_summary'), ref)
+        self.assertContentsEqual(analysis.data('analysis_summary'), ref)
 
     def test_subject_ids_access(self):
-        study = self.make_study()
-        study.data('subject_ids')
+        analysis = self.make_analysis()
+        analysis.data('subject_ids')
         for visit_id in self.VISIT_IDS:
             subject_ids_path = self.output_file_path(
-                'subject_ids.txt', study.name,
+                'subject_ids.txt', analysis.name,
                 visit=visit_id, frequency='per_visit')
             with open(subject_ids_path) as f:
                 ids = f.read().split('\n')
             self.assertEqual(sorted(ids), sorted(self.SUBJECT_IDS))
 
     def test_visit_ids_access(self):
-        study = self.make_study()
-        study.data('visit_ids')
+        analysis = self.make_analysis()
+        analysis.data('visit_ids')
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
-                'visit_ids.txt', study.name,
+                'visit_ids.txt', analysis.name,
                 subject=subject_id, frequency='per_subject')
             with open(visit_ids_path) as f:
                 ids = f.read().split('\n')
@@ -405,7 +405,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     DATASET_CONTENTS = {'one': 1.0, 'ten': 10.0, 'hundred': 100.0,
                         'thousand': 1000.0}
 
-    STUDY_NAME = 'study'
+    STUDY_NAME = 'analysis'
 
     @property
     def input_tree(self):
@@ -414,26 +414,26 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id, fileset_names in list(visit_ids.items()):
                 # Create filesets
                 for name in fileset_names:
-                    from_study = self.STUDY_NAME if name != 'one' else None
+                    from_analysis = self.STUDY_NAME if name != 'one' else None
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
-                                visit_id=visit_id, from_study=from_study))
+                                visit_id=visit_id, from_analysis=from_analysis))
         return Tree.construct(self.repository, filesets=filesets)
 
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)
-        # Create a study object, in order to generate appropriate provenance
+        # Create a analysis object, in order to generate appropriate provenance
         # for the existing "derived" data
         derived_filesets = [f for f in self.DATASET_CONTENTS
                             if f != 'one']
-        study = self.create_study(
+        analysis = self.create_analysis(
             ExistingPrereqAnalysis, self.STUDY_NAME,
             repository=self.local_repository,
             inputs=[InputFilesets('one', 'one', text_format)])
-        # Get all pipelines in the study
-        pipelines = {n: getattr(study, '{}_pipeline'.format(n))()
+        # Get all pipelines in the analysis
+        pipelines = {n: getattr(analysis, '{}_pipeline'.format(n))()
                      for n in derived_filesets}
-        for node in study.tree:
+        for node in analysis.tree:
             for fileset in node.filesets:
                 if fileset.basename != 'one' and fileset.exists:
                     # Generate expected provenance record for each pipeline
@@ -441,14 +441,14 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     pipelines[fileset.name].cap()
                     record = pipelines[fileset.name].expected_record(node)
                     self.local_repository.put_record(record)
-        study.clear_caches()  # Reset repository trees
+        analysis.clear_caches()  # Reset repository trees
 
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec
-        study = self.create_study(
+        analysis = self.create_analysis(
             ExistingPrereqAnalysis, self.STUDY_NAME,
             inputs=[InputFilesets('one', 'one', text_format)])
-        study.data('thousand')
+        analysis.data('thousand')
         targets = {
             'subject1': {
                 'visit1': 1100.0,
@@ -463,7 +463,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
                 fileset = session.fileset('thousand',
-                                          from_study=self.STUDY_NAME)
+                                          from_analysis=self.STUDY_NAME)
                 fileset.format = text_format
                 self.assertContentsEqual(
                     fileset, targets[subj_id][visit_id],
@@ -488,7 +488,7 @@ class TestInputValidationAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
     def identity_pipeline(self, **name_maps):
         pipeline = self.new_pipeline(
             name='pipeline',
-            desc="A dummy pipeline used to test study input validation",
+            desc="A dummy pipeline used to test analysis input validation",
             citations=[],
             name_maps=name_maps)
         identity = pipeline.add('identity', IdentityInterface(['a', 'b']))
@@ -510,7 +510,7 @@ class TestInputValidation(BaseTestCase):
                 f.write(spec_name)
 
     def test_input_validation(self):
-        self.create_study(
+        self.create_analysis(
             TestInputValidationAnalysis,
             'test_input_validation',
             inputs=[
@@ -533,7 +533,7 @@ class TestInputValidationFail(BaseTestCase):
     def test_input_validation_fail(self):
         self.assertRaises(
             ArcanaUsageError,
-            self.create_study,
+            self.create_analysis,
             TestInputValidationAnalysis,
             'test_validation_fail',
             inputs=[
@@ -558,7 +558,7 @@ class TestInputNoConverter(BaseTestCase):
     def test_input_validation_fail(self):
         self.assertRaises(
             ArcanaNoConverterError,
-            self.create_study,
+            self.create_analysis,
             TestInputValidationAnalysis,
             'test_validation_fail',
             inputs=[
@@ -641,7 +641,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
     INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_raised_error(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             BasicTestAnalysis,
             'base',
             inputs=[InputFilesets('fileset', 'fileset', text_format)])
@@ -652,7 +652,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
         logger.setLevel(50)
         self.assertRaises(
             RuntimeError,
-            study.data,
+            analysis.data,
             'raise_error')
         logger.setLevel(orig_level)
 
@@ -664,33 +664,33 @@ class TestGeneratedPickle(BaseTestCase):
     def test_generated_cls_pickle(self):
         GeneratedClass = AnalysisMetaClass(
             'GeneratedClass', (BasicTestAnalysis,), {})
-        study = self.create_study(
+        analysis = self.create_analysis(
             GeneratedClass,
             'gen_cls',
             inputs=[InputFilesets('fileset', 'fileset', text_format)])
         pkl_path = os.path.join(self.work_dir, 'gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
-            pkl.dump(study, f)
+            pkl.dump(analysis, f)
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
         self.assertContentsEqual(regen.data('out_fileset'), 'foo')
 
-    def test_multi_study_generated_cls_pickle(self):
+    def test_multi_analysis_generated_cls_pickle(self):
         cls_dct = {
-            'add_substudy_specs': [
-                SubAnalysisSpec('ss1', BasicTestAnalysis),
-                SubAnalysisSpec('ss2', BasicTestAnalysis)]}
+            'add_subcomp_specs': [
+                SubCompSpec('ss1', BasicTestAnalysis),
+                SubCompSpec('ss2', BasicTestAnalysis)]}
         MultiGeneratedClass = MultiAnalysisMetaClass(
             'MultiGeneratedClass', (MultiAnalysis,), cls_dct)
-        study = self.create_study(
+        analysis = self.create_analysis(
             MultiGeneratedClass,
             'multi_gen_cls',
             inputs=[InputFilesets('ss1_fileset', 'fileset', text_format),
                     InputFilesets('ss2_fileset', 'fileset', text_format)])
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'wb') as f:
-            pkl.dump(study, f)
+            pkl.dump(analysis, f)
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
@@ -698,14 +698,14 @@ class TestGeneratedPickle(BaseTestCase):
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
-            'add_substudy_specs': [
-                SubAnalysisSpec('ss1', BasicTestAnalysis),
-                SubAnalysisSpec('ss2', BasicTestAnalysis)],
+            'add_subcomp_specs': [
+                SubCompSpec('ss1', BasicTestAnalysis),
+                SubCompSpec('ss2', BasicTestAnalysis)],
             'default_fileset_pipeline': MultiAnalysis.translate(
                 'ss1', 'pipeline')}
         MultiGeneratedClass = MultiAnalysisMetaClass(
             'MultiGeneratedClass', (MultiAnalysis,), cls_dct)
-        study = self.create_study(
+        analysis = self.create_analysis(
             MultiGeneratedClass,
             'multi_gen_cls',
             inputs=[InputFilesets('ss1_fileset', 'fileset', text_format),
@@ -715,5 +715,5 @@ class TestGeneratedPickle(BaseTestCase):
             self.assertRaises(
                 ArcanaCantPickleAnalysisError,
                 pkl.dump,
-                study,
+                analysis,
                 f)

@@ -6,8 +6,8 @@ import unittest
 from unittest import TestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase
-from arcana.study.base import Analysis, AnalysisMetaClass
-from arcana.study.parameter import SwitchSpec
+from arcana.analysis.base import Analysis, AnalysisMetaClass
+from arcana.analysis.parameter import SwitchSpec
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec, InputFilesets)
 from arcana.data.file_format import text_format, FileFormat
@@ -139,16 +139,16 @@ class TestDicomTagMatch(BaseTestCase):
     REF_FORMATS = [dicom_format]
 
     def test_dicom_match(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestMatchAnalysis, 'test_dicom',
             inputs=self.DICOM_MATCH)
-        phase = list(study.data('gre_phase'))[0]
-        mag = list(study.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase'))[0]
+        mag = list(analysis.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
     def test_order_match(self):
-        study = self.create_study(
+        analysis = self.create_analysis(
             TestMatchAnalysis, 'test_dicom',
             inputs=[
                 InputFilesets('gre_phase', pattern=self.GRE_PATTERN,
@@ -157,8 +157,8 @@ class TestDicomTagMatch(BaseTestCase):
                 InputFilesets('gre_mag', pattern=self.GRE_PATTERN,
                               valid_formats=dicom_format, order=0,
                               is_regex=True)])
-        phase = list(study.data('gre_phase'))[0]
-        mag = list(study.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase'))[0]
+        mag = list(analysis.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
@@ -250,55 +250,55 @@ class TestDerivable(BaseTestCase):
     INPUT_FILESETS = {'required': 'blah'}
 
     def test_derivable(self):
-        # Test vanilla study
-        study = self.create_study(
+        # Test vanilla analysis
+        analysis = self.create_analysis(
             TestDerivableAnalysis,
-            'study',
+            'analysis',
             inputs={'required': 'required'})
-        self.assertTrue(study.spec('derivable').derivable)
+        self.assertTrue(analysis.spec('derivable').derivable)
         self.assertTrue(
-            study.spec('another_derivable').derivable)
+            analysis.spec('another_derivable').derivable)
         self.assertFalse(
-            study.spec('missing_input').derivable)
+            analysis.spec('missing_input').derivable)
         self.assertFalse(
-            study.spec('requires_switch').derivable)
+            analysis.spec('requires_switch').derivable)
         self.assertFalse(
-            study.spec('requires_switch2').derivable)
-        self.assertTrue(study.spec('requires_foo').derivable)
-        self.assertFalse(study.spec('requires_bar').derivable)
-        # Test study with 'switch' enabled
-        study_with_switch = self.create_study(
+            analysis.spec('requires_switch2').derivable)
+        self.assertTrue(analysis.spec('requires_foo').derivable)
+        self.assertFalse(analysis.spec('requires_bar').derivable)
+        # Test analysis with 'switch' enabled
+        analysis_with_switch = self.create_analysis(
             TestDerivableAnalysis,
-            'study_with_switch',
+            'analysis_with_switch',
             inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'switch': True})
         self.assertTrue(
-            study_with_switch.spec('requires_switch').derivable)
+            analysis_with_switch.spec('requires_switch').derivable)
         self.assertTrue(
-            study_with_switch.spec('requires_switch2').derivable)
-        # Test study with branch=='bar'
-        study_bar_branch = self.create_study(
+            analysis_with_switch.spec('requires_switch2').derivable)
+        # Test analysis with branch=='bar'
+        analysis_bar_branch = self.create_analysis(
             TestDerivableAnalysis,
-            'study_bar_branch',
+            'analysis_bar_branch',
             inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'branch': 'bar'})
-        self.assertFalse(study_bar_branch.spec('requires_foo').derivable)
-        self.assertTrue(study_bar_branch.spec('requires_bar').derivable)
-        # Test study with optional input
-        study_with_input = self.create_study(
+        self.assertFalse(analysis_bar_branch.spec('requires_foo').derivable)
+        self.assertTrue(analysis_bar_branch.spec('requires_bar').derivable)
+        # Test analysis with optional input
+        analysis_with_input = self.create_analysis(
             TestDerivableAnalysis,
-            'study_with_inputs',
+            'analysis_with_inputs',
             inputs=[InputFilesets('required', 'required', text_format),
                     InputFilesets('optional', 'required', text_format)])
         self.assertTrue(
-            study_with_input.spec('missing_input').derivable)
-        study_unhandled = self.create_study(
+            analysis_with_input.spec('missing_input').derivable)
+        analysis_unhandled = self.create_analysis(
             TestDerivableAnalysis,
-            'study_unhandled',
+            'analysis_unhandled',
             inputs=[InputFilesets('required', 'required', text_format)],
             parameters={'branch': 'wee'})
         self.assertRaises(
             ArcanaDesignError,
             getattr,
-            study_unhandled.spec('requires_foo'),
+            analysis_unhandled.spec('requires_foo'),
             'derivable')
