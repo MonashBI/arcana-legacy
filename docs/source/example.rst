@@ -143,9 +143,9 @@ which can then be instantiated and used to generate 'derived2' with
         processor=SingleProc('/my/work/dir'),
         environment=StaticEnv(),
         inputs=[
-            InputFilesets('acquired_file1', 'your-name-for-file1'),
-            InputFilesets('acquired_file2', 'your-name-for-file2'),
-            InputFields('acquired_field1', 'your-name-for-field1')],
+            FilesetFilter('acquired_file1', 'your-name-for-file1'),
+            FilesetFilter('acquired_file2', 'your-name-for-file2'),
+            FieldFilter('acquired_field1', 'your-name-for-field1')],
         parameters={'parameter2': 50.0,
                     'node1_option': True})
 

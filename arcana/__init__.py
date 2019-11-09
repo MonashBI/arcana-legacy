@@ -23,7 +23,7 @@ from .analysis import (
     Analysis, AnalysisMetaClass, MultiAnalysis, MultiAnalysisMetaClass,
     SubCompSpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
-    FilesetSpec, InputFilesets, FieldSpec, InputFields,
+    FilesetSpec, FilesetFilter, FieldSpec, FieldFilter,
     InputFilesetSpec, InputFieldSpec)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetCollection, FieldCollection

@@ -280,7 +280,7 @@ class BaseInputMixin(object):
         return match
 
 
-class InputFilesets(BaseInputMixin, BaseFileset):
+class FilesetFilter(BaseInputMixin, BaseFileset):
     """
     A pattern that describes a single fileset (typically acquired
     rather than generated but not necessarily) within each session.
@@ -412,7 +412,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
             if valid_formats is None:
                 raise ArcanaUsageError(
                     "'valid_formats' need to be provided to the 'match' "
-                    "method if the InputFilesets ({}) doesn't specify a format"
+                    "method if the FilesetFilter ({}) doesn't specify a format"
                     .format(self))
         # Run the match against the tree
         return FilesetCollection(self.name,
@@ -531,7 +531,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
         return {'format': self.format}
 
 
-class InputFields(BaseInputMixin, BaseField):
+class FieldFilter(BaseInputMixin, BaseField):
     """
     A pattern that matches a single field (typically acquired rather than
     generated but not necessarily) in each session.

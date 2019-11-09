@@ -1,6 +1,6 @@
 from arcana.utils.testing import BaseTestCase, TestMath
 from arcana.utils.interfaces import Merge
-from arcana.data import InputFilesets, FilesetSpec, InputFilesetSpec
+from arcana.data import FilesetFilter, FilesetSpec, InputFilesetSpec
 from arcana.data.file_format import text_format
 from arcana.analysis.parameter import ParamSpec
 from arcana.exceptions import ArcanaOutputNotProducedException
@@ -194,9 +194,9 @@ class TestMulti(BaseTestCase):
     def test_full_multi_analysis(self):
         analysis = self.create_analysis(
             FullMultiAnalysis, 'full',
-            [InputFilesets('a', 'ones', text_format),
-             InputFilesets('b', 'ones', text_format),
-             InputFilesets('c', 'ones', text_format)],
+            [FilesetFilter('a', 'ones', text_format),
+             FilesetFilter('b', 'ones', text_format),
+             FilesetFilter('c', 'ones', text_format)],
             parameters=[Parameter('required_op', 'mul')])
         d, e, f = analysis.data(('d', 'e', 'f'),
                              subject_id='SUBJECT', visit_id='VISIT')
@@ -224,9 +224,9 @@ class TestMulti(BaseTestCase):
     def test_partial_multi_analysis(self):
         analysis = self.create_analysis(
             PartialMultiAnalysis, 'partial',
-            [InputFilesets('a', 'ones', text_format),
-             InputFilesets('b', 'ones', text_format),
-             InputFilesets('c', 'ones', text_format)],
+            [FilesetFilter('a', 'ones', text_format),
+             FilesetFilter('b', 'ones', text_format),
+             FilesetFilter('c', 'ones', text_format)],
             parameters=[Parameter('ss2_product_op', 'mul')])
         ss1_z = analysis.data('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
@@ -255,14 +255,14 @@ class TestMulti(BaseTestCase):
     def test_multi_multi_analysis(self):
         analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
-            [InputFilesets('ss1_x', 'ones', text_format),
-             InputFilesets('ss1_y', 'ones', text_format),
-             InputFilesets('full_a', 'ones', text_format),
-             InputFilesets('full_b', 'ones', text_format),
-             InputFilesets('full_c', 'ones', text_format),
-             InputFilesets('partial_a', 'ones', text_format),
-             InputFilesets('partial_b', 'ones', text_format),
-             InputFilesets('partial_c', 'ones', text_format)],
+            [FilesetFilter('ss1_x', 'ones', text_format),
+             FilesetFilter('ss1_y', 'ones', text_format),
+             FilesetFilter('full_a', 'ones', text_format),
+             FilesetFilter('full_b', 'ones', text_format),
+             FilesetFilter('full_c', 'ones', text_format),
+             FilesetFilter('partial_a', 'ones', text_format),
+             FilesetFilter('partial_b', 'ones', text_format),
+             FilesetFilter('partial_c', 'ones', text_format)],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
         self.assertContentsEqual(analysis.data('g'), 11.0)
@@ -307,14 +307,14 @@ class TestMulti(BaseTestCase):
         # Misses the required 'full_required_op' parameter, which sets
         # the operation of the second node in AnalysisB's pipeline to
         # 'product'
-        inputs = [InputFilesets('ss1_x', 'ones', text_format),
-                  InputFilesets('ss1_y', 'ones', text_format),
-                  InputFilesets('full_a', 'ones', text_format),
-                  InputFilesets('full_b', 'ones', text_format),
-                  InputFilesets('full_c', 'ones', text_format),
-                  InputFilesets('partial_a', 'ones', text_format),
-                  InputFilesets('partial_b', 'ones', text_format),
-                  InputFilesets('partial_c', 'ones', text_format)]
+        inputs = [FilesetFilter('ss1_x', 'ones', text_format),
+                  FilesetFilter('ss1_y', 'ones', text_format),
+                  FilesetFilter('full_a', 'ones', text_format),
+                  FilesetFilter('full_b', 'ones', text_format),
+                  FilesetFilter('full_c', 'ones', text_format),
+                  FilesetFilter('partial_a', 'ones', text_format),
+                  FilesetFilter('partial_b', 'ones', text_format),
+                  FilesetFilter('partial_c', 'ones', text_format)]
         missing_parameter_analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
             inputs,

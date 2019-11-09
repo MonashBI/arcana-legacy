@@ -4,7 +4,7 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.data.file_format import text_format
 from arcana.processor import SingleProc
 from arcana.data import (
-    InputFilesets, FieldSpec)
+    FilesetFilter, FieldSpec)
 from arcana.utils import PATH_SUFFIX
 from future.utils import with_metaclass
 from arcana.utils.testing import BaseTestCase
@@ -53,10 +53,10 @@ class TestSinkAndSource(BaseTestCase):
     def test_repository_roundtrip(self):
         analysis = DummyAnalysis(
             self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
-            inputs=[InputFilesets('source1', 'source1', text_format),
-                    InputFilesets('source2', 'source2', text_format),
-                    InputFilesets('source3', 'source3', text_format),
-                    InputFilesets('source4', 'source4', text_format)])
+            inputs=[FilesetFilter('source1', 'source1', text_format),
+                    FilesetFilter('source2', 'source2', text_format),
+                    FilesetFilter('source3', 'source3', text_format),
+                    FilesetFilter('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ('source1', 'source2', 'source3', 'source4')
         sink_files = ('sink1', 'sink3', 'sink4')
@@ -139,9 +139,9 @@ class TestSinkAndSource(BaseTestCase):
     def test_summary(self):
         analysis = DummyAnalysis(
             self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
-            inputs=[InputFilesets('source1', 'source1', text_format),
-                    InputFilesets('source2', 'source2', text_format),
-                    InputFilesets('source3', 'source3', text_format)])
+            inputs=[FilesetFilter('source1', 'source1', text_format),
+                    FilesetFilter('source2', 'source2', text_format),
+                    FilesetFilter('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(

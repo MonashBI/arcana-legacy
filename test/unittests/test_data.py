@@ -9,7 +9,7 @@ from arcana.utils.testing import BaseTestCase, BaseMultiSubjectTestCase
 from arcana.analysis.base import Analysis, AnalysisMetaClass
 from arcana.analysis.parameter import SwitchSpec
 from arcana.data import (
-    InputFilesetSpec, FilesetSpec, FieldSpec, InputFilesets)
+    InputFilesetSpec, FilesetSpec, FieldSpec, FilesetFilter)
 from arcana.data.file_format import text_format, FileFormat
 from arcana.exceptions import ArcanaDesignError, ArcanaError
 from future.utils import PY2
@@ -128,10 +128,10 @@ class TestDicomTagMatch(BaseTestCase):
     PHASE_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'P', 'ND']
     MAG_IMAGE_TYPE = ['ORIGINAL', 'PRIMARY', 'M', 'ND', 'NORM']
     DICOM_MATCH = [
-        InputFilesets('gre_phase', GRE_PATTERN, dicom_format,
+        FilesetFilter('gre_phase', GRE_PATTERN, dicom_format,
                       dicom_tags={IMAGE_TYPE_TAG: PHASE_IMAGE_TYPE},
                       is_regex=True),
-        InputFilesets('gre_mag', GRE_PATTERN, dicom_format,
+        FilesetFilter('gre_mag', GRE_PATTERN, dicom_format,
                       dicom_tags={IMAGE_TYPE_TAG: MAG_IMAGE_TYPE},
                       is_regex=True)]
 
@@ -151,10 +151,10 @@ class TestDicomTagMatch(BaseTestCase):
         analysis = self.create_analysis(
             TestMatchAnalysis, 'test_dicom',
             inputs=[
-                InputFilesets('gre_phase', pattern=self.GRE_PATTERN,
+                FilesetFilter('gre_phase', pattern=self.GRE_PATTERN,
                               valid_formats=dicom_format, order=1,
                               is_regex=True),
-                InputFilesets('gre_mag', pattern=self.GRE_PATTERN,
+                FilesetFilter('gre_mag', pattern=self.GRE_PATTERN,
                               valid_formats=dicom_format, order=0,
                               is_regex=True)])
         phase = list(analysis.data('gre_phase'))[0]
@@ -270,7 +270,7 @@ class TestDerivable(BaseTestCase):
         analysis_with_switch = self.create_analysis(
             TestDerivableAnalysis,
             'analysis_with_switch',
-            inputs=[InputFilesets('required', 'required', text_format)],
+            inputs=[FilesetFilter('required', 'required', text_format)],
             parameters={'switch': True})
         self.assertTrue(
             analysis_with_switch.spec('requires_switch').derivable)
@@ -280,7 +280,7 @@ class TestDerivable(BaseTestCase):
         analysis_bar_branch = self.create_analysis(
             TestDerivableAnalysis,
             'analysis_bar_branch',
-            inputs=[InputFilesets('required', 'required', text_format)],
+            inputs=[FilesetFilter('required', 'required', text_format)],
             parameters={'branch': 'bar'})
         self.assertFalse(analysis_bar_branch.spec('requires_foo').derivable)
         self.assertTrue(analysis_bar_branch.spec('requires_bar').derivable)
@@ -288,14 +288,14 @@ class TestDerivable(BaseTestCase):
         analysis_with_input = self.create_analysis(
             TestDerivableAnalysis,
             'analysis_with_inputs',
-            inputs=[InputFilesets('required', 'required', text_format),
-                    InputFilesets('optional', 'required', text_format)])
+            inputs=[FilesetFilter('required', 'required', text_format),
+                    FilesetFilter('optional', 'required', text_format)])
         self.assertTrue(
             analysis_with_input.spec('missing_input').derivable)
         analysis_unhandled = self.create_analysis(
             TestDerivableAnalysis,
             'analysis_unhandled',
-            inputs=[InputFilesets('required', 'required', text_format)],
+            inputs=[FilesetFilter('required', 'required', text_format)],
             parameters={'branch': 'wee'})
         self.assertRaises(
             ArcanaDesignError,

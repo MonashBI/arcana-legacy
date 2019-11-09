@@ -6,7 +6,7 @@ from arcana.analysis.base import Analysis, AnalysisMetaClass
 from arcana.analysis.parameter import ParamSpec, SwitchSpec
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
-    InputFieldSpec, InputFields)
+    InputFieldSpec, FieldFilter)
 from arcana.data.file_format import text_format
 from arcana.data import Field
 from arcana.repository import Tree
@@ -544,7 +544,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
 
     NUM_SUBJECTS = 2
     NUM_VISITS = 2
-    STUDY_INPUTS = [InputFields('acquired_field1', 'acquired_field1', int)]
+    STUDY_INPUTS = [FieldFilter('acquired_field1', 'acquired_field1', int)]
 
     DEFAULT_FIELD5_VALUES = {
         ('0', '0'): 41,
@@ -784,8 +784,8 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
             TestDialationAnalysis,
             analysis_name,
             inputs=[
-                InputFields('acquired_field1', 'acquired_field1', int),
-                InputFields('acquired_field2', 'acquired_field2', int,
+                FieldFilter('acquired_field1', 'acquired_field1', int),
+                FieldFilter('acquired_field2', 'acquired_field2', int,
                             skip_missing=True)])
         derived_field1 = analysis.data('derived_field1')
         self.assertEqual([f.exists for f in derived_field1],

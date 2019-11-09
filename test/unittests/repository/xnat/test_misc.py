@@ -7,7 +7,7 @@ from collections import OrderedDict
 from unittest import TestCase
 import xnat
 from arcana.utils.testing import BaseTestCase
-from arcana.data import InputFilesets
+from arcana.data import FilesetFilter
 from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
@@ -113,8 +113,8 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
                 server=SERVER, cache_dir=tempfile.mkdtemp()),
             processor=SingleProc(self.work_dir),
             inputs=[
-                InputFilesets('gre_phase', valid_formats=dicom_format, id=7),
-                InputFilesets('gre_mag', valid_formats=dicom_format, id=6)])
+                FilesetFilter('gre_phase', valid_formats=dicom_format, id=7),
+                FilesetFilter('gre_mag', valid_formats=dicom_format, id=6)])
         phase = list(analysis.data('gre_phase'))[0]
         mag = list(analysis.data('gre_mag'))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
@@ -191,7 +191,7 @@ class TestScanQualityLabelMatching(TestOnXnatMixin, BaseTestCase):
                 ((None, 'questionable', 'usable'), '2unlabelled'),
                 (('questionable', 'usable'), '3questionable'),
                 ('usable', '4usable')):
-            inpt = InputFilesets('dummy', order=0, valid_formats=text_format,
+            inpt = FilesetFilter('dummy', order=0, valid_formats=text_format,
                                  acceptable_quality=accepted)
             matched = inpt.match(tree).item(subject_id=self.SUBJECT,
                                             visit_id=self.VISIT)

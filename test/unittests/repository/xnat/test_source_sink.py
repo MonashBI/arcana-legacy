@@ -13,7 +13,7 @@ from nipype.interfaces.utility import IdentityInterface
 from arcana.repository.xnat import XnatRepo
 from arcana.processor import SingleProc
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.data import InputFilesets
+from arcana.data import FilesetFilter
 from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format import text_format
 from arcana.utils.testing.xnat import (
@@ -96,10 +96,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             server=SERVER, cache_dir=self.cache_dir)
         analysis = DummyAnalysis(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
-            inputs=[InputFilesets('source1', 'source1', text_format),
-                    InputFilesets('source2', 'source2', text_format),
-                    InputFilesets('source3', 'source3', text_format),
-                    InputFilesets('source4', 'source4', text_format)])
+            inputs=[FilesetFilter('source1', 'source1', text_format),
+                    FilesetFilter('source2', 'source2', text_format),
+                    FilesetFilter('source3', 'source3', text_format),
+                    FilesetFilter('source4', 'source4', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3', 'source4']
         sink_files = ['sink1', 'sink3', 'sink4']
@@ -157,7 +157,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             project_id=self.project)
         analysis = DummyAnalysis(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
-            inputs=[InputFilesets('source1', 'source1', text_format)])
+            inputs=[FilesetFilter('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
@@ -207,7 +207,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
                               project_id=self.project)
         analysis = DummyAnalysis(
             self.STUDY_NAME, repository, SingleProc('ad'),
-            inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format)])
+            inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
                 [analysis.bound_spec(DATASET_NAME).collection]),
@@ -291,7 +291,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             cache_dir=cache_dir)
         analysis = DummyAnalysis(
             STUDY_NAME, sink_repository, SingleProc('ad'),
-            inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format,
+            inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format,
                                   repository=source_repository)],
             subject_ids=['SUBJECT'], visit_ids=['VISIT'],
             fill_tree=True)
@@ -376,9 +376,9 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         analysis = DummyAnalysis(
             self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
             inputs=[
-                InputFilesets('source1', 'source1', text_format),
-                InputFilesets('source2', 'source2', text_format),
-                InputFilesets('source3', 'source3', text_format)])
+                FilesetFilter('source1', 'source1', text_format),
+                FilesetFilter('source2', 'source2', text_format),
+                FilesetFilter('source3', 'source3', text_format)])
         # TODO: Should test out other file formats as well.
         source_files = ['source1', 'source2', 'source3']
         inputnode = pe.Node(IdentityInterface(['subject_id', 'visit_id']),
