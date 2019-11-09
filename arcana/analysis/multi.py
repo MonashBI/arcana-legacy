@@ -169,8 +169,8 @@ class MultiAnalysis(Analysis):
     def translate(cls, subcomp_name, pipeline_getter, pipeline_arg_names=(),
                   auto_added=False):
         """
-        A method for translating pipeline constructors from a sub-analysis to the
-        namespace of a multi-analysis. Returns a new method that calls the
+        A method for translating pipeline constructors from a sub-analysis to
+        the namespace of a multi-analysis. Returns a new method that calls the
         sub-analysis pipeline constructor with appropriate keyword arguments
 
         Parameters
@@ -278,8 +278,8 @@ class SubCompSpec(object):
     @property
     def auto_param_specs(self):
         """
-        Parameter pecs in the sub-analysis class that are not explicitly provided
-        in the name map
+        Parameter pecs in the sub-analysis class that are not explicitly
+        provided in the name map
         """
         for spec in self.analysis_class.param_specs():
             if spec.name not in self._name_map:

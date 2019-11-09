@@ -378,17 +378,18 @@ class Analysis(object):
                     session_ids = []
                 if spec.frequency == 'per_session':
                     data = [d for d in data
-                            if (d.subject_id in subject_ids or
-                                d.visit_id in visit_ids or
-                                d.session_id in session_ids)]
+                            if (d.subject_id in subject_ids
+                                or d.visit_id in visit_ids
+                                or d.session_id in session_ids)]
                 elif spec.frequency == 'per_subject':
-                    data = [d for d in data
-                            if (d.subject_id in subject_ids or
-                                d.subject_id in [s[0] for s in session_ids])]
+                    data = [
+                        d for d in data
+                        if (d.subject_id in subject_ids
+                            or d.subject_id in [s[0] for s in session_ids])]
                 elif spec.frequency == 'per_visit':
                     data = [d for d in data
-                            if (d.visit_id in visit_ids or
-                                d.visit_id in [s[1] for s in session_ids])]
+                            if (d.visit_id in visit_ids
+                                or d.visit_id in [s[1] for s in session_ids])]
                 if not data:
                     raise ArcanaUsageError(
                         "No matching data found (subject_ids={}, visit_ids={} "
@@ -402,8 +403,8 @@ class Analysis(object):
 
     def pipeline(self, getter_name, required_outputs=None, pipeline_args=None):
         """
-        Returns a pipeline from a analysis by getting the method corresponding to
-        the given name and checking that the required outputs are generated
+        Returns a pipeline from a analysis by getting the method corresponding
+        to the given name and checking that the required outputs are generated
         given the parameters of the analysis
 
         Parameters
@@ -533,8 +534,8 @@ class Analysis(object):
         DESC_INDENT = 8
         MIN_WRAP = 30
         cls_name = '.'.join([cls.__module__, cls.__name__])
-        menu = ("\n{} Menu \n".format(cls_name) +
-                '-' * len(cls_name) + "------")
+        menu = ("\n{} Menu \n".format(cls_name)
+                + '-' * len(cls_name) + "------")
         menu += '\n\nInputs:'
         for spec in cls.acquired_data_specs():
             if spec.default is not None:
@@ -544,8 +545,8 @@ class Analysis(object):
             else:
                 qual_str = ''
             if isinstance(spec, BaseFileset):
-                format_wrap_ind = (ITEM_INDENT + len(spec.name) + 3 +
-                                   len(qual_str))
+                format_wrap_ind = (ITEM_INDENT + len(spec.name) + 3
+                                   + len(qual_str))
                 if format_wrap_ind > LINE_LENGTH - MIN_WRAP:
                     format_wrap_ind = LINE_LENGTH - MIN_WRAP
                     indent_frmt_wrap = True
@@ -597,9 +598,9 @@ class Analysis(object):
 
     def clear_caches(self):
         """
-        Called after a pipeline is run against the analysis to force an update of
-        the derivatives that are now present in the repository if a subsequent
-        pipeline is run.
+        Called after a pipeline is run against the analysis to force an update
+        of the derivatives that are now present in the repository if a
+        subsequent pipeline is run.
         """
         self.repository.clear_cache()
         self._bound_specs = {}
@@ -1110,8 +1111,8 @@ class AnalysisMetaClass(type):
             # Get the combined class dictionary including base dicts
             # excluding auto-added properties for data and parameter specs
             combined_attrs.update(
-                a for a in dir(base) if (not issubclass(base, Analysis) or
-                                         a not in base.spec_names()))
+                a for a in dir(base) if (not issubclass(base, Analysis)
+                                         or a not in base.spec_names()))
             # TODO: need to check that fields are not overridden by filesets
             #       and vice-versa
             try:
@@ -1160,8 +1161,8 @@ class AnalysisMetaClass(type):
                     pipeline_arg_names[
                         spec.pipeline_getter] = spec.pipeline_arg_names
         # Check for name clashes between data and parameter specs
-        spec_name_clashes = (set(combined_data_specs) &
-                             set(combined_param_specs))
+        spec_name_clashes = (set(combined_data_specs)
+                             & set(combined_param_specs))
         if spec_name_clashes:
             raise ArcanaDesignError(
                 "'{}' name both data and parameter specs in '{}' class"
