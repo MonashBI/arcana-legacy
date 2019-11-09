@@ -340,7 +340,7 @@ class Analysis(object):
             # Work out which pipelines need to be run
             pipeline_getters = defaultdict(set)
             for spec in specs:
-                if spec.derived or spec.derivable:  # Filter out Analysis inputs
+                if spec.derived or spec.derivable:  # Filter out Analysis input
                     # Add name of spec to set of required outputs
                     pipeline_getters[(spec.pipeline_getter,
                                       spec.pipeline_args)].add(spec.name)

@@ -255,8 +255,8 @@ class SubCompSpec(object):
             if name not in self.analysis_class.spec_names():
                 raise ArcanaNameError(
                     name,
-                    ("'{}' doesn't match any filesets, fields, parameters " +
-                     "in the analysis class {} ('{}')")
+                    ("'{}' doesn't match any filesets, fields, parameters "
+                     + "in the analysis class {} ('{}')")
                     .format(name, self.name,
                             self.analysis_class.__name__,
                             "', '".join(self.analysis_class.spec_names())))
