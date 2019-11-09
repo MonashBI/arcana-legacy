@@ -1,7 +1,7 @@
 API - Application
 =================
 
-In addition to a (derived) Study class the following classes are used
+In addition to a (derived) Analysis class the following classes are used
 when applying the designed workflows.
 
 Repositories

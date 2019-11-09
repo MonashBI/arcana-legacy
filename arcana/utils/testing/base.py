@@ -270,7 +270,7 @@ class BaseTestCase(TestCase):
 
         Parameters
         ----------
-        study_cls : Study
+        study_cls : Analysis
             The class to initialise
         name : str
             Name of the study

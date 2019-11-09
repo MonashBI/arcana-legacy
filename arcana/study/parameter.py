@@ -6,7 +6,7 @@ from arcana.exceptions import ArcanaUsageError, ArcanaIvalidParameterError
 
 class Parameter(object):
     """
-    Represents a parameter passed to a Study object
+    Represents a parameter passed to a Analysis object
 
     Parameters
     ----------

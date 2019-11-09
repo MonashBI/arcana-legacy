@@ -76,7 +76,7 @@ class BaseInputSpecMixin(object):
 
         Parameters
         ----------
-        study : Study
+        study : Analysis
             A study to bind the fileset spec to (should happen in the
             study __init__)
         """
@@ -202,13 +202,13 @@ class BaseSpecMixin(object):
 
         Parameters
         ----------
-        study : Study
+        study : Analysis
             A study to bind the fileset spec to (should happen in the
             study __init__)
         """
         if self._study is not None:
             # Avoid rebinding specs in sub-studies that have already
-            # been bound to MultiStudy
+            # been bound to MultiAnalysis
             bound = self
         else:
             bound = copy(self)

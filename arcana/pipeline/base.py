@@ -35,7 +35,7 @@ class Pipeline(object):
 
     Parameters
     ----------
-    study : Study
+    study : Analysis
         The study from which the pipeline was created
     name : str
         The name of the pipeline
@@ -78,7 +78,7 @@ class Pipeline(object):
             the pipeline.
         name_maps : dict
             Modifications from nested pipeline constructors
-        study : Study
+        study : Analysis
             A different study to bind the pipeline to from the one containing
             the inner pipeline constructor. Intended to be used with
             multi-studies.
@@ -219,7 +219,7 @@ class Pipeline(object):
             If present, a MapNode will be created instead of a regular node
         joinsource : str
             Name of iterator field to join. Typically one of the implicit
-            iterators (i.e. Study.SUBJECT_ID or Study.VISIT_ID)
+            iterators (i.e. Analysis.SUBJECT_ID or Analysis.VISIT_ID)
             to join over the subjects and/or visits
         joinfield : str
             Name of field to pass the joined list when creating a JoinNode
@@ -589,7 +589,7 @@ class Pipeline(object):
             A dictionary containing the name_maps to apply to the values
         name : str
             Name passed from inner pipeline constructor
-        study : Study
+        study : Analysis
             The study to bind the pipeline to. Will be overridden by any values
             in the mods dict
         inner_maps : dict[str, dict[str,str]]
@@ -599,7 +599,7 @@ class Pipeline(object):
         -------
         name : str
             Potentially modified name of the pipeline
-        study : Study
+        study : Analysis
             Potentially modified study
         maps : dict[str, dict[str,str]]
             Potentially modifed input and output maps

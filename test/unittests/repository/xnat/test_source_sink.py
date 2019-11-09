@@ -18,12 +18,12 @@ from arcana.utils import PATH_SUFFIX, JSON_ENCODING
 from arcana.data.file_format import text_format
 from arcana.utils.testing.xnat import (
     TestOnXnatMixin, SERVER, SKIP_ARGS, filter_scans, logger)
-from arcana.study import Study, StudyMetaClass
+from arcana.study import Analysis, AnalysisMetaClass
 from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec
 from future.utils import with_metaclass
 
 
-class DummyStudy(with_metaclass(StudyMetaClass, Study)):
+class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('source1', text_format),
@@ -94,7 +94,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepo(
             project_id=self.project,
             server=SERVER, cache_dir=self.cache_dir)
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
             inputs=[InputFilesets('source1', 'source1', text_format),
                     InputFilesets('source2', 'source2', text_format),
@@ -155,7 +155,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepo(
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
             inputs=[InputFilesets('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
@@ -205,7 +205,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         os.makedirs(cache_dir)
         repository = XnatRepo(server=SERVER, cache_dir=cache_dir,
                               project_id=self.project)
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.STUDY_NAME, repository, SingleProc('ad'),
             inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
@@ -289,7 +289,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink_repository = XnatRepo(
             project_id=self.checksum_sink_project, server=SERVER,
             cache_dir=cache_dir)
-        study = DummyStudy(
+        study = DummyAnalysis(
             STUDY_NAME, sink_repository, SingleProc('ad'),
             inputs=[InputFilesets(DATASET_NAME, DATASET_NAME, text_format,
                                   repository=source_repository)],
@@ -373,7 +373,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         repository = XnatRepo(
             server=SERVER, cache_dir=self.cache_dir,
             project_id=self.project)
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
             inputs=[
                 InputFilesets('source1', 'source1', text_format),

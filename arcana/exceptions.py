@@ -13,7 +13,7 @@ class ArcanaError(ArcanaException):
     pass
 
 
-class ArcanaNotBoundToStudyError(ArcanaError):
+class ArcanaNotBoundToAnalysisError(ArcanaError):
     pass
 
 
@@ -41,7 +41,7 @@ class ArcanaProtectedOutputConflictError(ArcanaError):
     pass
 
 
-class ArcanaCantPickleStudyError(ArcanaError):
+class ArcanaCantPickleAnalysisError(ArcanaError):
     pass
 
 

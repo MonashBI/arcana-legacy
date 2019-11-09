@@ -2,7 +2,7 @@ from nipype.interfaces.utility import Merge, Split
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)
 from arcana.processor import SingleProc
-from arcana.study.base import Study, StudyMetaClass
+from arcana.study.base import Analysis, AnalysisMetaClass
 from arcana.study.parameter import ParamSpec, SwitchSpec
 from arcana.data import (
     InputFilesetSpec, FilesetSpec, FieldSpec,
@@ -31,7 +31,7 @@ c_req = DummyRequirement('c', detected_version='0.2a2')
 d_req = DummyRequirement('d', detected_version='0.9.dev10')
 
 
-class TestProvStudy(Study, metaclass=StudyMetaClass):
+class TestProvAnalysis(Analysis, metaclass=AnalysisMetaClass):
 
     add_data_specs = [
         InputFilesetSpec('acquired_fileset1', text_format),
@@ -180,14 +180,14 @@ class TestProvStudy(Study, metaclass=StudyMetaClass):
         return pipeline
 
 
-class TestProvStudyAddNode(TestProvStudy, metaclass=StudyMetaClass):
+class TestProvAnalysisAddNode(TestProvAnalysis, metaclass=AnalysisMetaClass):
 
     add_param_specs = [
         ParamSpec('a', 50.0),
         ParamSpec('b', 25.0)]
 
     def pipeline2(self, **name_maps):
-        pipeline = super(TestProvStudyAddNode, self).pipeline2(**name_maps)
+        pipeline = super(TestProvAnalysisAddNode, self).pipeline2(**name_maps)
         pipeline.add(
             'math4',
             TestMath(
@@ -200,10 +200,10 @@ class TestProvStudyAddNode(TestProvStudy, metaclass=StudyMetaClass):
         return pipeline
 
 
-class TestProvStudyAddConnect(TestProvStudy, metaclass=StudyMetaClass):
+class TestProvAnalysisAddConnect(TestProvAnalysis, metaclass=AnalysisMetaClass):
 
     def pipeline1(self, **name_maps):
-        pipeline = super(TestProvStudyAddConnect, self).pipeline1(**name_maps)
+        pipeline = super(TestProvAnalysisAddConnect, self).pipeline1(**name_maps)
         pipeline.connect_input('acquired_field1', pipeline.node('math3'), 'y',
                                float)
         return pipeline
@@ -250,14 +250,14 @@ class TestProvBasic(BaseTestCase):
         study_name = 'add_node'
         # Test vanilla study
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          156.0)
         # Rerun results of altered study
         study = self.create_study(
-            TestProvStudyAddNode,
+            TestProvAnalysisAddNode,
             study_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
@@ -266,14 +266,14 @@ class TestProvBasic(BaseTestCase):
         study_name = 'add_connect'
         # Test vanilla study
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
                          156.0)
         # Rerun results of altered study
         study = self.create_study(
-            TestProvStudyAddConnect,
+            TestProvAnalysisAddConnect,
             study_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
@@ -289,7 +289,7 @@ class TestProvBasic(BaseTestCase):
         new_value = -99.0
         # Test vanilla study
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS)
         derived_field4 = study.data('derived_field4').item(*self.SESSION)
@@ -299,7 +299,7 @@ class TestProvBasic(BaseTestCase):
         # derived field 4.
         change_value_w_prov(derived_field4, new_value)
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS,
             parameters={'subtract': 100})
@@ -316,7 +316,7 @@ class TestProvBasic(BaseTestCase):
         protected_derived_fileset1_value = -999.0
         # Test vanilla study
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS)
         derived_fileset1_collection, derived_field4_collection = study.data(
@@ -325,7 +325,7 @@ class TestProvBasic(BaseTestCase):
         self.assertEqual(derived_field4_collection.value(*self.SESSION), 155.0)
         # Rerun with new parameters
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
@@ -342,7 +342,7 @@ class TestProvBasic(BaseTestCase):
         derived_field4.value = protected_derived_field4_value
         # Since derived_fileset1 needs to be reprocessed but
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS,
@@ -374,7 +374,7 @@ class TestProvInputChange(BaseTestCase):
     def test_input_change(self):
         study_name = 'input_change_study'
         study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             inputs=STUDY_INPUTS)
         self.assertEqual(study.data('derived_field2').value(*self.SESSION),
@@ -390,7 +390,7 @@ class TestProvInputChange(BaseTestCase):
             study.data,
             'derived_field2')
         new_study = self.create_study(
-            TestProvStudy,
+            TestProvAnalysis,
             study_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
@@ -398,7 +398,7 @@ class TestProvInputChange(BaseTestCase):
             new_study.data('derived_field2').value(*self.SESSION), 1145.0)
 
 
-class TestDialationStudy(Study, metaclass=StudyMetaClass):
+class TestDialationAnalysis(Analysis, metaclass=AnalysisMetaClass):
 
     add_data_specs = [
         InputFieldSpec('acquired_field1', int),
@@ -566,7 +566,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_filter_dialation1(self):
         study_name = 'process_dialation'
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS)
         field2 = study.data(
@@ -589,7 +589,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_filter_dialation2(self):
         study_name = 'filter_dialation2'
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS)
         field5 = study.data(
@@ -635,7 +635,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         study_name = 'process_dialation'
         new_value = -101
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS)
         study.data('derived_field5')
@@ -664,7 +664,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             orig_field3_values[str(vis_i)] = field3.value
         # Rerun analysis with new parameters
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
@@ -682,7 +682,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                                         from_study=study_name).value,
             orig_field3_values['1'])
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
@@ -695,7 +695,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
     def test_dialation_protection(self):
         study_name = 'dialation_protection'
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=self.STUDY_INPUTS)
         field5 = study.data('derived_field5')
@@ -710,7 +710,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         # Manually change value of field 2
         field2.item(subject_id='0').value = -1000
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=self.STUDY_INPUTS,
@@ -781,7 +781,7 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
     def test_skip_missing(self):
         study_name = 'skip_missing'
         study = self.create_study(
-            TestDialationStudy,
+            TestDialationAnalysis,
             study_name,
             inputs=[
                 InputFields('acquired_field1', 'acquired_field1', int),

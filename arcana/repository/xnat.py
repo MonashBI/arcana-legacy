@@ -57,9 +57,9 @@ class XnatRepo(Repository):
     session_filter : str
         A regular expression that is used to prefilter the discovered sessions
         to avoid having to retrieve metadata for them, and potentially speeding
-        up the initialisation of the Study. Note that if the processing relies
+        up the initialisation of the Analysis. Note that if the processing relies
         on summary derivatives (i.e. of 'per_visit/subject/study' frequency)
-        then the filter should match all sessions in the Study's subject_ids
+        then the filter should match all sessions in the Analysis's subject_ids
         and visit_ids.
     """
 

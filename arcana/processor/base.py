@@ -37,7 +37,7 @@ class Processor(object):
     reprocess: bool | 'force'
         A flag which determines whether to rerun the processing for this
         step if a provenance mismatch is detected between save derivative and
-        parameters passed to the Study. If False, an exception will be raised
+        parameters passed to the Analysis. If False, an exception will be raised
         in this case. If passed a value of 'force' then the outputs will be
         regenerated regardless of existing derivatives (used mainly in testing)
     prov_check : iterable[str]
@@ -162,7 +162,7 @@ class Processor(object):
         subject_ids : list[str]
             The subset of subject IDs to process. If None all available will be
             processed. Note this is not a duplication of the study
-            and visit IDs passed to the Study __init__, as they define the
+            and visit IDs passed to the Analysis __init__, as they define the
             scope of the analysis and these simply limit the scope of the
             current run (e.g. to break the analysis into smaller chunks and
             run separately). Therefore, if the analysis joins over subjects,
@@ -752,7 +752,7 @@ class Processor(object):
         # Check to see if the pipeline has any low frequency outputs, because
         # if not then each session can be processed indepdently. Otherwise,
         # the "session matrix" (as defined by subject_ids and visit_ids
-        # passed to the Study class) needs to be complete, i.e. a session
+        # passed to the Analysis class) needs to be complete, i.e. a session
         # exists (with the full complement of requird inputs) for each
         # subject/visit ID pair.
         summary_outputs = [
@@ -799,7 +799,7 @@ class Processor(object):
         to_skip = defaultdict(list)
         # Check data tree for missing inputs
         for input in pipeline.inputs:
-            # NB: Study inputs that don't have skip_missing set and have
+            # NB: Analysis inputs that don't have skip_missing set and have
             # missing data should raise an error before this point
             if input.skip_missing:
                 for item in input.collection:

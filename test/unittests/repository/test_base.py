@@ -9,12 +9,12 @@ from arcana.utils import PATH_SUFFIX
 from future.utils import with_metaclass
 from arcana.utils.testing import BaseTestCase
 from arcana.data import InputFilesetSpec, FilesetSpec
-from arcana.study import Study, StudyMetaClass
+from arcana.study import Analysis, AnalysisMetaClass
 from arcana.repository.interfaces import RepositorySource, RepositorySink
 from arcana.repository.basic import BasicRepo
 
 
-class DummyStudy(with_metaclass(StudyMetaClass, Study)):
+class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('source1', text_format, optional=True),
@@ -51,7 +51,7 @@ class TestSinkAndSource(BaseTestCase):
                       'source4': '4'}
 
     def test_repository_roundtrip(self):
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
             inputs=[InputFilesets('source1', 'source1', text_format),
                     InputFilesets('source2', 'source2', text_format),
@@ -103,7 +103,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
-        study = DummyStudy(
+        study = DummyAnalysis(
             STUDY_NAME, self.repository,
             processor=SingleProc('a_dir'),
             inputs=[])
@@ -137,7 +137,7 @@ class TestSinkAndSource(BaseTestCase):
         self.assertEqual(results.outputs.field3_field, field3)
 
     def test_summary(self):
-        study = DummyStudy(
+        study = DummyAnalysis(
             self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
             inputs=[InputFilesets('source1', 'source1', text_format),
                     InputFilesets('source2', 'source2', text_format),

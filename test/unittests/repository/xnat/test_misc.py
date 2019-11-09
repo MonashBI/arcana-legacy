@@ -92,7 +92,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_dicom_match(self):
-        study = test_data.TestMatchStudy(
+        study = test_data.TestMatchAnalysis(
             name='test_dicom',
             repository=XnatRepo(
                 project_id=self.project,
@@ -106,7 +106,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_id_match(self):
-        study = test_data.TestMatchStudy(
+        study = test_data.TestMatchAnalysis(
             name='test_dicom',
             repository=XnatRepo(
                 project_id=self.project,

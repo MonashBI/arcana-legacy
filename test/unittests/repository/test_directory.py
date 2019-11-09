@@ -1,7 +1,7 @@
 import os
 import os.path as op
 from arcana.data.file_format import text_format
-from arcana.study import Study, StudyMetaClass
+from arcana.study import Analysis, AnalysisMetaClass
 from arcana.data import (
     Fileset, InputFilesetSpec, FilesetSpec, Field)
 from arcana.utils.testing import BaseMultiSubjectTestCase
@@ -16,7 +16,7 @@ with_header_format = FileFormat(name='with_header', extension='.whf',
                                 aux_files={'header': '.hdr'})
 
 
-class DummyStudy(with_metaclass(StudyMetaClass, Study)):
+class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('source1', text_format),
@@ -138,7 +138,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                     visit_id='visit1',
                     resource_name='text',
                     repository=repo),
-            # Study
+            # Analysis
             Fileset('ones', text_format,
                     frequency='per_study',
                     resource_name='text',
@@ -191,7 +191,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                   frequency='per_visit',
                   visit_id='visit2',
                   repository=repo),
-            # Study
+            # Analysis
             Field('g', value=100,
                   frequency='per_study',
                   repository=repo)]

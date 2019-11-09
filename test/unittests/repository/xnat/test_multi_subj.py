@@ -7,7 +7,7 @@ from arcana.utils.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     InputFilesets, InputFilesetSpec)
-from arcana.study import Study, StudyMetaClass
+from arcana.study import Analysis, AnalysisMetaClass
 from arcana.data.file_format import text_format
 from arcana.repository.tree import Tree, Subject, Session, Visit
 from arcana.data import Fileset
@@ -26,7 +26,7 @@ import test_directory  # noqa pylint: disable=import-error
 sys.path.pop(0)
 
 
-class TestStudy(with_metaclass(StudyMetaClass, Study)):
+class TestAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('fileset1', text_format),
@@ -99,7 +99,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
             server=SERVER,
             cache_dir=tempfile.mkdtemp())
         study = self.create_study(
-            TestStudy, 'cache_download',
+            TestAnalysis, 'cache_download',
             inputs=[
                 InputFilesets('fileset1', 'fileset1', text_format),
                 InputFilesets('fileset3', 'fileset3', text_format)],

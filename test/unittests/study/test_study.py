@@ -3,13 +3,13 @@ import os.path
 # from nipype import config
 # config.enable_debug_mode()
 from arcana.data.file_format import text_format
-from arcana.study.base import Study, StudyMetaClass
+from arcana.study.base import Analysis, AnalysisMetaClass
 from arcana.utils.testing import (
     BaseTestCase, BaseMultiSubjectTestCase, TestMath)
 from arcana.exceptions import (
-    ArcanaCantPickleStudyError, ArcanaUsageError)
+    ArcanaCantPickleAnalysisError, ArcanaUsageError)
 from arcana.study.multi import (
-    MultiStudy, MultiStudyMetaClass, SubStudySpec)
+    MultiAnalysis, MultiAnalysisMetaClass, SubAnalysisSpec)
 from nipype.interfaces.base import (
     BaseInterface, File, TraitedSpec, traits, isdefined)
 from arcana.study.parameter import ParamSpec
@@ -28,7 +28,7 @@ else:
     import pickle as pkl  # @Reimport
 
 
-class ExampleStudy(with_metaclass(StudyMetaClass, Study)):
+class ExampleAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('one', text_format),
@@ -267,7 +267,7 @@ class IteratorToFile(BaseInterface):
         return fname
 
 
-class TestStudy(BaseMultiSubjectTestCase):
+class TestAnalysis(BaseMultiSubjectTestCase):
 
     SUBJECT_IDS = ['SUBJECTID1', 'SUBJECTID2', 'SUBJECTID3']
     VISIT_IDS = ['VISITID1', 'VISITID2']
@@ -289,7 +289,7 @@ class TestStudy(BaseMultiSubjectTestCase):
 
     def make_study(self):
         return self.create_study(
-            ExampleStudy, 'dummy', inputs=[
+            ExampleAnalysis, 'dummy', inputs=[
                 InputFilesets('one', 'one_input', text_format),
                 InputFilesets('ten', 'ten_input', text_format)],
             parameters={'pipeline_parameter': True})
@@ -350,7 +350,7 @@ class TestStudy(BaseMultiSubjectTestCase):
             self.assertEqual(sorted(ids), sorted(self.VISIT_IDS))
 
 
-class ExistingPrereqStudy(with_metaclass(StudyMetaClass, Study)):
+class ExistingPrereqAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('one', text_format),
@@ -427,7 +427,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         derived_filesets = [f for f in self.DATASET_CONTENTS
                             if f != 'one']
         study = self.create_study(
-            ExistingPrereqStudy, self.STUDY_NAME,
+            ExistingPrereqAnalysis, self.STUDY_NAME,
             repository=self.local_repository,
             inputs=[InputFilesets('one', 'one', text_format)])
         # Get all pipelines in the study
@@ -446,7 +446,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec
         study = self.create_study(
-            ExistingPrereqStudy, self.STUDY_NAME,
+            ExistingPrereqAnalysis, self.STUDY_NAME,
             inputs=[InputFilesets('one', 'one', text_format)])
         study.data('thousand')
         targets = {
@@ -477,7 +477,7 @@ test3_format = FileFormat('test3', extension='.t3')
 test2_format.set_converter(test1_format, IdentityConverter)
 
 
-class TestInputValidationStudy(with_metaclass(StudyMetaClass, Study)):
+class TestInputValidationAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('a', (test1_format, test2_format)),
@@ -511,7 +511,7 @@ class TestInputValidation(BaseTestCase):
 
     def test_input_validation(self):
         self.create_study(
-            TestInputValidationStudy,
+            TestInputValidationAnalysis,
             'test_input_validation',
             inputs=[
                 InputFilesets('a', 'a', test1_format),
@@ -525,7 +525,7 @@ class TestInputValidationFail(BaseTestCase):
     def setUp(self):
         self.reset_dirs()
         os.makedirs(self.session_dir)
-        for spec in TestInputValidationStudy.data_specs():
+        for spec in TestInputValidationAnalysis.data_specs():
             with open(os.path.join(self.session_dir, spec.name) +
                       test3_format.ext, 'w') as f:
                 f.write(spec.name)
@@ -534,7 +534,7 @@ class TestInputValidationFail(BaseTestCase):
         self.assertRaises(
             ArcanaUsageError,
             self.create_study,
-            TestInputValidationStudy,
+            TestInputValidationAnalysis,
             'test_validation_fail',
             inputs=[
                 InputFilesets('a', 'a', test3_format),
@@ -546,7 +546,7 @@ class TestInputNoConverter(BaseTestCase):
     def setUp(self):
         self.reset_dirs()
         os.makedirs(self.session_dir)
-        for spec in TestInputValidationStudy.data_specs():
+        for spec in TestInputValidationAnalysis.data_specs():
             if spec.name == 'a':
                 ext = test1_format.ext
             else:
@@ -559,7 +559,7 @@ class TestInputNoConverter(BaseTestCase):
         self.assertRaises(
             ArcanaNoConverterError,
             self.create_study,
-            TestInputValidationStudy,
+            TestInputValidationAnalysis,
             'test_validation_fail',
             inputs=[
                 InputFilesets('a', 'a', test1_format),
@@ -591,7 +591,7 @@ class ErrorInterface(BaseInterface):
         raise AlwaysRaisedError
 
 
-class BasicTestStudy(with_metaclass(StudyMetaClass, Study)):
+class BasicTestAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('fileset', text_format),
@@ -642,7 +642,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
 
     def test_raised_error(self):
         study = self.create_study(
-            BasicTestStudy,
+            BasicTestAnalysis,
             'base',
             inputs=[InputFilesets('fileset', 'fileset', text_format)])
 
@@ -662,8 +662,8 @@ class TestGeneratedPickle(BaseTestCase):
     INPUT_FILESETS = {'fileset': 'foo'}
 
     def test_generated_cls_pickle(self):
-        GeneratedClass = StudyMetaClass(
-            'GeneratedClass', (BasicTestStudy,), {})
+        GeneratedClass = AnalysisMetaClass(
+            'GeneratedClass', (BasicTestAnalysis,), {})
         study = self.create_study(
             GeneratedClass,
             'gen_cls',
@@ -679,10 +679,10 @@ class TestGeneratedPickle(BaseTestCase):
     def test_multi_study_generated_cls_pickle(self):
         cls_dct = {
             'add_substudy_specs': [
-                SubStudySpec('ss1', BasicTestStudy),
-                SubStudySpec('ss2', BasicTestStudy)]}
-        MultiGeneratedClass = MultiStudyMetaClass(
-            'MultiGeneratedClass', (MultiStudy,), cls_dct)
+                SubAnalysisSpec('ss1', BasicTestAnalysis),
+                SubAnalysisSpec('ss2', BasicTestAnalysis)]}
+        MultiGeneratedClass = MultiAnalysisMetaClass(
+            'MultiGeneratedClass', (MultiAnalysis,), cls_dct)
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
@@ -699,12 +699,12 @@ class TestGeneratedPickle(BaseTestCase):
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {
             'add_substudy_specs': [
-                SubStudySpec('ss1', BasicTestStudy),
-                SubStudySpec('ss2', BasicTestStudy)],
-            'default_fileset_pipeline': MultiStudy.translate(
+                SubAnalysisSpec('ss1', BasicTestAnalysis),
+                SubAnalysisSpec('ss2', BasicTestAnalysis)],
+            'default_fileset_pipeline': MultiAnalysis.translate(
                 'ss1', 'pipeline')}
-        MultiGeneratedClass = MultiStudyMetaClass(
-            'MultiGeneratedClass', (MultiStudy,), cls_dct)
+        MultiGeneratedClass = MultiAnalysisMetaClass(
+            'MultiGeneratedClass', (MultiAnalysis,), cls_dct)
         study = self.create_study(
             MultiGeneratedClass,
             'multi_gen_cls',
@@ -713,7 +713,7 @@ class TestGeneratedPickle(BaseTestCase):
         pkl_path = os.path.join(self.work_dir, 'multi_gen_cls.pkl')
         with open(pkl_path, 'w') as f:
             self.assertRaises(
-                ArcanaCantPickleStudyError,
+                ArcanaCantPickleAnalysisError,
                 pkl.dump,
                 study,
                 f)

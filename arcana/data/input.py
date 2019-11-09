@@ -5,7 +5,7 @@ from copy import copy
 from itertools import chain
 from arcana.exceptions import (
     ArcanaUsageError, ArcanaInputError,
-    ArcanaInputMissingMatchError, ArcanaNotBoundToStudyError)
+    ArcanaInputMissingMatchError, ArcanaNotBoundToAnalysisError)
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field
 from .collection import FilesetCollection, FieldCollection
@@ -108,7 +108,7 @@ class BaseInputMixin(object):
     @property
     def study(self):
         if self._study is None:
-            raise ArcanaNotBoundToStudyError(
+            raise ArcanaNotBoundToAnalysisError(
                 "{} is not bound to a study".format(self))
         return self._study
 
@@ -128,7 +128,7 @@ class BaseInputMixin(object):
     @property
     def collection(self):
         if self._collection is None:
-            raise ArcanaNotBoundToStudyError(
+            raise ArcanaNotBoundToAnalysisError(
                 "{} has not been bound to a study".format(self))
         return self._collection
 
@@ -435,7 +435,7 @@ class InputFilesets(BaseInputMixin, BaseFileset):
     def format(self):
         try:
             format = self.collection.format
-        except ArcanaNotBoundToStudyError:
+        except ArcanaNotBoundToAnalysisError:
             format = None
         return format
 
@@ -611,7 +611,7 @@ class InputFields(BaseInputMixin, BaseField):
         if self._dtype is None:
             try:
                 dtype = self.study.data_spec(self.name).dtype
-            except ArcanaNotBoundToStudyError:
+            except ArcanaNotBoundToAnalysisError:
                 dtype = None
         else:
             dtype = self._dtype

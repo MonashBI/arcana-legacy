@@ -103,7 +103,7 @@ class TreeNode(object):
 
     def fileset(self, id, from_study=None, format=None):
         """
-        Gets the fileset with the ID 'id' produced by the Study named 'study'
+        Gets the fileset with the ID 'id' produced by the Analysis named 'study'
         if provided. If a spec is passed instead of a str to the name argument,
         then the study will be set from the spec iff it is derived
 
@@ -191,7 +191,7 @@ class TreeNode(object):
 
     def field(self, name, from_study=None):
         """
-        Gets the field named 'name' produced by the Study named 'study' if
+        Gets the field named 'name' produced by the Analysis named 'study' if
         provided. If a spec is passed instead of a str to the name argument,
         then the study will be set from the spec iff it is derived
 

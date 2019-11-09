@@ -20,8 +20,8 @@ limitations under the License.
 from .__about__ import __version__, __authors__
 import os
 from .study import (
-    Study, StudyMetaClass, MultiStudy, MultiStudyMetaClass,
-    SubStudySpec, Parameter, ParamSpec, SwitchSpec)
+    Analysis, AnalysisMetaClass, MultiAnalysis, MultiAnalysisMetaClass,
+    SubAnalysisSpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
     FilesetSpec, InputFilesets, FieldSpec, InputFields,
     InputFilesetSpec, InputFieldSpec)

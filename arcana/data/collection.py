@@ -178,7 +178,7 @@ class BaseCollectionMixin(object):
             if tree_subject_ids != subject_ids:
                 raise ArcanaUsageError(
                     "Subject IDs in collection provided to '{}' ('{}') "
-                    "do not match Study tree ('{}')".format(
+                    "do not match Analysis tree ('{}')".format(
                         self.name, "', '".join(subject_ids),
                         "', '".join(tree_subject_ids)))
         elif self.frequency == 'per_visit':
@@ -187,21 +187,21 @@ class BaseCollectionMixin(object):
             if tree_visit_ids != visit_ids:
                 raise ArcanaUsageError(
                     "Subject IDs in collection provided to '{}' ('{}') "
-                    "do not match Study tree ('{}')".format(
+                    "do not match Analysis tree ('{}')".format(
                         self.name, "', '".join(visit_ids),
                         "', '".join(tree_visit_ids)))
         elif self.frequency == 'per_session':
             for subject in study.tree.subjects:
                 if subject.id not in self._collection:
                     raise ArcanaUsageError(
-                        "Study subject ID '{}' was not found in colleciton "
+                        "Analysis subject ID '{}' was not found in colleciton "
                         "provided to '{}' (found '{}')".format(
                             subject.id, self.name,
                             "', '".join(self._collection.keys())))
                 for session in subject.sessions:
                     if session.visit_id not in self._collection[subject.id]:
                         raise ArcanaUsageError(
-                            ("Study visit ID '{}' for subject '{}' was not " +
+                            ("Analysis visit ID '{}' for subject '{}' was not " +
                              "found in colleciton provided to '{}' " +
                              "(found '{}')").format(
                                  subject.id, self.name,

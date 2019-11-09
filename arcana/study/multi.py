@@ -3,10 +3,10 @@ from builtins import object
 from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError)
 from arcana.exceptions import ArcanaUsageError
-from .base import Study, StudyMetaClass
+from .base import Analysis, AnalysisMetaClass
 
 
-class MultiStudy(Study):
+class MultiAnalysis(Analysis):
     """
     Abstract base class for all studies that combine multiple studies
     into a "multi-study".
@@ -44,8 +44,8 @@ class MultiStudy(Study):
 
     Class Attrs
     -----------
-    add_substudy_specs : list[SubStudySpec]
-        Subclasses of MultiStudy typically have a 'add_substudy_specs'
+    add_substudy_specs : list[SubAnalysisSpec]
+        Subclasses of MultiAnalysis typically have a 'add_substudy_specs'
         class member, which defines the sub-studies that make up the
         combined study and the mapping of their fileset names. The key
         of the outer dictionary will be the name of the sub-study, and
@@ -54,8 +54,8 @@ class MultiStudy(Study):
         sub-study e.g.
 
             add_substudy_specs = [
-                SubStudySpec('t1_study', T1wStudy, {'magnitude': 't1'}),
-                SubStudySpec('t2_study', T2wStudy, {'magnitude': 't2'})]
+                SubAnalysisSpec('t1_study', T1wAnalysis, {'magnitude': 't1'}),
+                SubAnalysisSpec('t2_study', T2wAnalysis, {'magnitude': 't2'})]
 
             add_data_specs = [
                 FilesetSpec('t1', text_format'),
@@ -70,7 +70,7 @@ class MultiStudy(Study):
 
     _substudy_specs = {}
 
-    implicit_cls_attrs = Study.implicit_cls_attrs + ['_substudy_specs']
+    implicit_cls_attrs = Analysis.implicit_cls_attrs + ['_substudy_specs']
 
     def __init__(self, name, repository, processor, inputs,
                  parameters=None, **kwargs):
@@ -78,14 +78,14 @@ class MultiStudy(Study):
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
             metaclass = type(self).__dict__['__metaclass__']
-            if not issubclass(metaclass, MultiStudyMetaClass):
+            if not issubclass(metaclass, MultiAnalysisMetaClass):
                 raise KeyError
         except KeyError:
             raise ArcanaUsageError(
-                "Need to set MultiStudyMetaClass (or sub-class) as "
+                "Need to set MultiAnalysisMetaClass (or sub-class) as "
                 "the metaclass of all classes derived from "
-                "MultiStudy")
-        super(MultiStudy, self).__init__(
+                "MultiAnalysis")
+        super(MultiAnalysis, self).__init__(
             name, repository, processor, inputs, parameters=parameters,
             **kwargs)
         self._substudies = {}
@@ -183,7 +183,7 @@ class MultiStudy(Study):
             Names of pipeline arguments passed to the method
         auto_added : bool
             Signify that a method was automatically added by the
-            MultiStudyMetaClass. Used in checks when pickling Study
+            MultiAnalysisMetaClass. Used in checks when pickling Analysis
             objects
         """
         assert isinstance(substudy_name, basestring)
@@ -204,19 +204,19 @@ class MultiStudy(Study):
         return translated_getter
 
 
-class SubStudySpec(object):
+class SubAnalysisSpec(object):
     """
-    Specify a study to be included in a MultiStudy class
+    Specify a study to be included in a MultiAnalysis class
 
     Parameters
     ----------
     name : str
         Name for the sub-study
-    study_class : type (sub-classed from Study)
+    study_class : type (sub-classed from Analysis)
         The class of the sub-study
     name_map : dict[str, str]
         A mapping of fileset/field/parameter names from the sub-study
-        namespace to the namespace of the MultiStudy. All data-specs
+        namespace to the namespace of the MultiAnalysis. All data-specs
         that are not explicitly mapped are auto-translated using
         the sub-study prefix (name + '_').
     """
@@ -286,7 +286,7 @@ class SubStudySpec(object):
                 yield spec
 
 
-class MultiStudyMetaClass(StudyMetaClass):
+class MultiAnalysisMetaClass(AnalysisMetaClass):
     """
     Metaclass for "multi" study classes that automatically adds
     translated data specs and pipelines from sub-study specs if they
@@ -294,10 +294,10 @@ class MultiStudyMetaClass(StudyMetaClass):
     """
 
     def __new__(metacls, name, bases, dct):  # @NoSelf @UnusedVariable
-        if not any(issubclass(b, MultiStudy) for b in bases):
+        if not any(issubclass(b, MultiAnalysis) for b in bases):
             raise ArcanaUsageError(
-                "MultiStudyMetaClass can only be used for classes that "
-                "have MultiStudy as a base class")
+                "MultiAnalysisMetaClass can only be used for classes that "
+                "have MultiAnalysis as a base class")
         try:
             add_substudy_specs = dct['add_substudy_specs']
         except KeyError:
@@ -313,7 +313,7 @@ class MultiStudyMetaClass(StudyMetaClass):
             (s.name, s) for s in add_substudy_specs)
         if '__metaclass__' not in dct:
             dct['__metaclass__'] = metacls
-        cls = StudyMetaClass(name, bases, dct)
+        cls = AnalysisMetaClass(name, bases, dct)
         # Loop through all data specs that haven't been explicitly
         # mapped and add a data spec in the multi class.
         for substudy_spec in list(substudy_specs.values()):
@@ -333,7 +333,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                         # overriding default parameters for example)
                         if not hasattr(cls, trans_pname):
                             setattr(cls, trans_pname,
-                                    MultiStudy.translate(
+                                    MultiAnalysis.translate(
                                         substudy_spec.name,
                                         data_spec.pipeline_getter,
                                         pipeline_arg_names=(
@@ -366,7 +366,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if local_name not in local_spec_names:
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name a spec in {} "
+                        "MultiAnalysis class does not name a spec in {} "
                         "class:\n{}"
                         .format(local_name, substudy_spec.name,
                                 name, substudy_spec.study_class,
@@ -374,7 +374,7 @@ class MultiStudyMetaClass(StudyMetaClass):
                 if global_name not in cls.spec_names():
                     raise ArcanaUsageError(
                         "'{}' in name-map for '{}' sub study spec in {}"
-                        "MultiStudy class does not name a spec:\n{}"
+                        "MultiAnalysis class does not name a spec:\n{}"
                         .format(global_name, substudy_spec.name, name,
                                 '\n'.join(cls.spec_names())))
         return cls

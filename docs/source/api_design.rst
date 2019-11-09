@@ -1,30 +1,30 @@
 API - Design
 ============
 
-The Arcana public API is based around the Study class, which should
+The Arcana public API is based around the Analysis class, which should
 be sub-classed to implement workflows.
 
 
-Study
+Analysis
 -----
 
-.. autoclass:: arcana.study.Study
+.. autoclass:: arcana.study.Analysis
     :members: data, new_pipeline, pipeline, provided, branch, parameter, unhandled_branch, data_spec, param_spec
 
-.. autoclass:: arcana.study.MultiStudy
+.. autoclass:: arcana.study.MultiAnalysis
     :members: substudy, translate
 
 .. autoclass:: arcana.study.ParamSpec
 
-.. autoclass:: arcana.study.SubStudySpec
+.. autoclass:: arcana.study.SubAnalysisSpec
 
 
 Meta-classes
 ------------
 
-.. autoclass:: arcana.study.StudyMetaClass
+.. autoclass:: arcana.study.AnalysisMetaClass
 
-.. autoclass:: arcana.study.MultiStudyMetaClass
+.. autoclass:: arcana.study.MultiAnalysisMetaClass
 
 
 Data Specs

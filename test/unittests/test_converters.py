@@ -4,7 +4,7 @@ import os.path as op
 from arcana.data import InputFilesetSpec, FilesetSpec, InputFilesets, Fileset
 from arcana.data.file_format import (
     text_format, directory_format, zip_format)
-from arcana.study.base import Study, StudyMetaClass
+from arcana.study.base import Analysis, AnalysisMetaClass
 from arcana.utils.testing import BaseTestCase
 from nipype.interfaces.utility import IdentityInterface
 from arcana.utils.interfaces import ZipDir
@@ -19,7 +19,7 @@ class TestConverterAvailability(TestCase):
         self.assertIsInstance(converter.interface, ZipDir)
 
 
-class ConversionStudy(with_metaclass(StudyMetaClass, Study)):
+class ConversionAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 
     add_data_specs = [
         InputFilesetSpec('text', text_format),
@@ -121,7 +121,7 @@ class TestFormatConversions(BaseTestCase):
 
     def test_format_conversions(self):
         study = self.create_study(
-            ConversionStudy, 'conversion', [
+            ConversionAnalysis, 'conversion', [
                 InputFilesets('text', 'text', text_format),
                 InputFilesets('directory', 'directory', directory_format),
                 InputFilesets('zip', 'zip', zip_format)])
