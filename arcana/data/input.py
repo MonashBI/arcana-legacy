@@ -8,7 +8,7 @@ from arcana.exceptions import (
     ArcanaInputMissingMatchError, ArcanaNotBoundToAnalysisError)
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field
-from .collection import FilesetSlice, FieldSlice
+from .slice import FilesetSlice, FieldSlice
 
 
 class BaseInputMixin(object):
@@ -19,7 +19,7 @@ class BaseInputMixin(object):
     def __init__(self, pattern, is_regex, order, from_analysis,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
-                 analysis_=None, collection_=None):
+                 analysis_=None, slice_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
@@ -35,10 +35,10 @@ class BaseInputMixin(object):
         # Set when fallback_to_default is True and there are missing matches
         self._derivable = False
         self._fallback = None
-        # analysis_ and collection_ are not intended to be provided to __init__
+        # analysis_ and slice_ are not intended to be provided to __init__
         # except when recreating when using initkwargs
         self._analysis = analysis_
-        self._collection = collection_
+        self._slice = slice_
 
     def __eq__(self, other):
         return (self.from_analysis == other.from_analysis and
@@ -67,7 +67,7 @@ class BaseInputMixin(object):
         dct['order'] = self.order
         dct['is_regex'] = self.is_regex
         dct['analysis_'] = self._analysis
-        dct['collection_'] = self._collection
+        dct['slice_'] = self._slice
         dct['skip_missing'] = self._skip_missing
         dct['drop_if_missing'] = self._drop_if_missing
         dct['fallback_to_default'] = self._fallback_to_default
@@ -126,11 +126,11 @@ class BaseInputMixin(object):
         return repo
 
     @property
-    def collection(self):
-        if self._collection is None:
+    def slice(self):
+        if self._slice is None:
             raise ArcanaNotBoundToAnalysisError(
                 "{} has not been bound to a analysis".format(self))
-        return self._collection
+        return self._slice
 
     @property
     def pipeline_getter(self):
@@ -190,7 +190,7 @@ class BaseInputMixin(object):
                         valid_formats = [spec.format]
                     except AttributeError:
                         valid_formats = None
-                bound._collection = bound.match(
+                bound._slice = bound.match(
                     tree, valid_formats=valid_formats,
                     **kwargs)
         return bound
@@ -222,7 +222,7 @@ class BaseInputMixin(object):
                     matches.append(self.match_node(node, **kwargs))
                 except ArcanaInputMissingMatchError as e:
                     if self._fallback is not None:
-                        matches.append(self._fallback.collection.item(
+                        matches.append(self._fallback.slice.item(
                             subject_id=node.subject_id,
                             visit_id=node.visit_id))
                     elif self.skip_missing:
@@ -350,12 +350,12 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None,
                  acceptable_quality=None,
-                 analysis_=None, collection_=None):
+                 analysis_=None, slice_=None):
         BaseFileset.__init__(self, spec_name, None, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
                                 from_analysis, skip_missing, drop_if_missing,
                                 fallback_to_default, repository, analysis_,
-                                collection_)
+                                slice_)
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
             raise ArcanaUsageError(
@@ -434,7 +434,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
     @property
     def format(self):
         try:
-            format = self.collection.format
+            format = self.slice.format
         except ArcanaNotBoundToAnalysisError:
             format = None
         return format
@@ -522,7 +522,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
         from remote repository, to force the download to be done linearly and
         avoid DOSing the host
         """
-        for item in self.collection:
+        for item in self.slice:
             if item.exists:
                 item.get()
 
@@ -588,12 +588,12 @@ class FieldFilter(BaseInputMixin, BaseField):
                  order=None, is_regex=False, from_analysis=None,
                  skip_missing=False, drop_if_missing=False,
                  fallback_to_default=False, repository=None, analysis_=None,
-                 collection_=None):
+                 slice_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
                                 from_analysis, skip_missing, drop_if_missing,
                                 fallback_to_default, repository, analysis_,
-                                collection_)
+                                slice_)
 
     def __eq__(self, other):
         return (BaseField.__eq__(self, other) and

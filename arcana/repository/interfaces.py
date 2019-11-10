@@ -139,17 +139,17 @@ class RepositorySource(RepositoryInterface):
     def _outputs(self):
         outputs = super(RepositorySource, self)._outputs()
         # Add traits for filesets to source and their checksums
-        for fileset_collection in self.fileset_collections:
+        for fileset_slice in self.fileset_collections:
             self._add_trait(outputs,
-                            fileset_collection.name + PATH_SUFFIX, PATH_TRAIT)
+                            fileset_slice.name + PATH_SUFFIX, PATH_TRAIT)
             self._add_trait(outputs,
-                            fileset_collection.name + CHECKSUM_SUFFIX,
+                            fileset_slice.name + CHECKSUM_SUFFIX,
                             CHECKSUM_TRAIT)
         # Add traits for fields to source
-        for field_collection in self.field_collections:
+        for field_slice in self.field_collections:
             self._add_trait(outputs,
-                            field_collection.name + FIELD_SUFFIX,
-                            self.field_trait(field_collection))
+                            field_slice.name + FIELD_SUFFIX,
+                            self.field_trait(field_slice))
         return outputs
 
     def _list_outputs(self):
@@ -166,16 +166,16 @@ class RepositorySource(RepositoryInterface):
             # Connect to set of repositories that the collections come from
             for repository in self.repositories:
                 stack.enter_context(repository)
-            for fileset_collection in self.fileset_collections:
-                fileset = fileset_collection.item(subject_id, visit_id)
+            for fileset_slice in self.fileset_collections:
+                fileset = fileset_slice.item(subject_id, visit_id)
                 fileset.get()
-                outputs[fileset_collection.name + PATH_SUFFIX] = fileset.path
-                outputs[fileset_collection.name
+                outputs[fileset_slice.name + PATH_SUFFIX] = fileset.path
+                outputs[fileset_slice.name
                         + CHECKSUM_SUFFIX] = fileset.checksums
-            for field_collection in self.field_collections:
-                field = field_collection.item(subject_id, visit_id)
+            for field_slice in self.field_collections:
+                field = field_slice.item(subject_id, visit_id)
                 field.get()
-                outputs[field_collection.name + FIELD_SUFFIX] = field.value
+                outputs[field_slice.name + FIELD_SUFFIX] = field.value
         return outputs
 
 
@@ -211,15 +211,15 @@ class RepositorySink(RepositoryInterface):
     def __init__(self, collections, pipeline, required=()):
         super(RepositorySink, self).__init__(collections)
         # Add traits for filesets to sink
-        for fileset_collection in self.fileset_collections:
+        for fileset_slice in self.fileset_collections:
             self._add_trait(self.inputs,
-                            fileset_collection.name + PATH_SUFFIX,
+                            fileset_slice.name + PATH_SUFFIX,
                             PATH_TRAIT)
         # Add traits for fields to sink
-        for field_collection in self.field_collections:
+        for field_slice in self.field_collections:
             self._add_trait(self.inputs,
-                            field_collection.name + FIELD_SUFFIX,
-                            self.field_trait(field_collection))
+                            field_slice.name + FIELD_SUFFIX,
+                            self.field_trait(field_slice))
         # Add traits for checksums/values of pipeline inputs
         self._pipeline_input_filesets = []
         self._pipeline_input_fields = []
@@ -260,24 +260,24 @@ class RepositorySink(RepositoryInterface):
             # Connect to set of repositories that the collections come from
             for repository in self.repositories:
                 stack.enter_context(repository)
-            for fileset_collection in self.fileset_collections:
-                fileset = fileset_collection.item(
+            for fileset_slice in self.fileset_collections:
+                fileset = fileset_slice.item(
                     subject_id,
                     visit_id)
                 path = getattr(self.inputs,
-                               fileset_collection.name + PATH_SUFFIX)
+                               fileset_slice.name + PATH_SUFFIX)
                 if not isdefined(path):
                     if fileset.name in self._required:
                         missing_inputs.append(fileset.name)
                     continue  # skip the upload for this fileset
                 fileset.path = path  # Push to repository
                 output_checksums[fileset.name] = fileset.checksums
-            for field_collection in self.field_collections:
-                field = field_collection.item(
+            for field_slice in self.field_collections:
+                field = field_slice.item(
                     subject_id,
                     visit_id)
                 value = getattr(self.inputs,
-                                field_collection.name + FIELD_SUFFIX)
+                                field_slice.name + FIELD_SUFFIX)
                 if not isdefined(value):
                     if field.name in self._required:
                         missing_inputs.append(field.name)

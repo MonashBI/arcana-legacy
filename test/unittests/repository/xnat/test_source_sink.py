@@ -110,13 +110,13 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         inputnode.inputs.visit_id = str(self.VISIT)
         source = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).collection for f in source_files),
+                analysis.bound_spec(f).slice for f in source_files),
             name='source')
         dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
         sink = pe.Node(
             RepositorySink(
-                (analysis.bound_spec(f).collection for f in sink_files),
+                (analysis.bound_spec(f).slice for f in sink_files),
                 dummy_pipeline),
             name='sink')
         sink.inputs.name = 'repository-roundtrip-unittest'
@@ -163,7 +163,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         dummy_pipeline.cap()
         sink = pe.Node(
             RepositorySink(
-                (analysis.bound_spec(f).collection for f in fields),
+                (analysis.bound_spec(f).slice for f in fields),
                 dummy_pipeline),
             name='fields_sink')
         sink.inputs.field1_field = field1 = 1
@@ -176,7 +176,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         sink.run()
         source = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).collection for f in fields),
+                analysis.bound_spec(f).slice for f in fields),
             name='fields_source')
         source.inputs.visit_id = self.VISIT
         source.inputs.subject_id = self.SUBJECT
@@ -210,7 +210,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
-                [analysis.bound_spec(DATASET_NAME).collection]),
+                [analysis.bound_spec(DATASET_NAME).slice]),
             name='delayed_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
@@ -297,7 +297,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             fill_tree=True)
         source = pe.Node(
             RepositorySource(
-                [analysis.bound_spec(DATASET_NAME).collection]),
+                [analysis.bound_spec(DATASET_NAME).slice]),
             name='checksum_check_source')
         source.inputs.subject_id = self.SUBJECT
         source.inputs.visit_id = self.VISIT
@@ -339,7 +339,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         dummy_pipeline.cap()
         sink = pe.Node(
             RepositorySink(
-                [analysis.bound_spec(DATASET_NAME).collection],
+                [analysis.bound_spec(DATASET_NAME).slice],
                 dummy_pipeline),
             name='checksum_check_sink')
         sink.inputs.name = 'checksum_check_sink'
@@ -387,14 +387,14 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         inputnode.inputs.visit_id = self.VISIT
         source = pe.Node(
             RepositorySource(
-                [analysis.bound_spec(f).collection for f in source_files]),
+                [analysis.bound_spec(f).slice for f in source_files]),
             name='source')
         subject_sink_files = ['subject_sink']
         dummy_pipeline = analysis.dummy_pipeline()
         dummy_pipeline.cap()
         subject_sink = pe.Node(
             RepositorySink(
-                [analysis.bound_spec(f).collection for f in subject_sink_files],
+                [analysis.bound_spec(f).slice for f in subject_sink_files],
                 dummy_pipeline),
             name='subject_sink')
         subject_sink.inputs.name = 'subject_summary'
@@ -404,7 +404,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         visit_sink_files = ['visit_sink']
         visit_sink = pe.Node(
             RepositorySink(
-                [analysis.bound_spec(f).collection for f in visit_sink_files],
+                [analysis.bound_spec(f).slice for f in visit_sink_files],
                 dummy_pipeline),
             name='visit_sink')
         visit_sink.inputs.name = 'visit_summary'
@@ -414,7 +414,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         analysis_sink_files = ['analysis_sink']
         analysis_sink = pe.Node(
             RepositorySink(
-                [analysis.bound_spec(f).collection for f in analysis_sink_files],
+                [analysis.bound_spec(f).slice for f in analysis_sink_files],
                 dummy_pipeline),
             name='analysis_sink')
         analysis_sink.inputs.name = 'project_summary'
@@ -495,19 +495,19 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         reloadinputnode.inputs.visit_id = self.VISIT
         reloadsource_per_subject = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).collection for f in subject_sink_files),
+                analysis.bound_spec(f).slice for f in subject_sink_files),
             name='reload_source_per_subject')
         reloadsource_per_visit = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).collection for f in visit_sink_files),
+                analysis.bound_spec(f).slice for f in visit_sink_files),
             name='reload_source_per_visit')
         reloadsource_per_dataset = pe.Node(
             RepositorySource(
-                analysis.bound_spec(f).collection for f in analysis_sink_files),
+                analysis.bound_spec(f).slice for f in analysis_sink_files),
             name='reload_source_per_dataset')
         reloadsink = pe.Node(
             RepositorySink(
-                (analysis.bound_spec(f).collection
+                (analysis.bound_spec(f).slice
                  for f in ['resink1', 'resink2', 'resink3']),
                 dummy_pipeline),
             name='reload_sink')

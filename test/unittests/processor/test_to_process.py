@@ -319,10 +319,10 @@ class TestProvBasic(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        derived_fileset1_collection, derived_field4_collection = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.data(
             ('derived_fileset1', 'derived_field4'))
-        self.assertContentsEqual(derived_fileset1_collection, 154.0)
-        self.assertEqual(derived_field4_collection.value(*self.SESSION), 155.0)
+        self.assertContentsEqual(derived_fileset1_slice, 154.0)
+        self.assertEqual(derived_field4_slice.value(*self.SESSION), 155.0)
         # Rerun with new parameters
         analysis = self.create_analysis(
             TestProvAnalysis,
@@ -330,10 +330,10 @@ class TestProvBasic(BaseTestCase):
             inputs=STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={'multiplier': 100.0})
-        derived_fileset1_collection, derived_field4_collection = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.data(
             ('derived_fileset1', 'derived_field4'))
-        self.assertContentsEqual(derived_fileset1_collection, 1414.0)
-        derived_field4 = derived_field4_collection.item(*self.SESSION)
+        self.assertContentsEqual(derived_fileset1_slice, 1414.0)
+        derived_field4 = derived_field4_slice.item(*self.SESSION)
         self.assertEqual(derived_field4.value, 1415.0)
         # Manually changing the value (or file contents) of a derivative value
         # (without also altering the saved provenance record) will mean
@@ -353,16 +353,16 @@ class TestProvBasic(BaseTestCase):
             ArcanaProtectedOutputConflictError,
             analysis.data,
             ('derived_fileset1', 'derived_field4'))
-        with open(derived_fileset1_collection.path(*self.SESSION), 'w') as f:
+        with open(derived_fileset1_slice.path(*self.SESSION), 'w') as f:
             f.write(str(protected_derived_fileset1_value))
         analysis.clear_caches()
         # Protect the output of derived_fileset1 as well and it should return
         # the protected values
-        derived_fileset1_collection, derived_field4_collection = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.data(
             ('derived_fileset1', 'derived_field4'))
-        self.assertContentsEqual(derived_fileset1_collection,
+        self.assertContentsEqual(derived_fileset1_slice,
                                  protected_derived_fileset1_value)
-        self.assertEqual(derived_field4_collection.value(*self.SESSION),
+        self.assertEqual(derived_field4_slice.value(*self.SESSION),
                          protected_derived_field4_value)
 
 

@@ -128,7 +128,7 @@ class Analysis(object):
                              if subject_ids is not None else None)
         self._visit_ids = tuple(visit_ids) if visit_ids is not None else None
         self._fill_tree = fill_tree
-        # Initialise caches for data collection and pipeline objects
+        # Initialise caches for data slices and pipeline objects
         if clear_caches:
             self.clear_caches()
         # Set parameters
@@ -271,18 +271,18 @@ class Analysis(object):
         subject_id : str | None
             The subject ID of the data to return. If provided (including None
             values) the data will be return as a single item instead of a
-            collection
+            slice
         visit_id : str | None
             The visit ID of the data to return. If provided (including None
             values) the data will be return as a single item instead of a
             c ollection
         subject_ids : list[str]
-            The subject IDs to include in the returned collection
+            The subject IDs to include in the returned slice
         visit_ids : list[str]
-            The visit IDs to include in the returned collection
+            The visit IDs to include in the returned slice
         session_ids : list[str]
             The session IDs (i.e. 2-tuples of the form
-            (<subject-id>, <visit-id>) to include in the returned collection
+            (<subject-id>, <visit-id>) to include in the returned slice
         generate : bool
             Whether to generate data that hasn't been generated yet or not
 
@@ -291,8 +291,9 @@ class Analysis(object):
         data : BaseItemMixin | BaseSliceMixin |
                list[BaseItemMixin | BaseSliceMixin]
             If 'subject_id' or 'visit_id' is provided then the data returned is
-            a single Fileset or Field. Otherwise a collection of Filesets or
-            Fields are returned. If muliple spec names are provided then a
+            a single Fileset or Field. Otherwise a Fileset or Field slices
+            across the dataset are returned. If muliple spec names are provided
+            then a
             list of items or collections corresponding to each spec name.
         """
         if isinstance(name, basestring):
@@ -366,7 +367,7 @@ class Analysis(object):
         all_data = []
         for name in names:
             spec = self.bound_spec(name)
-            data = spec.collection
+            data = spec.slice
             if single_item:
                 data = data.item(subject_id=subject_id, visit_id=visit_id)
             elif filter_items and spec.frequency != 'per_dataset':
@@ -984,7 +985,7 @@ class Analysis(object):
         subjects.iterables = ('subject_id', tuple(self.subject_ids))
         sessions.iterables = ('visit_id', tuple(self.visit_ids))
         source = pe.Node(RepositorySource(
-            self.bound_spec(i).collection for i in self.inputs), name='source')
+            self.bound_spec(i).slice for i in self.inputs), name='source')
         workflow.connect(subjects, 'subject_id', sessions, 'subject_id')
         workflow.connect(sessions, 'subject_id', source, 'subject_id')
         workflow.connect(sessions, 'visit_id', source, 'visit_id')
@@ -1056,16 +1057,16 @@ class Analysis(object):
             inputs[input.name] = {
                 'repository_index': input_repos.index(input.repository)}
             if input.frequency == 'per_dataset':
-                inputs[input.name]['names'] = next(input.collection).name
+                inputs[input.name]['names'] = next(input.slice).name
             elif input.frequency == 'per_subject':
                 inputs[input.name]['names'] = {i.subject_id: i.name
-                                               for i in input.collection}
+                                               for i in input.slice}
             elif input.frequency == 'per_visit':
                 inputs[input.name]['names'] = {i.visit_id: i.name
-                                               for i in input.collection}
+                                               for i in input.slice}
             elif input.frequency == 'per_session':
                 names = defaultdict(dict)
-                for item in input.collection:
+                for item in input.slice:
                     names[item.subject_id][item.visit_id] = item.name
                 # Convert from defaultdict to dict
                 inputs[input.name]['names'] = dict(names.items())

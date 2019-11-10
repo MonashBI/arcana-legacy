@@ -813,7 +813,7 @@ class Subject(TreeNode):
 
 class Visit(TreeNode):
     """
-    Represents a collection of visits across subjects (e.g. time-point 1)
+    Represents a slice of visits across subjects (e.g. time-point 1)
     as stored in a repository
 
     Parameters

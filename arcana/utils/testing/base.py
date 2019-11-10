@@ -312,32 +312,32 @@ class BaseTestCase(TestCase):
                 ', '.join(str(f) for f in not_created),
                 'were' if len(not_created) > 1 else 'was')))
 
-    def assertContentsEqual(self, collection, reference, context=None):
-        if isinstance(collection, Fileset):
-            collection = [collection]
+    def assertContentsEqual(self, slce, reference, context=None):
+        if isinstance(slce, Fileset):
+            slce = [slce]
         if isinstance(reference, (basestring, int, float)):
-            if len(collection) != 1:
+            if len(slce) != 1:
                 raise ArcanaUsageError(
                     "Multi-subject/visit collections cannot be compared"
                     " against a single contents string (list or dict "
                     "should be provided)")
             references = [str(reference)]
-            filesets = list(collection)
+            filesets = list(slce)
         elif isinstance(reference, dict):
             references = []
             filesets = []
             for subj_id, subj_dct in reference.items():
                 for visit_id, ref_value in subj_dct.items():
                     references.append(str(ref_value))
-                    filesets.append(collection.item(subject_id=subj_id,
+                    filesets.append(slce.item(subject_id=subj_id,
                                                     visit_id=visit_id))
         elif isinstance(reference, (list, tuple)):
             references = [str(r) for r in reference]
-            filesets = list(collection)
+            filesets = list(slce)
             if len(references) != len(filesets):
                 raise ArcanaUsageError(
                     "Number of provided references ({}) does not match"
-                    " size of collection ({})".format(len(references),
+                    " size of slce ({})".format(len(references),
                                                       len(filesets)))
         else:
             raise ArcanaUsageError(

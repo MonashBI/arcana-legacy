@@ -9,7 +9,7 @@ from arcana.exceptions import (
     ArcanaDesignError)
 from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
-from .collection import FilesetSlice, FieldSlice
+from .slice import FilesetSlice, FieldSlice
 
 
 class BaseInputSpecMixin(object):
@@ -28,12 +28,12 @@ class BaseInputSpecMixin(object):
         self._desc = desc
         self._analysis = None
         self._optional = optional
-        # Set the name of the default collection-like object so it matches
+        # Set the name of the default slice-like object so it matches
         # the name of the spec
         if default is not None:
             if default.frequency != self.frequency:
                 raise ArcanaDesignError(
-                    "Frequency of default collection-like object passed to "
+                    "Frequency of default slice-like object passed to "
                     "'{}' spec ('{}'), does not match spec ('{}')".format(
                         name, default.frequency, self.frequency))
             default = deepcopy(default)
@@ -120,16 +120,16 @@ class BaseInputSpecMixin(object):
         return self._desc
 
     @property
-    def collection(self):
+    def slice(self):
         if self._analysis is None:
             raise ArcanaUsageError(
                 "{} needs to be bound to a analysis before accessing "
-                "the corresponding collection".format(self))
+                "the corresponding slice".format(self))
         if self.default is None:
             raise ArcanaUsageError(
-                "{} does not have default so cannot access its collection"
+                "{} does not have default so cannot access its slice"
                 .format(self))
-        return self.default.collection
+        return self.default.slice
 
 
 class BaseSpecMixin(object):
@@ -149,7 +149,7 @@ class BaseSpecMixin(object):
         self._pipeline_getter = pipeline_getter
         self._desc = desc
         self._analysis = None
-        self._collection = None
+        self._slice = None
         if isinstance(pipeline_args, dict):
             pipeline_args = tuple(sorted(pipeline_args.items()))
         elif pipeline_args is not None:
@@ -222,12 +222,12 @@ class BaseSpecMixin(object):
         return bound
 
     @property
-    def collection(self):
-        if self._collection is None:
+    def slice(self):
+        if self._slice is None:
             raise ArcanaUsageError(
                 "{} needs to be bound to a analysis before accessing "
-                "the corresponding collection".format(self))
-        return self._collection
+                "the corresponding slice".format(self))
+        return self._slice
 
     def nodes(self, tree):
         """
@@ -334,7 +334,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     default : FilesetSlice | object
         The default value to be passed as an input to this spec if none are
         provided. Can either be an explicit FilesetSlice or any object
-        with a 'collection' property that will return a default collection.
+        with a 'slice' property that will return a default slice.
         This object should also implement a 'bind(self, analysis)' method to
         allow the analysis to be bound to it.
     pipeline_args : dct[str, *] | None
@@ -510,7 +510,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
         return fileset
 
     def _bind_tree(self, tree, **kwargs):
-        self._collection = FilesetSlice(
+        self._slice = FilesetSlice(
             self.name,
             (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
             frequency=self.frequency,
@@ -547,7 +547,7 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
     default : FieldSlice | callable
         The default value to be passed as an input to this spec if none are
         provided. Can either be an explicit FieldSlice or any object
-        with a 'collection' property that will return a default collection.
+        with a 'slice' property that will return a default slice.
         This object should also implement a 'bind(self, analysis)' method to
         allow the analysis to be bound to it.
     """
@@ -661,7 +661,7 @@ class FieldSpec(BaseField, BaseSpecMixin):
         return field
 
     def _bind_tree(self, tree, **kwargs):
-        self._collection = FieldSlice(
+        self._slice = FieldSlice(
             self.name,
             (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
             frequency=self.frequency,

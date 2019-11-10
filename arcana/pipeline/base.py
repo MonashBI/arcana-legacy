@@ -955,13 +955,13 @@ class Pipeline(object):
             if not iterators_to_join:
                 # No iterators to join so we can just extract the checksums
                 # of the corresponding input
-                exp_inputs[inpt.name] = inpt.collection.item(
+                exp_inputs[inpt.name] = inpt.slice.item(
                     node.subject_id, node.visit_id).checksums
             elif len(iterators_to_join) == 1:
                 # Get list of checksums dicts for each node of the input
                 # frequency that relates to the current node
                 exp_inputs[inpt.name] = [
-                    inpt.collection.item(n.subject_id, n.visit_id).checksums
+                    inpt.slice.item(n.subject_id, n.visit_id).checksums
                     for n in node.nodes(inpt.frequency)]
             else:
                 # In the case where the node is the whole treee and the input
@@ -970,7 +970,7 @@ class Pipeline(object):
                 exp_inputs[inpt.name] = []
                 for subj in node.subjects:
                     exp_inputs[inpt.name].append([
-                        inpt.collection.item(s.subject_id,
+                        inpt.slice.item(s.subject_id,
                                              s.visit_id).checksums
                         for s in subj.sessions])
         # Get checksums/value for all outputs of the pipeline. We are assuming
@@ -978,7 +978,7 @@ class Pipeline(object):
         exp_outputs = {}
         for output in self.outputs:
             try:
-                exp_outputs[output.name] = output.collection.item(
+                exp_outputs[output.name] = output.slice.item(
                     node.subject_id, node.visit_id).checksums
             except ArcanaDataNotDerivedYetError:
                 pass
