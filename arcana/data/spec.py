@@ -9,7 +9,7 @@ from arcana.exceptions import (
     ArcanaDesignError)
 from .base import BaseFileset, BaseField, BaseData
 from .item import Fileset, Field
-from .collection import FilesetCollection, FieldCollection
+from .collection import FilesetSlice, FieldSlice
 
 
 class BaseInputSpecMixin(object):
@@ -331,9 +331,9 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     optional : bool
         Whether the specification is optional or not. Only valid for
         "acquired" fileset specs.
-    default : FilesetCollection | object
+    default : FilesetSlice | object
         The default value to be passed as an input to this spec if none are
-        provided. Can either be an explicit FilesetCollection or any object
+        provided. Can either be an explicit FilesetSlice or any object
         with a 'collection' property that will return a default collection.
         This object should also implement a 'bind(self, analysis)' method to
         allow the analysis to be bound to it.
@@ -344,7 +344,7 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     """
 
     is_spec = True
-    CollectionClass = FilesetCollection
+    SliceClass = FilesetSlice
 
     def __init__(self, name, valid_formats, frequency='per_session',
                  desc=None, optional=False, default=None):
@@ -445,7 +445,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
     """
 
     is_spec = True
-    CollectionClass = FilesetCollection
+    SliceClass = FilesetSlice
 
     def __init__(self, name, format, pipeline_getter, frequency='per_session',
                  desc=None, valid_formats=None, pipeline_args=None,
@@ -510,7 +510,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
         return fileset
 
     def _bind_tree(self, tree, **kwargs):
-        self._collection = FilesetCollection(
+        self._collection = FilesetSlice(
             self.name,
             (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
             frequency=self.frequency,
@@ -544,16 +544,16 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
     optional : bool
         Whether the specification is optional or not. Only valid for
         "acquired" fileset specs.
-    default : FieldCollection | callable
+    default : FieldSlice | callable
         The default value to be passed as an input to this spec if none are
-        provided. Can either be an explicit FieldCollection or any object
+        provided. Can either be an explicit FieldSlice or any object
         with a 'collection' property that will return a default collection.
         This object should also implement a 'bind(self, analysis)' method to
         allow the analysis to be bound to it.
     """
 
     is_spec = True
-    CollectionClass = FieldCollection
+    SliceClass = FieldSlice
 
     def __init__(self, name, dtype, frequency='per_session', desc=None,
                  optional=False, default=None, array=False):
@@ -613,7 +613,7 @@ class FieldSpec(BaseField, BaseSpecMixin):
     """
 
     is_spec = True
-    CollectionClass = FieldCollection
+    SliceClass = FieldSlice
 
     def __init__(self, name, dtype, pipeline_getter,
                  frequency='per_session', desc=None, array=False,
@@ -661,7 +661,7 @@ class FieldSpec(BaseField, BaseSpecMixin):
         return field
 
     def _bind_tree(self, tree, **kwargs):
-        self._collection = FieldCollection(
+        self._collection = FieldSlice(
             self.name,
             (self._bind_node(n, **kwargs) for n in self.nodes(tree)),
             frequency=self.frequency,

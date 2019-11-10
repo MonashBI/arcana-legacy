@@ -1,5 +1,5 @@
 from .item import Fileset, Field
-from .collection import FilesetCollection, FieldCollection
+from .collection import FilesetSlice, FieldSlice
 from .spec import (
     FilesetSpec, FieldSpec, InputFilesetSpec, InputFieldSpec, BaseSpecMixin,
     BaseInputSpecMixin)

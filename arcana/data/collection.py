@@ -11,7 +11,7 @@ from itertools import chain
 DICOM_SERIES_NUMBER_TAG = ('0020', '0011')
 
 
-class BaseCollectionMixin(object):
+class BaseSliceMixin(object):
     """
     Base class for collection of filesets and field items
     """
@@ -26,7 +26,7 @@ class BaseCollectionMixin(object):
         self._frequency = frequency
         if frequency == 'per_dataset':
             # If wrapped in an iterable
-            if not isinstance(collection, self.CollectedClass):
+            if not isinstance(collection, self.SlicedClass):
                 if len(collection) > 1:
                     raise ArcanaUsageError(
                         "More than one {} passed to {}"
@@ -52,7 +52,7 @@ class BaseCollectionMixin(object):
         else:
             assert False
         for datum in self:
-            if not isinstance(datum, self.CollectedClass):
+            if not isinstance(datum, self.SlicedClass):
                 raise ArcanaUsageError(
                     "Invalid class {} in {}".format(datum, self))
 
@@ -157,19 +157,19 @@ class BaseCollectionMixin(object):
                 fileset = self._collection[0]
             except IndexError:
                 raise ArcanaIndexError(
-                    0, ("'{}' Collection is empty so doesn't have a " +
+                    0, ("'{}' Slice is empty so doesn't have a " +
                         "per_dataset node").format(self.name))
         return fileset
 
     @property
     def collection(self):
-        "Used for duck typing Collection objects with Spec and Match "
+        "Used for duck typing Slice objects with Spec and Match "
         "in source and sink initiation"
         return self
 
     def bind(self, analysis, **kwargs):
         """
-        Used for duck typing Collection objects with Spec and Match
+        Used for duck typing Slice objects with Spec and Match
         in source and sink initiation. Checks IDs match sessions in analysis.
         """
         if self.frequency == 'per_subject':
@@ -217,7 +217,7 @@ class BaseCollectionMixin(object):
         self._name = name
 
 
-class FilesetCollection(BaseCollectionMixin, BaseFileset):
+class FilesetSlice(BaseSliceMixin, BaseFileset):
     """
     A collection of filesets across a analysis (typically within a repository)
 
@@ -234,14 +234,14 @@ class FilesetCollection(BaseCollectionMixin, BaseFileset):
         if not provided).
     """
 
-    CollectedClass = Fileset
+    SlicedClass = Fileset
 
     def __init__(self, name, collection, format=None, frequency=None,
                  candidate_formats=None):
         if format is None and candidate_formats is None:
             raise ArcanaUsageError(
                 "Either 'format' or candidate_formats needs to be supplied "
-                "during the initialisation of a FilesetCollection ('{}')"
+                "during the initialisation of a FilesetSlice ('{}')"
                 .format(name))
         collection = list(collection)
         if not collection:
@@ -250,7 +250,7 @@ class FilesetCollection(BaseCollectionMixin, BaseFileset):
             if frequency is None:
                 raise ArcanaUsageError(
                     "Need to provide explicit frequency for empty "
-                    "FilesetCollection")
+                    "FilesetSlice")
         else:
             implicit_frequency = self._common_attr(collection,
                                                    'frequency')
@@ -259,7 +259,7 @@ class FilesetCollection(BaseCollectionMixin, BaseFileset):
             elif frequency != implicit_frequency:
                 raise ArcanaUsageError(
                     "Implicit frequency '{}' does not match explicit "
-                    "frequency '{}' for '{}' FilesetCollection"
+                    "frequency '{}' for '{}' FilesetSlice"
                     .format(implicit_frequency, frequency, name))
             formatted_collection = []
             for fileset in collection:
@@ -271,14 +271,14 @@ class FilesetCollection(BaseCollectionMixin, BaseFileset):
             collection = formatted_collection
             format = self._common_attr(collection, 'format')
         BaseFileset.__init__(self, name, format, frequency=frequency)
-        BaseCollectionMixin.__init__(self, collection, frequency)
+        BaseSliceMixin.__init__(self, collection, frequency)
 
     def path(self, subject_id=None, visit_id=None):
         return self.item(
             subject_id=subject_id, visit_id=visit_id).path
 
 
-class FieldCollection(BaseCollectionMixin, BaseField):
+class FieldSlice(BaseSliceMixin, BaseField):
     """
     A collection of equivalent filesets (either within a repository)
 
@@ -290,7 +290,7 @@ class FieldCollection(BaseCollectionMixin, BaseField):
         An iterable of equivalent filesets
     """
 
-    CollectedClass = Field
+    SlicedClass = Field
 
     def __init__(self, name, collection, frequency=None, dtype=None,
                  array=None):
@@ -303,7 +303,7 @@ class FieldCollection(BaseCollectionMixin, BaseField):
             elif frequency != implicit_frequency:
                 raise ArcanaUsageError(
                     "Implicit frequency '{}' does not match explicit "
-                    "frequency '{}' for '{}' FieldCollection"
+                    "frequency '{}' for '{}' FieldSlice"
                     .format(implicit_frequency, frequency, name))
             implicit_dtype = self._common_attr(collection, 'dtype')
             if dtype is None:
@@ -311,7 +311,7 @@ class FieldCollection(BaseCollectionMixin, BaseField):
             elif dtype != implicit_dtype:
                 raise ArcanaUsageError(
                     "Implicit dtype '{}' does not match explicit "
-                    "dtype '{}' for '{}' FieldCollection"
+                    "dtype '{}' for '{}' FieldSlice"
                     .format(implicit_dtype, dtype, name))
             implicit_array = self._common_attr(collection, 'array')
             if array is None:
@@ -319,19 +319,19 @@ class FieldCollection(BaseCollectionMixin, BaseField):
             elif array != implicit_array:
                 raise ArcanaUsageError(
                     "Implicit array '{}' does not match explicit "
-                    "array '{}' for '{}' FieldCollection"
+                    "array '{}' for '{}' FieldSlice"
                     .format(implicit_array, array, name))
         if frequency is None:
             raise ArcanaUsageError(
                 "Need to provide explicit frequency for empty "
-                "FieldCollection")
+                "FieldSlice")
         if dtype is None:
             raise ArcanaUsageError(
                 "Need to provide explicit dtype for empty "
-                "FieldCollection")
+                "FieldSlice")
         BaseField.__init__(self, name, dtype=dtype, frequency=frequency,
                            array=array)
-        BaseCollectionMixin.__init__(self, collection, frequency)
+        BaseSliceMixin.__init__(self, collection, frequency)
 
     def value(self, subject_id=None, visit_id=None):
         return self.item(subject_id=subject_id, visit_id=visit_id).value

@@ -26,7 +26,7 @@ from .data import (
     FilesetSpec, FilesetFilter, FieldSpec, FieldFilter,
     InputFilesetSpec, InputFieldSpec)
 from .data.file_format import FileFormat
-from .data import Fileset, Field, FilesetCollection, FieldCollection
+from .data import Fileset, Field, FilesetSlice, FieldSlice
 from .processor import (
     SingleProc, MultiProc, SlurmProc)
 from .environment import StaticEnv, ModulesEnv

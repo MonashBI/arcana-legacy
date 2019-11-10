@@ -8,7 +8,7 @@ from arcana.exceptions import (
     ArcanaInputMissingMatchError, ArcanaNotBoundToAnalysisError)
 from .base import BaseFileset, BaseField
 from .item import Fileset, Field
-from .collection import FilesetCollection, FieldCollection
+from .collection import FilesetSlice, FieldSlice
 
 
 class BaseInputMixin(object):
@@ -415,13 +415,13 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
                     "method if the FilesetFilter ({}) doesn't specify a format"
                     .format(self))
         # Run the match against the tree
-        return FilesetCollection(self.name,
-                                 self._match(
-                                     tree, Fileset,
-                                     valid_formats=valid_formats,
-                                     **kwargs),
-                                 frequency=self.frequency,
-                                 candidate_formats=valid_formats)
+        return FilesetSlice(self.name,
+                            self._match(
+                                tree, Fileset,
+                                valid_formats=valid_formats,
+                                **kwargs),
+                            frequency=self.frequency,
+                            candidate_formats=valid_formats)
 
     @property
     def id(self):
@@ -601,10 +601,10 @@ class FieldFilter(BaseInputMixin, BaseField):
 
     def match(self, tree, **kwargs):
         # Run the match against the tree
-        return FieldCollection(self.name,
-                               self._match(tree, Field, **kwargs),
-                               frequency=self.frequency,
-                               dtype=self.dtype)
+        return FieldSlice(self.name,
+                          self._match(tree, Field, **kwargs),
+                          frequency=self.frequency,
+                          dtype=self.dtype)
 
     @property
     def dtype(self):

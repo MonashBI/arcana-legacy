@@ -288,8 +288,8 @@ class Analysis(object):
 
         Returns
         -------
-        data : BaseItemMixin | BaseCollectionMixin |
-               list[BaseItemMixin | BaseCollectionMixin]
+        data : BaseItemMixin | BaseSliceMixin |
+               list[BaseItemMixin | BaseSliceMixin]
             If 'subject_id' or 'visit_id' is provided then the data returned is
             a single Fileset or Field. Otherwise a collection of Filesets or
             Fields are returned. If muliple spec names are provided then a
@@ -361,7 +361,7 @@ class Analysis(object):
                     raise e
                 kwargs['required_outputs'] = required_outputs
                 self.processor.run(*pipelines, **kwargs)
-        # Find and return Item/Collection corresponding to requested spec
+        # Find and return Item/Slice corresponding to requested spec
         # names
         all_data = []
         for name in names:
@@ -395,7 +395,7 @@ class Analysis(object):
                         "No matching data found (subject_ids={}, visit_ids={} "
                         ", session_ids={})"
                         .format(subject_ids, visit_ids, session_ids))
-                data = spec.CollectionClass(spec.name, data)
+                data = spec.SliceClass(spec.name, data)
             all_data.append(data)
         if single_name:
             all_data = all_data[0]

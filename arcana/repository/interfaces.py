@@ -195,7 +195,7 @@ class RepositorySink(RepositoryInterface):
 
     Parameters
     ----------
-    collections : *Collection
+    collections : *Slice
         The collections of Field and Fileset objects to insert into the
         outputs repositor(y|ies)
     pipeline : arcana.pipeline.Pipeline

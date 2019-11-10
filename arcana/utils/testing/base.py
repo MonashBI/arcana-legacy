@@ -14,7 +14,7 @@ import filecmp
 from copy import deepcopy
 import logging
 import arcana
-from arcana.data import Fileset, FilesetCollection
+from arcana.data import Fileset, FilesetSlice
 from arcana.utils import classproperty
 from arcana.repository.basic import BasicRepo
 from arcana.processor import SingleProc
@@ -298,7 +298,7 @@ class BaseTestCase(TestCase):
             **kwargs)
 
     def assertFilesetCreated(self, fileset):
-        if isinstance(fileset, FilesetCollection):
+        if isinstance(fileset, FilesetSlice):
             filesets = list(fileset)
         else:
             filesets = [fileset]
