@@ -13,7 +13,7 @@ def defaultdict_of_dict():
     return defaultdict(dict)
 
 
-class Repository(object, metaclass=ABCMeta):
+class Repository(metaclass=ABCMeta):
     """
     Abstract base class for all Repository systems, DaRIS, XNAT and
     local file system. Sets out the interface that all Repository
