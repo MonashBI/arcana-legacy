@@ -285,7 +285,7 @@ class TestAnalysis(BaseMultiSubjectTestCase):
                     Fileset('ten_input', text_format,
                             subject_id=subj_id,
                             visit_id=visit_id))
-        return Tree.construct(self.repository, filesets=filesets)
+        return Tree.construct(self.dataset.repository, filesets=filesets)
 
     def make_analysis(self):
         return self.create_analysis(
@@ -418,7 +418,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
                                 visit_id=visit_id, from_analysis=from_analysis))
-        return Tree.construct(self.repository, filesets=filesets)
+        return Tree.construct(self.dataset.repository, filesets=filesets)
 
     def add_sessions(self):
         BaseMultiSubjectTestCase.add_sessions(self)
@@ -428,20 +428,20 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                             if f != 'one']
         analysis = self.create_analysis(
             ExistingPrereqAnalysis, self.STUDY_NAME,
-            repository=self.local_repository,
+            dataset=self.local_dataset,
             inputs=[FilesetFilter('one', 'one', text_format)])
         # Get all pipelines in the analysis
         pipelines = {n: getattr(analysis, '{}_pipeline'.format(n))()
                      for n in derived_filesets}
-        for node in analysis.tree:
+        for node in analysis.dataset.tree:
             for fileset in node.filesets:
                 if fileset.basename != 'one' and fileset.exists:
                     # Generate expected provenance record for each pipeline
-                    # and save in the local repository
+                    # and save in the local dataset
                     pipelines[fileset.name].cap()
                     record = pipelines[fileset.name].expected_record(node)
-                    self.local_repository.put_record(record)
-        analysis.clear_caches()  # Reset repository trees
+                    self.local_dataset.repository.put_record(record)
+        analysis.clear_caches()  # Reset dataset trees
 
     def test_per_session_prereqs(self):
         # Generate all data for 'thousand' spec
@@ -458,7 +458,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
-        tree = self.repository.tree()
+        tree = self.dataset.tree()
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)

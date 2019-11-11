@@ -41,7 +41,7 @@ class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
         pass
 
 
-class TestBasicRepo(BaseTestCase):
+class TestLocalFileSystemRepo(BaseTestCase):
 
     STUDY_NAME = 'local_repo'
     INPUT_FILESETS = {'source1': '1',
@@ -201,21 +201,21 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                 fileset.get()
             for field in fields:
                 field.get()
-        tree = Tree.construct(self.repository, filesets, fields)
+        tree = Tree.construct(self.dataset.repository, filesets, fields)
         return tree
 
     @property
     def input_tree(self):
-        return self.get_tree(self.local_repository)
+        return self.get_tree(self.local_dataset)
 
     def test_project_info(self):
-        # Add hidden file (i.e. starting with '.') to local repository at
+        # Add hidden file (i.e. starting with '.') to local dataset at
         # project and subject levels to test ignore functionality
         a_subj_dir = os.listdir(self.project_dir)[0]
         open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
         open(op.join(self.project_dir, a_subj_dir, '.DS_Store'), 'w').close()
-        tree = self.repository.tree()
+        tree = self.dataset.tree()
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format

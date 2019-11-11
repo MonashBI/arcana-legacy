@@ -57,8 +57,8 @@ class TreeNode(object):
             if not item.derived:
                 continue  # Skip acquired items
             records = [r for r in self.records
-                       if (item.from_analysis == r.from_analysis and
-                           item.name in r.outputs)]
+                       if (item.from_analysis == r.from_analysis
+                           and item.name in r.outputs)]
             if not records:
                 self._missing_records.append(item.name)
             elif len(records) > 1:
@@ -68,16 +68,16 @@ class TreeNode(object):
                 item.record = records[0]
 
     def __eq__(self, other):
-        if not (isinstance(other, type(self)) or
-                isinstance(self, type(other))):
+        if not (isinstance(other, type(self))
+                or isinstance(self, type(other))):
             return False
-        return (tuple(self.filesets) == tuple(other.filesets) and
-                tuple(self.fields) == tuple(other.fields) and
-                tuple(self.records) == tuple(other.records))
+        return (tuple(self.filesets) == tuple(other.filesets)
+                and tuple(self.fields) == tuple(other.fields)
+                and tuple(self.records) == tuple(other.records))
 
     def __hash__(self):
-        return (hash(tuple(self.filesets)) ^ hash(tuple(self.fields)) ^
-                hash(tuple(self.fields)))
+        return (hash(tuple(self.filesets)) ^ hash(tuple(self.fields))
+                ^ hash(tuple(self.fields)))
 
     @property
     def filesets(self):

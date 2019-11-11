@@ -21,7 +21,7 @@ from arcana.utils import get_class_info, HOSTNAME, split_extension
 logger = logging.getLogger('arcana')
 
 
-class BasicRepo(Repository):
+class LocalFileSystemRepo(Repository):
     """
     A 'Repository' class for data stored simply in file-system
     directories. Can be a single directory if it contains only one subject
@@ -54,10 +54,10 @@ class BasicRepo(Repository):
     MAX_DEPTH = 2
 
     def __init__(self, root_dir, depth=None, **kwargs):
-        super(BasicRepo, self).__init__(**kwargs)
+        super(LocalFileSystemRepo, self).__init__(**kwargs)
         if not op.exists(root_dir):
             raise ArcanaError(
-                "Base directory for BasicRepo '{}' does not exist"
+                "Base directory for LocalFileSystemRepo '{}' does not exist"
                 .format(root_dir))
         self._root_dir = op.abspath(root_dir)
         if depth is None:

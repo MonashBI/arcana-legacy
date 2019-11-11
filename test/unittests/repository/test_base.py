@@ -11,7 +11,7 @@ from arcana.utils.testing import BaseTestCase
 from arcana.data import InputFilesetSpec, FilesetSpec
 from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.repository.basic import BasicRepo
+from arcana.repository.basic import LocalFileSystemRepo
 
 
 class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
@@ -52,7 +52,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_repository_roundtrip(self):
         analysis = DummyAnalysis(
-            self.STUDY_NAME, self.repository, processor=SingleProc('a_dir'),
+            self.STUDY_NAME, self.dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format),
@@ -97,14 +97,14 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_analysis=self.STUDY_NAME)))
-            if f not in (BasicRepo.FIELDS_FNAME,
-                         BasicRepo.PROV_DIR)]
+            if f not in (LocalFileSystemRepo.FIELDS_FNAME,
+                         LocalFileSystemRepo.PROV_DIR)]
         self.assertEqual(outputs, ['sink1.txt', 'sink3.txt', 'sink4.txt'])
 
     def test_fields_roundtrip(self):
         STUDY_NAME = 'fields_roundtrip'
         analysis = DummyAnalysis(
-            STUDY_NAME, self.repository,
+            STUDY_NAME, self.dataset,
             processor=SingleProc('a_dir'),
             inputs=[])
         dummy_pipeline = analysis.dummy_pipeline()
@@ -138,7 +138,7 @@ class TestSinkAndSource(BaseTestCase):
 
     def test_summary(self):
         analysis = DummyAnalysis(
-            self.SUMMARY_STUDY_NAME, self.repository, SingleProc('ad'),
+            self.SUMMARY_STUDY_NAME, self.dataset, SingleProc('ad'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format)])
@@ -208,17 +208,17 @@ class TestSinkAndSource(BaseTestCase):
             frequency='per_subject',
             from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(subject_dir)),
-                         [BasicRepo.PROV_DIR, 'subject_sink.txt'])
+                         [LocalFileSystemRepo.PROV_DIR, 'subject_sink.txt'])
         visit_dir = self.get_session_dir(
             frequency='per_visit',
             from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(visit_dir)),
-                         [BasicRepo.PROV_DIR, 'visit_sink.txt'])
+                         [LocalFileSystemRepo.PROV_DIR, 'visit_sink.txt'])
         project_dir = self.get_session_dir(
             frequency='per_dataset',
             from_analysis=self.SUMMARY_STUDY_NAME)
         self.assertEqual(sorted(os.listdir(project_dir)),
-                         [BasicRepo.PROV_DIR, 'analysis_sink.txt'])
+                         [LocalFileSystemRepo.PROV_DIR, 'analysis_sink.txt'])
         # Reload the data from the summary directories
         reloadinputnode = pe.Node(
             IdentityInterface(['subject_id', 'visit_id']),
@@ -269,7 +269,7 @@ class TestSinkAndSource(BaseTestCase):
         outputs = [
             f for f in sorted(os.listdir(
                 self.get_session_dir(from_analysis=self.SUMMARY_STUDY_NAME)))
-            if f not in (BasicRepo.FIELDS_FNAME,
-                         BasicRepo.PROV_DIR)]
+            if f not in (LocalFileSystemRepo.FIELDS_FNAME,
+                         LocalFileSystemRepo.PROV_DIR)]
         self.assertEqual(outputs,
                          ['resink1.txt', 'resink2.txt', 'resink3.txt'])

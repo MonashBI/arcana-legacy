@@ -2,6 +2,7 @@
 /.pydevproject
 *.pyc
 /test/data/repository
+/test/data/dataset
 /test/data/cache
 /test/data/work
 *.pklz

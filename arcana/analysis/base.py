@@ -15,7 +15,7 @@ from arcana.data import (
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
-from arcana.repository import BasicRepo
+from arcana.repository import Dataset
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
 from arcana.utils import get_class_info, wrap_text
@@ -36,9 +36,8 @@ class Analysis(object):
     ----------
     name : str
         The name of the analysis.
-    repository : Repository
-        An Repository object that provides access to a DaRIS, XNAT or local
-        file system
+    dataset : Dataset
+        An Dataset object that encapsulates the data to analyse
     processor : Processor
         A Processor to process the pipelines required to generate the
         requested derived filesets.
@@ -57,20 +56,9 @@ class Analysis(object):
         either as a dictionary of key-value pairs or as a list of
         'Parameter' objects. The name and dtype must match ParamSpecs in
         the _param_spec class attribute (see 'add_param_specs').
-    subject_ids : List[(int|str)]
-        List of subject IDs to restrict the analysis to
-    visit_ids : List[(int|str)]
-        List of visit IDs to restrict the analysis to
     enforce_inputs : bool (default: True)
         Whether to check the inputs to see if any acquired filesets
         are missing
-    fill_tree : bool
-        Whether to fill the tree of the destination repository with the
-        provided subject and/or visit IDs. Intended to be used when the
-        destination repository doesn't contain any of the the input
-        filesets/fields (which are stored in external repositories) and
-        so the sessions will need to be created in the destination
-        repository.
 
 
     Class Attrs
@@ -99,9 +87,8 @@ class Analysis(object):
         'per_visit': (VISIT_ID,),
         'per_session': (SUBJECT_ID, VISIT_ID)}
 
-    def __init__(self, name, repository, processor, inputs,
-                 environment=None, parameters=None, subject_ids=None,
-                 visit_ids=None, enforce_inputs=True, fill_tree=False,
+    def __init__(self, name, dataset, processor, inputs,
+                 environment=None, parameters=None, enforce_inputs=True,
                  clear_caches=True):
         try:
             # This works for PY3 as the metaclass inserts it itself if
@@ -113,21 +100,17 @@ class Analysis(object):
             raise ArcanaUsageError(
                 "Need to have AnalysisMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Analysis")
-        if isinstance(repository, basestring):
-            repository = BasicRepo(repository, depth=None)
+        if isinstance(dataset, basestring):
+            dataset = Dataset(dataset)
         if isinstance(processor, basestring):
             processor = SingleProc(processor)
         if environment is None:
             environment = StaticEnv()
         self._name = name
-        self._repository = repository
+        self._dataset = dataset
         self._processor = processor.bind(self)
         self._environment = environment
         self._inputs = {}
-        self._subject_ids = (tuple(subject_ids)
-                             if subject_ids is not None else None)
-        self._visit_ids = tuple(visit_ids) if visit_ids is not None else None
-        self._fill_tree = fill_tree
         # Initialise caches for data slices and pipeline objects
         if clear_caches:
             self.clear_caches()
@@ -193,7 +176,7 @@ class Analysis(object):
         # "Bind" input selectors to the current analysis object, and attempt to
         # match with data in the repository
         input_errors = []
-        with self.repository:
+        with self.dataset.repository:
             if not self.subject_ids:
                 raise ArcanaUsageError(
                     "No subject IDs provided and destination repository "
@@ -590,30 +573,23 @@ class Analysis(object):
                           prefix_indent=True))
         return menu
 
-    @property
-    def tree(self):
-        return self.repository.cached_tree(
-            subject_ids=self._subject_ids,
-            visit_ids=self._visit_ids,
-            fill=self._fill_tree)
-
     def clear_caches(self):
         """
         Called after a pipeline is run against the analysis to force an update
         of the derivatives that are now present in the repository if a
         subsequent pipeline is run.
         """
-        self.repository.clear_cache()
+        self.dataset.repository.clear_cache()
         self._bound_specs = {}
         self._pipelines_cache = {}
 
     @property
-    def processor(self):
-        return self._processor
+    def dataset(self):
+        return self._dataset
 
     @property
-    def fill_tree(self):
-        return self._fill_tree
+    def processor(self):
+        return self._processor
 
     @property
     def environment(self):
@@ -643,31 +619,29 @@ class Analysis(object):
 
     @property
     def subject_ids(self):
-        if self._subject_ids is None:
-            return [s.id for s in self.tree.subjects]
-        return self._subject_ids
+        return self.dataset.subject_ids
+        # if self._subject_ids is None:
+        #     return [s.id for s in self.tree.subjects]
+        # return self._subject_ids
 
     @property
     def visit_ids(self):
-        if self._visit_ids is None:
-            return [v.id for v in self.tree.visits]
-        return self._visit_ids
+        return self.dataset.visit_ids
+        # if self._visit_ids is None:
+        #     return [v.id for v in self.tree.visits]
+        # return self._visit_ids
 
     @property
     def num_subjects(self):
-        return len(self.subject_ids)
+        return self.dataset.num_subjects
 
     @property
     def num_visits(self):
-        return len(self.visit_ids)
+        return self.dataset.num_visits
 
     @property
     def num_sessions(self):
-        if self._visit_ids is None and self._subject_ids is None:
-            num_sessions = len(list(self.tree.sessions))
-        else:
-            num_sessions = self.num_subjects * self.num_visits
-        return num_sessions
+        return self.dataset.num_sessions
 
     @property
     def prefix(self):
@@ -682,7 +656,7 @@ class Analysis(object):
     @property
     def repository(self):
         "Accessor for the repository member (e.g. Daris, XNAT, MyTardis)"
-        return self._repository
+        return self.dataset.repository
 
     def new_pipeline(self, *args, **kwargs):
         """

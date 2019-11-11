@@ -561,7 +561,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                     Field(name='acquired_field1', value=visit_i + subj_i * 10,
                           dtype=int, frequency='per_session',
                           subject_id=str(subj_i), visit_id=str(visit_i)))
-        return Tree.construct(self.repository, fields=fields)
+        return Tree.construct(self.dataset.repository, fields=fields)
 
     def test_filter_dialation1(self):
         analysis_name = 'process_dialation'
@@ -600,15 +600,15 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                          self.DEFAULT_FIELD5_VALUES[('1', '1')])
 
         # Check that no more fields were generated than necessary
-        tree = analysis.tree
-        sess00 = analysis.tree.session(subject_id='0', visit_id='0')
-        sess01 = analysis.tree.session(subject_id='0', visit_id='1')
-        sess10 = analysis.tree.session(subject_id='1', visit_id='0')
-        sess11 = analysis.tree.session(subject_id='1', visit_id='1')
-        subj0 = analysis.tree.subject('0')
-        subj1 = analysis.tree.subject('1')
-        vis0 = analysis.tree.visit('0')
-        vis1 = analysis.tree.visit('1')
+        tree = analysis.dataset.tree
+        sess00 = analysis.dataset.tree.session(subject_id='0', visit_id='0')
+        sess01 = analysis.dataset.tree.session(subject_id='0', visit_id='1')
+        sess10 = analysis.dataset.tree.session(subject_id='1', visit_id='0')
+        sess11 = analysis.dataset.tree.session(subject_id='1', visit_id='1')
+        subj0 = analysis.dataset.tree.subject('0')
+        subj1 = analysis.dataset.tree.subject('1')
+        vis0 = analysis.dataset.tree.visit('0')
+        vis1 = analysis.dataset.tree.visit('1')
         self.assertEqual(list(tree._fields.keys()),
                          [('derived_field4', analysis_name)])
         self.assertFalse(list(subj0._fields.keys()))
@@ -776,7 +776,7 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
                   value=30,
                   dtype=int, frequency='per_session',
                   subject_id='1', visit_id='0')]
-        return Tree.construct(self.repository, fields=fields)
+        return Tree.construct(self.dataset.repository, fields=fields)
 
     def test_skip_missing(self):
         analysis_name = 'skip_missing'

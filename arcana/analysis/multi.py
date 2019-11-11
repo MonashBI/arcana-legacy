@@ -72,7 +72,7 @@ class MultiAnalysis(Analysis):
 
     implicit_cls_attrs = Analysis.implicit_cls_attrs + ['_subcomp_specs']
 
-    def __init__(self, name, repository, processor, inputs,
+    def __init__(self, name, dataset, processor, inputs,
                  parameters=None, **kwargs):
         try:
             # This works for PY3 as the metaclass inserts it itself if
@@ -86,7 +86,7 @@ class MultiAnalysis(Analysis):
                 "the metaclass of all classes derived from "
                 "MultiAnalysis")
         super(MultiAnalysis, self).__init__(
-            name, repository, processor, inputs, parameters=parameters,
+            name, dataset, processor, inputs, parameters=parameters,
             **kwargs)
         self._substudies = {}
         for subcomp_spec in self.subcomp_specs():
@@ -114,7 +114,7 @@ class MultiAnalysis(Analysis):
             # Create sub-analysis
             subcomp = subcomp_spec.analysis_class(
                 name + '_' + subcomp_spec.name,
-                repository, processor, mapped_inputs,
+                dataset, processor, mapped_inputs,
                 parameters=mapped_parameters, enforce_inputs=False,
                 subject_ids=self.subject_ids, visit_ids=self.visit_ids,
                 clear_caches=False)

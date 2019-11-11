@@ -16,7 +16,7 @@ import logging
 import arcana
 from arcana.data import Fileset, FilesetSlice
 from arcana.utils import classproperty
-from arcana.repository.basic import BasicRepo
+from arcana.repository.basic import Dataset, LocalFileSystemRepo
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
 from arcana.exceptions import ArcanaError
@@ -75,8 +75,8 @@ class BaseTestCase(TestCase):
 
     @classproperty
     @classmethod
-    def repository_path(cls):
-        return op.join(cls.test_data_dir, 'repository')
+    def dataset_path(cls):
+        return op.join(cls.test_data_dir, 'dataset')
 
     @classproperty
     @classmethod
@@ -151,12 +151,12 @@ class BaseTestCase(TestCase):
                     .format(fileset, self))
         if fields is not None:
             with open(op.join(session_dir,
-                              BasicRepo.FIELDS_FNAME), 'w',
+                              LocalFileSystemRepo.FIELDS_FNAME), 'w',
                       **JSON_ENCODING) as f:
                 json.dump(fields, f, indent=2)
 
     def delete_project(self, project_dir):
-        # Clean out any existing repository files
+        # Clean out any existing dataset files
         shutil.rmtree(project_dir, ignore_errors=True)
 
     def reset_dirs(self):
@@ -170,8 +170,8 @@ class BaseTestCase(TestCase):
                 os.makedirs(d)
 
     @property
-    def repository_tree(self):
-        return self.repository.tree()
+    def dataset_tree(self):
+        return self.dataset.tree()
 
     @property
     def xnat_session_name(self):
@@ -188,7 +188,7 @@ class BaseTestCase(TestCase):
 
     @property
     def session(self):
-        return self.repository_tree.subject(
+        return self.dataset_tree.subject(
             self.SUBJECT).session(self.VISIT)
 
     @property
@@ -200,17 +200,16 @@ class BaseTestCase(TestCase):
         return self.session.fields
 
     @property
-    def repository(self):
-        return self.local_repository
+    def dataset(self):
+        return self.local_dataset
 
     @property
-    def local_repository(self):
+    def local_dataset(self):
         try:
-            return self._local_repository
+            return self._local_dataset
         except AttributeError:
-            self._local_repository = BasicRepo(self.project_dir,
-                                               depth=2)
-            return self._local_repository
+            self._local_dataset = Dataset(self.project_dir, depth=2)
+            return self._local_dataset
 
     @property
     def processor(self):
@@ -222,7 +221,7 @@ class BaseTestCase(TestCase):
 
     @property
     def project_dir(self):
-        return op.join(self.repository_path, self.name)
+        return op.join(self.dataset_path, self.name)
 
     @property
     def work_dir(self):
@@ -256,17 +255,17 @@ class BaseTestCase(TestCase):
         module_path = op.abspath(sys.modules[name_cls.__module__].__file__)
         rel_module_path = module_path[(len(name_cls.unittest_root) + 1):]
         path_parts = rel_module_path.split(op.sep)
-        module_name = (''.join(path_parts[:-1]) +
-                       op.splitext(path_parts[-1])[0][5:]).upper()
+        module_name = (''.join(path_parts[:-1])
+                       + op.splitext(path_parts[-1])[0][5:]).upper()
         test_class_name = name_cls.__name__.upper()
         if test_class_name.startswith('TEST'):
             test_class_name = test_class_name[4:]
         return module_name + sep + test_class_name
 
-    def create_analysis(self, analysis_cls, name, inputs, repository=None,
-                     processor=None, environment=None, **kwargs):
+    def create_analysis(self, analysis_cls, name, inputs, dataset=None,
+                        processor=None, environment=None, **kwargs):
         """
-        Creates a analysis using default repository and processors.
+        Creates a analysis using default dataset and processors.
 
         Parameters
         ----------
@@ -276,22 +275,22 @@ class BaseTestCase(TestCase):
             Name of the analysis
         inputs : List[BaseSpecMixin]
             List of inputs to the analysis
-        repository : Repository | None
-            The repository to use (a default local repository is used if one
+        dataset : Dataset | None
+            The dataset to use (a default local dataset is used if one
             isn't provided
         processor : Processor | None
             The processor to use (a default SingleProc is used if one
             isn't provided
         """
-        if repository is None:
-            repository = self.repository
+        if dataset is None:
+            dataset = self.dataset
         if processor is None:
             processor = self.processor
         if environment is None:
             environment = self.environment
         return analysis_cls(
             name=name,
-            repository=repository,
+            dataset=dataset,
             processor=processor,
             environment=environment,
             inputs=inputs,
@@ -364,7 +363,7 @@ class BaseTestCase(TestCase):
         output_dir = self.get_session_dir(subject, visit, frequency)
         try:
             with open(op.join(output_dir,
-                              BasicRepo.FIELDS_FNAME)) as f:
+                              LocalFileSystemRepo.FIELDS_FNAME)) as f:
                 fields = json.load(f)
         except IOError as e:
             if e.errno == errno.ENOENT:
@@ -446,18 +445,18 @@ class BaseTestCase(TestCase):
             assert visit is None
             path = op.join(
                 self.project_dir, subject,
-                BasicRepo.SUMMARY_NAME)
+                LocalFileSystemRepo.SUMMARY_NAME)
         elif frequency == 'per_visit':
             assert visit is not None
             assert subject is None
             path = op.join(self.project_dir,
-                           BasicRepo.SUMMARY_NAME, visit)
+                           LocalFileSystemRepo.SUMMARY_NAME, visit)
         elif frequency == 'per_dataset':
             assert subject is None
             assert visit is None
             path = op.join(self.project_dir,
-                           BasicRepo.SUMMARY_NAME,
-                           BasicRepo.SUMMARY_NAME)
+                           LocalFileSystemRepo.SUMMARY_NAME,
+                           LocalFileSystemRepo.SUMMARY_NAME)
         else:
             assert False
         if from_analysis is not None:
@@ -484,7 +483,7 @@ class BaseTestCase(TestCase):
 
 class BaseMultiSubjectTestCase(BaseTestCase):
 
-    SUMMARY_NAME = BasicRepo.SUMMARY_NAME
+    SUMMARY_NAME = LocalFileSystemRepo.SUMMARY_NAME
     DATASET_CONTENTS = None
     input_tree = None
 
@@ -496,7 +495,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         self.local_tree = deepcopy(self.input_tree)
         for node in self.local_tree:
             for fileset in node.filesets:
-                fileset._repository = self.local_repository
+                fileset._repository = self.local_dataset.repository
                 fileset._path = op.join(
                     fileset.repository.fileset_path(fileset))
                 session_path = op.dirname(fileset.path)
@@ -515,9 +514,9 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     f.write(str(contents))
                 if fileset.derived:
                     self._make_dir(op.join(session_path,
-                                           BasicRepo.PROV_DIR))
+                                           LocalFileSystemRepo.PROV_DIR))
             for field in node.fields:
-                fields_path = self.local_repository.fields_json_path(field)
+                fields_path = self.local_dataset.repository.fields_json_path(field)
                 if op.exists(fields_path):
                     with open(fields_path, **JSON_ENCODING) as f:
                         dct = json.load(f)
@@ -530,7 +529,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     json.dump(dct, f, indent=2)
                 if field.derived:
                     self._make_dir(op.join(session_path,
-                                           BasicRepo.PROV_DIR))
+                                           LocalFileSystemRepo.PROV_DIR))
 
     @property
     def subject_ids(self):

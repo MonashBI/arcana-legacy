@@ -41,24 +41,24 @@ class BaseInputMixin(object):
         self._slice = slice_
 
     def __eq__(self, other):
-        return (self.from_analysis == other.from_analysis and
-                self.pattern == other.pattern and
-                self.is_regex == other.is_regex and
-                self.order == other.order and
-                self._repository == other._repository and
-                self._skip_missing == other._skip_missing and
-                self._drop_if_missing == other._drop_if_missing and
-                self._fallback_to_default == other._fallback_to_default)
+        return (self.from_analysis == other.from_analysis
+                and self.pattern == other.pattern
+                and self.is_regex == other.is_regex
+                and self.order == other.order
+                and self._repository == other._repository
+                and self._skip_missing == other._skip_missing
+                and self._drop_if_missing == other._drop_if_missing
+                and self._fallback_to_default == other._fallback_to_default)
 
     def __hash__(self):
-        return (hash(self.from_analysis) ^
-                hash(self.pattern) ^
-                hash(self.is_regex) ^
-                hash(self.order) ^
-                hash(self._repository) ^
-                hash(self._skip_missing) ^
-                hash(self._drop_if_missing) ^
-                hash(self._fallback_to_default))
+        return (hash(self.from_analysis)
+                ^ hash(self.pattern)
+                ^ hash(self.is_regex)
+                ^ hash(self.order)
+                ^ hash(self._repository)
+                ^ hash(self._skip_missing)
+                ^ hash(self._drop_if_missing)
+                ^ hash(self._fallback_to_default))
 
     def initkwargs(self):
         dct = {}
@@ -175,14 +175,14 @@ class BaseInputMixin(object):
                 bound._fallback = spec.bind(analysis)
             # Match against tree
             if self._repository is None:
-                repository = analysis.repository
+                repository = analysis.dataset.repository
             else:
                 repository = self._repository
             with repository:
                 tree = repository.cached_tree(
-                    subject_ids=analysis.subject_ids,
-                    visit_ids=analysis.visit_ids,
-                    fill=analysis.fill_tree)
+                    subject_ids=analysis.dataset.subject_ids,
+                    visit_ids=analysis.dataset.visit_ids,
+                    fill=analysis.dataset.fill_tree)
                 try:
                     valid_formats = spec.valid_formats
                 except AttributeError:

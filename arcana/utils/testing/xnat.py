@@ -12,7 +12,7 @@ import pydicom
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
-from arcana.repository.basic import BasicRepo
+from arcana.repository.basic import LocalFileSystemRepo
 from arcana.exceptions import ArcanaError
 from arcana.data.file_format import text_format
 import logging
@@ -159,7 +159,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                                     cache_dir=self.cache_dir)
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_repository = BasicRepo(self.project_dir)
+        local_repository = LocalFileSystemRepo(self.project_dir)
         tree = local_repository.tree()
         repo = XnatRepo(SERVER, self.project, '/tmp')
         with repo:

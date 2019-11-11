@@ -173,7 +173,7 @@ class BaseSliceMixin(object):
         in source and sink initiation. Checks IDs match sessions in analysis.
         """
         if self.frequency == 'per_subject':
-            tree_subject_ids = list(analysis.tree.subject_ids)
+            tree_subject_ids = list(analysis.dataset.tree.subject_ids)
             subject_ids = list(self._slice.keys())
             if tree_subject_ids != subject_ids:
                 raise ArcanaUsageError(
@@ -182,7 +182,7 @@ class BaseSliceMixin(object):
                         self.name, "', '".join(subject_ids),
                         "', '".join(tree_subject_ids)))
         elif self.frequency == 'per_visit':
-            tree_visit_ids = list(analysis.tree.visit_ids)
+            tree_visit_ids = list(analysis.dataset.tree.visit_ids)
             visit_ids = list(self._slice.keys())
             if tree_visit_ids != visit_ids:
                 raise ArcanaUsageError(
@@ -191,7 +191,7 @@ class BaseSliceMixin(object):
                         self.name, "', '".join(visit_ids),
                         "', '".join(tree_visit_ids)))
         elif self.frequency == 'per_session':
-            for subject in analysis.tree.subjects:
+            for subject in analysis.dataset.tree.subjects:
                 if subject.id not in self._slice:
                     raise ArcanaUsageError(
                         "Analysis subject ID '{}' was not found in colleciton "
@@ -201,9 +201,9 @@ class BaseSliceMixin(object):
                 for session in subject.sessions:
                     if session.visit_id not in self._slice[subject.id]:
                         raise ArcanaUsageError(
-                            ("Analysis visit ID '{}' for subject '{}' was not " +
-                             "found in colleciton provided to '{}' " +
-                             "(found '{}')").format(
+                            ("Analysis visit ID '{}' for subject '{}' was not "
+                             + "found in colleciton provided to '{}' "
+                             + "(found '{}')").format(
                                  subject.id, self.name,
                                  "', '".join(
                                      self._slice[subject.id].keys())))

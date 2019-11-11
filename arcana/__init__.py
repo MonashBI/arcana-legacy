@@ -30,6 +30,7 @@ from .data import Fileset, Field, FilesetSlice, FieldSlice
 from .processor import (
     SingleProc, MultiProc, SlurmProc)
 from .environment import StaticEnv, ModulesEnv
-from .repository import BasicRepo, XnatRepo
+from .repository import XnatRepo, Dataset
+from .repository.basic import LocalFileSystemRepo
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
