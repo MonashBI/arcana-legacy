@@ -41,7 +41,7 @@ class FileFormat(object):
         primary file, with the same base name and this extension. However, in
         the initialisation of the fileset, alternate locations can be specified
     resource_names : Dict[str, List[str]]
-        A dictionary mapping the name of a repository type to a list of
+        A dictionary mapping the name of a dataset type to a list of
         alternate names to use to load the file format with (when the format is
         saved by format name, e.g. XNAT, instead of a file with an extension)
     """
@@ -277,7 +277,7 @@ class FileFormat(object):
         """
         if fileset._resource_name is not None:
             return (fileset._resource_name in self.resource_names(
-                fileset.repository.type))
+                fileset.dataset.repository.type))
         elif self.directory:
             if op.isdir(fileset.path):
                 if self.within_dir_exts is None:

@@ -53,20 +53,8 @@ class LocalFileSystemRepo(Repository):
     DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
 
-    def __init__(self, root_dir, depth=None, **kwargs):
-        super(LocalFileSystemRepo, self).__init__(**kwargs)
-        if not op.exists(root_dir):
-            raise ArcanaError(
-                "Base directory for LocalFileSystemRepo '{}' does not exist"
-                .format(root_dir))
-        self._root_dir = op.abspath(root_dir)
-        if depth is None:
-            depth = self.guess_depth(root_dir)
-        self._depth = depth
-
     def __repr__(self):
-        return "{}(root_dir='{}')".format(type(self).__name__,
-                                          self.root_dir)
+        return "{}()".format(type(self).__name__)
 
     def __eq__(self, other):
         try:
@@ -78,19 +66,14 @@ class LocalFileSystemRepo(Repository):
     def prov(self):
         return {
             'type': get_class_info(type(self)),
-            'root': self.root_dir,
             'host': HOSTNAME}
 
     def __hash__(self):
-        return hash(self.type) ^ hash(self.root_dir)
+        return hash(self.type)
 
-    @property
-    def root_dir(self):
-        return self._root_dir
-
-    @property
-    def depth(self):
-        return self._depth
+    # @property
+    # def root_dir(self):
+    #     return self._root_dir
 
     def get_fileset(self, fileset):
         """
@@ -193,7 +176,7 @@ class LocalFileSystemRepo(Repository):
             os.mkdir(op.dirname(fpath))
         record.save(fpath)
 
-    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
         """
         Find all data within a repository, registering filesets, fields and
         provenance with the found_fileset, found_field and found_provenance
@@ -220,10 +203,12 @@ class LocalFileSystemRepo(Repository):
         all_filesets = []
         all_fields = []
         all_records = []
-        for session_path, dirs, files in os.walk(self.root_dir):
-            relpath = op.relpath(session_path, self.root_dir)
+        root_dir = dataset.name
+        for session_path, dirs, files in os.walk(root_dir):
+            relpath = op.relpath(session_path, root_dir)
             path_parts = relpath.split(op.sep) if relpath != '.' else []
-            ids = self._extract_ids_from_path(path_parts, dirs, files)
+            ids = self._extract_ids_from_path(dataset.depth, path_parts, dirs,
+                                              files)
             if ids is None:
                 continue
             subj_id, visit_id, from_analysis = ids
@@ -269,7 +254,7 @@ class LocalFileSystemRepo(Repository):
                         op.join(session_path, fname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
-                        repository=self,
+                        dataset=dataset,
                         from_analysis=from_analysis,
                         **kwargs))
             if self.FIELDS_FNAME in files:
@@ -279,7 +264,7 @@ class LocalFileSystemRepo(Repository):
                 all_fields.extend(
                     Field(name=k, value=v, frequency=frequency,
                           subject_id=subj_id, visit_id=visit_id,
-                          repository=self, from_analysis=from_analysis,
+                          dataset=dataset, from_analysis=from_analysis,
                           **kwargs)
                     for k, v in list(dct.items()))
             if self.PROV_DIR in dirs:
@@ -295,16 +280,16 @@ class LocalFileSystemRepo(Repository):
                         op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
 
-    def _extract_ids_from_path(self, path_parts, dirs, files):
+    def _extract_ids_from_path(self, depth, path_parts, dirs, files):
         depth = len(path_parts)
-        if depth == self._depth:
+        if depth == depth:
             # Load input data
             from_analysis = None
-        elif (depth == (self._depth + 1)
+        elif (depth == (depth + 1)
               and self.PROV_DIR in dirs):
             # Load analysis output
             from_analysis = path_parts.pop()
-        elif (depth < self._depth
+        elif (depth < depth
               and any(not f.startswith('.') for f in files)):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
@@ -330,20 +315,22 @@ class LocalFileSystemRepo(Repository):
     def fileset_path(self, item, fname=None):
         if fname is None:
             fname = item.fname
+        root_dir = item.dataset.name
+        depth = item.dataset.depth
         subject_id = self.inv_map_subject_id(item.subject_id)
         visit_id = self.inv_map_visit_id(item.visit_id)
         if item.frequency == 'per_dataset':
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_subject'):
-            if self.depth < 2:
+            if depth < 2:
                 raise ArcanaInsufficientRepoDepthError(
                     "Basic repo needs to have depth of 2 (i.e. sub-directories"
                     " for subjects and visits) to hold 'per_subject' data")
             subj_dir = str(subject_id)
             visit_dir = self.SUMMARY_NAME
         elif item.frequency.startswith('per_visit'):
-            if self.depth < 1:
+            if depth < 1:
                 raise ArcanaInsufficientRepoDepthError(
                     "Basic repo needs to have depth of at least 1 (i.e. "
                     "sub-directories for subjects) to hold 'per_visit' data")
@@ -355,12 +342,12 @@ class LocalFileSystemRepo(Repository):
         else:
             assert False, "Unrecognised frequency '{}'".format(
                 item.frequency)
-        if self.depth == 2:
-            acq_dir = op.join(self.root_dir, subj_dir, visit_dir)
-        elif self.depth == 1:
-            acq_dir = op.join(self.root_dir, subj_dir)
-        elif self.depth == 0:
-            acq_dir = self.root_dir
+        if depth == 2:
+            acq_dir = op.join(root_dir, subj_dir, visit_dir)
+        elif depth == 1:
+            acq_dir = op.join(root_dir, subj_dir)
+        elif depth == 0:
+            acq_dir = root_dir
         else:
             assert False
         if item.from_analysis is None:
@@ -382,7 +369,8 @@ class LocalFileSystemRepo(Repository):
             record,
             fname=op.join(self.PROV_DIR, record.pipeline_name + '.json'))
 
-    def guess_depth(self, root_dir):
+    @classmethod
+    def guess_depth(cls, root_dir):
         """
         Try to guess the depth of a directory repository (i.e. whether it has
         sub-folders for multiple subjects or visits, depending on where files
@@ -396,28 +384,28 @@ class LocalFileSystemRepo(Repository):
         """
         deepest = -1
         for path, dirs, files in os.walk(root_dir):
-            depth = self.path_depth(path)
-            filtered_files = self._filter_files(files, path)
+            depth = cls.path_depth(root_dir, path)
+            filtered_files = cls._filter_files(files, path)
             if filtered_files:
                 logger.info("Guessing depth of directory repository at '{}' is"
                             " {} due to unfiltered files ('{}') in '{}'"
                             .format(root_dir, depth,
                                     "', '".join(filtered_files), path))
                 return depth
-            if self.PROV_DIR in dirs:
+            if cls.PROV_DIR in dirs:
                 depth_to_return = max(depth - 1, 0)
                 logger.info("Guessing depth of directory repository at '{}' is"
                             "{} due to \"Derived label file\" in '{}'"
                             .format(root_dir, depth_to_return, path))
                 return depth_to_return
-            if depth >= self.MAX_DEPTH:
+            if depth >= cls.MAX_DEPTH:
                 logger.info("Guessing depth of directory repository at '{}' is"
                             " {} as '{}' is already at maximum depth"
-                            .format(root_dir, self.MAX_DEPTH, path))
-                return self.MAX_DEPTH
+                            .format(root_dir, cls.MAX_DEPTH, path))
+                return cls.MAX_DEPTH
             try:
                 for fpath in chain(filtered_files,
-                                   self._filter_dirs(dirs, path)):
+                                   cls._filter_dirs(dirs, path)):
                     Fileset.from_path(fpath)
             except ArcanaError:
                 pass
@@ -448,12 +436,13 @@ class LocalFileSystemRepo(Repository):
                 cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
         return filtered
 
-    def path_depth(self, dpath):
-        relpath = op.relpath(dpath, self.root_dir)
+    @classmethod
+    def path_depth(cls, root_dir, dpath):
+        relpath = op.relpath(dpath, root_dir)
         if '..' in relpath:
             raise ArcanaUsageError(
                 "Path '{}' is not a sub-directory of '{}'".format(
-                    dpath, self.root_dir))
+                    dpath, root_dir))
         elif relpath == '.':
             depth = 0
         else:

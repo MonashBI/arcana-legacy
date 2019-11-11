@@ -12,7 +12,7 @@ import pydicom
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
-from arcana.repository.basic import LocalFileSystemRepo
+from arcana.repository import LocalFileSystemRepo
 from arcana.exceptions import ArcanaError
 from arcana.data.file_format import text_format
 import logging

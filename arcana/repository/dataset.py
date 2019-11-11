@@ -1,3 +1,5 @@
+import os.path as op
+from arcana.exceptions import ArcanaError
 from .local import LocalFileSystemRepo
 
 
@@ -28,15 +30,41 @@ class Dataset():
     """
 
     def __init__(self, name, repository=None, subject_ids=None, visit_ids=None,
-                 fill_tree=False):
-        self._name = name
+                 fill_tree=False, depth=2, **kwargs):
         if repository is None:
-            repository = LocalFileSystemRepo()
+            name = op.abspath(name)
+            repository = LocalFileSystemRepo(**kwargs)
+            if not op.exists(name):
+                raise ArcanaError(
+                    "Base directory for LocalFileSystemRepo '{}' does not "
+                    "exist".format(name))
+        self._name = name
         self._repository = repository
         self._subject_ids = (tuple(subject_ids)
                              if subject_ids is not None else None)
         self._visit_ids = tuple(visit_ids) if visit_ids is not None else None
         self._fill_tree = fill_tree
+        self._depth = depth
+
+    def __repr__(self):
+        return "Dataset(name='{}', repository={})".format(self.name,
+                                                          self.repository)
+
+    def __eq__(self, other):
+        return (self.name == other.name
+                and self.repository == other.repository
+                and self._subject_ids == other._subject_ids
+                and self._visit_ids == other._visit_ids
+                and self._fill_tree == other._fill_tree
+                and self.depth == other.depth)
+
+    def __hash__(self):
+        return (hash(self._name)
+                ^ hash(self.repository)
+                ^ hash(self._subject_ids)
+                ^ hash(self._visit_ids)
+                ^ hash(self._fill_tree)
+                ^ hash(self._depth))
 
     @property
     def name(self):
@@ -64,6 +92,19 @@ class Dataset():
             subject_ids=self._subject_ids,
             visit_ids=self._visit_ids,
             fill=self._fill_tree)
+
+    @property
+    def prov(self):
+        return {
+            'name': self.name,
+            'depth': self._depth,
+            'repository': self.repository.prov,
+            'subject_ids': tuple(self.subject_ids),
+            'visit_ids': tuple(self.visit_ids)}
+
+    @property
+    def depth(self):
+        return self._depth
 
     @property
     def num_subjects(self):

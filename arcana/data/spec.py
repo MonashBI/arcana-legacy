@@ -503,7 +503,7 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
                               frequency=self.frequency, path=None,
                               subject_id=node.subject_id,
                               visit_id=node.visit_id,
-                              repository=self.analysis.repository,
+                              dataset=self.analysis.dataset,
                               from_analysis=self.analysis.name,
                               exists=False,
                               **kwargs)
@@ -654,7 +654,7 @@ class FieldSpec(BaseField, BaseSpecMixin):
                           frequency=self.frequency,
                           subject_id=node.subject_id,
                           visit_id=node.visit_id,
-                          repository=self.analysis.repository,
+                          dataset=self.analysis.dataset,
                           from_analysis=self.analysis.name,
                           array=self.array,
                           exists=False, **kwargs)

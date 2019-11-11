@@ -15,11 +15,11 @@ class BaseItemMixin(object):
 
     is_spec = False
 
-    def __init__(self, subject_id, visit_id, repository, from_analysis,
+    def __init__(self, subject_id, visit_id, dataset, from_analysis,
                  exists, record):
         self._subject_id = subject_id
         self._visit_id = visit_id
-        self._repository = repository
+        self._dataset = dataset
         self._from_analysis = from_analysis
         self._exists = exists
         self._record = record
@@ -68,8 +68,8 @@ class BaseItemMixin(object):
         return self.from_analysis is not None
 
     @property
-    def repository(self):
-        return self._repository
+    def dataset(self):
+        return self._dataset
 
     @property
     def exists(self):
@@ -113,7 +113,7 @@ class BaseItemMixin(object):
 
     def initkwargs(self):
         dct = super().initkwargs()
-        dct['repository'] = self.repository
+        dct['dataset'] = self.dataset
         dct['subject_id'] = self.subject_id
         dct['visit_id'] = self.visit_id
         dct['from_analysis'] = self._from_analysis
@@ -122,7 +122,7 @@ class BaseItemMixin(object):
 
 class Fileset(BaseItemMixin, BaseFileset):
     """
-    A representation of a fileset within the repository.
+    A representation of a fileset within the dataset.
 
     Parameters
     ----------
@@ -135,7 +135,7 @@ class Fileset(BaseItemMixin, BaseFileset):
         specifying whether the fileset is present for each session, subject,
         visit or project.
     derived : bool
-        Whether the scan was generated or acquired. Depending on the repository
+        Whether the scan was generated or acquired. Depending on the dataset
         used to store the fileset this is used to determine the location of the
         fileset.
     path : str | None
@@ -147,13 +147,13 @@ class Fileset(BaseItemMixin, BaseFileset):
         The ID of the fileset in the session. To be used to
         distinguish multiple filesets with the same scan type in the
         same session, e.g. scans taken before and after a task. For
-        repositorys where this isn't stored (i.e. Local), id can be None
+        datasets where this isn't stored (i.e. Local), id can be None
     subject_id : int | str | None
         The id of the subject which the fileset belongs to
     visit_id : int | str | None
         The id of the visit which the fileset belongs to
-    repository : Repository
-        The repository which the fileset is stored
+    dataset : Repository
+        The dataset which the fileset is stored
     from_analysis : str
         Name of the Arcana analysis that that generated the field
     exists : bool
@@ -171,7 +171,7 @@ class Fileset(BaseItemMixin, BaseFileset):
     potential_aux_files : list[str]
         A list of paths to potential files to include in the fileset as
         "side-cars" or headers or in a directory format. Used when the
-        format of the fileset is not set when it is detected in the repository
+        format of the fileset is not set when it is detected in the dataset
         but determined later from a list of candidates in the specification it
         is matched to.
     quality : str
@@ -180,12 +180,12 @@ class Fileset(BaseItemMixin, BaseFileset):
 
     def __init__(self, name, format=None, frequency='per_session',
                  path=None, aux_files=None, id=None, uri=None, subject_id=None,
-                 visit_id=None, repository=None, from_analysis=None,
+                 visit_id=None, dataset=None, from_analysis=None,
                  exists=True, checksums=None, record=None, resource_name=None,
                  potential_aux_files=None, quality=None):
         BaseFileset.__init__(self, name=name, format=format,
                              frequency=frequency)
-        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
+        BaseItemMixin.__init__(self, subject_id, visit_id, dataset,
                                from_analysis, exists, record)
         if aux_files is not None:
             if path is None:
@@ -346,11 +346,11 @@ class Fileset(BaseItemMixin, BaseFileset):
                 "Cannot access path of {} as it hasn't been derived yet"
                 .format(self))
         if self._path is None:
-            if self.repository is not None:
-                self.get()  # Retrieve from repository
+            if self.dataset is not None:
+                self.get()  # Retrieve from dataset
             else:
                 raise ArcanaError(
-                    "Neither path nor repository has been set for Fileset("
+                    "Neither path nor dataset has been set for Fileset("
                     "'{}')".format(self.name))
         return self._path
 
@@ -369,7 +369,7 @@ class Fileset(BaseItemMixin, BaseFileset):
                                     "', '".join(self.format.aux_files.keys())))
             self._aux_files = aux_files
         self._checksums = self.calculate_checksums()
-        self.put()  # Push to repository
+        self.put()  # Push to dataset
 
     @path.setter
     def path(self, path):
@@ -476,8 +476,8 @@ class Fileset(BaseItemMixin, BaseFileset):
                 "Cannot access checksums of {} as it hasn't been derived yet"
                 .format(self))
         if self._checksums is None:
-            if self.repository is not None:
-                self._checksums = self.repository.get_checksums(self)
+            if self.dataset is not None:
+                self._checksums = self.dataset.get_checksums(self)
             if self._checksums is None:
                 self._checksums = self.calculate_checksums()
         return self._checksums
@@ -544,13 +544,13 @@ class Fileset(BaseItemMixin, BaseFileset):
         return dct
 
     def get(self):
-        if self.repository is not None:
+        if self.dataset is not None:
             self._exists = True
-            self._path, self._aux_files = self.repository.get_fileset(self)
+            self._path, self._aux_files = self.dataset.get_fileset(self)
 
     def put(self):
-        if self.repository is not None and self._path is not None:
-            self.repository.put_fileset(self)
+        if self.dataset is not None and self._path is not None:
+            self.dataset.put_fileset(self)
 
     def contents_equal(self, other, **kwargs):
         """
@@ -573,7 +573,7 @@ class Fileset(BaseItemMixin, BaseFileset):
 
 class Field(BaseItemMixin, BaseField):
     """
-    A representation of a value field in the repository.
+    A representation of a value field in the dataset.
 
     Parameters
     ----------
@@ -591,8 +591,8 @@ class Field(BaseItemMixin, BaseField):
         The id of the subject which the field belongs to
     visit_id : int | str | None
         The id of the visit which the field belongs to
-    repository : Repository
-        The repository which the field is stored
+    dataset : Repository
+        The dataset which the field is stored
     from_analysis : str
         Name of the Arcana analysis that that generated the field
     exists : bool
@@ -604,7 +604,7 @@ class Field(BaseItemMixin, BaseField):
 
     def __init__(self, name, value=None, dtype=None,
                  frequency='per_session', array=None, subject_id=None,
-                 visit_id=None, repository=None, from_analysis=None,
+                 visit_id=None, dataset=None, from_analysis=None,
                  exists=True, record=None):
         # Try to determine dtype and array from value if they haven't
         # been provided.
@@ -642,7 +642,7 @@ class Field(BaseItemMixin, BaseField):
                 else:
                     value = dtype(value)
         BaseField.__init__(self, name, dtype, frequency, array)
-        BaseItemMixin.__init__(self, subject_id, visit_id, repository,
+        BaseItemMixin.__init__(self, subject_id, visit_id, dataset,
                                from_analysis, exists, record)
         self._value = value
 
@@ -717,11 +717,11 @@ class Field(BaseItemMixin, BaseField):
                 "Cannot access value of {} as it hasn't been "
                 "derived yet".format(repr(self)))
         if self._value is None:
-            if self.repository is not None:
-                self._value = self.repository.get_field(self)
+            if self.dataset is not None:
+                self._value = self.dataset.get_field(self)
             else:
                 raise ArcanaError(
-                    "Neither value nor repository has been set for Field("
+                    "Neither value nor dataset has been set for Field("
                     "'{}')".format(self.name))
         return self._value
 
@@ -749,10 +749,10 @@ class Field(BaseItemMixin, BaseField):
         return dct
 
     def get(self):
-        if self.repository is not None:
+        if self.dataset is not None:
             self._exists = True
-            self._value = self.repository.get_field(self)
+            self._value = self.dataset.get_field(self)
 
     def put(self):
-        if self.repository is not None and self._value is not None:
-            self.repository.put_field(self)
+        if self.dataset is not None and self._value is not None:
+            self.dataset.put_field(self)

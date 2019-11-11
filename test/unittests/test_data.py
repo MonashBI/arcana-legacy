@@ -50,12 +50,12 @@ class DicomFormat(FileFormat):
         """
         try:
             if (fileset._path is None and fileset._repository is not None and
-                    hasattr(fileset.repository, 'dicom_header')):
-                hdr = fileset.repository.dicom_header(fileset)
+                    hasattr(fileset.dataset.repository, 'dicom_header')):
+                hdr = fileset.dataset.repository.dicom_header(fileset)
                 if not hdr:
                     raise ArcanaError(
                         "No DICOM tags retrieved from {} by {}".format(
-                            fileset.repository, fileset))
+                            fileset.dataset.repository, fileset))
                 values = [hdr[t] for t in tags]
             else:
                 # Get the DICOM object for the first file in the fileset
@@ -64,7 +64,7 @@ class DicomFormat(FileFormat):
                 dcm = pydicom.dcmread(op.join(fileset.path, dcm_files[0]))
                 values = [dcm[t].value for t in tags]
         except KeyError as e:
-            fileset.repository.dicom_header(fileset)
+            fileset.dataset.repository.dicom_header(fileset)
             raise ArcanaError("{} does not have dicom tag {}".format(
                               self, str(e)))
         return values

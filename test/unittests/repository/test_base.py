@@ -11,7 +11,7 @@ from arcana.utils.testing import BaseTestCase
 from arcana.data import InputFilesetSpec, FilesetSpec
 from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.repository.interfaces import RepositorySource, RepositorySink
-from arcana.repository.basic import LocalFileSystemRepo
+from arcana.repository import LocalFileSystemRepo
 
 
 class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):

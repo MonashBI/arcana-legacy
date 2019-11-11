@@ -103,9 +103,10 @@ class TreeNode(object):
 
     def fileset(self, id, from_analysis=None, format=None):
         """
-        Gets the fileset with the ID 'id' produced by the Analysis named 'analysis'
-        if provided. If a spec is passed instead of a str to the name argument,
-        then the analysis will be set from the spec iff it is derived
+        Gets the fileset with the ID 'id' produced by the Analysis named
+        'analysis' if provided. If a spec is passed instead of a str to the
+        name argument, then the analysis will be set from the spec iff it is
+        derived
 
         Parameters
         ----------
@@ -132,12 +133,12 @@ class TreeNode(object):
                 ('{}(format={})'.format(f.id, f._resource_name)
                  if f._resource_name is not None else f.id)
                 for f in self.filesets if f.from_analysis == from_analysis]
-            other_studies = [
+            other_analyses = [
                 (f.from_analysis if f.from_analysis is not None else '<root>')
                 for f in self.filesets if f.id == id]
-            if other_studies:
-                msg = (". NB: matching fileset(s) found for '{}' analysis(ies) "
-                       "('{}')".format(id, "', '".join(other_studies)))
+            if other_analyses:
+                msg = (". NB: matching fileset(s) found for '{}' analysis(es) "
+                       "('{}')".format(id, "', '".join(other_analyses)))
             else:
                 msg = ''
             raise ArcanaNameError(
@@ -213,13 +214,13 @@ class TreeNode(object):
         except KeyError:
             available = [d.name for d in self.fields
                          if d.from_analysis == from_analysis]
-            other_studies = [(d.from_analysis if d.from_analysis is not None
+            other_analyses = [(d.from_analysis if d.from_analysis is not None
                               else '<root>')
                              for d in self.fields
                              if d.name == name]
-            if other_studies:
+            if other_analyses:
                 msg = (". NB: matching field(s) found for '{}' analysis(ies) "
-                       "('{}')".format(name, "', '".join(other_studies)))
+                       "('{}')".format(name, "', '".join(other_analyses)))
             else:
                 msg = ''
             raise ArcanaNameError(

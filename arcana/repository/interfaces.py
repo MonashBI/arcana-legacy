@@ -52,7 +52,7 @@ class RepositoryInterface(BaseInterface):
             self._frequency = next(iter(frequencies))
         # Extract set of repositories used to source/sink from/to
         self.repositories = set(chain(*(
-            (i.repository for i in c if i.repository is not None)
+            (i.dataset.repository for i in c if i.dataset is not None)
             for c in collections)))
         # Segregate into fileset and field collections
         self.fileset_collections = [c for c in collections if c.is_fileset]

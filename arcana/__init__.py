@@ -31,6 +31,6 @@ from .processor import (
     SingleProc, MultiProc, SlurmProc)
 from .environment import StaticEnv, ModulesEnv
 from .repository import XnatRepo, Dataset
-from .repository.basic import LocalFileSystemRepo
+from .repository.local import LocalFileSystemRepo
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'

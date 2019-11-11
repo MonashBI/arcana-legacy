@@ -219,7 +219,7 @@ class BaseSliceMixin(object):
 
 class FilesetSlice(BaseSliceMixin, BaseFileset):
     """
-    A slce of filesets across a analysis (typically within a repository)
+    A slce of filesets across a analysis (typically within a dataset)
 
     Parameters
     ----------
@@ -280,7 +280,7 @@ class FilesetSlice(BaseSliceMixin, BaseFileset):
 
 class FieldSlice(BaseSliceMixin, BaseField):
     """
-    A slce of equivalent filesets (either within a repository)
+    A slce of equivalent filesets (either within a dataset)
 
     Parameters
     ----------

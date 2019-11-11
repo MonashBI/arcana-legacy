@@ -16,7 +16,7 @@ import logging
 import arcana
 from arcana.data import Fileset, FilesetSlice
 from arcana.utils import classproperty
-from arcana.repository.basic import Dataset, LocalFileSystemRepo
+from arcana.repository import Dataset, LocalFileSystemRepo
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
 from arcana.exceptions import ArcanaError
@@ -495,9 +495,9 @@ class BaseMultiSubjectTestCase(BaseTestCase):
         self.local_tree = deepcopy(self.input_tree)
         for node in self.local_tree:
             for fileset in node.filesets:
-                fileset._repository = self.local_dataset.repository
+                fileset._dataset = self.local_dataset
                 fileset._path = op.join(
-                    fileset.repository.fileset_path(fileset))
+                    fileset.dataset.repository.fileset_path(fileset))
                 session_path = op.dirname(fileset.path)
                 self._make_dir(session_path)
                 contents = self.DATASET_CONTENTS[fileset.name]
@@ -516,7 +516,8 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                     self._make_dir(op.join(session_path,
                                            LocalFileSystemRepo.PROV_DIR))
             for field in node.fields:
-                fields_path = self.local_dataset.repository.fields_json_path(field)
+                fields_path = self.local_dataset.repository.fields_json_path(
+                    field)
                 if op.exists(fields_path):
                     with open(fields_path, **JSON_ENCODING) as f:
                         dct = json.load(f)

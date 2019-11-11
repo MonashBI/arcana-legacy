@@ -1025,11 +1025,11 @@ class Analysis(object):
             for the analysis
         """
         # Get list of repositories where inputs to the analysis are stored
-        input_repos = list(set((i.repository for i in self.inputs)))
+        input_datasets = list(set((i.dataset for i in self.inputs)))
         inputs = {}
         for input in self.inputs:
             inputs[input.name] = {
-                'repository_index': input_repos.index(input.repository)}
+                'dataset_index': input_datasets.index(input.dataset)}
             if input.frequency == 'per_dataset':
                 inputs[input.name]['names'] = next(input.slice).name
             elif input.frequency == 'per_subject':
@@ -1050,10 +1050,8 @@ class Analysis(object):
             'parameters': {p.name: p.value for p in self.parameters},
             'inputs': inputs,
             'environment': self.environment.prov,
-            'repositories': [r.prov for r in input_repos],
-            'processor': self.processor.prov,
-            'subject_ids': tuple(self.subject_ids),
-            'visit_ids': tuple(self.visit_ids)}
+            'datasets': [d.prov for d in input_datasets],
+            'processor': self.processor.prov}
 
 
 class AnalysisMetaClass(type):

@@ -18,13 +18,13 @@ class BaseInputMixin(object):
 
     def __init__(self, pattern, is_regex, order, from_analysis,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None,
+                 fallback_to_default=False, dataset=None,
                  analysis_=None, slice_=None):
         self._pattern = pattern
         self._is_regex = is_regex
         self._order = order
         self._from_analysis = from_analysis
-        self._repository = repository
+        self._dataset = dataset
         self._skip_missing = skip_missing
         self._drop_if_missing = drop_if_missing
         self._fallback_to_default = fallback_to_default
@@ -45,7 +45,7 @@ class BaseInputMixin(object):
                 and self.pattern == other.pattern
                 and self.is_regex == other.is_regex
                 and self.order == other.order
-                and self._repository == other._repository
+                and self._dataset == other._dataset
                 and self._skip_missing == other._skip_missing
                 and self._drop_if_missing == other._drop_if_missing
                 and self._fallback_to_default == other._fallback_to_default)
@@ -55,7 +55,7 @@ class BaseInputMixin(object):
                 ^ hash(self.pattern)
                 ^ hash(self.is_regex)
                 ^ hash(self.order)
-                ^ hash(self._repository)
+                ^ hash(self._dataset)
                 ^ hash(self._skip_missing)
                 ^ hash(self._drop_if_missing)
                 ^ hash(self._fallback_to_default))
@@ -113,16 +113,16 @@ class BaseInputMixin(object):
         return self._analysis
 
     @property
-    def repository(self):
-        if self._repository is None:
+    def dataset(self):
+        if self._dataset is None:
             if self._analysis is None:
                 raise ArcanaUsageError(
-                    "Cannot access repository of {} as it wasn't explicitly "
+                    "Cannot access dataset of {} as it wasn't explicitly "
                     "provided and Input hasn't been bound to a analysis"
                     .format(self))
-            repo = self._analysis.repository
+            repo = self._analysis.dataset
         else:
-            repo = self._repository
+            repo = self._dataset
         return repo
 
     @property
@@ -159,7 +159,7 @@ class BaseInputMixin(object):
             bound = copy(self)
             bound._analysis = analysis
             spec = analysis.data_spec(spec_name)
-            # Use the default analysis repository if not explicitly
+            # Use the default analysis dataset if not explicitly
             # provided to match
             if self.fallback_to_default:
                 if spec.derived:
@@ -174,12 +174,12 @@ class BaseInputMixin(object):
                 # from the spec explicitly
                 bound._fallback = spec.bind(analysis)
             # Match against tree
-            if self._repository is None:
-                repository = analysis.dataset.repository
+            if self._dataset is None:
+                dataset = analysis.dataset
             else:
-                repository = self._repository
-            with repository:
-                tree = repository.cached_tree(
+                dataset = self._dataset
+            with dataset.repository:
+                tree = dataset.repository.cached_tree(
                     subject_ids=analysis.dataset.subject_ids,
                     visit_ids=analysis.dataset.visit_ids,
                     fill=analysis.dataset.fill_tree)
@@ -233,7 +233,7 @@ class BaseInputMixin(object):
                             frequency=self.frequency,
                             subject_id=node.subject_id,
                             visit_id=node.visit_id,
-                            repository=self.analysis.repository,
+                            dataset=self.analysis.dataset,
                             from_analysis=self.from_analysis,
                             exists=False,
                             **self._specific_kwargs))
@@ -318,7 +318,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
     from_analysis : str
         The name of the analysis that generated the derived fileset to match.
         Is used to determine the location of the filesets in the
-        repository as the derived filesets and fields are grouped by
+        dataset as the derived filesets and fields are grouped by
         the name of the analysis that generated them.
     skip_missing : bool
         If there is no fileset matching the selector for a node then pipelines
@@ -333,8 +333,8 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
         If there is no fileset matching the selection for a node
         and corresponding data spec has a default or is a derived spec
         then fallback to the default or generate the derivative.
-    repository : Repository | None
-        The repository to draw the matches from, if not the main repository
+    dataset : Repository | None
+        The dataset to draw the matches from, if not the main dataset
         that is used to store the products of the current analysis.
     acceptable_quality : str | list[str] | None
         An acceptable quality label, or list thereof, to accept, i.e. if a
@@ -348,13 +348,13 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
                  frequency='per_session', id=None,
                  order=None, dicom_tags=None, is_regex=False, from_analysis=None,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None,
+                 fallback_to_default=False, dataset=None,
                  acceptable_quality=None,
                  analysis_=None, slice_=None):
         BaseFileset.__init__(self, spec_name, None, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
                                 from_analysis, skip_missing, drop_if_missing,
-                                fallback_to_default, repository, analysis_,
+                                fallback_to_default, dataset, analysis_,
                                 slice_)
         self._dicom_tags = dicom_tags
         if order is not None and id is not None:
@@ -519,7 +519,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
         """
         Forces the cache of the input fileset. Can be useful for before running
         a workflow that will use many concurrent jobs/processes to source data
-        from remote repository, to force the download to be done linearly and
+        from remote dataset, to force the download to be done linearly and
         avoid DOSing the host
         """
         for item in self.slice:
@@ -562,7 +562,7 @@ class FieldFilter(BaseInputMixin, BaseField):
     from_analysis : str
         The name of the analysis that generated the derived field to match.
         Is used to determine the location of the fields in the
-        repository as the derived filesets and fields are grouped by
+        dataset as the derived filesets and fields are grouped by
         the name of the analysis that generated them.
     skip_missing : bool
         If there is no field matching the selector for a node then pipelines
@@ -577,8 +577,8 @@ class FieldFilter(BaseInputMixin, BaseField):
         If the there is no fileset/field matching the selection for a node
         and corresponding data spec has a default or is a derived spec,
         then fallback to the default or generate the derivative.
-    repository : Repository | None
-        The repository to draw the matches from, if not the main repository
+    dataset : Repository | None
+        The dataset to draw the matches from, if not the main dataset
         that is used to store the products of the current analysis.
     """
 
@@ -587,12 +587,12 @@ class FieldFilter(BaseInputMixin, BaseField):
     def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_analysis=None,
                  skip_missing=False, drop_if_missing=False,
-                 fallback_to_default=False, repository=None, analysis_=None,
+                 fallback_to_default=False, dataset=None, analysis_=None,
                  slice_=None):
         BaseField.__init__(self, spec_name, dtype, frequency)
         BaseInputMixin.__init__(self, pattern, is_regex, order,
                                 from_analysis, skip_missing, drop_if_missing,
-                                fallback_to_default, repository, analysis_,
+                                fallback_to_default, dataset, analysis_,
                                 slice_)
 
     def __eq__(self, other):

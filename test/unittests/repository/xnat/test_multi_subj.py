@@ -52,14 +52,14 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
-        tree = self.repository.tree()
+        tree = self.dataset.repository.tree()
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format
                 # Clear id and format name from regenerated tree
                 fileset._id = None
 #                 fileset.get()
-        ref_tree = self.get_tree(self.repository)  # , sync_with_repo=True)
+        ref_tree = self.get_tree(self.dataset.repository)  # , sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"
@@ -90,7 +90,7 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                 filesets.extend(
                     Fileset(d, text_format, subject_id=subj_id,
                             visit_id=visit_id) for d in fileset_names)
-        return Tree.construct(self.repository, filesets=filesets)
+        return Tree.construct(self.dataset.repository, filesets=filesets)
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):

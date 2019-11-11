@@ -21,6 +21,8 @@ from arcana.pipeline.provenance import Record
 from arcana.utils import dir_modtime, get_class_info, parse_value
 import re
 import xnat
+from .dataset import Dataset
+
 
 logger = logging.getLogger('arcana')
 
@@ -72,14 +74,13 @@ class XnatRepo(Repository):
     PROV_RESOURCE = 'PROV'
     depth = 2
 
-    def __init__(self, server, project_id, cache_dir, user=None,
+    def __init__(self, server, cache_dir, user=None,
                  password=None, check_md5=True, race_cond_delay=30,
                  session_filter=None, **kwargs):
         super(XnatRepo, self).__init__(**kwargs)
         if not isinstance(server, basestring):
             raise ArcanaUsageError(
                 "Invalid server url {}".format(server))
-        self._project_id = project_id
         self._server = server
         self._cache_dir = cache_dir
         makedirs(self._cache_dir, exist_ok=True)
@@ -91,26 +92,24 @@ class XnatRepo(Repository):
         self._login = None
 
     def __hash__(self):
-        return (hash(self.server) ^
-                hash(self.project_id) ^
-                hash(self.cache_dir) ^
-                hash(self._race_cond_delay) ^
-                hash(self._check_md5))
+        return (hash(self.server)
+                ^ hash(self.cache_dir)
+                ^ hash(self._race_cond_delay)
+                ^ hash(self._check_md5))
 
     def __repr__(self):
-        return ("{}(server={}, project_id={}, cache_dir={})"
+        return ("{}(server={}, cache_dir={})"
                 .format(type(self).__name__,
-                        self.server, self.project_id,
-                        self._cache_dir))
+                        self.server, self._cache_dir))
 
     def __eq__(self, other):
         try:
-            return (self.server == other.server and
-                    self._cache_dir == other._cache_dir and
-                    self.project_id == other.project_id and
-                    self.cache_dir == other.cache_dir and
-                    self._race_cond_delay == other._race_cond_delay and
-                    self._check_md5 == other._check_md5)
+            return (self.server == other.server
+                    and self._cache_dir == other._cache_dir
+                    and self.project_id == other.project_id
+                    and self.cache_dir == other.cache_dir
+                    and self._race_cond_delay == other._race_cond_delay
+                    and self._check_md5 == other._check_md5)
         except AttributeError:
             return False  # For comparison with other types
 
@@ -118,16 +117,11 @@ class XnatRepo(Repository):
     def prov(self):
         return {
             'type': get_class_info(type(self)),
-            'server': self.server,
-            'project': self.project_id}
+            'server': self.server}
 
     @property
     def login(self):
         return self._login
-
-    @property
-    def project_id(self):
-        return self._project_id
 
     @property
     def server(self):
@@ -180,7 +174,7 @@ class XnatRepo(Repository):
         visit_ids : list[str]
             The list of visits to include in the dataset
         """
-        return XnatDataset(self, project_id, **kwargs)
+        return Dataset(project_id, repository=self, **kwargs)
 
     def get_fileset(self, fileset):
         """
@@ -399,7 +393,7 @@ class XnatRepo(Repository):
             checksums['.'] = checksums.pop(primary)
         return checksums
 
-    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
         """
         Find all filesets, fields and provenance records within an XNAT project
 
@@ -426,31 +420,32 @@ class XnatRepo(Repository):
         all_filesets = []
         all_fields = []
         all_records = []
+        project_id = dataset.name
         # Note we prefer the use of raw REST API calls here for performance
         # reasons over using XnatPy's data structures.
         with self:
             # Get map of internal subject IDs to subject labels in project
             subject_xids_to_labels = {
                 s['ID']: s['label'] for s in self._login.get_json(
-                    '/data/projects/{}/subjects'.format(self.project_id))[
+                    '/data/projects/{}/subjects'.format(project_id))[
                         'ResultSet']['Result']}
             # Get list of all sessions within project
             session_xids = [
                 s['ID'] for s in self._login.get_json(
-                    '/data/projects/{}/experiments'.format(self.project_id))[
+                    '/data/projects/{}/experiments'.format(project_id))[
                         'ResultSet']['Result']
                 if (self.session_filter is None or
                     self.session_filter.match(s['label']))]
             for session_xid in session_xids:
                 session_json = self._login.get_json(
                     '/data/projects/{}/experiments/{}'.format(
-                        self.project_id, session_xid))['items'][0]
+                        project_id, session_xid))['items'][0]
                 subject_xid = session_json['data_fields']['subject_ID']
                 subject_id = subject_xids_to_labels[subject_xid]
                 session_label = session_json['data_fields']['label']
                 session_uri = (
                     '/data/archive/projects/{}/subjects/{}/experiments/{}'
-                    .format(self.project_id, subject_xid, session_xid))
+                    .format(project_id, subject_xid, session_xid))
                 # Get field values. We do this first so we can check for the
                 # DERIVED_FROM_FIELD to determine the correct session label and
                 # analysis name
@@ -482,8 +477,8 @@ class XnatRepo(Repository):
                 else:
                     visit_id = session_label
                 # Strip project ID from subject ID if required
-                if subject_id.startswith(self.project_id + '_'):
-                    subject_id = subject_id[len(self.project_id) + 1:]
+                if subject_id.startswith(project_id + '_'):
+                    subject_id = subject_id[len(project_id) + 1:]
                 # Check subject is summary or not and whether it is to be
                 # filtered
                 if subject_id == XnatRepo.SUMMARY_NAME:
@@ -509,7 +504,8 @@ class XnatRepo(Repository):
                 for name, value in field_values.items():
                     value = value.replace('&quot;', '"')
                     all_fields.append(Field(
-                        name=name, value=value, repository=self,
+                        name=name, value=value,
+                        dataset=dataset,
                         frequency=frequency,
                         subject_id=subject_id,
                         visit_id=visit_id,
@@ -567,12 +563,13 @@ class XnatRepo(Repository):
                         for resource in resources:
                             all_filesets.append(Fileset(
                                 scan_type, id=scan_id, uri=scan_uri,
-                                repository=self, frequency=frequency,
+                                dataset=dataset, frequency=frequency,
                                 subject_id=subject_id, visit_id=visit_id,
-                                from_analysis=from_analysis, quality=scan_quality,
+                                from_analysis=from_analysis,
+                                quality=scan_quality,
                                 resource_name=resource, **kwargs))
                 logger.debug("Found node {}:{} on {}:{}".format(
-                    subject_id, visit_id, self.server, self.project_id))
+                    subject_id, visit_id, self.server, project_id))
         return all_filesets, all_fields, all_records
 
     def convert_subject_ids(self, subject_ids):
@@ -592,7 +589,7 @@ class XnatRepo(Repository):
         This assumes that the subject ID is prepended with
         the project ID.
         """
-        return xsubject_label[(len(self.project_id) + 1):]
+        return xsubject_label.split('_')[1]
 
     def extract_visit_id(self, xsession_label):
         """
@@ -690,7 +687,7 @@ class XnatRepo(Repository):
         """
         subj_label, sess_label = self._get_item_labels(item)
         with self:
-            xproject = self._login.projects[self.project_id]
+            xproject = self._login.projects[item.dataset.name]
             try:
                 xsubject = xproject.subjects[subj_label]
             except KeyError:
@@ -720,34 +717,27 @@ class XnatRepo(Repository):
             sess_label += '_' + item.from_analysis
         return (subj_label, sess_label)
 
-    def _get_labels(self, frequency, subject_id=None, visit_id=None):
+    def _get_labels(self, project_id, frequency, subject_id=None,
+                    visit_id=None):
         """
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
         """
+        
         if frequency == 'per_session':
-            subj_label = '{}_{}'.format(self.project_id,
-                                        subject_id)
-            sess_label = '{}_{}_{}'.format(self.project_id,
-                                           subject_id,
-                                           visit_id)
+            subj_label = '{}_{}'.format(project_id, subject_id)
+            sess_label = '{}_{}_{}'.format(project_id, subject_id, visit_id)
         elif frequency == 'per_subject':
-            subj_label = '{}_{}'.format(self.project_id,
-                                        subject_id)
-            sess_label = '{}_{}_{}'.format(self.project_id,
-                                           subject_id,
+            subj_label = '{}_{}'.format(project_id, subject_id)
+            sess_label = '{}_{}_{}'.format(project_id, subject_id,
                                            self.SUMMARY_NAME)
         elif frequency == 'per_visit':
-            subj_label = '{}_{}'.format(self.project_id,
-                                        self.SUMMARY_NAME)
-            sess_label = '{}_{}_{}'.format(self.project_id,
-                                           self.SUMMARY_NAME,
+            subj_label = '{}_{}'.format(project_id, self.SUMMARY_NAME)
+            sess_label = '{}_{}_{}'.format(project_id, self.SUMMARY_NAME,
                                            visit_id)
         elif frequency == 'per_dataset':
-            subj_label = '{}_{}'.format(self.project_id,
-                                        self.SUMMARY_NAME)
-            sess_label = '{}_{}_{}'.format(self.project_id,
-                                           self.SUMMARY_NAME,
+            subj_label = '{}_{}'.format(project_id, self.SUMMARY_NAME)
+            sess_label = '{}_{}_{}'.format(project_id, self.SUMMARY_NAME,
                                            self.SUMMARY_NAME)
         else:
             assert False
@@ -755,13 +745,13 @@ class XnatRepo(Repository):
 
     def _cache_path(self, fileset, name=None):
         subj_dir, sess_dir = self._get_item_labels(fileset)
-        cache_dir = op.join(self._cache_dir, self.project_id,
+        cache_dir = op.join(self._cache_dir, fileset.dataset.name,
                             subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
         return op.join(cache_dir, fileset.name if name is None else name)
 
     def _check_repository(self, item):
-        if item.repository is not self:
+        if item.dataset.repository is not self:
             raise ArcanaWrongRepositoryError(
-                "{} is from {} instead of {}".format(item, item.repository,
-                                                     self))
+                "{} is from {} instead of {}".format(
+                    item, item.dataset.repository, self))
