@@ -20,15 +20,8 @@ class Repository(metaclass=ABCMeta):
     classes should implement.
     """
 
-    def __init__(self, subject_id_map=None, visit_id_map=None,
-                 file_formats=()):
+    def __init__(self):
         self._connection_depth = 0
-        self._subject_id_map = subject_id_map
-        self._visit_id_map = visit_id_map
-        self._inv_subject_id_map = {}
-        self._inv_visit_id_map = {}
-        self._file_formats = file_formats
-        self.clear_cache()
 
     def __enter__(self):
         # This allows the repository to be used within nested contexts
@@ -59,7 +52,7 @@ class Repository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def find_data(self, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
         """
         Find all data within a repository, registering filesets, fields and
         provenance with the found_fileset, found_field and found_provenance
@@ -67,6 +60,8 @@ class Repository(metaclass=ABCMeta):
 
         Parameters
         ----------
+        dataset : Dataset
+            The dataset to return the data for
         subject_ids : list(str)
             List of subject IDs with which to filter the tree with. If
             None all are returned
@@ -85,7 +80,7 @@ class Repository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_fileset(self, fileset):
+    def get_fileset(self, fileset, dataset):
         """
         Cache the fileset locally if required
 
@@ -93,6 +88,8 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to cache locally
+        dataset : Dataset
+            The dataset to retrieve the fileset from
 
         Returns
         -------
@@ -101,7 +98,7 @@ class Repository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_field(self, field):
+    def get_field(self, field, dataset):
         """
         Extract the value of the field from the repository
 
@@ -109,6 +106,8 @@ class Repository(metaclass=ABCMeta):
         ----------
         field : Field
             The field to retrieve the value for
+        dataset : Dataset
+            The dataset to retrieve the field from
 
         Returns
         -------
@@ -116,7 +115,7 @@ class Repository(metaclass=ABCMeta):
             The value of the Field
         """
 
-    def get_checksums(self, fileset):
+    def get_checksums(self, fileset, dataset):
         """
         Returns the checksums for the files in the fileset that are stored in
         the repository. If no checksums are stored in the repository then this
@@ -127,6 +126,8 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to return the checksums for
+        dataset : Dataset
+            The dataset to put the fileset into
 
         Returns
         -------
@@ -139,7 +140,7 @@ class Repository(metaclass=ABCMeta):
         return None
 
     @abstractmethod
-    def put_fileset(self, fileset):
+    def put_fileset(self, fileset, dataset):
         """
         Inserts or updates the fileset into the repository
 
@@ -147,10 +148,12 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to insert into the repository
+        dataset : Dataset
+            The dataset to put the fileset into
         """
 
     @abstractmethod
-    def put_field(self, field):
+    def put_field(self, field, dataset):
         """
         Inserts or updates the fields into the repository
 
@@ -158,134 +161,20 @@ class Repository(metaclass=ABCMeta):
         ----------
         field : Field
             The field to insert into the repository
+        dataset : Dataset
+            The dataset to put the field into
         """
 
     @abstractmethod
-    def put_record(self, record):
+    def put_record(self, record, dataset):
         """
         Inserts a provenance record into a session or subject|visit|analysis
         summary
-        """
-
-    def tree(self, subject_ids=None, visit_ids=None, **kwargs):
-        """
-        Return the tree of subject and sessions information within a
-        project in the XNAT repository
 
         Parameters
         ----------
-        subject_ids : list(str)
-            List of subject IDs with which to filter the tree with. If
-            None all are returned
-        visit_ids : list(str)
-            List of visit IDs with which to filter the tree with. If
-            None all are returned
-
-        Returns
-        -------
-        tree : arcana.repository.Tree
-            A hierarchical tree of subject, session and fileset
-            information for the repository
+        record : prov.Record
+            The record to insert into the repository
+        dataset : Dataset
+            The dataset to put the record into
         """
-        # Find all data present in the repository (filtered by the passed IDs)
-        return Tree.construct(
-            self, *self.find_data(subject_ids=subject_ids,
-                                  visit_ids=visit_ids), **kwargs)
-
-    def cached_tree(self, subject_ids=None, visit_ids=None, fill=False):
-        """
-        Access the repository tree and caches it for subsequent
-        accesses
-
-        Parameters
-        ----------
-        subject_ids : list(str)
-            List of subject IDs with which to filter the tree with. If
-            None all are returned
-        visit_ids : list(str)
-            List of visit IDs with which to filter the tree with. If
-            None all are returned
-        fill : bool
-            Create empty sessions for any that are missing in the
-            subject_id x visit_id block. Typically only used if all
-            the inputs to the analysis are coming from different repositories
-            to the one that the derived products are stored in
-
-        Returns
-        -------
-        tree : arcana.repository.Tree
-            A hierarchical tree of subject, vist, session information and that
-            of the filesets and fields they contain
-        """
-        if subject_ids is not None:
-            subject_ids = frozenset(subject_ids)
-        if visit_ids is not None:
-            visit_ids = frozenset(visit_ids)
-        try:
-            tree = self._cache[subject_ids][visit_ids][fill]
-        except KeyError:
-            if fill:
-                fill_subjects = subject_ids
-                fill_visits = visit_ids
-            else:
-                fill_subjects = fill_visits = None
-            tree = self.tree(
-                subject_ids=subject_ids, visit_ids=visit_ids,
-                fill_visits=fill_visits, fill_subjects=fill_subjects)
-            # Save the tree within the cache under the given subject/
-            # visit ID filters and the IDs that were actually returned
-            self._cache[subject_ids][visit_ids][fill] = self._cache[
-                frozenset(tree.subject_ids)][frozenset(tree.visit_ids)][
-                    fill] = tree
-        return tree
-
-    def clear_cache(self):
-        self._cache = defaultdict(defaultdict_of_dict)
-
-    def __ne__(self, other):
-        return not (self == other)
-
-    def map_subject_id(self, subject_id):
-        return self._map_id(subject_id, self._subject_id_map,
-                            self._inv_subject_id_map)
-
-    def map_visit_id(self, visit_id):
-        return self._map_id(visit_id, self._visit_id_map,
-                            self._inv_visit_id_map)
-
-    def inv_map_subject_id(self, subject_id):
-        try:
-            return self._inv_subject_id_map[subject_id]
-        except KeyError:
-            return subject_id
-
-    def inv_map_visit_id(self, visit_id):
-        try:
-            return self._inv_visit_id_map[visit_id]
-        except KeyError:
-            return visit_id
-
-    def _map_id(self, id, map, inv_map):
-        if id is None:
-            return None
-        mapped = id
-        if callable(map):
-            mapped = map(id)
-        elif self._visit_id_map is not None:
-            try:
-                mapped = map(id)
-            except KeyError:
-                pass
-        if mapped != id:
-            # Check for multiple mappings onto the same ID
-            try:
-                prev = inv_map[mapped]
-            except KeyError:
-                inv_map[mapped] = id
-            else:
-                if prev != id:
-                    raise ArcanaUsageError(
-                        "Both '{}' and '{}' have been mapped onto the same ID "
-                        "in repository {}"
-                        .format(prev, id, self))
-        return mapped

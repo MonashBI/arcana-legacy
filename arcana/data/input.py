@@ -179,10 +179,6 @@ class BaseInputMixin(object):
             else:
                 dataset = self._dataset
             with dataset.repository:
-                tree = dataset.repository.cached_tree(
-                    subject_ids=analysis.dataset.subject_ids,
-                    visit_ids=analysis.dataset.visit_ids,
-                    fill=analysis.dataset.fill_tree)
                 try:
                     valid_formats = spec.valid_formats
                 except AttributeError:
@@ -191,7 +187,7 @@ class BaseInputMixin(object):
                     except AttributeError:
                         valid_formats = None
                 bound._slice = bound.match(
-                    tree, valid_formats=valid_formats,
+                    dataset.tree, valid_formats=valid_formats,
                     **kwargs)
         return bound
 

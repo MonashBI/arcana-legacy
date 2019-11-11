@@ -579,7 +579,7 @@ class Analysis(object):
         of the derivatives that are now present in the repository if a
         subsequent pipeline is run.
         """
-        self.dataset.repository.clear_cache()
+        self.dataset.clear_cache()
         self._bound_specs = {}
         self._pipelines_cache = {}
 

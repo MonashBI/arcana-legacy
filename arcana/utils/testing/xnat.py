@@ -12,7 +12,7 @@ import pydicom
 import xnat
 from arcana.utils.testing import BaseTestCase
 from arcana.repository.xnat import XnatRepo
-from arcana.repository import LocalFileSystemRepo
+from arcana.repository import Dataset
 from arcana.exceptions import ArcanaError
 from arcana.data.file_format import text_format
 import logging
@@ -154,29 +154,28 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     def setUp(self):
         self._clean_up()
-        self._repository = XnatRepo(project_id=self.project,
-                                    server=SERVER,
-                                    cache_dir=self.cache_dir)
+        self._dataset = XnatRepo(
+            server=SERVER, cache_dir=self.cache_dir).dataset(self.project)
+
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_repository = LocalFileSystemRepo(self.project_dir)
-        tree = local_repository.tree()
-        repo = XnatRepo(SERVER, self.project, '/tmp')
-        with repo:
-            for node in tree:
+        local_dataset = Dataset(self.project_dir)
+        temp_dataset = XnatRepo(SERVER, '/tmp').dataset(self.project)
+        with temp_dataset.repository:
+            for node in local_dataset.tree:
                 for fileset in node.filesets:
                     # Need to forcibly change the repository to be XNAT
                     fileset = copy(fileset)
                     fileset.format = fileset.detect_format(self.REF_FORMATS)
-                    fileset._repository = repo
+                    fileset._dataset = temp_dataset
                     fileset.put()
                 for field in node.fields:
                     # Need to forcibly change the repository to be XNAT
                     field = copy(field)
-                    field._repository = repo
+                    field._dataset = temp_dataset
                     field.put()
                 for record in node.records:
-                    repo.put_record(record)
+                    temp_dataset.put_record(record)
 
     def tearDown(self):
         self._clean_up()

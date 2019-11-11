@@ -172,7 +172,7 @@ class TreeNode(object):
                             fileset = None
                             for rname, rfileset in format_dct.items():
                                 if rname in format.resource_names(
-                                        self.tree.repository.type):  # noqa pylint: disable=no-member
+                                        self.tree.dataset.repository.type):  # noqa pylint: disable=no-member
                                     fileset = rfileset
                                     break
                             if fileset is None:
@@ -348,7 +348,7 @@ class TreeNode(object):
 
 class Tree(TreeNode):
     """
-    Represents a project tree as stored in a repository
+    Represents a project tree as stored in a dataset
 
     Parameters
     ----------
@@ -357,8 +357,8 @@ class Tree(TreeNode):
     visits : List[Visits]
         List of visits in the project across subjects
         (i.e. timepoint 1, 2, 3)
-    repository : Repository
-        The repository that the tree comes from
+    dataset : Dataset
+        The dataset that the tree represents
     filesets : List[Fileset]
         The filesets that belong to the project, i.e. of 'per_dataset'
         frequency
@@ -368,18 +368,18 @@ class Tree(TreeNode):
     fill_subjects : list[int] | None
         Create empty sessions for any subjects that are missing
         from the provided list. Typically only used if all
-        the inputs to the analysis are coming from different repositories
+        the inputs to the analysis are coming from different datasets
         to the one that the derived products are stored in
     fill_visits : list[int] | None
         Create empty sessions for any visits that are missing
         from the provided list. Typically only used if all
-        the inputs to the analysis are coming from different repositories
+        the inputs to the analysis are coming from different datasets
         to the one that the derived products are stored in
     """
 
     frequency = 'per_dataset'
 
-    def __init__(self, subjects, visits, repository, filesets=None,
+    def __init__(self, subjects, visits, dataset, filesets=None,
                  fields=None, records=None, fill_subjects=None,
                  fill_visits=None, **kwargs):  # noqa: E501 @UnusedVariable
         TreeNode.__init__(self, filesets, fields, records)
@@ -395,7 +395,7 @@ class Tree(TreeNode):
             visit.tree = self
         for session in self.sessions:
             session.tree = self
-        self._repository = repository
+        self._dataset = dataset
         # Collate missing and duplicates provenance records for single warnings
         missing_records = defaultdict(lambda: defaultdict(list))
         duplicate_records = defaultdict(lambda: defaultdict(list))
@@ -430,8 +430,8 @@ class Tree(TreeNode):
                 hash(tuple(self._visits)))
 
     @property
-    def repository(self):
-        return self._repository
+    def dataset(self):
+        return self._dataset
 
     @property
     def subjects(self):
@@ -581,7 +581,7 @@ class Tree(TreeNode):
     def _fill_empty_sessions(self, fill_subjects, fill_visits):
         """
         Fill in tree with additional empty subjects and/or visits to
-        allow the analysis to pull its inputs from external repositories
+        allow the analysis to pull its inputs from external datasets
         """
         if fill_subjects is None:
             fill_subjects = [s.id for s in self.subjects]
@@ -607,16 +607,16 @@ class Tree(TreeNode):
                     visit._sessions[subject_id] = session
 
     @classmethod
-    def construct(cls, repository, filesets=(), fields=(), records=(),
+    def construct(cls, dataset, filesets=(), fields=(), records=(),
                   file_formats=(), **kwargs):
         """
         Return the hierarchical tree of the filesets and fields stored in a
-        repository
+        dataset
 
         Parameters
         ----------
-        respository : Repository
-            The repository that the tree comes from
+        dataset : Dataset
+            The dataset that the tree represents
         filesets : list[Fileset]
             List of all filesets in the tree
         fields : list[Field]
@@ -628,7 +628,7 @@ class Tree(TreeNode):
         -------
         tree : arcana.repository.Tree
             A hierarchical tree of subject, session and fileset
-            information for the repository
+            information for the dataset
         """
         # Sort the data by subject and visit ID
         filesets_dict = defaultdict(list)
@@ -675,7 +675,7 @@ class Tree(TreeNode):
                 records_dict[(None, visit_id)]))
         return Tree(sorted(subjects),
                     sorted(visits),
-                    repository,
+                    dataset,
                     filesets_dict[(None, None)],
                     fields_dict[(None, None)],
                     records_dict[(None, None)],
@@ -684,7 +684,7 @@ class Tree(TreeNode):
 
 class Subject(TreeNode):
     """
-    Represents a subject as stored in a repository
+    Represents a subject as stored in a dataset
 
     Parameters
     ----------
@@ -815,7 +815,7 @@ class Subject(TreeNode):
 class Visit(TreeNode):
     """
     Represents a slice of visits across subjects (e.g. time-point 1)
-    as stored in a repository
+    as stored in a dataset
 
     Parameters
     ----------
@@ -940,7 +940,7 @@ class Visit(TreeNode):
 
 class Session(TreeNode):
     """
-    Represents a session stored in a repository
+    Represents a session stored in a dataset
 
     Parameters
     ----------

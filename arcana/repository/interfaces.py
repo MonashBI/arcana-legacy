@@ -51,9 +51,10 @@ class RepositoryInterface(BaseInterface):
             #     would only really happen in unittests
             self._frequency = next(iter(frequencies))
         # Extract set of repositories used to source/sink from/to
-        self.repositories = set(chain(*(
-            (i.dataset.repository for i in c if i.dataset is not None)
+        self.datasets = set(chain(*(
+            (i.dataset for i in c if i.dataset is not None)
             for c in collections)))
+        self.repositories = set(d.repository for d in self.datasets)
         # Segregate into fileset and field collections
         self.fileset_collections = [c for c in collections if c.is_fileset]
         self.field_collections = [c for c in collections if c.is_field]
@@ -291,8 +292,8 @@ class RepositorySink(RepositoryInterface):
             prov['outputs'] = output_checksums
             record = Record(self._pipeline_name, self.frequency, subject_id,
                             visit_id, self._from_analysis, prov)
-            for repository in self.repositories:
-                repository.put_record(record)
+            for dataset in self.datasets:
+                dataset.put_record(record)
         if missing_inputs:
             raise ArcanaDesignError(
                 "Required derivatives '{}' to were not created by upstream "

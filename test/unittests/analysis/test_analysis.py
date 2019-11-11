@@ -440,7 +440,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     # and save in the local dataset
                     pipelines[fileset.name].cap()
                     record = pipelines[fileset.name].expected_record(node)
-                    self.local_dataset.repository.put_record(record)
+                    self.local_dataset.put_record(record)
         analysis.clear_caches()  # Reset dataset trees
 
     def test_per_session_prereqs(self):

@@ -222,7 +222,7 @@ def change_value_w_prov(field, new_value):
     # Update provenance record so it isn't determined to be protected
     record = field.record
     record.prov['outputs'][field.name] = new_value
-    field.dataset.repository.put_record(record)
+    field.dataset.put_record(record)
 
 
 STUDY_INPUTS = {'acquired_fileset1': 'acquired_fileset1',

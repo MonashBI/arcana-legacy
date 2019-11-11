@@ -75,14 +75,14 @@ class LocalFileSystemRepo(Repository):
     # def root_dir(self):
     #     return self._root_dir
 
-    def get_fileset(self, fileset):
+    def get_fileset(self, fileset, dataset):
         """
         Set the path of the fileset from the repository
         """
         # Don't need to cache fileset as it is already local as long
         # as the path is set
         if fileset._path is None:
-            primary_path = self.fileset_path(fileset)
+            primary_path = self.fileset_path(fileset, dataset)
             aux_files = fileset.format.default_aux_file_paths(primary_path)
             if not op.exists(primary_path):
                 raise ArcanaMissingDataException(
@@ -98,7 +98,7 @@ class LocalFileSystemRepo(Repository):
             aux_files = fileset.aux_files
         return primary_path, aux_files
 
-    def get_field(self, field):
+    def get_field(self, field, dataset):
         """
         Update the value of the field from the repository
         """
@@ -106,7 +106,7 @@ class LocalFileSystemRepo(Repository):
         # Would be better if only checked if locked to allow
         # concurrent reads but not possible with multi-process
         # locks (in my understanding at least).
-        fpath = self.fields_json_path(field)
+        fpath = self.fields_json_path(field, dataset)
         try:
             with InterProcessLock(fpath + self.LOCK_SUFFIX,
                                   logger=logger), open(fpath, 'r') as f:
@@ -129,11 +129,11 @@ class LocalFileSystemRepo(Repository):
                 .format(field.name, self))
         return val
 
-    def put_fileset(self, fileset):
+    def put_fileset(self, fileset, dataset):
         """
         Inserts or updates a fileset in the repository
         """
-        target_path = self.fileset_path(fileset)
+        target_path = self.fileset_path(fileset, dataset)
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
             # Copy side car files into repository
@@ -147,11 +147,11 @@ class LocalFileSystemRepo(Repository):
         else:
             assert False
 
-    def put_field(self, field):
+    def put_field(self, field, dataset):
         """
         Inserts or updates a field in the repository
         """
-        fpath = self.fields_json_path(field)
+        fpath = self.fields_json_path(field, dataset)
         # Open fields JSON, locking to prevent other processes
         # reading or writing
         with InterProcessLock(fpath + self.LOCK_SUFFIX, logger=logger):
@@ -170,8 +170,8 @@ class LocalFileSystemRepo(Repository):
             with open(fpath, 'w') as f:
                 json.dump(dct, f, indent=2)
 
-    def put_record(self, record):
-        fpath = self.prov_json_path(record)
+    def put_record(self, record, dataset):
+        fpath = self.prov_json_path(record, dataset)
         if not op.exists(op.dirname(fpath)):
             os.mkdir(op.dirname(fpath))
         record.save(fpath)
@@ -222,8 +222,8 @@ class LocalFileSystemRepo(Repository):
             elif visit_ids is not None and visit_id not in visit_ids:
                 continue
             # Map IDs into ID space of analysis
-            subj_id = self.map_subject_id(subj_id)
-            visit_id = self.map_visit_id(visit_id)
+            subj_id = dataset.map_subject_id(subj_id)
+            visit_id = dataset.map_visit_id(visit_id)
             # Determine frequency of session|summary
             if (subj_id, visit_id) == (None, None):
                 frequency = 'per_dataset'
@@ -241,7 +241,7 @@ class LocalFileSystemRepo(Repository):
                         op.join(session_path, fname),
                         frequency=frequency,
                         subject_id=subj_id, visit_id=visit_id,
-                        repository=self,
+                        dataset=dataset,
                         from_analysis=from_analysis,
                         potential_aux_files=[
                             f for f in filtered_files
@@ -312,13 +312,13 @@ class LocalFileSystemRepo(Repository):
             visit_id = self.DEFAULT_VISIT_ID
         return subj_id, visit_id, from_analysis
 
-    def fileset_path(self, item, fname=None):
+    def fileset_path(self, item, dataset, fname=None):
         if fname is None:
             fname = item.fname
-        root_dir = item.dataset.name
-        depth = item.dataset.depth
-        subject_id = self.inv_map_subject_id(item.subject_id)
-        visit_id = self.inv_map_visit_id(item.visit_id)
+        root_dir = dataset.name
+        depth = dataset.depth
+        subject_id = dataset.inv_map_subject_id(item.subject_id)
+        visit_id = dataset.inv_map_visit_id(item.visit_id)
         if item.frequency == 'per_dataset':
             subj_dir = self.SUMMARY_NAME
             visit_dir = self.SUMMARY_NAME
@@ -361,12 +361,13 @@ class LocalFileSystemRepo(Repository):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
         return op.join(sess_dir, fname)
 
-    def fields_json_path(self, field):
-        return self.fileset_path(field, self.FIELDS_FNAME)
+    def fields_json_path(self, field, dataset):
+        return self.fileset_path(field, dataset, self.FIELDS_FNAME)
 
-    def prov_json_path(self, record):
+    def prov_json_path(self, record, dataset):
         return self.fileset_path(
             record,
+            dataset,
             fname=op.join(self.PROV_DIR, record.pipeline_name + '.json'))
 
     @classmethod
