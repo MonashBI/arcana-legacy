@@ -36,6 +36,8 @@ class Dataset():
         Maps visit IDs in dataset to a global name-space
     """
 
+    type = 'basic'
+
     def __init__(self, name, repository=None, subject_ids=None, visit_ids=None,
                  fill_tree=False, depth=2, subject_id_map=None,
                  visit_id_map=None, file_formats=()):
@@ -217,7 +219,6 @@ class Dataset():
             The record to insert into the repository
         """
         self.repository.put_record(record, self)
-
 
     @property
     def tree(self):
