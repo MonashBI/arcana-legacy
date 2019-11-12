@@ -195,7 +195,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     @property
     def project_dir(self):
-        return op.join(self.repository_path, self.base_name)
+        return op.join(self.dataset_path, self.base_name)
 
     @property
     def output_cache_dir(self):
@@ -258,8 +258,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             if op.exists(proc_path):
                 raise ArcanaError(
                     "Both acquired and derived paths were found for "
-                    "'{}_{}' ({} and {})".format(from_analysis, fname, acq_path,
-                                                 proc_path))
+                    "'{}_{}' ({} and {})".format(from_analysis, fname,
+                                                 acq_path, proc_path))
             path = acq_path
         else:
             path = proc_path
@@ -268,5 +268,5 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
 def filter_scans(names):
     return sorted(f for f in sorted(names)
-                  if (f != XnatRepo.PROV_SCAN and
-                      not f.endswith(XnatRepo.MD5_SUFFIX)))
+                  if (f != XnatRepo.PROV_SCAN
+                      and not f.endswith(XnatRepo.MD5_SUFFIX)))

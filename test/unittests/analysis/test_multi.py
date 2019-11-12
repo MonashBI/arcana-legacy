@@ -198,8 +198,8 @@ class TestMulti(BaseTestCase):
              FilesetFilter('b', 'ones', text_format),
              FilesetFilter('c', 'ones', text_format)],
             parameters=[Parameter('required_op', 'mul')])
-        d, e, f = analysis.data(('d', 'e', 'f'),
-                             subject_id='SUBJECT', visit_id='VISIT')
+        d, e, f = analysis.data(('d', 'e', 'f'), derive=True,
+                                subject_id='SUBJECT', visit_id='VISIT')
         self.assertContentsEqual(d, 2.0)
         self.assertContentsEqual(e, 3.0)
         self.assertContentsEqual(f, 6.0)
@@ -228,11 +228,11 @@ class TestMulti(BaseTestCase):
              FilesetFilter('b', 'ones', text_format),
              FilesetFilter('c', 'ones', text_format)],
             parameters=[Parameter('ss2_product_op', 'mul')])
-        ss1_z = analysis.data('ss1_z',
+        ss1_z = analysis.derive('ss1_z',
                            subject_id='SUBJECT', visit_id='VISIT')
-        ss2_z = list(analysis.data('ss2_z'))[0]
+        ss2_z = list(analysis.data('ss2_z', derive=True))[0]
         self.assertContentsEqual(ss1_z, 2.0)
-        self.assertContentsEqual(analysis.data('ss2_y'), 3.0)
+        self.assertContentsEqual(analysis.data('ss2_y', derive=True), 3.0)
         self.assertContentsEqual(ss2_z, 6.0)
         # Test parameter values in MultiAnalysis
         self.assertEqual(analysis._get_parameter('p1').value, 1000)
@@ -265,7 +265,7 @@ class TestMulti(BaseTestCase):
              FilesetFilter('partial_c', 'ones', text_format)],
             parameters=[Parameter('full_required_op', 'mul'),
                         Parameter('partial_ss2_product_op', 'mul')])
-        self.assertContentsEqual(analysis.data('g'), 11.0)
+        self.assertContentsEqual(analysis.data('g', derive=True), 11.0)
         # Test parameter values in MultiAnalysis
         self.assertEqual(analysis._get_parameter('full_p1').value, 100)
         self.assertEqual(analysis._get_parameter('full_p2').value, '200')
@@ -338,5 +338,5 @@ class TestMulti(BaseTestCase):
             parameters=[
                 Parameter('partial_ss2_product_op', 'mul'),
                 Parameter('full_required_op', 'mul')])
-        g = list(provided_parameters_analysis.data('g'))[0]
+        g = list(provided_parameters_analysis.data('g', derive=True))[0]
         self.assertContentsEqual(g, 11.0)

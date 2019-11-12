@@ -673,7 +673,7 @@ class XnatRepo(Repository):
         """
         if dataset is None:
             dataset = item.dataset
-        subj_label, sess_label = self._get_item_labels(item)
+        subj_label, sess_label = self._get_item_labels(item, dataset=dataset)
         with self:
             xproject = self._login.projects[dataset.name]
             try:
@@ -689,7 +689,7 @@ class XnatRepo(Repository):
                 if item.derived:
                     xsession.fields[
                         self.DERIVED_FROM_FIELD] = self._get_item_labels(
-                            item, no_from_analysis=True)[1]
+                            item, dataset=dataset, no_from_analysis=True)[1]
         return xsession
 
     def _get_item_labels(self, item, no_from_analysis=False, dataset=None):
@@ -702,7 +702,7 @@ class XnatRepo(Repository):
         subject_id = dataset.inv_map_subject_id(item.subject_id)
         visit_id = dataset.inv_map_visit_id(item.visit_id)
         subj_label, sess_label = self._get_labels(
-            item.frequency, subject_id, visit_id)
+            dataset.name, item.frequency, subject_id, visit_id)
         if not no_from_analysis and item.from_analysis is not None:
             sess_label += '_' + item.from_analysis
         return (subj_label, sess_label)
@@ -735,9 +735,10 @@ class XnatRepo(Repository):
         return (subj_label, sess_label)
 
     def _cache_path(self, fileset, name=None, dataset=None):
+        if dataset is None:
+            dataset = fileset.dataset
         subj_dir, sess_dir = self._get_item_labels(fileset, dataset=dataset)
-        cache_dir = op.join(self._cache_dir.name,
-                            subj_dir, sess_dir)
+        cache_dir = op.join(self._cache_dir, dataset.name, subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
         return op.join(cache_dir, fileset.name if name is None else name)
 

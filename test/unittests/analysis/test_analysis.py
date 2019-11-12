@@ -296,19 +296,19 @@ class TestAnalysis(BaseMultiSubjectTestCase):
 
     def test_run_pipeline_with_prereqs(self):
         analysis = self.make_analysis()
-        self.assertContentsEqual(analysis.data('derived4'),
+        self.assertContentsEqual(analysis.data('derived4', derive=True),
                                  [2.0, 2.0, 2.0, 2.0, 2.0, 2.0])
 
     def test_pipeline_args(self):
         analysis = self.make_analysis()
-        a = next(iter(analysis.data('derived5a'))).value
-        b = next(iter(analysis.data('derived5b'))).value
+        a = next(iter(analysis.data('derived5a', derive=True))).value
+        b = next(iter(analysis.data('derived5b', derive=True))).value
         self.assertEqual(a, 'a')
         self.assertEqual(b, 'b')
 
     def test_subject_summary(self):
         analysis = self.make_analysis()
-        summaries = analysis.data('subject_summary')
+        summaries = analysis.data('subject_summary', derive=True)
         ref = float(len(self.VISIT_IDS))
         for fileset in summaries:
             self.assertContentsEqual(fileset, ref,
@@ -316,7 +316,7 @@ class TestAnalysis(BaseMultiSubjectTestCase):
 
     def test_visit_summary(self):
         analysis = self.make_analysis()
-        summaries = analysis.data('visit_summary')
+        summaries = analysis.data('visit_summary', derive=True)
         ref = float(len(self.SUBJECT_IDS))
         for fileset in summaries:
             self.assertContentsEqual(fileset, ref,
@@ -325,11 +325,11 @@ class TestAnalysis(BaseMultiSubjectTestCase):
     def test_analysis_summary(self):
         analysis = self.make_analysis()
         ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        self.assertContentsEqual(analysis.data('analysis_summary'), ref)
+        self.assertContentsEqual(analysis.data('analysis_summary', derive=True), ref)
 
     def test_subject_ids_access(self):
         analysis = self.make_analysis()
-        analysis.data('subject_ids')
+        analysis.data('subject_ids', derive=True)
         for visit_id in self.VISIT_IDS:
             subject_ids_path = self.output_file_path(
                 'subject_ids.txt', analysis.name,
@@ -340,7 +340,7 @@ class TestAnalysis(BaseMultiSubjectTestCase):
 
     def test_visit_ids_access(self):
         analysis = self.make_analysis()
-        analysis.data('visit_ids')
+        analysis.data('visit_ids', derive=True)
         for subject_id in self.SUBJECT_IDS:
             visit_ids_path = self.output_file_path(
                 'visit_ids.txt', analysis.name,
@@ -449,7 +449,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         analysis = self.create_analysis(
             ExistingPrereqAnalysis, self.STUDY_NAME,
             inputs=[FilesetFilter('one', 'one', text_format)])
-        analysis.data('thousand')
+        analysis.data('thousand', derive=True)
         targets = {
             'subject1': {
                 'visit1': 1100.0,
@@ -675,7 +675,7 @@ class TestGeneratedPickle(BaseTestCase):
         del GeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('out_fileset'), 'foo')
+        self.assertContentsEqual(regen.data('out_fileset', derive=True), 'foo')
 
     def test_multi_analysis_generated_cls_pickle(self):
         cls_dct = {
@@ -695,7 +695,7 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('ss2_out_fileset'), 'foo')
+        self.assertContentsEqual(regen.data('ss2_out_fileset', derive=True), 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {

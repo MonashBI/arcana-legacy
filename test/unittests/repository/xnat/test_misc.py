@@ -30,8 +30,7 @@ class TestConnectDisconnect(TestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_connect_disconnect(self):
-        repository = XnatRepo(project_id='dummy',
-                              server=SERVER,
+        repository = XnatRepo(server=SERVER,
                               cache_dir=tempfile.mkdtemp())
         with repository:
             self._test_open(repository)
@@ -94,13 +93,13 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_dicom_match(self):
         analysis = test_data.TestMatchAnalysis(
             name='test_dicom',
-            repository=XnatRepo(
-                project_id=self.project,
-                server=SERVER, cache_dir=tempfile.mkdtemp()),
+            dataset=XnatRepo(
+                server=SERVER,
+                cache_dir=tempfile.mkdtemp()).dataset(self.project),
             processor=SingleProc(self.work_dir),
             inputs=test_data.TestDicomTagMatch.DICOM_MATCH)
-        phase = list(analysis.data('gre_phase'))[0]
-        mag = list(analysis.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase', derive=True))[0]
+        mag = list(analysis.data('gre_mag', derive=True))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
@@ -108,15 +107,15 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
     def test_id_match(self):
         analysis = test_data.TestMatchAnalysis(
             name='test_dicom',
-            repository=XnatRepo(
-                project_id=self.project,
-                server=SERVER, cache_dir=tempfile.mkdtemp()),
+            dataset=XnatRepo(
+                server=SERVER,
+                cache_dir=tempfile.mkdtemp()).dataset(self.project),
             processor=SingleProc(self.work_dir),
             inputs=[
                 FilesetFilter('gre_phase', valid_formats=dicom_format, id=7),
                 FilesetFilter('gre_mag', valid_formats=dicom_format, id=6)])
-        phase = list(analysis.data('gre_phase'))[0]
-        mag = list(analysis.data('gre_mag'))[0]
+        phase = list(analysis.data('gre_phase', derive=True))[0]
+        mag = list(analysis.data('gre_mag', derive=True))[0]
         self.assertEqual(phase.name, 'gre_field_mapping_3mm_phase')
         self.assertEqual(mag.name, 'gre_field_mapping_3mm_mag')
 
@@ -133,11 +132,12 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin, BaseTestCase):
     def test_cache_on_path_access(self):
         tmp_dir = tempfile.mkdtemp()
         repository = XnatRepo(
-            project_id=self.project,
-            server=SERVER, cache_dir=tmp_dir)
-        tree = repository.tree(
-            subject_ids=[self.SUBJECT],
-            visit_ids=[self.VISIT])
+            server=SERVER,
+            cache_dir=tmp_dir)
+        dataset = repository.dataset(self.project,
+                                     subject_ids=[self.SUBJECT],
+                                     visit_ids=[self.VISIT])
+        tree = dataset.tree
         # Get a fileset
         fileset = list(list(list(tree.subjects)[0].sessions)[0].filesets)[0]
         fileset.format = text_format
@@ -181,11 +181,11 @@ class TestScanQualityLabelMatching(TestOnXnatMixin, BaseTestCase):
     def test_scan_label_quality(self):
         tmp_dir = tempfile.mkdtemp()
         repository = XnatRepo(
-            project_id=self.project,
             server=SERVER, cache_dir=tmp_dir)
-        tree = repository.tree(
-            subject_ids=[self.SUBJECT],
-            visit_ids=[self.VISIT])
+        dataset = repository.dataset(self.project,
+                                     subject_ids=[self.SUBJECT],
+                                     visit_ids=[self.VISIT])
+        tree = dataset.tree
         for accepted, expected in (
                 (None, '1unusable'),
                 ((None, 'questionable', 'usable'), '2unlabelled'),

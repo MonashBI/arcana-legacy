@@ -120,7 +120,7 @@ class TestModuleLoad(BaseTestCase):
             RequirementsAnalysis, 'requirements',
             {'ones': 'ones'},
             environment=ModulesEnv())
-        self.assertContentsEqual(analysis.data('twos'), 2.0)
+        self.assertContentsEqual(analysis.data('twos', derive=True), 2.0)
         self.assertEqual(ModulesEnv.loaded(), {})
 
     @unittest.skipIf(*SKIP_ARGS)
@@ -129,8 +129,8 @@ class TestModuleLoad(BaseTestCase):
             RequirementsAnalysis, 'requirements',
             [FilesetFilter('ones', 'ones', text_format)],
             environment=ModulesEnv())
-        threes = analysis.data('threes')
-        fours = analysis.data('fours')
+        threes = analysis.data('threes', derive=True)
+        fours = analysis.data('fours', derive=True)
         self.assertEqual(next(iter(threes)).value, 3)
         self.assertEqual(next(iter(fours)).value, 4)
         self.assertEqual(ModulesEnv.loaded(), {})

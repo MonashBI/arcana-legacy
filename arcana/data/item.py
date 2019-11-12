@@ -25,18 +25,18 @@ class BaseItemMixin(object):
         self._record = record
 
     def __eq__(self, other):
-        return (self.subject_id == other.subject_id and
-                self.visit_id == other.visit_id and
-                self.from_analysis == other.from_analysis and
-                self.exists == other.exists and
-                self._record == other._record)
+        return (self.subject_id == other.subject_id
+                and self.visit_id == other.visit_id
+                and self.from_analysis == other.from_analysis
+                and self.exists == other.exists
+                and self._record == other._record)
 
     def __hash__(self):
-        return (hash(self.subject_id) ^
-                hash(self.visit_id) ^
-                hash(self.from_analysis) ^
-                hash(self.exists) ^
-                hash(self._record))
+        return (hash(self.subject_id)
+                ^ hash(self.visit_id)
+                ^ hash(self.from_analysis)
+                ^ hash(self.exists)
+                ^ hash(self._record))
 
     def find_mismatch(self, other, indent=''):
         sub_indent = indent + '  '
@@ -249,13 +249,13 @@ class Fileset(BaseItemMixin, BaseFileset):
                              "attribute".format(frmt, attr))
 
     def __eq__(self, other):
-        eq = (BaseFileset.__eq__(self, other) and
-              BaseItemMixin.__eq__(self, other) and
-              self._aux_files == other._aux_files and
-              self._id == other._id and
-              self._checksums == other._checksums and
-              self._resource_name == other._resource_name and
-              self._quality == other._quality)
+        eq = (BaseFileset.__eq__(self, other)
+              and BaseItemMixin.__eq__(self, other)
+              and self._aux_files == other._aux_files
+              and self._id == other._id
+              and self._checksums == other._checksums
+              and self._resource_name == other._resource_name
+              and self._quality == other._quality)
         # Avoid having to cache fileset in order to test equality unless they
         # are already both cached
         try:
@@ -266,13 +266,13 @@ class Fileset(BaseItemMixin, BaseFileset):
         return eq
 
     def __hash__(self):
-        return (BaseFileset.__hash__(self) ^
-                BaseItemMixin.__hash__(self) ^
-                hash(self._id) ^
-                hash(tuple(sorted(self._aux_files.items()))) ^
-                hash(self._checksums) ^
-                hash(self._resource_name) ^
-                hash(self._quality))
+        return (BaseFileset.__hash__(self)
+                ^ BaseItemMixin.__hash__(self)
+                ^ hash(self._id)
+                ^ hash(tuple(sorted(self._aux_files.items())))
+                ^ hash(self._checksums)
+                ^ hash(self._resource_name)
+                ^ hash(self._quality))
 
     def __lt__(self, other):
         if isinstance(self.id, int) and isinstance(other.id, basestring):
@@ -647,14 +647,14 @@ class Field(BaseItemMixin, BaseField):
         self._value = value
 
     def __eq__(self, other):
-        return (BaseField.__eq__(self, other) and
-                BaseItemMixin.__eq__(self, other) and
-                self.value == other.value)
+        return (BaseField.__eq__(self, other)
+                and BaseItemMixin.__eq__(self, other)
+                and self.value == other.value)
 
     def __hash__(self):
-        return (BaseField.__hash__(self) ^
-                BaseItemMixin.__hash__(self) ^
-                hash(self.value))
+        return (BaseField.__hash__(self)
+                ^ BaseItemMixin.__hash__(self)
+                ^ hash(self.value))
 
     def find_mismatch(self, other, indent=''):
         mismatch = BaseField.find_mismatch(self, other, indent)

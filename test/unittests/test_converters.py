@@ -125,8 +125,8 @@ class TestFormatConversions(BaseTestCase):
                 FilesetFilter('text', 'text', text_format),
                 FilesetFilter('directory', 'directory', directory_format),
                 FilesetFilter('zip', 'zip', zip_format)])
-        self.assertCreated(list(analysis.data('text_from_text'))[0])
-        self.assertCreated(list(analysis.data('directory_from_zip_on_input'))[0])
-        self.assertCreated(list(analysis.data('zip_from_directory_on_input'))[0])
-        self.assertCreated(list(analysis.data('directory_from_zip_on_output'))[0])
-        self.assertCreated(list(analysis.data('zip_from_directory_on_output'))[0])
+        self.assertCreated(list(analysis.data('text_from_text', derive=True))[0])
+        self.assertCreated(list(analysis.data('directory_from_zip_on_input', derive=True))[0])
+        self.assertCreated(list(analysis.data('zip_from_directory_on_input', derive=True))[0])
+        self.assertCreated(list(analysis.data('directory_from_zip_on_output', derive=True))[0])
+        self.assertCreated(list(analysis.data('zip_from_directory_on_output', derive=True))[0])

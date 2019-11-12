@@ -200,10 +200,11 @@ class TestProvAnalysisAddNode(TestProvAnalysis, metaclass=AnalysisMetaClass):
         return pipeline
 
 
-class TestProvAnalysisAddConnect(TestProvAnalysis, metaclass=AnalysisMetaClass):
+class TestProvAnalysisAddConnect(TestProvAnalysis,
+                                 metaclass=AnalysisMetaClass):
 
     def pipeline1(self, **name_maps):
-        pipeline = super(TestProvAnalysisAddConnect, self).pipeline1(**name_maps)
+        pipeline = super().pipeline1(**name_maps)
         pipeline.connect_input('acquired_field1', pipeline.node('math3'), 'y',
                                float)
         return pipeline
@@ -253,7 +254,7 @@ class TestProvBasic(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2', derive=True).value(*self.SESSION),
                          156.0)
         # Rerun results of altered analysis
         analysis = self.create_analysis(
@@ -261,7 +262,7 @@ class TestProvBasic(BaseTestCase):
             analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
-        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2', derive=True).value(*self.SESSION),
                          1252.0)
         analysis_name = 'add_connect'
         # Test vanilla analysis
@@ -269,7 +270,7 @@ class TestProvBasic(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2', derive=True).value(*self.SESSION),
                          156.0)
         # Rerun results of altered analysis
         analysis = self.create_analysis(
@@ -277,7 +278,7 @@ class TestProvBasic(BaseTestCase):
             analysis_name,
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
-        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2', derive=True).value(*self.SESSION),
                          170.0)
 
     def test_unchanged_workflow(self):
@@ -292,7 +293,7 @@ class TestProvBasic(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        derived_field4 = analysis.data('derived_field4').item(*self.SESSION)
+        derived_field4 = analysis.data('derived_field4', derive=True).item(*self.SESSION)
         self.assertEqual(derived_field4.value, 155.0)
         # Change value to a new value to see if it gets overwritten even
         # it shouldn't as the parameter that is changed doesn't impact on
@@ -303,7 +304,8 @@ class TestProvBasic(BaseTestCase):
             analysis_name,
             inputs=STUDY_INPUTS,
             parameters={'subtract': 100})
-        new_derived_field4 = analysis.data('derived_field4').item(*self.SESSION)
+        new_derived_field4 = analysis.data('derived_field4', derive=True).item(
+            *self.SESSION)
         self.assertEqual(new_derived_field4.value, new_value)
         self.assertEqual(
             new_derived_field4.record.prov['outputs']['derived_field4'],
@@ -319,7 +321,7 @@ class TestProvBasic(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        derived_fileset1_slice, derived_field4_slice = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.derive(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_slice, 154.0)
         self.assertEqual(derived_field4_slice.value(*self.SESSION), 155.0)
@@ -330,7 +332,7 @@ class TestProvBasic(BaseTestCase):
             inputs=STUDY_INPUTS,
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={'multiplier': 100.0})
-        derived_fileset1_slice, derived_field4_slice = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.derive(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_slice, 1414.0)
         derived_field4 = derived_field4_slice.item(*self.SESSION)
@@ -358,7 +360,7 @@ class TestProvBasic(BaseTestCase):
         analysis.clear_caches()
         # Protect the output of derived_fileset1 as well and it should return
         # the protected values
-        derived_fileset1_slice, derived_field4_slice = analysis.data(
+        derived_fileset1_slice, derived_field4_slice = analysis.derive(
             ('derived_fileset1', 'derived_field4'))
         self.assertContentsEqual(derived_fileset1_slice,
                                  protected_derived_fileset1_value)
@@ -377,11 +379,11 @@ class TestProvInputChange(BaseTestCase):
             TestProvAnalysis,
             analysis_name,
             inputs=STUDY_INPUTS)
-        self.assertEqual(analysis.data('derived_field2').value(*self.SESSION),
+        self.assertEqual(analysis.data('derived_field2', derive=True).value(*self.SESSION),
                          156.0)
         # Change acquired file contents, which should cause the checksum check
         # to fail
-        with open(analysis.data('acquired_fileset1').path(*self.SESSION),
+        with open(analysis.data('acquired_fileset1', derive=True).path(*self.SESSION),
                   'w') as f:
             f.write('99.9')
         # Should detect that the input has changed and throw an error
@@ -395,7 +397,7 @@ class TestProvInputChange(BaseTestCase):
             processor=SingleProc(self.work_dir, reprocess=True),
             inputs=STUDY_INPUTS)
         self.assertEqual(
-            new_analysis.data('derived_field2').value(*self.SESSION), 1145.0)
+            new_analysis.data('derived_field2', derive=True).value(*self.SESSION), 1145.0)
 
 
 class TestDialationAnalysis(Analysis, metaclass=AnalysisMetaClass):
@@ -569,19 +571,19 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationAnalysis,
             analysis_name,
             inputs=self.STUDY_INPUTS)
-        field2 = analysis.data(
+        field2 = analysis.derive(
             'derived_field2',
             session_ids=[('0', '0'),
                          ('1', '1')])
         self.assertEqual(field2.value(subject_id='0'), 3)
         self.assertEqual(field2.value(subject_id='1'), 23)
-        field3 = analysis.data(
+        field3 = analysis.derive(
             'derived_field3',
             session_ids=[('0', '0'),
                          ('1', '1')])
         self.assertEqual(field3.value(visit_id='0'), 12)
         self.assertEqual(field3.value(visit_id='1'), 14)
-        field4 = analysis.data(
+        field4 = analysis.derive(
             'derived_field4',
             session_ids=[('1', '1')])
         self.assertEqual(field4.value(), 26)
@@ -592,7 +594,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationAnalysis,
             analysis_name,
             inputs=self.STUDY_INPUTS)
-        field5 = analysis.data(
+        field5 = analysis.derive(
             'derived_field5',
             session_ids=[('1', '1')])
         self.assertEqual(len(field5), 1)
@@ -638,7 +640,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationAnalysis,
             analysis_name,
             inputs=self.STUDY_INPUTS)
-        analysis.data('derived_field5')
+        analysis.data('derived_field5', derive=True)
 
         def values_equal(field_name, values):
             for subj_i in range(self.NUM_SUBJECTS):
@@ -671,7 +673,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'pipeline3_op': 'mul'})
-        analysis.data('derived_field3', subject_id='0', visit_id='0')
+        analysis.data('derived_field3', subject_id='0', visit_id='0', derive=True)
         values_equal('derived_field1',
                      {k: new_value for k in orig_field1_values})
         self.assertEqual(
@@ -689,7 +691,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             processor=SingleProc(self.work_dir, reprocess=True),
             parameters={
                 'increment': 2})
-        analysis.data('derived_field5', subject_id='0', visit_id='0')
+        analysis.data('derived_field5', subject_id='0', visit_id='0', derive=True)
         values_equal('derived_field1',
                      {k: v + 1 for k, v in orig_field1_values.items()})
 
@@ -699,13 +701,13 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             TestDialationAnalysis,
             analysis_name,
             inputs=self.STUDY_INPUTS)
-        field5 = analysis.data('derived_field5')
+        field5 = analysis.data('derived_field5', derive=True)
         for item in field5:
             self.assertEqual(item.value,
                              self.DEFAULT_FIELD5_VALUES[(item.subject_id,
                                                          item.visit_id)])
-        field1 = analysis.data('derived_field1')
-        field2 = analysis.data('derived_field2')
+        field1 = analysis.data('derived_field1', derive=True)
+        field2 = analysis.data('derived_field2', derive=True)
         field1.item(subject_id='0', visit_id='1').value = 1000000
         field1.item(subject_id='1', visit_id='1').value = 2000000
         # Manually change value of field 2
@@ -718,7 +720,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             parameters={
                 'increment': 2})
         # Recalculate value of field5 with new field2 value
-        field1, field2, field3, field4, field5 = analysis.data(
+        field1, field2, field3, field4, field5 = analysis.derive(
             ['derived_field1', 'derived_field2', 'derived_field3',
              'derived_field4', 'derived_field5'])
         self.assertEqual(field1.value(subject_id='0', visit_id='0'), 2)
@@ -788,20 +790,20 @@ class TestSkipMissing(BaseMultiSubjectTestCase):
                 FieldFilter('acquired_field1', 'acquired_field1', int),
                 FieldFilter('acquired_field2', 'acquired_field2', int,
                             skip_missing=True)])
-        derived_field1 = analysis.data('derived_field1')
+        derived_field1 = analysis.data('derived_field1', derive=True)
         self.assertEqual([f.exists for f in derived_field1],
                          [True, True, True, False])
-        derived_field2 = analysis.data('derived_field2')
+        derived_field2 = analysis.data('derived_field2', derive=True)
         self.assertEqual([f.exists for f in derived_field2], [True, False])
-        derived_field3 = analysis.data('derived_field3')
+        derived_field3 = analysis.data('derived_field3', derive=True)
         self.assertEqual([f.exists for f in derived_field3], [True, False])
-        derived_field4 = analysis.data('derived_field4')
+        derived_field4 = analysis.data('derived_field4', derive=True)
         self.assertEqual([f.exists for f in derived_field4], [False])
-        derived_field5 = analysis.data('derived_field5')
+        derived_field5 = analysis.data('derived_field5', derive=True)
         self.assertEqual([f.exists for f in derived_field5],
                          [False, False, False, False])
         # Provide missing data
-        missing_field = analysis.data('acquired_field2').item('1', '1')
+        missing_field = analysis.data('acquired_field2', derive=True).item('1', '1')
         missing_field.value = 40
-        derived_field5 = analysis.data('derived_field5')
+        derived_field5 = analysis.data('derived_field5', derive=True)
         self.assertTrue(all(f.exists for f in derived_field5))

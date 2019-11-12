@@ -238,8 +238,8 @@ class Analysis(object):
                                 'Non-optional' + msg + " Pipelines depending "
                                 "on this fileset will not run")
 
-    def data(self, name, subject_ids=None, visit_ids=None, session_ids=None,
-             generate=True, **kwargs):
+    def derive(self, name, subject_ids=None, visit_ids=None,
+               session_ids=None, **kwargs):
         """
         Returns the Fileset(s) or Field(s) associated with the provided spec
         name(s), generating derived filesets as required. Multiple names in a
@@ -266,8 +266,66 @@ class Analysis(object):
         session_ids : list[str]
             The session IDs (i.e. 2-tuples of the form
             (<subject-id>, <visit-id>) to include in the returned slice
-        generate : bool
-            Whether to generate data that hasn't been generated yet or not
+        """
+        (names, subject_ids, visit_ids, session_ids,
+         _, _, _) = self._pluralise_names_and_ids(
+             name=name, subject_ids=subject_ids, visit_ids=visit_ids,
+             session_ids=session_ids, **kwargs)
+        specs = [self.spec(n) for n in names]
+        # Work out which pipelines need to be run
+        pipeline_getters = defaultdict(set)
+        for spec in specs:
+            if spec.derived or spec.derivable:  # Filter out Analysis input
+                # Add name of spec to set of required outputs
+                pipeline_getters[(spec.pipeline_getter,
+                                  spec.pipeline_args)].add(spec.name)
+        # Run required pipelines
+        if pipeline_getters:
+            kwargs = copy(kwargs)
+            kwargs.update({'subject_ids': subject_ids,
+                           'visit_ids': visit_ids,
+                           'session_ids': session_ids})
+            try:
+                pipelines, required_outputs = zip(*(
+                    (self.pipeline(getter, pipeline_args=args), req_outs)
+                    for (getter, args), req_outs in pipeline_getters.items()))
+            except ArcanaError as e:
+                e.msg += ", in order to derive '{}'".format(
+                    "', '".join(names))
+                raise e
+            kwargs['required_outputs'] = required_outputs
+            self.processor.run(*pipelines, **kwargs)
+
+    def data(self, name, subject_ids=None, visit_ids=None,
+             session_ids=None, derive=False, **kwargs):
+        """
+        Returns the Fileset(s) or Field(s) associated with the provided spec
+        name(s), generating derived filesets as required if 'derive' flag is
+        set. Multiple names in a list can be provided, to allow their workflows
+        to be combined into a single workflow.
+
+        Parameters
+        ----------
+        name : str | List[str]
+            The name of the FilesetSpec|FieldSpec to retried the
+            filesets for
+        subject_id : str | None
+            The subject ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            slice
+        visit_id : str | None
+            The visit ID of the data to return. If provided (including None
+            values) the data will be return as a single item instead of a
+            c ollection
+        subject_ids : list[str]
+            The subject IDs to include in the returned slice
+        visit_ids : list[str]
+            The visit IDs to include in the returned slice
+        session_ids : list[str]
+            The session IDs (i.e. 2-tuples of the form
+            (<subject-id>, <visit-id>) to include in the returned slice
+        derive : bool
+            Whether to derive data that hasn't been generated yet
 
         Returns
         -------
@@ -278,6 +336,62 @@ class Analysis(object):
             across the dataset are returned. If muliple spec names are provided
             then a
             list of items or collections corresponding to each spec name.
+        """
+        (names, subject_ids, visit_ids, session_ids,
+         single_name, single_item,
+         filter_items) = self._pluralise_names_and_ids(
+             name=name, subject_ids=subject_ids, visit_ids=visit_ids,
+             session_ids=session_ids, **kwargs)
+        if derive:
+            self.derive(name=names, subject_ids=subject_ids,
+                        visit_ids=visit_ids, session_ids=session_ids, **kwargs)
+        # Find and return Item/Slice corresponding to requested spec
+        # names
+        all_data = []
+        for name in names:
+            spec = self.bound_spec(name)
+            data = spec.slice
+            if single_item:
+                data = data.item(subject_id=subject_ids[0],
+                                 visit_id=visit_ids[0])
+            elif filter_items and spec.frequency != 'per_dataset':
+                if subject_ids is None:
+                    subject_ids = []
+                if visit_ids is None:
+                    visit_ids = []
+                if session_ids is None:
+                    session_ids = []
+                if spec.frequency == 'per_session':
+                    data = [d for d in data
+                            if (d.subject_id in subject_ids
+                                or d.visit_id in visit_ids
+                                or d.session_id in session_ids)]
+                elif spec.frequency == 'per_subject':
+                    data = [
+                        d for d in data
+                        if (d.subject_id in subject_ids
+                            or d.subject_id in [s[0] for s in session_ids])]
+                elif spec.frequency == 'per_visit':
+                    data = [d for d in data
+                            if (d.visit_id in visit_ids
+                                or d.visit_id in [s[1] for s in session_ids])]
+                if not data:
+                    raise ArcanaUsageError(
+                        "No matching data found (subject_ids={}, visit_ids={} "
+                        ", session_ids={})"
+                        .format(subject_ids, visit_ids, session_ids))
+                data = spec.SliceClass(spec.name, data)
+            all_data.append(data)
+        if single_name:
+            all_data = all_data[0]
+        return all_data
+
+    def _pluralise_names_and_ids(self, name, subject_ids=None, visit_ids=None,
+                                 session_ids=None, **kwargs):
+        """
+        Creates lists of names and IDs that can be passed to 'derive' and
+        'data' methods. Allows flexible calling of derive/data methods with
+        a single or multiple names and IDs.
         """
         if isinstance(name, basestring):
             single_name = True
@@ -320,70 +434,8 @@ class Analysis(object):
                     "Non-None values for subject and/or visit IDs need to be "
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
-        if generate:
-            # Work out which pipelines need to be run
-            pipeline_getters = defaultdict(set)
-            for spec in specs:
-                if spec.derived or spec.derivable:  # Filter out Analysis input
-                    # Add name of spec to set of required outputs
-                    pipeline_getters[(spec.pipeline_getter,
-                                      spec.pipeline_args)].add(spec.name)
-            # Run required pipelines
-            if pipeline_getters:
-                kwargs = copy(kwargs)
-                kwargs.update({'subject_ids': subject_ids,
-                               'visit_ids': visit_ids,
-                               'session_ids': session_ids})
-                try:
-                    pipelines, required_outputs = zip(*(
-                        (self.pipeline(getter, pipeline_args=args), req_outs)
-                        for (getter,
-                             args), req_outs in pipeline_getters.items()))
-                except ArcanaError as e:
-                    e.msg += ", in order to derive '{}'".format(
-                        "', '".join(names))
-                    raise e
-                kwargs['required_outputs'] = required_outputs
-                self.processor.run(*pipelines, **kwargs)
-        # Find and return Item/Slice corresponding to requested spec
-        # names
-        all_data = []
-        for name in names:
-            spec = self.bound_spec(name)
-            data = spec.slice
-            if single_item:
-                data = data.item(subject_id=subject_id, visit_id=visit_id)
-            elif filter_items and spec.frequency != 'per_dataset':
-                if subject_ids is None:
-                    subject_ids = []
-                if visit_ids is None:
-                    visit_ids = []
-                if session_ids is None:
-                    session_ids = []
-                if spec.frequency == 'per_session':
-                    data = [d for d in data
-                            if (d.subject_id in subject_ids
-                                or d.visit_id in visit_ids
-                                or d.session_id in session_ids)]
-                elif spec.frequency == 'per_subject':
-                    data = [
-                        d for d in data
-                        if (d.subject_id in subject_ids
-                            or d.subject_id in [s[0] for s in session_ids])]
-                elif spec.frequency == 'per_visit':
-                    data = [d for d in data
-                            if (d.visit_id in visit_ids
-                                or d.visit_id in [s[1] for s in session_ids])]
-                if not data:
-                    raise ArcanaUsageError(
-                        "No matching data found (subject_ids={}, visit_ids={} "
-                        ", session_ids={})"
-                        .format(subject_ids, visit_ids, session_ids))
-                data = spec.SliceClass(spec.name, data)
-            all_data.append(data)
-        if single_name:
-            all_data = all_data[0]
-        return all_data
+        return (names, subject_ids, visit_ids, session_ids, single_name,
+                single_item, filter_items)
 
     def pipeline(self, getter_name, required_outputs=None, pipeline_args=None):
         """
@@ -512,7 +564,16 @@ class Analysis(object):
         return pkld
 
     @classmethod
-    def static_menu(cls):
+    def static_menu(cls, full=False):
+        """
+        Displays a "menu" of inputs and parameters that can be supplied to the
+        analysis and the outputs that can be derived from them
+        
+        Parameters
+        ----------
+        full : bool
+            Show all derivatives instead of just 'output' ones
+        """
         ITEM_INDENT = 4
         LINE_LENGTH = 79
         DESC_INDENT = 8
@@ -552,17 +613,18 @@ class Analysis(object):
                               prefix_indent=True))
         menu += '\n\nDerivatives:'
         for spec in cls.derived_data_specs():
-            if isinstance(spec, BaseFileset):
-                menu += '\n{}{} : {}\n{}'.format(
-                    ' ' * ITEM_INDENT, spec.name, spec.format.name,
-                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                              prefix_indent=True))
-            else:
-                menu += '\n{}{} : {}{}\n{}'.format(
-                    ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
-                    (' array' if spec.array else ''),
-                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                              prefix_indent=True))
+            if spec.category == 'output' or full:
+                if isinstance(spec, BaseFileset):
+                    menu += '\n{}{} : {}\n{}'.format(
+                        ' ' * ITEM_INDENT, spec.name, spec.format.name,
+                        wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                                prefix_indent=True))
+                else:
+                    menu += '\n{}{} : {}{}\n{}'.format(
+                        ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
+                        (' array' if spec.array else ''),
+                        wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                                prefix_indent=True))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
             menu += '\n{}{}{} : {}\n{}'.format(

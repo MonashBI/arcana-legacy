@@ -52,14 +52,14 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_project_info(self):
-        tree = self.dataset.repository.tree()
+        tree = self.dataset.tree
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format
                 # Clear id and format name from regenerated tree
                 fileset._id = None
 #                 fileset.get()
-        ref_tree = self.get_tree(self.dataset.repository)  # , sync_with_repo=True)
+        ref_tree = self.get_tree(self.dataset)  # , sync_with_repo=True)
         self.assertEqual(
             tree, ref_tree,
             "Generated project doesn't match reference:{}"

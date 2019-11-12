@@ -23,7 +23,7 @@ from arcana.data import InputFilesetSpec, FilesetSpec, FieldSpec
 from future.utils import with_metaclass
 
 
-class DummyAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
+class DummyAnalysis(Analysis, metaclass=AnalysisMetaClass):
 
     add_data_specs = [
         InputFilesetSpec('source1', text_format),
@@ -92,10 +92,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         # Create working dirs
         # Create DarisSource node
         repository = XnatRepo(
-            project_id=self.project,
             server=SERVER, cache_dir=self.cache_dir)
+        dataset = repository.dataset(self.project)
         analysis = DummyAnalysis(
-            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
+            self.STUDY_NAME, dataset=dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format),
                     FilesetFilter('source2', 'source2', text_format),
                     FilesetFilter('source3', 'source3', text_format),
@@ -153,10 +153,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
     @unittest.skipIf(*SKIP_ARGS)
     def test_fields_roundtrip(self):
         repository = XnatRepo(
-            server=SERVER, cache_dir=self.cache_dir,
-            project_id=self.project)
+            server=SERVER, cache_dir=self.cache_dir)
+        dataset = repository.dataset(self.project)
         analysis = DummyAnalysis(
-            self.STUDY_NAME, repository, processor=SingleProc('a_dir'),
+            self.STUDY_NAME, dataset=dataset, processor=SingleProc('a_dir'),
             inputs=[FilesetFilter('source1', 'source1', text_format)])
         fields = ['field{}'.format(i) for i in range(1, 4)]
         dummy_pipeline = analysis.dummy_pipeline()
@@ -203,10 +203,10 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         tmp_dir = target_path + '.download'
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
-        repository = XnatRepo(server=SERVER, cache_dir=cache_dir,
-                              project_id=self.project)
+        repository = XnatRepo(server=SERVER, cache_dir=cache_dir)
+        dataset = repository.dataset(self.project)
         analysis = DummyAnalysis(
-            self.STUDY_NAME, repository, SingleProc('ad'),
+            self.STUDY_NAME, dataset, SingleProc('ad'),
             inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format)])
         source = pe.Node(
             RepositorySource(
@@ -284,17 +284,18 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         shutil.rmtree(cache_dir, ignore_errors=True)
         os.makedirs(cache_dir)
         source_repository = XnatRepo(
-            project_id=self.project,
             server=SERVER, cache_dir=cache_dir)
-        sink_repository = XnatRepo(
-            project_id=self.checksum_sink_project, server=SERVER,
-            cache_dir=cache_dir)
+        source_dataset = source_repository.dataset(self.project)
+        sink_repository = XnatRepo(server=SERVER, cache_dir=cache_dir)
+        sink_dataset = sink_repository.dataset(
+            self.checksum_sink_project, subject_ids=['SUBJECT'],
+            visit_ids=['VISIT'], fill_tree=True)
         analysis = DummyAnalysis(
-            STUDY_NAME, sink_repository, SingleProc('ad'),
+            STUDY_NAME,
+            dataset=sink_dataset,
+            processor=SingleProc('ad'),
             inputs=[FilesetFilter(DATASET_NAME, DATASET_NAME, text_format,
-                                  repository=source_repository)],
-            subject_ids=['SUBJECT'], visit_ids=['VISIT'],
-            fill_tree=True)
+                                  dataset=source_dataset)])
         source = pe.Node(
             RepositorySource(
                 [analysis.bound_spec(DATASET_NAME).slice]),
@@ -371,10 +372,11 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         # Create working dirs
         # Create XnatSource node
         repository = XnatRepo(
-            server=SERVER, cache_dir=self.cache_dir,
-            project_id=self.project)
+            server=SERVER, cache_dir=self.cache_dir)
         analysis = DummyAnalysis(
-            self.SUMMARY_STUDY_NAME, repository, SingleProc('ad'),
+            self.SUMMARY_STUDY_NAME,
+            repository.dataset(self.project),
+            SingleProc('ad'),
             inputs=[
                 FilesetFilter('source1', 'source1', text_format),
                 FilesetFilter('source2', 'source2', text_format),

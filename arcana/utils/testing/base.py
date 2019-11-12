@@ -171,7 +171,7 @@ class BaseTestCase(TestCase):
 
     @property
     def dataset_tree(self):
-        return self.dataset.tree()
+        return self.dataset.tree
 
     @property
     def xnat_session_name(self):

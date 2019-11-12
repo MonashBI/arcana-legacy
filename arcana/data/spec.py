@@ -14,6 +14,7 @@ from .slice import FilesetSlice, FieldSlice
 
 class BaseInputSpecMixin(object):
 
+    category = 'input'
     derived = False
     # For duck-typing with *Input objects
     skip_missing = False
@@ -134,6 +135,7 @@ class BaseInputSpecMixin(object):
 
 class BaseSpecMixin(object):
 
+    category = 'intermediate'
     derived = True
     # For duck-typing with *Input objects
     skip_missing = False
@@ -667,3 +669,74 @@ class FieldSpec(BaseField, BaseSpecMixin):
             frequency=self.frequency,
             dtype=self.dtype,
             array=self.array)
+
+
+class OutputFilesetSpec(FilesetSpec):
+    """
+    A specification for a fileset within a analysis to be derived from a
+    processing pipeline that is typically a publishable output (almost
+    identical to FilesetSpec)
+
+    Parameters
+    ----------
+    name : str
+        The name of the fileset
+    format : FileFormat
+        The file format used to store the fileset. Can be one of the
+        recognised formats
+    pipeline_getter : str
+        Name of the method in the analysis that constructs a pipeline to derive
+        the fileset
+    frequency : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        specifying whether the fileset is present for each session, subject,
+        visit or project.
+    desc : str
+        Description of what the field represents
+    valid_formats : list[FileFormat]
+        A list of valid file formats that can be supplied to the spec if
+        overridden as an input. Typically not required, but useful for some
+        specs that are typically provided as inputs (e.g. magnitude MRI)
+        but can be derived from other inputs (e.g. coil-wise MRI images)
+    pipeline_args : dct[str, *] | None
+        Arguments to pass to the pipeline constructor method. Avoids having to
+        create separate methods for each spec, where the only difference
+        between the specs are interface parameterisations
+    group : str | None
+        A name for a group of fileset specs. Used improve human searching of
+        available options
+    """
+
+    category = 'output'
+
+
+class OutputFieldSpec(FieldSpec):
+    """
+    A specification for a field within a analysis to be derived from a
+    processing pipeline that is typically a publishable output (almost
+    identical to FieldSpec).
+
+    Parameters
+    ----------
+    name : str
+        The name of the fileset
+    dtype : type
+        The datatype of the value. Can be one of (float, int, str)
+    pipeline_getter : str
+        Name of the method that constructs pipelines to derive the field
+    frequency : str
+        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        specifying whether the fileset is present for each session, subject,
+        visit or project.
+    desc : str
+        Description of what the field represents
+    pipeline_args : dct[str, *] | None
+        Arguments to pass to the pipeline constructor method. Avoids having to
+        create separate methods for each spec, where the only difference
+        between the specs are interface parameterisations
+    group : str
+        A name for a group of fileset specs. Used improve human searching of
+        available options
+    """
+
+    category = 'output'

@@ -157,12 +157,12 @@ class BaseSliceMixin(object):
                 fileset = self._slice[0]
             except IndexError:
                 raise ArcanaIndexError(
-                    0, ("'{}' Slice is empty so doesn't have a " +
-                        "per_dataset node").format(self.name))
+                    0, ("'{}' Slice is empty so doesn't have a "
+                        + "per_dataset node").format(self.name))
         return fileset
 
     @property
-    def slce(self):
+    def slice(self):
         "Used for duck typing Slice objects with Spec and Match "
         "in source and sink initiation"
         return self
