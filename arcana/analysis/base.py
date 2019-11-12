@@ -239,7 +239,7 @@ class Analysis(object):
                                 "on this fileset will not run")
 
     def derive(self, name, subject_ids=None, visit_ids=None,
-               session_ids=None, **kwargs):
+               session_ids=None, subject_id=None, visit_id=None, **kwargs):
         """
         Returns the Fileset(s) or Field(s) associated with the provided spec
         name(s), generating derived filesets as required. Multiple names in a
@@ -270,7 +270,8 @@ class Analysis(object):
         (names, subject_ids, visit_ids, session_ids,
          _, _, _) = self._pluralise_names_and_ids(
              name=name, subject_ids=subject_ids, visit_ids=visit_ids,
-             session_ids=session_ids, **kwargs)
+             session_ids=session_ids, subject_id=subject_id, visit_id=visit_id,
+             **kwargs)
         specs = [self.spec(n) for n in names]
         # Work out which pipelines need to be run
         pipeline_getters = defaultdict(set)
@@ -344,7 +345,7 @@ class Analysis(object):
              session_ids=session_ids, **kwargs)
         if derive:
             self.derive(name=names, subject_ids=subject_ids,
-                        visit_ids=visit_ids, session_ids=session_ids, **kwargs)
+                        visit_ids=visit_ids, session_ids=session_ids)
         # Find and return Item/Slice corresponding to requested spec
         # names
         all_data = []
@@ -568,7 +569,7 @@ class Analysis(object):
         """
         Displays a "menu" of inputs and parameters that can be supplied to the
         analysis and the outputs that can be derived from them
-        
+
         Parameters
         ----------
         full : bool
@@ -611,20 +612,33 @@ class Analysis(object):
                     spec.dtype.__name__, (' array' if spec.array else ''),
                     wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                               prefix_indent=True))
-        menu += '\n\nDerivatives:'
-        for spec in cls.derived_data_specs():
-            if spec.category == 'output' or full:
+        if spec.category == 'output' or full:
+            menu += '\n\nDerivatives:'
+            for spec in cls.derived_data_specs():
                 if isinstance(spec, BaseFileset):
                     menu += '\n{}{} : {}\n{}'.format(
                         ' ' * ITEM_INDENT, spec.name, spec.format.name,
                         wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                                prefix_indent=True))
+                                  prefix_indent=True))
                 else:
                     menu += '\n{}{} : {}{}\n{}'.format(
                         ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
                         (' array' if spec.array else ''),
                         wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                                prefix_indent=True))
+                                  prefix_indent=True))
+        menu += '\n\nOutputs:'
+        for spec in cls.derived_data_specs():
+            if isinstance(spec, BaseFileset):
+                menu += '\n{}{} : {}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.format.name,
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
+            else:
+                menu += '\n{}{} : {}{}\n{}'.format(
+                    ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
+                    (' array' if spec.array else ''),
+                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                              prefix_indent=True))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
             menu += '\n{}{}{} : {}\n{}'.format(

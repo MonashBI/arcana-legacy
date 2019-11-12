@@ -35,11 +35,12 @@ class Processor(object):
     max_process_time : float
         The maximum time allowed for the process
     reprocess: bool | 'force'
-        A flag which determines whether to rerun the processing for this
-        step if a provenance mismatch is detected between save derivative and
-        parameters passed to the Analysis. If False, an exception will be raised
-        in this case. If passed a value of 'force' then the outputs will be
-        regenerated regardless of existing derivatives (used mainly in testing)
+        A flag which determines whether to rerun the processing for this step
+        if a provenance mismatch is detected between save derivative and
+        parameters passed to the Analysis. If False, an exception will be
+        raised in this case. If passed a value of 'force' then the outputs will
+        be regenerated regardless of existing derivatives (used mainly in
+        testing)
     prov_check : iterable[str]
         Paths in the provenance dictionary to include in checks with previously
         generated derivatives to determine whether they need to be rerun.
@@ -300,8 +301,8 @@ class Processor(object):
                 filt_array = filt_array | prev_filt_array
             # If the pipeline to process contains summary outputs (i.e. 'per-
             # subject|visit|analysis' frequency), then we need to "dialate" the
-            # filter array to include IDs across the scope of the analysis, e.g.
-            # all subjects for per-vist, or all visits for per-subject.
+            # filter array to include IDs across the scope of the analysis,
+            # e.g. all subjects for per-vist, or all visits for per-subject.
             output_freqs = set(pipeline.output_frequencies)
             dialated_filt_array = self._dialate_array(filt_array,
                                                       pipeline.joins)
@@ -549,7 +550,7 @@ class Processor(object):
             # the sink and subject_id as the default deiterator if there are no
             # deiterates (i.e. per_dataset) or to use as the upstream node to
             # connect the first deiterator for every frequency
-            deiter_nodes[freq] = sink  # for per_dataset the "deiterator" == sink
+            deiter_nodes[freq] = sink  # for per_dataset the "deiter" == sink
             for iterator in sorted(pipeline.iterators(freq),
                                    key=deiter_node_sort_key):
                 # Connect to previous deiterator or sink
@@ -576,8 +577,8 @@ class Processor(object):
 
     def _iterate(self, pipeline, to_process_array, subject_inds, visit_inds):
         """
-        Generate nodes that iterate over subjects and visits in the analysis that
-        need to be processed by the pipeline
+        Generate nodes that iterate over subjects and visits in the analysis
+        that need to be processed by the pipeline
 
         Parameters
         ----------
@@ -674,9 +675,9 @@ class Processor(object):
             visit_it = pipeline.add(self.analysis.VISIT_ID,
                                     IdentityInterface(fields))
             if dependent == self.analysis.VISIT_ID:
-                visit_it.itersource = ('{}_{}'.format(pipeline.name,
-                                                      self.analysis.SUBJECT_ID),
-                                       self.analysis.SUBJECT_ID)
+                visit_it.itersource = (
+                    '{}_{}'.format(pipeline.name, self.analysis.SUBJECT_ID),
+                    self.analysis.SUBJECT_ID)
                 visit_it.iterables = [(
                     self.analysis.VISIT_ID,
                     {inv_subj_inds[m]:[inv_visit_inds[n]

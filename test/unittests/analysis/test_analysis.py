@@ -325,7 +325,8 @@ class TestAnalysis(BaseMultiSubjectTestCase):
     def test_analysis_summary(self):
         analysis = self.make_analysis()
         ref = float(len(self.SUBJECT_IDS) * len(self.VISIT_IDS))
-        self.assertContentsEqual(analysis.data('analysis_summary', derive=True), ref)
+        self.assertContentsEqual(analysis.data('analysis_summary',
+                                               derive=True), ref)
 
     def test_subject_ids_access(self):
         analysis = self.make_analysis()
@@ -653,7 +654,7 @@ class TestInterfaceErrorHandling(BaseTestCase):
         logger.setLevel(50)
         self.assertRaises(
             RuntimeError,
-            analysis.data,
+            analysis.derive,
             'raise_error')
         logger.setLevel(orig_level)
 
@@ -695,7 +696,8 @@ class TestGeneratedPickle(BaseTestCase):
         del MultiGeneratedClass
         with open(pkl_path, 'rb') as f:
             regen = pkl.load(f)
-        self.assertContentsEqual(regen.data('ss2_out_fileset', derive=True), 'foo')
+        self.assertContentsEqual(regen.data('ss2_out_fileset', derive=True),
+                                 'foo')
 
     def test_genenerated_method_pickle_fail(self):
         cls_dct = {

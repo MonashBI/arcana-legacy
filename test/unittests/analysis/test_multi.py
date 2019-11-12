@@ -94,21 +94,21 @@ class FullMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
 
     add_subcomp_specs = [
         SubCompSpec('ss1', AnalysisA,
-                     {'x': 'a',
-                      'y': 'b',
-                      'z': 'd',
-                      'o1': 'p1',
-                      'o2': 'p2',
-                      'o3': 'p3'}),
+                    {'x': 'a',
+                     'y': 'b',
+                     'z': 'd',
+                     'o1': 'p1',
+                     'o2': 'p2',
+                     'o3': 'p3'}),
         SubCompSpec('ss2', AnalysisB,
-                     {'w': 'b',
-                      'x': 'c',
-                      'y': 'e',
-                      'z': 'f',
-                      'o1': 'q1',
-                      'o2': 'q2',
-                      'o3': 'p3',
-                      'product_op': 'required_op'})]
+                    {'w': 'b',
+                     'x': 'c',
+                     'y': 'e',
+                     'z': 'f',
+                     'o1': 'q1',
+                     'o2': 'q2',
+                     'o3': 'p3',
+                     'product_op': 'required_op'})]
 
     add_data_specs = [
         InputFilesetSpec('a', text_format),
@@ -136,9 +136,9 @@ class PartialMultiAnalysis(MultiAnalysis, metaclass=MultiAnalysisMetaClass):
 
     add_subcomp_specs = [
         SubCompSpec('ss1', AnalysisA,
-                     {'x': 'a', 'y': 'b', 'o1': 'p1'}),
+                    {'x': 'a', 'y': 'b', 'o1': 'p1'}),
         SubCompSpec('ss2', AnalysisB,
-                     {'w': 'b', 'x': 'c', 'o1': 'p1'})]
+                    {'w': 'b', 'x': 'c', 'o1': 'p1'})]
 
     add_data_specs = [
         InputFilesetSpec('a', text_format),
@@ -152,7 +152,7 @@ class PartialMultiAnalysis(MultiAnalysis, metaclass=MultiAnalysisMetaClass):
         ParamSpec('p1', 1000)]
 
 
-class MultiMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
+class MultiMultiAnalysis(MultiAnalysis, metaclass=MultiAnalysisMetaClass):
 
     add_subcomp_specs = [
         SubCompSpec('ss1', AnalysisA),
@@ -228,8 +228,8 @@ class TestMulti(BaseTestCase):
              FilesetFilter('b', 'ones', text_format),
              FilesetFilter('c', 'ones', text_format)],
             parameters=[Parameter('ss2_product_op', 'mul')])
-        ss1_z = analysis.derive('ss1_z',
-                           subject_id='SUBJECT', visit_id='VISIT')
+        ss1_z = analysis.data('ss1_z', subject_id='SUBJECT', visit_id='VISIT',
+                              derive=True)
         ss2_z = list(analysis.data('ss2_z', derive=True))[0]
         self.assertContentsEqual(ss1_z, 2.0)
         self.assertContentsEqual(analysis.data('ss2_y', derive=True), 3.0)
@@ -240,7 +240,8 @@ class TestMulti(BaseTestCase):
         self.assertEqual(analysis._get_parameter('ss1_o3').value, 3.0)
         self.assertEqual(analysis._get_parameter('ss2_o2').value, '20')
         self.assertEqual(analysis._get_parameter('ss2_o3').value, 30.0)
-        self.assertEqual(analysis._get_parameter('ss2_product_op').value, 'mul')
+        self.assertEqual(analysis._get_parameter('ss2_product_op').value,
+                         'mul')
         # Test parameter values in SubComp
         ss1 = analysis.subcomp('ss1')
         self.assertEqual(ss1._get_parameter('o1').value, 1000)
@@ -322,7 +323,7 @@ class TestMulti(BaseTestCase):
                 Parameter('partial_ss2_product_op', 'mul')])
         self.assertRaises(
             NotSpecifiedRequiredParameter,
-            missing_parameter_analysis.data,
+            missing_parameter_analysis.derive,
             'g')
         missing_parameter_analysis2 = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
@@ -330,7 +331,7 @@ class TestMulti(BaseTestCase):
             parameters=[Parameter('full_required_op', 'mul')])
         self.assertRaises(
             NotSpecifiedRequiredParameter,
-            missing_parameter_analysis2.data,
+            missing_parameter_analysis2.derive,
             'g')
         provided_parameters_analysis = self.create_analysis(
             MultiMultiAnalysis, 'multi_multi',
