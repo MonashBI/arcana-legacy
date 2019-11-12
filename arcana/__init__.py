@@ -24,7 +24,7 @@ from .analysis import (
     SubCompSpec, Parameter, ParamSpec, SwitchSpec)
 from .data import (
     FilesetSpec, FilesetFilter, FieldSpec, FieldFilter,
-    InputFilesetSpec, InputFieldSpec)
+    InputFilesetSpec, InputFieldSpec, OutputFilesetSpec, OutputFieldSpec)
 from .data.file_format import FileFormat
 from .data import Fileset, Field, FilesetSlice, FieldSlice
 from .processor import (

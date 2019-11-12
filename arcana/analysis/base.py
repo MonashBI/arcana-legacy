@@ -238,8 +238,8 @@ class Analysis(object):
                                 'Non-optional' + msg + " Pipelines depending "
                                 "on this fileset will not run")
 
-    def derive(self, name, subject_ids=None, visit_ids=None,
-               session_ids=None, subject_id=None, visit_id=None, **kwargs):
+    def derive(self, name, subject_ids=None, visit_ids=None, session_ids=None,
+               **kwargs):
         """
         Returns the Fileset(s) or Field(s) associated with the provided spec
         name(s), generating derived filesets as required. Multiple names in a
@@ -268,34 +268,10 @@ class Analysis(object):
             (<subject-id>, <visit-id>) to include in the returned slice
         """
         (names, subject_ids, visit_ids, session_ids,
-         _, _, _) = self._pluralise_names_and_ids(
+         _, _, _, _, _, kwargs) = self._pluralise_names_and_ids(
              name=name, subject_ids=subject_ids, visit_ids=visit_ids,
-             session_ids=session_ids, subject_id=subject_id, visit_id=visit_id,
-             **kwargs)
-        specs = [self.spec(n) for n in names]
-        # Work out which pipelines need to be run
-        pipeline_getters = defaultdict(set)
-        for spec in specs:
-            if spec.derived or spec.derivable:  # Filter out Analysis input
-                # Add name of spec to set of required outputs
-                pipeline_getters[(spec.pipeline_getter,
-                                  spec.pipeline_args)].add(spec.name)
-        # Run required pipelines
-        if pipeline_getters:
-            kwargs = copy(kwargs)
-            kwargs.update({'subject_ids': subject_ids,
-                           'visit_ids': visit_ids,
-                           'session_ids': session_ids})
-            try:
-                pipelines, required_outputs = zip(*(
-                    (self.pipeline(getter, pipeline_args=args), req_outs)
-                    for (getter, args), req_outs in pipeline_getters.items()))
-            except ArcanaError as e:
-                e.msg += ", in order to derive '{}'".format(
-                    "', '".join(names))
-                raise e
-            kwargs['required_outputs'] = required_outputs
-            self.processor.run(*pipelines, **kwargs)
+             session_ids=session_ids, **kwargs)
+        self._derive(names, subject_ids, visit_ids, session_ids, **kwargs)
 
     def data(self, name, subject_ids=None, visit_ids=None,
              session_ids=None, derive=False, **kwargs):
@@ -338,14 +314,14 @@ class Analysis(object):
             then a
             list of items or collections corresponding to each spec name.
         """
+        # Convert parameters into list of spec names and IDs
         (names, subject_ids, visit_ids, session_ids,
-         single_name, single_item,
-         filter_items) = self._pluralise_names_and_ids(
+         single_name, single_item, subject_id, visit_id, filter_items,
+         kwargs) = self._pluralise_names_and_ids(
              name=name, subject_ids=subject_ids, visit_ids=visit_ids,
              session_ids=session_ids, **kwargs)
         if derive:
-            self.derive(name=names, subject_ids=subject_ids,
-                        visit_ids=visit_ids, session_ids=session_ids)
+            self._derive(names, subject_ids, visit_ids, session_ids, **kwargs)
         # Find and return Item/Slice corresponding to requested spec
         # names
         all_data = []
@@ -353,8 +329,7 @@ class Analysis(object):
             spec = self.bound_spec(name)
             data = spec.slice
             if single_item:
-                data = data.item(subject_id=subject_ids[0],
-                                 visit_id=visit_ids[0])
+                data = data.item(subject_id=subject_id, visit_id=visit_id)
             elif filter_items and spec.frequency != 'per_dataset':
                 if subject_ids is None:
                     subject_ids = []
@@ -387,6 +362,35 @@ class Analysis(object):
             all_data = all_data[0]
         return all_data
 
+    def _derive(self, names, subject_ids, visit_ids, session_ids, **kwargs):
+        """
+        Internals of the dataset derivation
+        """
+        specs = [self.spec(n) for n in names]
+        # Work out which pipelines need to be run
+        pipeline_getters = defaultdict(set)
+        for spec in specs:
+            if spec.derived or spec.derivable:  # Filter out Analysis input
+                # Add name of spec to set of required outputs
+                pipeline_getters[(spec.pipeline_getter,
+                                  spec.pipeline_args)].add(spec.name)
+        # Run required pipelines
+        if pipeline_getters:
+            kwargs = copy(kwargs)
+            kwargs.update({'subject_ids': subject_ids,
+                           'visit_ids': visit_ids,
+                           'session_ids': session_ids})
+            try:
+                pipelines, required_outputs = zip(*(
+                    (self.pipeline(getter, pipeline_args=args), req_outs)
+                    for (getter, args), req_outs in pipeline_getters.items()))
+            except ArcanaError as e:
+                e.msg += ", in order to derive '{}'".format(
+                    "', '".join(names))
+                raise e
+            kwargs['required_outputs'] = required_outputs
+            self.processor.run(*pipelines, **kwargs)
+
     def _pluralise_names_and_ids(self, name, subject_ids=None, visit_ids=None,
                                  session_ids=None, **kwargs):
         """
@@ -404,14 +408,14 @@ class Analysis(object):
         filter_items = (subject_ids, visit_ids, session_ids) != (None, None,
                                                                  None)
         specs = [self.spec(n) for n in names]
+        subject_id = kwargs.pop('subject_id', None)
+        visit_id = kwargs.pop('visit_id', None)
         if single_item:
             if filter_items:
                 raise ArcanaUsageError(
                     "Cannot provide 'subject_id' and/or 'visit_id' in "
                     "combination with 'subject_ids', 'visit_ids' or "
                     "'session_ids'")
-            subject_id = kwargs.pop('subject_id', None)
-            visit_id = kwargs.pop('visit_id', None)
             iterators = set(chain(self.FREQUENCIES[s.frequency]
                                   for s in specs))
             if subject_id is not None and visit_id is not None:
@@ -436,7 +440,7 @@ class Analysis(object):
                     "provided to select a single item for each of '{}'"
                     .format("', '".join(names)))
         return (names, subject_ids, visit_ids, session_ids, single_name,
-                single_item, filter_items)
+                single_item, subject_id, visit_id, filter_items, kwargs)
 
     def pipeline(self, getter_name, required_outputs=None, pipeline_args=None):
         """

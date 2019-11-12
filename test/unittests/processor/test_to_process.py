@@ -358,7 +358,7 @@ class TestProvBasic(BaseTestCase):
         # derived field4/fileset1 is protected
         self.assertRaises(
             ArcanaProtectedOutputConflictError,
-            analysis.data,
+            analysis.derive,
             ('derived_fileset1', 'derived_field4'))
         with open(derived_fileset1_slice.path(*self.SESSION), 'w') as f:
             f.write(str(protected_derived_fileset1_value))
@@ -395,7 +395,7 @@ class TestProvInputChange(BaseTestCase):
         # Should detect that the input has changed and throw an error
         self.assertRaises(
             ArcanaReprocessException,
-            analysis.data,
+            analysis.derive,
             'derived_field2')
         new_analysis = self.create_analysis(
             TestProvAnalysis,
