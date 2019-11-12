@@ -28,7 +28,10 @@ class Dataset():
         so the sessions will need to be created in the destination
         repository.
     depth : int (0|1|2)
-        The depth of the dataset (i.e. whether it has subjects and sessions)
+        The depth of the dataset (i.e. whether it has subjects and sessions).
+            0 -> single session
+            1 -> multiple subjects
+            2 -> multiple subjects and visits
     subject_id_map : dict[str, str]
         Maps subject IDs in dataset to a global name-space
     visit_id_map : dict[str, str]
@@ -38,7 +41,7 @@ class Dataset():
     type = 'basic'
 
     def __init__(self, name, repository=None, subject_ids=None, visit_ids=None,
-                 fill_tree=False, depth=2, subject_id_map=None,
+                 fill_tree=False, depth=0, subject_id_map=None,
                  visit_id_map=None, file_formats=()):
         if repository is None:
             # needs to be imported here to avoid circular imports
@@ -65,8 +68,8 @@ class Dataset():
         self.clear_cache()
 
     def __repr__(self):
-        return "Dataset(name='{}', repository={})".format(self.name,
-                                                          self.repository)
+        return "Dataset(name='{}', depth={}, repository={})".format(
+            self.name, self.depth, self.repository)
 
     def __eq__(self, other):
         return (self.name == other.name

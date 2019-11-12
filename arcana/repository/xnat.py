@@ -161,6 +161,21 @@ class XnatRepo(Repository):
         self._login.disconnect()
         self._login = None
 
+    def dataset(self, name, **kwargs):
+        """
+        Returns a dataset from the XNAT repository
+
+        Parameters
+        ----------
+        name : str
+            The name, path or ID of the dataset within the repository
+        subject_ids : list[str]
+            The list of subjects to include in the dataset
+        visit_ids : list[str]
+            The list of visits to include in the dataset
+        """
+        return Dataset(name, repository=self, depth=2, **kwargs)
+
     def get_fileset(self, fileset):
         """
         Caches a single fileset (if the 'path' attribute is accessed

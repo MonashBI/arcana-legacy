@@ -579,6 +579,7 @@ class Analysis(object):
         full : bool
             Show all derivatives instead of just 'output' ones
         """
+        # FIXME: this method needs refactoring to reduce duplication
         ITEM_INDENT = 4
         LINE_LENGTH = 79
         DESC_INDENT = 8
@@ -616,9 +617,24 @@ class Analysis(object):
                     spec.dtype.__name__, (' array' if spec.array else ''),
                     wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                               prefix_indent=True))
-        if spec.category == 'output' or full:
-            menu += '\n\nDerivatives:'
+        if full:
+            menu += '\n\nIntermediate Derivatives:'
             for spec in cls.derived_data_specs():
+                if spec.category == 'intermediate':
+                    if isinstance(spec, BaseFileset):
+                        menu += '\n{}{} : {}\n{}'.format(
+                            ' ' * ITEM_INDENT, spec.name, spec.format.name,
+                            wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                                      prefix_indent=True))
+                    else:
+                        menu += '\n{}{} : {}{}\n{}'.format(
+                            ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
+                            (' array' if spec.array else ''),
+                            wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
+                                      prefix_indent=True))
+        menu += '\n\nOutputs:'
+        for spec in cls.derived_data_specs():
+            if spec.category == 'output':
                 if isinstance(spec, BaseFileset):
                     menu += '\n{}{} : {}\n{}'.format(
                         ' ' * ITEM_INDENT, spec.name, spec.format.name,
@@ -630,19 +646,6 @@ class Analysis(object):
                         (' array' if spec.array else ''),
                         wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                                   prefix_indent=True))
-        menu += '\n\nOutputs:'
-        for spec in cls.derived_data_specs():
-            if isinstance(spec, BaseFileset):
-                menu += '\n{}{} : {}\n{}'.format(
-                    ' ' * ITEM_INDENT, spec.name, spec.format.name,
-                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                              prefix_indent=True))
-            else:
-                menu += '\n{}{} : {}{}\n{}'.format(
-                    ' ' * ITEM_INDENT, spec.name, spec.dtype.__name__,
-                    (' array' if spec.array else ''),
-                    wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
-                              prefix_indent=True))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
             menu += '\n{}{}{} : {}\n{}'.format(
