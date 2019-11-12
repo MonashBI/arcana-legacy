@@ -417,7 +417,8 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                     from_analysis = self.STUDY_NAME if name != 'one' else None
                     filesets.append(
                         Fileset(name, text_format, subject_id=subj_id,
-                                visit_id=visit_id, from_analysis=from_analysis))
+                                visit_id=visit_id,
+                                from_analysis=from_analysis))
         return Tree.construct(self.dataset.repository, filesets=filesets)
 
     def add_sessions(self):
@@ -458,7 +459,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
                 'visit1': 1111.0,
                 'visit2': 1110.0,
                 'visit3': 1000.0}}
-        tree = self.dataset.tree()
+        tree = self.dataset.tree
         for subj_id, visits in self.PROJECT_STRUCTURE.items():
             for visit_id in visits:
                 session = tree.subject(subj_id).session(visit_id)
@@ -505,8 +506,8 @@ class TestInputValidation(BaseTestCase):
         os.makedirs(self.session_dir)
         for spec_name, fformat in (('a', test1_format), ('b', test3_format),
                                    ('c', test1_format), ('d', test3_format)):
-            with open(os.path.join(self.session_dir, spec_name) +
-                      fformat.ext, 'w') as f:
+            with open(os.path.join(self.session_dir, spec_name)
+                      + fformat.ext, 'w') as f:
                 f.write(spec_name)
 
     def test_input_validation(self):
@@ -526,8 +527,8 @@ class TestInputValidationFail(BaseTestCase):
         self.reset_dirs()
         os.makedirs(self.session_dir)
         for spec in TestInputValidationAnalysis.data_specs():
-            with open(os.path.join(self.session_dir, spec.name) +
-                      test3_format.ext, 'w') as f:
+            with open(os.path.join(self.session_dir, spec.name)
+                      + test3_format.ext, 'w') as f:
                 f.write(spec.name)
 
     def test_input_validation_fail(self):

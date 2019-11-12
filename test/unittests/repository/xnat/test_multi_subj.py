@@ -95,15 +95,15 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
     @unittest.skipIf(*SKIP_ARGS)
     def test_cache_download(self):
         repository = XnatRepo(
-            project_id=self.project,
             server=SERVER,
             cache_dir=tempfile.mkdtemp())
+        dataset = repository.dataset(self.project)
         analysis = self.create_analysis(
             TestAnalysis, 'cache_download',
             inputs=[
                 FilesetFilter('fileset1', 'fileset1', text_format),
                 FilesetFilter('fileset3', 'fileset3', text_format)],
-            repository=repository)
+            dataset=dataset)
         analysis.cache_inputs()
         for subject_id, visits in list(self.STRUCTURE.items()):
             subj_dir = op.join(

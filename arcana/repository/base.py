@@ -4,13 +4,10 @@ from abc import ABCMeta, abstractmethod
 import logging
 from .tree import Tree
 from arcana.exceptions import ArcanaUsageError
+from .dataset import Dataset
 
 
 logger = logging.getLogger('arcana')
-
-
-def defaultdict_of_dict():
-    return defaultdict(dict)
 
 
 class Repository(metaclass=ABCMeta):
@@ -51,6 +48,21 @@ class Repository(metaclass=ABCMeta):
         manage it here
         """
 
+    def dataset(self, name, **kwargs):
+        """
+        Returns a dataset from the XNAT repository
+
+        Parameters
+        ----------
+        name : str
+            The name, path or ID of the dataset within the repository
+        subject_ids : list[str]
+            The list of subjects to include in the dataset
+        visit_ids : list[str]
+            The list of visits to include in the dataset
+        """
+        return Dataset(name, repository=self, **kwargs)
+
     @abstractmethod
     def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
         """
@@ -80,7 +92,7 @@ class Repository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_fileset(self, fileset, dataset):
+    def get_fileset(self, fileset):
         """
         Cache the fileset locally if required
 
@@ -88,8 +100,6 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to cache locally
-        dataset : Dataset
-            The dataset to retrieve the fileset from
 
         Returns
         -------
@@ -98,7 +108,7 @@ class Repository(metaclass=ABCMeta):
         """
 
     @abstractmethod
-    def get_field(self, field, dataset):
+    def get_field(self, field):
         """
         Extract the value of the field from the repository
 
@@ -106,8 +116,6 @@ class Repository(metaclass=ABCMeta):
         ----------
         field : Field
             The field to retrieve the value for
-        dataset : Dataset
-            The dataset to retrieve the field from
 
         Returns
         -------
@@ -115,7 +123,7 @@ class Repository(metaclass=ABCMeta):
             The value of the Field
         """
 
-    def get_checksums(self, fileset, dataset):
+    def get_checksums(self, fileset):
         """
         Returns the checksums for the files in the fileset that are stored in
         the repository. If no checksums are stored in the repository then this
@@ -126,8 +134,6 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to return the checksums for
-        dataset : Dataset
-            The dataset to put the fileset into
 
         Returns
         -------
@@ -140,7 +146,7 @@ class Repository(metaclass=ABCMeta):
         return None
 
     @abstractmethod
-    def put_fileset(self, fileset, dataset):
+    def put_fileset(self, fileset):
         """
         Inserts or updates the fileset into the repository
 
@@ -148,12 +154,10 @@ class Repository(metaclass=ABCMeta):
         ----------
         fileset : Fileset
             The fileset to insert into the repository
-        dataset : Dataset
-            The dataset to put the fileset into
         """
 
     @abstractmethod
-    def put_field(self, field, dataset):
+    def put_field(self, field):
         """
         Inserts or updates the fields into the repository
 
@@ -161,8 +165,6 @@ class Repository(metaclass=ABCMeta):
         ----------
         field : Field
             The field to insert into the repository
-        dataset : Dataset
-            The dataset to put the field into
         """
 
     @abstractmethod

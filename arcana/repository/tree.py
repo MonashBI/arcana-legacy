@@ -192,8 +192,8 @@ class TreeNode(object):
 
     def field(self, name, from_analysis=None):
         """
-        Gets the field named 'name' produced by the Analysis named 'analysis' if
-        provided. If a spec is passed instead of a str to the name argument,
+        Gets the field named 'name' produced by the Analysis named 'analysis'
+        if provided. If a spec is passed instead of a str to the name argument,
         then the analysis will be set from the spec iff it is derived
 
         Parameters
@@ -215,17 +215,16 @@ class TreeNode(object):
             available = [d.name for d in self.fields
                          if d.from_analysis == from_analysis]
             other_analyses = [(d.from_analysis if d.from_analysis is not None
-                              else '<root>')
-                             for d in self.fields
-                             if d.name == name]
+                               else '<root>')
+                              for d in self.fields if d.name == name]
             if other_analyses:
                 msg = (". NB: matching field(s) found for '{}' analysis(ies) "
                        "('{}')".format(name, "', '".join(other_analyses)))
             else:
                 msg = ''
             raise ArcanaNameError(
-                name, ("{} doesn't have a field named '{}'{} " +
-                       "(available '{}')").format(
+                name, ("{} doesn't have a field named '{}'{} "
+                       + "(available '{}')").format(
                            self, name,
                            (" from analysis '{}'".format(from_analysis)
                             if from_analysis is not None else ''),
@@ -420,14 +419,14 @@ class Tree(TreeNode):
                                         for k, v in ids.items())))
 
     def __eq__(self, other):
-        return (super(Tree, self).__eq__(other) and
-                self._subjects == other._subjects and
-                self._visits == other._visits)
+        return (super(Tree, self).__eq__(other)
+                and self._subjects == other._subjects
+                and self._visits == other._visits)
 
     def __hash__(self):
-        return (TreeNode.__hash__(self) ^
-                hash(tuple(self.subjects)) ^
-                hash(tuple(self._visits)))
+        return (TreeNode.__hash__(self)
+                ^ hash(tuple(self.subjects))
+                ^ hash(tuple(self._visits)))
 
     @property
     def dataset(self):

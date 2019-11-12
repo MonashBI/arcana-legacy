@@ -63,11 +63,11 @@ class Record(object):
                     self.subject_id, self.visit_id, self.from_analysis))
 
     def __eq__(self, other):
-        return (self._prov == other._prov and
-                self._frequency == other._frequency and
-                self._subject_id == other._subject_id and
-                self._visit_id == other._visit_id and
-                self._from_analysis == other._from_analysis)
+        return (self._prov == other._prov
+                and self._frequency == other._frequency
+                and self._subject_id == other._subject_id
+                and self._visit_id == other._visit_id
+                and self._from_analysis == other._from_analysis)
 
     @property
     def pipeline_name(self):
@@ -140,8 +140,8 @@ class Record(object):
                     .format(pformat(self.prov)))
 
     @classmethod
-    def load(cls, pipeline_name, frequency, subject_id, visit_id, from_analysis,
-             path):
+    def load(cls, pipeline_name, frequency, subject_id, visit_id,
+             from_analysis, path):
         """
         Loads a saved provenance object from a JSON file
 

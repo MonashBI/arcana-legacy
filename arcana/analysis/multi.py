@@ -116,7 +116,6 @@ class MultiAnalysis(Analysis):
                 name + '_' + subcomp_spec.name,
                 dataset, processor, mapped_inputs,
                 parameters=mapped_parameters, enforce_inputs=False,
-                subject_ids=self.subject_ids, visit_ids=self.visit_ids,
                 clear_caches=False)
             # Append to dictionary of substudies
             if subcomp_spec.name in self._substudies:

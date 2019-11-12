@@ -63,145 +63,145 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
                         'thousands': 1000, 'with_header': {'.': 'main',
                                                            'header': 'header'}}
 
-    def get_tree(self, repo, sync_with_repo=False):
+    def get_tree(self, dataset, sync_with_repo=False):
         filesets = [
             # Subject1
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # subject1/visit1
             Fileset('hundreds', text_format,
                     subject_id='subject1', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('with_header', text_format,
                     frequency='per_session',
                     subject_id='subject1', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # subject1/visit2
             Fileset('ones', text_format,
                     subject_id='subject1', visit_id='visit2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     subject_id='subject1', visit_id='visit2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # Subject 2
             Fileset('ones', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     frequency='per_subject',
                     subject_id='subject2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # subject2/visit1
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # subject2/visit2
             Fileset('ones', text_format,
                     subject_id='subject2', visit_id='visit2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             Fileset('tens', text_format,
                     subject_id='subject2', visit_id='visit2',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # Visit 1
             Fileset('ones', text_format,
                     frequency='per_visit',
                     visit_id='visit1',
                     resource_name='text',
-                    repository=repo),
+                    dataset=dataset),
             # Analysis
             Fileset('ones', text_format,
                     frequency='per_dataset',
                     resource_name='text',
-                    repository=repo)]
+                    dataset=dataset)]
         fields = [
             # Subject 2
             Field('e', value=3.33333,
                   frequency='per_subject',
                   subject_id='subject2',
-                  repository=repo),
+                  dataset=dataset),
             # subject2/visit2
             Field('a', value=22,
                   subject_id='subject2', visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             Field('b', value=220,
                   subject_id='subject2', visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             Field('c', value='buggy',
                   subject_id='subject2', visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             # Subject1
             Field('e', value=4.44444,
                   frequency='per_subject',
                   subject_id='subject1',
-                  repository=repo),
+                  dataset=dataset),
             # subject1/visit1
             Field('a', value=1,
                   subject_id='subject1', visit_id='visit1',
-                  repository=repo),
+                  dataset=dataset),
             Field('b', value=10,
                   subject_id='subject1', visit_id='visit1',
-                  repository=repo),
+                  dataset=dataset),
             Field('d', value=42.42,
                   subject_id='subject1', visit_id='visit1',
-                  repository=repo),
+                  dataset=dataset),
             # subject1/visit2
             Field('a', value=2,
                   subject_id='subject1', visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             Field('c', value='van',
                   subject_id='subject1', visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             # Visit 1
             Field('f', value='dog',
                   frequency='per_visit',
                   visit_id='visit1',
-                  repository=repo),
+                  dataset=dataset),
             # Visit 2
             Field('f', value='cat',
                   frequency='per_visit',
                   visit_id='visit2',
-                  repository=repo),
+                  dataset=dataset),
             # Analysis
             Field('g', value=100,
                   frequency='per_dataset',
-                  repository=repo)]
+                  dataset=dataset)]
         # Set URI and IDs if necessary for repository type
         if sync_with_repo:
             for fileset in filesets:
                 fileset.get()
             for field in fields:
                 field.get()
-        tree = Tree.construct(self.dataset.repository, filesets, fields)
+        tree = Tree.construct(self.dataset, filesets, fields)
         return tree
 
     @property
@@ -215,7 +215,7 @@ class TestDirectoryProjectInfo(BaseMultiSubjectTestCase):
         open(op.join(op.join(self.project_dir, '.DS_Store')),
              'w').close()
         open(op.join(self.project_dir, a_subj_dir, '.DS_Store'), 'w').close()
-        tree = self.dataset.tree()
+        tree = self.dataset.tree
         for node in tree.nodes():
             for fileset in node.filesets:
                 fileset.format = text_format

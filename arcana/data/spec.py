@@ -218,7 +218,7 @@ class BaseSpecMixin(object):
                     "{} does not have a method named '{}' required to "
                     "derive {}".format(analysis, self.pipeline_getter,
                                        self))
-            bound._bind_tree(analysis.tree)
+            bound._bind_tree(analysis.dataset.tree)
         return bound
 
     @property

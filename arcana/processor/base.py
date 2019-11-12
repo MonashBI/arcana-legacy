@@ -211,7 +211,7 @@ class Processor(object):
 
         # Generate filter array to optionally restrict the run to certain
         # subject and visit IDs.
-        tree = self.analysis.tree
+        tree = self.analysis.dataset.tree
         # Create maps from the subject|visit IDs to an index used to represent
         # them in the filter array
         subject_inds = {s.id: i for i, s in enumerate(tree.subjects)}
@@ -748,7 +748,7 @@ class Processor(object):
             values represent subject/visit ID pairs to run the pipeline for
         """
         # Reference the analysis tree in local variable for convenience
-        tree = self.analysis.tree
+        tree = self.analysis.dataset.tree
         # Check to see if the pipeline has any low frequency outputs, because
         # if not then each session can be processed indepdently. Otherwise,
         # the "session matrix" (as defined by subject_ids and visit_ids

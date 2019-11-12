@@ -71,18 +71,14 @@ class LocalFileSystemRepo(Repository):
     def __hash__(self):
         return hash(self.type)
 
-    # @property
-    # def root_dir(self):
-    #     return self._root_dir
-
-    def get_fileset(self, fileset, dataset):
+    def get_fileset(self, fileset):
         """
         Set the path of the fileset from the repository
         """
         # Don't need to cache fileset as it is already local as long
         # as the path is set
         if fileset._path is None:
-            primary_path = self.fileset_path(fileset, dataset)
+            primary_path = self.fileset_path(fileset)
             aux_files = fileset.format.default_aux_file_paths(primary_path)
             if not op.exists(primary_path):
                 raise ArcanaMissingDataException(
@@ -98,7 +94,7 @@ class LocalFileSystemRepo(Repository):
             aux_files = fileset.aux_files
         return primary_path, aux_files
 
-    def get_field(self, field, dataset):
+    def get_field(self, field):
         """
         Update the value of the field from the repository
         """
@@ -106,7 +102,7 @@ class LocalFileSystemRepo(Repository):
         # Would be better if only checked if locked to allow
         # concurrent reads but not possible with multi-process
         # locks (in my understanding at least).
-        fpath = self.fields_json_path(field, dataset)
+        fpath = self.fields_json_path(field)
         try:
             with InterProcessLock(fpath + self.LOCK_SUFFIX,
                                   logger=logger), open(fpath, 'r') as f:
@@ -129,11 +125,11 @@ class LocalFileSystemRepo(Repository):
                 .format(field.name, self))
         return val
 
-    def put_fileset(self, fileset, dataset):
+    def put_fileset(self, fileset):
         """
         Inserts or updates a fileset in the repository
         """
-        target_path = self.fileset_path(fileset, dataset)
+        target_path = self.fileset_path(fileset)
         if op.isfile(fileset.path):
             shutil.copyfile(fileset.path, target_path)
             # Copy side car files into repository
@@ -147,11 +143,11 @@ class LocalFileSystemRepo(Repository):
         else:
             assert False
 
-    def put_field(self, field, dataset):
+    def put_field(self, field):
         """
         Inserts or updates a field in the repository
         """
-        fpath = self.fields_json_path(field, dataset)
+        fpath = self.fields_json_path(field)
         # Open fields JSON, locking to prevent other processes
         # reading or writing
         with InterProcessLock(fpath + self.LOCK_SUFFIX, logger=logger):
@@ -281,15 +277,15 @@ class LocalFileSystemRepo(Repository):
         return all_filesets, all_fields, all_records
 
     def _extract_ids_from_path(self, depth, path_parts, dirs, files):
-        depth = len(path_parts)
-        if depth == depth:
+        path_depth = len(path_parts)
+        if path_depth == depth:
             # Load input data
             from_analysis = None
-        elif (depth == (depth + 1)
+        elif (path_depth == (depth + 1)
               and self.PROV_DIR in dirs):
             # Load analysis output
             from_analysis = path_parts.pop()
-        elif (depth < depth
+        elif (path_depth < depth
               and any(not f.startswith('.') for f in files)):
             # Check to see if there are files in upper level
             # directories, which shouldn't be there (ignoring
@@ -298,7 +294,7 @@ class LocalFileSystemRepo(Repository):
                 "Files ('{}') not permitted at {} level in local "
                 "repository".format("', '".join(files),
                                     ('subject'
-                                     if depth else 'project')))
+                                     if path_depth else 'dataset')))
         else:
             # Not a directory that contains data files or directories
             return None
@@ -312,9 +308,11 @@ class LocalFileSystemRepo(Repository):
             visit_id = self.DEFAULT_VISIT_ID
         return subj_id, visit_id, from_analysis
 
-    def fileset_path(self, item, dataset, fname=None):
+    def fileset_path(self, item, dataset=None, fname=None):
         if fname is None:
             fname = item.fname
+        if dataset is None:
+            dataset = item.dataset
         root_dir = dataset.name
         depth = dataset.depth
         subject_id = dataset.inv_map_subject_id(item.subject_id)
@@ -361,14 +359,15 @@ class LocalFileSystemRepo(Repository):
             os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
         return op.join(sess_dir, fname)
 
-    def fields_json_path(self, field, dataset):
-        return self.fileset_path(field, dataset, self.FIELDS_FNAME)
+    def fields_json_path(self, field, dataset=None):
+        return self.fileset_path(field, fname=self.FIELDS_FNAME,
+                                 dataset=dataset)
 
     def prov_json_path(self, record, dataset):
-        return self.fileset_path(
-            record,
-            dataset,
-            fname=op.join(self.PROV_DIR, record.pipeline_name + '.json'))
+        return self.fileset_path(record,
+                                 dataset=dataset,
+                                 fname=op.join(self.PROV_DIR,
+                                               record.pipeline_name + '.json'))
 
     @classmethod
     def guess_depth(cls, root_dir):

@@ -161,22 +161,7 @@ class XnatRepo(Repository):
         self._login.disconnect()
         self._login = None
 
-    def dataset(self, project_id, **kwargs):
-        """
-        Returns a dataset from the XNAT repository
-
-        Parameters
-        ----------
-        project_id : str
-            The ID of the project on XNAT
-        subject_ids : list[str]
-            The list of subjects to include in the dataset
-        visit_ids : list[str]
-            The list of visits to include in the dataset
-        """
-        return Dataset(project_id, repository=self, **kwargs)
-
-    def get_fileset(self, fileset, dataset):
+    def get_fileset(self, fileset):
         """
         Caches a single fileset (if the 'path' attribute is accessed
         and it has not been previously cached for example
@@ -201,14 +186,14 @@ class XnatRepo(Repository):
             raise ArcanaUsageError(
                 "Attempting to download {}, which has not been assigned a "
                 "file format (see Fileset.formatted)".format(fileset))
-        self._check_repository(fileset, dataset)
+        self._check_repository(fileset)
         with self:  # Connect to the XNAT repository if haven't already
-            xsession = self.get_xsession(fileset, dataset)
+            xsession = self.get_xsession(fileset)
             xscan = xsession.scans[fileset.name]
             # Set URI so we can retrieve checksums if required
             fileset.uri = xscan.uri
             fileset.id = xscan.id
-            cache_path = self._cache_path(fileset, dataset)
+            cache_path = self._cache_path(fileset)
             need_to_download = True
             if op.exists(cache_path):
                 if self._check_md5:
@@ -242,14 +227,14 @@ class XnatRepo(Repository):
                         # has been completed or assume interrupted and
                         # redownload.
                         self._delayed_download(
-                            tmp_dir, xresource, xscan, fileset, dataset,
+                            tmp_dir, xresource, xscan, fileset,
                             xsession.label, cache_path,
                             delay=self._race_cond_delay)
                     else:
                         raise
                 else:
                     self.download_fileset(
-                        tmp_dir, xresource, xscan, fileset, dataset,
+                        tmp_dir, xresource, xscan, fileset,
                         xsession.label, cache_path)
                     shutil.rmtree(tmp_dir)
         if not fileset.format.directory:
@@ -260,26 +245,26 @@ class XnatRepo(Repository):
             aux_paths = None
         return primary_path, aux_paths
 
-    def get_field(self, field, dataset):
-        self._check_repository(field, dataset)
+    def get_field(self, field):
+        self._check_repository(field)
         with self:
-            xsession = self.get_xsession(field, dataset)
+            xsession = self.get_xsession(field)
             val = xsession.fields[field.name]
             val = val.replace('&quot;', '"')
             val = parse_value(val)
         return val
 
-    def put_fileset(self, fileset, dataset):
+    def put_fileset(self, fileset):
         if fileset.format is None:
             raise ArcanaFileFormatError(
                 "Format of {} needs to be set before it is uploaded to {}"
                 .format(fileset, self))
-        self._check_repository(fileset, dataset)
+        self._check_repository(fileset)
         # Open XNAT session
         with self:
             # Add session for derived scans if not present
-            xsession = self.get_xsession(fileset, dataset)
-            cache_path = self._cache_path(fileset, dataset)
+            xsession = self.get_xsession(fileset)
+            cache_path = self._cache_path(fileset)
             # Make session cache dir
             cache_path_dir = (op.dirname(cache_path)
                               if fileset.format.directory else cache_path)
@@ -322,8 +307,8 @@ class XnatRepo(Repository):
                 for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
                     xresource.upload(sc_path, sc_fname)
 
-    def put_field(self, field, dataset):
-        self._check_repository(field, dataset)
+    def put_field(self, field):
+        self._check_repository(field)
         val = field.value
         if field.array:
             if field.dtype is str:
@@ -332,12 +317,12 @@ class XnatRepo(Repository):
         if field.dtype is str:
             val = '"{}"'.format(val)
         with self:
-            xsession = self.get_xsession(field, dataset)
+            xsession = self.get_xsession(field)
             xsession.fields[field.name] = val
 
     def put_record(self, record, dataset):
         base_cache_path = self._cache_path(
-            record, dataset, name=self.PROV_SCAN)
+            record, name=self.PROV_SCAN, dataset=dataset)
         if not op.exists(base_cache_path):
             os.mkdir(base_cache_path)
         else:
@@ -349,7 +334,7 @@ class XnatRepo(Repository):
         record.save(cache_path)
         # TODO: Should also save digest of prov.json to check to see if it
         #       has been altered remotely
-        xsession = self.get_xsession(record, dataset)
+        xsession = self.get_xsession(record, dataset=dataset)
         xprov = self._login.classes.MrScanData(
             id=self.PROV_SCAN, type=self.PROV_SCAN, parent=xsession)
         # Delete existing provenance if present
@@ -363,7 +348,7 @@ class XnatRepo(Repository):
         xresource = xprov.create_resource(record.pipeline_name)
         xresource.upload(cache_path, op.basename(cache_path))
 
-    def get_checksums(self, fileset, dataset):
+    def get_checksums(self, fileset):
         """
         Downloads the MD5 digests associated with the files in the file-set.
         These are saved with the downloaded files in the cache and used to
@@ -618,14 +603,14 @@ class XnatRepo(Repository):
                                      and t['vr'] in RELEVANT_DICOM_TAG_TYPES)}
         return hdr
 
-    def download_fileset(self, tmp_dir, xresource, xscan, fileset, dataset,
+    def download_fileset(self, tmp_dir, xresource, xscan, fileset,
                          session_label, cache_path):
         # Download resource to zip file
         zip_path = op.join(tmp_dir, 'download.zip')
         with open(zip_path, 'wb') as f:
             xresource.xnat_session.download_stream(
                 xresource.uri + '/files', f, format='zip', verbose=True)
-        checksums = self.get_checksums(fileset, dataset)
+        checksums = self.get_checksums(fileset)
         # Extract downloaded zip file
         expanded_dir = op.join(tmp_dir, 'expanded')
         try:
@@ -650,7 +635,7 @@ class XnatRepo(Repository):
                   **JSON_ENCODING) as f:
             json.dump(checksums, f, indent=2)
 
-    def _delayed_download(self, tmp_dir, xresource, xscan, fileset, dataset,
+    def _delayed_download(self, tmp_dir, xresource, xscan, fileset,
                           session_label, cache_path, delay):
         logger.info("Waiting {} seconds for incomplete download of '{}' "
                     "initiated another process to finish"
@@ -668,7 +653,7 @@ class XnatRepo(Repository):
                 " been updated.  Waiting another {} seconds before "
                 "checking again.".format(cache_path, delay))
             self._delayed_download(tmp_dir, xresource, xscan,
-                                   fileset, dataset,
+                                   fileset,
                                    session_label, cache_path, delay)
         else:
             logger.warning(
@@ -678,15 +663,17 @@ class XnatRepo(Repository):
             shutil.rmtree(tmp_dir)
             os.mkdir(tmp_dir)
             self.download_fileset(
-                tmp_dir, xresource, xscan, fileset, dataset, session_label,
+                tmp_dir, xresource, xscan, fileset, session_label,
                 cache_path)
 
-    def get_xsession(self, item, dataset):
+    def get_xsession(self, item, dataset=None):
         """
         Returns the XNAT session and cache dir corresponding to the
         item.
         """
-        subj_label, sess_label = self._get_item_labels(item, dataset)
+        if dataset is None:
+            dataset = item.dataset
+        subj_label, sess_label = self._get_item_labels(item)
         with self:
             xproject = self._login.projects[dataset.name]
             try:
@@ -702,14 +689,16 @@ class XnatRepo(Repository):
                 if item.derived:
                     xsession.fields[
                         self.DERIVED_FROM_FIELD] = self._get_item_labels(
-                            item, dataset, no_from_analysis=True)[1]
+                            item, no_from_analysis=True)[1]
         return xsession
 
-    def _get_item_labels(self, item, dataset, no_from_analysis=False):
+    def _get_item_labels(self, item, no_from_analysis=False, dataset=None):
         """
         Returns the labels for the XNAT subject and sessions given
         the frequency and provided IDs.
         """
+        if dataset is None:
+            dataset = item.dataset
         subject_id = dataset.inv_map_subject_id(item.subject_id)
         visit_id = dataset.inv_map_visit_id(item.visit_id)
         subj_label, sess_label = self._get_labels(
@@ -745,15 +734,15 @@ class XnatRepo(Repository):
             assert False
         return (subj_label, sess_label)
 
-    def _cache_path(self, fileset, dataset, name=None):
-        subj_dir, sess_dir = self._get_item_labels(fileset, dataset)
-        cache_dir = op.join(self._cache_dir, dataset.name,
+    def _cache_path(self, fileset, name=None, dataset=None):
+        subj_dir, sess_dir = self._get_item_labels(fileset, dataset=dataset)
+        cache_dir = op.join(self._cache_dir.name,
                             subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
         return op.join(cache_dir, fileset.name if name is None else name)
 
-    def _check_repository(self, item, dataset):
-        if dataset.repository is not self:
+    def _check_repository(self, item):
+        if item.dataset.repository is not self:
             raise ArcanaWrongRepositoryError(
                 "{} is from {} instead of {}".format(
-                    item, dataset.repository, self))
+                    item, item.dataset.repository, self))

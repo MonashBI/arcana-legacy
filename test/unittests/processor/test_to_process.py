@@ -643,7 +643,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         def values_equal(field_name, values):
             for subj_i in range(self.NUM_SUBJECTS):
                 for vis_i in range(self.NUM_VISITS):
-                    sess = analysis.tree.session(subj_i, vis_i)
+                    sess = analysis.dataset.tree.session(subj_i, vis_i)
                     field = sess.field(field_name, from_analysis=analysis_name)
                     self.assertEqual(field.value,
                                      values[(str(subj_i), str(vis_i))])
@@ -654,13 +654,14 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         orig_field3_values = {}
         for vis_i in range(self.NUM_VISITS):
             for subj_i in range(self.NUM_SUBJECTS):
-                sess = analysis.tree.session(subj_i, vis_i)
-                field1 = sess.field('derived_field1', from_analysis=analysis_name)
+                sess = analysis.dataset.tree.session(subj_i, vis_i)
+                field1 = sess.field('derived_field1',
+                                    from_analysis=analysis_name)
                 orig_field1_values[(str(subj_i),
                                     str(vis_i))] = field1.value
                 change_value_w_prov(field1, new_value)
-            field3 = analysis.tree.visit(vis_i).field('derived_field3',
-                                                   from_analysis=analysis_name)
+            field3 = analysis.dataset.tree.visit(vis_i).field(
+                'derived_field3', from_analysis=analysis_name)
             orig_field3_values[str(vis_i)] = field3.value
         # Rerun analysis with new parameters
         analysis = self.create_analysis(
@@ -674,12 +675,12 @@ class TestProvDialation(BaseMultiSubjectTestCase):
         values_equal('derived_field1',
                      {k: new_value for k in orig_field1_values})
         self.assertEqual(
-            analysis.tree.visit('0').field('derived_field3',
-                                        from_analysis=analysis_name).value,
+            analysis.dataset.tree.visit('0').field(
+                'derived_field3', from_analysis=analysis_name).value,
             10201)
         self.assertEqual(
-            analysis.tree.visit('1').field('derived_field3',
-                                        from_analysis=analysis_name).value,
+            analysis.dataset.tree.visit('1').field(
+                'derived_field3', from_analysis=analysis_name).value,
             orig_field3_values['1'])
         analysis = self.create_analysis(
             TestDialationAnalysis,

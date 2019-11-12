@@ -1,6 +1,5 @@
 import os.path as op
 from arcana.exceptions import ArcanaUsageError
-from .local import LocalFileSystemRepo
 from .tree import Tree
 
 
@@ -42,6 +41,8 @@ class Dataset():
                  fill_tree=False, depth=2, subject_id_map=None,
                  visit_id_map=None, file_formats=()):
         if repository is None:
+            # needs to be imported here to avoid circular imports
+            from .local import LocalFileSystemRepo
             name = op.abspath(name)
             repository = LocalFileSystemRepo()
             if not op.exists(name):
@@ -146,7 +147,7 @@ class Dataset():
         path : str
             The file-system path to the cached file
         """
-        return self.repository.get_fileset(fileset, self)
+        return self.repository.get_fileset(fileset)
 
     def get_field(self, field):
         """
@@ -184,7 +185,7 @@ class Dataset():
             hex digest. The primary file in the file-set (i.e. the one that the
             path points to) should be specified by '.'.
         """
-        return self.repository.get_checksums(fileset, self)
+        return self.repository.get_checksums(fileset)
 
     def put_fileset(self, fileset):
         """
@@ -195,7 +196,7 @@ class Dataset():
         fileset : Fileset
             The fileset to insert into the repository
         """
-        self.repository.put_fileset(fileset, self)
+        self.repository.put_fileset(fileset)
 
     def put_field(self, field):
         """
@@ -206,7 +207,7 @@ class Dataset():
         field : Field
             The field to insert into the repository
         """
-        self.repository.put_field(field, self)
+        self.repository.put_field(field)
 
     def put_record(self, record):
         """
@@ -238,8 +239,8 @@ class Dataset():
             self._cached_tree = Tree.construct(
                 self, *self.repository.find_data(
                     dataset=self,
-                    subject_ids=self.subject_ids,
-                    visit_ids=self.visit_ids))
+                    subject_ids=self._subject_ids,
+                    visit_ids=self._visit_ids))
         return self._cached_tree
 
     def clear_cache(self):

@@ -329,7 +329,7 @@ class BaseTestCase(TestCase):
                 for visit_id, ref_value in subj_dct.items():
                     references.append(str(ref_value))
                     filesets.append(slce.item(subject_id=subj_id,
-                                                    visit_id=visit_id))
+                                              visit_id=visit_id))
         elif isinstance(reference, (list, tuple)):
             references = [str(r) for r in reference]
             filesets = list(slce)
@@ -337,7 +337,7 @@ class BaseTestCase(TestCase):
                 raise ArcanaUsageError(
                     "Number of provided references ({}) does not match"
                     " size of slce ({})".format(len(references),
-                                                      len(filesets)))
+                                                len(filesets)))
         else:
             raise ArcanaUsageError(
                 "Unrecognised format for reference ({})"
@@ -517,7 +517,7 @@ class BaseMultiSubjectTestCase(BaseTestCase):
                                            LocalFileSystemRepo.PROV_DIR))
             for field in node.fields:
                 fields_path = self.local_dataset.repository.fields_json_path(
-                    field)
+                    field, self.local_dataset)
                 if op.exists(fields_path):
                     with open(fields_path, **JSON_ENCODING) as f:
                         dct = json.load(f)

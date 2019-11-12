@@ -132,7 +132,7 @@ class FullMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
         'ss2', 'pipeline_beta')
 
 
-class PartialMultiAnalysis(with_metaclass(MultiAnalysisMetaClass, MultiAnalysis)):
+class PartialMultiAnalysis(MultiAnalysis, metaclass=MultiAnalysisMetaClass):
 
     add_subcomp_specs = [
         SubCompSpec('ss1', AnalysisA,
