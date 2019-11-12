@@ -618,7 +618,7 @@ class Analysis(object):
                     wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                               prefix_indent=True))
         if full:
-            menu += '\n\nIntermediate Derivatives:'
+            menu += '\n\nIntermediate:'
             for spec in cls.derived_data_specs():
                 if spec.category == 'intermediate':
                     if isinstance(spec, BaseFileset):

@@ -152,6 +152,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     sanitize_id_re = re.compile(r'[^a-zA-Z_0-9]')
 
+    dataset_depth = 2
+
     def setUp(self):
         self._clean_up()
         self._dataset = XnatRepo(
@@ -159,7 +161,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
         self._create_project()
         self.BASE_CLASS.setUp(self)
-        local_dataset = Dataset(self.project_dir)
+        local_dataset = Dataset(self.project_dir, depth=self.dataset_depth)
         temp_dataset = XnatRepo(SERVER, '/tmp').dataset(self.project)
         with temp_dataset.repository:
             for node in local_dataset.tree:
