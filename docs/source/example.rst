@@ -8,7 +8,7 @@ A basic toy example
     from arcana import (
         Analysis, AnalysisMetaClass, InputFilesetSpec, FilesetSpec,
         InputFieldSpec, FieldSpec, ParamSpec, SwitchSpec,
-        InputFileset, InputField)
+        FilesetFilter, FieldFilter, OutputFilesetSpec, OutputFieldSpec)
     from your_package import (
         Interface1, Interface2, Interface3, methods_paper_cite, software_req,
         software_req2, matlab_req, toolbox_req)
@@ -37,14 +37,14 @@ A basic toy example
             FilesetSpec('derived_file2', nifti_gz_format, 'pipeline1'),
             FilesetSpec('derived_file3', text_matrix_format, 'pipeline2'),
             FilesetSpec('derived_file4', dicom_format, 'pipeline3'),
-            FilesetSpec('derived_file5', nifti_gz_format, 'pipeline3',
-                        frequency='per_subject'),
-            FilesetSpec('derived_file6', analyze_format, 'pipeline2',
-                        frequency='per_visit'),
+            OutputFilesetSpec('derived_file5', nifti_gz_format, 'pipeline3',
+                              frequency='per_subject'),
+            OutputFilesetSpec('derived_file6', analyze_format, 'pipeline2',
+                              frequency='per_visit'),
             # Derived fields
-            FieldSpec('derived_field1', float, 'pipeline2'),
-            FieldSpec('derived_field2', int, 'pipeline4',
-                      frequency='per_dataset')]
+            OutputFieldSpec('derived_field1', float, 'pipeline2'),
+            OutputFieldSpec('derived_field2', int, 'pipeline4',
+                            frequency='per_dataset')]
 
         # Specify free parameters of the analysis, including quantitative
         # (Parameter) and qualitative (Switches) options.
@@ -139,7 +139,7 @@ which can then be instantiated and used to generate 'derived2' with
     # used in the processing
     your_analysis = ExampleAnalysis(
         name='your_analysis',
-        repository=LocalFileSystemRepo('/path/to/local/archive'),
+        dataset=Dataset('/path/to/local/archive'),
         processor=SingleProc('/my/work/dir'),
         environment=StaticEnv(),
         inputs=[

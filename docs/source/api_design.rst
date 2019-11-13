@@ -6,7 +6,7 @@ be sub-classed to implement workflows.
 
 
 Analysis
------
+--------
 
 .. autoclass:: arcana.analysis.Analysis
     :members: data, new_pipeline, pipeline, provided, branch, parameter, unhandled_branch, data_spec, param_spec
@@ -41,7 +41,7 @@ Pipeline
 --------
 
 .. autoclass:: arcana.pipeline.Pipeline
-    :members: add, provided, connect, connect_input, connect_output 
+    :members: add, provided, connect, connect_input, connect_output
 
 
 Requirements
