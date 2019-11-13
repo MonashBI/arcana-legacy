@@ -35,3 +35,7 @@ class MultiProc(Processor):
     @property
     def num_processes(self):
         return self._plugin.processors
+
+    def __repr__(self):
+        return "{}(work_dir='{}', num_processes={})".format(
+            type(self).__name__, self._work_dir, self.num_processes)

@@ -108,6 +108,10 @@ class ModulesEnv(Environment):
             and self._ignore_unrecog == other._ignore_unrecog
             and self._detect_exact_versions == other._detect_exact_versions)
 
+    def __repr__(self):
+        return 'ModulesEnv(packages_map={}, versions_map={})'.format(
+            self._packages_map, self._versions_map)
+
     def satisfy(self, *requirements):
         versions = []
         loaded_versions = []

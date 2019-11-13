@@ -28,6 +28,9 @@ class StaticEnv(Environment):
         self._fail_on_undetectable = fail_on_undetectable
         self._detected_versions = {}
 
+    def __repr__(self):
+        return 'StaticEnv()'
+
     def satisfy(self, *requirements):
         """
         Checks whether the given requirements are satisfiable within the given

@@ -103,7 +103,7 @@ class Processor(object):
         self._clean_work_dir_between_runs = clean_work_dir_between_runs
 
     def __repr__(self):
-        return "{}(work_dir={})".format(
+        return "{}(work_dir='{}')".format(
             type(self).__name__, self._work_dir)
 
     def __eq__(self, other):
@@ -126,6 +126,10 @@ class Processor(object):
     @property
     def reprocess(self):
         return self._reprocess
+
+    @reprocess.setter
+    def reprocess(self, value):
+        self._reprocess = value
 
     @property
     def prov_check(self):

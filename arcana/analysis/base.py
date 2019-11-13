@@ -648,10 +648,12 @@ class Analysis(object):
                                   prefix_indent=True))
         menu += '\n\nParameters:'
         for spec in cls.param_specs():
-            menu += '\n{}{}{} : {}\n{}'.format(
+            menu += '\n{}{}{} : {} ({})\n{}'.format(
                 ' ' * ITEM_INDENT, spec.name,
                 (' [{}]'.format(", ".join(str(c) for c in spec.choices))
-                 if spec.choices else ''), spec.dtype.__name__,
+                 if spec.choices else ''),
+                spec.dtype.__name__,
+                spec.default,
                 wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                           prefix_indent=True))
         return menu
