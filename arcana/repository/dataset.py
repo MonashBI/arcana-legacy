@@ -46,13 +46,12 @@ class Dataset():
         if repository is None:
             # needs to be imported here to avoid circular imports
             from .local import LocalFileSystemRepo
-            name = op.abspath(name)
             repository = LocalFileSystemRepo()
             if not op.exists(name):
                 raise ArcanaUsageError(
                     "Base directory for LocalFileSystemRepo '{}' does not "
                     "exist".format(name))
-        self._name = name
+        self._name = repository.standardise_name(name)
         self._repository = repository
         self._subject_ids = (tuple(subject_ids)
                              if subject_ids is not None else None)

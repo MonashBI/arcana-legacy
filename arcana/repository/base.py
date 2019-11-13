@@ -36,6 +36,9 @@ class Repository(metaclass=ABCMeta):
         if self._connection_depth == 0:
             self.disconnect()
 
+    def standardise_name(self, name):
+        return name
+
     def connect(self):
         """
         If a connection session is required to the repository,
