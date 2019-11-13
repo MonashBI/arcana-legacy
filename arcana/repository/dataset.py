@@ -240,10 +240,13 @@ class Dataset():
             # Find all data present in the repository (filtered by the passed
             # IDs)
             self._cached_tree = Tree.construct(
-                self, *self.repository.find_data(
+                self,
+                *self.repository.find_data(
                     dataset=self,
                     subject_ids=self._subject_ids,
-                    visit_ids=self._visit_ids))
+                    visit_ids=self._visit_ids),
+                fill_subjects=(self._subject_ids if self._fill_tree else None),
+                fill_visits=(self._visit_ids if self._fill_tree else None))
         return self._cached_tree
 
     def clear_cache(self):

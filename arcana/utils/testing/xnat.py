@@ -188,8 +188,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
         shutil.rmtree(self.cache_dir, ignore_errors=True)
 
     @property
-    def repository(self):
-        return self._repository
+    def dataset(self):
+        return self._dataset
 
     @property
     def xnat_session_name(self):
