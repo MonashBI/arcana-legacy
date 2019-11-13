@@ -1,6 +1,7 @@
 from past.builtins import basestring
 from builtins import object
 from itertools import chain
+from operator import attrgetter
 from collections import defaultdict
 import sys
 import os.path as op
@@ -588,7 +589,8 @@ class Analysis(object):
         menu = ("\n{} Menu \n".format(cls_name)
                 + '-' * len(cls_name) + "------")
         menu += '\n\nInputs:'
-        for spec in cls.acquired_data_specs():
+        for spec in sorted(cls.acquired_data_specs(),
+                           key=lambda s: (s.optional, s.name)):
             if spec.default is not None:
                 qual_str = ' (default={})'.format(spec.default)
             elif spec.optional:
@@ -619,7 +621,8 @@ class Analysis(object):
                               prefix_indent=True))
         if full:
             menu += '\n\nIntermediate:'
-            for spec in cls.derived_data_specs():
+            for spec in sorted(cls.derived_data_specs(),
+                               key=attrgetter('name')):
                 if spec.category == 'intermediate':
                     if isinstance(spec, BaseFileset):
                         menu += '\n{}{} : {}\n{}'.format(
@@ -633,7 +636,7 @@ class Analysis(object):
                             wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                                       prefix_indent=True))
         menu += '\n\nOutputs:'
-        for spec in cls.derived_data_specs():
+        for spec in sorted(cls.derived_data_specs(), key=attrgetter('name')):
             if spec.category == 'output':
                 if isinstance(spec, BaseFileset):
                     menu += '\n{}{} : {}\n{}'.format(
@@ -647,7 +650,7 @@ class Analysis(object):
                         wrap_text(spec.desc, LINE_LENGTH, DESC_INDENT,
                                   prefix_indent=True))
         menu += '\n\nParameters:'
-        for spec in cls.param_specs():
+        for spec in sorted(cls.param_specs(), key=attrgetter('name')):
             menu += '\n{}{}{} : {} ({})\n{}'.format(
                 ' ' * ITEM_INDENT, spec.name,
                 (' [{}]'.format(", ".join(str(c) for c in spec.choices))
