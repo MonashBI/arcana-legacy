@@ -172,7 +172,8 @@ class LocalFileSystemRepo(Repository):
             os.mkdir(op.dirname(fpath))
         record.save(fpath)
 
-    def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
+    def find_data(self, dataset, subject_ids=None, visit_ids=None,
+                  root_dir=None, all_from_analysis=None, **kwargs):
         """
         Find all data within a repository, registering filesets, fields and
         provenance with the found_fileset, found_field and found_provenance
@@ -186,6 +187,12 @@ class LocalFileSystemRepo(Repository):
         visit_ids : list(str)
             List of visit IDs with which to filter the tree with. If
             None all are returned
+        root_dir : str
+            The root dir to use instead of the 'name' (path) of the dataset.
+            Only for use in sub-classes (e.g. BIDS)
+        all_from_analysis : str
+            Global 'from_analysis' to be applied to every found item.
+            Only for use in sub-classes (e.g. BIDS)
 
         Returns
         -------
@@ -199,7 +206,8 @@ class LocalFileSystemRepo(Repository):
         all_filesets = []
         all_fields = []
         all_records = []
-        root_dir = dataset.name
+        if root_dir is None:
+            root_dir = dataset.name
         for session_path, dirs, files in os.walk(root_dir):
             relpath = op.relpath(session_path, root_dir)
             path_parts = relpath.split(op.sep) if relpath != '.' else []
@@ -208,6 +216,14 @@ class LocalFileSystemRepo(Repository):
             if ids is None:
                 continue
             subj_id, visit_id, from_analysis = ids
+            if all_from_analysis is not None:
+                if from_analysis is not None:
+                    raise ArcanaRepositoryError(
+                        "Found from_analysis sub-directory '{}' when global "
+                        "from analysis '{}' was passed".format(
+                            from_analysis, all_from_analysis))
+                else:
+                    from_analysis = all_from_analysis
             # Check for summaries and filtered IDs
             if subj_id == self.SUMMARY_NAME:
                 subj_id = None
