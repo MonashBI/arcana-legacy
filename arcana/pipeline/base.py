@@ -50,7 +50,7 @@ class Pipeline(object):
         It should be passed directly from wildcard keyword args passed to the
         pipeline constructor, e.g.
 
-        def my_pipeline_constructor(**name_maps):
+        def my_pipeline_constructor(self, **name_maps):
             pipeline = self.new_pipeline('my_pipeline', name_maps=name_maps)
             pipeline.add('a_node', MyInterface())
 
@@ -79,12 +79,12 @@ class Pipeline(object):
         name_maps : dict
             Modifications from nested pipeline constructors
         analysis : Analysis
-            A different analysis to bind the pipeline to from the one containing
-            the inner pipeline constructor. Intended to be used with
+            A different analysis to bind the pipeline to from the one
+            containing the inner pipeline constructor. Intended to be used with
             multi-studies.
     desc : str
         A description of what the pipeline does
-    references : List[Citation]
+    ciations : List[Citation]
         List of scientific papers that describe the workflow and should be
         cited in publications that use it
     """

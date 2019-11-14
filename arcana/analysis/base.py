@@ -750,6 +750,59 @@ class Analysis(object):
         """
         Creates a Pipeline object, passing the analysis (self) as the first
         argument
+
+        Parameters
+        ----------
+        name : str
+            The name of the pipeline
+        desc : str
+            A description of what the pipeline does
+        ciations : List[Citation]
+            List of scientific papers that describe the workflow and should be
+            cited in publications that use it
+        name_maps : dict
+            A dictionary containing several modifying keyword arguments that
+            manipulate way the pipeline is constructed (e.g. map inputs and
+            outputs to new entries in the data specification table). Typically
+            names of inputs, outputs and the pipeline itself. Intended to allow
+            secondary pipeline constructors to call a constructor, and return a
+            modified version of the pipeline it returns.
+
+            It should be passed directly from wildcard keyword args passed to
+            the pipeline constructor, e.g.
+
+            def my_pipeline_constructor(self, **name_maps):
+                pipeline = self.new_pipeline('my_pipeline', name_maps=name_maps)
+                pipeline.add('a_node', MyInterface())
+
+                ...
+
+                return pipeline
+
+            The keywords in 'name_maps' used in pipeline construction are:
+
+            name : str
+                A new name for the pipeline
+            prefix : str
+                Prefix prepended to the original name of the pipeline.
+                Typically only one of name and prefix is used at each nested
+                level, but they can be used in conjunction.
+            input_map : str | dict[str,str]
+                Applied to the input names used by the pipeline to map them to
+                new entries of the data specification in modified pipeline
+                constructors. Typically used in sub-class or multi-analysis. If
+                a string, the map is interpreted as a prefix applied to the
+                names given in the original pipeline, if it is a dictionary the
+                names are mapped explicitly.
+            output_map : str | dict[str,str]
+                Same as the input map but applied to outputs instead of inputs
+                to the pipeline.
+            name_maps : dict
+                Modifications from nested pipeline constructors
+            analysis : Analysis
+                A different analysis to bind the pipeline to from the one
+                containing the inner pipeline constructor. Intended to be used
+                with multi-studies.
         """
         return Pipeline(self, *args, **kwargs)
 

@@ -286,7 +286,7 @@ class BaseSpecMixin(object):
     @property
     def pipeline(self):
         return self.analysis.pipeline(self.pipeline_getter, [self.name],
-                                   pipeline_args=self.pipeline_args)
+                                      pipeline_args=self.pipeline_args)
 
     @property
     def analysis(self):
@@ -325,9 +325,9 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
     valid_formats : FileFormat | list[FileFormat]
         The acceptable file formats for input filesets to match this spec
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     optional : bool
@@ -339,10 +339,6 @@ class InputFilesetSpec(BaseFileset, BaseInputSpecMixin):
         with a 'slice' property that will return a default slice.
         This object should also implement a 'bind(self, analysis)' method to
         allow the analysis to be bound to it.
-    pipeline_args : dct[str, *] | None
-        Arguments to pass to the pipeline constructor method. Avoids having to
-        create separate methods for each spec, where the only difference
-        between the specs
     """
 
     is_spec = True
@@ -427,9 +423,9 @@ class FilesetSpec(BaseFileset, BaseSpecMixin):
         Name of the method in the analysis that constructs a pipeline to derive
         the fileset
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     valid_formats : list[FileFormat]
@@ -538,9 +534,9 @@ class InputFieldSpec(BaseField, BaseInputSpecMixin):
     dtype : type
         The datatype of the value. Can be one of (float, int, str)
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     optional : bool
@@ -600,9 +596,9 @@ class FieldSpec(BaseField, BaseSpecMixin):
     pipeline_getter : str
         Name of the method that constructs pipelines to derive the field
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     pipeline_args : dct[str, *] | None
@@ -688,9 +684,9 @@ class OutputFilesetSpec(FilesetSpec):
         Name of the method in the analysis that constructs a pipeline to derive
         the fileset
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     valid_formats : list[FileFormat]
@@ -725,9 +721,9 @@ class OutputFieldSpec(FieldSpec):
     pipeline_getter : str
         Name of the method that constructs pipelines to derive the field
     frequency : str
-        One of 'per_session', 'per_subject', 'per_visit' and 'per_dataset',
+        One of 'per_session', 'per_subject', 'per_visit' or 'per_dataset',
         specifying whether the fileset is present for each session, subject,
-        visit or project.
+        visit or dataset.
     desc : str
         Description of what the field represents
     pipeline_args : dct[str, *] | None
