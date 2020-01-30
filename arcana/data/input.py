@@ -256,23 +256,25 @@ class BaseInputMixin(object):
         # Select the fileset from the matches
         if not analysis_matches:
             raise ArcanaInputMissingMatchError(
-                "No matches found for {} in {} for analysis {}, however, found {}"
-                .format(self, node, self.from_analysis,
-                        ', '.join(str(m) for m in matches)))
+                "No matches found for {} in {} for analysis {}. Found:\n{}    "
+                .format(
+                    self, node, self.from_analysis,
+                    '\n    '.join(str(m) for m in matches)))
         elif self.order is not None:
             try:
                 match = analysis_matches[self.order]
             except IndexError:
                 raise ArcanaInputMissingMatchError(
-                    "Did not find {} named data matching pattern {}"
-                    " (found {}) in {}".format(self.order, self.pattern,
-                                               len(matches), node))
+                    "Did not find {} named data matching pattern {}, found "
+                    " {} in {}".format(self.order, self.pattern,
+                                       len(matches), node))
         elif len(analysis_matches) == 1:
             match = analysis_matches[0]
         else:
             raise ArcanaInputError(
-                "Found multiple matches for {} in {} ({})"
-                .format(self, node, ', '.join(str(m) for m in analysis_matches)))
+                "Found multiple matches for {} in {}:\n{}    "
+                .format(self, node,
+                        '\n    '.join(str(m) for m in analysis_matches)))
         return match
 
 
@@ -456,27 +458,28 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
             matches = list(node.filesets)
         if not matches:
             raise ArcanaInputMissingMatchError(
-                "Did not find any matches for {} in {}, found:\n{}"
+                "Did not find any matches for {} in {}. Found:\n    {}"
                 .format(self, node,
-                        '\n'.join(str(f) for f in node.filesets)))
+                        '\n    '.join(str(f) for f in node.filesets)))
         if self.acceptable_quality is not None:
             filtered = [f for f in matches
                         if f.quality in self.acceptable_quality]
             if not filtered:
                 raise ArcanaInputMissingMatchError(
                     "Did not find filesets names matching pattern {} "
-                    "with an acceptable quality {} (found {}) in {}".format(
-                        self.pattern, self.acceptable_quality,
-                        ', '.join(str(m) for m in matches), node))
+                    "with an acceptable quality {} in {}. Found:\n    {}"
+                    .format(
+                        self.pattern, self.acceptable_quality, node,
+                        '\n    '.join(str(m) for m in matches)))
             matches = filtered
         if self.id is not None:
             filtered = [d for d in matches if d.id == self.id]
             if not filtered:
                 raise ArcanaInputMissingMatchError(
                     "Did not find filesets names matching pattern {} "
-                    "with an id of {} (found {}) in {}".format(
+                    "with an id of {} in {}. Found:\n    {} ".format(
                         self.pattern, self.id,
-                        ', '.join(str(m) for m in matches), node))
+                        '\n    '.join(str(m) for m in matches), node))
             matches = filtered
         if valid_formats is not None:
             format_matches = [
@@ -486,8 +489,9 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
                     self.format.matches(f)
                 raise ArcanaInputMissingMatchError(
                     "Did not find any filesets that match the file format "
-                    "specified by {} in {}, found:\n{}"
-                    .format(self, node, '\n'.join(str(f) for f in matches)))
+                    "specified by {} in {}. Found:\n    {}"
+                    .format(self, node,
+                            '\n    '.join(str(f) for f in matches)))
             matches = format_matches
         # Filter matches by dicom tags
         if self.dicom_tags is not None:
@@ -505,9 +509,9 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
             if not filtered:
                 raise ArcanaInputMissingMatchError(
                     "Did not find filesets names matching pattern {}"
-                    "that matched DICOM tags {} (found {}) in {}"
+                    "that matched DICOM tags {} in {}. Found:\n    {}"
                     .format(self.pattern, self.dicom_tags,
-                            ', '.join(str(m) for m in matches), node))
+                            '\n    '.join(str(m) for m in matches), node))
             matches = filtered
         return matches
 
@@ -634,8 +638,9 @@ class FieldFilter(BaseInputMixin, BaseField):
                        if f.from_analysis == self.from_analysis]
         if not matches:
             raise ArcanaInputMissingMatchError(
-                "Did not find any matches for {} in {}, found:\n{}"
-                .format(self, node, '\n'.join(f.name for f in node.fields)))
+                "Did not find any matches for {} in {}. Found:\n    {}"
+                .format(self, node,
+                        '\n    '.join(f.name for f in node.fields)))
         return matches
 
     def __repr__(self):
