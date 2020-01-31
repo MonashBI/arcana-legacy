@@ -26,7 +26,7 @@ class BaseSliceMixin(object):
         self._frequency = frequency
         if frequency == 'per_dataset':
             # If wrapped in an iterable
-            if not isinstance(slce, self.SliceClass):
+            if not isinstance(slce, self.SlicedClass):
                 if len(slce) > 1:
                     raise ArcanaUsageError(
                         "More than one {} passed to {}"
@@ -52,7 +52,7 @@ class BaseSliceMixin(object):
         else:
             assert False
         for datum in self:
-            if not isinstance(datum, self.SliceClass):
+            if not isinstance(datum, self.SlicedClass):
                 raise ArcanaUsageError(
                     "Invalid class {} in {}".format(datum, self))
 
