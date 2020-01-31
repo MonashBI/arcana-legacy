@@ -256,7 +256,7 @@ class BaseInputMixin(object):
         # Select the fileset from the matches
         if not analysis_matches:
             raise ArcanaInputMissingMatchError(
-                "No matches found for {} in {} for analysis {}. Found:\n{}    "
+                "No matches found for {} in {} for analysis {}. Found:\n    {}"
                 .format(
                     self, node, self.from_analysis,
                     '\n    '.join(str(m) for m in matches)))
@@ -272,7 +272,7 @@ class BaseInputMixin(object):
             match = analysis_matches[0]
         else:
             raise ArcanaInputError(
-                "Found multiple matches for {} in {}:\n{}    "
+                "Found multiple matches for {} in {}:\n    {}"
                 .format(self, node,
                         '\n    '.join(str(m) for m in analysis_matches)))
         return match
