@@ -341,6 +341,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
     """
 
     is_spec = False
+    SliceClass = FilesetSlice
 
     def __init__(self, spec_name, pattern=None, valid_formats=None,
                  frequency='per_session', id=None,
@@ -583,6 +584,7 @@ class FieldFilter(BaseInputMixin, BaseField):
     """
 
     is_spec = False
+    SliceClass = FieldSlice
 
     def __init__(self, spec_name, pattern, dtype=None, frequency='per_session',
                  order=None, is_regex=False, from_analysis=None,
