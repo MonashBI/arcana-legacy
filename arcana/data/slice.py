@@ -239,10 +239,13 @@ class FilesetSlice(BaseSliceMixin, BaseFileset):
     def __init__(self, name, slce, format=None, frequency=None,
                  candidate_formats=None):
         if format is None and candidate_formats is None:
-            raise ArcanaUsageError(
-                "Either 'format' or candidate_formats needs to be supplied "
-                "during the initialisation of a FilesetSlice ('{}')"
-                .format(name))
+            formats = set(d.format for d in slce)
+            if len(formats) > 1:
+                raise ArcanaUsageError(
+                    "Either 'format' or candidate_formats needs to be supplied"
+                    " during the initialisation of a FilesetSlice ('{}') with "
+                    "heterogeneous formats".format(name))
+            format = next(iter(formats))
         slce = list(slce)
         if not slce:
             if format is None:
