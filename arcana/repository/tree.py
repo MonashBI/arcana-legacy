@@ -181,12 +181,11 @@ class TreeNode(object):
                     raise ArcanaNameError(
                         format,
                         ("{} doesn't have a fileset named '{}'{} with "
-                         "format '{}' (available '{}'){}"
+                         "format '{}' (available '{}')"
                          .format(self, id,
                                  (" from analysis '{}'".format(from_analysis)
                                   if from_analysis is not None else ''),
-                                 format,
-                                 "', '".join(format_dct.keys()), msg)))
+                                 format, "', '".join(format_dct.keys()))))
 
         return fileset
 

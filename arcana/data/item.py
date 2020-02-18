@@ -10,6 +10,7 @@ from arcana.exceptions import (
 from .file_format import FileFormat
 from .base import BaseFileset, BaseField
 
+HASH_CHUNK_SIZE = 2 ** 20  # 1MB
 
 class BaseItemMixin(object):
 
@@ -485,9 +486,13 @@ class Fileset(BaseItemMixin, BaseFileset):
     def calculate_checksums(self):
         checksums = {}
         for fpath in self.paths:
+            fhash = hashlib.md5()
             with open(fpath, 'rb') as f:
-                checksums[op.relpath(fpath, self.path)] = hashlib.md5(
-                    f.read()).hexdigest()
+                # Calculate hash in chunks so we don't run out of memory for
+                # large files.
+                for chunk in iter(lambda: f.read(HASH_CHUNK_SIZE), b''):
+                    fhash.update(chunk)
+            checksums[op.relpath(fpath, self.path)] = fhash.hexdigest()
         return checksums
 
     @classmethod
