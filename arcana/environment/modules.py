@@ -263,7 +263,7 @@ class ModulesEnv(Environment):
         if 'MODULESHOME' in os.environ:
             try:
                 modulecmd = sp.check_output('which modulecmd',
-                                            shell=True).strip()
+                                            shell=True).decode('utf-8').strip()
             except sp.CalledProcessError:
                 modulecmd = False
             if not modulecmd:
