@@ -164,17 +164,18 @@ class ModulesEnv(Environment):
                             local_version=local_ver_name)
                         if not req_range.within(exact_version):
                             raise ArcanaVersionError(
-                                "Version of {} specified by module {} does"
-                                " not match expected {} and is outside the"
+                                "Version of {} specified by module {} ({}) "
+                                "does not match expected {} and is outside the"
                                 " acceptable range [{}]"
                                 .format(req.name, local_ver_name,
-                                        str(version), str(req_range)))
+                                        exact_version, str(version),
+                                        str(req_range)))
                         if exact_version < version:
                             raise ArcanaVersionError(
-                                "Version of {} specified by module {} is "
+                                "Version of {} specified by module {} ({}) is "
                                 "less than the expected {}".format(
                                     req.name, local_ver_name,
-                                    str(version)))
+                                    exact_version, str(version)))
                         version = exact_version
                 versions.append(version)
         finally:
