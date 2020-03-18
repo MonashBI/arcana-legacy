@@ -2,4 +2,4 @@ version: '3'
 services:
   xnat-web:
     volumes:
-      - prefs-init.ini:/data/xnat/home/config/prefs-init.ini
+      - ./prefs-init.ini:/data/xnat/home/config/prefs-init.ini
