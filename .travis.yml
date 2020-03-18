@@ -10,7 +10,7 @@ matrix:
       env: ARCANA_TEST_DATA=$HOME/data/py36
 env:
   global:
-    - XNAT_VER=1.7.4
+    - XNAT_VER=1.7.6
     - ARCANA_TEST_XNAT=http://localhost
     - XNAT_DIR=$HOME/xnat
     - DOCKER_VER=1.21.2
