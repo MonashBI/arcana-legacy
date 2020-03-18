@@ -6,6 +6,9 @@ mkdir -p $XNAT_DIR
 # Clone the docker compose script
 git clone https://github.com/MonashBI/xnat-docker-compose $XNAT_DIR
 
+cp ci/prefs-init.ini $XNAT_DIR/
+cp ci/xnat-docker-compose.prefs.yml $XNAT_DIR/docker-compose.prefs.yml
+
 pushd $XNAT_DIR
 
 # Download the XNAT WAR file and copy to webapps directory
