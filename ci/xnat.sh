@@ -7,8 +7,6 @@ mkdir -p $XNAT_DIR
 git clone https://github.com/MonashBI/xnat-docker-compose $XNAT_DIR
 
 pushd $XNAT_DIR
-# Checkout special branch with prefs initialised to dummy defaults
-# git checkout arcana-ci
 
 # Download the XNAT WAR file and copy to webapps directory
 if [ ! -f $HOME/downloads/xnat.war ]; then

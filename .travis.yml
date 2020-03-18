@@ -41,7 +41,7 @@ before_install:
   - sudo mv docker-compose /usr/local/bin
 install: 
   - ci/xnat.sh
-  - pushd $XNAT_DIR; docker-compose up -d; popd
+  - pushd $XNAT_DIR; docker-compose up -f docker-compose.yml -d; popd
   - ci/modules.sh
   - ci/netrc.sh
   - pip install .[test]
