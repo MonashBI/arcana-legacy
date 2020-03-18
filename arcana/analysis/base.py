@@ -463,6 +463,8 @@ class Analysis(object):
             pipeline_args = ()
         elif isinstance(pipeline_args, dict):
             pipeline_args = tuple(pipeline_args.items())
+        if required_outputs is None:
+            required_outputs = ()
         try:
             pipeline = self._pipelines_cache[(getter_name, pipeline_args)]
         except KeyError:
