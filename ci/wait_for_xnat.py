@@ -48,7 +48,7 @@ try:
     # Change to docker compose directory to get xnat-web logs
     os.chdir(xnat_path)
     logs = sp.check_output(
-        '/usr/local/bin/docker-compose logs xnat-web',
+        '/usr/local/bin/docker-compose logs',
         shell=True)
     # Decode if using Python 3
     if (sys.version_info > (3, 0)):
@@ -60,7 +60,7 @@ try:
         "seconds.\n\n"
         "The netrc file was:\n{}\n\n"
         "the XnatPy exception message was {}\n\n"
-        "and the logs for xnat-web were:\n{}"
+        "and the logs were:\n{}"
         .format(server, WAIT_TIME, netrc, exception_str, logs))
 finally:
     os.chdir(orig_dir)
