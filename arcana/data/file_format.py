@@ -488,6 +488,9 @@ gif_format = FileFormat(name='gif', extension='.gif')
 png_format = FileFormat(name='png', extension='.png')
 jpg_format = FileFormat(name='jpg', extension='.jpg')
 
+# Document formats
+pdf_format = FileFormat(name='pdf', extension='.pdf')
+
 # Set Converters
 directory_format.set_converter(zip_format, UnzipConverter)
 directory_format.set_converter(targz_format, UnTarGzConverter)
