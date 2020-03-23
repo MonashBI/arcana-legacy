@@ -42,7 +42,7 @@ class TestExistingPrereqsOnXnat(TestMultiSubjectOnXnatMixin,
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_per_session_prereqs(self):
-        super(TestExistingPrereqsOnXnat, self).test_per_session_prereqs()
+        super().test_per_session_prereqs()
 
 
 class TestProjectInfo(TestMultiSubjectOnXnatMixin,

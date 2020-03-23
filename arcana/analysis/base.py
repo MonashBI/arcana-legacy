@@ -89,8 +89,7 @@ class Analysis(object):
         'per_session': (SUBJECT_ID, VISIT_ID)}
 
     def __init__(self, name, dataset, processor, inputs,
-                 environment=None, parameters=None, enforce_inputs=True,
-                 clear_caches=True):
+                 environment=None, parameters=None, enforce_inputs=True):
         try:
             # This works for PY3 as the metaclass inserts it itself if
             # it isn't provided
@@ -113,8 +112,8 @@ class Analysis(object):
         self._environment = environment
         self._inputs = {}
         # Initialise caches for data slices and pipeline objects
-        if clear_caches:
-            self.clear_caches()
+        self._bound_specs = {}
+        self._pipelines_cache = {}
         # Set parameters
         if parameters is None:
             parameters = {}

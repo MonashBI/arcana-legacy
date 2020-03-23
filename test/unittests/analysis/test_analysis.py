@@ -450,7 +450,7 @@ class TestExistingPrereqs(BaseMultiSubjectTestCase):
         analysis = self.create_analysis(
             ExistingPrereqAnalysis, self.STUDY_NAME,
             inputs=[FilesetFilter('one', 'one', text_format)])
-        analysis.data('thousand', derive=True)
+        analysis.derive('thousand')
         targets = {
             'subject1': {
                 'visit1': 1100.0,

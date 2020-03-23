@@ -112,6 +112,15 @@ class XnatRepo(Repository):
                     and self._check_md5 == other._check_md5)
         except AttributeError:
             return False  # For comparison with other types
+        
+    def __getstate__(self):
+        dct = self.__dict__.copy()
+        del dct['_login']
+        return dct
+    
+    def __setstate__(self, state):
+        self.__dict__.update(state)
+        self._login = None
 
     @property
     def prov(self):
