@@ -115,8 +115,7 @@ class MultiAnalysis(Analysis):
             subcomp = subcomp_spec.analysis_class(
                 name + '_' + subcomp_spec.name,
                 dataset, processor, mapped_inputs,
-                parameters=mapped_parameters, enforce_inputs=False,
-                clear_caches=False)
+                parameters=mapped_parameters, enforce_inputs=False)
             # Append to dictionary of substudies
             if subcomp_spec.name in self._substudies:
                 raise ArcanaNameError(
