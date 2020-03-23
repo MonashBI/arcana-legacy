@@ -1,6 +1,7 @@
 import os
 import os.path as op
 import pickle as pkl
+import hashlib
 from arcana.exceptions import ArcanaUsageError
 from .tree import Tree
 
@@ -267,9 +268,13 @@ class Dataset():
         except AttributeError:
             cache_path = None
         else:
-            cache_path = op.join(
-                cache_dir, 'dataset-{}-cache{}.pkl'.format(self.name,
-                                                           hash(self)))
+            hsh = hashlib.sha256(
+                ''.join(str(x) for x in (
+                    self._subject_ids, self._visit_ids, self._fill_tree,
+                    self._depth)).encode('utf-8')).hexdigest()[:20]
+            cache_dir = op.join(cache_dir, self._name)
+            os.makedirs(cache_dir, exist_ok=True)
+            cache_path = op.join(cache_dir, 'datatree-{}.pkl'.format(hsh))
         return cache_path
 
     def clear_cache(self):
