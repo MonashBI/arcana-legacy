@@ -705,6 +705,10 @@ class TestProvDialation(BaseMultiSubjectTestCase):
                      {k: v + 1 for k, v in orig_field1_values.items()})
 
     def test_dialation_protection(self):
+        """
+        Tests that derivatives are not re-derived unless they are needed to
+        be
+        """
         analysis_name = 'dialation_protection'
         analysis = self.create_analysis(
             TestDialationAnalysis,
@@ -728,6 +732,7 @@ class TestProvDialation(BaseMultiSubjectTestCase):
             inputs=self.STUDY_INPUTS,
             parameters={
                 'increment': 2})
+        analysis.dataset.clear_cache()
         # Recalculate value of field5 with new field2 value
         field1, field2, field3, field4, field5 = analysis.data(
             ['derived_field1', 'derived_field2', 'derived_field3',
