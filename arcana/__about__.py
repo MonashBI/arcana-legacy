@@ -18,7 +18,8 @@ install_requires = [
     'future>=0.16.0',
     'pybids>=0.5.1',
     'contextlib2>=0.5.5',
-    'deepdiff>=3.3']
+    'deepdiff>=3.3',
+    'tqdm>=4.25.0']
 
 
 tests_require = [

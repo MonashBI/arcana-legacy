@@ -2,16 +2,18 @@ from __future__ import absolute_import
 from past.builtins import basestring
 import os
 import tempfile
-from arcana.utils import makedirs
-import os.path as op
-import shutil
-from arcana.utils import JSON_ENCODING
 import stat
 import time
 import logging
 import errno
 import json
+import re
+from tqdm import tqdm
 from zipfile import ZipFile, BadZipfile
+import os.path as op
+import shutil
+from arcana.utils import JSON_ENCODING
+from arcana.utils import makedirs
 from arcana.data import Fileset, Field
 from arcana.repository.base import Repository
 from arcana.exceptions import (
@@ -19,7 +21,6 @@ from arcana.exceptions import (
     ArcanaWrongRepositoryError)
 from arcana.pipeline.provenance import Record
 from arcana.utils import dir_modtime, get_class_info, parse_value
-import re
 import xnat
 from .dataset import Dataset
 
@@ -446,7 +447,9 @@ class XnatRepo(Repository):
                         'ResultSet']['Result']
                 if (self.session_filter is None
                     or self.session_filter.match(s['label']))]
-            for session_xid in session_xids:
+            for session_xid in tqdm(session_xids,
+                                    "Scanning sessions in '{}' project"
+                                    .format(project_id)):
                 session_json = self._login.get_json(
                     '/data/projects/{}/experiments/{}'.format(
                         project_id, session_xid))['items'][0]
