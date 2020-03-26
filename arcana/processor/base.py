@@ -922,7 +922,7 @@ class Processor(object):
                 subject_id, visit_id = inds_to_ids(sess_inds)
                 if sess_inds in to_skip:
                     missing_inputs_msg += (
-                        "\n(subject={}, visit={}(: [{}]".format(
+                        "\n(subject={}, visit={}): [{}]".format(
                             subject_id, visit_id,
                             ', '.join(i.name for i in to_skip[sess_inds])))  # noqa pylint: disable=no-member
                 else:
