@@ -207,7 +207,9 @@ class Analysis(object):
                                                                spec)
                                     raise e
                             else:
-                                if bound_inpt.format not in spec.valid_formats:
+                                formt = bound_inpt.format
+                                if (formt is not None
+                                        and formt not in spec.valid_formats):
                                     raise ArcanaUsageError(
                                         "Cannot pass {} as an input to {} as "
                                         "it is not in one of the valid formats"

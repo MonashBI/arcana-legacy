@@ -768,7 +768,8 @@ class XnatRepo(Repository):
         cache_dir = op.join(self._cache_dir, dataset.name, subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
         if name is None:
-            name = str(fileset.id) + special_char_re.sub('_', fileset.name)
+            name = '{}-{}'.format(fileset.id,
+                                  special_char_re.sub('_', fileset.name))
         return op.join(cache_dir, name)
 
     def _check_repository(self, item):
