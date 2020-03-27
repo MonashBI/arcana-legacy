@@ -767,7 +767,9 @@ class XnatRepo(Repository):
         subj_dir, sess_dir = self._get_item_labels(fileset, dataset=dataset)
         cache_dir = op.join(self._cache_dir, dataset.name, subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
-        return op.join(cache_dir, fileset.name if name is None else name)
+        if name is None:
+            name = str(fileset.id) + special_char_re.sub('_', fileset.name)
+        return op.join(cache_dir, name)
 
     def _check_repository(self, item):
         if item.dataset.repository is not self:
