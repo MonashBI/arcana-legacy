@@ -1,7 +1,7 @@
 import os
 import os.path as op
 import pickle as pkl
-import logging
+from logging import getLogger
 from arcana.exceptions import ArcanaUsageError
 from .tree import Tree
 
@@ -244,7 +244,6 @@ class Dataset():
             information for the repository
         """
         if self._cached_tree is None:
-            cache_path = 
             try:
                 with open(self._tree_cache_path, 'rb') as f:
                     self._cached_tree = pkl.load(f)
@@ -254,7 +253,7 @@ class Dataset():
                 cached_dataset = self._cached_tree.dataset
                 if (cached_dataset.name == self.name
                         and cached_dataset.repository == self.repository):
-                    self._cached_tree.dataset = self
+                    self._cached_tree._dataset = self
                 else:
                     logger.warning(
                         ("Incompatible data tree saved in cache directory "

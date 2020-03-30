@@ -107,7 +107,6 @@ class XnatRepo(Repository):
         try:
             return (self.server == other.server
                     and self._cache_dir == other._cache_dir
-                    and self.project_id == other.project_id
                     and self.cache_dir == other.cache_dir
                     and self._race_cond_delay == other._race_cond_delay
                     and self._check_md5 == other._check_md5)
