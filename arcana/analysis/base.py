@@ -1142,11 +1142,8 @@ class Analysis(object):
             return False
         if isinstance(spec, BaseInputMixin):
             return True
-        elif default_okay:
-            if isinstance(spec, BaseInputSpecMixin):
-                return spec.default is not None
-            else:
-                return True
+        elif default_okay and isinstance(spec, BaseInputSpecMixin):
+            return spec.default is not None
         else:
             return False
 
