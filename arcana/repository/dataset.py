@@ -1,8 +1,12 @@
 import os
 import os.path as op
 import pickle as pkl
+import logging
 from arcana.exceptions import ArcanaUsageError
 from .tree import Tree
+
+
+logger = getLogger('arcana')
 
 
 class Dataset():
@@ -240,27 +244,43 @@ class Dataset():
             information for the repository
         """
         if self._cached_tree is None:
-            cache_path = self._tree_cache_path()
-            if cache_path is not None and op.exists(cache_path):
-                with open(cache_path, 'rb') as f:
+            cache_path = 
+            try:
+                with open(self._tree_cache_path, 'rb') as f:
                     self._cached_tree = pkl.load(f)
+            except (FileNotFoundError, TypeError):
+                pass
             else:
-                # Find all data present in the repository (filtered by the
-                # passed IDs)
-                self._cached_tree = Tree.construct(
-                    self,
-                    *self.repository.find_data(
-                        dataset=self,
-                        subject_ids=self._subject_ids,
-                        visit_ids=self._visit_ids),
-                    fill_subjects=(self._subject_ids
-                                   if self._fill_tree else None),
-                    fill_visits=(self._visit_ids if self._fill_tree else None))
-                if cache_path is not None:
-                    with open(cache_path, 'wb') as f:
-                        pkl.dump(self._cached_tree, f)
+                cached_dataset = self._cached_tree.dataset
+                if (cached_dataset.name == self.name
+                        and cached_dataset.repository == self.repository):
+                    self._cached_tree.dataset = self
+                else:
+                    logger.warning(
+                        ("Incompatible data tree saved in cache directory "
+                         "(name: '{}' v '{}', repository {} v {}) ").format(
+                            cached_dataset.name, self.name,
+                            cached_dataset.repository, self.repository))
+        if self._cached_tree is None:
+            # Find all data present in the repository (filtered by the
+            # passed IDs)
+            self._cached_tree = Tree.construct(
+                self,
+                *self.repository.find_data(
+                    dataset=self,
+                    subject_ids=self._subject_ids,
+                    visit_ids=self._visit_ids),
+                fill_subjects=(self._subject_ids
+                                if self._fill_tree else None),
+                fill_visits=(self._visit_ids if self._fill_tree else None))
+            try:
+                with open(self._tree_cache_path, 'wb') as f:
+                    pkl.dump(self._cached_tree, f)
+            except TypeError:
+                pass  # No cache path
         return self._cached_tree
 
+    @property
     def _tree_cache_path(self):
         try:
             cache_dir = self.repository.cache_dir
@@ -274,7 +294,7 @@ class Dataset():
     def clear_cache(self):
         self._cached_tree = None
         try:
-            os.remove(self._tree_cache_path())
+            os.remove(self._tree_cache_path)
         except (FileNotFoundError, TypeError):
             pass
 

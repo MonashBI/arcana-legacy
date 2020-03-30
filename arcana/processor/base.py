@@ -348,15 +348,17 @@ class Processor(object):
 
         # Iterate through stack of required pipelines from upstream to
         # downstream
-        for pipeline, req_outputs, flt_array in reversed(list(stack.values())):
-            try:
-                self._connect_pipeline(
-                    pipeline, req_outputs, workflow, subject_inds, visit_inds,
-                    flt_array, **kwargs)
-            except ArcanaNoRunRequiredException:
-                logger.info("Not running '{}' pipeline as its outputs "
-                            "are already present in the repository"
-                            .format(pipeline.name))
+        with self.analysis.repository:
+            for (pipeline, req_outputs,
+                    flt_array) in reversed(list(stack.values())):
+                try:
+                    self._connect_pipeline(
+                        pipeline, req_outputs, workflow, subject_inds,
+                        visit_inds, flt_array, **kwargs)
+                except ArcanaNoRunRequiredException:
+                    logger.info("Not running '{}' pipeline as its outputs "
+                                "are already present in the repository"
+                                .format(pipeline.name))
         # Save complete graph for debugging purposes
 #         workflow.write_graph(graph2use='flat', format='svg')
 #         print('Graph saved in {} directory'.format(os.getcwd()))

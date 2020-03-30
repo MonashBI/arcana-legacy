@@ -112,10 +112,11 @@ class MultiAnalysis(Analysis):
                 parameter = self._get_parameter(mapped_name)
                 mapped_parameters[param_name] = parameter
             # Create sub-analysis
-            subcomp = subcomp_spec.analysis_class(
-                name + '_' + subcomp_spec.name,
-                dataset, processor, mapped_inputs,
-                parameters=mapped_parameters, enforce_inputs=False)
+            with dataset.repository:
+                subcomp = subcomp_spec.analysis_class(
+                    name + '_' + subcomp_spec.name,
+                    dataset, processor, mapped_inputs,
+                    parameters=mapped_parameters, enforce_inputs=False)
             # Append to dictionary of substudies
             if subcomp_spec.name in self._substudies:
                 raise ArcanaNameError(

@@ -117,11 +117,13 @@ class XnatRepo(Repository):
     def __getstate__(self):
         dct = self.__dict__.copy()
         del dct['_login']
+        del dct['_connection_depth']
         return dct
     
     def __setstate__(self, state):
         self.__dict__.update(state)
         self._login = None
+        self._connection_depth = 0
 
     @property
     def prov(self):
@@ -131,6 +133,9 @@ class XnatRepo(Repository):
 
     @property
     def login(self):
+        if self._login is None:
+            raise ArcanaError("XNAT repository has been disconnected before "
+                              "exiting outer context")
         return self._login
 
     @property
@@ -395,7 +400,7 @@ class XnatRepo(Repository):
                 .format(fileset))
         with self:
             checksums = {r['Name']: r['digest']
-                         for r in self._login.get_json(fileset.uri + '/files')[
+                         for r in self.login.get_json(fileset.uri + '/files')[
                              'ResultSet']['Result']}
         if not fileset.format.directory:
             # Replace the key corresponding to the primary file with '.' to

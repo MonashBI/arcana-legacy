@@ -194,6 +194,11 @@ class Analysis(object):
                         if not inpt.drop_if_missing:
                             raise e
                     else:
+                        # if not any(f.exists for f in bound_inpt.slice):
+                        #     raise ArcanaInputMissingMatchError(
+                        #         "No {}s matched {}".format(
+                        #             (inpt.SliceClass.SlicedClass.__name__
+                        #              .lower()), inpt))
                         spec = self.data_spec(inpt_name)
                         if spec.is_fileset:
                             if spec.derived:
@@ -204,12 +209,11 @@ class Analysis(object):
                                     e.msg += (
                                         ", which is requried to convert:\n"
                                         + "{} to\n{}.").format(e, bound_inpt,
-                                                               spec)
+                                                            spec)
                                     raise e
                             else:
-                                formt = bound_inpt.format
-                                if (formt is not None
-                                        and formt not in spec.valid_formats):
+                                if (bound_inpt.format
+                                        not in spec.valid_formats):
                                     raise ArcanaUsageError(
                                         "Cannot pass {} as an input to {} as "
                                         "it is not in one of the valid formats"
