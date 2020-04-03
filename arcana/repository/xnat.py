@@ -145,6 +145,9 @@ class XnatRepo(Repository):
     def cache_dir(self):
         return self._cache_dir
 
+    def dataset_cache_dir(self, dataset_name):
+        return op.join(self.cache_dir, dataset_name)
+
     @property
     def check_md5(self):
         return self._check_md5

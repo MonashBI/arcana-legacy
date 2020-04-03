@@ -282,7 +282,7 @@ class Dataset():
     @property
     def _tree_cache_path(self):
         try:
-            cache_dir = self.repository.cache_dir
+            cache_dir = self.repository.dataset_cache_dir(self.dataset_name)
         except AttributeError:
             cache_path = None
         else:
