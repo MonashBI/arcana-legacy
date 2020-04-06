@@ -207,6 +207,7 @@ class Dataset():
             The fileset to insert into the repository
         """
         self.repository.put_fileset(fileset)
+        self.clear_cache()
 
     def put_field(self, field):
         """
@@ -218,6 +219,7 @@ class Dataset():
             The field to insert into the repository
         """
         self.repository.put_field(field)
+        self.clear_cache()
 
     def put_record(self, record):
         """
@@ -230,6 +232,7 @@ class Dataset():
             The record to insert into the repository
         """
         self.repository.put_record(record, self)
+        self.clear_cache()
 
     @property
     def tree(self):
