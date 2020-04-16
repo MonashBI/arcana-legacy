@@ -110,6 +110,7 @@ class TestModuleLoad(BaseTestCase):
     INPUT_FILESETS = {'ones': '1'}
     
     def setUp(self):
+        super().setUp()
         ModulesEnv._run_module_cmd('purge')
 
     @property
