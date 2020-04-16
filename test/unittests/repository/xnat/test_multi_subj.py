@@ -115,7 +115,8 @@ class TestXnatCache(TestMultiSubjectOnXnatMixin,
                     '{}_{}_{}'.format(self.project, subject_id,
                                       visit_id))
                 for inpt in analysis.inputs:
-                    self.assertTrue(op.exists(op.join(sess_dir, inpt.name)))
+                    self.assertTrue(op.exists(
+                        op.join(sess_dir, inpt.name + '-' + inpt.name)))
 
     @property
     def base_name(self):

@@ -146,7 +146,8 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin, BaseTestCase):
             tmp_dir, self.project,
             '{}_{}'.format(self.project, self.SUBJECT),
             '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
-            fileset.basename, fileset.fname)
+            '{}-{}'.format(fileset.id, fileset.basename),
+            fileset.fname)
         # This should implicitly download the fileset
         self.assertEqual(fileset.path, target_path)
         with open(target_path) as f:

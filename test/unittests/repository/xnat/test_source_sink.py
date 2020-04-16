@@ -139,12 +139,13 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         workflow.run()
         # Check cache was created properly
         self.assertEqual(filter_scans(os.listdir(self.session_cache())),
-                         ['source1', 'source2',
-                          'source3', 'source4'])
+                         ['source1-source1', 'source2-source2',
+                          'source3-source3', 'source4-source4'])
         expected_sink_filesets = ['sink1', 'sink3', 'sink4']
         self.assertEqual(
             filter_scans(os.listdir(self.session_cache(
-                from_analysis=self.STUDY_NAME))), expected_sink_filesets)
+                from_analysis=self.STUDY_NAME))),
+            [(e + '-' + e) for e in expected_sink_filesets])
         with self._connect() as login:
             fileset_names = filter_scans(login.experiments[self.session_label(
                 from_analysis=self.STUDY_NAME)].scans.keys())
@@ -278,7 +279,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
         STUDY_NAME = 'checksum_check_analysis'
         fileset_fname = DATASET_NAME + text_format.extension
         source_target_path = op.join(self.session_cache(cache_dir),
-                                     DATASET_NAME)
+                                     DATASET_NAME + '-' + DATASET_NAME)
         md5_path = source_target_path + XnatRepo.MD5_SUFFIX
         source_target_fpath = op.join(source_target_path, fileset_fname)
         shutil.rmtree(cache_dir, ignore_errors=True)
@@ -352,7 +353,7 @@ class TestXnatSourceAndSink(TestXnatSourceAndSinkBase):
             self.session_cache(
                 cache_dir, project=self.checksum_sink_project,
                 subject=(self.SUBJECT), from_analysis=STUDY_NAME),
-            DATASET_NAME)
+            DATASET_NAME + '-' + DATASET_NAME)
         sink_md5_path = sink_target_path + XnatRepo.MD5_SUFFIX
         sink.run()
         with open(md5_path) as f:
@@ -449,7 +450,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 visit=XnatRepo.SUMMARY_NAME,
                 from_analysis=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(subject_dir)),
-                             expected_subj_filesets)
+                             [(e + '-' + e) for e in expected_subj_filesets])
             # and on XNAT
             subject_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
@@ -465,7 +466,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 subject=XnatRepo.SUMMARY_NAME,
                 from_analysis=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(visit_dir)),
-                             expected_visit_filesets)
+                             [(e + '-' + e) for e in expected_visit_filesets])
             # and on XNAT
             visit_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
@@ -480,7 +481,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
                 visit=XnatRepo.SUMMARY_NAME,
                 from_analysis=self.SUMMARY_STUDY_NAME)
             self.assertEqual(filter_scans(os.listdir(project_dir)),
-                             expected_proj_filesets)
+                             [(e + '-' + e) for e in expected_proj_filesets])
             # and on XNAT
             project_fileset_names = filter_scans(login.projects[
                 self.project].experiments[
@@ -540,7 +541,7 @@ class TestXnatSummarySourceAndSink(TestXnatSourceAndSinkBase):
         self.assertEqual(
             filter_scans(os.listdir(self.session_cache(
                 from_analysis=self.SUMMARY_STUDY_NAME))),
-            ['resink1', 'resink2', 'resink3'])
+            ['resink1-resink1', 'resink2-resink2', 'resink3-resink3'])
         # and on XNAT
         with self._connect() as login:
             resinked_fileset_names = filter_scans(login.projects[

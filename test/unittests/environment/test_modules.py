@@ -108,6 +108,9 @@ class RequirementsAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 class TestModuleLoad(BaseTestCase):
 
     INPUT_FILESETS = {'ones': '1'}
+    
+    def setUp(self):
+        ModulesEnv._run_module_cmd('purge')
 
     @property
     def processor(self):
