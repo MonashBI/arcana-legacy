@@ -1,9 +1,5 @@
-from builtins import object
-from collections import defaultdict
 from abc import ABCMeta, abstractmethod
 import logging
-from .tree import Tree
-from arcana.exceptions import ArcanaUsageError
 from .dataset import Dataset
 
 
@@ -31,7 +27,7 @@ class Repository(metaclass=ABCMeta):
         self._connection_depth += 1
         return self
 
-    def __exit__(self, exception_type, exception_value, traceback):  # noqa: E501 noqa @UnusedVariable
+    def __exit__(self, exception_type, exception_value, traceback):
         self._connection_depth -= 1
         if self._connection_depth == 0:
             self.disconnect()
@@ -146,7 +142,6 @@ class Repository(metaclass=ABCMeta):
             hex digest. The primary file in the file-set (i.e. the one that the
             path points to) should be specified by '.'.
         """
-        return None
 
     @abstractmethod
     def put_fileset(self, fileset):

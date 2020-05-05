@@ -490,7 +490,7 @@ class Pipeline(object):
         except AttributeError:
             return False  # Field input
         else:
-            return (file_format != filset_format)
+            return file_format != filset_format
 
     def node(self, name):
         node = self.workflow.get_node('{}_{}'.format(self.name, name))
@@ -892,7 +892,7 @@ class Pipeline(object):
             for the pipeline
         """
         # Export worfklow graph to node-link data format
-        wf_dict = nx_json.node_link_data(self.workflow._graph)
+        wf_dict = nx_json.node_link_data(self.workflow._graph)  # noqa pylint disable=protected-member
         # Replace references to Node objects with the node's provenance
         # information and convert to a dict organised by node name to allow it
         # to be compared more easily. Also change link node-references from

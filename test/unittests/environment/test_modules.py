@@ -34,7 +34,7 @@ first_req = DummyRequirement('firsttestmodule')
 second_req = DummyRequirement('secondtestmodule')
 
 try:
-    ModulesEnv._run_module_cmd('avail')
+    ModulesEnv._run_module_cmd('avail')  # pylint: disable=protected-access
 except ArcanaModulesNotInstalledException:
     MODULES_NOT_INSTALLED = True
 else:
@@ -108,10 +108,10 @@ class RequirementsAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
 class TestModuleLoad(BaseTestCase):
 
     INPUT_FILESETS = {'ones': '1'}
-    
+
     def setUp(self):
         super().setUp()
-        ModulesEnv._run_module_cmd('purge')
+        ModulesEnv._run_module_cmd('purge')  # pylint: disable=protected-access
 
     @property
     def processor(self):
@@ -144,12 +144,12 @@ class TestModulesRun(TestCase):
 
     @unittest.skipIf(*SKIP_ARGS)
     def test_run_cmd(self):
-        ModulesEnv._run_module_cmd('avail')
+        ModulesEnv._run_module_cmd('avail')  # pylint: disable=protected-access
         self.assertRaises(
             ArcanaModulesError,
-            ModulesEnv._run_module_cmd,
+            ModulesEnv._run_module_cmd,  # pylint: disable=protected-access
             'badcmd')
         self.assertRaises(
             ArcanaModulesError,
-            ModulesEnv._run_module_cmd,
+            ModulesEnv._run_module_cmd,  # pylint: disable=protected-access
             'load', 'somereallyunlikelymodulename')

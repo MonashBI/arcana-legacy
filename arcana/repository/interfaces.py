@@ -262,11 +262,8 @@ class RepositorySink(RepositoryInterface):
             for repository in self.repositories:
                 stack.enter_context(repository)
             for fileset_slice in self.fileset_collections:
-                fileset = fileset_slice.item(
-                    subject_id,
-                    visit_id)
-                path = getattr(self.inputs,
-                               fileset_slice.name + PATH_SUFFIX)
+                fileset = fileset_slice.item(subject_id, visit_id)
+                path = getattr(self.inputs, fileset_slice.name + PATH_SUFFIX)
                 if not isdefined(path):
                     if fileset.name in self._required:
                         missing_inputs.append(fileset.name)

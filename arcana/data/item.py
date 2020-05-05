@@ -12,6 +12,7 @@ from .base import BaseFileset, BaseField
 
 HASH_CHUNK_SIZE = 2 ** 20  # 1MB
 
+
 class BaseItemMixin(object):
 
     is_spec = False
