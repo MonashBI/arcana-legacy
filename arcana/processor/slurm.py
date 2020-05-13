@@ -95,11 +95,19 @@ class SlurmProc(Processor):
         return self._mail_on
 
     @property
+    def ntasks_per_node(self):
+        return self._ntasks_per_node
+
+    @property
+    def cpus_per_task(self):
+        return self._cpus_per_task
+
+    @property
     def account(self):
         return self._account
 
-    def run(self, pipeline, **kwargs):
-        super(SlurmProc, self).run(pipeline, **kwargs)
+    def run(self, *pipelines, **kwargs):
+        super(SlurmProc, self).run(*pipelines, **kwargs)
         raise ArcanaJobSubmittedException(
             "Pipeline '{}' has been submitted to SLURM scheduler "
             "for processing. Please run script again after the jobs "

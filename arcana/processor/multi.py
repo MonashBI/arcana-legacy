@@ -24,17 +24,22 @@ class MultiProc(Processor):
     nipype_plugin_cls = MultiProcPlugin
 
     def __init__(self, work_dir, num_processes=None, plugin_args=None,
-                 **kwargs):
+                 cpus_per_task=None, **kwargs):
         if plugin_args is None:
             plugin_args = {}
         if num_processes is not None:
             plugin_args['n_procs'] = num_processes
+        self._cpus_per_task = cpus_per_task
         super(MultiProc, self).__init__(
             work_dir, plugin_args=plugin_args, **kwargs)
 
     @property
     def num_processes(self):
         return self._plugin.processors
+
+    @property
+    def cpus_per_task(self):
+        return self._cpus_per_task
 
     def __repr__(self):
         return "{}(work_dir='{}', num_processes={})".format(

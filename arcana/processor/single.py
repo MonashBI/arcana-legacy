@@ -22,3 +22,5 @@ class SingleProc(Processor):
     nipype_plugin_cls = LinearPlugin
 
     num_processes = 1
+
+    cpus_per_task = None
