@@ -15,13 +15,13 @@ from arcana.exceptions import (
     ArcanaMissingDataException,
     ArcanaInsufficientRepoDepthError)
 from arcana.utils import get_class_info, HOSTNAME, split_extension
-from .base import Repository
+from .local import LocalFileSystemRepo
 
 
 logger = logging.getLogger('arcana')
 
 
-class LocalFileSystemRepo(Repository):
+class XnatCSRepo(LocalFileSystemRepo):
     """
     A 'Repository' class for data stored simply in file-system
     directories. Can be a single directory if it contains only one subject
@@ -44,7 +44,7 @@ class LocalFileSystemRepo(Repository):
         subject.
     """
 
-    type = 'directory'
+    type = 'xnatcs'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'

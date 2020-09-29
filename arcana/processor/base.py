@@ -876,9 +876,9 @@ class Processor(object):
                     expected_record = pipeline.expected_record(node)
 
                     # Compare record with expected
-                    mismatches = record.mismatches(expected_record,
-                                                   self.prov_check,
-                                                   self.prov_ignore)
+                    mismatches = record.mismatches(
+                        expected_record, self.prov_check,
+                        list(self.prov_ignore) + ['outputs'])
                     if mismatches:
                         msg = ("mismatch in provenance:\n{}\n Add mismatching "
                                "paths (delimeted by '/') to 'prov_ignore' "

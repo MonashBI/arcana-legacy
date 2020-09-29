@@ -983,13 +983,11 @@ class Pipeline(object):
             except ArcanaDataNotDerivedYetError:
                 pass
         exp_prov = copy(self.prov)
-        if PY2:
-            # Need to convert to unicode strings for Python 2
-            exp_inputs = json.loads(json.dumps(exp_inputs))
-            exp_outputs = json.loads(json.dumps(exp_outputs))
         exp_prov['inputs'] = exp_inputs
         exp_prov['outputs'] = exp_outputs
         exp_prov['joined_ids'] = self._joined_ids()
+        # Roundtrip to JSON to convert tuples->lists etc...
+        exp_prov = json.loads(json.dumps(exp_prov))
         return Record(
             self.name, node.frequency, node.subject_id, node.visit_id,
             self.analysis.name, exp_prov)
