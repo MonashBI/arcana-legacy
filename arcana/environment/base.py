@@ -153,3 +153,9 @@ class Environment(object):
         return {
             'type': get_class_info(type(self)),
             'host': HOSTNAME}
+
+    def load(self, *args, **kwargs):
+        pass
+
+    def unload(self, *args, **kwargs):
+        pass

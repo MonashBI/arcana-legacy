@@ -2,9 +2,10 @@ import typing
 from enum import Enum
 from arcana.analysis import Analysis
 from .base import MyBaseAnalysis
+from . import file_formats as fmt
 
 
-class ArtefactSalience(Enum):
+class DerivativeSalience(Enum):
     DEBUG = 0
     REUSE = 1
     QA = 2
@@ -17,10 +18,10 @@ class ParamSalience(Enum):
     DEFAULT_RECOMMENDED = 1
     CONTEXT_DEPENDENT = 2
     ARBITRARY = 3
-    INPUT_REQUIRED = 4
+    VALUE_REQUIRED = 4
 
 
-ds = ArtefactSalience
+ds = DerivativeSalience
 ps = ParamSalience
 
 
@@ -29,9 +30,9 @@ class MyAnalysis(MyBaseAnalysis):
     @classmethod
     def construct_menu(cls):
         menu = super().construct_menu()
-        menu.add_file_input('primary', STD_IMAGE_FORMATS,
+        menu.add_file_input('primary', fmt.STD_IMAGE_FORMATS,
                             "The primary image to analyse")
-        menu.add_file('new_deriv', nifti_gz_format,
+        menu.add_file('new_deriv', fmt.nifti_gz,
                       "The multiplication of primary with 'a_param'",
                       salience=ds.PUBLICATION)
         menu.add_field('new_metric', typing.Sequence(float),
@@ -44,7 +45,7 @@ class MyAnalysis(MyBaseAnalysis):
                        desc="", salience=ps.ARBITRARY)
         return menu
 
-    @pipeline_recipe('new_deriv', 'new_metric')
+    @pipeline_constructor('new_deriv', 'new_metric')
     def new_derivatives(self, pipeline):
         """
         Generates new_deriv and new_metric from the primary image
@@ -53,7 +54,7 @@ class MyAnalysis(MyBaseAnalysis):
         upstream = pipeline.add(
             self.tool('mrcalc', '3.0.1'),
             inputs={
-                'in_file': self.menu_item('primary'),
+                'in_file': self.menu['primary'],
                 'operand': self.param('multiplier'),
                 'op': 'multiply'},
             outputs={

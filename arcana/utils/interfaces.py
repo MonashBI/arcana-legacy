@@ -106,7 +106,9 @@ special_char_re = re.compile(r'[^\w]')
 
 
 class MergeTupleOutputSpec(TraitedSpec):
-    out = traits.Tuple(desc='Merged output')  # @UndefinedVariable
+    # Not possible to specify variable length tuples given Nipype traits
+    # extensions
+    out = traits.Any(desc='Merged output')  # @UndefinedVariable
 
 
 class MergeTuple(Merge):
