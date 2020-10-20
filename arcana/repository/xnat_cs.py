@@ -1,21 +1,15 @@
 import os
+import re
 import os.path as op
-import errno
-from itertools import chain
-import stat
-import shutil
 import logging
 import json
-from fasteners import InterProcessLock
 from arcana.data import Fileset, Field
 from arcana.pipeline.provenance import Record
 from arcana.exceptions import (
-    ArcanaError, ArcanaUsageError,
-    ArcanaRepositoryError,
-    ArcanaMissingDataException,
-    ArcanaInsufficientRepoDepthError)
-from arcana.utils import get_class_info, HOSTNAME, split_extension
+    ArcanaRepositoryError, ArcanaXnatCSCommandError)
+from arcana.utils import get_class_info, split_extension
 from .local import LocalFileSystemRepo
+from .dataset import Dataset
 
 
 logger = logging.getLogger('arcana')
@@ -23,25 +17,13 @@ logger = logging.getLogger('arcana')
 
 class XnatCSRepo(LocalFileSystemRepo):
     """
-    A 'Repository' class for data stored simply in file-system
-    directories. Can be a single directory if it contains only one subject
-    and visit, otherwise if sub-directories are present (that aren't
-    recognised as single filesets) then they are assumed to be
-    separate subjects. For multi-visit datasets an additional
-    layer of sub-directories for each visit is required within each
-    subject sub-directory.
+    A 'Repository' class for data stored within a XNAT repository and accessed
+    via the XNAT container service.
 
     Parameters
     ----------
     root_dir : str (path)
         Path to local directory containing data
-    depth : int
-        The number of sub-directory layers under the base directory. For
-        example, if depth == 0, then the base directory contains the
-        data files and data, if depth == 1, then there is a layer of
-        sub-directories for each subject, and if depth == 2 there is
-        an additional layer of sub-directories for each visit of each
-        subject.
     """
 
     type = 'xnatcs'
@@ -49,131 +31,59 @@ class XnatCSRepo(LocalFileSystemRepo):
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
-    DEFAULT_SUBJECT_ID = 'SUBJECT'
-    DEFAULT_VISIT_ID = 'VISIT'
     MAX_DEPTH = 2
 
-    def __repr__(self):
-        return "{}()".format(type(self).__name__)
+    def __init__(self):
+        super().__init__()
+        try:
+            project_uri = os.environ['XNAT_PROJECT_URI']
+        except KeyError:
+            raise ArcanaXnatCSCommandError(
+                "'XNAT_PROJECT_URI' needs to be set by the XNAT CS command "
+                "JSON used to call the container")
+
+        (self.uri, self.project_id) = re.match(r'(.*)/projects/(.*)',
+                                               project_uri).groups()
+        self.subject_id = os.environ.get('XNAT_SUBJECT_ID')
+        self.session_id = os.environ.get('XNAT_SESSION_ID')
 
     def __eq__(self, other):
         try:
-            return self.type == other.type and self.root_dir == other.root_dir
+            return (self.uri == other.uri and
+                    self.project_id == other.project_id and
+                    self.subject_id == other.subject_id and
+                    self.session_id == other.session_id)
         except AttributeError:
             return False
 
+
     @property
     def prov(self):
-        return {
+        prov = {
             'type': get_class_info(type(self)),
-            'host': HOSTNAME}
+            'uri': self.uri,
+            'project_id': self.project_id,
+            'subject_id': self.subject_id,
+            'session_id': self.session_id}
+        return prov
 
     def __hash__(self):
-        return hash(self.type)
+        return hash(tuple(self.prov.items()))
 
-    def standardise_name(self, name):
-        return op.abspath(name)
+    def dataset(self, name=None, **kwargs):
+        """
+        Returns a dataset from the XNAT repository
 
-    def get_fileset(self, fileset):
+        Parameters
+        ----------
+        name : str
+            The name, path or ID of the dataset within the repository
+        subject_ids : list[str]
+            The list of subjects to include in the dataset
+        visit_ids : list[str]
+            The list of visits to include in the dataset
         """
-        Set the path of the fileset from the repository
-        """
-        # Don't need to cache fileset as it is already local as long
-        # as the path is set
-        if fileset._path is None:
-            primary_path = self.fileset_path(fileset)
-            aux_files = fileset.format.default_aux_file_paths(primary_path)
-            if not op.exists(primary_path):
-                raise ArcanaMissingDataException(
-                    "{} does not exist in {}"
-                    .format(fileset, self))
-            for aux_name, aux_path in aux_files.items():
-                if not op.exists(aux_path):
-                    raise ArcanaMissingDataException(
-                        "{} is missing '{}' side car in {}"
-                        .format(fileset, aux_name, self))
-        else:
-            primary_path = fileset.path
-            aux_files = fileset.aux_files
-        return primary_path, aux_files
-
-    def get_field(self, field):
-        """
-        Update the value of the field from the repository
-        """
-        # Load fields JSON, locking to prevent read/write conflicts
-        # Would be better if only checked if locked to allow
-        # concurrent reads but not possible with multi-process
-        # locks (in my understanding at least).
-        fpath = self.fields_json_path(field)
-        try:
-            with InterProcessLock(fpath + self.LOCK_SUFFIX,
-                                  logger=logger), open(fpath, 'r') as f:
-                dct = json.load(f)
-            val = dct[field.name]
-            if field.array:
-                val = [field.dtype(v) for v in val]
-            else:
-                val = field.dtype(val)
-        except (KeyError, IOError) as e:
-            try:
-                # Check to see if the IOError wasn't just because of a
-                # missing file
-                if e.errno != errno.ENOENT:
-                    raise
-            except AttributeError:
-                pass
-            raise ArcanaMissingDataException(
-                "{} does not exist in the local repository {}"
-                .format(field.name, self))
-        return val
-
-    def put_fileset(self, fileset):
-        """
-        Inserts or updates a fileset in the repository
-        """
-        target_path = self.fileset_path(fileset)
-        if op.isfile(fileset.path):
-            shutil.copyfile(fileset.path, target_path)
-            # Copy side car files into repository
-            for aux_name, aux_path in fileset.format.default_aux_file_paths(
-                    target_path).items():
-                shutil.copyfile(fileset.format.aux_files[aux_name], aux_path)
-        elif op.isdir(fileset.path):
-            if op.exists(target_path):
-                shutil.rmtree(target_path)
-            shutil.copytree(fileset.path, target_path)
-        else:
-            assert False
-
-    def put_field(self, field):
-        """
-        Inserts or updates a field in the repository
-        """
-        fpath = self.fields_json_path(field)
-        # Open fields JSON, locking to prevent other processes
-        # reading or writing
-        with InterProcessLock(fpath + self.LOCK_SUFFIX, logger=logger):
-            try:
-                with open(fpath, 'r') as f:
-                    dct = json.load(f)
-            except IOError as e:
-                if e.errno == errno.ENOENT:
-                    dct = {}
-                else:
-                    raise
-            if field.array:
-                dct[field.name] = list(field.value)
-            else:
-                dct[field.name] = field.value
-            with open(fpath, 'w') as f:
-                json.dump(dct, f, indent=2)
-
-    def put_record(self, record, dataset):
-        fpath = self.prov_json_path(record, dataset)
-        if not op.exists(op.dirname(fpath)):
-            os.mkdir(op.dirname(fpath))
-        record.save(fpath)
+        return Dataset(name, repository=self, **kwargs)
 
     # root_dir=None, all_from_analysis=None,
     def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
@@ -295,88 +205,8 @@ class XnatCSRepo(LocalFileSystemRepo):
                         op.join(base_prov_dir, fname)))
         return all_filesets, all_fields, all_records
 
-    def _extract_ids_from_path(self, depth, path_parts, dirs, files):
-        path_depth = len(path_parts)
-        if path_depth == depth:
-            # Load input data
-            from_analysis = None
-        elif (path_depth == (depth + 1)
-              and self.PROV_DIR in dirs):
-            # Load analysis output
-            from_analysis = path_parts.pop()
-        elif (path_depth < depth
-              and any(not f.startswith('.') for f in files)):
-            # Check to see if there are files in upper level
-            # directories, which shouldn't be there (ignoring
-            # "hidden" files that start with '.')
-            raise ArcanaRepositoryError(
-                "Files ('{}') not permitted at {} level in local "
-                "repository".format("', '".join(files),
-                                    ('subject'
-                                     if path_depth else 'dataset')))
-        else:
-            # Not a directory that contains data files or directories
-            return None
-        if len(path_parts) == 2:
-            subj_id, visit_id = path_parts
-        elif len(path_parts) == 1:
-            subj_id = path_parts[0]
-            visit_id = self.DEFAULT_VISIT_ID
-        else:
-            subj_id = self.DEFAULT_SUBJECT_ID
-            visit_id = self.DEFAULT_VISIT_ID
-        return subj_id, visit_id, from_analysis
-
     def fileset_path(self, item, dataset=None, fname=None):
-        if fname is None:
-            fname = item.fname
-        if dataset is None:
-            dataset = item.dataset
-        root_dir = dataset.name
-        depth = dataset.depth
-        subject_id = dataset.inv_map_subject_id(item.subject_id)
-        visit_id = dataset.inv_map_visit_id(item.visit_id)
-        if item.frequency == 'per_dataset':
-            subj_dir = self.SUMMARY_NAME
-            visit_dir = self.SUMMARY_NAME
-        elif item.frequency.startswith('per_subject'):
-            if depth < 2:
-                raise ArcanaInsufficientRepoDepthError(
-                    "Basic repo needs to have depth of 2 (i.e. sub-directories"
-                    " for subjects and visits) to hold 'per_subject' data")
-            subj_dir = str(subject_id)
-            visit_dir = self.SUMMARY_NAME
-        elif item.frequency.startswith('per_visit'):
-            if depth < 1:
-                raise ArcanaInsufficientRepoDepthError(
-                    "Basic repo needs to have depth of at least 1 (i.e. "
-                    "sub-directories for subjects) to hold 'per_visit' data")
-            subj_dir = self.SUMMARY_NAME
-            visit_dir = str(visit_id)
-        elif item.frequency.startswith('per_session'):
-            subj_dir = str(subject_id)
-            visit_dir = str(visit_id)
-        else:
-            assert False, "Unrecognised frequency '{}'".format(
-                item.frequency)
-        if depth == 2:
-            acq_dir = op.join(root_dir, subj_dir, visit_dir)
-        elif depth == 1:
-            acq_dir = op.join(root_dir, subj_dir)
-        elif depth == 0:
-            acq_dir = root_dir
-        else:
-            assert False
-        if item.from_analysis is None:
-            sess_dir = acq_dir
-        else:
-            # Append analysis-name to path (i.e. make a sub-directory to
-            # hold derived products)
-            sess_dir = op.join(acq_dir, item.from_analysis)
-        # Make session dir if required
-        if item.derived and not op.exists(sess_dir):
-            os.makedirs(sess_dir, stat.S_IRWXU | stat.S_IRWXG)
-        return op.join(sess_dir, fname)
+        pass
 
     def fields_json_path(self, field, dataset=None):
         return self.fileset_path(field, fname=self.FIELDS_FNAME,
@@ -389,81 +219,532 @@ class XnatCSRepo(LocalFileSystemRepo):
                                                record.pipeline_name + '.json'))
 
     @classmethod
-    def guess_depth(cls, root_dir):
-        """
-        Try to guess the depth of a directory repository (i.e. whether it has
-        sub-folders for multiple subjects or visits, depending on where files
-        and/or derived label files are found in the hierarchy of
-        sub-directories under the root dir.
+    def command_json(cls, name, desc, label, docker_image, analysis_name,
+                     analysis_cls, derivatives, version='1.0'):
+        cmd = {
+            "name": name,
+            "description": desc,
+            "label": label,
+            "version": "1.0",
+            "schema-version": "1.0",
+            "image": docker_image,
+            "type": "docker",
+            "command-line": ("banana derive /input {} {} {} --scratch /work"
+                             .format(analysis_cls, analysis_name,
+                                     ' '.join(derivatives))),
+            "override-entrypoint": true,
+            "mounts": [
+                {
+                    "name": "in",
+                    "writable": false,
+                    "path": "/input"
+                },
+                {
+                    "name": "output",
+                    "writable": true,
+                    "path": "/output"
+                },
+                {
+                    "name": "work",
+                    "writable": true,
+                    "path": "/work"
+                }
+            ],
+            "environment-variables": {
+                "XNAT_PROJECT_URI": "#PROJECT_URI#",
+                "XNAT_SUBJECT_ID": "#SUBJECT_ID#",
+                "XNAT_SESSION_ID": "#SESSION_ID#"
+            },
+            "ports": {},
+            "inputs": [
+                {
+                    "name": "session-id",
+                    "description": "",
+                    "type": "string",
+                    "required": true,
+                    "replacement-key": "#SESSION_ID#"
+                },
+                {
+                    "name": "subject-id",
+                    "description": "",
+                    "type": "string",
+                    "required": true,
+                    "replacement-key": "#SUBJECT_ID#"
+                },
+                {
+                    "name": "project-uri",
+                    "description": "Project URI used for storing",
+                    "type": "string",
+                    "required": true,
+                    "replacement-key": "#PROJECT_URI#"
+                }
+            ],
+            "outputs": [
+                {
+                    "name": "output",
+                    "description": "Derivatives",
+                    "required": true,
+                    "mount": "out",
+                    "path": null,
+                    "glob": null
+                },
+                {
+                    "name": "working",
+                    "description": "Working directory",
+                    "required": true,
+                    "mount": "work",
+                    "path": null,
+                    "glob": null
+                }
+            ],
+            "xnat": [
+                {
+                    "name": "{}-session".format(name),
+                    "description": "{} run on a single session".format(name),
+                    "label": "{}-session".format(name),
+                    "contexts": ["xnat:imageSessionData"],
+                    "external-inputs": [
+                        {
+                            "name": "session",
+                            "description": "Session",
+                            "type": "Scan",
+                            "matcher": null,
+                            "default-value": null,
+                            "required": true,
+                            "replacement-key": null,
+                            "sensitive": null,
+                            "provides-value-for-command-input": null,
+                            "provides-files-for-command-mount": null,
+                            "via-setup-command": null,
+                            "user-settable": null,
+                            "load-children": true
+                        }
+                    ],
+                    "derived-inputs": [
+                        {
+                            "name": "session",
+                            "type": "Session",
+                            "required": true,
+                            "user-settable": false,
+                            "load-children": false,
+                            "derived-from-wrapper-input": "scan"
+                        },
+                        {
+                            "name": "session-id",
+                            "type": "string",
+                            "required": true,
+                            "load-children": true,
+                            "derived-from-wrapper-input": "session",
+                            "derived-from-xnat-object-property": "id",
+                            "provides-value-for-command-input": "session-id"
+                        },
+                        {
+                            "name": "subject",
+                            "type": "Subject",
+                            "required": true,
+                            "user-settable": false,
+                            "load-children": true,
+                            "derived-from-wrapper-input": "session"
+                        },
+                        {
+                            "name": "subject-id",
+                            "type": "string",
+                            "required": true,
+                            "load-children": true,
+                            "derived-from-wrapper-input": "subject",
+                            "derived-from-xnat-object-property": "id",
+                            "provides-value-for-command-input": "subject-id"
+                        },
+                        {
+                            "name": "project",
+                            "type": "Project",
+                            "required": true,
+                            "user-settable": false,
+                            "load-children": true,
+                            "derived-from-wrapper-input": "session"
+                        },
+                        {
+                            "name": "project-id",
+                            "type": "string",
+                            "required": true,
+                            "load-children": true,
+                            "derived-from-wrapper-input": "project",
+                            "derived-from-xnat-object-property": "id",
+                            "provides-value-for-command-input": "project-id"
+                        }
+                    ],
+                    "output-handlers": [
+                        {
+                            "name": "output-resource",
+                            "accepts-command-output": "output",
+                            "via-wrapup-command": null,
+                            "as-a-child-of": "scan",
+                            "type": "Resource",
+                            "label": "OUTPUT",
+                            "format": null,
+                            "description": "An output resource."
+                        }
+                    ]
+                }
+            ]
+        }
 
-        Parameters
-        ----------
-        root_dir : str
-            Path to the root directory of the repository
-        """
-        deepest = -1
-        for path, dirs, files in os.walk(root_dir):
-            depth = cls.path_depth(root_dir, path)
-            filtered_files = cls._filter_files(files, path)
-            if filtered_files:
-                logger.info("Guessing depth of directory repository at '{}' is"
-                            " {} due to unfiltered files ('{}') in '{}'"
-                            .format(root_dir, depth,
-                                    "', '".join(filtered_files), path))
-                return depth
-            if cls.PROV_DIR in dirs:
-                depth_to_return = max(depth - 1, 0)
-                logger.info("Guessing depth of directory repository at '{}' is"
-                            "{} due to \"Derived label file\" in '{}'"
-                            .format(root_dir, depth_to_return, path))
-                return depth_to_return
-            if depth >= cls.MAX_DEPTH:
-                logger.info("Guessing depth of directory repository at '{}' is"
-                            " {} as '{}' is already at maximum depth"
-                            .format(root_dir, cls.MAX_DEPTH, path))
-                return cls.MAX_DEPTH
-            try:
-                for fpath in chain(filtered_files,
-                                   cls._filter_dirs(dirs, path)):
-                    Fileset.from_path(fpath)
-            except ArcanaError:
-                pass
-            else:
-                if depth > deepest:
-                    deepest = depth
-        if deepest == -1:
-            raise ArcanaRepositoryError(
-                "Could not guess depth of '{}' repository as did not find "
-                "a valid session directory within sub-directories."
-                .format(root_dir))
-        return deepest
-
-    @classmethod
-    def _filter_files(cls, files, base_dir):
-        # Filter out hidden files (i.e. starting with '.')
-        return [op.join(base_dir, f) for f in files
-                if not (f.startswith('.')
-                        or f.startswith(cls.FIELDS_FNAME))]
-
-    @classmethod
-    def _filter_dirs(cls, dirs, base_dir):
-        # Filter out hidden directories (i.e. starting with '.')
-        # and derived analysis directories from fileset names
-        filtered = [
-            op.join(base_dir, d) for d in dirs
-            if not (d.startswith('.') or d == cls.PROV_DIR or (
-                cls.PROV_DIR in os.listdir(op.join(base_dir, d))))]
-        return filtered
-
-    @classmethod
-    def path_depth(cls, root_dir, dpath):
-        relpath = op.relpath(dpath, root_dir)
-        if '..' in relpath:
-            raise ArcanaUsageError(
-                "Path '{}' is not a sub-directory of '{}'".format(
-                    dpath, root_dir))
-        elif relpath == '.':
-            depth = 0
+        if frequency == 'per_session':
+            d["environment-variables"]["XNAT_SUBJECT_ID"] = "#SUBJECT_ID#"
+            d["environment-variables"]["XNAT_SESSION_ID"] = "#SESSION_ID#"
+            d["xnat"]["external-inputs"] = [
+                {"name": "session",
+                 "description": "Imaging Session",
+                 "type": "Session",
+                 "required": true,
+                 "load-children": true}]
+            d["xnat"]['derived-inputs'] = [
+                {"name": "session-id",
+                 "type": "string",
+                 "required": true,
+                 "load-children": true,
+                 "derived-from-wrapper-input": "session",
+                 "derived-from-xnat-object-property": "id",
+                 "provides-value-for-command-input": "session-id"},
+                {"name": "subject",
+                 "type": "Subject",
+                 "required": true,
+                 "user-settable": false,
+                 "load-children": true,
+                 "derived-from-wrapper-input": "session"},
+                {"name": "subject-id",
+                 "type": "string",
+                 "required": true,
+                 "load-children": true,
+                 "derived-from-wrapper-input": "subject",
+                 "derived-from-xnat-object-property": "id",
+                 "provides-value-for-command-input": "subject-id"},
+                {"name": "project",
+                 "type": "Project",
+                 "required": true,
+                 "user-settable": false,
+                 "load-children": true,
+                 "derived-from-wrapper-input": "session"}]
+        elif frequency == 'per_dataset':
+            d["xnat"]["external-inputs"] = [
+                {"name": "project",
+                 "description": "Project",
+                 "type": "Project",
+                 "required": true,
+                 "load-children": true}]
         else:
-            depth = relpath.count(op.sep) + 1
-        return depth
+            raise ArcanaXnatCSCommandError(
+                "Valid frequencies for XNAT CS command JSON files are "
+                "'per_session' and 'per_dataset' (not '{}')".format(frequency))
+        return cmd
+
+
+ref_command = {
+  "name": "bids-mriqc",
+  "description": "Runs the MRIQC BIDS App",
+  "version": "1.1",
+  "schema-version": "1.0",
+  "image": "poldracklab/mriqc:0.15.2",
+  "type": "docker",
+  "command-line": "mriqc /input /output participant group --no-sub -w /work -v #FLAGS#",
+  "override-entrypoint": true,
+  "mounts": [
+    {
+      "name": "in",
+      "writable": false,
+      "path": "/input"
+    },
+    {
+      "name": "out",
+      "writable": true,
+      "path": "/output"
+    },
+    {
+      "name": "work",
+      "writable": true,
+      "path": "/work"
+    }
+  ],
+  "environment-variables": {},
+  "ports": {},
+  "inputs": [
+    {
+      "name": "flags",
+      "label": "MRIQC flags",
+      "description": "Flags to pass to MRIQC",
+      "type": "string",
+      "matcher": null,
+      "default-value": "",
+      "required": false,
+      "replacement-key": "#FLAGS#",
+      "sensitive": false,
+      "command-line-flag": null,
+      "command-line-separator": null,
+      "true-value": null,
+      "false-value": null,
+      "select-values": [],
+      "multiple-delimiter": null
+    }
+  ],
+  "outputs": [
+    {
+      "name": "output",
+      "description": "Output QC files",
+      "required": true,
+      "mount": "out",
+      "path": null,
+      "glob": null
+    },
+    {
+      "name": "working",
+      "description": "Working QC files",
+      "required": true,
+      "mount": "work",
+      "path": null,
+      "glob": null
+    }
+  ],
+  "xnat": [
+    {
+      "name": "bids-mriqc-project",
+      "label": null,
+      "description": "Run the MRIQC BIDS App with a project mounted",
+      "contexts": [
+        "xnat:projectData"
+      ],
+      "external-inputs": [
+        {
+          "name": "project",
+          "label": null,
+          "description": "Project",
+          "type": "Project",
+          "matcher": null,
+          "default-value": null,
+          "required": true,
+          "replacement-key": null,
+          "sensitive": null,
+          "provides-value-for-command-input": null,
+          "provides-files-for-command-mount": "in",
+          "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
+          "user-settable": null,
+          "load-children": false
+        }
+      ],
+      "derived-inputs": [],
+      "output-handlers": [
+        {
+          "name": "output-resource",
+          "accepts-command-output": "output",
+          "via-wrapup-command": null,
+          "as-a-child-of": "project",
+          "type": "Resource",
+          "label": "MRIQC",
+          "format": null
+        },
+        {
+          "name": "working-resource",
+          "accepts-command-output": "working",
+          "via-wrapup-command": null,
+          "as-a-child-of": "project",
+          "type": "Resource",
+          "label": "MRIQC-wrk",
+          "format": null
+        }
+      ]
+    },
+    {
+      "name": "bids-mriqc-session",
+      "label": null,
+      "description": "Run the MRIQC BIDS App with a session mounted",
+      "contexts": [
+        "xnat:imageSessionData"
+      ],
+      "external-inputs": [
+        {
+          "name": "session",
+          "label": null,
+          "description": "Input session",
+          "type": "Session",
+          "matcher": null,
+          "default-value": null,
+          "required": true,
+          "replacement-key": null,
+          "sensitive": null,
+          "provides-value-for-command-input": null,
+          "provides-files-for-command-mount": "in",
+          "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
+          "user-settable": null,
+          "load-children": false
+        }
+      ],
+      "derived-inputs": [],
+      "output-handlers": [
+        {
+          "name": "output-resource",
+          "accepts-command-output": "output",
+          "via-wrapup-command": null,
+          "as-a-child-of": "session",
+          "type": "Resource",
+          "label": "MRIQC",
+          "format": null
+        },
+        {
+          "name": "working-resource",
+          "accepts-command-output": "working",
+          "via-wrapup-command": null,
+          "as-a-child-of": "session",
+          "type": "Resource",
+          "label": "MRIQC-wrk",
+          "format": null
+        }
+      ]
+    }
+  ]
+}
+
+
+ids_command_json = {
+    "name": "Sample",
+    "description": "Sample",
+    "label": "sample-id-extration",
+    "version": "1.0",
+    "schema-version": "1.0",
+    "image": "busybox:latest",
+    "type": "docker",
+    "command-line": "echo '#PROJECT_ID# #SUBJECT_ID# #SESSION_ID#'",
+    "override-entrypoint": true,
+    "mounts": [
+        {
+            "name": "output",
+            "writable": true,
+            "path": "/output"
+        }
+    ],
+    "environment-variables": {
+        "PROJECT_ID": "#PROJECT_ID#",
+        "SUBJECT_ID": "#SUBJECT_ID#",
+        "SESSION_ID": "#SESSION_ID#"
+    },
+    "ports": {},
+    "inputs": [
+        {
+            "name": "session-id",
+            "description": "",
+            "type": "string",
+            "required": true,
+            "replacement-key": "#SESSION_ID#"
+        },
+        {
+            "name": "subject-id",
+            "description": "",
+            "type": "string",
+            "required": true,
+            "replacement-key": "#SUBJECT_ID#"
+        },
+        {
+            "name": "project-id",
+            "description": "",
+            "type": "string",
+            "required": true,
+            "replacement-key": "#PROJECT_ID#"
+        }
+    ],
+    "outputs": [
+        {
+            "name": "output",
+            "description": "The sample output",
+            "required": true,
+            "mount": "output"
+        }
+    ],
+    "xnat": [
+        {
+            "name": "Sample_ID_extration",
+            "description": "Sample ID extration",
+            "label": "sample-id-extration",
+            "contexts": ["xnat:imageScanData"],
+            "external-inputs": [
+                {
+                    "name": "scan",
+                    "description": "Image Scan",
+                    "type": "Scan",
+                    "matcher": null,
+                    "default-value": null,
+                    "required": true,
+                    "replacement-key": null,
+                    "sensitive": null,
+                    "provides-value-for-command-input": null,
+                    "provides-files-for-command-mount": null,
+                    "via-setup-command": null,
+                    "user-settable": null,
+                    "load-children": true
+                }
+            ],
+            "derived-inputs": [
+                {
+                    "name": "session",
+                    "type": "Session",
+                    "required": true,
+                    "user-settable": false,
+                    "load-children": false,
+                    "derived-from-wrapper-input": "scan"
+                },
+                {
+                    "name": "session-id",
+                    "type": "string",
+                    "required": true,
+                    "load-children": true,
+                    "derived-from-wrapper-input": "session",
+                    "derived-from-xnat-object-property": "id",
+                    "provides-value-for-command-input": "session-id"
+                },
+                {
+                    "name": "subject",
+                    "type": "Subject",
+                    "required": true,
+                    "user-settable": false,
+                    "load-children": true,
+                    "derived-from-wrapper-input": "session"
+                },
+                {
+                    "name": "subject-id",
+                    "type": "string",
+                    "required": true,
+                    "load-children": true,
+                    "derived-from-wrapper-input": "subject",
+                    "derived-from-xnat-object-property": "id",
+                    "provides-value-for-command-input": "subject-id"
+                },
+                {
+                    "name": "project",
+                    "type": "Project",
+                    "required": true,
+                    "user-settable": false,
+                    "load-children": true,
+                    "derived-from-wrapper-input": "session"
+                },
+                {
+                    "name": "project-id",
+                    "type": "string",
+                    "required": true,
+                    "load-children": true,
+                    "derived-from-wrapper-input": "project",
+                    "derived-from-xnat-object-property": "id",
+                    "provides-value-for-command-input": "project-id"
+                }
+            ],
+            "output-handlers": [
+                {
+                    "name": "output-resource",
+                    "accepts-command-output": "output",
+                    "via-wrapup-command": null,
+                    "as-a-child-of": "scan",
+                    "type": "Resource",
+                    "label": "OUTPUT",
+                    "format": null,
+                    "description": "An output resource."
+                }
+            ]
+        }
+    ]
+}

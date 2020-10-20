@@ -162,3 +162,10 @@ class ArcanaWrongRepositoryError(ArcanaError):
 
 class ArcanaIvalidParameterError(ArcanaError):
     pass
+
+
+class ArcanaXnatCSCommandError(ArcanaRepositoryError):
+    """
+    Error in the command file used to access an XNAT repository via the XNAT
+    container service.
+    """

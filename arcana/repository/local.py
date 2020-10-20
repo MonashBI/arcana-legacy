@@ -30,18 +30,6 @@ class LocalFileSystemRepo(Repository):
     separate subjects. For multi-visit datasets an additional
     layer of sub-directories for each visit is required within each
     subject sub-directory.
-
-    Parameters
-    ----------
-    root_dir : str (path)
-        Path to local directory containing data
-    depth : int
-        The number of sub-directory layers under the base directory. For
-        example, if depth == 0, then the base directory contains the
-        data files and data, if depth == 1, then there is a layer of
-        sub-directories for each subject, and if depth == 2 there is
-        an additional layer of sub-directories for each visit of each
-        subject.
     """
 
     type = 'directory'
