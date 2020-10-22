@@ -138,7 +138,7 @@ class Pipeline(object):
                 hash(tuple(self._citations)))
 
     def __ne__(self, other):
-        return not (self == other)
+        return not self == other
 
     @property
     def has_prerequisites(self):
@@ -370,9 +370,9 @@ class Pipeline(object):
         if trait_name not in valid_trait_names:
             raise ArcanaDesignError(
                 ("Node {} '{}' is not a valid trait of {} used for '{}' "
-                    "node of '{}' pipeline. Valid traits are '{}'").format(
-                        conn_type, trait_name, node.interface, node.name,
-                        self.name, "', '".join(valid_trait_names)))
+                 "node of '{}' pipeline. Valid traits are '{}'").format(
+                     conn_type, trait_name, node.interface, node.name,
+                     self.name, "', '".join(valid_trait_names)))
 
     def _map_name(self, name, mapper):
         """

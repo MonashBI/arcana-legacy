@@ -209,7 +209,7 @@ class Analysis(object):
                                     e.msg += (
                                         ", which is requried to convert:\n"
                                         + "{} to\n{}.").format(e, bound_inpt,
-                                                            spec)
+                                                               spec)
                                     raise e
                             else:
                                 if (bound_inpt.format
@@ -237,7 +237,7 @@ class Analysis(object):
                     msg = (" input fileset '{}' was not provided to {}."
                            .format(spec.name, self))
                     if spec.optional:
-                        logger.info('Optional' + msg)
+                        logger.info('Optional %s', msg)
                     else:
                         if enforce_inputs:
                             raise ArcanaMissingInputError(
@@ -1094,7 +1094,7 @@ class Analysis(object):
         """
         Runs the Analysis's repository source node for each of the inputs
         of the analysis, thereby caching any data required from remote
-        repositorys. Useful when launching many parallel jobs that will
+        repositories. Useful when launching many parallel jobs that will
         all try to concurrently access the remote repository, and probably
         lead to timeout errors.
         """
