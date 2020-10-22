@@ -26,31 +26,23 @@ class XnatCSRepo(LocalFileSystemRepo):
         Path to local directory containing data
     """
 
-    type = 'xnatcs'
+    type = 'xnat_cs'
     SUMMARY_NAME = '__ALL__'
     FIELDS_FNAME = 'fields.json'
     PROV_DIR = '__prov__'
     LOCK_SUFFIX = '.lock'
     MAX_DEPTH = 2
 
-    def __init__(self):
+    def __init__(self, project_uri):
         super().__init__()
-        try:
-            project_uri = os.environ['XNAT_PROJECT_URI']
-        except KeyError:
-            raise ArcanaXnatCSCommandError(
-                "'XNAT_PROJECT_URI' needs to be set by the XNAT CS command "
-                "JSON used to call the container")
-
-        (self.uri, self.project_id) = re.match(r'(.*)/projects/(.*)',
-                                               project_uri).groups()
-        self.subject_id = os.environ.get('XNAT_SUBJECT_ID')
-        self.session_id = os.environ.get('XNAT_SESSION_ID')
+        self.project_uri = (os.environ['XNAT_HOST']
+                            + os.environ['XNAT_PROJECT_URI'])
+        self.token = os.environ['XNAT_USER']
+        self.secret = os.environ['XNAT_PASS']    
 
     def __eq__(self, other):
         try:
-            return (self.uri == other.uri and
-                    self.project_id == other.project_id and
+            return (self.project_uri == other.project_uri and
                     self.subject_id == other.subject_id and
                     self.session_id == other.session_id)
         except AttributeError:
@@ -61,29 +53,13 @@ class XnatCSRepo(LocalFileSystemRepo):
     def prov(self):
         prov = {
             'type': get_class_info(type(self)),
-            'uri': self.uri,
-            'project_id': self.project_id,
+            'project_uri': self.project_uri,
             'subject_id': self.subject_id,
             'session_id': self.session_id}
         return prov
 
     def __hash__(self):
         return hash(tuple(self.prov.items()))
-
-    def dataset(self, name=None, **kwargs):
-        """
-        Returns a dataset from the XNAT repository
-
-        Parameters
-        ----------
-        name : str
-            The name, path or ID of the dataset within the repository
-        subject_ids : list[str]
-            The list of subjects to include in the dataset
-        visit_ids : list[str]
-            The list of visits to include in the dataset
-        """
-        return Dataset(name, repository=self, **kwargs)
 
     # root_dir=None, all_from_analysis=None,
     def find_data(self, dataset, subject_ids=None, visit_ids=None, **kwargs):
@@ -120,7 +96,7 @@ class XnatCSRepo(LocalFileSystemRepo):
         all_fields = []
         all_records = []
         # if root_dir is None:
-        root_dir = dataset.name
+        input_dir = dataset.name
         for session_path, dirs, files in os.walk(root_dir):
             relpath = op.relpath(session_path, root_dir)
             path_parts = relpath.split(op.sep) if relpath != '.' else []
@@ -219,63 +195,105 @@ class XnatCSRepo(LocalFileSystemRepo):
                                                record.pipeline_name + '.json'))
 
     @classmethod
-    def command_json(cls, name, desc, label, docker_image, analysis_name,
-                     analysis_cls, derivatives, version='1.0'):
+    def command_json(cls, name, analysis_cls, derivatives, desc, docker_image,
+                     docker_index="https://index.docker.io/v1/",
+                     version='1.0', frequency='per_session'):
+
+        if frequency != 'per_session':
+            raise NotImplementedError(
+                "Support for frequencies other than '{}' haven't been "
+                "implemented yet".format(frequency))
         cmd = {
             "name": name,
             "description": desc,
-            "label": label,
-            "version": "1.0",
+            "label": name,
+            "version": version,
             "schema-version": "1.0",
             "image": docker_image,
+            "index": docker_index,
             "type": "docker",
-            "command-line": ("banana derive /input {} {} {} --scratch /work"
-                             .format(analysis_cls, analysis_name,
-                                     ' '.join(derivatives))),
-            "override-entrypoint": true,
+            "command-line": (
+                "banana derive /input {} #ANALYSIS_NAME# {} "
+                "--repository xnat_cs --scratch /work "
+                "--session_ids #SESSION_ID# #PARAMETERS# "
+                .format('.'.join((analysis_cls.__module__,
+                                  analysis_cls.__name__)), derivatives)),
+            "override-entrypoint": True,
             "mounts": [
                 {
                     "name": "in",
-                    "writable": false,
+                    "writable": False,
                     "path": "/input"
                 },
                 {
                     "name": "output",
-                    "writable": true,
+                    "writable": True,
                     "path": "/output"
                 },
                 {
                     "name": "work",
-                    "writable": true,
+                    "writable": True,
                     "path": "/work"
                 }
             ],
             "environment-variables": {
                 "XNAT_PROJECT_URI": "#PROJECT_URI#",
-                "XNAT_SUBJECT_ID": "#SUBJECT_ID#",
-                "XNAT_SESSION_ID": "#SESSION_ID#"
             },
             "ports": {},
             "inputs": [
                 {
+                    "name": "derivatives",
+                    "description": (
+                        "A space-delimited string of deriviatives to derive "
+                        "(options: {})").format(', '.join(
+                            s.name
+                            for s in analysis_cls.cls.derived_data_specs())),
+                    "type": "string",
+                    "required": True,
+                    "user-settable": True,
+                    "replacement-key": "#DERIVATIVES#"
+                },
+                {
+                    "name": "analysis-name",
+                    "description":
+                        "The name of the analysis to distinguish between "
+                        "different analyses on the same dataset",
+                    "type": "string",
+                    "required": True,
+                    "user-settable": True,
+                    "replacement-key": "#ANALYSIS_NAME#"
+                },
+                {
+                    "name": "parameters",
+                    "description":
+                        "Custom parameters used for the analysis (separate",
+                    "type": "string",
+                    "required": False,
+                    "user-settable": True,
+                    "replacement-key": "#PARAMETERS#"
+                },
+                {
                     "name": "session-id",
                     "description": "",
                     "type": "string",
-                    "required": true,
+                    "required": True,
+                    "user-settable": False,
                     "replacement-key": "#SESSION_ID#"
                 },
                 {
                     "name": "subject-id",
                     "description": "",
                     "type": "string",
-                    "required": true,
+                    "required": True,
+                    "user-settable": False,
                     "replacement-key": "#SUBJECT_ID#"
                 },
                 {
                     "name": "project-uri",
-                    "description": "Project URI used for storing",
+                    "description": "Project URI used in any REST calls",
                     "type": "string",
-                    "required": true,
+                    "required": True,
+                    "user-settable": False,
                     "replacement-key": "#PROJECT_URI#"
                 }
             ],
@@ -283,57 +301,49 @@ class XnatCSRepo(LocalFileSystemRepo):
                 {
                     "name": "output",
                     "description": "Derivatives",
-                    "required": true,
+                    "required": True,
                     "mount": "out",
-                    "path": null,
-                    "glob": null
+                    "path": None,
+                    "glob": None
                 },
                 {
                     "name": "working",
                     "description": "Working directory",
-                    "required": true,
+                    "required": True,
                     "mount": "work",
-                    "path": null,
-                    "glob": null
+                    "path": None,
+                    "glob": None
                 }
             ],
             "xnat": [
                 {
-                    "name": "{}-session".format(name),
-                    "description": "{} run on a single session".format(name),
-                    "label": "{}-session".format(name),
+                    "name": name,
+                    "description": "{} run on a session".format(name),
+                    "label": name,
                     "contexts": ["xnat:imageSessionData"],
                     "external-inputs": [
                         {
                             "name": "session",
-                            "description": "Session",
-                            "type": "Scan",
-                            "matcher": null,
-                            "default-value": null,
-                            "required": true,
-                            "replacement-key": null,
-                            "sensitive": null,
-                            "provides-value-for-command-input": null,
-                            "provides-files-for-command-mount": null,
-                            "via-setup-command": null,
-                            "user-settable": null,
-                            "load-children": true
+                            "description": "Imaging session",
+                            "type": "Session",
+                            "matcher": None,
+                            "default-value": None,
+                            "required": True,
+                            "replacement-key": None,
+                            "sensitive": None,
+                            "provides-value-for-command-input": None,
+                            "provides-files-for-command-mount": "in",
+                            "via-setup-command": None,
+                            "user-settable": None,
+                            "load-children": True
                         }
                     ],
                     "derived-inputs": [
                         {
-                            "name": "session",
-                            "type": "Session",
-                            "required": true,
-                            "user-settable": false,
-                            "load-children": false,
-                            "derived-from-wrapper-input": "scan"
-                        },
-                        {
                             "name": "session-id",
                             "type": "string",
-                            "required": true,
-                            "load-children": true,
+                            "required": True,
+                            "load-children": True,
                             "derived-from-wrapper-input": "session",
                             "derived-from-xnat-object-property": "id",
                             "provides-value-for-command-input": "session-id"
@@ -341,410 +351,354 @@ class XnatCSRepo(LocalFileSystemRepo):
                         {
                             "name": "subject",
                             "type": "Subject",
-                            "required": true,
-                            "user-settable": false,
-                            "load-children": true,
+                            "required": True,
+                            "user-settable": False,
+                            "load-children": True,
                             "derived-from-wrapper-input": "session"
                         },
                         {
                             "name": "subject-id",
                             "type": "string",
-                            "required": true,
-                            "load-children": true,
+                            "required": True,
+                            "load-children": True,
                             "derived-from-wrapper-input": "subject",
                             "derived-from-xnat-object-property": "id",
                             "provides-value-for-command-input": "subject-id"
-                        },
-                        {
-                            "name": "project",
-                            "type": "Project",
-                            "required": true,
-                            "user-settable": false,
-                            "load-children": true,
-                            "derived-from-wrapper-input": "session"
-                        },
-                        {
-                            "name": "project-id",
-                            "type": "string",
-                            "required": true,
-                            "load-children": true,
-                            "derived-from-wrapper-input": "project",
-                            "derived-from-xnat-object-property": "id",
-                            "provides-value-for-command-input": "project-id"
                         }
                     ],
                     "output-handlers": [
                         {
                             "name": "output-resource",
                             "accepts-command-output": "output",
-                            "via-wrapup-command": null,
-                            "as-a-child-of": "scan",
+                            "via-wrapup-command": None,
+                            "as-a-child-of": "session",
                             "type": "Resource",
-                            "label": "OUTPUT",
-                            "format": null,
-                            "description": "An output resource."
+                            "label": name,
+                            "format": None
+                        },
+                        {
+                            "name": "working-resource",
+                            "accepts-command-output": "working",
+                            "via-wrapup-command": None,
+                            "as-a-child-of": "session",
+                            "type": "Resource",
+                            "label": "{}-work".format(name),
+                            "format": None
                         }
                     ]
                 }
             ]
         }
-
-        if frequency == 'per_session':
-            d["environment-variables"]["XNAT_SUBJECT_ID"] = "#SUBJECT_ID#"
-            d["environment-variables"]["XNAT_SESSION_ID"] = "#SESSION_ID#"
-            d["xnat"]["external-inputs"] = [
-                {"name": "session",
-                 "description": "Imaging Session",
-                 "type": "Session",
-                 "required": true,
-                 "load-children": true}]
-            d["xnat"]['derived-inputs'] = [
-                {"name": "session-id",
-                 "type": "string",
-                 "required": true,
-                 "load-children": true,
-                 "derived-from-wrapper-input": "session",
-                 "derived-from-xnat-object-property": "id",
-                 "provides-value-for-command-input": "session-id"},
-                {"name": "subject",
-                 "type": "Subject",
-                 "required": true,
-                 "user-settable": false,
-                 "load-children": true,
-                 "derived-from-wrapper-input": "session"},
-                {"name": "subject-id",
-                 "type": "string",
-                 "required": true,
-                 "load-children": true,
-                 "derived-from-wrapper-input": "subject",
-                 "derived-from-xnat-object-property": "id",
-                 "provides-value-for-command-input": "subject-id"},
-                {"name": "project",
-                 "type": "Project",
-                 "required": true,
-                 "user-settable": false,
-                 "load-children": true,
-                 "derived-from-wrapper-input": "session"}]
-        elif frequency == 'per_dataset':
-            d["xnat"]["external-inputs"] = [
-                {"name": "project",
-                 "description": "Project",
-                 "type": "Project",
-                 "required": true,
-                 "load-children": true}]
-        else:
-            raise ArcanaXnatCSCommandError(
-                "Valid frequencies for XNAT CS command JSON files are "
-                "'per_session' and 'per_dataset' (not '{}')".format(frequency))
         return cmd
 
 
-ref_command = {
-  "name": "bids-mriqc",
-  "description": "Runs the MRIQC BIDS App",
-  "version": "1.1",
-  "schema-version": "1.0",
-  "image": "poldracklab/mriqc:0.15.2",
-  "type": "docker",
-  "command-line": "mriqc /input /output participant group --no-sub -w /work -v #FLAGS#",
-  "override-entrypoint": true,
-  "mounts": [
-    {
-      "name": "in",
-      "writable": false,
-      "path": "/input"
-    },
-    {
-      "name": "out",
-      "writable": true,
-      "path": "/output"
-    },
-    {
-      "name": "work",
-      "writable": true,
-      "path": "/work"
-    }
-  ],
-  "environment-variables": {},
-  "ports": {},
-  "inputs": [
-    {
-      "name": "flags",
-      "label": "MRIQC flags",
-      "description": "Flags to pass to MRIQC",
-      "type": "string",
-      "matcher": null,
-      "default-value": "",
-      "required": false,
-      "replacement-key": "#FLAGS#",
-      "sensitive": false,
-      "command-line-flag": null,
-      "command-line-separator": null,
-      "true-value": null,
-      "false-value": null,
-      "select-values": [],
-      "multiple-delimiter": null
-    }
-  ],
-  "outputs": [
-    {
-      "name": "output",
-      "description": "Output QC files",
-      "required": true,
-      "mount": "out",
-      "path": null,
-      "glob": null
-    },
-    {
-      "name": "working",
-      "description": "Working QC files",
-      "required": true,
-      "mount": "work",
-      "path": null,
-      "glob": null
-    }
-  ],
-  "xnat": [
-    {
-      "name": "bids-mriqc-project",
-      "label": null,
-      "description": "Run the MRIQC BIDS App with a project mounted",
-      "contexts": [
-        "xnat:projectData"
-      ],
-      "external-inputs": [
-        {
-          "name": "project",
-          "label": null,
-          "description": "Project",
-          "type": "Project",
-          "matcher": null,
-          "default-value": null,
-          "required": true,
-          "replacement-key": null,
-          "sensitive": null,
-          "provides-value-for-command-input": null,
-          "provides-files-for-command-mount": "in",
-          "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
-          "user-settable": null,
-          "load-children": false
-        }
-      ],
-      "derived-inputs": [],
-      "output-handlers": [
-        {
-          "name": "output-resource",
-          "accepts-command-output": "output",
-          "via-wrapup-command": null,
-          "as-a-child-of": "project",
-          "type": "Resource",
-          "label": "MRIQC",
-          "format": null
-        },
-        {
-          "name": "working-resource",
-          "accepts-command-output": "working",
-          "via-wrapup-command": null,
-          "as-a-child-of": "project",
-          "type": "Resource",
-          "label": "MRIQC-wrk",
-          "format": null
-        }
-      ]
-    },
-    {
-      "name": "bids-mriqc-session",
-      "label": null,
-      "description": "Run the MRIQC BIDS App with a session mounted",
-      "contexts": [
-        "xnat:imageSessionData"
-      ],
-      "external-inputs": [
-        {
-          "name": "session",
-          "label": null,
-          "description": "Input session",
-          "type": "Session",
-          "matcher": null,
-          "default-value": null,
-          "required": true,
-          "replacement-key": null,
-          "sensitive": null,
-          "provides-value-for-command-input": null,
-          "provides-files-for-command-mount": "in",
-          "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
-          "user-settable": null,
-          "load-children": false
-        }
-      ],
-      "derived-inputs": [],
-      "output-handlers": [
-        {
-          "name": "output-resource",
-          "accepts-command-output": "output",
-          "via-wrapup-command": null,
-          "as-a-child-of": "session",
-          "type": "Resource",
-          "label": "MRIQC",
-          "format": null
-        },
-        {
-          "name": "working-resource",
-          "accepts-command-output": "working",
-          "via-wrapup-command": null,
-          "as-a-child-of": "session",
-          "type": "Resource",
-          "label": "MRIQC-wrk",
-          "format": null
-        }
-      ]
-    }
-  ]
-}
+
+# ref_command = {
+#   "name": "bids-mriqc",
+#   "description": "Runs the MRIQC BIDS App",
+#   "version": "1.1",
+#   "schema-version": "1.0",
+#   "image": "poldracklab/mriqc:0.15.2",
+#   "type": "docker",
+#   "command-line": "mriqc /input /output participant group --no-sub -w /work -v #FLAGS#",
+#   "override-entrypoint": True,
+#   "mounts": [
+#     {
+#       "name": "in",
+#       "writable": false,
+#       "path": "/input"
+#     },
+#     {
+#       "name": "out",
+#       "writable": true,
+#       "path": "/output"
+#     },
+#     {
+#       "name": "work",
+#       "writable": true,
+#       "path": "/work"
+#     }
+#   ],
+#   "environment-variables": {},
+#   "ports": {},
+#   "inputs": [
+#     {
+#       "name": "flags",
+#       "label": "MRIQC flags",
+#       "description": "Flags to pass to MRIQC",
+#       "type": "string",
+#       "matcher": null,
+#       "default-value": "",
+#       "required": false,
+#       "replacement-key": "#FLAGS#",
+#       "sensitive": false,
+#       "command-line-flag": null,
+#       "command-line-separator": null,
+#       "true-value": null,
+#       "false-value": null,
+#       "select-values": [],
+#       "multiple-delimiter": null
+#     }
+#   ],
+#   "outputs": [
+#     {
+#       "name": "output",
+#       "description": "Output QC files",
+#       "required": true,
+#       "mount": "out",
+#       "path": null,
+#       "glob": null
+#     },
+#     {
+#       "name": "working",
+#       "description": "Working QC files",
+#       "required": true,
+#       "mount": "work",
+#       "path": null,
+#       "glob": null
+#     }
+#   ],
+#   "xnat": [
+#     {
+#       "name": "bids-mriqc-project",
+#       "label": null,
+#       "description": "Run the MRIQC BIDS App with a project mounted",
+#       "contexts": [
+#         "xnat:projectData"
+#       ],
+#       "external-inputs": [
+#         {
+#           "name": "project",
+#           "label": null,
+#           "description": "Project",
+#           "type": "Project",
+#           "matcher": null,
+#           "default-value": null,
+#           "required": true,
+#           "replacement-key": null,
+#           "sensitive": null,
+#           "provides-value-for-command-input": null,
+#           "provides-files-for-command-mount": "in",
+#           "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
+#           "user-settable": null,
+#           "load-children": false
+#         }
+#       ],
+#       "derived-inputs": [],
+#       "output-handlers": [
+#         {
+#           "name": "output-resource",
+#           "accepts-command-output": "output",
+#           "via-wrapup-command": null,
+#           "as-a-child-of": "project",
+#           "type": "Resource",
+#           "label": "MRIQC",
+#           "format": null
+#         },
+#         {
+#           "name": "working-resource",
+#           "accepts-command-output": "working",
+#           "via-wrapup-command": null,
+#           "as-a-child-of": "project",
+#           "type": "Resource",
+#           "label": "MRIQC-wrk",
+#           "format": null
+#         }
+#       ]
+#     },
+#     {
+#       "name": "bids-mriqc-session",
+#       "label": null,
+#       "description": "Run the MRIQC BIDS App with a session mounted",
+#       "contexts": [
+#         "xnat:imageSessionData"
+#       ],
+#       "external-inputs": [
+#         {
+#           "name": "session",
+#           "label": null,
+#           "description": "Input session",
+#           "type": "Session",
+#           "matcher": null,
+#           "default-value": null,
+#           "required": true,
+#           "replacement-key": null,
+#           "sensitive": null,
+#           "provides-value-for-command-input": null,
+#           "provides-files-for-command-mount": "in",
+#           "via-setup-command": "radiologicskate/xnat2bids-setup:1.3:xnat2bids",
+#           "user-settable": null,
+#           "load-children": false
+#         }
+#       ],
+#       "derived-inputs": [],
+#       "output-handlers": [
+#         {
+#           "name": "output-resource",
+#           "accepts-command-output": "output",
+#           "via-wrapup-command": null,
+#           "as-a-child-of": "session",
+#           "type": "Resource",
+#           "label": "MRIQC",
+#           "format": null
+#         },
+#         {
+#           "name": "working-resource",
+#           "accepts-command-output": "working",
+#           "via-wrapup-command": null,
+#           "as-a-child-of": "session",
+#           "type": "Resource",
+#           "label": "MRIQC-wrk",
+#           "format": null
+#         }
+#       ]
+#     }
+#   ]
+# }
 
 
-ids_command_json = {
-    "name": "Sample",
-    "description": "Sample",
-    "label": "sample-id-extration",
-    "version": "1.0",
-    "schema-version": "1.0",
-    "image": "busybox:latest",
-    "type": "docker",
-    "command-line": "echo '#PROJECT_ID# #SUBJECT_ID# #SESSION_ID#'",
-    "override-entrypoint": true,
-    "mounts": [
-        {
-            "name": "output",
-            "writable": true,
-            "path": "/output"
-        }
-    ],
-    "environment-variables": {
-        "PROJECT_ID": "#PROJECT_ID#",
-        "SUBJECT_ID": "#SUBJECT_ID#",
-        "SESSION_ID": "#SESSION_ID#"
-    },
-    "ports": {},
-    "inputs": [
-        {
-            "name": "session-id",
-            "description": "",
-            "type": "string",
-            "required": true,
-            "replacement-key": "#SESSION_ID#"
-        },
-        {
-            "name": "subject-id",
-            "description": "",
-            "type": "string",
-            "required": true,
-            "replacement-key": "#SUBJECT_ID#"
-        },
-        {
-            "name": "project-id",
-            "description": "",
-            "type": "string",
-            "required": true,
-            "replacement-key": "#PROJECT_ID#"
-        }
-    ],
-    "outputs": [
-        {
-            "name": "output",
-            "description": "The sample output",
-            "required": true,
-            "mount": "output"
-        }
-    ],
-    "xnat": [
-        {
-            "name": "Sample_ID_extration",
-            "description": "Sample ID extration",
-            "label": "sample-id-extration",
-            "contexts": ["xnat:imageScanData"],
-            "external-inputs": [
-                {
-                    "name": "scan",
-                    "description": "Image Scan",
-                    "type": "Scan",
-                    "matcher": null,
-                    "default-value": null,
-                    "required": true,
-                    "replacement-key": null,
-                    "sensitive": null,
-                    "provides-value-for-command-input": null,
-                    "provides-files-for-command-mount": null,
-                    "via-setup-command": null,
-                    "user-settable": null,
-                    "load-children": true
-                }
-            ],
-            "derived-inputs": [
-                {
-                    "name": "session",
-                    "type": "Session",
-                    "required": true,
-                    "user-settable": false,
-                    "load-children": false,
-                    "derived-from-wrapper-input": "scan"
-                },
-                {
-                    "name": "session-id",
-                    "type": "string",
-                    "required": true,
-                    "load-children": true,
-                    "derived-from-wrapper-input": "session",
-                    "derived-from-xnat-object-property": "id",
-                    "provides-value-for-command-input": "session-id"
-                },
-                {
-                    "name": "subject",
-                    "type": "Subject",
-                    "required": true,
-                    "user-settable": false,
-                    "load-children": true,
-                    "derived-from-wrapper-input": "session"
-                },
-                {
-                    "name": "subject-id",
-                    "type": "string",
-                    "required": true,
-                    "load-children": true,
-                    "derived-from-wrapper-input": "subject",
-                    "derived-from-xnat-object-property": "id",
-                    "provides-value-for-command-input": "subject-id"
-                },
-                {
-                    "name": "project",
-                    "type": "Project",
-                    "required": true,
-                    "user-settable": false,
-                    "load-children": true,
-                    "derived-from-wrapper-input": "session"
-                },
-                {
-                    "name": "project-id",
-                    "type": "string",
-                    "required": true,
-                    "load-children": true,
-                    "derived-from-wrapper-input": "project",
-                    "derived-from-xnat-object-property": "id",
-                    "provides-value-for-command-input": "project-id"
-                }
-            ],
-            "output-handlers": [
-                {
-                    "name": "output-resource",
-                    "accepts-command-output": "output",
-                    "via-wrapup-command": null,
-                    "as-a-child-of": "scan",
-                    "type": "Resource",
-                    "label": "OUTPUT",
-                    "format": null,
-                    "description": "An output resource."
-                }
-            ]
-        }
-    ]
-}
+# ids_command_json = {
+#     "name": "Sample",
+#     "description": "Sample",
+#     "label": "sample-id-extration",
+#     "version": "1.0",
+#     "schema-version": "1.0",
+#     "image": "busybox:latest",
+#     "type": "docker",
+#     "command-line": "echo '#PROJECT_ID# #SUBJECT_ID# #SESSION_ID#'",
+#     "override-entrypoint": true,
+#     "mounts": [
+#         {
+#             "name": "output",
+#             "writable": true,
+#             "path": "/output"
+#         }
+#     ],
+#     "environment-variables": {
+#         "PROJECT_ID": "#PROJECT_ID#",
+#         "SUBJECT_ID": "#SUBJECT_ID#",
+#         "SESSION_ID": "#SESSION_ID#"
+#     },
+#     "ports": {},
+#     "inputs": [
+#         {
+#             "name": "session-id",
+#             "description": "",
+#             "type": "string",
+#             "required": true,
+#             "replacement-key": "#SESSION_ID#"
+#         },
+#         {
+#             "name": "subject-id",
+#             "description": "",
+#             "type": "string",
+#             "required": true,
+#             "replacement-key": "#SUBJECT_ID#"
+#         },
+#         {
+#             "name": "project-id",
+#             "description": "",
+#             "type": "string",
+#             "required": true,
+#             "replacement-key": "#PROJECT_ID#"
+#         }
+#     ],
+#     "outputs": [
+#         {
+#             "name": "output",
+#             "description": "The sample output",
+#             "required": true,
+#             "mount": "output"
+#         }
+#     ],
+#     "xnat": [
+#         {
+#             "name": "Sample_ID_extration",
+#             "description": "Sample ID extration",
+#             "label": "sample-id-extration",
+#             "contexts": ["xnat:imageScanData"],
+#             "external-inputs": [
+#                 {
+#                     "name": "scan",
+#                     "description": "Image Scan",
+#                     "type": "Scan",
+#                     "matcher": null,
+#                     "default-value": null,
+#                     "required": true,
+#                     "replacement-key": null,
+#                     "sensitive": null,
+#                     "provides-value-for-command-input": null,
+#                     "provides-files-for-command-mount": null,
+#                     "via-setup-command": null,
+#                     "user-settable": null,
+#                     "load-children": true
+#                 }
+#             ],
+#             "derived-inputs": [
+#                 {
+#                     "name": "session",
+#                     "type": "Session",
+#                     "required": true,
+#                     "user-settable": false,
+#                     "load-children": false,
+#                     "derived-from-wrapper-input": "scan"
+#                 },
+#                 {
+#                     "name": "session-id",
+#                     "type": "string",
+#                     "required": true,
+#                     "load-children": true,
+#                     "derived-from-wrapper-input": "session",
+#                     "derived-from-xnat-object-property": "id",
+#                     "provides-value-for-command-input": "session-id"
+#                 },
+#                 {
+#                     "name": "subject",
+#                     "type": "Subject",
+#                     "required": true,
+#                     "user-settable": false,
+#                     "load-children": true,
+#                     "derived-from-wrapper-input": "session"
+#                 },
+#                 {
+#                     "name": "subject-id",
+#                     "type": "string",
+#                     "required": true,
+#                     "load-children": true,
+#                     "derived-from-wrapper-input": "subject",
+#                     "derived-from-xnat-object-property": "id",
+#                     "provides-value-for-command-input": "subject-id"
+#                 },
+#                 {
+#                     "name": "project",
+#                     "type": "Project",
+#                     "required": true,
+#                     "user-settable": false,
+#                     "load-children": true,
+#                     "derived-from-wrapper-input": "session"
+#                 },
+#                 {
+#                     "name": "project-id",
+#                     "type": "string",
+#                     "required": true,
+#                     "load-children": true,
+#                     "derived-from-wrapper-input": "project",
+#                     "derived-from-xnat-object-property": "id",
+#                     "provides-value-for-command-input": "project-id"
+#                 }
+#             ],
+#             "output-handlers": [
+#                 {
+#                     "name": "output-resource",
+#                     "accepts-command-output": "output",
+#                     "via-wrapup-command": null,
+#                     "as-a-child-of": "scan",
+#                     "type": "Resource",
+#                     "label": "OUTPUT",
+#                     "format": null,
+#                     "description": "An output resource."
+#                 }
+#             ]
+#         }
+#     ]
+# }
