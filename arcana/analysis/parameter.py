@@ -16,13 +16,14 @@ class Parameter(object):
         Value of the parameter
     """
 
+    VALID_DTYPES = (int, float, str, tuple, list)
+
     def __init__(self, name, value):
         self._name = name
         if value is None:
             self._dtype = None
         else:
-            if not isinstance(value, (int, float, basestring,
-                                      tuple, list)):
+            if not isinstance(value, self.VALID_DTYPES):
                 raise ArcanaUsageError(
                     "Invalid type for '{}' parameter default ({}), {}, "
                     "can be one of int, float or str"

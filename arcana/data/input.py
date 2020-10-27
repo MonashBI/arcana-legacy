@@ -252,7 +252,7 @@ class BaseInputMixin(object):
         matches = self._filtered_matches(node, **kwargs)
         # Filter matches by analysis name
         analysis_matches = [d for d in matches
-                         if d.from_analysis == self.from_analysis]
+                            if d.from_analysis == self.from_analysis]
         # Select the fileset from the matches
         if not analysis_matches:
             raise ArcanaInputMissingMatchError(
@@ -446,7 +446,7 @@ class FilesetFilter(BaseInputMixin, BaseFileset):
     def dicom_tags(self):
         return self._dicom_tags
 
-    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # noqa: E501 @UnusedVariable
+    def _filtered_matches(self, node, valid_formats=None, **kwargs):  # noqa pylint: disable=unused-argument
         if self.pattern is not None:
             if self.is_regex:
                 pattern_re = re.compile(self.pattern)

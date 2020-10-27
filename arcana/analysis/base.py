@@ -1,5 +1,3 @@
-from past.builtins import basestring
-from builtins import object
 from itertools import chain
 from operator import attrgetter
 from collections import defaultdict
@@ -8,15 +6,16 @@ import os.path as op
 import types
 from copy import copy
 from logging import getLogger
+from unittest.mock import Mock, MagicMock
 from nipype.interfaces.utility import IdentityInterface
 from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseInputMixin, BaseInputSpecMixin, FilesetFilter, FieldFilter,
-    BaseFileset)
+    BaseFileset, Fileset, Field)
 from nipype.pipeline import engine as pe
 from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
-from arcana.repository import Dataset
+from arcana.repository import Dataset, Tree
 from arcana.processor import SingleProc
 from arcana.environment import StaticEnv
 from arcana.utils import get_class_info, wrap_text
@@ -100,9 +99,9 @@ class Analysis(object):
             raise ArcanaUsageError(
                 "Need to have AnalysisMetaClass (or a sub-class) as "
                 "the metaclass of all classes derived from Analysis")
-        if isinstance(dataset, basestring):
+        if isinstance(dataset, str):
             dataset = Dataset(dataset)
-        if isinstance(processor, basestring):
+        if isinstance(processor, str):
             processor = SingleProc(processor)
         if environment is None:
             environment = StaticEnv()
@@ -122,7 +121,7 @@ class Analysis(object):
             parameters = {o.name: o for o in parameters}
         self._parameters = {}
         for param_name, param in list(parameters.items()):
-            if not isinstance(param, Parameter):
+            if isinstance(param, Parameter.VALID_DTYPES):
                 param = Parameter(param_name, param)
             try:
                 param_spec = self._param_specs[param_name]
@@ -142,7 +141,7 @@ class Analysis(object):
         else:
             # Convert string patterns into Input objects
             for inpt_name, inpt in list(inputs.items()):
-                if isinstance(inpt, basestring):
+                if isinstance(inpt, str):
                     spec = self.data_spec(inpt_name)
                     if spec.is_fileset:
                         inpt = FilesetFilter(inpt_name, pattern=inpt,
@@ -404,7 +403,7 @@ class Analysis(object):
         'data' methods. Allows flexible calling of derive/data methods with
         a single or multiple names and IDs.
         """
-        if isinstance(name, basestring):
+        if isinstance(name, str):
             single_name = True
             names = [name]
         else:
@@ -851,7 +850,7 @@ class Analysis(object):
         value : str | None
             The value(s) of the switch to match if a non-boolean switch
         """
-        if isinstance(values, basestring):
+        if isinstance(values, str):
             values = [values]
         spec = self.param_spec(name)
         if not isinstance(spec, SwitchSpec):
@@ -915,6 +914,11 @@ class Analysis(object):
     def parameters(self):
         for param_name in self._param_specs:
             yield self._get_parameter(param_name)
+
+    @property
+    def provided_parameters(self):
+        """Parameters explicitly provided to the analysis"""
+        return self._parameters.values()
 
     @property
     def switches(self):
@@ -1197,6 +1201,127 @@ class Analysis(object):
             'environment': self.environment.prov,
             'datasets': [d.prov for d in input_datasets],
             'processor': self.processor.prov}
+
+    def pipeline_stack(self, *derivatives):
+        """Returns the stack of pipelines that will be used to derive the
+        requested derivatives from the inputs of the analysis, i.e. ignoring
+        existing derivatives
+
+        Parameters
+        ----------
+        derivatives : `list` [`str`]
+            the derivatives that need to be derived
+
+        Returns
+        -------
+        `list` [`Pipeline`]
+            The stack of pipelines that would be executed to generate the
+            derivatives from the provided inputs
+        """
+        stack = {}
+        def push_stack(getter):
+            if getter not in stack:
+                pipeline = self.pipeline(getter)
+                for prq_getter in pipeline.prerequisites.keys():
+                    push_stack(prq_getter)
+                stack[getter] = pipeline
+        for derivative in derivatives:
+            push_stack(self.spec(derivative).pipeline_getter)
+        return list(stack.values())
+
+
+    @classmethod
+    def mock(cls, inputs, switches, enforce_inputs=True):
+        """
+        Returns a mock object of the analysis class, which can be used to
+        analyse generated pipelines and the parameters used.
+
+        Parameters
+        ----------
+        inputs : `list` [`str`]
+            List of inputs to be provided to the analysis
+        switches : `dict`
+            Switch paramters to be set for the analysis
+        enforce_inputs : `bool`
+            Whether to enforce missing required inputs
+
+        Returns
+        -------
+        `unittest.mock.Mock`
+            A mock class that wrapped around an instantiation of the class
+            to analyse the pipelines it generates and the parameters is uses
+            in the derivation of derivatives.
+        """
+        mock_dataset = Mock()
+        mock_dataset.repository = MagicMock()
+        mock_inputs = []
+        mock_filesets = []
+        mock_fields = []
+        for inpt in inputs:
+            if isinstance(inpt, str):
+                name = inpt
+                inpt = None
+            else:
+                name = inpt.name
+            spec = cls.data_spec(name)
+            mock_input = Mock()
+            mock_input.spec_name = mock_input.name = name
+            mock_bound_input = Mock()
+            mock_bound_input.format = spec.valid_formats[0]
+            mock_input.is_field = spec.is_field
+            mock_input.bind = Mock(return_value=mock_bound_input)
+            if spec.is_fileset:
+                mock_input.is_fileset = True
+                if inpt is None:
+                    mock_fileset = Fileset(
+                        name=spec.name,
+                        format=spec.valid_formats[0],
+                        frequency=spec.frequency,
+                        subject_id='SUBJECT',
+                        visit_id='VISIT',
+                        dataset=mock_dataset)
+                else:
+                    mock_fileset = inpt
+                mock_bound_input.slice = [mock_fileset]
+                mock_filesets.append(mock_fileset)
+            else:
+                mock_input.is_field = True
+                if inpt is None:
+                    mock_field = Field(
+                        name=spec.name,
+                        dtype=spec.dtype,
+                        frequency=spec.frequency,
+                        subject_id='SUBJECT',
+                        visit_id='VISIT',
+                        dataset=mock_dataset)
+                else:
+                    mock_field = inpt
+                mock_bound_input.slice = [mock_field]
+                mock_fields.append(mock_field)
+            mock_inputs.append(mock_input)
+        mock_dataset.tree = Tree.construct(
+            mock_dataset, filesets=mock_filesets, fields=mock_fields)
+        # Create mocks for all parameters so we can detect when they have been
+        # accessed
+        mock_params = []
+        for param in cls.param_specs():
+            mock_param = Mock()
+            mock_param.name = param.name
+            try:
+                mock_param.value = switches[param.name]
+            except KeyError:
+                mock_param.value = param.value
+            mock_params.append(mock_param)
+        mock_processor = Mock()
+        mock_env = Mock()
+        mock = Mock(wraps=cls(name='mock_{}'.format(cls.__name__.lower()),
+                              dataset=mock_dataset,
+                              processor=mock_processor,
+                              inputs=mock_inputs,
+                              environment=mock_env,
+                              parameters=mock_params,
+                              enforce_inputs=enforce_inputs))
+        return mock
 
 
 class AnalysisMetaClass(type):

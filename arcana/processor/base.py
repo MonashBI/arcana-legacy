@@ -317,14 +317,14 @@ class Processor(object):
                 inv_subject_inds = {v: k for k, v in subject_inds.items()}
                 inv_visit_inds = {v: k for k, v in visit_inds.items()}
                 logger.warning(
-                    "Dialated filter array used to process '{}' pipeline to "
-                    "include {} subject/visit IDs due to its '{}' summary "
-                    "outputs ".format(
-                        pipeline.name,
-                        ', '.join('({},{})'.format(inv_subject_inds[s],
-                                                   inv_visit_inds[v])
-                                  for s, v in zip(*np.nonzero(added))),
-                        "' and '".join(output_freqs)))
+                    "Dialated filter array used to process '%s' pipeline to "
+                    "include %s subject/visit IDs due to its '%s' summary "
+                    "outputs ",
+                    pipeline.name,
+                    ', '.join('({},{})'.format(inv_subject_inds[s],
+                                               inv_visit_inds[v])
+                              for s, v in zip(*np.nonzero(added))),
+                    "' and '".join(output_freqs))
 
             stack[pipeline.name] = pipeline, req_outputs, filt_array
             # Recursively add all prerequisites to stack
@@ -350,7 +350,7 @@ class Processor(object):
         # downstream
         with self.analysis.repository:
             for (pipeline, req_outputs,
-                    flt_array) in reversed(list(stack.values())):
+                 flt_array) in reversed(list(stack.values())):
                 try:
                     self._connect_pipeline(
                         pipeline, req_outputs, workflow, subject_inds,
