@@ -38,8 +38,8 @@ class NodeMixin(object):
         self._environment = environment
         # Get versions of software in the environment that satisfy the given
         # requirements
-        requirements = kwargs.pop('requirements', [])
-        self._versions = self._environment.satisfy(*requirements)
+        self.requirements = kwargs.pop('requirements', [])
+        self._versions = self._environment.satisfy(*self.requirements)
         self._wall_time = kwargs.pop('wall_time', None)
         self._annotations = kwargs.pop('annotations', {})
         self.nipype_cls.__init__(self, *args, **kwargs)

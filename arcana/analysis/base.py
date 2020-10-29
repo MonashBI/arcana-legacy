@@ -1030,7 +1030,7 @@ class Analysis(object):
                 name,
                 "No fileset spec named '{}' in {}, available:\n{}"
                 .format(name, cls.__name__,
-                        "\n".join(list(cls._data_specs.keys()))))
+                        "\n".join(sorted(cls._data_specs.keys()))))
 
     @classmethod
     def param_spec(cls, name):
@@ -1041,7 +1041,7 @@ class Analysis(object):
                 name,
                 "No parameter spec named '{}' in {}, available:\n{}"
                 .format(name, cls.__name__,
-                        "\n".join(list(cls._param_specs.keys()))))
+                        "\n".join(sorted(cls._param_specs.keys()))))
 
     @classmethod
     def data_specs(cls):
@@ -1260,19 +1260,20 @@ class Analysis(object):
         for inpt in inputs:
             if isinstance(inpt, str):
                 name = inpt
-                inpt = None
+                item = None
             else:
-                name = inpt.name
+                name, item = inpt
             spec = cls.data_spec(name)
             mock_input = Mock()
             mock_input.spec_name = mock_input.name = name
-            mock_bound_input = Mock()
-            mock_bound_input.format = spec.valid_formats[0]
+            # Return itself when called to bind to an object
+            mock_input.bind = Mock(return_value=mock_input)
+            mock_input.format = spec.valid_formats[0]
             mock_input.is_field = spec.is_field
-            mock_input.bind = Mock(return_value=mock_bound_input)
+            mock_input.is_spec = False
             if spec.is_fileset:
                 mock_input.is_fileset = True
-                if inpt is None:
+                if item is None:
                     mock_fileset = Fileset(
                         name=spec.name,
                         format=spec.valid_formats[0],
@@ -1281,12 +1282,12 @@ class Analysis(object):
                         visit_id='VISIT',
                         dataset=mock_dataset)
                 else:
-                    mock_fileset = inpt
-                mock_bound_input.slice = [mock_fileset]
+                    mock_fileset = item
+                mock_input.slice = [mock_fileset]
                 mock_filesets.append(mock_fileset)
             else:
                 mock_input.is_field = True
-                if inpt is None:
+                if item is None:
                     mock_field = Field(
                         name=spec.name,
                         dtype=spec.dtype,
@@ -1295,8 +1296,8 @@ class Analysis(object):
                         visit_id='VISIT',
                         dataset=mock_dataset)
                 else:
-                    mock_field = inpt
-                mock_bound_input.slice = [mock_field]
+                    mock_field = item
+                mock_input.slice = [mock_field]
                 mock_fields.append(mock_field)
             mock_inputs.append(mock_input)
         mock_dataset.tree = Tree.construct(
@@ -1313,7 +1314,10 @@ class Analysis(object):
                 mock_param.value = param.value
             mock_params.append(mock_param)
         mock_processor = Mock()
+        mock_processor.bind = Mock(return_value=mock_processor)
+        mock_processor.cpus_per_task = 1
         mock_env = Mock()
+        mock_env.node_types = StaticEnv.node_types
         mock = Mock(wraps=cls(name='mock_{}'.format(cls.__name__.lower()),
                               dataset=mock_dataset,
                               processor=mock_processor,

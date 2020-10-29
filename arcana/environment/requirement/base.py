@@ -1,10 +1,11 @@
 from __future__ import division
 from builtins import object
 import math
+import re
 import logging
 from arcana.exceptions import (
-    ArcanaUsageError, ArcanaVersionNotDetectableError, ArcanaVersionError)
-import re
+    ArcanaUsageError, ArcanaVersionNotDetectableError, ArcanaVersionError,
+    ArcanaRequirementVersionsError)
 
 
 logger = logging.getLogger('arcana')
@@ -45,6 +46,12 @@ class Version(object):
     @property
     def requirement(self):
         return self._req
+
+    def __hash__(self):
+        return (hash(self._req)
+                ^ hash(self._seq)
+                ^ hash(self._local_version)
+                ^ hash(self._local_name))
 
     @property
     def name(self):
@@ -312,6 +319,9 @@ class VersionRange(object):
                 "Maxium version in is less than minimum in {}"
                 .format(self))
 
+    def __hash__(self):
+        return hash(self._min_ver) ^ hash(self._max_ver)
+
     @property
     def name(self):
         return self.minimum.name
@@ -368,18 +378,38 @@ class BaseRequirement(object):
     """
 
     def __init__(self, name, citations=None, website=None,
-                 version_cls=Version):
+                 version_cls=Version, neurodocker_name=None,
+                 max_neurodocker_version=None, neurodocker_method=None):
         self._name = name.lower()
         self._citations = citations if citations is not None else []
         self._website = website
+        self._neurodocker_name = neurodocker_name
         self._version_cls = version_cls
+        if max_neurodocker_version is not None:
+            max_neurodocker_version = version_cls(self,
+                                                  max_neurodocker_version)
+        self._max_neurodocker_version = max_neurodocker_version
+        self._neurodocker_method = neurodocker_method
 
     def __eq__(self, other):
-        return (self.name == other.name and self.website == other.website)
+        return self.name == other.name and self.website == other.website
 
     @property
     def name(self):
         return self._name
+
+    @property
+    def neurodocker_name(self):
+        return (self._name
+                if self._neurodocker_name is None else self._neurodocker_name)
+
+    @property
+    def max_neurodocker_version(self):
+        return self._max_neurodocker_version
+
+    @property
+    def neurodocker_method(self):
+        return self._neurodocker_method
 
     @property
     def version_cls(self):
@@ -473,3 +503,45 @@ class BaseRequirement(object):
     @property
     def base_version(self):
         return self.v(self.version_cls.base)
+
+    @classmethod
+    def reconcile(cls, versions):
+        """Returns the maximum version that satisfies the given versions
+        and version ranges
+
+        Parameters
+        ----------
+        versions : :obj:`list` of :obj:`Version` or :obj:`VersionRange`
+            The list of versions and version ranges to reconcile
+
+        Returns
+        -------
+        min_version : `Version`
+            The minimum version compatible with the provided ranges
+        max_version : `Version`
+            The maximum version compatible with the provided ranges
+        """
+        requirements = set(v.requirement for v in versions)
+        if len(requirements) > 1:
+            raise ArcanaUsageError(
+                "Attempting to reconcile versions of different requirements")
+        ranges = [v for v in versions if isinstance(v, VersionRange)]
+        requirement = next(iter(requirements))
+        if ranges:
+            min_versions = [v for v in versions if isinstance(v, Version)]
+            min_versions += [r.minimum for r in ranges]
+            min_version = max(min_versions)
+            max_version = min(r.maximum for r in ranges)
+
+            if min_version > max_version:
+                raise ArcanaRequirementVersionsError(
+                    "Cannot reconcile the required versions of '{}' ({}) "
+                    "as minimum version ({}) is greater than the maxium "
+                    "version ({})".format(requirement.name,
+                                          versions,
+                                          min_version,
+                                          max_version))
+        else:
+            min_version = max(versions)
+            max_version = None
+        return min_version, max_version
