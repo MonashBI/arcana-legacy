@@ -6,7 +6,7 @@ import os.path as op
 import types
 from copy import copy
 from logging import getLogger
-from unittest.mock import Mock, MagicMock
+from unittest.mock import Mock, MagicMock, PropertyMock
 from nipype.interfaces.utility import IdentityInterface
 from arcana.pipeline import Pipeline
 from arcana.data import (
@@ -915,9 +915,14 @@ class Analysis(object):
         for param_name in self._param_specs:
             yield self._get_parameter(param_name)
 
-    @property
     def provided_parameters(self):
-        """Parameters explicitly provided to the analysis"""
+        """Parameters explicitly provided to the analysis
+
+        Returns
+        -------
+        parameters : list of :obj:`Parameter`
+            Parameters that were provided to the analysis
+        """
         return self._parameters.values()
 
     @property
@@ -1306,12 +1311,18 @@ class Analysis(object):
         # accessed
         mock_params = []
         for param in cls.param_specs():
-            mock_param = Mock()
-            mock_param.name = param.name
             try:
-                mock_param.value = switches[param.name]
+                value = switches[param.name]
             except KeyError:
-                mock_param.value = param.value
+                value = param.value
+            # Wrap the value in a property mock to detect when it has been
+            # accessed. Needs to be in a new class
+            mock_class = type('Mock{}Param'.format(param.name), (Mock,), {})
+            mock_value = PropertyMock(return_value=value)
+            mock_class.value = mock_value
+            mock_param = mock_class()
+            mock_param.name = param.name
+            mock_param.mock_value = mock_value
             mock_params.append(mock_param)
         mock_processor = Mock()
         mock_processor.bind = Mock(return_value=mock_processor)
