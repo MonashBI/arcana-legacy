@@ -86,9 +86,9 @@ class ParamSpec(Parameter):
         self._choices = choices
         if dtype is not None:
             if self.default is not None and (
-                not array and not isinstance(self.default, dtype) or
-                array and any(not isinstance(d, dtype)
-                              for d in self.default)):
+                    not array and not isinstance(self.default, dtype) or
+                    array and any(not isinstance(d, dtype)
+                                  for d in self.default)):
                 raise ArcanaUsageError(
                     "Provided default value ({}) does not match explicit "
                     "dtype ({})".format(self.default, dtype))

@@ -1315,28 +1315,24 @@ class Analysis(object):
                 value = switches[param.name]
             except KeyError:
                 value = param.value
-            # Wrap the value in a property mock to detect when it has been
-            # accessed. Needs to be in a new class
-            mock_class = type('Mock{}Param'.format(param.name), (Mock,), {})
-            mock_value = PropertyMock(return_value=value)
-            mock_class.value = mock_value
-            mock_param = mock_class()
+            mock_param = Mock()
             mock_param.name = param.name
-            mock_param.mock_value = mock_value
+            mock_param.value = value
             mock_params.append(mock_param)
         mock_processor = Mock()
         mock_processor.bind = Mock(return_value=mock_processor)
         mock_processor.cpus_per_task = 1
         mock_env = Mock()
         mock_env.node_types = StaticEnv.node_types
-        mock = Mock(wraps=cls(name='mock_{}'.format(cls.__name__.lower()),
-                              dataset=mock_dataset,
-                              processor=mock_processor,
-                              inputs=mock_inputs,
-                              environment=mock_env,
-                              parameters=mock_params,
-                              enforce_inputs=enforce_inputs))
-        return mock
+        analysis = cls(name='mock_{}'.format(cls.__name__.lower()),
+                       dataset=mock_dataset,
+                       processor=mock_processor,
+                       inputs=mock_inputs,
+                       environment=mock_env,
+                       parameters=mock_params,
+                       enforce_inputs=enforce_inputs)
+        analysis.parameter = Mock(wraps=analysis.parameter)
+        return analysis
 
 
 class AnalysisMetaClass(type):
