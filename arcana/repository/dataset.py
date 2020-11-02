@@ -259,10 +259,10 @@ class Dataset():
                     self._cached_tree._dataset = self
                 else:
                     logger.warning(
-                        ("Incompatible data tree saved in cache directory "
-                         "(name: '{}' v '{}', repository {} v {}) ").format(
-                            cached_dataset.name, self.name,
-                            cached_dataset.repository, self.repository))
+                        "Incompatible data tree saved in cache directory "
+                        "(name: '%s' v '%s', repository %s v %s) ",
+                        cached_dataset.name, self.name,
+                        cached_dataset.repository, self.repository)
         if self._cached_tree is None:
             # Find all data present in the repository (filtered by the
             # passed IDs)
@@ -273,7 +273,7 @@ class Dataset():
                     subject_ids=self._subject_ids,
                     visit_ids=self._visit_ids),
                 fill_subjects=(self._subject_ids
-                                if self._fill_tree else None),
+                               if self._fill_tree else None),
                 fill_visits=(self._visit_ids if self._fill_tree else None))
             try:
                 with open(self._tree_cache_path, 'wb') as f:

@@ -16,9 +16,8 @@ WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 See the License for the specific language governing permissions and
 limitations under the License.
 """
-
-from .__about__ import __version__, __authors__
 import os
+from .__about__ import __version__, __authors__
 from .analysis import (
     Analysis, AnalysisMetaClass, MultiAnalysis, MultiAnalysisMetaClass,
     SubCompSpec, Parameter, ParamSpec, SwitchSpec)
@@ -30,7 +29,6 @@ from .data import Fileset, Field, FilesetSlice, FieldSlice
 from .processor import (
     SingleProc, MultiProc, SlurmProc)
 from .environment import StaticEnv, ModulesEnv
-from .repository import XnatRepo, Dataset
-from .repository.local import LocalFileSystemRepo
+from .repository import XnatRepo, XnatCSRepo, Dataset, LocalFileSystemRepo
 # Should be set explicitly in all FSL interfaces, but this squashes the warning
 os.environ['FSLOUTPUTTYPE'] = 'NIFTI_GZ'
