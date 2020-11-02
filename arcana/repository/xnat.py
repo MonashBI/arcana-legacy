@@ -34,7 +34,7 @@ RELEVANT_DICOM_TAG_TYPES = set(('UI', 'CS', 'DA', 'TM', 'SH', 'LO',
 
 class XnatRepo(Repository):
     """
-    An 'Repository' class for XNAT repositories
+    A 'Repository' class for XNAT repositories
 
     Parameters
     ----------
@@ -444,23 +444,10 @@ class XnatRepo(Repository):
                                     .format(project_id)):
                 subject_xid = session_json['data_fields']['subject_ID']
                 subject_id = subject_xids_to_labels[subject_xid]
-                (session_filesets, session_fields,
-                 session_records) = self.find_session_data(session_xid,
-                                                           subject_id)
-        return all_filesets, all_fields, all_records
-
-    def find_session_data(self, session_xid, project_id, subject_id=None,
-                          subject_xids_to_labels=None, **kwargs):
-        filesets = []
-        fields = []
-        records = []
-        session_json = self.login.get_json(
-            '/data/projects/{}/experiments/{}'.format(
-                project_id, session_xid))['items'][0]
         session_label = session_json['data_fields']['label']
         session_uri = (
             '/data/archive/projects/{}/subjects/{}/experiments/{}'
-            .format(project_id, subject_id, session_xid))
+            .format(project_id, subject_xid, session_xid))
         # Get field values. We do this first so we can check for the
         # DERIVED_FROM_FIELD to determine the correct session label and
         # analysis name
@@ -518,7 +505,7 @@ class XnatRepo(Repository):
         # Append fields
         for name, value in field_values.items():
             value = value.replace('&quot;', '"')
-            fields.append(Field(
+            all_fields.append(Field(
                 name=name, value=value,
                 dataset=dataset,
                 frequency=frequency,
@@ -567,7 +554,7 @@ class XnatRepo(Repository):
                             if fname.endswith('.json'):
                                 pipeline_name = fname[:-len('.json')]
                                 json_path = op.join(base_dir, fname)
-                                records.append(
+                                all_records.append(
                                     Record.load(
                                         pipeline_name, frequency,
                                         subject_id, visit_id,
@@ -576,7 +563,7 @@ class XnatRepo(Repository):
                     shutil.rmtree(temp_dir, ignore_errors=True)
             else:
                 for resource in resources:
-                    filesets.append(Fileset(
+                    all_filesets.append(Fileset(
                         scan_type, id=scan_id, uri=scan_uri,
                         dataset=dataset, frequency=frequency,
                         subject_id=subject_id, visit_id=visit_id,
@@ -585,6 +572,7 @@ class XnatRepo(Repository):
                         resource_name=resource, **kwargs))
         logger.debug("Found node %s:%s on %s:%s",
                      subject_id, visit_id, self.server, project_id))
+        return all_filesets, all_fields, all_records
 
     def convert_subject_ids(self, subject_ids):
         """
