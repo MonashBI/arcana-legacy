@@ -32,6 +32,65 @@ RELEVANT_DICOM_TAG_TYPES = set(('UI', 'CS', 'DA', 'TM', 'SH', 'LO',
                                 'PN', 'ST', 'AS'))
 
 
+class XnatDataset(Dataset):
+    """
+    A representation of an XNAT "dataset", the complete collection of data
+    (file-sets and fields) to be used in an analysis.
+
+    Parameters
+    ----------
+    name : str
+        The name/id/path that uniquely identifies the datset within the
+        repository it is stored
+    repository : Repository
+        The repository the dataset belongs to
+    subject_label_format : str
+        A string used to generate the subject label from project and
+        subject IDs, e.g. "{project}_{subject}"
+    session_label_format : str
+        A string used to generate the session label from project and
+        subject and visit IDs, e.g. "{project}_{subject}_{visit}"
+    subject_ids : list[str]
+        Subject IDs to be included in the analysis. All other subjects are
+        ignored
+    visit_ids : list[str]
+        Visit IDs to be included in the analysis. All other visits are ignored
+    fill_tree : bool
+        Whether to fill the tree of the destination repository with the
+        provided subject and/or visit IDs. Intended to be used when the
+        destination repository doesn't contain any of the the input
+        filesets/fields (which are stored in external repositories) and
+        so the sessions will need to be created in the destination
+        repository.
+    depth : int (0|1|2)
+        The depth of the dataset (i.e. whether it has subjects and sessions).
+            0 -> single session
+            1 -> multiple subjects
+            2 -> multiple subjects and visits
+    subject_id_map : dict[str, str]
+        Maps subject IDs in dataset to a global name-space
+    visit_id_map : dict[str, str]
+        Maps visit IDs in dataset to a global name-space
+    """
+
+    def __init__(self, name, repository, subject_label_format="{subject}",
+                 session_label_format="{subject}_{visit}", **kwargs):
+        super().__init__(name, repository, **kwargs)
+        self.subject_label_format = subject_label_format
+        self.session_label_format = session_label_format
+
+    def subject_label(self, subject_id):
+        return self.subject_label_format.format(
+            project=self.name,
+            subject=self.inv_map_subject_id(subject_id))
+
+
+    def session_label(self, subject_id, visit_id):
+        return self.session_label_format.format(
+            project=self.name,
+            subject=self.inv_map_subject_id(subject_id),
+            visit=self.inv_map_visit_id(visit_id))
+
 class XnatRepo(Repository):
     """
     A 'Repository' class for XNAT repositories
@@ -66,11 +125,8 @@ class XnatRepo(Repository):
 
     type = 'xnat'
 
-    SUMMARY_NAME = 'ALL'
     MD5_SUFFIX = '.__md5__.json'
-    DERIVED_FROM_FIELD = '__derived_from__'
-    PROV_SCAN = '__prov__'
-    PROV_RESOURCE = 'PROV'
+    PROV_RESOURCE = 'PROV__'
     depth = 2
 
     def __init__(self, server, cache_dir, user=None,
@@ -88,7 +144,7 @@ class XnatRepo(Repository):
         self._race_cond_delay = race_cond_delay
         self.check_md5 = check_md5
         self.session_filter = session_filter
-        self._login = None
+        self.login = None
 
     def __hash__(self):
         return (hash(self.server)
@@ -119,7 +175,7 @@ class XnatRepo(Repository):
 
     def __setstate__(self, state):
         self.__dict__.update(state)
-        self._login = None
+        self.login = None
         self._connection_depth = 0
 
     @property
@@ -130,10 +186,10 @@ class XnatRepo(Repository):
 
     @property
     def login(self):
-        if self._login is None:
+        if self.login is None:
             raise ArcanaError("XNAT repository has been disconnected before "
                               "exiting outer context")
-        return self._login
+        return self.login
 
     @property
     def server(self):
@@ -157,11 +213,11 @@ class XnatRepo(Repository):
             sess_kwargs['user'] = self.user
         if self.password is not None:
             sess_kwargs['password'] = self.password
-        self._login = xnat.connect(server=self._server, **sess_kwargs)
+        self.login = xnat.connect(server=self._server, **sess_kwargs)
 
     def disconnect(self):
-        self._login.disconnect()
-        self._login = None
+        self.login.disconnect()
+        self.login = None
 
     def dataset(self, name, **kwargs):
         """
@@ -171,12 +227,30 @@ class XnatRepo(Repository):
         ----------
         name : str
             The name, path or ID of the dataset within the repository
+        subject_label_format : str
+            A string used to generate the subject label from project and
+            subject IDs, e.g. "{project}_{subject}"
+        session_label_format : str
+            A string used to generate the session label from project and
+            subject and visit IDs, e.g. "{project}_{subject}_{visit}"
         subject_ids : list[str]
-            The list of subjects to include in the dataset
+            Subject IDs to be included in the analysis. All other subjects are
+            ignored
         visit_ids : list[str]
-            The list of visits to include in the dataset
+            Visit IDs to be included in the analysis. All other visits are ignored
+        fill_tree : bool
+            Whether to fill the tree of the destination repository with the
+            provided subject and/or visit IDs. Intended to be used when the
+            destination repository doesn't contain any of the the input
+            filesets/fields (which are stored in external repositories) and
+            so the sessions will need to be created in the destination
+            repository.
+        subject_id_map : dict[str, str]
+            Maps subject IDs in dataset to a global name-space
+        visit_id_map : dict[str, str]
+            Maps visit IDs in dataset to a global name-space
         """
-        return Dataset(name, repository=self, depth=2, **kwargs)
+        return XnatDataset(name, repository=self, depth=2, **kwargs)
 
     def get_fileset(self, fileset):
         """
@@ -266,7 +340,7 @@ class XnatRepo(Repository):
         self._check_repository(field)
         with self:
             xsession = self.get_xsession(field)
-            val = xsession.fields[field.name]
+            val = xsession.fields[self._field_name(field)]
             val = val.replace('&quot;', '"')
             val = parse_value(val)
         return val
@@ -301,7 +375,7 @@ class XnatRepo(Repository):
                       **JSON_ENCODING) as f:
                 json.dump(fileset.calculate_checksums(), f, indent=2)
             # Upload to XNAT
-            xscan = self._login.classes.MrScanData(
+            xscan = self.login.classes.MrScanData(
                 id=fileset.id, type=fileset.basename, parent=xsession)
             fileset.uri = xscan.uri
             # Select the first xnat_resource name to use to upload the data to
@@ -317,8 +391,11 @@ class XnatRepo(Repository):
                 xresource.delete()
             xresource = xscan.create_resource(resource_name)
             if fileset.format.directory:
-                for fname in os.listdir(fileset.path):
-                    xresource.upload(op.join(fileset.path, fname), fname)
+                for dpath, _, fnames  in os.walk(fileset.path):
+                    for fname in fnames:
+                        fpath = op.join(dpath, fname)
+                        frelpath = op.relpath(fpath, fileset.path)
+                        xresource.upload(fpath, frelpath)
             else:
                 xresource.upload(fileset.path, fileset.fname)
                 for sc_fname, sc_path in fileset.aux_file_fnames_and_paths:
@@ -335,7 +412,7 @@ class XnatRepo(Repository):
             val = '"{}"'.format(val)
         with self:
             xsession = self.get_xsession(field)
-            xsession.fields[field.name] = val
+            xsession.fields[self._field_name(field)] = val
 
     def put_record(self, record, dataset):
         base_cache_path = self._cache_path(
@@ -352,7 +429,7 @@ class XnatRepo(Repository):
         # TODO: Should also save digest of prov.json to check to see if it
         #       has been altered remotely
         xsession = self.get_xsession(record, dataset=dataset)
-        xprov = self._login.classes.MrScanData(
+        xprov = self.login.classes.MrScanData(
             id=self.PROV_SCAN, type=self.PROV_SCAN, parent=xsession)
         # Delete existing provenance if present
         try:
@@ -420,13 +497,22 @@ class XnatRepo(Repository):
         """
         subject_ids = self.convert_subject_ids(subject_ids)
         # Add derived visit IDs to list of visit ids to filter
-        all_filesets = []
-        all_fields = []
-        all_records = []
+        filesets = []
+        fields = []
+        records = []
         project_id = dataset.name
         # Note we prefer the use of raw REST API calls here for performance
         # reasons over using XnatPy's data structures.
         with self:
+            # Get per_dataset level derivatives and fields
+            project_uri = '/data/archive/projects/{}'.format(project_id)
+            project_json = self.login.get_json(project_uri)
+            fields.extend(self.find_fields(
+                project_json, dataset, frequency='per_dataset'))
+            fsets, recs = self.find_derivatives(
+                project_json, project_uri, dataset, frequency='per_dataset')
+            filesets.extend(fsets)
+            records.extend(recs)
             # Get map of internal subject IDs to subject labels in project
             subject_xids_to_labels = {
                 s['ID']: s['label'] for s in self.login.get_json(
@@ -439,87 +525,156 @@ class XnatRepo(Repository):
                         'ResultSet']['Result']
                 if (self.session_filter is None
                     or re.match(self.session_filter, s['label']))]
+            subject_xids = set()
             for session_xid in tqdm(session_xids,
                                     "Scanning sessions in '{}' project"
                                     .format(project_id)):
+                session_json = self.login.get_json(
+                    '/data/projects/{}/experiments/{}'.format(
+                        project_id, session_xid))['items'][0]
                 subject_xid = session_json['data_fields']['subject_ID']
+                subject_xids.add(subject_xids)
+                session_uri = (
+                    '/data/archive/projects/{}/subjects/{}/experiments/{}'
+                    .format(project_id, subject_xid, session_xid))
                 subject_id = subject_xids_to_labels[subject_xid]
-        session_label = session_json['data_fields']['label']
-        session_uri = (
-            '/data/archive/projects/{}/subjects/{}/experiments/{}'
-            .format(project_id, subject_xid, session_xid))
-        # Get field values. We do this first so we can check for the
-        # DERIVED_FROM_FIELD to determine the correct session label and
-        # analysis name
-        field_values = {}
+                session_label = session_json['data_fields']['label']
+                # Extract analysis name and derived-from session
+                # Strip subject ID from session label if required
+                if session_label.startswith(subject_id + '_'):
+                    visit_id = session_label[len(subject_id) + 1:]
+                else:
+                    visit_id = session_label
+                # Strip project ID from subject ID if required
+                if subject_id.startswith(project_id + '_'):
+                    subject_id = subject_id[len(project_id) + 1:]
+                        # Extract part of JSON relating to files
+                filesets.extend(self.find_scans(
+                    session_json, session_uri, subject_id, visit_id,
+                    dataset, **kwargs))
+                fields.extend(self.find_fields(
+                    session_json, dataset, subject_id=subject_id,
+                    visit_id=visit_id, **kwargs))
+                fsets, recs = self.find_derivatives(
+                    session_json, session_uri, dataset, subject_id=subject_id,
+                    visit_id=visit_id, frequency='per_session')
+                filesets.extend(fsets)
+                records.extend(recs)
+            # Get subject level resources and fields
+            for subject_xid in subject_xids:
+                subject_id = subject_xids_to_labels[subject_xid]
+                subject_uri = ('/data/archive/projects/{}/subjects/{}'
+                               .format(project_id, subject_xid))
+                subject_json = self.login.get_json(subject_uri)
+                fields.extend(self.find_fields(
+                    subject_json, dataset, frequency='per_subject',
+                    subject_id=subject_id))
+                fsets, recs = self.find_derivatives(
+                    subject_json, subject_uri, dataset,
+                    frequency='per_subject', subject_id=subject_id)
+                filesets.extend(fsets)
+                records.extend(recs)
+        return filesets, fields, records
+
+    def find_derivatives(self, node_json, node_uri, dataset, frequency,
+                         subject_id=None, visit_id=None, **kwargs):
+        try:
+            resources_json = next(
+                c['items'] for c in node_json['children']
+                if c['field'] == 'resources/resource')
+        except StopIteration:
+            return []
+        filesets = []
+        records = []
+        for d in resources_json:
+            label = d['data_fields']['label']
+            resource_uri = '{}/resources/{}'.format(node_uri, label)
+            if '-' in label:
+                label_parts = label.split('-')
+                name = label_parts[1:]
+                from_analysis = label_parts[0]
+            else:
+                name = label
+                from_analysis = None
+            if name != self.PROV_RESOURCE:
+                filesets.append(Fileset(
+                    name, uri=resource_uri, dataset=dataset,
+                    from_analysis=from_analysis, frequency=frequency,
+                    subject_id=subject_id, visit_id=visit_id,
+                    resource_name=None, **kwargs))
+            else:
+                # Download provenance JSON files and parse into
+                # records
+                temp_dir = tempfile.mkdtemp()
+                try:
+                    with tempfile.TemporaryFile() as temp_zip:
+                        self.login.download_stream(
+                            resource_uri + '/files', temp_zip, format='zip')
+                        with ZipFile(temp_zip) as zip_file:
+                            zip_file.extractall(temp_dir)
+                    for base_dir, _, fnames in os.walk(temp_dir):
+                        for fname in fnames:
+                            if fname.endswith('.json'):
+                                pipeline_name = fname[:-len('.json')]
+                                json_path = op.join(base_dir, fname)
+                                records.append(
+                                    Record.load(
+                                        pipeline_name,
+                                        path=json_path,
+                                        frequency=frequency,
+                                        subject_id=subject_id,
+                                        visit_id=visit_id,
+                                        from_analysis=from_analysis))
+                finally:
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+        return filesets, records
+
+    def find_fields(self, node_json, dataset, frequency, subject_id=None,
+                    visit_id=None, **kwargs):
         try:
             fields_json = next(
-                c['items'] for c in session_json['children']
+                c['items'] for c in node_json['children']
                 if c['field'] == 'fields/field')
         except StopIteration:
-            pass
-        else:
-            for js in fields_json:
-                try:
-                    value = js['data_fields']['field']
-                except KeyError:
-                    pass
-                else:
-                    field_values[js['data_fields']['name']] = value
-        # Extract analysis name and derived-from session
-        if self.DERIVED_FROM_FIELD in field_values:
-            df_sess_label = field_values.pop(self.DERIVED_FROM_FIELD)
-            from_analysis = session_label[len(df_sess_label) + 1:]
-            session_label = df_sess_label
-        else:
-            from_analysis = None
-        # Strip subject ID from session label if required
-        if session_label.startswith(subject_id + '_'):
-            visit_id = session_label[len(subject_id) + 1:]
-        else:
-            visit_id = session_label
-        # Strip project ID from subject ID if required
-        if subject_id.startswith(project_id + '_'):
-            subject_id = subject_id[len(project_id) + 1:]
-        # Check subject is summary or not and whether it is to be
-        # filtered
-        if subject_id == XnatRepo.SUMMARY_NAME:
-            subject_id = None
-        elif not (subject_ids is None or subject_id in subject_ids):
-            continue
-        # Check visit is summary or not and whether it is to be
-        # filtered
-        if visit_id == XnatRepo.SUMMARY_NAME:
-            visit_id = None
-        elif not (visit_ids is None or visit_id in visit_ids):
-            continue
-        # Determine frequency
-        if (subject_id, visit_id) == (None, None):
-            frequency = 'per_dataset'
-        elif visit_id is None:
-            frequency = 'per_subject'
-        elif subject_id is None:
-            frequency = 'per_visit'
-        else:
-            frequency = 'per_session'
-        # Append fields
-        for name, value in field_values.items():
+            return []
+        fields = []
+        for js in fields_json:
+            try:
+                value = js['data_fields']['field']
+            except KeyError:
+                continue
             value = value.replace('&quot;', '"')
-            all_fields.append(Field(
-                name=name, value=value,
-                dataset=dataset,
-                frequency=frequency,
-                subject_id=subject_id,
-                visit_id=visit_id,
-                from_analysis=from_analysis,
-                **kwargs))
-        # Extract part of JSON relating to files
+            name = js['data_fields']['name']
+            names = [(name, None)]
+            # If '-' is present in the name then add the field twice, once
+            # as a field name in its own right and second as a field name
+            # prefixed by an analysis name
+            if '-' in name:
+                parts = name.split('-')
+                from_analysis = parts[0]
+                name = '-'.join(parts[1:])
+                names.append((name, from_analysis))
+            for name, from_analysis in names:
+                fields.append(Field(
+                    name=name,
+                    value=value,
+                    from_analysis=from_analysis,
+                    dataset=dataset,
+                    subject_id=subject_id,
+                    visit_id=visit_id,
+                    frequency=frequency,
+                    **kwargs))
+        return fields
+
+    def find_scans(self, session_json, session_uri, subject_id,
+                   visit_id, dataset, **kwargs):
         try:
             scans_json = next(
                 c['items'] for c in session_json['children']
                 if c['field'] == 'scans/scan')
         except StopIteration:
-            scans_json = []
+            return []
+        filesets = []
         for scan_json in scans_json:
             scan_id = scan_json['data_fields']['ID']
             scan_type = scan_json['data_fields'].get('type', '')
@@ -538,41 +693,13 @@ class XnatRepo(Repository):
                              for js in resources_json}
             # Remove auto-generated snapshots directory
             resources.pop('SNAPSHOTS', None)
-            if scan_type == self.PROV_SCAN:
-                # Download provenance JSON files and parse into
-                # records
-                temp_dir = tempfile.mkdtemp()
-                try:
-                    with tempfile.TemporaryFile() as temp_zip:
-                        self._login.download_stream(
-                            scan_uri + '/files', temp_zip,
-                            format='zip')
-                        with ZipFile(temp_zip) as zip_file:
-                            zip_file.extractall(temp_dir)
-                    for base_dir, _, fnames in os.walk(temp_dir):
-                        for fname in fnames:
-                            if fname.endswith('.json'):
-                                pipeline_name = fname[:-len('.json')]
-                                json_path = op.join(base_dir, fname)
-                                all_records.append(
-                                    Record.load(
-                                        pipeline_name, frequency,
-                                        subject_id, visit_id,
-                                        from_analysis, json_path))
-                finally:
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-            else:
-                for resource in resources:
-                    all_filesets.append(Fileset(
-                        scan_type, id=scan_id, uri=scan_uri,
-                        dataset=dataset, frequency=frequency,
-                        subject_id=subject_id, visit_id=visit_id,
-                        from_analysis=from_analysis,
-                        quality=scan_quality,
-                        resource_name=resource, **kwargs))
-        logger.debug("Found node %s:%s on %s:%s",
-                     subject_id, visit_id, self.server, project_id))
-        return all_filesets, all_fields, all_records
+            for resource in resources:
+                filesets.append(Fileset(
+                    scan_type, id=scan_id, uri=scan_uri,
+                    dataset=dataset, subject_id=subject_id, visit_id=visit_id,
+                    quality=scan_quality, resource_name=resource, **kwargs))
+        logger.debug("Found node %s:%s", subject_id, visit_id)
+        return filesets
 
     def convert_subject_ids(self, subject_ids):
         """
@@ -610,7 +737,7 @@ class XnatRepo(Repository):
                 val = val.split('\\')
             return val
         with self:
-            response = self._login.get(
+            response = self.login.get(
                 '/REST/services/dicomdump?src='
                 + fileset.uri[len('/data'):]).json()['ResultSet']['Result']
         hdr = {tag_parse_re.match(t['tag1']).groups(): convert(t['value'],
@@ -689,80 +816,49 @@ class XnatRepo(Repository):
         """
         if dataset is None:
             dataset = item.dataset
-        subj_label, sess_label = self._get_item_labels(item, dataset=dataset)
+        subj_label = dataset.subject_label(item.subject_id)
+        sess_label = dataset.session_label(item.subject_id, item.visit_id)
         with self:
-            xproject = self._login.projects[dataset.name]
+            xproject = self.login.projects[dataset.name]
             try:
                 xsubject = xproject.subjects[subj_label]
             except KeyError:
-                xsubject = self._login.classes.SubjectData(
+                xsubject = self.login.classes.SubjectData(
                     label=subj_label, parent=xproject)
             try:
                 xsession = xsubject.experiments[sess_label]
             except KeyError:
-                xsession = self._login.classes.MrSessionData(
+                xsession = self.login.classes.MrSessionData(
                     label=sess_label, parent=xsubject)
-                if item.derived:
-                    xsession.fields[
-                        self.DERIVED_FROM_FIELD] = self._get_item_labels(
-                            item, dataset=dataset, no_from_analysis=True)[1]
         return xsession
-
-    def _get_item_labels(self, item, no_from_analysis=False, dataset=None):
-        """
-        Returns the labels for the XNAT subject and sessions given
-        the frequency and provided IDs.
-        """
-        if dataset is None:
-            dataset = item.dataset
-        subject_id = dataset.inv_map_subject_id(item.subject_id)
-        visit_id = dataset.inv_map_visit_id(item.visit_id)
-        subj_label, sess_label = self._get_labels(
-            dataset.name, item.frequency, subject_id, visit_id)
-        if not no_from_analysis and item.from_analysis is not None:
-            sess_label += '_' + item.from_analysis
-        return (subj_label, sess_label)
-
-    def _get_labels(self, project_id, frequency, subject_id=None,
-                    visit_id=None):
-        """
-        Returns the labels for the XNAT subject and sessions given
-        the frequency and provided IDs.
-        """
-        # FIXME: Move this logic into the dataset map IDs and make them
-        #        default arguments for 'dataset' method
-        if frequency == 'per_session':
-            subj_label = '{}_{}'.format(project_id, subject_id)
-            sess_label = '{}_{}_{}'.format(project_id, subject_id, visit_id)
-        elif frequency == 'per_subject':
-            subj_label = '{}_{}'.format(project_id, subject_id)
-            sess_label = '{}_{}_{}'.format(project_id, subject_id,
-                                           self.SUMMARY_NAME)
-        elif frequency == 'per_visit':
-            subj_label = '{}_{}'.format(project_id, self.SUMMARY_NAME)
-            sess_label = '{}_{}_{}'.format(project_id, self.SUMMARY_NAME,
-                                           visit_id)
-        elif frequency == 'per_dataset':
-            subj_label = '{}_{}'.format(project_id, self.SUMMARY_NAME)
-            sess_label = '{}_{}_{}'.format(project_id, self.SUMMARY_NAME,
-                                           self.SUMMARY_NAME)
-        else:
-            assert False
-        return (subj_label, sess_label)
 
     def _cache_path(self, fileset, name=None, dataset=None):
         if dataset is None:
             dataset = fileset.dataset
-        subj_dir, sess_dir = self._get_item_labels(fileset, dataset=dataset)
+        subj_dir = dataset.subject_label(fileset.subject_id)
+        sess_dir = dataset.session_label(fileset.subject_id, fileset.visit_id)
         cache_dir = op.join(self.cache_dir, dataset.name, subj_dir, sess_dir)
         makedirs(cache_dir, exist_ok=True)
-        if name is None:
-            name = '{}-{}'.format(fileset.id,
-                                  special_char_re.sub('_', fileset.name))
-        return op.join(cache_dir, name)
+        if fileset.derived:
+            name = fileset.name if name is None else name
+            cache_path = op.join(cache_dir, '__resources__', name)
+        else:
+            if name is None:
+                name = '{}-{}'.format(fileset.id,
+                                      special_char_re.sub('_', fileset.name))
+            cache_path = op.join(cache_dir, name)
+        return cache_path
 
     def _check_repository(self, item):
         if item.dataset.repository is not self:
             raise ArcanaWrongRepositoryError(
                 "{} is from {} instead of {}".format(
                     item, item.dataset.repository, self))
+
+    @classmethod
+    def _field_name(cls, field):
+        if field.derived:
+            name = field.from_analysis + '-' + field.name
+        else:
+            name = field.name
+        return name

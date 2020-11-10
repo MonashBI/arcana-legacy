@@ -25,28 +25,36 @@ ds = DerivativeSalience
 ps = ParamSalience
 
 
-class MyAnalysis(MyBaseAnalysis):
+class MyAnalysisClass(MyBaseAnalysisClass):
+
+    name = 'myanalysis'
 
     @classmethod
-    def construct_menu(cls):
-        menu = super().construct_menu()
-        menu.add_file_input('primary', fmt.STD_IMAGE_FORMATS,
-                            "The primary image to analyse")
-        menu.add_file('new_deriv', fmt.nifti_gz,
-                      "The multiplication of primary with 'a_param'",
-                      salience=ds.PUBLICATION)
-        menu.add_field('new_metric', typing.Sequence(float),
+    @menu_constructor
+    def construct_menu(cls, menu):
+        MyBaseAnalysisClass.construct_menu(menu)
+        menu.set_filegroup_input('primary', fmt.STD_IMAGE_FORMATS,
+                                 "The primary image to analyse")
+        menu.set_filegroup('new_deriv', fmt.nifti_gz,
+                           "The multiplication of primary with 'a_param'",
+                           salience=ds.PUBLICATION)
+        menu.set_filegroup('new_deriv2', fmt.png,
+                           "The multiplication of primary with 'a_param'",
+                           salience=ds.PUBLICATION)
+        menu.set_filegroup('new_deriv3', fmt.mrtrix_track_format,
+                           "The multiplication of primary with 'a_param'",
+                           salience=ds.PUBLICATION)
+        menu.set_field('new_metric', typing.Sequence(float),
                        salience=ds.QA)
-        menu.add_param('multiplier', "The multiplication factor",
+        menu.set_param('multiplier', "The multiplication factor",
                        default=2.0, salience=ps.ARBITRARY)
-        menu.add_param('do_subtract', "subtract the subtractor",
-                       default=False, salience=ps.CONTEXT_DEPENDENT)
-        menu.add_param('subtractor', default=10.0,
+        menu.set_switch('do_subtract', desc="subtract the subtractor",
+                        default=False, salience=ps.CONTEXT_DEPENDENT)
+        menu.set_param('subtractor', default=10.0,
                        desc="", salience=ps.ARBITRARY)
-        return menu
 
     @pipeline_constructor('new_deriv', 'new_metric')
-    def new_derivatives(self, pipeline):
+    def a_pipeline(self, pipeline):
         """
         Generates new_deriv and new_metric from the primary image
         """
@@ -56,11 +64,9 @@ class MyAnalysis(MyBaseAnalysis):
             inputs={
                 'in_file': self.menu['primary'],
                 'operand': self.param('multiplier'),
-                'op': 'multiply'},
-            outputs={
-                'new_deriv': 'out_file'})
+                'op': 'multiply'})
 
-        if self.param('do_subtract'):
+        if self.switch('do_subtract'):
             upstream = pipeline.add(
                 self.tool('mrcalc'),
                 inputs={
@@ -69,10 +75,29 @@ class MyAnalysis(MyBaseAnalysis):
                     'op': 'subtract'},
                 name='second_mrcalc')
 
-        pipeline.add(
+        mrmath = pipeline.add(
             self.tool('mrmath'),
             inputs={
                 'in_file': upstream.out_file,
-                'op': 'mean'},
-            outputs={
-                'new_metric': 'out'})
+                'op': 'mean'})
+
+        pipeline.set_outputs({
+            'new_metric': (mrmath, 'out'),
+            'new_deriv': (upstream, 'out_file')})
+
+    another_pipeline = from_base(
+        'new_deriv2', method=MyBaseAnalysis.a_base_pipeline)
+
+    yet_another_pipeline = from_base(
+        'new_deriv3', method=MyBaseAnalysis.another_base_pipeline,
+        maps={'base_input': 'primary'})
+
+
+if __name__ == '__main__':
+
+    import subprocess as sp
+
+    sp.call("arcana myanalysis ./path/to/dataset new_metric --input primary '.*t2.* --parameter subtractor 100.0", shell=True)
+    sp.call("arcana myanalysis ./path/to/bids-dataset new_metric --parameter subtractor 100.0", shell=True)
+    sp.call("arcana myanalysis MYPROJECTID new_metric --input primary '.*t2.* --parameter subtractor 100.0 --repository xnat http://mbi-xnat.erc.monash.edu.au --execution massive myuser myproject", shell=True)
+    sp.call("arcana myanalysis openfmri new_metric --parameter subtractor 100.0 --repository datalad --execution aws myaccount", shell=True)

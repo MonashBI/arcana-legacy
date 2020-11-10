@@ -6,14 +6,13 @@ import os.path as op
 import types
 from copy import copy
 from logging import getLogger
-from unittest.mock import Mock, MagicMock, PropertyMock
+from unittest.mock import Mock, MagicMock
 from nipype.interfaces.utility import IdentityInterface
+from nipype.pipeline import engine as pe
 from arcana.pipeline import Pipeline
 from arcana.data import (
     BaseData, BaseInputMixin, BaseInputSpecMixin, FilesetFilter, FieldFilter,
     BaseFileset, Fileset, Field)
-from nipype.pipeline import engine as pe
-from .parameter import Parameter, SwitchSpec
 from arcana.repository.interfaces import RepositorySource
 from arcana.repository import Dataset, Tree
 from arcana.processor import SingleProc
@@ -25,6 +24,7 @@ from arcana.exceptions import (
     ArcanaMissingDataException, ArcanaNameError,
     ArcanaOutputNotProducedException, ArcanaInputMissingMatchError,
     ArcanaInputError)
+from .parameter import Parameter, SwitchSpec
 
 logger = getLogger('arcana')
 
