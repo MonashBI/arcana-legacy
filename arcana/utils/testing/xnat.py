@@ -79,7 +79,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
             subject = self.SUBJECT
         if visit is None:
             visit = self.VISIT
-        label = '_'.join((project, subject, visit))
+        label = '_'.join((subject, visit))
         if from_analysis is not None:
             label += '_' + from_analysis
         return label
@@ -93,7 +93,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         if subject is None:
             subject = self.SUBJECT
         return op.join(
-            base_dir, project, '{}_{}'.format(project, subject),
+            base_dir, project, subject,
             self.session_label(project=project, subject=subject,
                                visit=visit, from_analysis=from_analysis))
 
@@ -105,7 +105,7 @@ class TestOnXnatMixin(CreateXnatProjectMixin):
         with self._connect() as login:
             xproject = login.projects[self.project]
             xsubject = login.classes.SubjectData(
-                label='{}_{}'.format(self.project, self.SUBJECT),
+                label=self.SUBJECT,
                 parent=xproject)
             xsession = login.classes.MrSessionData(
                 label=self.session_label(),
@@ -169,12 +169,12 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
                     # Need to forcibly change the repository to be XNAT
                     fileset = copy(fileset)
                     fileset.format = fileset.detect_format(self.REF_FORMATS)
-                    fileset._dataset = temp_dataset
+                    fileset._dataset = temp_dataset  # noqa pylint: disable=protected-access
                     fileset.put()
                 for field in node.fields:
                     # Need to forcibly change the repository to be XNAT
                     field = copy(field)
-                    field._dataset = temp_dataset
+                    field._dataset = temp_dataset  # noqa pylint: disable=protected-access
                     field.put()
                 for record in node.records:
                     temp_dataset.put_record(record)
@@ -205,7 +205,7 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
 
     @property
     def base_name(self):
-        return self.BASE_CLASS._get_name()
+        return self.BASE_CLASS._get_name()  # noqa pylint: disable=protected-access
 
     def _full_subject_id(self, subject):
         return self.project + '_' + subject
@@ -216,27 +216,8 @@ class TestMultiSubjectOnXnatMixin(CreateXnatProjectMixin):
             subject = self.SUBJECT
         if visit is None and frequency in ('per_session', 'per_visit'):
             visit = self.VISIT
-        if frequency == 'per_session':
-            assert subject is not None
-            assert visit is not None
-            parts = [self.project, subject, visit]
-        elif frequency == 'per_subject':
-            assert subject is not None
-            assert visit is None
-            parts = [self.project, subject, XnatRepo.SUMMARY_NAME]
-        elif frequency == 'per_visit':
-            assert visit is not None
-            assert subject is None
-            parts = [self.project, XnatRepo.SUMMARY_NAME, visit]
-        elif frequency == 'per_dataset':
-            assert subject is None
-            assert visit is None
-            parts = [self.project, XnatRepo.SUMMARY_NAME,
-                     XnatRepo.SUMMARY_NAME]
-        else:
-            assert False
-        session_id = '_'.join(parts)
-        session_path = op.join(self.output_cache_dir, session_id)
+        session_path = op.join(self.output_cache_dir, '{}_{}'.format(subject,
+                                                                     visit))
         if not op.exists(session_path):
             raise ArcanaError(
                 "Session path '{}' does not exist".format(session_path))

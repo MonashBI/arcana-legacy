@@ -3,7 +3,6 @@ import os.path as op
 import tempfile
 import unittest
 import sys
-from collections import OrderedDict
 from unittest import TestCase
 import xnat
 from arcana.utils.testing import BaseTestCase
@@ -12,17 +11,18 @@ from arcana.data.file_format import text_format
 from arcana.repository import XnatRepo
 from arcana.processor import SingleProc
 from arcana.utils.testing.xnat import SKIP_ARGS, SERVER, TestOnXnatMixin
+from arcana.exceptions import ArcanaError
 
 
 # Import TestExistingPrereqs analysis to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..'))
-import test_data  # noqa pylint: disable=import-error
-from test_data import dicom_format  # noqa pylint: disable=import-error
+import test_data  # noqa pylint: disable=import-error disable=wrong-import-position
+from test_data import dicom_format  # noqa pylint: disable=import-error disable=wrong-import-position
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'processor'))
-import test_to_process  # noqa pylint: disable=import-error
+import test_to_process  # noqa pylint: disable=import-error disable=wrong-import-position
 sys.path.pop(0)
 
 
@@ -44,14 +44,14 @@ class TestConnectDisconnect(TestCase):
         self._test_closed(repository)
 
     def _test_open(self, repository):
-        repository._login.classes  # check connection
+        self.assertTrue(repository.login.classes)  # check connection
 
     def _test_closed(self, repository):
         self.assertRaises(
-            AttributeError,
+            ArcanaError,
             getattr,
-            repository._login,
-            'classes')
+            repository,
+            'login')
 
 
 class TestProvInputChangeOnXnat(TestOnXnatMixin,
@@ -81,7 +81,7 @@ class TestDicomTagMatchAndIDOnXnat(TestOnXnatMixin,
         # Set up DICOM headers
         with xnat.connect(SERVER) as login:
             xsess = login.projects[self.project].experiments[
-                '_'.join((self.project, self.SUBJECT, self.VISIT))]
+                '_'.join((self.SUBJECT, self.VISIT))]
             login.put('/data/experiments/{}?pullDataFromHeaders=true'
                       .format(xsess.id))
 
@@ -141,16 +141,11 @@ class TestFilesetCacheOnPathAccess(TestOnXnatMixin, BaseTestCase):
         # Get a fileset
         fileset = list(list(list(tree.subjects)[0].sessions)[0].filesets)[0]
         fileset.format = text_format
-        self.assertEqual(fileset._path, None)
-        target_path = op.join(
-            tmp_dir, self.project,
-            '{}_{}'.format(self.project, self.SUBJECT),
-            '{}_{}_{}'.format(self.project, self.SUBJECT, self.VISIT),
-            '{}-{}'.format(fileset.id, fileset.basename),
-            fileset.fname)
+        # Accessing the path attribute directly, shouldn't trigger the download
+        self.assertIsNone(fileset._path)  # noqa pylint: disable=protected-access
         # This should implicitly download the fileset
-        self.assertEqual(fileset.path, target_path)
-        with open(target_path) as f:
+        self.assertIsNotNone(fileset.path)
+        with open(fileset.path) as f:
             self.assertEqual(f.read(),
                              self.INPUT_FILESETS[fileset.basename])
 

@@ -1,32 +1,30 @@
-from __future__ import absolute_import
-from future.utils import with_metaclass
 import os.path as op
 import tempfile
 import unittest
+import sys
 from arcana.utils.testing import BaseMultiSubjectTestCase
 from arcana.repository.xnat import XnatRepo
 from arcana.data import (
     FilesetFilter, InputFilesetSpec)
 from arcana.analysis import Analysis, AnalysisMetaClass
 from arcana.data.file_format import text_format
-from arcana.repository.tree import Tree, Subject, Session, Visit
+from arcana.repository.tree import Tree
 from arcana.data import Fileset
-import sys
 from arcana.utils.testing.xnat import (
     TestMultiSubjectOnXnatMixin, SKIP_ARGS, SERVER)
 
 # Import TestExistingPrereqs analysis to test it on XNAT
 sys.path.insert(0, op.join(op.dirname(__file__), '..', '..', 'analysis'))
-import test_analysis  # noqa pylint: disable=import-error
+import test_analysis  # noqa pylint: disable=import-error disable=wrong-import-position
 sys.path.pop(0)
 
 # Import test_local to run TestProjectInfo on XNAT using TestOnXnat mixin
 sys.path.insert(0, op.join(op.dirname(__file__), '..'))
-import test_directory  # noqa pylint: disable=import-error
+import test_directory  # noqa pylint: disable=import-error disable=wrong-import-position
 sys.path.pop(0)
 
 
-class TestAnalysis(with_metaclass(AnalysisMetaClass, Analysis)):
+class TestAnalysis(Analysis, metaclass=AnalysisMetaClass):
 
     add_data_specs = [
         InputFilesetSpec('fileset1', text_format),
@@ -57,7 +55,7 @@ class TestProjectInfo(TestMultiSubjectOnXnatMixin,
             for fileset in node.filesets:
                 fileset.format = text_format
                 # Clear id and format name from regenerated tree
-                fileset._id = None
+                fileset._id = None  # pylint: disable=protected-access
 #                 fileset.get()
         ref_tree = self.get_tree(self.dataset)  # , sync_with_repo=True)
         self.assertEqual(

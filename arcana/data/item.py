@@ -1,7 +1,6 @@
-from past.builtins import basestring
 import os
-from itertools import chain
 import os.path as op
+from itertools import chain
 import hashlib
 from arcana.utils import split_extension, parse_value
 from arcana.exceptions import (
@@ -277,9 +276,9 @@ class Fileset(BaseItemMixin, BaseFileset):
                 ^ hash(self._quality))
 
     def __lt__(self, other):
-        if isinstance(self.id, int) and isinstance(other.id, basestring):
+        if isinstance(self.id, int) and isinstance(other.id, str):
             return True
-        elif isinstance(self.id, basestring) and isinstance(other.id, int):
+        elif isinstance(self.id, str) and isinstance(other.id, int):
             return False
         else:
             if self.id == other.id:
@@ -469,6 +468,10 @@ class Fileset(BaseItemMixin, BaseFileset):
         else:
             name = self.format.name
         return name
+
+    @property
+    def resource_name(self):
+        return self._resource_name
 
     @property
     def checksums(self):
