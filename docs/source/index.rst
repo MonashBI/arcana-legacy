@@ -26,13 +26,10 @@ way that can be reused and extended across wide range of studies and computing
 environments. Given a large enough pool of contributors, such code-bases should
 mature and become valuable repositories for the arcana of the scientific field.
 
-Central to Arcana's architecture is the implementation of analyses within
-subclasses of :class:`arcana.analysis.Analysis`. Arcana interacts closely with a
-repository, storing intermediate outputs, along with the parameters used to
-derive them, for reuse by subsequent analyses. Repositories can either be XNAT
-repositories or (http://xnat.org) local directories organised by subject and
-visit, and a BIDS module (http://bids.neuroimaging.io/) is planned as future
-work.
+Arcana interacts closely with a data repository, storing intermediate outputs,
+along with the parameters used to derive them, for reuse by subsequent analyses.
+Repositories can either be XNAT repositories or (http://xnat.org) BIDS datasets
+(http://bids.neuroimaging.io/) or data in plain directories.
 
 Behind the scenes, analysis workflows are constructed and executed using
 `NiPype <http://nipype.readthedocs.io>`_, and can either be run locally or
